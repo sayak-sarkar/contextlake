@@ -1,0 +1,32 @@
+# Configuration files with sensitive data
+.gitlab_sync.ini
+
+# Cache files
+/tmp/*.txt
+/tmp/*.json
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# IDE
+# .vscode/
+.idea/
