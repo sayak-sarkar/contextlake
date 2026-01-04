@@ -20,23 +20,73 @@ Commands:
 """
 
 import argparse
+import configparser
 import json
 import os
+import random
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
-# Default Configuration
-DEFAULT_WORK_DIR = '/home/user/Work'
-DEFAULT_GITLAB_GROUP = 'your-gitlab-group'
-CACHE_FILE = '/tmp/gitlab_projects.txt'
-CACHE_JSON = '/tmp/gitlab_projects.json'
+# Configuration file paths
+CONFIG_FILE = os.path.expanduser('~/.gitlab_sync.ini')
+LOCAL_CONFIG_FILE = '.gitlab_sync.ini'
 
-# Global config (set from command line args)
-WORK_DIR = DEFAULT_WORK_DIR
-GITLAB_GROUP = DEFAULT_GITLAB_GROUP
+# Default Configuration
+DEFAULT_CONFIG = {
+    'work_dir': os.path.expanduser('~/Work'),
+    'gitlab_group': 'your-gitlab-group',
+    'cache_dir': '/tmp',
+    'cache_file': 'gitlab_projects.txt',
+    'cache_json': 'gitlab_projects.json',
+    'clone_timeout': '300',
+    'fetch_timeout': '60',
+    'branch_timeout': '30',
+    'pull_timeout': '60',
+    'max_workers': '8',
+    'clean_corrupted': 'true',
+    'max_retries': '3',
+    'backoff_initial': '1',
+    'backoff_max': '30',
+    'adaptive_workers': 'true',
+    'min_workers': '2',
+    'error_threshold': '0.5'
+}
+
+
+def load_config():
+    """Load configuration from config files with precedence: local > global > defaults."""
+    config = DEFAULT_CONFIG.copy()
+    parser = configparser.ConfigParser()
+    
+    # Try local config first
+    if os.path.exists(LOCAL_CONFIG_FILE):
+        parser.read(LOCAL_CONFIG_FILE)
+        if 'gitlab_sync' in parser:
+            config.update(parser['gitlab_sync'])
+    
+    # Then try global config
+    elif os.path.exists(CONFIG_FILE):
+        parser.read(CONFIG_FILE)
+        if 'gitlab_sync' in parser:
+            config.update(parser['gitlab_sync'])
+    
+    # Expand tilde for work_dir
+    if 'work_dir' in config:
+        config['work_dir'] = os.path.expanduser(config['work_dir'])
+    
+    return config
+
+
+def get_cache_paths(config):
+    """Get cache file paths from config."""
+    cache_dir = config.get('cache_dir', '/tmp')
+    cache_file = config.get('cache_file', 'gitlab_projects.txt')
+    cache_json = config.get('cache_json', 'gitlab_projects.json')
+    return os.path.join(cache_dir, cache_file), os.path.join(cache_dir, cache_json)
 
 
 def log(message):
@@ -45,49 +95,110 @@ def log(message):
     print(f"[{timestamp}] {message}")
 
 
-def fetch_gitlab_projects(gitlab_group=DEFAULT_GITLAB_GROUP):
-    """Fetch all GitLab projects from your GitLab group using glab API with pagination."""
-    log("Fetching all GitLab repositories from your GitLab group...")
+def classify_error(error_msg):
+    """Classify error type for retry strategy."""
+    error_msg = error_msg.lower()
+    if 'eof' in error_msg or 'connection reset' in error_msg or 'broken pipe' in error_msg:
+        return 'network'
+    elif 'timeout' in error_msg or 'timed out' in error_msg:
+        return 'timeout'
+    elif 'lookup' in error_msg or 'dns' in error_msg:
+        return 'dns'
+    elif 'tls' in error_msg or 'ssl' in error_msg or 'handshake' in error_msg:
+        return 'tls'
+    else:
+        return 'other'
+
+
+def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_max=30, **kwargs):
+    """Execute function with exponential backoff retry."""
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            last_error = e
+            if attempt == max_retries:
+                break
+            
+            error_type = classify_error(str(e))
+            backoff = min(backoff_initial * (2 ** attempt) + random.uniform(0, 1), backoff_max)
+            log(f"Retry {attempt + 1}/{max_retries} after {backoff:.1f}s ({error_type} error: {str(e)[:100]})")
+            time.sleep(backoff)
+    
+    raise last_error
+
+
+def fetch_gitlab_projects(gitlab_group, config):
+    """Fetch all GitLab projects from GitLab group using glab API with pagination and retry logic."""
+    log(f"Fetching all GitLab repositories from {gitlab_group}...")
+    
+    cache_file, cache_json = get_cache_paths(config)
+    max_retries = int(config.get('max_retries', '3'))
+    backoff_initial = float(config.get('backoff_initial', '1'))
+    backoff_max = float(config.get('backoff_max', '30'))
     
     all_projects = []
     page = 1
     
-    while True:
+    def _fetch_page(page_num):
         result = subprocess.run(
             ['glab', 'api', 
-             f'groups/{gitlab_group}/projects?include_subgroups=true&per_page=100&page={page}&archived=false'],
+             f'projects?membership=true&per_page=100&page={page_num}&archived=false'],
             capture_output=True, text=True
         )
         
         if result.returncode != 0:
-            log(f"Error on page {page}: {result.stderr}")
-            break
+            raise Exception(f"API error on page {page_num}: {result.stderr}")
         
         try:
             data = json.loads(result.stdout)
         except Exception as e:
-            log(f"Parse error page {page}: {e}")
-            break
+            raise Exception(f"Parse error page {page_num}: {e}")
         
         if not data:
+            return None
+        
+        # Filter projects that belong to the target group
+        group_prefix = f"{gitlab_group}/"
+        filtered_projects = [
+            p for p in data 
+            if p.get('path_with_namespace', '').startswith(group_prefix)
+        ]
+        return filtered_projects, len(data)
+    
+    # Use projects API with membership to get all accessible projects, then filter by group
+    while True:
+        try:
+            result = retry_with_backoff(_fetch_page, page, 
+                                       max_retries=max_retries, 
+                                       backoff_initial=backoff_initial, 
+                                       backoff_max=backoff_max)
+            
+            if result is None:
+                break
+            
+            filtered_projects, total_count = result
+            all_projects.extend(filtered_projects)
+            log(f"Page {page}: {len(filtered_projects)} projects from {total_count} total")
+            
+            if total_count < 100:
+                break
+            
+            page += 1
+            
+        except Exception as e:
+            log(f"Failed to fetch page {page} after retries: {e}")
             break
-        
-        all_projects.extend(data)
-        log(f"Page {page}: {len(data)} projects")
-        
-        if len(data) < 100:
-            break
-        
-        page += 1
     
     log(f"Total projects fetched: {len(all_projects)}")
     
     # Save full JSON
-    with open(CACHE_JSON, 'w') as f:
+    with open(cache_json, 'w') as f:
         json.dump(all_projects, f, indent=2)
     
     # Save list format
-    with open(CACHE_FILE, 'w') as f:
+    with open(cache_file, 'w') as f:
         for p in all_projects:
             path = p.get('path_with_namespace', '')
             ssh = p.get('ssh_url_to_repo', '')
@@ -96,24 +207,26 @@ def fetch_gitlab_projects(gitlab_group=DEFAULT_GITLAB_GROUP):
             archived = p.get('archived', False)
             f.write(f"{path}|{ssh}|{http}|{default_branch}|{archived}\n")
     
-    log(f"Saved {len(all_projects)} projects to {CACHE_FILE}")
+    log(f"Saved {len(all_projects)} projects to {cache_file}")
     return all_projects
 
 
-def load_gitlab_projects():
+def load_gitlab_projects(config, gitlab_group):
     """Load GitLab projects from cache file."""
-    if not os.path.exists(CACHE_FILE):
-        log(f"Cache file not found: {CACHE_FILE}")
+    cache_file, _ = get_cache_paths(config)
+    
+    if not os.path.exists(cache_file):
+        log(f"Cache file not found: {cache_file}")
         log("Run 'fetch' command first to populate cache")
         return {}
     
     projects = {}
-    with open(CACHE_FILE, 'r') as f:
+    with open(cache_file, 'r') as f:
         for line in f:
             parts = line.strip().split('|')
             if len(parts) >= 5:
                 path = parts[0]
-                local_path = path.replace(f'{GITLAB_GROUP}/', '')
+                local_path = path.replace(f'{gitlab_group}/', '')
                 projects[local_path] = {
                     'path': path,
                     'ssh': parts[1],
@@ -125,7 +238,7 @@ def load_gitlab_projects():
     return projects
 
 
-def get_local_repos(work_dir=DEFAULT_WORK_DIR):
+def get_local_repos(work_dir):
     """Get all local repositories."""
     result = subprocess.run(['find', '.', '-name', '.git', '-type', 'd'],
                            capture_output=True, text=True, cwd=work_dir)
@@ -136,37 +249,104 @@ def get_local_repos(work_dir=DEFAULT_WORK_DIR):
     return local_repos
 
 
-def clone_repository(project, work_dir=DEFAULT_WORK_DIR):
-    """Clone a single repository."""
+def is_valid_git_repo(directory):
+    """Check if a directory is a valid git repository."""
+    git_dir = os.path.join(directory, '.git')
+    return os.path.isdir(git_dir)
+
+
+def clone_repository(project, work_dir, config):
+    """Clone a single repository using glab CLI for authentication with retry logic."""
     local_path = project['local_path']
     full_local = os.path.join(work_dir, local_path)
     parent = os.path.dirname(full_local)
+    clone_timeout = int(config.get('clone_timeout', '300'))
+    clean_corrupted = config.get('clean_corrupted', 'true').lower() == 'true'
+    max_retries = int(config.get('max_retries', '3'))
+    backoff_initial = float(config.get('backoff_initial', '1'))
+    backoff_max = float(config.get('backoff_max', '30'))
     
-    try:
+    def _do_clone():
         os.makedirs(parent, exist_ok=True)
-        res = subprocess.run(['git', 'clone', '--quiet', project['http'], full_local],
-                            capture_output=True, text=True, timeout=300)
+        
+        # Check if directory already exists
+        if os.path.exists(full_local):
+            if is_valid_git_repo(full_local):
+                # Valid git repo, skip cloning
+                return ('skip', local_path, 'Already cloned')
+            elif clean_corrupted:
+                # Corrupted/incomplete directory, remove it
+                log(f"Removing corrupted directory: {local_path}")
+                import shutil
+                shutil.rmtree(full_local)
+            else:
+                # Directory exists but not a git repo and cleaning disabled
+                return ('fail', local_path, 'Directory exists but is not a git repo (use --clean-corrupted to remove)')
+        
+        # Use glab CLI to clone with proper authentication
+        res = subprocess.run(['glab', 'repo', 'clone', project['http'], full_local],
+                            capture_output=True, text=True, timeout=clone_timeout)
         if res.returncode == 0:
             return ('ok', local_path, '')
         else:
-            return ('fail', local_path, res.stderr.strip()[:200])
+            error_msg = res.stderr.strip()
+            raise Exception(f"Clone failed: {error_msg}")
+    
+    try:
+        return retry_with_backoff(_do_clone, max_retries=max_retries, 
+                                  backoff_initial=backoff_initial, backoff_max=backoff_max)
     except subprocess.TimeoutExpired:
-        return ('timeout', local_path, 'Clone timed out (300s)')
+        return ('timeout', local_path, f'Clone timed out ({clone_timeout}s)')
     except Exception as e:
         return ('error', local_path, str(e)[:200])
 
 
-def clone_missing_repos(work_dir=DEFAULT_WORK_DIR):
-    """Clone missing repositories."""
+class AdaptiveWorkerPool:
+    """Adaptive worker pool that adjusts parallelism based on error rate."""
+    
+    def __init__(self, initial_workers, min_workers, max_workers, error_threshold=0.5):
+        self.current_workers = initial_workers
+        self.min_workers = min_workers
+        self.max_workers = max_workers
+        self.error_threshold = error_threshold
+        self.recent_results = []
+        self.window_size = 10
+    
+    def record_result(self, success):
+        """Record a result and update worker count if needed."""
+        self.recent_results.append(success)
+        if len(self.recent_results) > self.window_size:
+            self.recent_results.pop(0)
+        
+        if len(self.recent_results) >= self.window_size:
+            error_rate = 1 - (sum(self.recent_results) / len(self.recent_results))
+            if error_rate > self.error_threshold and self.current_workers > self.min_workers:
+                self.current_workers = max(self.min_workers, self.current_workers - 1)
+                log(f"Reducing workers to {self.current_workers} (error rate: {error_rate:.2%})")
+            elif error_rate < self.error_threshold / 2 and self.current_workers < self.max_workers:
+                self.current_workers = min(self.max_workers, self.current_workers + 1)
+                log(f"Increasing workers to {self.current_workers} (error rate: {error_rate:.2%})")
+    
+    def get_worker_count(self):
+        """Get current worker count."""
+        return self.current_workers
+
+
+def clone_missing_repos(work_dir, config, gitlab_group):
+    """Clone missing repositories with adaptive parallelism."""
     log("Cloning missing repositories...")
     
-    projects = load_gitlab_projects()
+    projects = load_gitlab_projects(config, gitlab_group)
     if not projects:
         return
     
     local_repos = get_local_repos(work_dir)
+    max_workers = int(config.get('max_workers', '8'))
+    adaptive_workers = config.get('adaptive_workers', 'true').lower() == 'true'
+    min_workers = int(config.get('min_workers', '2'))
+    error_threshold = float(config.get('error_threshold', '0.5'))
     
-    to_clone = [{'local_path': path, 'http': p['http']} 
+    to_clone = [{'local_path': path, 'http': p['http'], 'ssh': p['ssh']} 
                  for path, p in projects.items() 
                  if not p['archived'] and path not in local_repos]
     
@@ -181,29 +361,66 @@ def clone_missing_repos(work_dir=DEFAULT_WORK_DIR):
     
     successes = []
     failures = []
+    skipped = []
     
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        futures = {ex.submit(clone_repository, p, work_dir): p for p in to_clone}
-        for i, fut in enumerate(as_completed(futures), 1):
-            status, path, err = fut.result()
-            if status == 'ok':
-                successes.append(path)
-                log(f"[{i}/{len(to_clone)}] ✓ {path}")
-            else:
-                failures.append((path, err))
-                log(f"[{i}/{len(to_clone)}] ✗ {path}: {err[:80]}")
+    if adaptive_workers and len(to_clone) > 5:
+        # Use adaptive worker pool for larger batches
+        pool = AdaptiveWorkerPool(min(max_workers, len(to_clone)), min_workers, max_workers, error_threshold)
+        log(f"Using adaptive worker pool (initial: {pool.get_worker_count()}, range: {min_workers}-{max_workers})")
+        
+        # Process in batches with adaptive workers
+        idx = 0
+        while idx < len(to_clone):
+            current_workers = pool.get_worker_count()
+            batch_size = min(current_workers, len(to_clone) - idx)
+            batch = to_clone[idx:idx + batch_size]
+            
+            with ThreadPoolExecutor(max_workers=current_workers) as ex:
+                futures = {ex.submit(clone_repository, p, work_dir, config): p for p in batch}
+                for fut in as_completed(futures):
+                    status, path, err = fut.result()
+                    pool.record_result(status == 'ok' or status == 'skip')
+                    
+                    idx += 1
+                    if status == 'ok':
+                        successes.append(path)
+                        log(f"[{idx}/{len(to_clone)}] ✓ {path}")
+                    elif status == 'skip':
+                        skipped.append(path)
+                        log(f"[{idx}/{len(to_clone)}] ⊘ {path}: {err}")
+                    else:
+                        failures.append((path, err))
+                        log(f"[{idx}/{len(to_clone)}] ✗ {path}: {err[:80]}")
+    else:
+        # Use static worker pool for small batches or when adaptive is disabled
+        log(f"Using static worker pool ({max_workers} workers)")
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = {ex.submit(clone_repository, p, work_dir, config): p for p in to_clone}
+            for i, fut in enumerate(as_completed(futures), 1):
+                status, path, err = fut.result()
+                if status == 'ok':
+                    successes.append(path)
+                    log(f"[{i}/{len(to_clone)}] ✓ {path}")
+                elif status == 'skip':
+                    skipped.append(path)
+                    log(f"[{i}/{len(to_clone)}] ⊘ {path}: {err}")
+                else:
+                    failures.append((path, err))
+                    log(f"[{i}/{len(to_clone)}] ✗ {path}: {err[:80]}")
     
-    log(f"Clone complete: {len(successes)} successful, {len(failures)} failed")
+    log(f"Clone complete: {len(successes)} successful, {len(skipped)} skipped, {len(failures)} failed")
 
 
-def update_repository(local_path, work_dir=DEFAULT_WORK_DIR):
+def update_repository(local_path, work_dir, config):
     """Update a single repository."""
     full_path = os.path.join(work_dir, local_path)
+    fetch_timeout = int(config.get('fetch_timeout', '60'))
+    pull_timeout = int(config.get('pull_timeout', '60'))
     
     try:
         # Fetch all branches
         subprocess.run(['git', 'fetch', '--all', '--quiet'],
-                      capture_output=True, cwd=full_path, timeout=60)
+                      capture_output=True, cwd=full_path, timeout=fetch_timeout)
         
         # Get current branch
         curr_res = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
@@ -215,7 +432,7 @@ def update_repository(local_path, work_dir=DEFAULT_WORK_DIR):
         
         # Pull latest changes
         res = subprocess.run(['git', 'pull', '--quiet', 'origin', current],
-                           capture_output=True, text=True, cwd=full_path, timeout=60)
+                           capture_output=True, text=True, cwd=full_path, timeout=pull_timeout)
         
         if res.returncode == 0:
             return ('ok', local_path, f'Updated {current}')
@@ -228,19 +445,20 @@ def update_repository(local_path, work_dir=DEFAULT_WORK_DIR):
         return ('error', local_path, str(e)[:100])
 
 
-def update_repositories(work_dir=DEFAULT_WORK_DIR):
+def update_repositories(work_dir, config):
     """Update all local repositories."""
     log("Updating all repositories...")
     
     local_repos = get_local_repos(work_dir)
+    max_workers = int(config.get('max_workers', '8'))
     log(f"Found {len(local_repos)} local repositories")
     
     updated = []
     no_change = []
     errors = []
     
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        futures = {ex.submit(update_repository, path, work_dir): path for path in local_repos}
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(update_repository, path, work_dir, config): path for path in local_repos}
         for i, fut in enumerate(as_completed(futures), 1):
             status, path, msg = fut.result()
             if status == 'ok':
@@ -258,7 +476,7 @@ def update_repositories(work_dir=DEFAULT_WORK_DIR):
     log(f"Update complete: {len(updated)} updated, {len(no_change)} up to date, {len(errors)} errors")
 
 
-def switch_repository_branch(local_path, projects, work_dir=DEFAULT_WORK_DIR):
+def switch_repository_branch(local_path, projects, work_dir, config):
     """Switch a single repository to its most active branch."""
     if local_path not in projects:
         return ('skip', local_path, 'Not in GitLab list')
@@ -268,18 +486,21 @@ def switch_repository_branch(local_path, projects, work_dir=DEFAULT_WORK_DIR):
         return ('skip', local_path, 'Archived')
     
     full_path = os.path.join(work_dir, local_path)
+    fetch_timeout = int(config.get('fetch_timeout', '60'))
+    branch_timeout = int(config.get('branch_timeout', '30'))
+    pull_timeout = int(config.get('pull_timeout', '60'))
     
     try:
         # Fetch all branches
         subprocess.run(['git', 'fetch', '--all', '--quiet'],
-                      capture_output=True, cwd=full_path, timeout=60)
+                      capture_output=True, cwd=full_path, timeout=fetch_timeout)
         
         # Get branch info with commit counts
         result = subprocess.run(
             ['git', 'for-each-ref', '--sort=-committerdate',
              '--format=%(refname:short)|%(committerdate:iso8601)|%(objectname)',
              'refs/remotes/origin/'],
-            capture_output=True, text=True, cwd=full_path, timeout=30
+            capture_output=True, text=True, cwd=full_path, timeout=branch_timeout
         )
         
         branch_info = []
@@ -290,7 +511,7 @@ def switch_repository_branch(local_path, projects, work_dir=DEFAULT_WORK_DIR):
                     branch = parts[0].replace('origin/', '')
                     count_res = subprocess.run(
                         ['git', 'rev-list', '--count', f'origin/{branch}'],
-                        capture_output=True, text=True, cwd=full_path, timeout=30
+                        capture_output=True, text=True, cwd=full_path, timeout=branch_timeout
                     )
                     count = int(count_res.stdout.strip()) if count_res.stdout.strip().isdigit() else 0
                     branch_info.append({
@@ -316,9 +537,9 @@ def switch_repository_branch(local_path, projects, work_dir=DEFAULT_WORK_DIR):
         
         # Switch to most active branch
         subprocess.run(['git', 'checkout', '--quiet', most_active],
-                      capture_output=True, cwd=full_path, timeout=30)
+                      capture_output=True, cwd=full_path, timeout=branch_timeout)
         subprocess.run(['git', 'pull', '--quiet', 'origin', most_active],
-                      capture_output=True, cwd=full_path, timeout=60)
+                      capture_output=True, cwd=full_path, timeout=pull_timeout)
         
         return ('switched', local_path, f'{current} -> {most_active}')
         
@@ -328,15 +549,16 @@ def switch_repository_branch(local_path, projects, work_dir=DEFAULT_WORK_DIR):
         return ('error', local_path, str(e)[:100])
 
 
-def switch_active_branches(work_dir=DEFAULT_WORK_DIR):
+def switch_active_branches(work_dir, config, gitlab_group):
     """Switch all repositories to their most active branches."""
     log("Switching repositories to most active branches...")
     
-    projects = load_gitlab_projects()
+    projects = load_gitlab_projects(config, gitlab_group)
     if not projects:
         return
     
     local_repos = get_local_repos(work_dir)
+    max_workers = int(config.get('max_workers', '8'))
     log(f"Processing {len(local_repos)} local repositories")
     
     switched = []
@@ -344,8 +566,8 @@ def switch_active_branches(work_dir=DEFAULT_WORK_DIR):
     errors = []
     skipped = []
     
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        futures = {ex.submit(switch_repository_branch, path, projects, work_dir): path for path in local_repos}
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(switch_repository_branch, path, projects, work_dir, config): path for path in local_repos}
         for i, fut in enumerate(as_completed(futures), 1):
             status, path, msg = fut.result()
             if status == 'switched':
@@ -362,11 +584,11 @@ def switch_active_branches(work_dir=DEFAULT_WORK_DIR):
     log(f"Branch switching complete: {len(switched)} switched, {len(already_ok)} already correct, {len(skipped)} skipped, {len(errors)} errors")
 
 
-def verify_structure(work_dir=DEFAULT_WORK_DIR):
+def verify_structure(work_dir, config, gitlab_group):
     """Verify repository structure matches GitLab."""
     log("Verifying repository structure...")
     
-    projects = load_gitlab_projects()
+    projects = load_gitlab_projects(config, gitlab_group)
     if not projects:
         return
     
@@ -427,11 +649,11 @@ def verify_structure(work_dir=DEFAULT_WORK_DIR):
         log("✓ Directory structure matches GitLab exactly for all accessible repositories")
 
 
-def show_status(work_dir=DEFAULT_WORK_DIR):
+def show_status(work_dir, config, gitlab_group):
     """Show current synchronization status."""
     log("Current synchronization status:")
     
-    projects = load_gitlab_projects()
+    projects = load_gitlab_projects(config, gitlab_group)
     local_repos = get_local_repos(work_dir)
     
     if projects:
@@ -478,39 +700,80 @@ Examples:
     
     parser.add_argument('command', choices=['fetch', 'clone', 'update', 'branches', 'verify', 'sync', 'status'],
                        help='Command to execute')
-    parser.add_argument('--work-dir', default=DEFAULT_WORK_DIR, help=f'Working directory (default: {DEFAULT_WORK_DIR})')
-    parser.add_argument('--group', default=DEFAULT_GITLAB_GROUP, help=f'GitLab group (default: {DEFAULT_GITLAB_GROUP})')
+    parser.add_argument('--work-dir', help='Working directory (overrides config file)')
+    parser.add_argument('--group', help='GitLab group (overrides config file)')
+    parser.add_argument('--config', help='Path to config file (overrides default search paths)')
+    parser.add_argument('--clean-corrupted', action='store_true', dest='clean_corrupted',
+                       help='Automatically remove corrupted/incomplete directories before cloning (default: true)')
+    parser.add_argument('--no-clean-corrupted', action='store_false', dest='clean_corrupted',
+                       help='Do not remove corrupted/incomplete directories (fail instead)')
+    parser.add_argument('--max-retries', type=int, help='Maximum retry attempts for failed operations')
+    parser.add_argument('--backoff-initial', type=float, help='Initial backoff time in seconds')
+    parser.add_argument('--backoff-max', type=float, help='Maximum backoff time in seconds')
+    parser.add_argument('--adaptive-workers', action='store_true', dest='adaptive_workers',
+                       help='Enable adaptive worker pool (default: true)')
+    parser.add_argument('--no-adaptive-workers', action='store_false', dest='adaptive_workers',
+                       help='Disable adaptive worker pool (use static max_workers)')
+    parser.add_argument('--min-workers', type=int, help='Minimum number of workers for adaptive pool')
+    parser.add_argument('--error-threshold', type=float, help='Error rate threshold for adaptive workers (0.0-1.0)')
     
     args = parser.parse_args()
     
-    work_dir = args.work_dir
-    gitlab_group = args.group
+    # Load configuration
+    config = load_config()
+    
+    # Override config with CLI arguments if provided
+    work_dir = args.work_dir or config.get('work_dir', DEFAULT_CONFIG['work_dir'])
+    gitlab_group = args.group or config.get('gitlab_group', DEFAULT_CONFIG['gitlab_group'])
+    
+    # Handle clean_corrupted flag (if not set on CLI, use config value)
+    if hasattr(args, 'clean_corrupted') and args.clean_corrupted is not None:
+        config['clean_corrupted'] = 'true' if args.clean_corrupted else 'false'
+    
+    # Handle retry options
+    if args.max_retries is not None:
+        config['max_retries'] = str(args.max_retries)
+    if args.backoff_initial is not None:
+        config['backoff_initial'] = str(args.backoff_initial)
+    if args.backoff_max is not None:
+        config['backoff_max'] = str(args.backoff_max)
+    
+    # Handle adaptive workers options
+    if hasattr(args, 'adaptive_workers') and args.adaptive_workers is not None:
+        config['adaptive_workers'] = 'true' if args.adaptive_workers else 'false'
+    if args.min_workers is not None:
+        config['min_workers'] = str(args.min_workers)
+    if args.error_threshold is not None:
+        config['error_threshold'] = str(args.error_threshold)
     
     log(f"Working directory: {work_dir}")
     log(f"GitLab group: {gitlab_group}")
+    
+    cache_file, cache_json = get_cache_paths(config)
+    log(f"Cache file: {cache_file}")
     log('')
     
     try:
         if args.command == 'fetch':
-            fetch_gitlab_projects(gitlab_group)
+            fetch_gitlab_projects(gitlab_group, config)
         elif args.command == 'clone':
-            clone_missing_repos(work_dir)
+            clone_missing_repos(work_dir, config, gitlab_group)
         elif args.command == 'update':
-            update_repositories(work_dir)
+            update_repositories(work_dir, config)
         elif args.command == 'branches':
-            switch_active_branches(work_dir)
+            switch_active_branches(work_dir, config, gitlab_group)
         elif args.command == 'verify':
-            verify_structure(work_dir)
+            verify_structure(work_dir, config, gitlab_group)
         elif args.command == 'sync':
             log("Starting full synchronization...")
-            fetch_gitlab_projects(gitlab_group)
-            clone_missing_repos(work_dir)
-            update_repositories(work_dir)
-            switch_active_branches(work_dir)
-            verify_structure(work_dir)
+            fetch_gitlab_projects(gitlab_group, config)
+            clone_missing_repos(work_dir, config, gitlab_group)
+            update_repositories(work_dir, config)
+            switch_active_branches(work_dir, config, gitlab_group)
+            verify_structure(work_dir, config, gitlab_group)
             log("Full synchronization complete!")
         elif args.command == 'status':
-            show_status(work_dir)
+            show_status(work_dir, config, gitlab_group)
     except KeyboardInterrupt:
         log("\nOperation cancelled by user")
         sys.exit(1)
