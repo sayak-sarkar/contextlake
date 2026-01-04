@@ -1,0 +1,73 @@
+# GitLab Workspace Synchronization Configuration
+# This is an example configuration file. Copy this file to .gitlab_sync.ini
+# and customize it with your specific settings.
+# 
+# IMPORTANT: .gitlab_sync.ini should be added to .gitignore to prevent
+# accidentally committing sensitive configuration to version control.
+
+[gitlab_sync]
+# Working directory where repositories will be cloned
+# Supports ~ for home directory expansion
+work_dir = ~/work
+
+# GitLab group to synchronize
+# Replace with your GitLab group name as it appears in GitLab
+gitlab_group = your-gitlab-group
+
+# Cache directory for storing GitLab project information
+# Default: /tmp
+cache_dir = /tmp
+
+# Cache file names (relative to cache_dir)
+cache_file = gitlab_projects.txt
+cache_json = gitlab_projects.json
+
+# Timeout values (in seconds) for various operations
+# Increase these if you have slow network or large repositories
+clone_timeout = 300
+fetch_timeout = 60
+branch_timeout = 30
+pull_timeout = 60
+
+# Maximum number of parallel workers
+# Higher values = faster but more resource intensive
+# Reduce if you experience memory or network issues
+max_workers = 8
+
+# How repositories are cloned:
+#   auto - prefer the `glab` CLI (uses its stored auth), else `git` over HTTPS
+#   glab - always use `glab repo clone`
+#   git  - always use `git clone` over HTTPS
+clone_method = auto
+
+# How the "most active" branch is chosen when switching branches:
+#   commits - branch with the most commits (legacy behaviour)
+#   recency - branch with the most recent commit
+#   hybrid  - weighted blend of commit count and recency (recommended)
+branch_strategy = hybrid
+
+# Automatically remove corrupted/incomplete directories before cloning
+# Set to false if you want to preserve existing directories even if they're not valid git repos
+clean_corrupted = true
+
+# Retry configuration for failed operations
+# max_retries: Maximum number of retry attempts for failed operations
+# backoff_initial: Initial backoff time in seconds (exponential backoff)
+# backoff_max: Maximum backoff time in seconds
+max_retries = 3
+backoff_initial = 1
+backoff_max = 30
+
+# Adaptive parallelism configuration
+# adaptive_workers: Enable dynamic worker pool adjustment based on error rate
+# min_workers: Minimum number of workers (never go below this)
+# error_threshold: Error rate threshold (0.0-1.0) to trigger worker reduction
+adaptive_workers = true
+min_workers = 2
+error_threshold = 0.5
+
+# Branch safety settings
+protect_working_branches = true
+safe_branches = main,master,develop,development
+require_clean_workspace = true
+auto_stash = false
