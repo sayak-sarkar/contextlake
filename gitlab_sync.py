@@ -53,7 +53,11 @@ DEFAULT_CONFIG = {
     'backoff_max': '30',
     'adaptive_workers': 'true',
     'min_workers': '2',
-    'error_threshold': '0.5'
+    'error_threshold': '0.5',
+    'protect_working_branches': 'true',
+    'safe_branches': 'main,master,develop,development',
+    'require_clean_workspace': 'true',
+    'auto_stash': 'false'
 }
 
 
@@ -104,6 +108,80 @@ def log(message):
     """Print message with timestamp."""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"[{timestamp}] {message}")
+
+
+def has_uncommitted_changes(full_path):
+    """Check if repository has uncommitted changes."""
+    try:
+        result = subprocess.run(
+            ['git', 'status', '--porcelain'],
+            capture_output=True, text=True, cwd=full_path
+        )
+        return bool(result.stdout.strip())
+    except Exception:
+        return False
+
+
+def get_current_branch(full_path):
+    """Get the current branch of a repository."""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            capture_output=True, text=True, cwd=full_path
+        )
+        return result.stdout.strip()
+    except Exception:
+        return None
+
+
+def is_safe_branch(branch, config):
+    """Check if branch is considered safe for automatic operations."""
+    if branch is None or branch == 'HEAD':
+        return False
+    safe_branches = config.get('safe_branches', 'main,master,develop,development').split(',')
+    return branch in safe_branches
+
+
+def check_repository_safety(local_path, work_dir, config):
+    """
+    Check repository safety before operations.
+    Returns (safe, warning_message) tuple.
+    """
+    full_path = os.path.join(work_dir, local_path)
+    protect_working_branches = config.get('protect_working_branches', 'true').lower() == 'true'
+    require_clean_workspace = config.get('require_clean_workspace', 'true').lower() == 'true'
+    
+    warnings = []
+    
+    if protect_working_branches:
+        current_branch = get_current_branch(full_path)
+        if current_branch and not is_safe_branch(current_branch, config):
+            warnings.append(f"On working branch: {current_branch}")
+    
+    if require_clean_workspace:
+        if has_uncommitted_changes(full_path):
+            warnings.append("Uncommitted changes detected")
+    
+    return len(warnings) == 0, warnings
+
+
+def stash_changes(full_path, config):
+    """Stash changes in a repository."""
+    auto_stash = config.get('auto_stash', 'false').lower() == 'true'
+    if not auto_stash:
+        return False, "Auto-stash disabled in config"
+    
+    try:
+        result = subprocess.run(
+            ['git', 'stash', 'push', '-m', 'gitlab_sync_auto_stash'],
+            capture_output=True, text=True, cwd=full_path
+        )
+        if result.returncode == 0:
+            return True, "Changes stashed successfully"
+        else:
+            return False, result.stderr.strip()
+    except Exception as e:
+        return False, str(e)[:100]
 
 
 def classify_error(error_msg):
@@ -429,6 +507,20 @@ def update_repository(local_path, work_dir, config):
     pull_timeout = int(config.get('pull_timeout', '60'))
     
     try:
+        # Check repository safety before updating
+        safe, warnings = check_repository_safety(local_path, work_dir, config)
+        if not safe:
+            # Try to stash if there are uncommitted changes
+            has_changes = any('Uncommitted changes' in w for w in warnings)
+            if has_changes:
+                stash_success, stash_msg = stash_changes(full_path, config)
+                if stash_success:
+                    log(f"⚠ {local_path}: {stash_msg}")
+                else:
+                    return ('skip', local_path, f'Skipped (unsafe: {", ".join(warnings)})')
+            else:
+                return ('skip', local_path, f'Skipped (unsafe: {", ".join(warnings)})')
+        
         # Fetch all branches
         subprocess.run(['git', 'fetch', '--all', '--quiet'],
                       capture_output=True, cwd=full_path, timeout=fetch_timeout)
@@ -500,11 +592,27 @@ def switch_repository_branch(local_path, projects, work_dir, config):
     fetch_timeout = int(config.get('fetch_timeout', '60'))
     branch_timeout = int(config.get('branch_timeout', '30'))
     pull_timeout = int(config.get('pull_timeout', '60'))
+    protect_working_branches = config.get('protect_working_branches', 'true').lower() == 'true'
     
     try:
+        # Check repository safety before switching
+        safe, warnings = check_repository_safety(local_path, work_dir, config)
+        if not safe:
+            # For branch switching, always skip if unsafe
+            return ('skip', local_path, f'Skipped (unsafe: {", ".join(warnings)})')
+        
         # Fetch all branches
         subprocess.run(['git', 'fetch', '--all', '--quiet'],
                       capture_output=True, cwd=full_path, timeout=fetch_timeout)
+        
+        # Get current branch
+        curr_res = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                 capture_output=True, text=True, cwd=full_path)
+        current = curr_res.stdout.strip()
+        
+        # Skip branch switching if on a working branch and protection is enabled
+        if protect_working_branches and not is_safe_branch(current, config):
+            return ('skip', local_path, f'Skipped branch switch (on working branch: {current})')
         
         # Get branch info with commit counts
         result = subprocess.run(
@@ -537,11 +645,6 @@ def switch_repository_branch(local_path, projects, work_dir, config):
         # Sort by commit count
         branch_info.sort(key=lambda x: x['count'], reverse=True)
         most_active = branch_info[0]['name']
-        
-        # Get current branch
-        curr_res = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                                 capture_output=True, text=True, cwd=full_path)
-        current = curr_res.stdout.strip()
         
         if current == most_active:
             return ('ok', local_path, f'Already on {most_active}')
@@ -728,6 +831,21 @@ Examples:
     parser.add_argument('--min-workers', type=int, help='Minimum number of workers for adaptive pool')
     parser.add_argument('--error-threshold', type=float, help='Error rate threshold for adaptive workers (0.0-1.0)')
     
+    # Branch safety arguments
+    parser.add_argument('--protect-working-branches', action='store_true', dest='protect_working_branches',
+                       help='Enable branch protection (default: true)')
+    parser.add_argument('--no-protect-working-branches', action='store_false', dest='protect_working_branches',
+                       help='Disable branch protection (allow operations on any branch)')
+    parser.add_argument('--safe-branches', help='Comma-separated list of safe branches (default: main,master,develop,development)')
+    parser.add_argument('--require-clean-workspace', action='store_true', dest='require_clean_workspace',
+                       help='Require clean workspace before operations (default: true)')
+    parser.add_argument('--no-require-clean-workspace', action='store_false', dest='require_clean_workspace',
+                       help='Allow operations with uncommitted changes')
+    parser.add_argument('--auto-stash', action='store_true', dest='auto_stash',
+                       help='Automatically stash changes before operations (default: false)')
+    parser.add_argument('--no-auto-stash', action='store_false', dest='auto_stash',
+                       help='Disable automatic stashing')
+    
     args = parser.parse_args()
     
     # Load configuration
@@ -756,6 +874,16 @@ Examples:
         config['min_workers'] = str(args.min_workers)
     if args.error_threshold is not None:
         config['error_threshold'] = str(args.error_threshold)
+    
+    # Handle branch safety options
+    if hasattr(args, 'protect_working_branches') and args.protect_working_branches is not None:
+        config['protect_working_branches'] = 'true' if args.protect_working_branches else 'false'
+    if args.safe_branches is not None:
+        config['safe_branches'] = args.safe_branches
+    if hasattr(args, 'require_clean_workspace') and args.require_clean_workspace is not None:
+        config['require_clean_workspace'] = 'true' if args.require_clean_workspace else 'false'
+    if hasattr(args, 'auto_stash') and args.auto_stash is not None:
+        config['auto_stash'] = 'true' if args.auto_stash else 'false'
     
     log(f"Working directory: {work_dir}")
     log(f"GitLab group: {gitlab_group}")
