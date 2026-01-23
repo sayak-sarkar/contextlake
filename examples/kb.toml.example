@@ -1,0 +1,50 @@
+# gitlab-sync knowledge-layer config (example).
+#
+# Copy to ~/.gitlab-sync/kb.toml (or pass with --config) and fill in your own
+# values. Everything here is organization-specific — keep your real copy OUT of
+# version control. All values below are PLACEHOLDERS.
+
+[kb]
+store_dir = "~/.gitlab-sync/kb"
+# Languages to parse (a pluggable parser registry backs these).
+languages = ["csharp", "typescript", "python"]
+
+[embeddings]
+# Semantic/NL search tier. Local-first; off by default.
+enabled = false
+provider = "ollama"
+model = "nomic-embed-text"
+
+# --- Knowledge-source connectors (0..N) -------------------------------------
+# Each Atlassian org is its own connector with its own auth session.
+[[sources]]
+type = "atlassian"
+name = "primary"
+mcp = "https://mcp.atlassian.com/v1/mcp/authv2"
+# site = "your-org.atlassian.net"   # used to resolve a cloudId at runtime
+
+[[sources]]
+type = "atlassian"
+name = "secondary"
+mcp = "https://mcp.atlassian.com/v1/mcp/authv2"
+# site = "another-org.atlassian.net"
+
+[[sources]]
+type = "figma"
+name = "design"
+
+# --- Association rules (0..N) -----------------------------------------------
+# Link external knowledge to repos. Rule TYPES are generic; the patterns/maps
+# are yours.
+[[rules]]
+type = "branch_key"
+pattern = '^[A-Z]+-\d+'           # extract an issue key from branch/commit names
+
+[[rules]]
+type = "key_map"
+file = "~/.gitlab-sync/key-map.toml"   # maps issue/space keys -> repo paths
+
+[[rules]]
+type = "link_scrape"
+# scans README/docs for these URL patterns
+patterns = ["https://*.atlassian.net/wiki/", "https://www.figma.com/"]

@@ -1,0 +1,92 @@
+"""Configuration for the knowledge layer (generic, principle G1).
+
+All organization-specific facts — which Atlassian/Figma sites, which key->repo
+maps, which glossary — live in a user TOML file loaded at runtime, never in this
+package. The repo ships only ``examples/kb.toml.example`` with placeholders.
+
+Precedence (later wins): built-in defaults -> ``~/.gitlab-sync/kb.toml`` ->
+``.gitlab-sync.kb.toml`` (cwd) -> an explicit ``--config`` path. ``sources`` and
+``rules`` lists are replaced wholesale by the highest-precedence file that sets
+them (predictable, no surprise merging).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from ..config import expand_path
+
+try:  # Python 3.11+
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
+
+DEFAULT_STORE_DIR = "~/.gitlab-sync/kb"
+GLOBAL_CONFIG = "~/.gitlab-sync/kb.toml"
+LOCAL_CONFIG = ".gitlab-sync.kb.toml"
+DEFAULT_LANGUAGES = ["csharp", "typescript", "python"]
+
+
+class SourceCfg(BaseModel):
+    """A knowledge-source connector (Atlassian, Figma, …). Extra keys allowed so
+    connector-specific options survive without a schema change."""
+
+    model_config = ConfigDict(extra="allow")
+    type: str
+    name: str
+    mcp: str | None = None
+
+
+class RuleCfg(BaseModel):
+    """An association rule (branch_key, key_map, link_scrape, dependency, …)."""
+
+    model_config = ConfigDict(extra="allow")
+    type: str
+    pattern: str | None = None
+    file: str | None = None
+
+
+class EmbeddingsCfg(BaseModel):
+    enabled: bool = False
+    provider: str = "ollama"
+    model: str | None = None
+
+
+class KbConfig(BaseModel):
+    store_dir: str = DEFAULT_STORE_DIR
+    languages: list[str] = Field(default_factory=lambda: list(DEFAULT_LANGUAGES))
+    embeddings: EmbeddingsCfg = Field(default_factory=EmbeddingsCfg)
+    sources: list[SourceCfg] = Field(default_factory=list)
+    rules: list[RuleCfg] = Field(default_factory=list)
+
+    @property
+    def store_path(self) -> Path:
+        return Path(expand_path(self.store_dir))
+
+
+def _read_toml(path: str | None) -> dict:
+    if not path:
+        return {}
+    p = Path(expand_path(path))
+    if not p.exists():
+        return {}
+    with open(p, "rb") as f:
+        return tomllib.load(f)
+
+
+def load_kb_config(config_path: str | None = None) -> KbConfig:
+    """Load and merge KB config from the precedence chain."""
+    merged: dict = {}
+    for src in (GLOBAL_CONFIG, LOCAL_CONFIG, config_path):
+        merged.update(_read_toml(src))
+
+    kb = merged.get("kb", {})
+    return KbConfig(
+        store_dir=kb.get("store_dir", DEFAULT_STORE_DIR),
+        languages=kb.get("languages", list(DEFAULT_LANGUAGES)),
+        embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
+        sources=[SourceCfg(**s) for s in merged.get("sources", [])],
+        rules=[RuleCfg(**r) for r in merged.get("rules", [])],
+    )
