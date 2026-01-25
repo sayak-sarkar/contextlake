@@ -98,6 +98,13 @@ class SqliteStore(Store):
             default_branch=row["default_branch"], head_commit=row["head_commit"],
         )
 
+    def mark_indexed(self, repo_id: str, head_commit: str | None, indexed_at: str) -> None:
+        self.conn.execute(
+            "UPDATE repos SET head_commit=?, indexed_at=? WHERE repo_id=?",
+            (head_commit, indexed_at, repo_id),
+        )
+        self.conn.commit()
+
     def list_repos(self) -> list[Repo]:
         rows = self.conn.execute("SELECT * FROM repos ORDER BY repo_id").fetchall()
         return [

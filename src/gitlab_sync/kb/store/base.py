@@ -36,6 +36,13 @@ class Store(ABC):
     def list_repos(self) -> list[Repo]: ...
 
     @abstractmethod
+    def mark_indexed(self, repo_id: str, head_commit: str | None, indexed_at: str) -> None:
+        """Record that a repo was indexed at a commit + timestamp."""
+
+    @abstractmethod
+    def get_meta(self, key: str) -> str | None: ...
+
+    @abstractmethod
     def upsert_nodes(self, repo_id: str, nodes: Iterable[Node]) -> None: ...
 
     @abstractmethod
