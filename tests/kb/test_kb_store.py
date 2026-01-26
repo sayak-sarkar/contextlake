@@ -60,6 +60,15 @@ def test_search_finds_by_prefix(store):
     assert {n.name for n in store.search("payment", repo="team/api")} == {"PaymentGateway"}
 
 
+def test_search_handles_fts_operator_words(store):
+    # FTS5 keywords (AND/OR/NOT/NEAR) are common identifiers; they must not crash.
+    store.upsert_nodes("team/api", [_node("n1", name="and_then"), _node("n2", name="payload")])
+    assert {n.name for n in store.search("and")} == {"and_then"}
+    assert store.search("or") == []
+    assert store.search("not") == []
+    assert store.search("near") == []
+
+
 def test_neighbors_direction_and_relation(store):
     store.upsert_nodes("team/api", [_node("a"), _node("b"), _node("c")])
     store.upsert_edges("team/api", [_edge("a", "b", "calls"), _edge("a", "c", "imports")])
