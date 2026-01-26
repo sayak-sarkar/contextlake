@@ -65,13 +65,28 @@ Examples:
 
     parser.add_argument(
         "command",
-        choices=["fetch", "clone", "update", "branches", "verify", "sync", "status"],
+        choices=[
+            "fetch", "clone", "update", "branches", "verify", "sync", "status",
+            # knowledge layer (optional [kb] extra)
+            "index", "serve", "query", "doctor",
+        ],
         help="Command to execute",
     )
+    parser.add_argument("args", nargs="*", help="Positional arguments (e.g. query text)")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--work-dir", help="Working directory (overrides config file)")
     parser.add_argument("--group", help="GitLab group (overrides config file)")
     parser.add_argument("--config", help="Path to config file (overrides default search paths)")
+
+    # Knowledge-layer options (used by index/serve/query/doctor)
+    kb = parser.add_argument_group("knowledge layer")
+    kb.add_argument("--source", help="index: path to a graph shard JSON to load")
+    kb.add_argument("--transport", choices=["stdio", "http"], help="serve: MCP transport")
+    kb.add_argument("--host", help="serve: bind host (http transport)")
+    kb.add_argument("--port", type=int, help="serve: bind port (http transport)")
+    kb.add_argument("--kind", help="query: filter by node kind")
+    kb.add_argument("--repo", help="query: filter by repo")
+    kb.add_argument("--limit", type=int, help="query: max results")
 
     parser.add_argument(
         "--dry-run", action="store_true", dest="dry_run",
@@ -169,6 +184,18 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     setup_logging(verbose=args.verbose, quiet=args.quiet, log_file=args.log_file)
+
+    # Knowledge-layer verbs are handled by the optional kb subsystem and don't
+    # need the sync config/preamble. Imported lazily so the core tool runs
+    # without the [kb] extra.
+    if args.command in ("index", "serve", "query", "doctor"):
+        try:
+            from .kb import commands as kb_commands
+        except ImportError as e:
+            log(f"The '{args.command}' command needs the knowledge-layer extra: "
+                f"pip install 'gitlab-sync[kb]'  ({e})")
+            sys.exit(1)
+        sys.exit(kb_commands.dispatch(args.command, args))
 
     # Load configuration (honouring an explicit --config path if given), then
     # overlay any CLI overrides on top.
