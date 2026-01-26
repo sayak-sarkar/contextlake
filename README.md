@@ -613,6 +613,31 @@ sudo cat > /etc/logrotate.d/gitlab_sync << 'EOF'
 EOF
 ```
 
+## Knowledge layer (preview)
+
+An optional subsystem (`gitlab_sync.kb`) turns your mirrored repositories into a
+queryable **knowledge graph** and serves it to AI agents over **MCP** — so an
+assistant can ask "where is `X` defined?" or "who calls `Y`?" instead of grepping
+hundreds of repos. It's generic: it indexes *any* repositories and connects to
+*any* configured knowledge sources; no organization-specific data lives in the
+package (your sites, keys, and rules go in a private config file).
+
+Install the extra (requires Python ≥ 3.10):
+
+```bash
+pip install "gitlab-sync[kb]"
+gitlab-sync doctor                 # check the environment
+gitlab-sync index --source graph.json    # load a graph shard into the store
+gitlab-sync query "OrderService"   # cited search across the index
+gitlab-sync serve                  # expose the graph over MCP (stdio or --transport http)
+```
+
+Configure it by copying [`examples/kb.toml.example`](examples/kb.toml.example) to
+`~/.gitlab-sync/kb.toml`. Every fact in the graph is provenance-stamped (source
+file + verified date) and confidence-tagged, and all output is sanitized before
+it reaches an agent. This is an early preview — tree-sitter code indexing,
+embeddings, and the Atlassian/Figma connectors land in subsequent phases.
+
 ## Technical Documentation
 
 ### Architecture
