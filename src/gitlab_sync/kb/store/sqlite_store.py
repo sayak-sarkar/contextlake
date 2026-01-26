@@ -46,9 +46,13 @@ CREATE INDEX IF NOT EXISTS ix_nodes_kind ON nodes(kind);
 
 
 def _fts_query(text: str) -> str:
-    """Build a safe FTS5 prefix query from arbitrary user text."""
+    """Build a safe FTS5 prefix query from arbitrary user text.
+
+    Each token is double-quoted so FTS5 boolean keywords (AND/OR/NOT/NEAR) and
+    other reserved syntax are treated as literal terms, not operators.
+    """
     tokens = re.sub(r"[^\w\s]", " ", text, flags=re.UNICODE).split()
-    return " ".join(f"{t}*" for t in tokens)
+    return " ".join(f'"{t}"*' for t in tokens)
 
 
 class SqliteStore(Store):
@@ -166,7 +170,11 @@ class SqliteStore(Store):
             params.append(repo)
         sql += " ORDER BY rank LIMIT ?"
         params.append(limit)
-        rows = self.conn.execute(sql, params).fetchall()
+        try:
+            rows = self.conn.execute(sql, params).fetchall()
+        except sqlite3.OperationalError:
+            # Belt-and-suspenders: never let a malformed FTS query crash a search.
+            return []
         return [self._row_to_node(r) for r in rows]
 
     # -- edges ----------------------------------------------------------------
