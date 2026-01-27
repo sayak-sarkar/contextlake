@@ -10,6 +10,8 @@ import shutil
 import sqlite3
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from ..logging_setup import log
 from .config import load_kb_config
 from .model import Repo
@@ -35,7 +37,17 @@ def cmd_index(args) -> int:
         if not source:
             log(f"Knowledge store ready at {store_dir} (no --source given; nothing indexed)")
             return 0
-        shard = GraphShard.model_validate_json(Path(source).read_text(encoding="utf-8"))
+        try:
+            raw = Path(source).read_text(encoding="utf-8")
+        except OSError as e:
+            log(f"Cannot read source {source!r}: {e}")
+            return 1
+        try:
+            shard = GraphShard.model_validate_json(raw)
+        except ValidationError as e:
+            log(f"{source!r} is not a valid graph shard ({e.error_count()} error(s)); "
+                "expected a JSON object with repo, nodes, and edges")
+            return 1
         store.upsert_repo(Repo(id=shard.repo, path=str(Path(source).resolve())))
         write_shard(store_dir, shard)
         reindex_shard(store, store_dir, shard.repo)

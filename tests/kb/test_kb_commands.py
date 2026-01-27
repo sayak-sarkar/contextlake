@@ -47,6 +47,24 @@ def test_index_without_source_just_initializes(tmp_path):
     assert (tmp_path / "kb" / "index.sqlite").exists()
 
 
+def test_index_missing_source_errors_cleanly(tmp_path, capsys):
+    cfg = _kb_config(tmp_path)
+    code = _run(["index", "--config", str(cfg), "--source", str(tmp_path / "nope.json")])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "Traceback" not in out and "Cannot read" in out
+
+
+def test_index_invalid_shard_errors_cleanly(tmp_path, capsys):
+    cfg = _kb_config(tmp_path)
+    bad = tmp_path / "bad.json"
+    bad.write_text('{"nodes": []}')  # valid JSON, missing required 'repo'
+    code = _run(["index", "--config", str(cfg), "--source", str(bad)])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "Traceback" not in out and "not a valid graph shard" in out
+
+
 def test_query_without_text_is_usage_error(tmp_path):
     cfg = _kb_config(tmp_path)
     assert _run(["query", "--config", str(cfg)]) == 2
