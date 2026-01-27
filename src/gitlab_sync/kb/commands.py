@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import shutil
 import sqlite3
+import subprocess
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -30,6 +31,28 @@ def _open_store(args) -> tuple[SqliteStore, Path]:
     return store, store_dir
 
 
+def _git_head(path: Path) -> str | None:
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=10,
+        )
+        return out.stdout.strip() or None if out.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
+    store.upsert_repo(Repo(id=repo_id, path=str(repo_path)))
+    write_shard(store_dir, shard)
+    reindex_shard(store, store_dir, repo_id)
+    mark_repo_indexed(store, repo_id, head)
+    st = store.stats()
+    log(f"Indexed {repo_id}: {len(shard.nodes)} nodes, {len(shard.edges)} edges "
+        f"(store totals: {st.nodes} nodes, {st.edges} edges)")
+    return 0
+
+
 def cmd_index(args) -> int:
     store, store_dir = _open_store(args)
     try:
@@ -37,8 +60,19 @@ def cmd_index(args) -> int:
         if not source:
             log(f"Knowledge store ready at {store_dir} (no --source given; nothing indexed)")
             return 0
+        src = Path(source)
+
+        if src.is_dir():
+            from .parse import index_repo_dir  # lazy: only needs tree-sitter when indexing code
+
+            repo_id = getattr(args, "repo", None) or src.name
+            head = _git_head(src)
+            shard = index_repo_dir(str(src), repo_id, head_commit=head)
+            return _store_and_index(store, store_dir, repo_id, src.resolve(), head, shard)
+
+        # otherwise treat --source as a graph-shard JSON file
         try:
-            raw = Path(source).read_text(encoding="utf-8")
+            raw = src.read_text(encoding="utf-8")
         except OSError as e:
             log(f"Cannot read source {source!r}: {e}")
             return 1
@@ -48,14 +82,9 @@ def cmd_index(args) -> int:
             log(f"{source!r} is not a valid graph shard ({e.error_count()} error(s)); "
                 "expected a JSON object with repo, nodes, and edges")
             return 1
-        store.upsert_repo(Repo(id=shard.repo, path=str(Path(source).resolve())))
-        write_shard(store_dir, shard)
-        reindex_shard(store, store_dir, shard.repo)
-        mark_repo_indexed(store, shard.repo, shard.head_commit)
-        st = store.stats()
-        log(f"Indexed {shard.repo}: {len(shard.nodes)} nodes, {len(shard.edges)} edges "
-            f"(store totals: {st.nodes} nodes, {st.edges} edges)")
-        return 0
+        return _store_and_index(
+            store, store_dir, shard.repo, src.resolve(), shard.head_commit, shard
+        )
     finally:
         store.close()
 
