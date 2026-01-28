@@ -60,6 +60,13 @@ def test_search_finds_by_prefix(store):
     assert {n.name for n in store.search("payment", repo="team/api")} == {"PaymentGateway"}
 
 
+def test_nodes_by_name_is_exact(store):
+    store.upsert_nodes("team/api", [_node("n1", name="Foo"), _node("n2", name="Foobar")])
+    assert {n.id for n in store.nodes_by_name("Foo")} == {"n1"}  # exact, not prefix
+    assert store.nodes_by_name("Foo", kind="class") == []  # kind filter
+    assert {n.id for n in store.nodes_by_name("Foo", repo="team/api")} == {"n1"}
+
+
 def test_search_handles_fts_operator_words(store):
     # FTS5 keywords (AND/OR/NOT/NEAR) are common identifiers; they must not crash.
     store.upsert_nodes("team/api", [_node("n1", name="and_then"), _node("n2", name="payload")])
