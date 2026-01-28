@@ -37,6 +37,8 @@ kb = [
     # Code parsing: the tree-sitter runtime plus per-language grammar packages
     # (added incrementally as languages are supported).
     "tree-sitter>=0.25", "tree-sitter-python>=0.23",
+    "tree-sitter-javascript>=0.23", "tree-sitter-typescript>=0.23",
+    "tree-sitter-c-sharp>=0.23",
 ]
 
 [project.scripts]
