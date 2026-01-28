@@ -73,3 +73,38 @@ def test_parse_error_does_not_abort_directory(tmp_path):
     (tmp_path / "weird.py").write_bytes(b"\xff\xfe not utf8 def x(:\n")  # tolerated
     shard = index_repo_dir(str(tmp_path), "r")
     assert any(n.name == "ok" for n in shard.nodes)  # good file still indexed
+
+
+def _kinds(nodes):
+    out: dict[str, set] = {}
+    for n in nodes:
+        out.setdefault(n.kind, set()).add(n.name)
+    return out
+
+
+def test_parse_javascript():
+    src = b"import {a} from 'm';\nexport class Foo { bar() { } }\nfunction top() {}\n"
+    k = _kinds(parse_source("r", "f.js", src, "javascript")[0])
+    assert k["class"] == {"Foo"} and "bar" in k["method"] and "top" in k["function"]
+    assert "m" in k["module"]  # import quotes stripped
+
+
+def test_parse_typescript():
+    src = b"import x from 'm';\nclass C {}\ninterface I {}\nenum E { A }\nfunction f(): void {}\n"
+    k = _kinds(parse_source("r", "f.ts", src, "typescript")[0])
+    assert k["class"] == {"C"} and k["interface"] == {"I"} and k["enum"] == {"E"}
+    assert "f" in k["function"]
+
+
+def test_parse_csharp():
+    src = (b"using System;\nusing System.Collections;\n"
+           b"namespace N { class Foo { void Bar() {} } interface IT {} }\n")
+    k = _kinds(parse_source("r", "f.cs", src, "csharp")[0])
+    assert "Foo" in k["class"] and "IT" in k["interface"] and "Bar" in k["method"]
+    assert {"System", "System.Collections"} <= k["module"]
+
+
+def test_lang_by_ext_covers_target_languages():
+    from gitlab_sync.kb.parse import LANG_BY_EXT
+    for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs"):
+        assert ext in LANG_BY_EXT

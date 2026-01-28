@@ -27,12 +27,33 @@ from .store.shards import GraphShard
 _SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "node_modules", "dist", "build",
               ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", ".idea"}
 
-LANG_BY_EXT = {".py": "python"}
+LANG_BY_EXT = {
+    ".py": "python",
+    ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
+    ".ts": "typescript", ".tsx": "tsx",
+    ".cs": "csharp",
+}
 
 # tree-sitter node types that introduce a named definition, per language.
-_DEF_TYPES = {"python": {"class_definition": "class", "function_definition": "function"}}
+_DEF_TYPES = {
+    "python": {"class_definition": "class", "function_definition": "function"},
+    "javascript": {
+        "class_declaration": "class", "function_declaration": "function",
+        "method_definition": "method",
+    },
+    "typescript": {
+        "class_declaration": "class", "function_declaration": "function",
+        "method_definition": "method", "interface_declaration": "interface",
+        "enum_declaration": "enum",
+    },
+    "csharp": {
+        "class_declaration": "class", "interface_declaration": "interface",
+        "struct_declaration": "struct", "method_declaration": "method",
+    },
+}
+_DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
 
-# Queries capture definition *name* identifiers and import module names.
+# Queries capture definition *name* identifiers (@def) and import targets (@import).
 _QUERIES = {
     "python": """
         (class_definition name: (identifier) @def)
@@ -40,7 +61,30 @@ _QUERIES = {
         (import_statement (dotted_name) @import)
         (import_from_statement module_name: (dotted_name) @import)
     """,
+    "javascript": """
+        (class_declaration name: (identifier) @def)
+        (function_declaration name: (identifier) @def)
+        (method_definition name: (property_identifier) @def)
+        (import_statement source: (string) @import)
+    """,
+    "typescript": """
+        (class_declaration name: (type_identifier) @def)
+        (function_declaration name: (identifier) @def)
+        (method_definition name: (property_identifier) @def)
+        (interface_declaration name: (type_identifier) @def)
+        (enum_declaration name: (identifier) @def)
+        (import_statement source: (string) @import)
+    """,
+    "csharp": """
+        (class_declaration name: (identifier) @def)
+        (interface_declaration name: (identifier) @def)
+        (struct_declaration name: (identifier) @def)
+        (method_declaration name: (identifier) @def)
+        (using_directive (identifier) @import)
+        (using_directive (qualified_name) @import)
+    """,
 }
+_QUERIES["tsx"] = _QUERIES["typescript"]
 
 _LANGS: dict[str, ts.Language] = {}
 _PARSERS: dict[str, ts.Parser] = {}
@@ -50,10 +94,23 @@ _COMPILED: dict[str, ts.Query] = {}
 def _language(lang: str) -> ts.Language:
     if lang not in _LANGS:
         if lang == "python":
-            import tree_sitter_python as grammar
+            import tree_sitter_python as g
+            fn = g.language
+        elif lang == "javascript":
+            import tree_sitter_javascript as g
+            fn = g.language
+        elif lang == "typescript":
+            import tree_sitter_typescript as g
+            fn = g.language_typescript
+        elif lang == "tsx":
+            import tree_sitter_typescript as g
+            fn = g.language_tsx
+        elif lang == "csharp":
+            import tree_sitter_c_sharp as g
+            fn = g.language
         else:
             raise ValueError(f"unsupported language: {lang}")
-        _LANGS[lang] = ts.Language(grammar.language())
+        _LANGS[lang] = ts.Language(fn())
     return _LANGS[lang]
 
 
@@ -107,7 +164,7 @@ def parse_source(
         qualified = ".".join([*scope, name])
         line = name_node.start_point[0] + 1
         kind = _DEF_TYPES[lang][def_ts.type]
-        if kind == "function" and enclosing and enclosing[0].type == "class_definition":
+        if kind == "function" and enclosing and _DEF_TYPES[lang].get(enclosing[0].type) == "class":
             kind = "method"
         nid = make_id(repo_id, rel_path, qualified, str(line))
         def_node_to_id[def_ts.id] = nid
@@ -130,7 +187,7 @@ def parse_source(
 
     # Imports: file -> module node.
     for imp in captures.get("import", []):
-        module = imp.text.decode("utf-8", "replace")
+        module = imp.text.decode("utf-8", "replace").strip().strip("'\"")
         mid = make_id("module", module)
         nodes.append(Node(id=mid, repo=repo_id, kind="module", name=module, lang=lang))
         edges.append(Edge(
