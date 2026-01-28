@@ -60,12 +60,16 @@ _QUERIES = {
         (function_definition name: (identifier) @def)
         (import_statement (dotted_name) @import)
         (import_from_statement module_name: (dotted_name) @import)
+        (call function: (identifier) @call)
+        (call function: (attribute attribute: (identifier) @call))
     """,
     "javascript": """
         (class_declaration name: (identifier) @def)
         (function_declaration name: (identifier) @def)
         (method_definition name: (property_identifier) @def)
         (import_statement source: (string) @import)
+        (call_expression function: (identifier) @call)
+        (call_expression function: (member_expression property: (property_identifier) @call))
     """,
     "typescript": """
         (class_declaration name: (type_identifier) @def)
@@ -74,6 +78,8 @@ _QUERIES = {
         (interface_declaration name: (type_identifier) @def)
         (enum_declaration name: (identifier) @def)
         (import_statement source: (string) @import)
+        (call_expression function: (identifier) @call)
+        (call_expression function: (member_expression property: (property_identifier) @call))
     """,
     "csharp": """
         (class_declaration name: (identifier) @def)
@@ -82,6 +88,8 @@ _QUERIES = {
         (method_declaration name: (identifier) @def)
         (using_directive (identifier) @import)
         (using_directive (qualified_name) @import)
+        (invocation_expression function: (identifier) @call)
+        (invocation_expression function: (member_access_expression name: (identifier) @call))
     """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
@@ -139,8 +147,12 @@ def _enclosing_defs(name_node: ts.Node, def_types: set[str]) -> list[ts.Node]:
 
 def parse_source(
     repo_id: str, rel_path: str, source: bytes, lang: str, verified_at: date | None = None
-) -> tuple[list[Node], list[Edge]]:
-    """Parse one file into nodes + edges."""
+) -> tuple[list[Node], list[Edge], list[tuple[str, str, str, int]]]:
+    """Parse one file into (nodes, edges, calls).
+
+    ``calls`` are unresolved (caller_id, callee_name, file, line) tuples — call
+    targets are resolved repo-wide by :func:`index_repo_dir`.
+    """
     verified_at = verified_at or date.today()
     def_types = set(_DEF_TYPES[lang])
 
@@ -196,7 +208,20 @@ def parse_source(
                                   verified_at=verified_at),
         ))
 
-    return nodes, edges
+    # Calls: (caller_node_id, callee_name, file, line) — resolved repo-wide later.
+    calls: list[tuple[str, str, str, int]] = []
+    for call_node in captures.get("call", []):
+        callee = call_node.text.decode("utf-8", "replace")
+        caller_id = file_id
+        node = call_node.parent
+        while node is not None:
+            if node.type in def_types:
+                caller_id = def_node_to_id.get(node.id, file_id)
+                break
+            node = node.parent
+        calls.append((caller_id, callee, rel_path, call_node.start_point[0] + 1))
+
+    return nodes, edges, calls
 
 
 def index_repo_dir(
@@ -208,6 +233,7 @@ def index_repo_dir(
                     if not languages or lang in languages}
     shard = GraphShard(repo=repo_id, head_commit=head_commit)
     by_id: dict[str, Node] = {}
+    all_calls: list[tuple[str, str, str, int]] = []
     n_files = 0
 
     for dirpath, dirnames, filenames in os.walk(root):
@@ -224,7 +250,7 @@ def index_repo_dir(
                 log(f"  skip {rel}: {e}")
                 continue
             try:
-                nodes, edges = parse_source(repo_id, rel, source, LANG_BY_EXT[ext])
+                nodes, edges, calls = parse_source(repo_id, rel, source, LANG_BY_EXT[ext])
             except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
                 log(f"  skip {rel}: parse error: {e}")
                 continue
@@ -232,7 +258,44 @@ def index_repo_dir(
             for node in nodes:
                 by_id[node.id] = node  # dedupe shared nodes (e.g. modules)
             shard.edges.extend(edges)
+            all_calls.extend(calls)
 
     shard.nodes.extend(by_id.values())
+    shard.edges.extend(_resolve_calls(all_calls, by_id))
     log(f"  parsed {n_files} file(s)")
     return shard
+
+
+# Node kinds that a call can resolve to.
+_CALLABLE_KINDS = {"class", "function", "method", "interface", "struct"}
+
+
+def _resolve_calls(
+    calls: list[tuple[str, str, str, int]], nodes_by_id: dict[str, Node]
+) -> list[Edge]:
+    """Resolve callee names to definitions repo-wide (unambiguous matches only).
+
+    Call edges are INFERRED: resolution is by name, so only names that map to a
+    single definition are linked; ambiguous or external callees are skipped.
+    """
+    name_index: dict[str, set[str]] = {}
+    for node in nodes_by_id.values():
+        if node.kind in _CALLABLE_KINDS:
+            name_index.setdefault(node.name, set()).add(node.id)
+
+    edges, ambiguous = [], 0
+    for caller_id, callee, rel, line in calls:
+        matches = name_index.get(callee)
+        if not matches:
+            continue
+        if len(matches) > 1:
+            ambiguous += 1
+            continue
+        (target,) = tuple(matches)
+        edges.append(Edge(
+            src=caller_id, dst=target, relation="calls", confidence=Confidence.INFERRED,
+            provenance=Provenance(source_file=rel, source_line=line, verified_at=date.today()),
+        ))
+    if edges or ambiguous:
+        log(f"  resolved {len(edges)} call edge(s) ({ambiguous} ambiguous skipped)")
+    return edges
