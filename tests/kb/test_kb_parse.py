@@ -20,7 +20,7 @@ def top():
 
 
 def test_parse_extracts_defs_and_imports():
-    nodes, edges = parse_source("team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21))
+    nodes, edges, _ = parse_source("team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21))
     by_kind: dict[str, list[str]] = {}
     for n in nodes:
         by_kind.setdefault(n.kind, []).append(n.name)
@@ -45,7 +45,7 @@ def test_parse_extracts_defs_and_imports():
 
 
 def test_qualified_names_disambiguate_methods():
-    nodes, _ = parse_source("r", "m.py", PY, "python")
+    nodes, _, _ = parse_source("r", "m.py", PY, "python")
     bar = next(n for n in nodes if n.name == "bar")
     assert bar.qualified_name == "m.py::Foo.bar"
     assert bar.line_start == 6
@@ -108,3 +108,32 @@ def test_lang_by_ext_covers_target_languages():
     from gitlab_sync.kb.parse import LANG_BY_EXT
     for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs"):
         assert ext in LANG_BY_EXT
+
+
+def test_resolves_call_edges(tmp_path):
+    (tmp_path / "a.py").write_text("def helper():\n    pass\n\n\ndef main():\n    helper()\n")
+    shard = index_repo_dir(str(tmp_path), "r")
+    ids = {n.name: n.id for n in shard.nodes}
+    call_edges = [e for e in shard.edges if e.relation == "calls"]
+    assert (ids["main"], ids["helper"]) in {(e.src, e.dst) for e in call_edges}
+    assert all(e.confidence is Confidence.INFERRED for e in call_edges)
+
+
+def test_resolves_calls_across_files(tmp_path):
+    (tmp_path / "util.py").write_text("def shared():\n    pass\n")
+    (tmp_path / "app.py").write_text("def run():\n    shared()\n")
+    shard = index_repo_dir(str(tmp_path), "r")
+    ids = {n.name: n.id for n in shard.nodes}
+    assert (ids["run"], ids["shared"]) in {(e.src, e.dst) for e in shard.edges
+                                           if e.relation == "calls"}
+
+
+def test_ambiguous_calls_are_skipped(tmp_path):
+    # two methods named 'h' -> a call to h() is ambiguous and not linked
+    (tmp_path / "a.py").write_text(
+        "class A:\n    def h(self):\n        pass\n\n\n"
+        "class B:\n    def h(self):\n        pass\n\n\n"
+        "def c():\n    h()\n"
+    )
+    shard = index_repo_dir(str(tmp_path), "r")
+    assert [e for e in shard.edges if e.relation == "calls"] == []
