@@ -50,7 +50,29 @@ def server(tmp_path):
 def test_lists_expected_tools(server):
     tools = asyncio.run(_list_tools(server))
     names = {t.name for t in tools.tools}
-    assert {"graph_stats", "get_node", "get_neighbors", "search_code"} <= names
+    assert {
+        "graph_stats", "get_node", "get_neighbors", "search_code",
+        "find_definition", "find_callers", "shortest_path",
+    } <= names
+
+
+def test_find_definition_exact(server):
+    res = asyncio.run(_call(server, "find_definition", {"name": "OrderService"}))
+    items = _unwrap(res.structuredContent)
+    assert any(n["id"] == "a" for n in items)
+
+
+def test_find_callers(server):
+    # the seeded edge is a --calls--> b, so b's caller is a
+    res = asyncio.run(_call(server, "find_callers", {"node_id": "b"}))
+    items = _unwrap(res.structuredContent)
+    assert [n["id"] for n in items] == ["a"]
+
+
+def test_shortest_path(server):
+    res = asyncio.run(_call(server, "shortest_path", {"src_id": "a", "dst_id": "b"}))
+    items = _unwrap(res.structuredContent)
+    assert [n["id"] for n in items] == ["a", "b"]
 
 
 def test_get_node_round_trip(server):

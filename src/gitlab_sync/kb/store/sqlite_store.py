@@ -177,6 +177,19 @@ class SqliteStore(Store):
             return []
         return [self._row_to_node(r) for r in rows]
 
+    def nodes_by_name(
+        self, name: str, kind: str | None = None, repo: str | None = None
+    ) -> list[Node]:
+        sql = "SELECT * FROM nodes WHERE name = ?"
+        params: list[object] = [name]
+        if kind:
+            sql += " AND kind = ?"
+            params.append(kind)
+        if repo:
+            sql += " AND repo_id = ?"
+            params.append(repo)
+        return [self._row_to_node(r) for r in self.conn.execute(sql, params).fetchall()]
+
     # -- edges ----------------------------------------------------------------
     def _repo_of(self, node_id: str) -> str | None:
         row = self.conn.execute(

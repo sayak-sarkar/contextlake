@@ -10,6 +10,7 @@ graph is an index, so inferred edges should be verified against the source.
 from __future__ import annotations
 
 import json
+from collections import deque
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel
@@ -72,6 +73,35 @@ def _edge_out(e: Edge) -> EdgeOut:
     )
 
 
+def _bfs_path(store: Store, src_id: str, dst_id: str, max_hops: int) -> list[str]:
+    """Shortest undirected path of node ids between two nodes, or [] if none."""
+    if src_id == dst_id:
+        return [src_id] if store.get_node(src_id) else []
+    prev: dict[str, str | None] = {src_id: None}
+    queue = deque([(src_id, 0)])
+    found = False
+    while queue and not found:
+        cur, depth = queue.popleft()
+        if depth >= max_hops:
+            continue
+        for e in store.neighbors(cur, direction="both"):
+            nxt = e.dst if e.src == cur else e.src
+            if nxt not in prev:
+                prev[nxt] = cur
+                if nxt == dst_id:
+                    found = True
+                    break
+                queue.append((nxt, depth + 1))
+    if not found:
+        return []
+    path, node = [], dst_id
+    while node is not None:
+        path.append(node)
+        node = prev.get(node)
+    path.reverse()
+    return path
+
+
 def build_server(
     store: Store, *, name: str = "gitlab-sync-kb", host: str = "127.0.0.1", port: int = 8765
 ) -> FastMCP:
@@ -109,6 +139,33 @@ def build_server(
     ) -> list[NodeOut]:
         """Search the graph for nodes by name/symbol, with optional kind and repo filters."""
         return [_node_out(n) for n in store.search(query, kind=kind, repo=repo, limit=limit)]
+
+    @mcp.tool()
+    def find_definition(
+        name: str, kind: str | None = None, repo: str | None = None
+    ) -> list[NodeOut]:
+        """Find definition(s) with an exact name — 'where is X defined?'."""
+        return [_node_out(n) for n in store.nodes_by_name(name, kind=kind, repo=repo)]
+
+    @mcp.tool()
+    def find_callers(node_id: str) -> list[NodeOut]:
+        """Find the definitions that call a node — 'who calls X?' (incoming calls edges)."""
+        seen: set[str] = set()
+        out: list[NodeOut] = []
+        for e in store.neighbors(node_id, relation="calls", direction="in"):
+            if e.src in seen:
+                continue
+            seen.add(e.src)
+            n = store.get_node(e.src)
+            if n:
+                out.append(_node_out(n))
+        return out
+
+    @mcp.tool()
+    def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:
+        """Shortest path between two nodes over the graph (<= max_hops). Empty if none."""
+        path_ids = _bfs_path(store, src_id, dst_id, max_hops)
+        return [_node_out(n) for nid in path_ids if (n := store.get_node(nid))]
 
     @mcp.resource("kb://stats")
     def stats_resource() -> str:

@@ -62,6 +62,12 @@ class Store(ABC):
     ) -> list[Node]: ...
 
     @abstractmethod
+    def nodes_by_name(
+        self, name: str, kind: str | None = None, repo: str | None = None
+    ) -> list[Node]:
+        """Exact-name lookup (for 'where is X defined')."""
+
+    @abstractmethod
     def stats(self) -> Stats: ...
 
     @abstractmethod
