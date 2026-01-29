@@ -53,9 +53,40 @@ def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
     return 0
 
 
+def _index_workspace(store, store_dir, workspace: Path) -> int:
+    from .parse import discover_repos, index_repo_dir  # lazy: tree-sitter
+
+    repos = discover_repos(str(workspace))
+    if not repos:
+        log(f"No git repositories found under {workspace}")
+        return 0
+    log(f"Found {len(repos)} repositories under {workspace}")
+    failed = 0
+    for i, (repo_id, path) in enumerate(repos, 1):
+        try:
+            head = _git_head(Path(path))
+            shard = index_repo_dir(path, repo_id, head_commit=head)
+            store.upsert_repo(Repo(id=repo_id, path=path))
+            write_shard(store_dir, shard)
+            reindex_shard(store, store_dir, repo_id)
+            mark_repo_indexed(store, repo_id, head)
+            log(f"  [{i}/{len(repos)}] {repo_id}: {len(shard.nodes)} nodes, {len(shard.edges)} edges")
+        except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
+            failed += 1
+            log(f"  [{i}/{len(repos)}] {repo_id}: FAILED — {e}")
+    st = store.stats()
+    log(f"Workspace indexed: {st.repos} repos, {st.nodes} nodes, {st.edges} edges "
+        f"({failed} repo(s) failed)")
+    return 0 if failed == 0 else 1
+
+
 def cmd_index(args) -> int:
     store, store_dir = _open_store(args)
     try:
+        workspace = getattr(args, "workspace", None)
+        if workspace:
+            return _index_workspace(store, store_dir, Path(workspace))
+
         source = getattr(args, "source", None)
         if not source:
             log(f"Knowledge store ready at {store_dir} (no --source given; nothing indexed)")

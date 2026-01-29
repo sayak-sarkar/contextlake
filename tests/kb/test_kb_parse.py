@@ -110,6 +110,16 @@ def test_lang_by_ext_covers_target_languages():
         assert ext in LANG_BY_EXT
 
 
+def test_discover_repos_finds_and_prunes(tmp_path):
+    from gitlab_sync.kb.parse import discover_repos
+
+    (tmp_path / "team" / "a" / ".git").mkdir(parents=True)
+    (tmp_path / "b" / ".git").mkdir(parents=True)
+    (tmp_path / "team" / "a" / "nested" / ".git").mkdir(parents=True)  # inside a repo -> skip
+    repos = dict(discover_repos(str(tmp_path)))
+    assert set(repos) == {"team/a", "b"}  # nested repo not descended into
+
+
 def test_resolves_call_edges(tmp_path):
     (tmp_path / "a.py").write_text("def helper():\n    pass\n\n\ndef main():\n    helper()\n")
     shard = index_repo_dir(str(tmp_path), "r")
