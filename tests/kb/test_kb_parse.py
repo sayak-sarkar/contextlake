@@ -110,6 +110,29 @@ def test_lang_by_ext_covers_target_languages():
         assert ext in LANG_BY_EXT
 
 
+def test_cross_repo_dependency_via_shared_package(tmp_path):
+    from gitlab_sync.kb.model import Repo
+    from gitlab_sync.kb.store.sqlite_store import SqliteStore
+
+    (tmp_path / "producer").mkdir()
+    (tmp_path / "producer" / "pyproject.toml").write_text('[project]\nname = "libx"\n')
+    (tmp_path / "consumer").mkdir()
+    (tmp_path / "consumer" / "pyproject.toml").write_text(
+        '[project]\nname = "app"\ndependencies = ["libx>=1"]\n'
+    )
+    store = SqliteStore(tmp_path / "kb.sqlite")
+    for r in ("producer", "consumer"):
+        shard = index_repo_dir(str(tmp_path / r), r)
+        store.upsert_repo(Repo(id=r, path=str(tmp_path / r)))
+        store.upsert_nodes(r, shard.nodes)
+        store.upsert_edges(r, shard.edges)
+
+    libx = store.nodes_by_name("libx")[0]  # one shared global package node
+    incoming = {e.relation for e in store.neighbors(libx.id, direction="in")}
+    assert {"publishes", "depends_on"} <= incoming  # producer publishes, consumer depends_on
+    store.close()
+
+
 def test_discover_repos_finds_and_prunes(tmp_path):
     from gitlab_sync.kb.parse import discover_repos
 
