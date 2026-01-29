@@ -626,17 +626,25 @@ Install the extra (requires Python ≥ 3.10):
 
 ```bash
 pip install "gitlab-sync[kb]"
-gitlab-sync doctor                 # check the environment
-gitlab-sync index --source graph.json    # load a graph shard into the store
-gitlab-sync query "OrderService"   # cited search across the index
-gitlab-sync serve                  # expose the graph over MCP (stdio or --transport http)
+gitlab-sync doctor                          # check the environment
+gitlab-sync index --source ./my-repo        # index one repository
+gitlab-sync index --workspace ~/work        # index every git repo under a directory
+gitlab-sync query "OrderService"            # cited search across the index
+gitlab-sync serve                           # expose the graph over MCP (stdio or --transport http)
 ```
 
+**Code indexing** uses tree-sitter to extract files, classes, functions/methods,
+interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
+TypeScript/TSX, and C#** (the parser registry is pluggable). Over MCP, agents get
+tools to traverse it: `search_code`, `find_definition`, `find_callers`,
+`get_neighbors`, `shortest_path`, and `graph_stats`.
+
 Configure it by copying [`examples/kb.toml.example`](examples/kb.toml.example) to
-`~/.gitlab-sync/kb.toml`. Every fact in the graph is provenance-stamped (source
-file + verified date) and confidence-tagged, and all output is sanitized before
-it reaches an agent. This is an early preview — tree-sitter code indexing,
-embeddings, and the Atlassian/Figma connectors land in subsequent phases.
+`~/.gitlab-sync/kb.toml`. Every fact is provenance-stamped (source file + verified
+date) and confidence-tagged (`EXTRACTED` for AST facts, `INFERRED` for resolved
+calls), and all output is sanitized before it reaches an agent. Semantic
+(embedding) search and the Atlassian/Figma knowledge connectors land in later
+phases.
 
 ## Technical Documentation
 
