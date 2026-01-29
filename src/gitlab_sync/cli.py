@@ -80,7 +80,8 @@ Examples:
 
     # Knowledge-layer options (used by index/serve/query/doctor)
     kb = parser.add_argument_group("knowledge layer")
-    kb.add_argument("--source", help="index: path to a graph shard JSON to load")
+    kb.add_argument("--source", help="index: a repo directory or a graph shard JSON")
+    kb.add_argument("--workspace", help="index: index every git repo under this directory")
     kb.add_argument("--transport", choices=["stdio", "http"], help="serve: MCP transport")
     kb.add_argument("--host", help="serve: bind host (http transport)")
     kb.add_argument("--port", type=int, help="serve: bind port (http transport)")

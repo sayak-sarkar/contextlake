@@ -266,6 +266,26 @@ def index_repo_dir(
     return shard
 
 
+def discover_repos(root: str) -> list[tuple[str, str]]:
+    """Find git repositories under ``root``: (repo_id, absolute_path) pairs.
+
+    A directory containing a ``.git`` entry is a repo; its ``repo_id`` is its path
+    relative to ``root`` (group-relative, matching the local mirror layout), and
+    discovery does not descend into a repo once found.
+    """
+    base = Path(root)
+    found = []
+    for dirpath, dirnames, _filenames in os.walk(base):
+        here = Path(dirpath)
+        if (here / ".git").exists():
+            rel = here.relative_to(base).as_posix()
+            found.append((rel if rel != "." else here.name, str(here)))
+            dirnames[:] = []  # don't descend into a repository
+            continue
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+    return found
+
+
 # Node kinds that a call can resolve to.
 _CALLABLE_KINDS = {"class", "function", "method", "interface", "struct"}
 

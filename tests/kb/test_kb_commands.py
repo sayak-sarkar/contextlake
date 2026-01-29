@@ -41,6 +41,21 @@ def test_index_then_query_round_trip(tmp_path, capsys):
     assert "OrderService" in out and "demo/app" in out
 
 
+def test_index_workspace_indexes_each_repo(tmp_path):
+    ws = tmp_path / "ws"
+    (ws / "r1" / ".git").mkdir(parents=True)
+    (ws / "r1" / "a.py").write_text("def f():\n    pass\n")
+    (ws / "r2" / ".git").mkdir(parents=True)
+    (ws / "r2" / "b.py").write_text("class C:\n    def m(self):\n        pass\n")
+    cfg = _kb_config(tmp_path)
+
+    assert _run(["index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    assert {r.id for r in store.list_repos()} == {"r1", "r2"}
+    assert store.nodes_by_name("f") and store.nodes_by_name("C")
+    store.close()
+
+
 def test_index_without_source_just_initializes(tmp_path):
     cfg = _kb_config(tmp_path)
     assert _run(["index", "--config", str(cfg)]) == 0
