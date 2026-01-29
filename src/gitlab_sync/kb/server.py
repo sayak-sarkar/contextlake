@@ -162,6 +162,21 @@ def build_server(
         return out
 
     @mcp.tool()
+    def find_dependents(package: str) -> list[NodeOut]:
+        """Find files/repos that depend on a package — cross-repo 'who uses X?'."""
+        seen: set[str] = set()
+        out: list[NodeOut] = []
+        for pkg in store.nodes_by_name(package, kind="package"):
+            for e in store.neighbors(pkg.id, relation="depends_on", direction="in"):
+                if e.src in seen:
+                    continue
+                seen.add(e.src)
+                n = store.get_node(e.src)
+                if n:
+                    out.append(_node_out(n))
+        return out
+
+    @mcp.tool()
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:
         """Shortest path between two nodes over the graph (<= max_hops). Empty if none."""
         path_ids = _bfs_path(store, src_id, dst_id, max_hops)
