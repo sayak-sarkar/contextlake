@@ -20,6 +20,7 @@ import tree_sitter as ts
 
 from ..logging_setup import log
 from .ids import make_id
+from .manifest import is_manifest, parse_manifest
 from .model import Confidence, Edge, Node, Provenance
 from .store.shards import GraphShard
 
@@ -240,7 +241,9 @@ def index_repo_dir(
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
         for fn in filenames:
             ext = os.path.splitext(fn)[1]
-            if ext not in allowed_exts:
+            is_code = ext in allowed_exts
+            is_man = is_manifest(fn)
+            if not is_code and not is_man:
                 continue
             fpath = Path(dirpath) / fn
             rel = str(fpath.relative_to(root))
@@ -250,15 +253,18 @@ def index_repo_dir(
                 log(f"  skip {rel}: {e}")
                 continue
             try:
-                nodes, edges, calls = parse_source(repo_id, rel, source, LANG_BY_EXT[ext])
+                if is_code:
+                    nodes, edges, calls = parse_source(repo_id, rel, source, LANG_BY_EXT[ext])
+                    all_calls.extend(calls)
+                else:
+                    nodes, edges = parse_manifest(repo_id, rel, source)
             except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
                 log(f"  skip {rel}: parse error: {e}")
                 continue
             n_files += 1
             for node in nodes:
-                by_id[node.id] = node  # dedupe shared nodes (e.g. modules)
+                by_id[node.id] = node  # dedupe shared nodes (e.g. packages, modules)
             shard.edges.extend(edges)
-            all_calls.extend(calls)
 
     shard.nodes.extend(by_id.values())
     shard.edges.extend(_resolve_calls(all_calls, by_id))
