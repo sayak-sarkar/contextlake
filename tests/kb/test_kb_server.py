@@ -75,6 +75,24 @@ def test_shortest_path(server):
     assert [n["id"] for n in items] == ["a", "b"]
 
 
+def test_find_dependents(tmp_path):
+    # consumer's manifest depends_on package 'libx'
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("consumer", [
+        Node(id="consumer:pyproject", repo="consumer", kind="file", name="pyproject.toml"),
+        Node(id="pkg:libx", repo="(packages)", kind="package", name="libx"),
+    ])
+    s.upsert_edges("consumer", [Edge(
+        src="consumer:pyproject", dst="pkg:libx", relation="depends_on",
+        confidence=Confidence.EXTRACTED,
+        provenance=Provenance(source_file="pyproject.toml", verified_at=date(2026, 6, 21)),
+    )])
+    res = asyncio.run(_call(build_server(s), "find_dependents", {"package": "libx"}))
+    items = _unwrap(res.structuredContent)
+    assert [n["repo"] for n in items] == ["consumer"]
+    s.close()
+
+
 def test_get_node_round_trip(server):
     res = asyncio.run(_call(server, "get_node", {"node_id": "a"}))
     assert not res.isError
