@@ -30,8 +30,8 @@ def _parse_result(res: Any) -> Any:
         return text
 
 
-async def _acall(command: str, args: Sequence[str], tool: str, arguments: dict, timeout: float):
-    params = StdioServerParameters(command=command, args=list(args))
+async def _acall(command, args, tool, arguments, timeout, env):
+    params = StdioServerParameters(command=command, args=list(args), env=env)
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await asyncio.wait_for(session.initialize(), timeout)
@@ -39,8 +39,8 @@ async def _acall(command: str, args: Sequence[str], tool: str, arguments: dict, 
             return _parse_result(res)
 
 
-async def _alist(command: str, args: Sequence[str], timeout: float) -> list[str]:
-    params = StdioServerParameters(command=command, args=list(args))
+async def _alist(command, args, timeout, env) -> list[str]:
+    params = StdioServerParameters(command=command, args=list(args), env=env)
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await asyncio.wait_for(session.initialize(), timeout)
@@ -50,12 +50,14 @@ async def _alist(command: str, args: Sequence[str], timeout: float) -> list[str]
 
 def call_tool(
     command: str, args: Sequence[str], tool: str,
-    arguments: dict | None = None, timeout: float = 90,
+    arguments: dict | None = None, timeout: float = 90, env: dict | None = None,
 ) -> Any:
     """Spawn an MCP server, call one tool, and return its parsed result."""
-    return asyncio.run(_acall(command, args, tool, arguments or {}, timeout))
+    return asyncio.run(_acall(command, args, tool, arguments or {}, timeout, env))
 
 
-def list_tools(command: str, args: Sequence[str], timeout: float = 90) -> list[str]:
+def list_tools(
+    command: str, args: Sequence[str], timeout: float = 90, env: dict | None = None
+) -> list[str]:
     """Spawn an MCP server and return the names of the tools it exposes."""
-    return asyncio.run(_alist(command, args, timeout))
+    return asyncio.run(_alist(command, args, timeout, env))
