@@ -52,6 +52,60 @@ class AtlassianConnector:
             return res.get("results") or res.get("result") or []
         return []
 
+    def verify_issues(self, cloud_id: str, keys, batch: int = 100) -> dict[str, dict]:
+        """Confirm and enrich candidate issue keys via batched JQL (live).
+
+        Returns ``{key: {key, summary, status, url}}`` for keys that exist on the
+        site. JQL ``key in (...)`` silently drops unknown keys, so this both prunes
+        regex false-positives and routes keys to their owning site for free.
+        """
+        ordered = list(dict.fromkeys(k for k in keys if k))
+        found: dict[str, dict] = {}
+        cmd, args, env = self._spawn()
+        for chunk in _chunks(ordered, batch):
+            jql = "key in (" + ", ".join(chunk) + ")"
+            res = call_tool(
+                cmd, args, "searchJiraIssuesUsingJql",
+                {"cloudId": cloud_id, "jql": jql, "maxResults": min(batch, 100),
+                 "fields": ["summary", "status"]},
+                timeout=self.timeout, env=env,
+            )
+            for node in parse_search_issues(res):
+                s = issue_summary(node)
+                if s["key"]:
+                    found[s["key"]] = s
+        return found
+
+
+# --- pure parsing of fetched payloads (no network) -------------------------
+
+def _chunks(seq, n):
+    for i in range(0, len(seq), n):
+        yield seq[i:i + n]
+
+
+def parse_search_issues(result) -> list:
+    """Issue nodes out of a searchJiraIssuesUsingJql result (Rovo or REST shape)."""
+    if isinstance(result, dict):
+        issues = result.get("issues")
+        if isinstance(issues, dict):
+            return issues.get("nodes") or []
+        if isinstance(issues, list):
+            return issues
+    return result if isinstance(result, list) else []
+
+
+def issue_summary(node: dict) -> dict:
+    """Flatten a Jira issue node to {key, summary, status, url} (tolerant)."""
+    fields = node.get("fields") or {}
+    status = fields.get("status")
+    return {
+        "key": node.get("key"),
+        "summary": fields.get("summary"),
+        "status": status.get("name") if isinstance(status, dict) else status,
+        "url": node.get("webUrl") or node.get("self"),
+    }
+
 
 # --- pure graph mapping (no network) ---------------------------------------
 
