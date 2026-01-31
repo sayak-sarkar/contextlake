@@ -14,7 +14,8 @@ def test_pyproject():
                b'dependencies = ["requests>=2", "tomli; python_version<\'3.11\'"]\n'
                b'[project.optional-dependencies]\ndev = ["pytest>=7"]\n')
     nodes, edges = parse_manifest("team/api", "pyproject.toml", content)
-    assert {"myapp", "requests", "tomli", "pytest"} <= {n.name for n in nodes if n.kind == "package"}
+    pkgs = {n.name for n in nodes if n.kind == "package"}
+    assert {"myapp", "requests", "tomli", "pytest"} <= pkgs
     rels = {(e.relation, _names(nodes, [e.dst]).pop()) for e in edges}
     assert ("publishes", "myapp") in rels
     assert ("depends_on", "requests") in rels and ("depends_on", "pytest") in rels

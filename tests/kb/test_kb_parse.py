@@ -20,7 +20,9 @@ def top():
 
 
 def test_parse_extracts_defs_and_imports():
-    nodes, edges, _ = parse_source("team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21))
+    nodes, edges, _ = parse_source(
+        "team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21)
+    )
     by_kind: dict[str, list[str]] = {}
     for n in nodes:
         by_kind.setdefault(n.kind, []).append(n.name)
