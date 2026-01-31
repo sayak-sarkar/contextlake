@@ -6,6 +6,9 @@ import sys
 
 from gitlab_sync.kb.connectors.atlassian import (
     AtlassianConnector,
+    associate,
+    claims,
+    classify_link,
     external_node,
     link_edge,
     repo_node,
@@ -99,3 +102,60 @@ def test_link_edge():
     assert e.confidence == Confidence.INFERRED
     assert e.provenance.source_file == "branch:feature/PROJ-1-x"
     assert e.provenance.verified_at is not None
+
+
+# --- URL claiming + classification -----------------------------------------
+
+def test_claims_host_and_subdomain():
+    hosts = ["example.atlassian.net"]
+    assert claims("https://example.atlassian.net/browse/PROJ-1", hosts)
+    assert claims("https://example.atlassian.net/wiki/x/Abc", hosts)
+    assert not claims("https://www.figma.com/file/abc", hosts)
+    assert not claims("not a url", hosts)
+
+
+def test_classify_link():
+    assert classify_link("https://x.atlassian.net/browse/PROJ-12") == ("issue", "PROJ-12")
+    assert classify_link("https://x.atlassian.net/wiki/spaces/S/pages/98765/T") == ("page", "98765")
+    assert classify_link("https://x.atlassian.net/wiki/x/Fc1bBw") == ("page", "Fc1bBw")
+    assert classify_link("https://x.atlassian.net/dashboard") is None
+
+
+# --- association (candidate graph from reference signals) ------------------
+
+def test_associate_issue_keys_are_ambiguous():
+    nodes, edges = associate("group/app", issue_keys=["PROJ-1", "PROJ-2"])
+    assert {n.kind for n in nodes} == {"repo", "issue"}
+    issue_edges = [e for e in edges if e.relation == "tracked_by"]
+    assert len(issue_edges) == 2
+    assert all(e.confidence == Confidence.AMBIGUOUS for e in issue_edges)
+
+
+def test_associate_claims_only_own_links_and_classifies():
+    nodes, edges = associate(
+        "group/app",
+        links=[
+            "https://example.atlassian.net/browse/PROJ-9",
+            "https://example.atlassian.net/wiki/spaces/S/pages/55/Home",
+            "https://www.figma.com/file/abc",  # foreign host, ignored
+        ],
+        site_hosts=["example.atlassian.net"],
+    )
+    by_rel = {e.relation for e in edges}
+    assert by_rel == {"tracked_by", "documented_by"}
+    page = next(n for n in nodes if n.kind == "page")
+    assert page.name == "55" and page.attrs["url"].endswith("/pages/55/Home")
+    assert all(e.confidence == Confidence.INFERRED for e in edges)
+
+
+def test_associate_dedupes_repo_and_edges():
+    nodes, edges = associate(
+        "group/app",
+        issue_keys=["PROJ-1"],
+        links=["https://example.atlassian.net/browse/PROJ-1"],
+        site_hosts=["example.atlassian.net"],
+    )
+    assert sum(1 for n in nodes if n.kind == "repo") == 1
+    assert sum(1 for n in nodes if n.kind == "issue") == 1
+    # same (src,dst,relation) collapses to one edge despite two signals
+    assert sum(1 for e in edges if e.relation == "tracked_by") == 1
