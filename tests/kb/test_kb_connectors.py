@@ -10,7 +10,9 @@ from gitlab_sync.kb.connectors.atlassian import (
     claims,
     classify_link,
     external_node,
+    issue_summary,
     link_edge,
+    parse_search_issues,
     repo_node,
 )
 from gitlab_sync.kb.model import Confidence
@@ -30,6 +32,19 @@ def getAccessibleAtlassianResources() -> list[dict]:
 @m.tool()
 def search(query: str) -> list[dict]:
     return [{"id": "X-1", "title": "Found " + query}]
+
+@m.tool()
+def searchJiraIssuesUsingJql(cloudId: str, jql: str, maxResults: int = 50,
+                             fields: list[str] | None = None) -> dict:
+    # Emulate JQL tolerance: only return PROJ-1 if its key is in the query.
+    nodes = []
+    if "PROJ-1" in jql:
+        nodes.append({
+            "key": "PROJ-1",
+            "fields": {"summary": "Real one", "status": {"name": "Open"}},
+            "webUrl": "https://example.atlassian.net/browse/PROJ-1",
+        })
+    return {"issues": {"nodes": nodes, "pageInfo": {"hasNextPage": False}}}
 
 m.run()
 """
@@ -57,6 +72,33 @@ def test_discover_sites(tmp_path):
 
 def test_search(tmp_path):
     assert _connector(tmp_path).search("foo") == [{"id": "X-1", "title": "Found foo"}]
+
+
+def test_verify_issues_drops_unknown_and_enriches(tmp_path):
+    found = _connector(tmp_path).verify_issues("cloud-123", ["PROJ-1", "ZZZ-9", "PROJ-1"])
+    assert set(found) == {"PROJ-1"}  # ZZZ-9 silently dropped, dedup applied
+    assert found["PROJ-1"]["summary"] == "Real one"
+    assert found["PROJ-1"]["status"] == "Open"
+    assert found["PROJ-1"]["url"].endswith("/browse/PROJ-1")
+
+
+# --- pure payload parsing --------------------------------------------------
+
+def test_parse_search_issues_shapes():
+    rovo = {"issues": {"nodes": [{"key": "A-1"}]}}
+    assert parse_search_issues(rovo) == [{"key": "A-1"}]
+    assert parse_search_issues({"issues": [{"key": "A-2"}]}) == [{"key": "A-2"}]
+    assert parse_search_issues([{"key": "A-3"}]) == [{"key": "A-3"}]
+    assert parse_search_issues("junk") == []
+
+
+def test_issue_summary_tolerant():
+    node = {"key": "A-1", "fields": {"summary": "S", "status": {"name": "Done"}},
+            "webUrl": "https://x/browse/A-1"}
+    assert issue_summary(node) == {"key": "A-1", "summary": "S", "status": "Done",
+                                   "url": "https://x/browse/A-1"}
+    assert issue_summary({"key": "A-2"}) == {"key": "A-2", "summary": None,
+                                             "status": None, "url": None}
 
 
 # --- env plumbing ----------------------------------------------------------
