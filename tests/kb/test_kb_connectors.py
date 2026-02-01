@@ -15,6 +15,11 @@ from gitlab_sync.kb.connectors.atlassian import (
     parse_search_issues,
     repo_node,
 )
+from gitlab_sync.kb.connectors.orchestrate import (
+    connect_partition,
+    enrich_repo,
+    reconcile,
+)
 from gitlab_sync.kb.model import Confidence
 
 # Mock MCP server exposing the two tools the connector calls.
@@ -201,3 +206,51 @@ def test_associate_dedupes_repo_and_edges():
     assert sum(1 for n in nodes if n.kind == "issue") == 1
     # same (src,dst,relation) collapses to one edge despite two signals
     assert sum(1 for e in edges if e.relation == "tracked_by") == 1
+
+
+# --- orchestration: associate -> verify -> reconcile -----------------------
+
+class _StubConnector:
+    name = "stub"
+
+    def __init__(self, confirmed):
+        self._confirmed = confirmed
+
+    def verify_issues(self, cloud_id, keys, batch=100):
+        return {k: self._confirmed[k] for k in keys if k in self._confirmed}
+
+
+def test_connect_partition_is_isolated():
+    assert connect_partition("group/app") == "@connect:group/app"
+
+
+def test_reconcile_drops_unconfirmed_and_enriches_confirmed():
+    nodes, edges = associate(
+        "g/app",
+        issue_keys=["PROJ-1", "UTF-8"],  # UTF-8 is a regex false-positive
+        links=["https://example.atlassian.net/wiki/spaces/S/pages/55/H"],
+        site_hosts=["example.atlassian.net"],
+    )
+    confirmed = {"PROJ-1": {"summary": "Real", "status": "Open",
+                            "url": "https://example.atlassian.net/browse/PROJ-1"}}
+    out_nodes, out_edges = reconcile(nodes, edges, confirmed)
+
+    issues = [n for n in out_nodes if n.kind == "issue"]
+    assert {n.name for n in issues} == {"PROJ-1"}  # UTF-8 pruned
+    assert any(n.kind == "page" and n.name == "55" for n in out_nodes)  # page kept
+    proj = issues[0]
+    assert proj.attrs["summary"] == "Real" and proj.attrs["status"] == "Open"
+    proj_edge = next(e for e in out_edges if e.dst == proj.id)
+    assert proj_edge.confidence == Confidence.INFERRED  # promoted from AMBIGUOUS
+
+
+def test_enrich_repo_combines_jql_and_doc_links():
+    conn = _StubConnector({"PROJ-1": {"summary": "S", "status": "Done", "url": "u"}})
+    sites = {"https://example.atlassian.net": "cloud-1"}
+    nodes, _ = enrich_repo(
+        conn, sites, "g/app",
+        issue_keys=["PROJ-1", "NOPE-9"],  # PROJ-1 confirmed, NOPE-9 dropped
+        links=["https://example.atlassian.net/browse/PROJ-2"],  # explicit -> kept
+    )
+    assert {n.name for n in nodes if n.kind == "issue"} == {"PROJ-1", "PROJ-2"}
+    assert any(n.kind == "repo" for n in nodes)

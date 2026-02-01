@@ -68,7 +68,7 @@ Examples:
         choices=[
             "fetch", "clone", "update", "branches", "verify", "sync", "status",
             # knowledge layer (optional [kb] extra)
-            "index", "serve", "query", "doctor",
+            "index", "connect", "serve", "query", "doctor",
         ],
         help="Command to execute",
     )
@@ -189,7 +189,7 @@ def main(argv=None):
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs
     # without the [kb] extra.
-    if args.command in ("index", "serve", "query", "doctor"):
+    if args.command in ("index", "connect", "serve", "query", "doctor"):
         try:
             from .kb import commands as kb_commands
         except ImportError as e:

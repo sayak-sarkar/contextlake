@@ -20,7 +20,7 @@ from .state import check_schema, mark_repo_indexed
 from .store.shards import GraphShard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
-KB_VERBS = ("index", "serve", "query", "doctor")
+KB_VERBS = ("index", "connect", "serve", "query", "doctor")
 
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
@@ -70,7 +70,8 @@ def _index_workspace(store, store_dir, workspace: Path) -> int:
             write_shard(store_dir, shard)
             reindex_shard(store, store_dir, repo_id)
             mark_repo_indexed(store, repo_id, head)
-            log(f"  [{i}/{len(repos)}] {repo_id}: {len(shard.nodes)} nodes, {len(shard.edges)} edges")
+            log(f"  [{i}/{len(repos)}] {repo_id}: "
+                f"{len(shard.nodes)} nodes, {len(shard.edges)} edges")
         except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
             failed += 1
             log(f"  [{i}/{len(repos)}] {repo_id}: FAILED — {e}")
@@ -116,6 +117,99 @@ def cmd_index(args) -> int:
         return _store_and_index(
             store, store_dir, shard.repo, src.resolve(), shard.head_commit, shard
         )
+    finally:
+        store.close()
+
+
+def _rule_patterns(rules) -> tuple[str | None, list[str]]:
+    """Pull the issue-key pattern and doc-link patterns out of configured rules."""
+    branch_key = None
+    link_patterns = []
+    for r in rules:
+        if r.type in ("branch_key", "issue_key") and r.pattern:
+            branch_key = r.pattern
+        elif r.type in ("link_scrape", "link") and r.pattern:
+            link_patterns.append(r.pattern)
+    return branch_key, link_patterns
+
+
+def _connect_targets(args, store) -> list[tuple[str, str]]:
+    """Repos to enrich: --workspace tree, a single --source dir, or all indexed."""
+    workspace = getattr(args, "workspace", None)
+    if workspace:
+        from .parse import discover_repos  # lazy
+
+        return discover_repos(str(workspace))
+    source = getattr(args, "source", None)
+    if source and Path(source).is_dir():
+        repo_id = getattr(args, "repo", None) or Path(source).name
+        return [(repo_id, str(Path(source).resolve()))]
+    return [(r.id, r.path) for r in store.list_repos() if r.path]
+
+
+def cmd_connect(args) -> int:
+    from .connectors.orchestrate import build_atlassian, connect_partition, enrich_repo
+    from .references import extract_issue_keys, scrape_links
+
+    store, _ = _open_store(args)
+    try:
+        cfg = load_kb_config(getattr(args, "config", None))
+        sources = [s for s in cfg.sources if s.type == "atlassian"]
+        if not sources:
+            log('No Atlassian sources configured (add [[sources]] type="atlassian" to kb.toml)')
+            return 0
+        branch_key, link_patterns = _rule_patterns(cfg.rules)
+        if not branch_key and not link_patterns:
+            log('No association rules configured (add [[rules]] type="branch_key"/"link_scrape")')
+            return 0
+
+        connectors = []
+        for s in sources:
+            conn = build_atlassian(s)
+            try:
+                sites = conn.discover_sites()
+            except Exception as e:  # noqa: BLE001 - a dead source must not abort the run
+                log(f"  source {s.name!r}: site discovery failed — {e}")
+                continue
+            log(f"  source {s.name!r}: {len(sites)} site(s) reachable")
+            if sites:
+                connectors.append((conn, sites))
+        if not connectors:
+            log("No reachable Atlassian sites; nothing to connect")
+            return 1
+
+        targets = _connect_targets(args, store)
+        if not targets:
+            log("No repos to enrich (index some first, or pass --workspace/--source)")
+            return 0
+        log(f"Enriching {len(targets)} repo(s) across {len(connectors)} source(s)")
+
+        total_edges = 0
+        for repo_id, path in targets:
+            keys = extract_issue_keys(path, branch_key) if branch_key else []
+            links = scrape_links(path, link_patterns) if link_patterns else []
+            if not keys and not links:
+                continue
+            merged_nodes, merged_edges = {}, {}
+            for conn, sites in connectors:
+                try:
+                    nodes, edges = enrich_repo(conn, sites, repo_id, issue_keys=keys, links=links)
+                except Exception as e:  # noqa: BLE001 - one source/repo must not abort the run
+                    log(f"  {repo_id}: source {conn.name!r} failed — {e}")
+                    continue
+                for n in nodes:
+                    merged_nodes[n.id] = n
+                for ed in edges:
+                    merged_edges[(ed.src, ed.dst, ed.relation)] = ed
+            part = connect_partition(repo_id)
+            store.clear_repo(part)
+            store.upsert_nodes(part, list(merged_nodes.values()))
+            store.upsert_edges(part, list(merged_edges.values()))
+            total_edges += len(merged_edges)
+            if merged_edges:
+                log(f"  {repo_id}: {len(merged_edges)} link(s)")
+        log(f"Connect complete: {total_edges} external link(s) stored")
+        return 0
     finally:
         store.close()
 
@@ -202,5 +296,6 @@ def cmd_doctor(args) -> int:
 
 def dispatch(command: str, args) -> int:
     return {
-        "index": cmd_index, "query": cmd_query, "serve": cmd_serve, "doctor": cmd_doctor,
+        "index": cmd_index, "connect": cmd_connect, "query": cmd_query,
+        "serve": cmd_serve, "doctor": cmd_doctor,
     }[command](args)
