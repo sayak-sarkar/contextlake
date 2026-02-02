@@ -10,12 +10,17 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import date
-from urllib.parse import urlparse
 
 from ..ids import make_id
 from ..mcp_client import call_tool
-from ..model import Confidence, Edge, Node, Provenance
+from ..model import Confidence, Edge, Node
+from .common import claims, host_of, link_edge, repo_node
+
+__all__ = [
+    "AtlassianConnector", "DEFAULT_MCP_URL", "associate", "claims", "classify_link",
+    "external_node", "host_of", "issue_summary", "link_edge", "parse_search_issues",
+    "repo_node",
+]
 
 DEFAULT_MCP_URL = "https://mcp.atlassian.com/v1/mcp/authv2"
 
@@ -109,10 +114,6 @@ def issue_summary(node: dict) -> dict:
 
 # --- pure graph mapping (no network) ---------------------------------------
 
-def repo_node(repo_id: str) -> Node:
-    return Node(id=make_id("repo", repo_id), repo=repo_id, kind="repo", name=repo_id)
-
-
 def external_node(kind: str, key: str, *, title: str | None = None,
                   url: str | None = None, site: str | None = None) -> Node:
     attrs = {k: v for k, v in {"title": title, "url": url, "site": site}.items() if v}
@@ -120,35 +121,11 @@ def external_node(kind: str, key: str, *, title: str | None = None,
                 name=key, attrs=attrs)
 
 
-def link_edge(repo_id: str, ext: Node, relation: str, source_file: str, *,
-              confidence: Confidence = Confidence.INFERRED,
-              verified_at: date | None = None) -> Edge:
-    """A repo -> external-knowledge edge (e.g. tracked_by / documented_by)."""
-    return Edge(
-        src=make_id("repo", repo_id), dst=ext.id, relation=relation,
-        confidence=confidence,
-        provenance=Provenance(source_file=source_file, verified_at=verified_at or date.today()),
-    )
-
-
-# --- URL claiming + classification (generic seam, reused by Figma) ---------
+# --- URL classification (Atlassian-specific; host claiming is in common) ----
 
 _BROWSE_RX = re.compile(r"/browse/([A-Z][A-Z0-9]+-\d+)")
 _PAGE_NUM_RX = re.compile(r"/pages/(\d+)")
 _TINY_RX = re.compile(r"/wiki/x/([A-Za-z0-9]+)")
-
-
-def host_of(url: str) -> str | None:
-    try:
-        return urlparse(url).netloc.lower() or None
-    except ValueError:
-        return None
-
-
-def claims(url: str, site_hosts) -> bool:
-    """Whether ``url`` belongs to one of this connector's Atlassian sites."""
-    h = host_of(url)
-    return bool(h and any(h == s.lower() or h.endswith("." + s.lower()) for s in site_hosts))
 
 
 def classify_link(url: str) -> tuple[str, str] | None:
