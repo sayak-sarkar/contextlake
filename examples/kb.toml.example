@@ -16,18 +16,21 @@ provider = "ollama"
 model = "nomic-embed-text"
 
 # --- Knowledge-source connectors (0..N) -------------------------------------
-# Each Atlassian org is its own connector with its own auth session.
+# `gitlab-sync connect` runs these after indexing to link repos to external
+# knowledge. Each Atlassian org is its own connector with its own auth session;
+# set a distinct `auth_dir` per org so their OAuth caches never collide.
 [[sources]]
 type = "atlassian"
 name = "primary"
 mcp = "https://mcp.atlassian.com/v1/mcp/authv2"
-# site = "your-org.atlassian.net"   # used to resolve a cloudId at runtime
+# auth_dir = "~/.gitlab-sync/auth/primary"   # isolated mcp-remote OAuth cache
+# timeout = 120                              # seconds per MCP call
 
 [[sources]]
 type = "atlassian"
 name = "secondary"
 mcp = "https://mcp.atlassian.com/v1/mcp/authv2"
-# site = "another-org.atlassian.net"
+# auth_dir = "~/.gitlab-sync/auth/secondary"
 
 [[sources]]
 type = "figma"

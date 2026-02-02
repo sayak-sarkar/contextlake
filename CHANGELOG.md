@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-21
+
+Adds an optional **knowledge layer** (`gitlab_sync.kb`, the `[kb]` extra,
+Python ≥ 3.10) that turns the mirrored repositories into a queryable knowledge
+graph served to AI agents over MCP. The core sync tool is unchanged and the extra
+is entirely opt-in. Everything is generic and config-driven — no
+organization-specific data lives in the package.
+
+### Added
+
+- **Knowledge-graph store and CLI**: `index`, `query`, `serve`, and `doctor`
+  commands backed by a SQLite + FTS5 cross-repo index with per-repo JSON shards.
+  Every node/edge is provenance-stamped (source file + verified date) and
+  confidence-tagged (`EXTRACTED` / `INFERRED` / `AMBIGUOUS`).
+- **Code graph** via tree-sitter for Python, JavaScript, TypeScript/TSX, and C#:
+  files, classes, functions/methods, interfaces, imports, containment, and an
+  intra-repo **call graph** (the parser registry is pluggable). `index --workspace`
+  indexes every git repository under a directory.
+- **Cross-repo dependency graph** from `pyproject.toml`, `package.json`, and
+  `*.csproj` manifests through shared package nodes.
+- **MCP server** (stdio or streamable-http) exposing `search_code`,
+  `find_definition`, `find_callers`, `find_dependents`, `get_neighbors`,
+  `shortest_path`, and `graph_stats`, plus a `kb://stats` resource. All output is
+  sanitized before it reaches an agent.
+- **Knowledge connectors** (`connect`): an **Atlassian** connector links each repo
+  to the Jira issues and Confluence pages it references. Candidate issue keys
+  (from branch/commit names) are confirmed and enriched against live sites with a
+  single batched JQL call (unverified false-positives are dropped); Atlassian URLs
+  in docs are classified into issue/page links. One or more sites are supported,
+  each independently authenticated over MCP. Output is stored in an isolated graph
+  partition so code re-indexing never disturbs external links.
+- **Config** (`examples/kb.toml.example` → `~/.gitlab-sync/kb.toml`): store
+  location, languages, knowledge sources, and association rules — all
+  organization-specific facts live here, never in the package.
+- CI now runs a separate knowledge-layer job (Python 3.10-3.13) alongside the
+  core job, including a genericity guard that fails the build if organization data
+  appears in the source.
+
 ## [1.3.0] - 2026-06-21
 
 This release stabilizes the core and makes the tool installable. It repairs

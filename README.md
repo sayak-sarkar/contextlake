@@ -613,14 +613,15 @@ sudo cat > /etc/logrotate.d/gitlab_sync << 'EOF'
 EOF
 ```
 
-## Knowledge layer (preview)
+## Knowledge layer
 
 An optional subsystem (`gitlab_sync.kb`) turns your mirrored repositories into a
 queryable **knowledge graph** and serves it to AI agents over **MCP** — so an
-assistant can ask "where is `X` defined?" or "who calls `Y`?" instead of grepping
-hundreds of repos. It's generic: it indexes *any* repositories and connects to
-*any* configured knowledge sources; no organization-specific data lives in the
-package (your sites, keys, and rules go in a private config file).
+assistant can ask "where is `X` defined?", "who calls `Y`?", or "which repos
+depend on package `Z`?" instead of grepping hundreds of repos. It's generic: it
+indexes *any* repositories and connects to *any* configured knowledge sources; no
+organization-specific data lives in the package (your sites, keys, and rules go in
+a private config file).
 
 Install the extra (requires Python ≥ 3.10):
 
@@ -629,22 +630,34 @@ pip install "gitlab-sync[kb]"
 gitlab-sync doctor                          # check the environment
 gitlab-sync index --source ./my-repo        # index one repository
 gitlab-sync index --workspace ~/work        # index every git repo under a directory
+gitlab-sync connect --workspace ~/work      # link repos to their issues/docs (see below)
 gitlab-sync query "OrderService"            # cited search across the index
 gitlab-sync serve                           # expose the graph over MCP (stdio or --transport http)
 ```
 
 **Code indexing** uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
-TypeScript/TSX, and C#** (the parser registry is pluggable). Over MCP, agents get
-tools to traverse it: `search_code`, `find_definition`, `find_callers`,
+TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads
+manifests (`pyproject.toml`, `package.json`, `*.csproj`) to build a **cross-repo
+dependency graph** through shared package nodes. Over MCP, agents get tools to
+traverse it: `search_code`, `find_definition`, `find_callers`, `find_dependents`,
 `get_neighbors`, `shortest_path`, and `graph_stats`.
+
+**Knowledge connectors** (`connect`) enrich the graph with external context. The
+**Atlassian** connector links each repo to the Jira issues and Confluence pages it
+references — issue keys harvested from branch/commit names are confirmed against
+the live tracker (a single batched JQL call per site prunes false-positives and
+fetches each issue's summary/status), and Atlassian URLs found in docs are
+classified into issue/page links. It talks to one or more Atlassian sites over
+MCP, each independently authenticated. Connector output lands in an isolated graph
+partition, so re-indexing a repo's code never disturbs its external links.
 
 Configure it by copying [`examples/kb.toml.example`](examples/kb.toml.example) to
 `~/.gitlab-sync/kb.toml`. Every fact is provenance-stamped (source file + verified
 date) and confidence-tagged (`EXTRACTED` for AST facts, `INFERRED` for resolved
-calls), and all output is sanitized before it reaches an agent. Semantic
-(embedding) search and the Atlassian/Figma knowledge connectors land in later
-phases.
+calls/links, `AMBIGUOUS` for unconfirmed candidates), and all output is sanitized
+before it reaches an agent. Semantic (embedding) search and the Figma connector
+land in later phases.
 
 ## Technical Documentation
 
@@ -1010,6 +1023,21 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 ```
 
 ### Version History
+
+- **v1.4** (2026-06-21): Knowledge layer
+
+  - Added the optional `gitlab_sync.kb` subsystem (the `[kb]` extra): index
+    repositories into a queryable knowledge graph and serve it to AI agents over
+    MCP (`index`, `connect`, `query`, `serve`, `doctor`)
+  - tree-sitter code graph for Python, JavaScript, TypeScript/TSX, and C#
+    (definitions, imports, containment, and an intra-repo call graph)
+  - Cross-repo dependency graph from manifests, with a `find_dependents` tool
+  - Atlassian knowledge connector: links repos to the Jira issues and Confluence
+    pages they reference, verified and enriched against live sites over MCP
+  - SQLite + FTS5 cross-repo index with per-repo JSON shards; every fact is
+    provenance-stamped and confidence-tagged
+  - Generic and config-driven — no organization-specific data in the package
+  - See CHANGELOG.md for the full list
 
 - **v1.3** (2026-06-21): Stabilization, packaging, and tests
 
