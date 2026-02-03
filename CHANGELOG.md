@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Figma knowledge connector**: links repos to the design files they reference,
+  classifying `figma.com` URLs (file/design/proto/board) to a stable file key with
+  optional best-effort name enrichment over a configured Figma MCP. Runs alongside
+  Atlassian sources under `connect`. Connector-agnostic helpers were extracted to a
+  shared module so new connectors stay small.
+
+### Fixed
+
+- `link_scrape` association rules expressed as a `patterns` list (as in the example
+  config) were silently ignored; both a singular `pattern` and a `patterns` list
+  are now honored.
+
 ## [1.4.0] - 2026-06-21
 
 Adds an optional **knowledge layer** (`gitlab_sync.kb`, the `[kb]` extra,

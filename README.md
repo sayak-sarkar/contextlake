@@ -649,15 +649,17 @@ references — issue keys harvested from branch/commit names are confirmed again
 the live tracker (a single batched JQL call per site prunes false-positives and
 fetches each issue's summary/status), and Atlassian URLs found in docs are
 classified into issue/page links. It talks to one or more Atlassian sites over
-MCP, each independently authenticated. Connector output lands in an isolated graph
-partition, so re-indexing a repo's code never disturbs its external links.
+MCP, each independently authenticated. The **Figma** connector links repos to the
+design files they reference, classifying `figma.com` URLs to a stable file key.
+Connectors share one seam, so adding another is a small, self-contained module;
+output lands in an isolated graph partition, so re-indexing a repo's code never
+disturbs its external links.
 
 Configure it by copying [`examples/kb.toml.example`](examples/kb.toml.example) to
 `~/.gitlab-sync/kb.toml`. Every fact is provenance-stamped (source file + verified
 date) and confidence-tagged (`EXTRACTED` for AST facts, `INFERRED` for resolved
 calls/links, `AMBIGUOUS` for unconfirmed candidates), and all output is sanitized
-before it reaches an agent. Semantic (embedding) search and the Figma connector
-land in later phases.
+before it reaches an agent. Semantic (embedding) search lands in a later phase.
 
 ## Technical Documentation
 
