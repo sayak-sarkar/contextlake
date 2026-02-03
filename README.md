@@ -1026,6 +1026,14 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.5** (2026-06-21): Figma connector
+
+  - Added a Figma knowledge connector that links repos to the design files they
+    reference (classifies `figma.com` URLs to a stable key, names them from the
+    URL slug, and best-effort verifies reachability over a configured Figma MCP)
+  - Extracted connector-agnostic helpers to a shared module
+  - Fixed `link_scrape` rules expressed as a `patterns` list being ignored
+
 - **v1.4** (2026-06-21): Knowledge layer
 
   - Added the optional `gitlab_sync.kb` subsystem (the `[kb]` extra): index
