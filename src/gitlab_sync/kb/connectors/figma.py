@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+from urllib.parse import unquote
 
 from ..ids import make_id
 from ..mcp_client import call_tool
@@ -19,13 +20,17 @@ from .common import claims, link_edge, repo_node
 
 DEFAULT_HOSTS = ("figma.com",)
 
-# Figma file/design/proto/board URLs carry a stable key: /<kind>/<KEY>/<slug>.
+# Figma file/design/proto/board URLs carry a stable key and the file name as a
+# slug: /<kind>/<KEY>/<File-Name-Slug>?node-id=<NODE>. The slug is the reliable
+# human name — the live MCP get_metadata returns XML structure (not a file name)
+# and is gated on edit access, so the URL itself is the source of truth.
 _FILE_RX = re.compile(r"/(?:file|design|proto|board)/([A-Za-z0-9]+)")
+_SLUG_RX = re.compile(r"/(?:file|design|proto|board)/[A-Za-z0-9]+/([^/?#]+)")
 _NODE_RX = re.compile(r"[?&]node-id=([A-Za-z0-9:%_-]+)")
 
 __all__ = [
     "DEFAULT_HOSTS", "FigmaConnector", "associate_designs", "classify_figma_link",
-    "design_node",
+    "design_node", "title_of",
 ]
 
 
@@ -33,6 +38,14 @@ def classify_figma_link(url: str) -> str | None:
     """The stable Figma file key from a figma.com URL, or None if not a file URL."""
     m = _FILE_RX.search(url)
     return m.group(1) if m else None
+
+
+def title_of(url: str) -> str | None:
+    """The human file name from a Figma URL slug (``/design/KEY/My-App`` -> ``My App``)."""
+    m = _SLUG_RX.search(url)
+    if not m:
+        return None
+    return unquote(m.group(1)).replace("-", " ").strip() or None
 
 
 def design_node(key: str, *, url: str | None = None, title: str | None = None,
@@ -55,7 +68,8 @@ def associate_designs(repo_id: str, *, links=(), site_hosts=DEFAULT_HOSTS):
         if not key:
             continue
         m = _NODE_RX.search(url)
-        node = design_node(key, url=url, node_id=m.group(1) if m else None)
+        node = design_node(key, url=url, title=title_of(url),
+                           node_id=m.group(1) if m else None)
         nodes.setdefault(node.id, node)
         edges.setdefault(
             (repo.id, node.id, "designed_in"),
@@ -89,18 +103,22 @@ class FigmaConnector:
             return parts[0], parts[1:], env
         return "npx", ["-y", "mcp-remote@latest", self.mcp_url or ""], env
 
-    def fetch_metadata(self, file_key: str, *, tool: str = "get_metadata",
-                       arg: str = "fileKey") -> dict:
-        """Best-effort file metadata via the configured Figma MCP (live).
+    def verify(self, file_key: str, *, node_id: str | None = None) -> bool:
+        """Best-effort liveness check: is this design file reachable via the MCP?
 
-        Returns ``{}`` when no MCP is configured or the call fails — enrichment is
-        optional and must never break the association graph.
+        Returns ``False`` when no MCP is configured or the call fails (Figma's
+        ``get_metadata`` is gated on edit access and returns XML, so this only
+        confirms reachability — the file name comes from the URL slug, not here).
+        Never raises: verification must not break the association graph.
         """
         if not (self.mcp_url or self.mcp_command):
-            return {}
+            return False
         cmd, args, env = self._spawn()
+        payload = {"fileKey": file_key}
+        if node_id:
+            payload["nodeId"] = node_id
         try:
-            res = call_tool(cmd, args, tool, {arg: file_key}, timeout=self.timeout, env=env)
-        except Exception:  # noqa: BLE001 - enrichment is best-effort
-            return {}
-        return res if isinstance(res, dict) else {}
+            res = call_tool(cmd, args, "get_metadata", payload, timeout=self.timeout, env=env)
+        except Exception:  # noqa: BLE001 - verification is best-effort
+            return False
+        return bool(res)

@@ -50,16 +50,18 @@ def build_figma(src):
 
 
 def enrich_repo_figma(connector, repo_id, *, links=()):
-    """Associate figma.com links to design nodes, with best-effort name enrichment."""
+    """Associate figma.com links to design nodes (names come from the URL slug).
+
+    If a Figma MCP is configured, each design is additionally checked for
+    reachability and flagged ``verified``; this is best-effort and never blocks
+    the association graph.
+    """
     from .figma import associate_designs
 
     nodes, edges = associate_designs(repo_id, links=links, site_hosts=connector.hosts)
     for n in nodes:
-        if n.kind == "design":
-            meta = connector.fetch_metadata(n.name)
-            title = meta.get("name") if isinstance(meta, dict) else None
-            if title:
-                n.attrs["title"] = title
+        if n.kind == "design" and connector.verify(n.name):
+            n.attrs["verified"] = True
     return nodes, edges
 
 
