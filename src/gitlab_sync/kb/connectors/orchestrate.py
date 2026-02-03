@@ -34,6 +34,35 @@ def build_atlassian(src) -> AtlassianConnector:
     )
 
 
+def build_figma(src):
+    """Construct a Figma connector from a SourceCfg."""
+    from .figma import DEFAULT_HOSTS, FigmaConnector
+
+    extra = getattr(src, "model_extra", None) or {}
+    return FigmaConnector(
+        src.name,
+        mcp_url=src.mcp,
+        mcp_command=extra.get("mcp_command"),
+        hosts=extra.get("hosts", DEFAULT_HOSTS),
+        auth_dir=extra.get("auth_dir"),
+        timeout=extra.get("timeout", 120),
+    )
+
+
+def enrich_repo_figma(connector, repo_id, *, links=()):
+    """Associate figma.com links to design nodes, with best-effort name enrichment."""
+    from .figma import associate_designs
+
+    nodes, edges = associate_designs(repo_id, links=links, site_hosts=connector.hosts)
+    for n in nodes:
+        if n.kind == "design":
+            meta = connector.fetch_metadata(n.name)
+            title = meta.get("name") if isinstance(meta, dict) else None
+            if title:
+                n.attrs["title"] = title
+    return nodes, edges
+
+
 def reconcile(nodes, edges, confirmed):
     """Prune and enrich the candidate graph against a live verification result.
 

@@ -122,14 +122,23 @@ def cmd_index(args) -> int:
 
 
 def _rule_patterns(rules) -> tuple[str | None, list[str]]:
-    """Pull the issue-key pattern and doc-link patterns out of configured rules."""
+    """Pull the issue-key pattern and doc-link patterns out of configured rules.
+
+    A ``link_scrape`` rule may carry a single ``pattern`` or a ``patterns`` list
+    (the latter is what the example config uses); both are accepted.
+    """
     branch_key = None
     link_patterns = []
     for r in rules:
+        extra = getattr(r, "model_extra", None) or {}
         if r.type in ("branch_key", "issue_key") and r.pattern:
             branch_key = r.pattern
-        elif r.type in ("link_scrape", "link") and r.pattern:
-            link_patterns.append(r.pattern)
+        elif r.type in ("link_scrape", "link"):
+            if r.pattern:
+                link_patterns.append(r.pattern)
+            link_patterns.extend(
+                p for p in (extra.get("patterns") or []) if isinstance(p, str)
+            )
     return branch_key, link_patterns
 
 
@@ -147,42 +156,72 @@ def _connect_targets(args, store) -> list[tuple[str, str]]:
     return [(r.id, r.path) for r in store.list_repos() if r.path]
 
 
-def cmd_connect(args) -> int:
-    from .connectors.orchestrate import build_atlassian, connect_partition, enrich_repo
-    from .references import extract_issue_keys, scrape_links
+def _build_enrichers(sources):
+    """Turn configured sources into callables ``fn(repo_id, keys, links)`` that
+    return ``(nodes, edges)``. Atlassian sources discover their sites up front;
+    Figma sources need no discovery. Returns ``(enrichers, names)``."""
+    from .connectors.orchestrate import (
+        build_atlassian,
+        build_figma,
+        enrich_repo,
+        enrich_repo_figma,
+    )
 
-    store, _ = _open_store(args)
-    try:
-        cfg = load_kb_config(getattr(args, "config", None))
-        sources = [s for s in cfg.sources if s.type == "atlassian"]
-        if not sources:
-            log('No Atlassian sources configured (add [[sources]] type="atlassian" to kb.toml)')
-            return 0
-        branch_key, link_patterns = _rule_patterns(cfg.rules)
-        if not branch_key and not link_patterns:
-            log('No association rules configured (add [[rules]] type="branch_key"/"link_scrape")')
-            return 0
-
-        connectors = []
-        for s in sources:
+    enrichers, names = [], []
+    for s in sources:
+        if s.type == "atlassian":
             conn = build_atlassian(s)
             try:
                 sites = conn.discover_sites()
             except Exception as e:  # noqa: BLE001 - a dead source must not abort the run
                 log(f"  source {s.name!r}: site discovery failed — {e}")
                 continue
-            log(f"  source {s.name!r}: {len(sites)} site(s) reachable")
-            if sites:
-                connectors.append((conn, sites))
-        if not connectors:
-            log("No reachable Atlassian sites; nothing to connect")
+            log(f"  source {s.name!r} (atlassian): {len(sites)} site(s) reachable")
+            if not sites:
+                continue
+            enrichers.append(
+                lambda repo_id, keys, links, c=conn, st=sites:
+                enrich_repo(c, st, repo_id, issue_keys=keys, links=links)
+            )
+            names.append(s.name)
+        elif s.type == "figma":
+            conn = build_figma(s)
+            log(f"  source {s.name!r} (figma): ready")
+            enrichers.append(
+                lambda repo_id, keys, links, c=conn:
+                enrich_repo_figma(c, repo_id, links=links)
+            )
+            names.append(s.name)
+    return enrichers, names
+
+
+def cmd_connect(args) -> int:
+    from .connectors.orchestrate import connect_partition
+    from .references import extract_issue_keys, scrape_links
+
+    store, _ = _open_store(args)
+    try:
+        cfg = load_kb_config(getattr(args, "config", None))
+        sources = [s for s in cfg.sources if s.type in ("atlassian", "figma")]
+        if not sources:
+            log('No connector sources configured (add [[sources]] type="atlassian"/"figma")')
+            return 0
+        branch_key, link_patterns = _rule_patterns(cfg.rules)
+        if not branch_key and not link_patterns:
+            log('No association rules configured (add [[rules]] type="branch_key"/"link_scrape")')
+            return 0
+
+        enrichers, names = _build_enrichers(sources)
+        if not enrichers:
+            log("No usable connector sources; nothing to connect")
             return 1
 
         targets = _connect_targets(args, store)
         if not targets:
             log("No repos to enrich (index some first, or pass --workspace/--source)")
             return 0
-        log(f"Enriching {len(targets)} repo(s) across {len(connectors)} source(s)")
+        log(f"Enriching {len(targets)} repo(s) across "
+            f"{len(enrichers)} source(s): {', '.join(names)}")
 
         total_edges = 0
         for repo_id, path in targets:
@@ -191,11 +230,11 @@ def cmd_connect(args) -> int:
             if not keys and not links:
                 continue
             merged_nodes, merged_edges = {}, {}
-            for conn, sites in connectors:
+            for name, enrich in zip(names, enrichers):
                 try:
-                    nodes, edges = enrich_repo(conn, sites, repo_id, issue_keys=keys, links=links)
+                    nodes, edges = enrich(repo_id, keys, links)
                 except Exception as e:  # noqa: BLE001 - one source/repo must not abort the run
-                    log(f"  {repo_id}: source {conn.name!r} failed — {e}")
+                    log(f"  {repo_id}: source {name!r} failed — {e}")
                     continue
                 for n in nodes:
                     merged_nodes[n.id] = n
