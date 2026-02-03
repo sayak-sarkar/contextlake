@@ -10,10 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Figma knowledge connector**: links repos to the design files they reference,
-  classifying `figma.com` URLs (file/design/proto/board) to a stable file key with
-  optional best-effort name enrichment over a configured Figma MCP. Runs alongside
-  Atlassian sources under `connect`. Connector-agnostic helpers were extracted to a
-  shared module so new connectors stay small.
+  classifying `figma.com` URLs (file/design/proto/board) to a stable file key and
+  taking the human file name from the URL slug. When a Figma MCP is configured each
+  design is additionally checked for reachability (best-effort, never required).
+  Runs alongside Atlassian sources under `connect`. Connector-agnostic helpers were
+  extracted to a shared module so new connectors stay small.
 
 ### Fixed
 

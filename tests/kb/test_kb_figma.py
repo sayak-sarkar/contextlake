@@ -9,6 +9,7 @@ from gitlab_sync.kb.connectors.figma import (
     associate_designs,
     classify_figma_link,
     design_node,
+    title_of,
 )
 from gitlab_sync.kb.model import Confidence
 
@@ -40,6 +41,12 @@ def test_classify_figma_link_forms():
     assert classify_figma_link("https://www.figma.com/files/recent") is None
 
 
+def test_title_of_from_slug():
+    assert title_of("https://www.figma.com/design/Xy9/Design-System?node-id=1-2") == "Design System"
+    assert title_of("https://www.figma.com/file/K/My%20App") == "My App"
+    assert title_of("https://www.figma.com/files/recent") is None
+
+
 def test_design_node_id_stable_and_attrs():
     a = design_node("ABC123", url="https://www.figma.com/file/ABC123/x")
     b = design_node("ABC123")
@@ -60,6 +67,7 @@ def test_associate_designs_claims_and_classifies():
     )
     designs = [n for n in nodes if n.kind == "design"]
     assert len(designs) == 1 and designs[0].name == "Xy9"
+    assert designs[0].attrs["title"] == "Flow"  # human name from the URL slug
     assert designs[0].attrs["node_id"] == "12%3A34"
     assert len(edges) == 1
     assert edges[0].relation == "designed_in"
@@ -94,11 +102,11 @@ def test_spawn_defaults_to_mcp_remote():
     assert "https://mcp.example/figma" in args and env is None
 
 
-def test_fetch_metadata_returns_empty_without_mcp():
-    assert FigmaConnector("f").fetch_metadata("ABC123") == {}
+def test_verify_false_without_mcp():
+    assert FigmaConnector("f").verify("ABC123") is False
 
 
-def test_fetch_metadata_via_mock(tmp_path):
+def test_verify_true_via_mock(tmp_path):
     c = FigmaConnector("f", mcp_command="placeholder")
     c._spawn = lambda: (sys.executable, _server(tmp_path), None)
-    assert c.fetch_metadata("ABC123") == {"name": "Design System", "key": "ABC123"}
+    assert c.verify("ABC123") is True

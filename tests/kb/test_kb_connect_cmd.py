@@ -87,8 +87,8 @@ class _FigmaStub:
     name = "design"
     hosts = ("figma.com",)
 
-    def fetch_metadata(self, file_key, **kw):
-        return {"name": "Design System"}
+    def verify(self, file_key, **kw):
+        return True
 
 
 def test_connect_persists_figma_designs(tmp_path, monkeypatch):
@@ -114,6 +114,7 @@ def test_connect_persists_figma_designs(tmp_path, monkeypatch):
         check_schema(store)
         designs = store.nodes_by_name("Xy9")
         assert designs and designs[0].kind == "design"
-        assert designs[0].attrs.get("title") == "Design System"  # best-effort enrich applied
+        assert designs[0].attrs.get("title") == "Flow"  # name from the URL slug
+        assert designs[0].attrs.get("verified") is True  # best-effort liveness flag
     finally:
         store.close()
