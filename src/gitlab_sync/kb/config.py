@@ -49,9 +49,15 @@ class RuleCfg(BaseModel):
 
 
 class EmbeddingsCfg(BaseModel):
+    """Semantic-search tier. Local-first and off by default; connector-specific
+    keys are allowed so providers can carry extra options without a schema bump."""
+
+    model_config = ConfigDict(extra="allow")
     enabled: bool = False
     provider: str = "ollama"
     model: str | None = None
+    base_url: str = "http://127.0.0.1:11434"
+    batch_size: int = 64
 
 
 class KbConfig(BaseModel):
