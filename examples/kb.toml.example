@@ -32,9 +32,18 @@ name = "secondary"
 mcp = "https://mcp.atlassian.com/v1/mcp/authv2"
 # auth_dir = "~/.gitlab-sync/auth/secondary"
 
+# The Figma connector links repos to the design files their docs reference. The
+# file name comes from the URL itself; a configured Figma MCP is optional and only
+# used to verify reachability. Point it at the Figma desktop "Dev Mode MCP server"
+# (enable it in Figma > Preferences) via mcp, or at any MCP stdio command.
 [[sources]]
 type = "figma"
 name = "design"
+# mcp = "http://127.0.0.1:3845/mcp"   # Figma desktop Dev Mode MCP (bridged via mcp-remote)
+# mcp_command = "figma-mcp --stdio"   # or a local stdio MCP command
+# NOTE (WSL2): the desktop server listens on the Windows host's 127.0.0.1; reach it
+# from WSL only with mirrored networking (.wslconfig networkingMode=mirrored) or a
+# netsh portproxy + firewall allow rule. Verification degrades gracefully if unset.
 
 # --- Association rules (0..N) -----------------------------------------------
 # Link external knowledge to repos. Rule TYPES are generic; the patterns/maps
