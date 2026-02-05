@@ -103,7 +103,8 @@ def _bfs_path(store: Store, src_id: str, dst_id: str, max_hops: int) -> list[str
 
 
 def build_server(
-    store: Store, *, name: str = "gitlab-sync-kb", host: str = "127.0.0.1", port: int = 8765
+    store: Store, *, name: str = "gitlab-sync-kb", host: str = "127.0.0.1", port: int = 8765,
+    embedder=None, vector_store=None,
 ) -> FastMCP:
     mcp = FastMCP(
         name, instructions=_INSTRUCTIONS, host=host, port=port,
@@ -182,6 +183,19 @@ def build_server(
         path_ids = _bfs_path(store, src_id, dst_id, max_hops)
         return [_node_out(n) for nid in path_ids if (n := store.get_node(nid))]
 
+    if embedder is not None and vector_store is not None:
+        @mcp.tool()
+        def semantic_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
+            """Semantic (embedding) search over indexed nodes — for natural-language
+            queries where exact names are unknown. Results are ranked by similarity."""
+            vec = embedder.embed([query])[0]
+            out: list[NodeOut] = []
+            for node_id, _score in vector_store.search(vec, k=k, repo=repo):
+                n = store.get_node(node_id)
+                if n:
+                    out.append(_node_out(n))
+            return out
+
     @mcp.resource("kb://stats")
     def stats_resource() -> str:
         st = store.stats()
@@ -194,7 +208,10 @@ def build_server(
 
 
 def run_server(
-    store: Store, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8765
+    store: Store, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8765,
+    embedder=None, vector_store=None,
 ) -> None:
     """Build and run the MCP server (blocking)."""
-    build_server(store, host=host, port=port).run(transport=transport)
+    build_server(
+        store, host=host, port=port, embedder=embedder, vector_store=vector_store
+    ).run(transport=transport)
