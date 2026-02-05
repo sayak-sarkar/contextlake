@@ -1033,6 +1033,13 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.6** (2026-06-21): Semantic-search tier
+
+  - Added an optional, local-first embeddings tier: a pluggable embedder (Ollama
+    provider first), a SQLite vector store with cosine search, an `embed` command,
+    and a `semantic_search` MCP tool exposed by `serve` when enabled
+  - Off by default; code never leaves the machine
+
 - **v1.5** (2026-06-21): Figma connector
 
   - Added a Figma knowledge connector that links repos to the design files they
