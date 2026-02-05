@@ -1,0 +1,104 @@
+"""Tests for the embed pass (node_text + embed_repo) and the embed command."""
+
+from argparse import Namespace
+
+import gitlab_sync.kb.embeddings as emb_pkg
+from gitlab_sync.kb.commands import cmd_embed
+from gitlab_sync.kb.embeddings.index import embed_repo, node_text
+from gitlab_sync.kb.embeddings.store import VectorStore
+from gitlab_sync.kb.model import Node, Repo
+from gitlab_sync.kb.state import check_schema
+from gitlab_sync.kb.store.shards import GraphShard, write_shard
+from gitlab_sync.kb.store.sqlite_store import SqliteStore
+
+
+class _FakeEmbedder:
+    name = "fake"
+
+    def embed(self, texts):
+        # deterministic 2-D vector per text; longer text -> larger x component
+        return [[float(len(t)), 1.0] for t in texts]
+
+
+def test_node_text_combines_fields():
+    n = Node(id="x", repo="r", kind="function", name="foo",
+             qualified_name="mod.foo", file="a.py")
+    t = node_text(n)
+    assert "function" in t and "foo" in t and "mod.foo" in t and "a.py" in t
+
+
+def test_embed_repo_writes_vectors(tmp_path):
+    nodes = [
+        Node(id="n1", repo="r", kind="function", name="foo"),
+        Node(id="n2", repo="r", kind="class", name="Bar"),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=[]))
+    vs = VectorStore(tmp_path / "embeddings.sqlite")
+    try:
+        n = embed_repo(tmp_path, vs, _FakeEmbedder(), "r")
+        assert n == 2 and vs.count() == 2
+        assert vs.search([3.0, 1.0], k=1)[0][0] in {"n1", "n2"}
+        # re-embedding the same repo replaces, not duplicates
+        assert embed_repo(tmp_path, vs, _FakeEmbedder(), "r") == 2
+        assert vs.count() == 2
+    finally:
+        vs.close()
+
+
+def test_embed_repo_limit_and_missing_shard(tmp_path):
+    nodes = [Node(id=f"n{i}", repo="r", kind="function", name=f"f{i}") for i in range(5)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=[]))
+    vs = VectorStore(tmp_path / "e.sqlite")
+    try:
+        assert embed_repo(tmp_path, vs, _FakeEmbedder(), "r", limit=2) == 2
+        assert embed_repo(tmp_path, vs, _FakeEmbedder(), "absent") == 0  # no shard
+    finally:
+        vs.close()
+
+
+_EMBED_CONFIG = """
+[kb]
+store_dir = "{store}"
+
+[embeddings]
+enabled = true
+provider = "ollama"
+batch_size = 8
+"""
+
+
+def test_cmd_embed_e2e(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(parents=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_EMBED_CONFIG.format(store=store_dir.as_posix()))
+
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_repo(Repo(id="r", path=str(tmp_path / "r")))
+    s.close()
+    write_shard(store_dir, GraphShard(
+        repo="r", head_commit="h",
+        nodes=[Node(id="n1", repo="r", kind="function", name="foo")], edges=[]))
+
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _FakeEmbedder())
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
+    assert cmd_embed(args) == 0
+
+    vs = VectorStore(store_dir / "embeddings.sqlite")
+    try:
+        assert vs.count() == 1
+    finally:
+        vs.close()
+
+
+def test_cmd_embed_disabled_is_noop(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(parents=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')  # embeddings off by default
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
+    assert cmd_embed(args) == 0
+    assert not (store_dir / "embeddings.sqlite").exists()

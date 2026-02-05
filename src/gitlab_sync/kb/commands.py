@@ -20,7 +20,7 @@ from .state import check_schema, mark_repo_indexed
 from .store.shards import GraphShard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
-KB_VERBS = ("index", "connect", "serve", "query", "doctor")
+KB_VERBS = ("index", "connect", "embed", "serve", "query", "doctor")
 
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
@@ -253,6 +253,45 @@ def cmd_connect(args) -> int:
         store.close()
 
 
+def cmd_embed(args) -> int:
+    from .embeddings import build_embedder
+    from .embeddings.index import embed_repo
+    from .embeddings.store import VectorStore
+
+    store, store_dir = _open_store(args)
+    try:
+        cfg = load_kb_config(getattr(args, "config", None))
+        embedder = build_embedder(cfg.embeddings)
+        if embedder is None:
+            log("Embeddings are disabled (set [embeddings] enabled = true in kb.toml)")
+            return 0
+        targets = _connect_targets(args, store)
+        if not targets:
+            log("No indexed repos to embed (run index first, or pass --workspace/--source)")
+            return 0
+        limit = getattr(args, "limit", None)
+        vs = VectorStore(store_dir / "embeddings.sqlite")
+        try:
+            log(f"Embedding {len(targets)} repo(s) with {embedder.name}")
+            total = 0
+            for repo_id, _ in targets:
+                try:
+                    n = embed_repo(store_dir, vs, embedder, repo_id,
+                                   batch_size=cfg.embeddings.batch_size, limit=limit)
+                except Exception as e:  # noqa: BLE001 - one repo must not abort the run
+                    log(f"  {repo_id}: embed failed — {e}")
+                    continue
+                total += n
+                if n:
+                    log(f"  {repo_id}: embedded {n} node(s)")
+            log(f"Embed complete: {total} vector(s) written ({vs.count()} total in store)")
+            return 0
+        finally:
+            vs.close()
+    finally:
+        store.close()
+
+
 def cmd_query(args) -> int:
     text = " ".join(getattr(args, "args", []) or []).strip()
     if not text:
@@ -278,16 +317,34 @@ def cmd_query(args) -> int:
 def cmd_serve(args) -> int:
     from .server import run_server  # imported here so `query`/`index` don't load it
 
-    store, _ = _open_store(args)
+    store, store_dir = _open_store(args)
+    vector_store = None
     try:
         # CLI exposes "http"; the MCP SDK calls it "streamable-http".
         transport = "streamable-http" if getattr(args, "transport", None) == "http" else "stdio"
         host = getattr(args, "host", None) or "127.0.0.1"
         port = getattr(args, "port", None) or 8765
+
+        # Expose semantic_search only when embeddings are enabled and a vector store exists.
+        cfg = load_kb_config(getattr(args, "config", None))
+        embedder = None
+        from .embeddings import build_embedder
+
+        candidate = build_embedder(cfg.embeddings)
+        vec_path = store_dir / "embeddings.sqlite"
+        if candidate is not None and vec_path.exists():
+            from .embeddings.store import VectorStore
+
+            embedder, vector_store = candidate, VectorStore(vec_path)
+            log("Semantic search enabled (embeddings store found)")
+
         log(f"Serving knowledge graph over MCP ({transport})")
-        run_server(store, transport=transport, host=host, port=port)
+        run_server(store, transport=transport, host=host, port=port,
+                   embedder=embedder, vector_store=vector_store)
         return 0
     finally:
+        if vector_store is not None:
+            vector_store.close()
         store.close()
 
 
@@ -326,6 +383,24 @@ def cmd_doctor(args) -> int:
                    f"{store_dir} · {st.repos} repos, {st.nodes} nodes, {st.edges} edges")
         finally:
             store.close()
+
+        emb = cfg.embeddings
+        if not emb.enabled:
+            _check("embeddings", True, "disabled")
+        else:
+            vec_path = store_dir / "embeddings.sqlite"
+            count = 0
+            if vec_path.exists():
+                from .embeddings.store import VectorStore
+
+                vs = VectorStore(vec_path)
+                try:
+                    count = vs.count()
+                finally:
+                    vs.close()
+            detail = f"{emb.provider} · {count} vector(s)"
+            _check("embeddings", True,
+                   detail if vec_path.exists() else f"{detail} (run embed to build)")
     except Exception as e:  # noqa: BLE001 - doctor reports, never crashes
         ok &= _check("config + store", False, str(e))
 
@@ -335,6 +410,6 @@ def cmd_doctor(args) -> int:
 
 def dispatch(command: str, args) -> int:
     return {
-        "index": cmd_index, "connect": cmd_connect, "query": cmd_query,
-        "serve": cmd_serve, "doctor": cmd_doctor,
+        "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
+        "query": cmd_query, "serve": cmd_serve, "doctor": cmd_doctor,
     }[command](args)
