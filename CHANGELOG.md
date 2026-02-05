@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Semantic-search tier (optional, local-first)**: a pluggable embeddings
+  provider (`Embedder` interface + config-driven factory; a stdlib-only Ollama
+  provider ships first), a local SQLite-backed vector store with cosine search, an
+  `embed` command that vectorizes indexed nodes, and a `semantic_search` MCP tool
+  exposed by `serve` when embeddings are enabled. Off by default; `doctor` reports
+  embeddings status.
+
 ## [1.5.0] - 2026-06-21
 
 ### Added

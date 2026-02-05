@@ -631,6 +631,7 @@ gitlab-sync doctor                          # check the environment
 gitlab-sync index --source ./my-repo        # index one repository
 gitlab-sync index --workspace ~/work        # index every git repo under a directory
 gitlab-sync connect --workspace ~/work      # link repos to their issues/docs (see below)
+gitlab-sync embed                           # build semantic vectors (optional, see below)
 gitlab-sync query "OrderService"            # cited search across the index
 gitlab-sync serve                           # expose the graph over MCP (stdio or --transport http)
 ```
@@ -659,7 +660,13 @@ Configure it by copying [`examples/kb.toml.example`](examples/kb.toml.example) t
 `~/.gitlab-sync/kb.toml`. Every fact is provenance-stamped (source file + verified
 date) and confidence-tagged (`EXTRACTED` for AST facts, `INFERRED` for resolved
 calls/links, `AMBIGUOUS` for unconfirmed candidates), and all output is sanitized
-before it reaches an agent. Semantic (embedding) search lands in a later phase.
+before it reaches an agent.
+
+**Semantic search** (optional) adds natural-language retrieval on top of the graph.
+Enable `[embeddings]` in the config (local-first — vectors come from an Ollama model
+by default, so code never leaves the machine), run `gitlab-sync embed` to vectorize
+the indexed nodes into a local store, and `serve` then exposes a `semantic_search`
+tool for queries where the exact symbol name is unknown.
 
 ## Technical Documentation
 
