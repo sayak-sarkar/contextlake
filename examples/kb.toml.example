@@ -10,10 +10,14 @@ store_dir = "~/.gitlab-sync/kb"
 languages = ["csharp", "typescript", "python"]
 
 [embeddings]
-# Semantic/NL search tier. Local-first; off by default.
+# Semantic/NL search tier. Local-first; off by default. When enabled, run
+# `gitlab-sync embed` to vectorize indexed nodes; `serve` then exposes a
+# `semantic_search` tool. Code never leaves the machine (local Ollama by default).
 enabled = false
 provider = "ollama"
 model = "nomic-embed-text"
+base_url = "http://127.0.0.1:11434"   # local Ollama daemon
+batch_size = 64
 
 # --- Knowledge-source connectors (0..N) -------------------------------------
 # `gitlab-sync connect` runs these after indexing to link repos to external
