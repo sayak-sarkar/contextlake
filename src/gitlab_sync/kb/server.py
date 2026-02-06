@@ -196,6 +196,20 @@ def build_server(
                     out.append(_node_out(n))
             return out
 
+        @mcp.tool()
+        def hybrid_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
+            """Hybrid retrieval: seed with embeddings, then rank by Personalized
+            PageRank over the graph. Surfaces structurally-related nodes (callers,
+            dependents) that a pure semantic match would miss."""
+            from .embeddings.hybrid import hybrid_search as _hybrid
+
+            out: list[NodeOut] = []
+            for node_id, _score in _hybrid(store, vector_store, embedder, query, k=k, repo=repo):
+                n = store.get_node(node_id)
+                if n:
+                    out.append(_node_out(n))
+            return out
+
     @mcp.resource("kb://stats")
     def stats_resource() -> str:
         st = store.stats()
