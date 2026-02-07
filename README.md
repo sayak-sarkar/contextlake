@@ -665,8 +665,14 @@ before it reaches an agent.
 **Semantic search** (optional) adds natural-language retrieval on top of the graph.
 Enable `[embeddings]` in the config (local-first — vectors come from an Ollama model
 by default, so code never leaves the machine), run `gitlab-sync embed` to vectorize
-the indexed nodes into a local store, and `serve` then exposes a `semantic_search`
-tool for queries where the exact symbol name is unknown.
+the indexed nodes into a local store, and `serve` then exposes two tools:
+`semantic_search` for queries where the exact symbol name is unknown, and
+`hybrid_search`, which seeds Personalized PageRank with the embedding hits and
+propagates relevance across the graph (HippoRAG-style) to surface structurally
+related nodes — a function's callers, a package's dependents — that a pure semantic
+match would miss. The vector store uses an exact pure-Python cosine scan by default;
+install the optional ANN backend with `pip install "gitlab-sync[kb-vec]"` (sqlite-vec)
+for larger workspaces.
 
 ## Technical Documentation
 

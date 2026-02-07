@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hybrid retrieval** (`hybrid_search` MCP tool): seeds Personalized PageRank with
+  the embedding hits and propagates relevance across the graph (HippoRAG-style), so
+  structurally-related nodes (callers, dependents) surface even when their text does
+  not match the query. PPR runs over a BFS-bounded subgraph to stay tractable.
+- **Optional sqlite-vec ANN backend** for the vector store, selectable via
+  `[embeddings] vector_backend` (`auto` | `sqlite-vec` | `brute`). `auto` uses
+  sqlite-vec when the `gitlab-sync[kb-vec]` extra is installed and falls back to the
+  exact pure-Python cosine scan otherwise — same interface either way.
+
 ## [1.6.0] - 2026-06-21
 
 ### Added
