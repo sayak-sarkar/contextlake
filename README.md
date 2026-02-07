@@ -1039,6 +1039,13 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.7** (2026-06-21): Hybrid retrieval and ANN backend
+
+  - Added a `hybrid_search` tool (embedding seeds + Personalized PageRank over the
+    graph) that surfaces structurally-related nodes a pure semantic match misses
+  - Added an optional sqlite-vec ANN vector-store backend (`gitlab-sync[kb-vec]`),
+    selectable via `vector_backend`, with automatic fallback to the exact scan
+
 - **v1.6** (2026-06-21): Semantic-search tier
 
   - Added an optional, local-first embeddings tier: a pluggable embedder (Ollama
