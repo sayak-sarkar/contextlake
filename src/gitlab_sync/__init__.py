@@ -1,3 +1,3 @@
 """gitlab_sync — keep a local workspace mirrored with GitLab repositories."""
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"
