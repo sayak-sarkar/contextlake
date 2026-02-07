@@ -5,7 +5,7 @@ from argparse import Namespace
 import gitlab_sync.kb.embeddings as emb_pkg
 from gitlab_sync.kb.commands import cmd_embed
 from gitlab_sync.kb.embeddings.index import embed_repo, node_text
-from gitlab_sync.kb.embeddings.store import VectorStore
+from gitlab_sync.kb.embeddings.store import VectorStore, build_vector_store
 from gitlab_sync.kb.model import Node, Repo
 from gitlab_sync.kb.state import check_schema
 from gitlab_sync.kb.store.shards import GraphShard, write_shard
@@ -86,7 +86,8 @@ def test_cmd_embed_e2e(tmp_path, monkeypatch):
     args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
     assert cmd_embed(args) == 0
 
-    vs = VectorStore(store_dir / "embeddings.sqlite")
+    # read back via the same factory cmd_embed used (sqlite-vec when available, else brute)
+    vs = build_vector_store(store_dir / "embeddings.sqlite", backend="auto")
     try:
         assert vs.count() == 1
     finally:

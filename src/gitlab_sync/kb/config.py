@@ -58,6 +58,7 @@ class EmbeddingsCfg(BaseModel):
     model: str | None = None
     base_url: str = "http://127.0.0.1:11434"
     batch_size: int = 64
+    vector_backend: str = "auto"  # auto | sqlite-vec | brute
 
 
 class KbConfig(BaseModel):
