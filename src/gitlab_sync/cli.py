@@ -68,7 +68,7 @@ Examples:
         choices=[
             "fetch", "clone", "update", "branches", "verify", "sync", "status",
             # knowledge layer (optional [kb] extra)
-            "index", "connect", "embed", "serve", "query", "doctor",
+            "index", "connect", "embed", "lint", "serve", "query", "doctor",
         ],
         help="Command to execute",
     )
@@ -82,6 +82,8 @@ Examples:
     kb = parser.add_argument_group("knowledge layer")
     kb.add_argument("--source", help="index: a repo directory or a graph shard JSON")
     kb.add_argument("--workspace", help="index: index every git repo under this directory")
+    kb.add_argument("--force", action="store_true",
+                    help="index --workspace: re-index every repo, not just changed ones")
     kb.add_argument("--transport", choices=["stdio", "http"], help="serve: MCP transport")
     kb.add_argument("--host", help="serve: bind host (http transport)")
     kb.add_argument("--port", type=int, help="serve: bind port (http transport)")
@@ -189,7 +191,7 @@ def main(argv=None):
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs
     # without the [kb] extra.
-    if args.command in ("index", "connect", "embed", "serve", "query", "doctor"):
+    if args.command in ("index", "connect", "embed", "lint", "serve", "query", "doctor"):
         try:
             from .kb import commands as kb_commands
         except ImportError as e:

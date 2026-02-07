@@ -16,11 +16,11 @@ from pydantic import ValidationError
 from ..logging_setup import log
 from .config import load_kb_config
 from .model import Repo
-from .state import check_schema, mark_repo_indexed
+from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
-KB_VERBS = ("index", "connect", "embed", "serve", "query", "doctor")
+KB_VERBS = ("index", "connect", "embed", "lint", "serve", "query", "doctor")
 
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
@@ -53,18 +53,22 @@ def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
     return 0
 
 
-def _index_workspace(store, store_dir, workspace: Path) -> int:
+def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False) -> int:
     from .parse import discover_repos, index_repo_dir  # lazy: tree-sitter
 
     repos = discover_repos(str(workspace))
     if not repos:
         log(f"No git repositories found under {workspace}")
         return 0
-    log(f"Found {len(repos)} repositories under {workspace}")
-    failed = 0
+    mode = "full" if force else "incremental"
+    log(f"Found {len(repos)} repositories under {workspace} ({mode})")
+    failed = skipped = 0
     for i, (repo_id, path) in enumerate(repos, 1):
         try:
             head = _git_head(Path(path))
+            if not force and not needs_reindex(store, repo_id, head):
+                skipped += 1
+                continue
             shard = index_repo_dir(path, repo_id, head_commit=head)
             store.upsert_repo(Repo(id=repo_id, path=path))
             write_shard(store_dir, shard)
@@ -77,7 +81,7 @@ def _index_workspace(store, store_dir, workspace: Path) -> int:
             log(f"  [{i}/{len(repos)}] {repo_id}: FAILED — {e}")
     st = store.stats()
     log(f"Workspace indexed: {st.repos} repos, {st.nodes} nodes, {st.edges} edges "
-        f"({failed} repo(s) failed)")
+        f"({skipped} unchanged, {failed} failed)")
     return 0 if failed == 0 else 1
 
 
@@ -86,7 +90,8 @@ def cmd_index(args) -> int:
     try:
         workspace = getattr(args, "workspace", None)
         if workspace:
-            return _index_workspace(store, store_dir, Path(workspace))
+            return _index_workspace(store, store_dir, Path(workspace),
+                                    force=getattr(args, "force", False))
 
         source = getattr(args, "source", None)
         if not source:
@@ -294,6 +299,47 @@ def cmd_embed(args) -> int:
         store.close()
 
 
+def cmd_lint(args) -> int:
+    """Graph-health checks: stale repos (HEAD moved) and dangling edges."""
+    from .store.shards import read_shard
+
+    store, store_dir = _open_store(args)
+    try:
+        repos = store.list_repos()
+        if not repos:
+            log("Nothing indexed yet — run index first.")
+            return 0
+        stale = dangling = checked = 0
+        node_cache: dict[str, bool] = {}
+
+        def _exists(node_id: str) -> bool:
+            if node_id not in node_cache:
+                node_cache[node_id] = store.get_node(node_id) is not None
+            return node_cache[node_id]
+
+        for r in repos:
+            head = _git_head(Path(r.path)) if r.path else None
+            if needs_reindex(store, r.id, head):
+                stale += 1
+                log(f"  stale: {r.id} (HEAD moved or never finished — re-run index)")
+            shard = read_shard(store_dir, r.id)
+            if shard is None:
+                continue
+            for e in shard.edges:
+                checked += 1
+                if not _exists(e.src) or not _exists(e.dst):
+                    dangling += 1
+                    if dangling <= 20:
+                        log(f"  dangling: {r.id}: {e.src} -{e.relation}-> {e.dst}")
+        if dangling > 20:
+            log(f"  … and {dangling - 20} more dangling edge(s)")
+        log(f"Lint: {len(repos)} repos, {checked} edges checked — "
+            f"{dangling} dangling, {stale} stale")
+        return 0 if dangling == 0 and stale == 0 else 1
+    finally:
+        store.close()
+
+
 def cmd_query(args) -> int:
     text = " ".join(getattr(args, "args", []) or []).strip()
     if not text:
@@ -415,5 +461,5 @@ def cmd_doctor(args) -> int:
 def dispatch(command: str, args) -> int:
     return {
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
-        "query": cmd_query, "serve": cmd_serve, "doctor": cmd_doctor,
+        "lint": cmd_lint, "query": cmd_query, "serve": cmd_serve, "doctor": cmd_doctor,
     }[command](args)
