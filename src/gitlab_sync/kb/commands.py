@@ -256,7 +256,7 @@ def cmd_connect(args) -> int:
 def cmd_embed(args) -> int:
     from .embeddings import build_embedder
     from .embeddings.index import embed_repo
-    from .embeddings.store import VectorStore
+    from .embeddings.store import build_vector_store
 
     store, store_dir = _open_store(args)
     try:
@@ -270,9 +270,11 @@ def cmd_embed(args) -> int:
             log("No indexed repos to embed (run index first, or pass --workspace/--source)")
             return 0
         limit = getattr(args, "limit", None)
-        vs = VectorStore(store_dir / "embeddings.sqlite")
+        vs = build_vector_store(store_dir / "embeddings.sqlite",
+                                backend=cfg.embeddings.vector_backend)
         try:
-            log(f"Embedding {len(targets)} repo(s) with {embedder.name}")
+            log(f"Embedding {len(targets)} repo(s) with {embedder.name} "
+                f"into the {vs.name} vector store")
             total = 0
             for repo_id, _ in targets:
                 try:
@@ -333,10 +335,12 @@ def cmd_serve(args) -> int:
         candidate = build_embedder(cfg.embeddings)
         vec_path = store_dir / "embeddings.sqlite"
         if candidate is not None and vec_path.exists():
-            from .embeddings.store import VectorStore
+            from .embeddings.store import build_vector_store
 
-            embedder, vector_store = candidate, VectorStore(vec_path)
-            log("Semantic search enabled (embeddings store found)")
+            embedder = candidate
+            vector_store = build_vector_store(vec_path, backend=cfg.embeddings.vector_backend)
+            log(f"Semantic search enabled ({vector_store.name} store, "
+                f"{vector_store.count()} vectors)")
 
         log(f"Serving knowledge graph over MCP ({transport})")
         run_server(store, transport=transport, host=host, port=port,
@@ -389,16 +393,16 @@ def cmd_doctor(args) -> int:
             _check("embeddings", True, "disabled")
         else:
             vec_path = store_dir / "embeddings.sqlite"
-            count = 0
+            count, backend = 0, emb.vector_backend
             if vec_path.exists():
-                from .embeddings.store import VectorStore
+                from .embeddings.store import build_vector_store
 
-                vs = VectorStore(vec_path)
+                vs = build_vector_store(vec_path, backend=emb.vector_backend)
                 try:
-                    count = vs.count()
+                    count, backend = vs.count(), vs.name
                 finally:
                     vs.close()
-            detail = f"{emb.provider} · {count} vector(s)"
+            detail = f"{emb.provider} · {backend} · {count} vector(s)"
             _check("embeddings", True,
                    detail if vec_path.exists() else f"{detail} (run embed to build)")
     except Exception as e:  # noqa: BLE001 - doctor reports, never crashes
