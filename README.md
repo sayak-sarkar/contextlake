@@ -1048,6 +1048,13 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.8** (2026-06-21): Incremental indexing, lint, and a colorful CLI
+
+  - `index --workspace` is now incremental (re-indexes only repos whose HEAD
+    moved; `--force` to rebuild) — cheap scheduled refresh via cron
+  - Added a `lint` command (stale repos + dangling edges)
+  - Colorful terminal output (status glyphs + progress bar), `NO_COLOR`-aware
+
 - **v1.7** (2026-06-21): Hybrid retrieval and ANN backend
 
   - Added a `hybrid_search` tool (embedding seeds + Personalized PageRank over the
