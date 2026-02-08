@@ -172,6 +172,10 @@ These apply to any command:
 - `--config PATH` — use a specific config file (highest precedence).
 - `--version` — print the version and exit.
 
+Output is colorized on a terminal (status glyphs, a progress bar); set `NO_COLOR`
+to disable or `FORCE_COLOR` to keep colours when piping. Colours are dropped
+automatically for non-TTY output (pipes, cron, log files).
+
 A read-only `status` followed by a `--dry-run sync` is the safest way to preview
 what a sync would do:
 
@@ -629,12 +633,17 @@ Install the extra (requires Python ≥ 3.10):
 pip install "gitlab-sync[kb]"
 gitlab-sync doctor                          # check the environment
 gitlab-sync index --source ./my-repo        # index one repository
-gitlab-sync index --workspace ~/work        # index every git repo under a directory
+gitlab-sync index --workspace ~/work        # index every git repo (incremental; --force to rebuild)
 gitlab-sync connect --workspace ~/work      # link repos to their issues/docs (see below)
 gitlab-sync embed                           # build semantic vectors (optional, see below)
+gitlab-sync lint                            # graph health: stale repos + dangling edges
 gitlab-sync query "OrderService"            # cited search across the index
 gitlab-sync serve                           # expose the graph over MCP (stdio or --transport http)
 ```
+
+`index --workspace` is **incremental** — it re-indexes only repos whose git HEAD
+moved since their last index, so a scheduled (cron) run stays cheap; pass `--force`
+to rebuild everything.
 
 **Code indexing** uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,

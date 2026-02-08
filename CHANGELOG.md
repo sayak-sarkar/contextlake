@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Incremental workspace indexing**: `index --workspace` now re-indexes only the
+  repos whose git HEAD moved since their last index (skipping unchanged ones), with
+  `--force` to rebuild everything. Paired with cron this gives scheduled
+  incremental refresh.
+- **`lint` command** for the knowledge layer: reports graph-health issues — repos
+  gone stale (HEAD moved since index) and dangling edges (an endpoint node missing
+  from the store).
+- **Colorful CLI**: status glyphs, coloured per-repo lines, and a progress bar for
+  the sync and knowledge-layer commands. Honors `NO_COLOR`/`FORCE_COLOR` and falls
+  back to plain text off a TTY (pipes, cron, and logs stay clean). No new
+  dependencies.
+
 ## [1.7.0] - 2026-06-21
 
 ### Added
