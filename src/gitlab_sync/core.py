@@ -12,9 +12,15 @@ import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
+from . import style
 from .config import get_cache_paths
 from .logging_setup import log
 from .safety import check_repository_safety, is_safe_branch, stash_changes
+
+
+def _status(i, total, glyph, path, message):
+    """A coloured per-repo progress line: dim counter, coloured glyph, cyan path."""
+    return f"{style.dim(f'[{i}/{total}]')} {glyph} {style.cyan(path)}: {message}"
 
 
 def _is_truthy(config, key, default="false"):
@@ -339,7 +345,7 @@ def update_repository(local_path, work_dir, config):
             if has_changes and not dry_run:
                 stash_success, stash_msg = stash_changes(full_path, config)
                 if stash_success:
-                    log(f"⚠ {local_path}: {stash_msg}")
+                    log(f"{style.yellow('⚠')} {style.cyan(local_path)}: {stash_msg}")
                 else:
                     return ("skip", local_path, f'Skipped (unsafe: {", ".join(warnings)})')
             else:
@@ -623,7 +629,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
             for fut in as_completed(futures):
                 handle(fut.result())
 
-    log("Clone complete: " + _summarize({
+    log(style.ok("Clone complete: ") + _summarize({
         "successful": successes, "skipped": skipped, "dry-run": dry, "failed": failures,
     }))
 
@@ -645,21 +651,21 @@ def update_repositories(work_dir, config):
             status, path, message = fut.result()
             if status == "ok":
                 buckets["updated"].append(path)
-                log(f"[{i}/{total}] ✓ {path}: {message}")
+                log(_status(i, total, style.green("✓"), path, message))
             elif status == "nochange":
                 buckets["unchanged"].append(path)
-                log(f"[{i}/{total}] = {path}: {message}")
+                log(_status(i, total, style.dim("="), path, message))
             elif status == "skip":
                 buckets["skipped"].append(path)
-                log(f"[{i}/{total}] ⊘ {path}: {message}")
+                log(_status(i, total, style.dim("⊘"), path, message))
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
-                log(f"[{i}/{total}] ~ {path}: {message}")
+                log(_status(i, total, style.yellow("~"), path, message))
             else:
                 buckets["errors"].append(path)
-                log(f"[{i}/{total}] ✗ {path}: {message}")
+                log(_status(i, total, style.red("✗"), path, message))
 
-    log("Update complete: " + _summarize(buckets))
+    log(style.ok("Update complete: ") + _summarize(buckets))
 
 
 def switch_repository_branches(work_dir, config, gitlab_group):
@@ -686,21 +692,21 @@ def switch_repository_branches(work_dir, config, gitlab_group):
             status, path, message = fut.result()
             if status == "switched":
                 buckets["switched"].append(path)
-                log(f"[{i}/{total}] ↝ {path}: {message}")
+                log(_status(i, total, style.cyan("↝"), path, message))
             elif status == "ok":
                 buckets["already"].append(path)
-                log(f"[{i}/{total}] ✓ {path}: {message}")
+                log(_status(i, total, style.green("✓"), path, message))
             elif status == "skip":
                 buckets["skipped"].append(path)
-                log(f"[{i}/{total}] ⊘ {path}: {message}")
+                log(_status(i, total, style.dim("⊘"), path, message))
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
-                log(f"[{i}/{total}] ~ {path}: {message}")
+                log(_status(i, total, style.yellow("~"), path, message))
             else:
                 buckets["errors"].append(path)
-                log(f"[{i}/{total}] ✗ {path}: {message}")
+                log(_status(i, total, style.red("✗"), path, message))
 
-    log("Branch switch complete: " + _summarize(buckets))
+    log(style.ok("Branch switch complete: ") + _summarize(buckets))
 
 
 def _report_list(label, items, limit=10):

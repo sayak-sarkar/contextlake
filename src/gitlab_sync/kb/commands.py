@@ -13,6 +13,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from .. import style
 from ..logging_setup import log
 from .config import load_kb_config
 from .model import Repo
@@ -74,14 +75,15 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False) 
             write_shard(store_dir, shard)
             reindex_shard(store, store_dir, repo_id)
             mark_repo_indexed(store, repo_id, head)
-            log(f"  [{i}/{len(repos)}] {repo_id}: "
+            log(f"  {style.bar(i, len(repos), 14)} {style.cyan(repo_id)}: "
                 f"{len(shard.nodes)} nodes, {len(shard.edges)} edges")
         except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
             failed += 1
-            log(f"  [{i}/{len(repos)}] {repo_id}: FAILED — {e}")
+            log(f"  {style.fail(repo_id)}: {e}")
     st = store.stats()
-    log(f"Workspace indexed: {st.repos} repos, {st.nodes} nodes, {st.edges} edges "
-        f"({skipped} unchanged, {failed} failed)")
+    glyph = style.ok() if failed == 0 else style.warn()
+    log(f"{glyph} Workspace indexed: {st.repos} repos, {st.nodes} nodes, "
+        f"{st.edges} edges ({skipped} unchanged, {failed} failed)")
     return 0 if failed == 0 else 1
 
 
@@ -333,9 +335,11 @@ def cmd_lint(args) -> int:
                         log(f"  dangling: {r.id}: {e.src} -{e.relation}-> {e.dst}")
         if dangling > 20:
             log(f"  … and {dangling - 20} more dangling edge(s)")
-        log(f"Lint: {len(repos)} repos, {checked} edges checked — "
+        clean = dangling == 0 and stale == 0
+        glyph = style.ok() if clean else style.warn()
+        log(f"{glyph} Lint: {len(repos)} repos, {checked} edges checked — "
             f"{dangling} dangling, {stale} stale")
-        return 0 if dangling == 0 and stale == 0 else 1
+        return 0 if clean else 1
     finally:
         store.close()
 
@@ -399,8 +403,8 @@ def cmd_serve(args) -> int:
 
 
 def _check(label: str, ok: bool, detail: str = "") -> bool:
-    mark = "✓" if ok else "✗"
-    print(f"  [{mark}] {label}" + (f" — {detail}" if detail else ""))
+    mark = style.green("✓") if ok else style.red("✗")
+    print(f"  {mark} {label}" + (f" {style.dim('— ' + detail)}" if detail else ""))
     return ok
 
 
@@ -454,7 +458,7 @@ def cmd_doctor(args) -> int:
     except Exception as e:  # noqa: BLE001 - doctor reports, never crashes
         ok &= _check("config + store", False, str(e))
 
-    print("OK" if ok else "Problems found")
+    print(style.bold(style.green("OK")) if ok else style.bold(style.red("Problems found")))
     return 0 if ok else 1
 
 
