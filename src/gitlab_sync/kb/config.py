@@ -61,10 +61,24 @@ class EmbeddingsCfg(BaseModel):
     vector_backend: str = "auto"  # auto | sqlite-vec | brute
 
 
+class LlmCfg(BaseModel):
+    """Local-first LLM tier for the curated wiki and its verification council.
+    Off by default; connector-specific keys allowed."""
+
+    model_config = ConfigDict(extra="allow")
+    enabled: bool = False
+    provider: str = "ollama"
+    model: str | None = None
+    base_url: str = "http://127.0.0.1:11434"
+    council_size: int = 3
+    accept_score: float = 0.7
+
+
 class KbConfig(BaseModel):
     store_dir: str = DEFAULT_STORE_DIR
     languages: list[str] = Field(default_factory=lambda: list(DEFAULT_LANGUAGES))
     embeddings: EmbeddingsCfg = Field(default_factory=EmbeddingsCfg)
+    llm: LlmCfg = Field(default_factory=LlmCfg)
     sources: list[SourceCfg] = Field(default_factory=list)
     rules: list[RuleCfg] = Field(default_factory=list)
 
@@ -94,6 +108,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         store_dir=kb.get("store_dir", DEFAULT_STORE_DIR),
         languages=kb.get("languages", list(DEFAULT_LANGUAGES)),
         embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
+        llm=LlmCfg(**merged.get("llm", {})),
         sources=[SourceCfg(**s) for s in merged.get("sources", [])],
         rules=[RuleCfg(**r) for r in merged.get("rules", [])],
     )

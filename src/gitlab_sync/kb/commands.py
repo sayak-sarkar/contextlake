@@ -21,7 +21,7 @@ from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
-KB_VERBS = ("index", "connect", "embed", "lint", "serve", "query", "doctor")
+KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "serve", "query", "doctor")
 
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
@@ -301,6 +301,55 @@ def cmd_embed(args) -> int:
         store.close()
 
 
+def cmd_wiki(args) -> int:
+    """Generate provenance-stamped wiki pages from the graph, gated by an LLM council."""
+    from .llm import build_llm
+    from .wiki.council import LENSES, council_gate
+    from .wiki.generate import generate_page, render_prompt, repo_brief
+
+    store, store_dir = _open_store(args)
+    try:
+        cfg = load_kb_config(getattr(args, "config", None))
+        llm = build_llm(cfg.llm)
+        if llm is None:
+            log("LLM tier disabled (set [llm] enabled = true in kb.toml)")
+            return 0
+        targets = _connect_targets(args, store)
+        if not targets:
+            log("No indexed repos (run index first, or pass --workspace/--source)")
+            return 0
+        wiki_dir = store_dir / "wiki"
+        wiki_dir.mkdir(parents=True, exist_ok=True)
+        log(f"Generating wiki for {len(targets)} repo(s) with {llm.name} "
+            f"(council of {len(LENSES)})")
+        written = rejected = 0
+        for repo_id, _ in targets:
+            brief = repo_brief(store_dir, repo_id)
+            if brief is None:
+                continue
+            try:
+                page = generate_page(llm, store_dir, repo_id)
+                gate = council_gate(llm, page, render_prompt(brief),
+                                    accept_score=cfg.llm.accept_score)
+            except Exception as e:  # noqa: BLE001 - one repo must not abort the run
+                log(f"  {style.fail(repo_id)}: {e}")
+                continue
+            if gate["accepted"]:
+                (wiki_dir / (repo_id.replace("/", "__") + ".md")).write_text(
+                    page, encoding="utf-8")
+                written += 1
+                log(f"  {style.ok(repo_id)}: written (score {gate['score']})")
+            else:
+                rejected += 1
+                log(f"  {style.warn(repo_id)}: rejected by council (score {gate['score']})")
+                for issue in gate["issues"][:5]:
+                    log(f"      - {issue}")
+        log(f"{style.ok()} Wiki: {written} written, {rejected} rejected → {wiki_dir}")
+        return 0
+    finally:
+        store.close()
+
+
 def cmd_lint(args) -> int:
     """Graph-health checks: stale repos (HEAD moved) and dangling edges."""
     from .store.shards import read_shard
@@ -465,5 +514,6 @@ def cmd_doctor(args) -> int:
 def dispatch(command: str, args) -> int:
     return {
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
-        "lint": cmd_lint, "query": cmd_query, "serve": cmd_serve, "doctor": cmd_doctor,
+        "lint": cmd_lint, "wiki": cmd_wiki, "query": cmd_query,
+        "serve": cmd_serve, "doctor": cmd_doctor,
     }[command](args)
