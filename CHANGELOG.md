@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `serve` over the stdio transport wrote human-facing log lines to stdout, which is
+  the MCP JSON-RPC channel — corrupting the protocol stream (clients saw spurious
+  parse errors). On stdio, logs now go to stderr.
+
+### Changed
+
+- `index --workspace` is quieter by default: the per-repo "parsed/resolved" detail
+  is now debug-level (show it with `-v`), leaving the clean per-repo progress bar.
+- Added a `ROADMAP.md` listing future good-to-haves.
+
 ## [1.9.0] - 2026-06-21
 
 ### Added

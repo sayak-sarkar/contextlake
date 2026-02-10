@@ -1169,6 +1169,12 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 6. **Testing**: Test cron commands manually before adding to crontab
 7. **Documentation**: Keep this documentation updated with any custom configurations
 
+## Roadmap
+
+The mirroring core and the optional knowledge layer are shipped. See
+[ROADMAP.md](ROADMAP.md) for future good-to-haves (hosted provider options, full
+bi-temporal validity windows, more connectors, and more).
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
