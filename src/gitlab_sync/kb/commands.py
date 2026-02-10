@@ -490,6 +490,12 @@ def cmd_serve(args) -> int:
         host = getattr(args, "host", None) or "127.0.0.1"
         port = getattr(args, "port", None) or 8765
 
+        # On stdio, stdout carries the MCP JSON-RPC stream — keep our logs off it.
+        if transport == "stdio":
+            from ..logging_setup import use_stderr
+
+            use_stderr()
+
         # Expose semantic_search only when embeddings are enabled and a vector store exists.
         cfg = load_kb_config(getattr(args, "config", None))
         embedder = None
