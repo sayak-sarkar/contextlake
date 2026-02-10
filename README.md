@@ -1060,6 +1060,13 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.9** (2026-06-21): Curated wiki tier, watch mode, and time-travel queries
+
+  - Added a `wiki` command: local-first LLM synthesis of provenance-stamped pages
+    gated by an LLM verification council (off unless `[llm]` enabled)
+  - `index --watch` for continuous incremental refresh
+  - Bi-temporal `query --as-of <commit>` over per-commit shard snapshots
+
 - **v1.8** (2026-06-21): Incremental indexing, lint, and a colorful CLI
 
   - `index --workspace` is now incremental (re-indexes only repos whose HEAD
