@@ -49,6 +49,43 @@ def read_shard(store_dir: str | Path, repo_id: str) -> GraphShard | None:
     return GraphShard.model_validate_json(p.read_text(encoding="utf-8"))
 
 
+# --- bi-temporal history: snapshot each indexed shard by commit ------------
+
+def history_path(store_dir: str | Path, repo_id: str, commit: str) -> Path:
+    return Path(store_dir) / "history" / repo_id / f"{commit}.json"
+
+
+def archive_shard(store_dir: str | Path, shard: GraphShard) -> Path | None:
+    """Snapshot a shard under history/<repo>/<commit>.json for 'as of' queries.
+
+    Returns None when the shard has no commit to key on. Snapshots are immutable
+    once written: a repo re-indexed at the same commit overwrites identically.
+    """
+    if not shard.head_commit:
+        return None
+    p = history_path(store_dir, shard.repo, shard.head_commit)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(shard.model_dump_json(indent=2), encoding="utf-8")
+    return p
+
+
+def read_shard_at(store_dir: str | Path, repo_id: str, commit: str) -> GraphShard | None:
+    """The repo's snapshot at ``commit`` (from history, or the current shard if it
+    is at that commit), or None if that commit was never indexed."""
+    p = history_path(store_dir, repo_id, commit)
+    if p.exists():
+        return GraphShard.model_validate_json(p.read_text(encoding="utf-8"))
+    current = read_shard(store_dir, repo_id)
+    if current is not None and current.head_commit == commit:
+        return current
+    return None
+
+
+def list_indexed_commits(store_dir: str | Path, repo_id: str) -> list[str]:
+    d = Path(store_dir) / "history" / repo_id
+    return sorted(p.stem for p in d.glob("*.json")) if d.exists() else []
+
+
 def reindex_shard(store: Store, store_dir: str | Path, repo_id: str) -> bool:
     """Load a repo's shard and (re)index it into the store. Returns False if absent."""
     shard = read_shard(store_dir, repo_id)

@@ -84,12 +84,18 @@ Examples:
     kb.add_argument("--workspace", help="index: index every git repo under this directory")
     kb.add_argument("--force", action="store_true",
                     help="index --workspace: re-index every repo, not just changed ones")
+    kb.add_argument("--watch", action="store_true",
+                    help="index --workspace: keep re-indexing on an interval (Ctrl-C to stop)")
+    kb.add_argument("--interval", type=int,
+                    help="index --watch: seconds between passes (default 60)")
     kb.add_argument("--transport", choices=["stdio", "http"], help="serve: MCP transport")
     kb.add_argument("--host", help="serve: bind host (http transport)")
     kb.add_argument("--port", type=int, help="serve: bind port (http transport)")
     kb.add_argument("--kind", help="query: filter by node kind")
     kb.add_argument("--repo", help="query: filter by repo")
     kb.add_argument("--limit", type=int, help="query: max results")
+    kb.add_argument("--as-of", dest="as_of",
+                    help="query: search a repo's snapshot at this indexed commit (needs --repo)")
 
     parser.add_argument(
         "--dry-run", action="store_true", dest="dry_run",

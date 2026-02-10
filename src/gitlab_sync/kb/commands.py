@@ -9,6 +9,7 @@ from __future__ import annotations
 import shutil
 import sqlite3
 import subprocess
+import time
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -18,7 +19,7 @@ from ..logging_setup import log
 from .config import load_kb_config
 from .model import Repo
 from .state import check_schema, mark_repo_indexed, needs_reindex
-from .store.shards import GraphShard, reindex_shard, write_shard
+from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
 KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "serve", "query", "doctor")
@@ -46,12 +47,29 @@ def _git_head(path: Path) -> str | None:
 def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
     store.upsert_repo(Repo(id=repo_id, path=str(repo_path)))
     write_shard(store_dir, shard)
+    archive_shard(store_dir, shard)
     reindex_shard(store, store_dir, repo_id)
     mark_repo_indexed(store, repo_id, head)
     st = store.stats()
     log(f"Indexed {repo_id}: {len(shard.nodes)} nodes, {len(shard.edges)} edges "
         f"(store totals: {st.nodes} nodes, {st.edges} edges)")
     return 0
+
+
+def _watch_loop(run_once, *, interval: float = 60, iterations=None, sleep=time.sleep) -> int:
+    """Run ``run_once`` every ``interval`` seconds until interrupted or ``iterations``
+    is reached. Returns the number of runs; a KeyboardInterrupt stops gracefully."""
+    runs = 0
+    while iterations is None or runs < iterations:
+        run_once()
+        runs += 1
+        if iterations is not None and runs >= iterations:
+            break
+        try:
+            sleep(interval)
+        except KeyboardInterrupt:
+            break
+    return runs
 
 
 def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False) -> int:
@@ -73,6 +91,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False) 
             shard = index_repo_dir(path, repo_id, head_commit=head)
             store.upsert_repo(Repo(id=repo_id, path=path))
             write_shard(store_dir, shard)
+            archive_shard(store_dir, shard)
             reindex_shard(store, store_dir, repo_id)
             mark_repo_indexed(store, repo_id, head)
             log(f"  {style.bar(i, len(repos), 14)} {style.cyan(repo_id)}: "
@@ -92,8 +111,17 @@ def cmd_index(args) -> int:
     try:
         workspace = getattr(args, "workspace", None)
         if workspace:
-            return _index_workspace(store, store_dir, Path(workspace),
-                                    force=getattr(args, "force", False))
+            force = getattr(args, "force", False)
+            if getattr(args, "watch", False):
+                interval = getattr(args, "interval", None) or 60
+                log(f"{style.cyan('watch')}: re-indexing {workspace} every "
+                    f"{interval}s (Ctrl-C to stop)")
+                _watch_loop(
+                    lambda: _index_workspace(store, store_dir, Path(workspace), force=force),
+                    interval=interval,
+                )
+                return 0
+            return _index_workspace(store, store_dir, Path(workspace), force=force)
 
         source = getattr(args, "source", None)
         if not source:
@@ -393,11 +421,48 @@ def cmd_lint(args) -> int:
         store.close()
 
 
+def _print_hit(n) -> None:
+    loc = f"{n.file}:{n.line_start}" if n.file and n.line_start else (n.file or "?")
+    log(f"  {style.cyan(n.repo)} · {loc} · {n.kind} · {style.bold(n.name)}")
+
+
+def _query_as_of(args, commit: str) -> int:
+    """Search a repo's snapshot at an indexed commit (bi-temporal 'as of')."""
+    from .store.shards import read_shard_at
+
+    repo = getattr(args, "repo", None)
+    if not repo:
+        log("--as-of requires --repo (history is per-repo)")
+        return 2
+    text = " ".join(getattr(args, "args", []) or []).strip().lower()
+    store_dir = load_kb_config(getattr(args, "config", None)).store_path
+    shard = read_shard_at(store_dir, repo, commit)
+    if shard is None:
+        log(f"No indexed snapshot of {repo!r} at commit {commit!r}")
+        return 1
+    kind = getattr(args, "kind", None)
+    hits = [
+        n for n in shard.nodes
+        if (text in n.name.lower()
+            or (n.qualified_name and text in n.qualified_name.lower()))
+        and (kind is None or n.kind == kind)
+    ][:getattr(args, "limit", None) or 20]
+    if not hits:
+        log(f"No matches for {text!r} in {repo} as of {commit}")
+        return 0
+    for n in hits:
+        _print_hit(n)
+    return 0
+
+
 def cmd_query(args) -> int:
     text = " ".join(getattr(args, "args", []) or []).strip()
     if not text:
-        log("usage: gitlab-sync query \"<text>\" [--kind K] [--repo R] [--limit N]")
+        log("usage: gitlab-sync query \"<text>\" [--kind K] [--repo R] [--limit N] [--as-of C]")
         return 2
+    as_of = getattr(args, "as_of", None)
+    if as_of:
+        return _query_as_of(args, as_of)
     store, _ = _open_store(args)
     try:
         results = store.search(
@@ -408,8 +473,7 @@ def cmd_query(args) -> int:
             log(f"No matches for {text!r}")
             return 0
         for n in results:
-            loc = f"{n.file}:{n.line_start}" if n.file and n.line_start else (n.file or "?")
-            log(f"  {n.repo} · {loc} · {n.kind} · {n.name}")
+            _print_hit(n)
         return 0
     finally:
         store.close()
