@@ -12,6 +12,7 @@ in the tables below; the rest of the pipeline is language-agnostic.
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import date
 from pathlib import Path
@@ -268,7 +269,7 @@ def index_repo_dir(
 
     shard.nodes.extend(by_id.values())
     shard.edges.extend(_resolve_calls(all_calls, by_id))
-    log(f"  parsed {n_files} file(s)")
+    log(f"  parsed {n_files} file(s)", level=logging.DEBUG)
     return shard
 
 
@@ -323,5 +324,6 @@ def _resolve_calls(
             provenance=Provenance(source_file=rel, source_line=line, verified_at=date.today()),
         ))
     if edges or ambiguous:
-        log(f"  resolved {len(edges)} call edge(s) ({ambiguous} ambiguous skipped)")
+        log(f"  resolved {len(edges)} call edge(s) ({ambiguous} ambiguous skipped)",
+            level=logging.DEBUG)
     return edges
