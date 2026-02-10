@@ -63,6 +63,18 @@ def setup_logging(verbose=False, quiet=False, log_file=None):
     return logger
 
 
+def use_stderr():
+    """Route console logging to stderr instead of stdout.
+
+    Used when stdout is a machine-readable channel (e.g. the MCP stdio transport's
+    JSON-RPC stream), so human-facing log lines never corrupt the protocol.
+    """
+    logger = get_logger()
+    for handler in logger.handlers:
+        if type(handler) is logging.StreamHandler:  # the console handler, not the file one
+            handler.setStream(sys.stderr)
+
+
 def log(message, level=logging.INFO):
     """Emit a timestamped message through the package logger."""
     get_logger().log(level, message)
