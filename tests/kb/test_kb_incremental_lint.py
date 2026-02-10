@@ -8,7 +8,7 @@ from datetime import date
 
 import pytest
 
-from gitlab_sync.kb.commands import _index_workspace, cmd_lint
+from gitlab_sync.kb.commands import _index_workspace, _watch_loop, cmd_lint
 from gitlab_sync.kb.model import Confidence, Edge, Node, Provenance, Repo
 from gitlab_sync.kb.state import check_schema, mark_repo_indexed
 from gitlab_sync.kb.store.shards import GraphShard, reindex_shard, write_shard
@@ -125,3 +125,21 @@ def test_lint_clean_graph_passes(tmp_path, monkeypatch):
     _seed(store_dir, repo, head, [_edge("a")])  # self-edge resolves; repo HEAD matches
 
     assert cmd_lint(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+
+# --- watch loop (Phase 2.6) -----------------------------------------------
+
+def test_watch_loop_runs_n_times():
+    calls = []
+    n = _watch_loop(lambda: calls.append(1), interval=0, iterations=3, sleep=lambda s: None)
+    assert n == 3 and len(calls) == 3
+
+
+def test_watch_loop_stops_on_interrupt():
+    calls = []
+
+    def boom(_):
+        raise KeyboardInterrupt
+
+    n = _watch_loop(lambda: calls.append(1), interval=0, sleep=boom)  # unbounded but interrupted
+    assert n == 1 and len(calls) == 1
