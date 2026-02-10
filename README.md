@@ -637,13 +637,16 @@ gitlab-sync index --workspace ~/work        # index every git repo (incremental;
 gitlab-sync connect --workspace ~/work      # link repos to their issues/docs (see below)
 gitlab-sync embed                           # build semantic vectors (optional, see below)
 gitlab-sync lint                            # graph health: stale repos + dangling edges
+gitlab-sync wiki                            # LLM-synthesized, council-verified wiki pages (optional)
 gitlab-sync query "OrderService"            # cited search across the index
 gitlab-sync serve                           # expose the graph over MCP (stdio or --transport http)
 ```
 
 `index --workspace` is **incremental** — it re-indexes only repos whose git HEAD
 moved since their last index, so a scheduled (cron) run stays cheap; pass `--force`
-to rebuild everything.
+to rebuild everything, or `--watch [--interval N]` to keep re-indexing in a loop.
+Every indexed snapshot is kept, so `query "<text>" --repo R --as-of <commit>` does
+**time-travel** — it searches repo `R` as it was at a previously-indexed commit.
 
 **Code indexing** uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
@@ -682,6 +685,15 @@ related nodes — a function's callers, a package's dependents — that a pure s
 match would miss. The vector store uses an exact pure-Python cosine scan by default;
 install the optional ANN backend with `pip install "gitlab-sync[kb-vec]"` (sqlite-vec)
 for larger workspaces.
+
+**Curated wiki** (optional, local-first) turns the graph into prose. Enable
+`[llm]` in the config (generation runs on a local Ollama model by default — prompts
+never leave the machine) and run `gitlab-sync wiki`: for each repo it synthesizes a
+Markdown page grounded strictly in graph facts (top symbols, dependencies, files)
+with a provenance footer citing the commit and sources, then puts the draft through
+a **verification council** — reviewers score it for accuracy, completeness, and
+clarity and a chairman publishes only pages above a configurable threshold. Nothing
+that fails review is written.
 
 ## Technical Documentation
 
