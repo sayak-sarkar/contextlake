@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Curated wiki tier** (`wiki` command): a pluggable, local-first LLM client
+  (Ollama) synthesizes a provenance-stamped Markdown page per repo, grounded
+  strictly in graph facts, and an **LLM verification council** (accuracy /
+  completeness / clarity reviewers + a chairman threshold) gates what gets written.
+  Off unless `[llm] enabled = true`.
+- **`index --watch`** (`--interval`): keep re-indexing the workspace incrementally
+  on an interval (Ctrl-C to stop) for a long-running refresh.
+- **Bi-temporal queries**: each indexed shard is snapshotted by commit, and
+  `query --repo R --as-of <commit>` searches repo `R` as it was at a previously
+  indexed commit (time-travel) without a schema overhaul.
+
 ## [1.8.0] - 2026-06-21
 
 ### Added

@@ -23,6 +23,16 @@ batch_size = 64
 # Force with "sqlite-vec" or "brute".
 vector_backend = "auto"
 
+[llm]
+# LLM tier for `gitlab-sync wiki` (curated pages + a verification council).
+# Local-first and off by default; prompts never leave the machine with Ollama.
+enabled = false
+provider = "ollama"
+model = "llama3.1"
+base_url = "http://127.0.0.1:11434"
+council_size = 3        # reviewer lenses (accuracy / completeness / clarity)
+accept_score = 0.7      # mean council score required to publish a page
+
 # --- Knowledge-source connectors (0..N) -------------------------------------
 # `gitlab-sync connect` runs these after indexing to link repos to external
 # knowledge. Each Atlassian org is its own connector with its own auth session;
