@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **OpenAI-compatible providers** for the embeddings and wiki tiers: set
+  `provider = "openai"` to use any OpenAI-compatible API — a hosted key or a local
+  server (LM Studio, Jan, llama.cpp, vLLM) — as an alternative to local Ollama. The
+  API key is read from an env var named by `api_key_env` (never stored in config);
+  servers that need no key work with it unset.
+- **MCP integration docs**: a README section showing how to use `gitlab-sync serve`
+  as an MCP server from Claude Code and Windsurf/Devin (the graph tools need no
+  model; only semantic search needs embeddings).
+
 ## [1.9.1] - 2026-06-21
 
 ### Fixed
