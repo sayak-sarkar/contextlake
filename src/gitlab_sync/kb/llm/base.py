@@ -33,4 +33,12 @@ def build_llm(cfg) -> LlmClient | None:
             model=cfg.model or "llama3.1",
             base_url=getattr(cfg, "base_url", "http://127.0.0.1:11434"),
         )
+    if provider == "openai":
+        from .openai import OpenAILlm
+
+        return OpenAILlm(
+            model=cfg.model or "gpt-4o-mini",
+            base_url=getattr(cfg, "base_url", "https://api.openai.com/v1"),
+            api_key_env=getattr(cfg, "api_key_env", "OPENAI_API_KEY"),
+        )
     raise ValueError(f"unknown llm provider: {provider!r}")
