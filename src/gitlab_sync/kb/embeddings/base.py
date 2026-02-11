@@ -36,4 +36,13 @@ def build_embedder(cfg) -> Embedder | None:
             base_url=getattr(cfg, "base_url", "http://127.0.0.1:11434"),
             batch_size=getattr(cfg, "batch_size", 64),
         )
+    if provider == "openai":
+        from .openai import OpenAIEmbedder
+
+        return OpenAIEmbedder(
+            model=cfg.model or "text-embedding-3-small",
+            base_url=getattr(cfg, "base_url", "https://api.openai.com/v1"),
+            api_key_env=getattr(cfg, "api_key_env", "OPENAI_API_KEY"),
+            batch_size=getattr(cfg, "batch_size", 64),
+        )
     raise ValueError(f"unknown embeddings provider: {provider!r}")

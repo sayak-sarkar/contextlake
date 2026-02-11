@@ -54,11 +54,12 @@ class EmbeddingsCfg(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     enabled: bool = False
-    provider: str = "ollama"
+    provider: str = "ollama"  # ollama | openai (openai-compatible)
     model: str | None = None
     base_url: str = "http://127.0.0.1:11434"
     batch_size: int = 64
     vector_backend: str = "auto"  # auto | sqlite-vec | brute
+    api_key_env: str = "OPENAI_API_KEY"  # env var holding the key (never the key itself)
 
 
 class LlmCfg(BaseModel):
@@ -67,11 +68,12 @@ class LlmCfg(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     enabled: bool = False
-    provider: str = "ollama"
+    provider: str = "ollama"  # ollama | openai (openai-compatible)
     model: str | None = None
     base_url: str = "http://127.0.0.1:11434"
     council_size: int = 3
     accept_score: float = 0.7
+    api_key_env: str = "OPENAI_API_KEY"  # env var holding the key (never the key itself)
 
 
 class KbConfig(BaseModel):
