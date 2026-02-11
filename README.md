@@ -1099,6 +1099,14 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.10** (2026-06-21): OpenAI-compatible providers and MCP integration docs
+
+  - Embeddings and wiki tiers can use any OpenAI-compatible API (`provider =
+    "openai"`) — hosted or a local server — as an alternative to Ollama; the key
+    comes from an env var, never config
+  - Documented using `gitlab-sync serve` as an MCP server from Claude Code and
+    Windsurf/Devin
+
 - **v1.9** (2026-06-21): Curated wiki tier, watch mode, and time-travel queries
 
   - Added a `wiki` command: local-first LLM synthesis of provenance-stamped pages
