@@ -695,6 +695,45 @@ a **verification council** — reviewers score it for accuracy, completeness, an
 clarity and a chairman publishes only pages above a configurable threshold. Nothing
 that fails review is written.
 
+**Model providers are pluggable.** The embeddings and wiki tiers default to a local
+Ollama (`provider = "ollama"`); set `provider = "openai"` to use **any
+OpenAI-compatible API** instead — a hosted key, or a local server like LM Studio,
+Jan, llama.cpp, or vLLM. The key is read from an environment variable named by
+`api_key_env` (default `OPENAI_API_KEY`) and is never stored in config; local
+servers that need no key work with it unset. See `examples/kb.toml.example`.
+
+### Use it from your editor or agent (MCP)
+
+`gitlab-sync serve` is an MCP server, so any MCP client can query the graph — and
+**most of it needs no model**: the graph tools (`search_code`, `find_definition`,
+`find_callers`, `find_dependents`, `shortest_path`, `graph_stats`) work on their
+own; only `semantic_search`/`hybrid_search` need embeddings.
+
+**Claude Code:**
+
+```bash
+claude mcp add gitlab-kb -- gitlab-sync serve --config ~/.gitlab-sync/kb.toml
+```
+
+**Windsurf / Devin** — add the same server in its MCP config (Cascade's *MCP
+Servers* panel, or `~/.codeium/windsurf/mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "gitlab-kb": {
+      "command": "gitlab-sync",
+      "args": ["serve", "--config", "~/.gitlab-sync/kb.toml"]
+    }
+  }
+}
+```
+
+Once connected, ask the agent things like "where is `OrderService` defined?", "who
+calls `charge`?", or "which repos depend on `shared-core`?" and it calls the graph
+tools directly — you can even have it draft wiki pages from the graph without the
+built-in `wiki` command.
+
 ## Technical Documentation
 
 ### Architecture
