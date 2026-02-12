@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Steering-layer generation** (`steer` command): writes workspace-specific
+  steering files so local AI tools pick up the knowledge graph natively —
+  `AGENTS.md` (overview + knowledge tools + guardrails), a thin `CLAUDE.md` that
+  imports it, `.windsurfrules`, `.kiro/steering/`, and a merged `.mcp.json` entry
+  for the MCP server. Content is grounded in the indexed repos/languages/
+  dependencies; it only overwrites files it manages (or with `--force`).
+
 ## [1.10.0] - 2026-06-21
 
 ### Added
