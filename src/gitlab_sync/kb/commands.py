@@ -22,7 +22,7 @@ from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
-KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "serve", "query", "doctor")
+KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "steer", "serve", "query", "doctor")
 
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
@@ -378,6 +378,65 @@ def cmd_wiki(args) -> int:
         store.close()
 
 
+def cmd_steer(args) -> int:
+    """Generate per-tool steering files (AGENTS.md, CLAUDE.md, .windsurfrules,
+    .kiro/steering, .mcp.json) that point local AI tools at the knowledge graph."""
+    import json as _json
+
+    from .steer.generate import (
+        MARKER,
+        mcp_server_entry,
+        render_agents_md,
+        render_claude_md,
+        render_kiro_steering,
+        render_windsurfrules,
+        workspace_facts,
+    )
+
+    store, store_dir = _open_store(args)
+    try:
+        out = Path(getattr(args, "out", None) or getattr(args, "workspace", None) or ".").resolve()
+        config_path = getattr(args, "config", None)
+        force = getattr(args, "force", False)
+        facts = workspace_facts(store, store_dir)
+        out.mkdir(parents=True, exist_ok=True)
+
+        plan = {
+            "AGENTS.md": render_agents_md(facts, config_path=config_path),
+            "CLAUDE.md": render_claude_md(config_path),
+            ".windsurfrules": render_windsurfrules(facts, config_path=config_path),
+            ".kiro/steering/workspace.md": render_kiro_steering(facts, config_path=config_path),
+        }
+        wrote = skipped = 0
+        for rel, content in plan.items():
+            p = out / rel
+            if p.exists() and MARKER not in p.read_text(errors="ignore") and not force:
+                log(f"  {style.skip(rel)} (exists and not ours — pass --force to replace)")
+                skipped += 1
+                continue
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+            log(f"  {style.ok(rel)}")
+            wrote += 1
+
+        # .mcp.json: merge our server entry, preserving any others the user has.
+        mcp = out / ".mcp.json"
+        data = {}
+        if mcp.exists():
+            try:
+                data = _json.loads(mcp.read_text())
+            except _json.JSONDecodeError:
+                data = {}
+        data.setdefault("mcpServers", {})["gitlab-kb"] = mcp_server_entry(config_path)
+        mcp.write_text(_json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        log(f"  {style.ok('.mcp.json')} (gitlab-kb MCP server)")
+
+        log(f"{style.ok()} Steering written to {out}: {wrote} file(s), {skipped} skipped")
+        return 0
+    finally:
+        store.close()
+
+
 def cmd_lint(args) -> int:
     """Graph-health checks: stale repos (HEAD moved) and dangling edges."""
     from .store.shards import read_shard
@@ -584,6 +643,6 @@ def cmd_doctor(args) -> int:
 def dispatch(command: str, args) -> int:
     return {
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
-        "lint": cmd_lint, "wiki": cmd_wiki, "query": cmd_query,
+        "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
         "serve": cmd_serve, "doctor": cmd_doctor,
     }[command](args)
