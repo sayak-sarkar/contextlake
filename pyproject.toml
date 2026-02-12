@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gitlab-sync"
-version = "1.10.0"
+version = "1.11.0"
 description = "Mirror your accessible GitLab repositories locally and keep each on its most active branch."
 readme = "README.md"
 license = { file = "LICENSE" }

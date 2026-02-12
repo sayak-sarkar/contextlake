@@ -1113,6 +1113,12 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.11** (2026-06-22): Steering-layer generation
+
+  - Added a `steer` command that writes workspace-specific `AGENTS.md`, `CLAUDE.md`,
+    `.windsurfrules`, `.kiro/steering`, and a merged `.mcp.json` — so local AI tools
+    pick up the knowledge graph and guardrails natively
+
 - **v1.10** (2026-06-21): OpenAI-compatible providers and MCP integration docs
 
   - Embeddings and wiki tiers can use any OpenAI-compatible API (`provider =
