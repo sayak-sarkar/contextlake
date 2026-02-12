@@ -638,6 +638,7 @@ gitlab-sync connect --workspace ~/work      # link repos to their issues/docs (s
 gitlab-sync embed                           # build semantic vectors (optional, see below)
 gitlab-sync lint                            # graph health: stale repos + dangling edges
 gitlab-sync wiki                            # LLM-synthesized, council-verified wiki pages (optional)
+gitlab-sync steer                           # write per-tool steering: AGENTS.md, .mcp.json, …
 gitlab-sync query "OrderService"            # cited search across the index
 gitlab-sync serve                           # expose the graph over MCP (stdio or --transport http)
 ```
@@ -709,7 +710,20 @@ servers that need no key work with it unset. See `examples/kb.toml.example`.
 `find_callers`, `find_dependents`, `shortest_path`, `graph_stats`) work on their
 own; only `semantic_search`/`hybrid_search` need embeddings.
 
-**Claude Code:**
+**The quickest way** is to let the tool wire your editors for you. From your
+workspace root:
+
+```bash
+gitlab-sync steer --config ~/.gitlab-sync/kb.toml
+```
+
+This writes workspace-specific **`AGENTS.md`** (overview, the knowledge tools, and
+guardrails), a thin **`CLAUDE.md`** that imports it, **`.windsurfrules`**,
+**`.kiro/steering/`**, and merges a **`.mcp.json`** entry — so Claude Code, Windsurf,
+Kiro, and other agents pick up the workspace context and the MCP server natively. It
+only overwrites files it manages (re-run any time to refresh).
+
+To wire Claude Code by hand instead:
 
 ```bash
 claude mcp add gitlab-kb -- gitlab-sync serve --config ~/.gitlab-sync/kb.toml
