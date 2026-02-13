@@ -1130,6 +1130,12 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.13** (2026-06-22): Agent skills/workflows library
+
+  - `steer` now installs a generic library of operating skills (root-cause,
+    plan-first, surgical-change, review, ship-safely, use-knowledge-graph) as
+    Claude Code skills and Windsurf workflows
+
 - **v1.12** (2026-06-22): One-command bootstrap
 
   - Added a `bootstrap` command that chains mirror → index → connect → embed
