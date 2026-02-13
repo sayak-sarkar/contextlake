@@ -1126,6 +1126,11 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.12** (2026-06-22): One-command bootstrap
+
+  - Added a `bootstrap` command that chains mirror → index → connect → embed
+    → wiki → steer into a single turnkey setup for team onboarding
+
 - **v1.11** (2026-06-22): Steering-layer generation
 
   - Added a `steer` command that writes workspace-specific `AGENTS.md`, `CLAUDE.md`,
