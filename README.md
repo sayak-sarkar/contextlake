@@ -649,6 +649,19 @@ to rebuild everything, or `--watch [--interval N]` to keep re-indexing in a loop
 Every indexed snapshot is kept, so `query "<text>" --repo R --as-of <commit>` does
 **time-travel** — it searches repo `R` as it was at a previously-indexed commit.
 
+**One command to set it all up.** Rather than running the steps by hand, `bootstrap`
+chains them — mirror repos → index → connect → embed → wiki → write editor steering —
+skipping anything not enabled, so a teammate goes from nothing to a fully-wired
+workspace in one step:
+
+```bash
+gitlab-sync bootstrap --kb-config ~/.gitlab-sync/kb.toml
+```
+
+Skip stages with `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect`. For an
+isolated CLI, install with `pipx install "git+https://github.com/sayak-sarkar/gitlab-sync"`
+(add the `[kb]` extra for the knowledge layer), or run ad-hoc with `uvx`.
+
 **Code indexing** uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
 TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads

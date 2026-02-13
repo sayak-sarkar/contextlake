@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`bootstrap` command** — one-command turnkey setup that chains mirror →
+  index → connect → embed → wiki → steer, skipping unconfigured/disabled stages and
+  never aborting on a single stage's failure. Takes `--kb-config` (separate from the
+  sync INI) and `--no-sync`/`--no-embed`/`--no-wiki`/`--no-connect` toggles, so a
+  teammate goes from nothing to a fully-wired workspace in one step.
+
 ## [1.11.0] - 2026-06-22
 
 ### Added
