@@ -392,6 +392,7 @@ def cmd_steer(args) -> int:
         render_windsurfrules,
         workspace_facts,
     )
+    from .steer.skills import skill_files
 
     store, store_dir = _open_store(args)
     try:
@@ -407,6 +408,8 @@ def cmd_steer(args) -> int:
             ".windsurfrules": render_windsurfrules(facts, config_path=config_path),
             ".kiro/steering/workspace.md": render_kiro_steering(facts, config_path=config_path),
         }
+        skills = skill_files()  # generic agent skills/workflows library
+        plan.update(skills)
         wrote = skipped = 0
         for rel, content in plan.items():
             p = out / rel
@@ -416,8 +419,8 @@ def cmd_steer(args) -> int:
                 continue
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
-            log(f"  {style.ok(rel)}")
             wrote += 1
+        log(f"  {style.ok('steering + ' + str(len(skills) // 2) + ' skills')} written")
 
         # .mcp.json: merge our server entry, preserving any others the user has.
         mcp = out / ".mcp.json"

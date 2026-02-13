@@ -12,6 +12,7 @@ from gitlab_sync.kb.steer.generate import (
     render_agents_md,
     workspace_facts,
 )
+from gitlab_sync.kb.steer.skills import SKILLS, skill_files, skill_md
 from gitlab_sync.kb.store.shards import GraphShard, write_shard
 from gitlab_sync.kb.store.sqlite_store import SqliteStore
 
@@ -62,6 +63,21 @@ def test_render_agents_md_is_specific_and_guarded(tmp_path):
         store.close()
 
 
+def test_skill_files_cover_both_tool_formats():
+    files = skill_files()
+    names = {s["name"] for s in SKILLS}
+    for name in names:
+        assert f".claude/skills/{name}/SKILL.md" in files
+        assert f".windsurf/workflows/{name}.md" in files
+    assert len(files) == 2 * len(SKILLS)
+
+
+def test_skill_md_has_frontmatter_and_marker():
+    md = skill_md(SKILLS[0])
+    assert md.startswith("---\nname: ") and "description:" in md
+    assert MARKER in md  # managed-file marker so steer can refresh idempotently
+
+
 def test_mcp_server_entry():
     assert mcp_server_entry("/c/kb.toml") == {
         "command": "gitlab-sync", "args": ["serve", "--config", "/c/kb.toml"]}
@@ -95,6 +111,9 @@ def test_cmd_steer_writes_files_and_merges_mcp(tmp_path, monkeypatch):
     assert MARKER in claude and "@AGENTS.md" in claude  # CLAUDE.md imports AGENTS.md
     assert (out / ".windsurfrules").exists()
     assert (out / ".kiro" / "steering" / "workspace.md").exists()
+    # the generic skills/workflows library is installed too
+    assert (out / ".claude" / "skills" / "use-knowledge-graph" / "SKILL.md").exists()
+    assert (out / ".windsurf" / "workflows" / "ship-safely.md").exists()
 
     mcp = json.loads((out / ".mcp.json").read_text())
     assert "other" in mcp["mcpServers"]  # preserved
