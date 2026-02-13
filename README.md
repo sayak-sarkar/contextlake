@@ -734,7 +734,11 @@ This writes workspace-specific **`AGENTS.md`** (overview, the knowledge tools, a
 guardrails), a thin **`CLAUDE.md`** that imports it, **`.windsurfrules`**,
 **`.kiro/steering/`**, and merges a **`.mcp.json`** entry — so Claude Code, Windsurf,
 Kiro, and other agents pick up the workspace context and the MCP server natively. It
-only overwrites files it manages (re-run any time to refresh).
+also installs a generic library of **agent skills/workflows** (`.claude/skills/`,
+`.windsurf/workflows/`) — investigate-root-cause, plan-before-coding,
+surgical-change, review-before-landing, ship-safely, use-knowledge-graph — so even a
+small-context model has a strong operating playbook. It only overwrites files it
+manages (re-run any time to refresh).
 
 To wire Claude Code by hand instead:
 

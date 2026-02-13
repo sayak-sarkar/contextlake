@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agent skills/workflows library**: `steer` now also installs a built-in, generic
+  library of operating skills (investigate-root-cause, plan-before-coding,
+  surgical-change, review-before-landing, ship-safely, use-knowledge-graph) into the
+  workspace in the formats local tools read — Claude Code skills (`.claude/skills/`)
+  and Windsurf workflows (`.windsurf/workflows/`) — so even a small-context model has
+  a strong operating playbook. Managed/idempotent like the other steering files.
+
 ## [1.12.0] - 2026-06-22
 
 ### Added
