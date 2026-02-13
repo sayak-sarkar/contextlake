@@ -67,6 +67,8 @@ Examples:
         "command",
         choices=[
             "fetch", "clone", "update", "branches", "verify", "sync", "status",
+            # one-command turnkey setup (sync + knowledge layer + steering)
+            "bootstrap",
             # knowledge layer (optional [kb] extra)
             "index", "connect", "embed", "lint", "wiki", "steer",
             "serve", "query", "doctor",
@@ -86,6 +88,16 @@ Examples:
     kb.add_argument("--force", action="store_true",
                     help="index: re-index every repo; steer: overwrite non-managed files")
     kb.add_argument("--out", help="steer: directory to write steering files into (default: cwd)")
+    kb.add_argument("--kb-config", dest="kb_config",
+                    help="bootstrap: knowledge-layer config (kb.toml), separate from the sync INI")
+    kb.add_argument("--no-sync", dest="no_sync", action="store_true",
+                    help="bootstrap: skip the GitLab mirror step (index the workspace as-is)")
+    kb.add_argument("--no-connect", dest="no_connect", action="store_true",
+                    help="bootstrap: skip the connectors step")
+    kb.add_argument("--no-embed", dest="no_embed", action="store_true",
+                    help="bootstrap: skip the embeddings step")
+    kb.add_argument("--no-wiki", dest="no_wiki", action="store_true",
+                    help="bootstrap: skip the wiki-generation step")
     kb.add_argument("--watch", action="store_true",
                     help="index --workspace: keep re-indexing on an interval (Ctrl-C to stop)")
     kb.add_argument("--interval", type=int,
@@ -190,6 +202,65 @@ def apply_cli_overrides(args, config):
     return config
 
 
+def _bootstrap(args, config, work_dir, gitlab_group):
+    """One-command turnkey setup: mirror repos, build the knowledge layer, and write
+    editor steering. Optional/unconfigured stages are skipped; a failing stage warns
+    but never aborts the rest."""
+    import copy
+
+    from . import style
+
+    def _stage(title):
+        log("")
+        log(style.bold(style.cyan(f"▶ {title}")))
+
+    if not getattr(args, "no_sync", False):
+        _stage("Mirror repositories from GitLab")
+        fetch_gitlab_projects(gitlab_group, config)
+        clone_missing_repos(work_dir, config, gitlab_group)
+        update_repositories(work_dir, config)
+        switch_repository_branches(work_dir, config, gitlab_group)
+        verify_structure(work_dir, config, gitlab_group)
+    else:
+        log("Skipping the GitLab mirror step (--no-sync)")
+
+    try:
+        from .kb import commands as kb
+    except ImportError as e:
+        log(f"Knowledge layer not installed — skipping index/connect/embed/wiki/steer. "
+            f"Install it with: pip install 'gitlab-sync[kb]'  ({e})")
+        return
+
+    # kb stages run against the workspace and the *kb* config (kb.toml), which is
+    # distinct from the core sync INI passed as --config.
+    kb_args = copy.copy(args)
+    kb_args.config = getattr(args, "kb_config", None)
+    kb_args.workspace = work_dir
+    kb_args.source = None
+    kb_args.out = work_dir
+
+    stages = [("Index the code graph", kb.cmd_index)]
+    if not getattr(args, "no_connect", False):
+        stages.append(("Connect knowledge sources", kb.cmd_connect))
+    if not getattr(args, "no_embed", False):
+        stages.append(("Build semantic vectors", kb.cmd_embed))
+    if not getattr(args, "no_wiki", False):
+        stages.append(("Generate the curated wiki", kb.cmd_wiki))
+    stages.append(("Write editor steering (.mcp.json, AGENTS.md, …)", kb.cmd_steer))
+
+    for title, fn in stages:
+        _stage(title)
+        try:
+            fn(kb_args)
+        except Exception as e:  # noqa: BLE001 - one stage must not abort bootstrap
+            log(f"  {style.warn(title + ' failed')} — {e}")
+
+    log("")
+    serve = "gitlab-sync serve" + (f" --config {kb_args.config}" if kb_args.config else "")
+    log(style.ok(f"Bootstrap complete — workspace ready at {work_dir}."))
+    log(f"  Editors are wired (.mcp.json + steering). Start the knowledge server: {serve}")
+
+
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -248,6 +319,8 @@ def main(argv=None):
             log("Full synchronization complete!")
         elif args.command == "status":
             show_status(work_dir, config, gitlab_group)
+        elif args.command == "bootstrap":
+            _bootstrap(args, config, work_dir, gitlab_group)
     except KeyboardInterrupt:
         log("Operation cancelled by user")
         sys.exit(130)
