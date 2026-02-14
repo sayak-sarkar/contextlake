@@ -1143,6 +1143,11 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.14** (2026-06-22): GitLab source and scheduling
+
+  - Added a GitLab connector linking repos to their open merge requests and
+    issues, and cron/systemd-timer recipes for an always-fresh workspace
+
 - **v1.13** (2026-06-22): Agent skills/workflows library
 
   - `steer` now installs a generic library of operating skills (root-cause,
