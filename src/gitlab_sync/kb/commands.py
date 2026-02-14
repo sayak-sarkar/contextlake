@@ -198,8 +198,10 @@ def _build_enrichers(sources):
     from .connectors.orchestrate import (
         build_atlassian,
         build_figma,
+        build_gitlab,
         enrich_repo,
         enrich_repo_figma,
+        enrich_repo_gitlab,
     )
 
     enrichers, names = [], []
@@ -227,6 +229,13 @@ def _build_enrichers(sources):
                 enrich_repo_figma(c, repo_id, links=links)
             )
             names.append(s.name)
+        elif s.type == "gitlab":
+            conn = build_gitlab(s)
+            log(f"  source {s.name!r} (gitlab): ready")
+            enrichers.append(
+                lambda repo_id, keys, links, c=conn: enrich_repo_gitlab(c, repo_id)
+            )
+            names.append(s.name)
     return enrichers, names
 
 
@@ -237,12 +246,14 @@ def cmd_connect(args) -> int:
     store, _ = _open_store(args)
     try:
         cfg = load_kb_config(getattr(args, "config", None))
-        sources = [s for s in cfg.sources if s.type in ("atlassian", "figma")]
+        sources = [s for s in cfg.sources if s.type in ("atlassian", "figma", "gitlab")]
         if not sources:
-            log('No connector sources configured (add [[sources]] type="atlassian"/"figma")')
+            log('No connector sources configured '
+                '(add [[sources]] type="atlassian"/"figma"/"gitlab")')
             return 0
+        has_gitlab = any(s.type == "gitlab" for s in sources)
         branch_key, link_patterns = _rule_patterns(cfg.rules)
-        if not branch_key and not link_patterns:
+        if not branch_key and not link_patterns and not has_gitlab:
             log('No association rules configured (add [[rules]] type="branch_key"/"link_scrape")')
             return 0
 
@@ -262,8 +273,8 @@ def cmd_connect(args) -> int:
         for repo_id, path in targets:
             keys = extract_issue_keys(path, branch_key) if branch_key else []
             links = scrape_links(path, link_patterns) if link_patterns else []
-            if not keys and not links:
-                continue
+            if not keys and not links and not has_gitlab:
+                continue  # GitLab sources fetch by repo, so don't skip when one exists
             merged_nodes, merged_edges = {}, {}
             for name, enrich in zip(names, enrichers):
                 try:
