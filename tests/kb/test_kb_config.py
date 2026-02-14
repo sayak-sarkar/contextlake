@@ -52,5 +52,6 @@ def test_shipped_example_parses(tmp_path, monkeypatch):
         / "examples" / "kb.toml.example"
     )
     c = load_kb_config(str(example))
-    assert len(c.sources) == 3  # two atlassian + figma
+    assert len(c.sources) == 4  # two atlassian + gitlab + figma
     assert any(s.type == "figma" for s in c.sources)
+    assert any(s.type == "gitlab" for s in c.sources)
