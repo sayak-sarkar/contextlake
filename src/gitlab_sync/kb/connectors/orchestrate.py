@@ -49,6 +49,27 @@ def build_figma(src):
     )
 
 
+def build_gitlab(src):
+    """Construct a GitLab connector from a SourceCfg."""
+    from .gitlab import GitLabConnector
+
+    extra = getattr(src, "model_extra", None) or {}
+    return GitLabConnector(
+        src.name,
+        group=extra.get("group"),
+        timeout=extra.get("timeout", 30),
+        per_page=extra.get("per_page", 50),
+    )
+
+
+def enrich_repo_gitlab(connector, repo_id):
+    """Link a repo to its open merge requests and issues (live fetch)."""
+    from .gitlab import associate_gitlab
+
+    mrs, issues = connector.fetch(repo_id)
+    return associate_gitlab(repo_id, mrs, issues)
+
+
 def enrich_repo_figma(connector, repo_id, *, links=()):
     """Associate figma.com links to design nodes (names come from the URL slug).
 
