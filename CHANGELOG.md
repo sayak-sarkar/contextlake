@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-06-22
+
 ### Added
 
 - **GitLab knowledge connector**: links each repo to its open merge requests and
