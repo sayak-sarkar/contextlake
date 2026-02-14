@@ -65,6 +65,14 @@ mcp = "https://mcp.atlassian.com/v1/mcp/authv2"
 # file name comes from the URL itself; a configured Figma MCP is optional and only
 # used to verify reachability. Point it at the Figma desktop "Dev Mode MCP server"
 # (enable it in Figma > Preferences) via mcp, or at any MCP stdio command.
+# GitLab itself as a knowledge source: links each repo to its open merge requests
+# and issues (read via your authenticated `glab`). Needs no association rules.
+[[sources]]
+type = "gitlab"
+name = "gitlab"
+# group = "your-gitlab-group"   # prefixed to each repo's path to form the project
+# per_page = 50
+
 [[sources]]
 type = "figma"
 name = "design"

@@ -1,0 +1,13 @@
+# Example systemd user timer — runs the refresh every 30 minutes (and shortly
+# after login). Pair with gitlab-sync.service. See that file for install steps.
+
+[Unit]
+Description=Run gitlab-sync refresh periodically
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

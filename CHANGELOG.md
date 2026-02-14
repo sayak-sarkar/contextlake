@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **GitLab knowledge connector**: links each repo to its open merge requests and
+  issues (read through the authenticated `glab`), on the same connector seam as
+  Atlassian/Figma. Configure with `[[sources]] type = "gitlab"` (optional `group`);
+  it needs no association rules. The command runner is injectable, so the mapping is
+  unit-tested without GitLab.
+- **Scheduling recipe**: `bootstrap` is incremental and branch-safe, so it doubles
+  as a refresh job — documented cron + systemd-timer examples
+  (`examples/gitlab-sync.service`, `examples/gitlab-sync.timer`) keep the mirror and
+  knowledge layer always-fresh without disturbing in-progress work.
+
 ## [1.13.0] - 2026-06-22
 
 ### Added

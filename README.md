@@ -662,6 +662,18 @@ Skip stages with `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect`. For 
 isolated CLI, install with `pipx install "git+https://github.com/sayak-sarkar/gitlab-sync"`
 (add the `[kb]` extra for the knowledge layer), or run ad-hoc with `uvx`.
 
+**Keep it fresh on a schedule.** `bootstrap` is incremental and branch-safe, so it's
+safe to run repeatedly — it re-mirrors, re-indexes only the repos whose HEAD moved,
+refreshes the knowledge layer, and rewrites the steering, without touching an
+in-progress working tree. Run it from cron:
+
+```cron
+*/30 * * * * gitlab-sync bootstrap --config ~/.gitlab_sync.ini --kb-config ~/.gitlab-sync/kb.toml >> ~/.gitlab-sync/refresh.log 2>&1
+```
+
+or as a systemd user timer — see [`examples/gitlab-sync.service`](examples/gitlab-sync.service)
+and [`examples/gitlab-sync.timer`](examples/gitlab-sync.timer).
+
 **Code indexing** uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
 TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads
@@ -677,10 +689,11 @@ the live tracker (a single batched JQL call per site prunes false-positives and
 fetches each issue's summary/status), and Atlassian URLs found in docs are
 classified into issue/page links. It talks to one or more Atlassian sites over
 MCP, each independently authenticated. The **Figma** connector links repos to the
-design files they reference, classifying `figma.com` URLs to a stable file key.
-Connectors share one seam, so adding another is a small, self-contained module;
-output lands in an isolated graph partition, so re-indexing a repo's code never
-disturbs its external links.
+design files they reference, classifying `figma.com` URLs to a stable file key. The
+**GitLab** connector links each repo to its open **merge requests and issues** (read
+through your authenticated `glab`). Connectors share one seam, so adding another is a
+small, self-contained module; output lands in an isolated graph partition, so
+re-indexing a repo's code never disturbs its external links.
 
 Configure it by copying [`examples/kb.toml.example`](examples/kb.toml.example) to
 `~/.gitlab-sync/kb.toml`. Every fact is provenance-stamped (source file + verified
