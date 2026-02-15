@@ -1151,6 +1151,11 @@ cp .gitlab_sync.ini.example .gitlab_sync.ini
 
 ### Version History
 
+- **v1.15** (2026-06-22): Quick start + safe steering
+
+  - Added QUICKSTART.md; `steer` now enhances existing AGENTS.md/CLAUDE.md/
+    .windsurfrules/.kiro files (managed block) instead of skipping or overwriting
+
 - **v1.14** (2026-06-22): GitLab source and scheduling
 
   - Added a GitLab connector linking repos to their open merge requests and
