@@ -25,6 +25,10 @@ gitlab-sync status      # see where you stand
 gitlab-sync sync        # fetch → clone → update → branches → verify
 ```
 
+> **New here?** [**QUICKSTART.md**](QUICKSTART.md) takes you from install to a
+> fully-wired AI workspace (mirror → knowledge graph → Claude Code / Windsurf) in a
+> few minutes.
+
 ## What's in the box
 
 **The core loop**
