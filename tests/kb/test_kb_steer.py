@@ -7,6 +7,8 @@ from gitlab_sync.kb.commands import cmd_steer
 from gitlab_sync.kb.model import Node, Repo
 from gitlab_sync.kb.state import check_schema
 from gitlab_sync.kb.steer.generate import (
+    BEGIN,
+    END,
     MARKER,
     mcp_server_entry,
     render_agents_md,
@@ -54,7 +56,7 @@ def test_render_agents_md_is_specific_and_guarded(tmp_path):
     store = _seed(tmp_path)
     try:
         md = render_agents_md(workspace_facts(store, tmp_path), config_path="/c/kb.toml")
-        assert md.startswith(MARKER)
+        assert md.startswith("# AGENTS.md")  # the writer wraps this body in a managed block
         assert "2 repositories" in md
         assert "`team/api`" in md and "`team/ui`" in md  # repo list is specific
         assert "Cite, don't guess" in md  # guardrails present
@@ -120,15 +122,38 @@ def test_cmd_steer_writes_files_and_merges_mcp(tmp_path, monkeypatch):
     assert mcp["mcpServers"]["gitlab-kb"]["command"] == "gitlab-sync"
 
 
-def test_cmd_steer_skips_foreign_files_without_force(tmp_path, monkeypatch):
+def test_cmd_steer_enhances_existing_files_without_clobbering(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     cfg = _cfg(tmp_path)
     out = tmp_path / "ws"
     out.mkdir()
-    (out / "AGENTS.md").write_text("# my hand-written agents file\n")  # no MARKER
+    # a hand-written file the user already had (no managed markers)
+    (out / "AGENTS.md").write_text("# my agents file\n\nkeep this note\n")
 
     cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
-    assert "hand-written" in (out / "AGENTS.md").read_text()  # not clobbered
+    text = (out / "AGENTS.md").read_text()
+    assert "my agents file" in text and "keep this note" in text  # user content preserved
+    assert BEGIN in text and END in text  # our managed block appended (enhanced)
 
-    cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=True))
-    assert MARKER in (out / "AGENTS.md").read_text()  # --force replaces it
+    # re-running refreshes only our block — no duplication, user content intact
+    cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
+    text2 = (out / "AGENTS.md").read_text()
+    assert text2.count(BEGIN) == 1 and text2.count(END) == 1
+    assert "keep this note" in text2
+
+
+def test_cmd_steer_keeps_foreign_kiro_and_skill_files(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    out.mkdir()
+    # a user's own Kiro steering doc and a same-named skill must survive
+    (out / ".kiro" / "steering").mkdir(parents=True)
+    (out / ".kiro" / "steering" / "my-rules.md").write_text("my kiro rules\n")
+    (out / ".claude" / "skills" / "ship-safely").mkdir(parents=True)
+    (out / ".claude" / "skills" / "ship-safely" / "SKILL.md").write_text("my own skill\n")
+
+    cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
+    assert (out / ".kiro" / "steering" / "my-rules.md").read_text() == "my kiro rules\n"
+    assert (out / ".claude" / "skills" / "ship-safely" / "SKILL.md").read_text() == "my own skill\n"
+    assert (out / ".kiro" / "steering" / "workspace.md").exists()  # ours added alongside
