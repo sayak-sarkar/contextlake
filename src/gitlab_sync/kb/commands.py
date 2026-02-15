@@ -395,6 +395,8 @@ def cmd_steer(args) -> int:
     import json as _json
 
     from .steer.generate import (
+        BEGIN,
+        END,
         MARKER,
         mcp_server_entry,
         render_agents_md,
@@ -405,6 +407,26 @@ def cmd_steer(args) -> int:
     )
     from .steer.skills import skill_files
 
+    def _upsert_block(path: Path, body: str) -> None:
+        """Write our managed block, preserving any existing user content.
+
+        Fresh file -> write the block. Already has our block -> refresh just that
+        block. User's own file -> append our block at the end (nothing of theirs
+        is removed)."""
+        block = f"{BEGIN}\n{body.strip()}\n{END}"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_text(block + "\n", encoding="utf-8")
+            return
+        existing = path.read_text(encoding="utf-8", errors="ignore")
+        if BEGIN in existing and END in existing:
+            b, e = existing.index(BEGIN), existing.index(END) + len(END)
+            path.write_text(existing[:b] + block + existing[e:], encoding="utf-8")
+        else:
+            glue = "\n\n" if not existing.endswith("\n") else (
+                "" if existing.endswith("\n\n") else "\n")
+            path.write_text(existing + glue + block + "\n", encoding="utf-8")
+
     store, store_dir = _open_store(args)
     try:
         out = Path(getattr(args, "out", None) or getattr(args, "workspace", None) or ".").resolve()
@@ -413,25 +435,30 @@ def cmd_steer(args) -> int:
         facts = workspace_facts(store, store_dir)
         out.mkdir(parents=True, exist_ok=True)
 
-        plan = {
+        # Markdown steering: enhanced in place (managed block), never overwriting
+        # a user's own content.
+        steering = {
             "AGENTS.md": render_agents_md(facts, config_path=config_path),
             "CLAUDE.md": render_claude_md(config_path),
             ".windsurfrules": render_windsurfrules(facts, config_path=config_path),
             ".kiro/steering/workspace.md": render_kiro_steering(facts, config_path=config_path),
         }
-        skills = skill_files()  # generic agent skills/workflows library
-        plan.update(skills)
-        wrote = skipped = 0
-        for rel, content in plan.items():
+        for rel, content in steering.items():
+            _upsert_block(out / rel, content)
+
+        # Skills/workflows are whole files in named dirs: write ours, refresh ours,
+        # but never clobber a same-named file the user already wrote (unless --force).
+        skills = skill_files()
+        skipped = 0
+        for rel, content in skills.items():
             p = out / rel
             if p.exists() and MARKER not in p.read_text(errors="ignore") and not force:
-                log(f"  {style.skip(rel)} (exists and not ours — pass --force to replace)")
                 skipped += 1
                 continue
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
-            wrote += 1
-        log(f"  {style.ok('steering + ' + str(len(skills) // 2) + ' skills')} written")
+        log(f"  {style.ok(f'steering enhanced + {len(skills) // 2} skills')} "
+            + (f"({skipped} foreign skill file(s) kept)" if skipped else "written"))
 
         # .mcp.json: merge our server entry, preserving any others the user has.
         mcp = out / ".mcp.json"
@@ -443,9 +470,9 @@ def cmd_steer(args) -> int:
                 data = {}
         data.setdefault("mcpServers", {})["gitlab-kb"] = mcp_server_entry(config_path)
         mcp.write_text(_json.dumps(data, indent=2) + "\n", encoding="utf-8")
-        log(f"  {style.ok('.mcp.json')} (gitlab-kb MCP server)")
+        log(f"  {style.ok('.mcp.json')} (gitlab-kb MCP server, other servers kept)")
 
-        log(f"{style.ok()} Steering written to {out}: {wrote} file(s), {skipped} skipped")
+        log(f"{style.ok()} Steering written to {out} (existing files enhanced, not replaced)")
         return 0
     finally:
         store.close()

@@ -754,8 +754,12 @@ Kiro, and other agents pick up the workspace context and the MCP server natively
 also installs a generic library of **agent skills/workflows** (`.claude/skills/`,
 `.windsurf/workflows/`) — investigate-root-cause, plan-before-coding,
 surgical-change, review-before-landing, ship-safely, use-knowledge-graph — so even a
-small-context model has a strong operating playbook. It only overwrites files it
-manages (re-run any time to refresh).
+small-context model has a strong operating playbook. **It never corrupts your
+existing files**: if you already have an `AGENTS.md`, `CLAUDE.md`, `.windsurfrules`,
+or `.kiro/steering`, your content is preserved and a clearly-delimited managed block
+is appended (and only that block is refreshed on re-runs); `.mcp.json` is merged so
+your other servers stay; a skill file you wrote with the same name is kept as-is.
+Custom layers like `.devin/` are left untouched.
 
 To wire Claude Code by hand instead:
 

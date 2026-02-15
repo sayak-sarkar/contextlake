@@ -11,7 +11,12 @@ from collections import Counter
 
 from ..store.shards import read_shard
 
-MARKER = "<!-- managed by `gitlab-sync steer` — re-run to refresh; edits may be overwritten -->"
+# Managed-block markers. Steering markdown is wrapped between BEGIN/END so an
+# existing user file is *enhanced* (our block appended/refreshed) rather than
+# overwritten — content outside the block is never touched.
+BEGIN = "<!-- BEGIN gitlab-sync (managed; this block is refreshed by `gitlab-sync steer`) -->"
+END = "<!-- END gitlab-sync -->"
+MARKER = BEGIN  # back-compat: presence marks gitlab-sync-managed content
 
 GUARDRAILS = """\
 ## Guardrails (non-negotiable)
@@ -82,9 +87,7 @@ def _repo_lines(facts: dict, limit: int = 40) -> str:
 def render_agents_md(facts: dict, *, config_path: str | None = None) -> str:
     langs = ", ".join(facts["languages"]) or "—"
     pkgs = ", ".join(f"`{p}`" for p in facts["top_packages"][:10]) or "—"
-    return f"""{MARKER}
-
-# AGENTS.md — Workspace guide for AI coding agents
+    return f"""# AGENTS.md — Workspace guide for AI coding agents
 
 This directory mirrors **{_repos(facts['count'])}** in their original namespace
 structure, each parked on its most active branch. A local knowledge graph
@@ -114,9 +117,7 @@ pages (if generated) live under the knowledge store's `wiki/`.
 
 
 def render_claude_md(config_path: str | None = None) -> str:
-    return f"""{MARKER}
-
-# CLAUDE.md
+    return f"""# CLAUDE.md
 
 See @AGENTS.md for the workspace overview, the knowledge tools, and the guardrails —
 they apply here verbatim.
@@ -127,9 +128,7 @@ The knowledge-graph MCP server is configured for this workspace in `.mcp.json`
 
 
 def render_windsurfrules(facts: dict, *, config_path: str | None = None) -> str:
-    return f"""{MARKER}
-
-# Workspace rules (Windsurf / Devin)
+    return f"""# Workspace rules (Windsurf / Devin)
 
 This workspace mirrors {_repos(facts['count'])} with a local knowledge graph.
 Reach it over MCP (`{_serve_cmd(config_path)}`, also in this workspace's MCP config)
@@ -139,9 +138,7 @@ and query it before grepping. See AGENTS.md for the full guide.
 
 
 def render_kiro_steering(facts: dict, *, config_path: str | None = None) -> str:
-    return f"""{MARKER}
-
-# Workspace steering (Kiro)
+    return f"""# Workspace steering (Kiro)
 
 {_repos(facts['count'])}, mirrored and indexed into a local knowledge graph reachable
 over MCP (`{_serve_cmd(config_path)}`). Prefer graph queries over manual search; see

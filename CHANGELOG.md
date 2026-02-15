@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **QUICKSTART.md** — a short install → `bootstrap` → wire-your-editor guide.
+
+### Changed
+
+- `steer` now **enhances existing files instead of skipping them**: an existing
+  `AGENTS.md` / `CLAUDE.md` / `.windsurfrules` / `.kiro/steering` keeps the user's
+  content and gets a clearly-delimited managed block appended (only that block is
+  refreshed on re-runs); `.mcp.json` is merged; a same-named skill file is kept;
+  custom layers like `.devin/` are never touched. Nothing the user wrote is deleted.
+
 ## [1.14.0] - 2026-06-22
 
 ### Added
