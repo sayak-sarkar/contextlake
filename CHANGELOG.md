@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A **"Commands at a glance"** reference table in the README covering all 17
+  commands, and `docs/internals.md` — a deep-dive on the core-sync internals plus a
+  new **knowledge-layer architecture** section.
+
+### Changed
+
+- **Slimmed the README** (~1,320 → ~860 lines): the deep Technical Documentation /
+  architecture moved into `docs/internals.md`, and the inline version history now
+  points to `CHANGELOG.md`. Fleshed out the `lint` and `doctor` docs. (Docs only —
+  no code or layout changes, which already follow standard src-layout conventions.)
+
 ## [1.15.0] - 2026-06-22
 
 ### Added

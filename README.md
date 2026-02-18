@@ -166,6 +166,32 @@ chmod 600 .gitlab_sync.ini    # Only owner can read/write
 Examples below use `python3 gitlab_sync.py`; substitute `gitlab-sync` if you
 installed the package.
 
+### Commands at a glance
+
+| Command | What it does |
+| --- | --- |
+| `status` | Show the workspace sync state vs GitLab (read-only) |
+| `fetch` | Cache the GitLab project list |
+| `clone` | Clone repos that exist on GitLab but not locally |
+| `update` | Pull updates for local repos (skips in-progress working branches) |
+| `branches` | Switch each repo to its most active branch |
+| `verify` | Check the local mirror matches GitLab (drift, orphans, nesting) |
+| `sync` | The full pipeline: fetch → clone → update → branches → verify |
+| `bootstrap` | **Turnkey**: sync + index + connect + embed + wiki + steer |
+| `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
+| `connect` | Link repos to Atlassian / Figma / GitLab sources |
+| `embed` | Build semantic-search vectors (needs an embeddings model) |
+| `lint` | Graph health — stale repos (HEAD moved) and dangling edges; exits non-zero if any |
+| `wiki` | LLM-synthesized, council-verified wiki pages (needs a model) |
+| `steer` | Write editor steering — `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
+| `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
+| `query` | Search the index (`--kind`, `--repo`, `--limit`, `--as-of <commit>`) |
+| `doctor` | Check the knowledge-layer environment (SQLite FTS5, git/glab, store, embeddings) |
+
+The first seven are the core sync (detailed below); the rest are the optional
+**[knowledge layer](#knowledge-layer)**. Run any command with `--config` (sync INI)
+and, for the knowledge layer, `--config`/`--kb-config` pointing at your `kb.toml`.
+
 ### Global options
 
 These apply to any command:
@@ -653,6 +679,13 @@ to rebuild everything, or `--watch [--interval N]` to keep re-indexing in a loop
 Every indexed snapshot is kept, so `query "<text>" --repo R --as-of <commit>` does
 **time-travel** — it searches repo `R` as it was at a previously-indexed commit.
 
+**Health & maintenance.** `gitlab-sync doctor` is a quick environment check — SQLite
+FTS5, `git`/`glab` on `PATH`, the store's reachability and counts, and the embeddings
+status — and exits non-zero if something's wrong. `gitlab-sync lint` audits the graph
+itself, reporting **stale repos** (HEAD moved since they were indexed, so the index is
+behind) and **dangling edges** (an edge whose endpoint node is missing); it exits
+non-zero when it finds problems, so it's CI-friendly.
+
 **One command to set it all up.** Rather than running the steps by hand, `bootstrap`
 chains them — mirror repos → index → connect → embed → wiki → write editor steering —
 skipping anything not enabled, so a teammate goes from nothing to a fully-wired
@@ -786,504 +819,15 @@ calls `charge`?", or "which repos depend on `shared-core`?" and it calls the gra
 tools directly — you can even have it draft wiki pages from the graph without the
 built-in `wiki` command.
 
-## Technical Documentation
+## Architecture & internals
 
-### Architecture
+The deep dive — core-sync internals, the knowledge-layer architecture, data flow,
+performance, and troubleshooting — lives in
+[`docs/internals.md`](docs/internals.md).
 
-The tool is built as a modular Python CLI application with the following components:
+## Version history
 
-#### Configuration System
-
-The tool uses a hierarchical configuration system with the following precedence:
-
-1. **Configuration Files** (using Python's `configparser`):
-   - Local config: `.gitlab_sync.ini` in current directory
-   - Global config: `~/.gitlab_sync.ini` in home directory
-   - Custom config: Specified via `--config` CLI argument
-
-2. **Default Values**: Built-in defaults for all settings
-
-3. **CLI Arguments**: Override all other settings
-
-**Configuration Loading Flow:**
-
-```text
-load_config()
-  ↓
-Check for local config (.gitlab_sync.ini)
-  ↓
-Check for global config (~/.gitlab_sync.ini)
-  ↓
-Merge with DEFAULT_CONFIG
-  ↓
-Apply CLI argument overrides
-  ↓
-Return final config dictionary
-```
-
-#### Core Functions
-
-1. **`load_config()`**
-
-   - Loads configuration from INI files
-   - Supports local, global, and custom config files
-   - Expands tilde (~) for home directory paths
-   - Returns configuration dictionary
-
-2. **`get_cache_paths(config)`**
-
-   - Constructs cache file paths from configuration
-   - Returns tuple of (cache_file, cache_json)
-
-3. **`fetch_gitlab_projects(gitlab_group, config)`**
-
-   - Uses `glab api projects?membership=true` to fetch all accessible projects
-   - Filters projects by group prefix (e.g., `your-gitlab-group/`)
-   - Works even without direct access to top-level group
-   - Supports subgroups automatically via prefix filtering
-   - Filters out archived repositories
-   - Caches results in JSON and plain text formats (paths from config)
-
-4. **`load_gitlab_projects(config, gitlab_group)`**
-
-   - Loads cached project data from configured cache file
-   - Parses pipe-delimited format: `path|ssh_url|http_url|default_branch|archived`
-   - Returns dictionary keyed by local path
-
-5. **`get_local_repos(work_dir)`**
-
-   - Uses `find` command to locate all `.git` directories
-   - Extracts repository paths by removing `.git` suffix
-   - Returns set of local repository paths
-
-6. **`clone_repository(project, work_dir, config)`**
-
-   - Creates parent directories as needed
-   - Executes `git clone` with timeout from config
-   - Returns status tuple: `(status, path, message)`
-
-7. **`clone_missing_repos(work_dir, config, gitlab_group)`**
-
-   - Identifies repositories to clone by comparing GitLab vs local
-   - Uses ThreadPoolExecutor with max_workers from config
-   - Tracks successes and failures separately
-
-8. **`update_repository(local_path, work_dir, config)`**
-
-   - Fetches all remote branches (timeout from config)
-   - Identifies current branch
-   - Pulls latest changes from origin (timeout from config)
-   - Handles detached HEAD states
-
-9. **`update_repositories(work_dir, config)`**
-
-   - Processes all local repositories concurrently
-   - Uses max_workers from config
-   - Reports updates, no-change cases, and errors
-
-10. **`switch_repository_branch(local_path, projects, work_dir, config)`**
-
-    - Fetches all remote branches (timeout from config)
-    - Calculates commit count for each branch using `git rev-list --count` (timeout from config)
-    - Sorts branches by commit count (descending)
-    - Switches to most active branch if different from current
-    - Pulls latest changes after switching (timeout from config)
-
-11. **`switch_active_branches(work_dir, config, gitlab_group)`**
-
-    - Processes all repositories concurrently
-    - Uses max_workers from config
-    - Tracks switched, already-correct, skipped, and error cases
-
-12. **`verify_structure(work_dir, config, gitlab_group)`**
-
-    - Detects nested `.git` directories (indicates incorrect structure)
-    - Compares local vs GitLab repository lists
-    - Reports extra and missing repositories
-    - Validates structure matches GitLab exactly
-
-13. **`show_status(work_dir, config, gitlab_group)`**
-
-    - Displays current synchronization state
-    - Shows GitLab project count, local repo count
-    - Lists synchronized, missing, and extra repositories
-
-14. **`main()`**
-
-    - Entry point for CLI application
-    - Loads configuration
-    - Parses CLI arguments
-    - Overrides config with CLI arguments
-    - Dispatches to appropriate command handler
-
-### Data Flow
-
-```text
-User Command
-    ↓
-Argument Parsing (argparse)
-    ↓
-Command Dispatch
-    ↓
-┌─────────────────────────────────────┐
-│ GitLab API (glab)                    │
-│ ↓                                    │
-│ Cache Files (/tmp/*.txt, *.json)     │
-│ ↓                                    │
-│ Local Workspace (find .git)          │
-│ ↓                                    │
-│ Comparison & Analysis                │
-│ ↓                                    │
-│ Git Operations (clone, fetch, pull)  │
-│ ↓                                    │
-│ Logging & Reporting                  │
-└─────────────────────────────────────┘
-```
-
-### Concurrency Model
-
-The tool uses Python's `ThreadPoolExecutor` for concurrent operations:
-
-- **Cloning**: 8 parallel workers
-- **Updating**: 8 parallel workers
-- **Branch Switching**: 8 parallel workers
-
-Each worker operates independently with its own timeout:
-
-- Clone operations: 300s timeout
-- Fetch operations: 60s timeout
-- Branch operations: 30s timeout
-- Pull operations: 60s timeout
-
-### Error Handling
-
-The tool implements comprehensive error handling:
-
-1. **Timeout Handling**: All subprocess calls have explicit timeouts
-2. **Exception Catching**: All functions catch and report exceptions
-3. **Status Reporting**: Operations return status tuples for tracking
-4. **Graceful Degradation**: Failed operations don't stop the entire process
-5. **Detailed Logging**: All errors are logged with context
-
-### Cache Management
-
-The tool uses two cache files:
-
-1. **`/tmp/gitlab_projects.json`**
-
-   - Full JSON response from GitLab API
-   - Used for debugging and detailed inspection
-   - Contains complete project metadata
-
-2. **`/tmp/gitlab_projects.txt`**
-
-   - Pipe-delimited format for faster loading
-   - Format: `path_with_namespace|ssh_url|http_url|default_branch|archived`
-   - Primary data source for all operations
-
-Cache is refreshed by running the `fetch` command or `sync` (which includes fetch).
-
-### Branch Selection Algorithm
-
-To identify the most active branch the tool:
-
-1. **Fetches all branches** with `git for-each-ref` (collecting each branch's last
-   commit date)
-2. **Calculates commit count** per branch via `git rev-list --count origin/branch`
-3. **Scores and ranks** branches according to `branch_strategy`
-4. **Switches** to the top branch (and pulls) if it differs from the current one
-
-The `branch_strategy` setting controls step 3:
-
-- `commits` — rank purely by commit count (legacy behaviour)
-- `recency` — rank purely by most recent commit
-- `hybrid` (default) — a weighted blend of normalized commit count and recency,
-  so a branch that is both busy and recently active wins; this avoids picking a
-  long-lived branch that has gone stale, or a brand-new branch with few commits
-
-Branch switching is skipped entirely for repositories checked out on a working
-branch (see [Branch Safety](#branch-safety)).
-
-### Directory Structure Mapping
-
-The tool maintains GitLab's exact directory structure:
-
-```text
-GitLab Path: your-gitlab-group/backend/services/api-gateway
-Local Path:  backend/services/api-gateway
-
-GitLab Path: your-gitlab-group/backend/pricing/quote-engine
-Local Path:  backend/pricing/quote-engine
-
-GitLab Path: your-gitlab-group/frontend/platform/ui-toolkit
-Local Path:  frontend/platform/ui-toolkit
-```
-
-The `your-gitlab-group/` prefix is stripped when creating local paths.
-
-### Performance Characteristics
-
-**Typical Performance Metrics** (based on a large workspace of several hundred repositories):
-
-- **Fetch**: 30-60 seconds (depends on GitLab API response time)
-- **Clone**: 5-10 minutes (for missing repos, concurrent)
-- **Update**: 3-5 minutes (all repos, concurrent)
-- **Branch Switching**: 5-10 minutes (all repos, concurrent)
-- **Verify**: 30-60 seconds
-- **Full Sync**: 15-30 minutes (all operations)
-
-**Performance Optimization Tips:**
-
-1. Run `fetch` less frequently if repository list doesn't change often
-2. Use `update` for frequent syncs (faster than full sync)
-3. Run `branches` only when branch management is needed
-4. Adjust ThreadPoolExecutor worker count based on system resources
-
-### Security Considerations
-
-1. **Authentication**: Uses `glab` authentication (tokens, SSH keys, etc.)
-2. **HTTPS Cloning**: Default cloning method uses HTTPS for better compatibility
-3. **No Credential Storage**: Does not store credentials; relies on `glab` auth
-4. **Local Operations**: All git operations are local; no external API calls beyond initial fetch
-5. **File Permissions**: Respects existing file permissions; creates directories with default umask
-
-### Troubleshooting
-
-#### Issue: "Cache file not found"
-
-**Solution**: Run `python3 gitlab_sync.py fetch` first to populate cache
-
-#### Issue: "Permission denied" during cloning
-
-**Solution**: Ensure `glab` is authenticated and you have access to the repositories
-
-#### Issue: "Timeout" errors
-
-**Solution**:
-
-- Increase timeout values in the script
-- Check network connectivity
-- Reduce ThreadPoolExecutor worker count
-- Run operations sequentially instead of concurrently
-
-#### Issue: "Detached HEAD" states
-
-**Solution**: The tool handles this automatically by skipping pull operations in detached HEAD state
-
-#### Issue: Nested `.git` directories detected
-
-**Solution**: This indicates incorrect cloning. Manually fix by:
-
-```bash
-
-# Example: repo/repo/.git
-cd repo
-mv repo/* .
-mv repo/.* . 2>/dev/null || true
-rmdir repo
-```
-
-#### Issue: Cron job not running
-
-**Solution**:
-
-- Check cron syntax: `crontab -l`
-- Verify script is executable: `ls -l gitlab_sync.py`
-- Check cron logs: `grep CRON /var/log/syslog`
-- Test cron command manually in shell
-
-#### Issue: Large log files
-
-**Solution**: Set up log rotation (see "Log Rotation" section above)
-
-### Extension Points
-
-The tool can be extended by:
-
-1. **Adding New Commands**: Add new function and update `main()` command dispatch
-2. **Custom Branch Selection**: Modify `switch_repository_branch()` algorithm
-3. **Additional Verification**: Add checks in `verify_structure()`
-4. **Custom Output Formats**: Modify logging functions
-5. **Integration Hooks**: Add pre/post operation hooks
-6. **Configuration File**: Add support for `.gitlab_sync.yml` config
-
-### Dependencies
-
-- **Python 3.6+**: Core language
-- **configparser**: Configuration file parsing (standard library)
-- **argparse**: CLI argument parsing (standard library)
-- **subprocess**: Git and system command execution (standard library)
-- **concurrent.futures**: Parallel processing (standard library)
-- **json**: Data serialization (standard library)
-- **datetime**: Timestamp generation (standard library)
-- **pathlib**: Path manipulation (standard library)
-- **glab**: GitLab CLI tool (external dependency)
-- **git**: Version control system (external dependency)
-
-### Git Integration
-
-To avoid committing sensitive configuration to version control, add the configuration file to your `.gitignore`:
-
-```bash
-
-# Add to .gitignore
-.gitlab_sync.ini
-~/.gitlab_sync.ini
-```
-
-For team usage, consider including a sample configuration file:
-
-```bash
-# Add .gitlab_sync.ini.example to git
-cp .gitlab_sync.ini .gitlab_sync.ini.example
-git add .gitlab_sync.ini.example
-
-# Update .gitignore
-echo ".gitlab_sync.ini" >> .gitignore
-```
-
-Team members can then:
-
-```bash
-cp .gitlab_sync.ini.example .gitlab_sync.ini
-# Edit with their personal settings
-```
-
-### Version History
-
-- **v1.15** (2026-06-22): Quick start + safe steering
-
-  - Added QUICKSTART.md; `steer` now enhances existing AGENTS.md/CLAUDE.md/
-    .windsurfrules/.kiro files (managed block) instead of skipping or overwriting
-
-- **v1.14** (2026-06-22): GitLab source and scheduling
-
-  - Added a GitLab connector linking repos to their open merge requests and
-    issues, and cron/systemd-timer recipes for an always-fresh workspace
-
-- **v1.13** (2026-06-22): Agent skills/workflows library
-
-  - `steer` now installs a generic library of operating skills (root-cause,
-    plan-first, surgical-change, review, ship-safely, use-knowledge-graph) as
-    Claude Code skills and Windsurf workflows
-
-- **v1.12** (2026-06-22): One-command bootstrap
-
-  - Added a `bootstrap` command that chains mirror → index → connect → embed
-    → wiki → steer into a single turnkey setup for team onboarding
-
-- **v1.11** (2026-06-22): Steering-layer generation
-
-  - Added a `steer` command that writes workspace-specific `AGENTS.md`, `CLAUDE.md`,
-    `.windsurfrules`, `.kiro/steering`, and a merged `.mcp.json` — so local AI tools
-    pick up the knowledge graph and guardrails natively
-
-- **v1.10** (2026-06-21): OpenAI-compatible providers and MCP integration docs
-
-  - Embeddings and wiki tiers can use any OpenAI-compatible API (`provider =
-    "openai"`) — hosted or a local server — as an alternative to Ollama; the key
-    comes from an env var, never config
-  - Documented using `gitlab-sync serve` as an MCP server from Claude Code and
-    Windsurf/Devin
-
-- **v1.9** (2026-06-21): Curated wiki tier, watch mode, and time-travel queries
-
-  - Added a `wiki` command: local-first LLM synthesis of provenance-stamped pages
-    gated by an LLM verification council (off unless `[llm]` enabled)
-  - `index --watch` for continuous incremental refresh
-  - Bi-temporal `query --as-of <commit>` over per-commit shard snapshots
-
-- **v1.8** (2026-06-21): Incremental indexing, lint, and a colorful CLI
-
-  - `index --workspace` is now incremental (re-indexes only repos whose HEAD
-    moved; `--force` to rebuild) — cheap scheduled refresh via cron
-  - Added a `lint` command (stale repos + dangling edges)
-  - Colorful terminal output (status glyphs + progress bar), `NO_COLOR`-aware
-
-- **v1.7** (2026-06-21): Hybrid retrieval and ANN backend
-
-  - Added a `hybrid_search` tool (embedding seeds + Personalized PageRank over the
-    graph) that surfaces structurally-related nodes a pure semantic match misses
-  - Added an optional sqlite-vec ANN vector-store backend (`gitlab-sync[kb-vec]`),
-    selectable via `vector_backend`, with automatic fallback to the exact scan
-
-- **v1.6** (2026-06-21): Semantic-search tier
-
-  - Added an optional, local-first embeddings tier: a pluggable embedder (Ollama
-    provider first), a SQLite vector store with cosine search, an `embed` command,
-    and a `semantic_search` MCP tool exposed by `serve` when enabled
-  - Off by default; code never leaves the machine
-
-- **v1.5** (2026-06-21): Figma connector
-
-  - Added a Figma knowledge connector that links repos to the design files they
-    reference (classifies `figma.com` URLs to a stable key, names them from the
-    URL slug, and best-effort verifies reachability over a configured Figma MCP)
-  - Extracted connector-agnostic helpers to a shared module
-  - Fixed `link_scrape` rules expressed as a `patterns` list being ignored
-
-- **v1.4** (2026-06-21): Knowledge layer
-
-  - Added the optional `gitlab_sync.kb` subsystem (the `[kb]` extra): index
-    repositories into a queryable knowledge graph and serve it to AI agents over
-    MCP (`index`, `connect`, `query`, `serve`, `doctor`)
-  - tree-sitter code graph for Python, JavaScript, TypeScript/TSX, and C#
-    (definitions, imports, containment, and an intra-repo call graph)
-  - Cross-repo dependency graph from manifests, with a `find_dependents` tool
-  - Atlassian knowledge connector: links repos to the Jira issues and Confluence
-    pages they reference, verified and enriched against live sites over MCP
-  - SQLite + FTS5 cross-repo index with per-repo JSON shards; every fact is
-    provenance-stamped and confidence-tagged
-  - Generic and config-driven — no organization-specific data in the package
-  - See CHANGELOG.md for the full list
-
-- **v1.3** (2026-06-21): Stabilization, packaging, and tests
-
-  - Fixed a critical bug where boolean config settings were silently ignored,
-    which had disabled branch protection and the clean-workspace requirement by
-    default
-  - Repaired the adaptive worker pool and wired in retry/backoff for clones
-  - `update` now distinguishes updated / unchanged / error instead of reporting
-    failed pulls as "Already up to date"
-  - Rewrote `fetch` with a correct, URL-encoded GitLab API call; restored the
-    pipe-delimited text cache and nested-repository detection in `verify`
-  - Made the tool installable (`gitlab-sync` command, `python -m gitlab_sync`,
-    or the bare script); added `--dry-run`, logging flags, `clone_method`,
-    and a recency-aware `branch_strategy`
-  - Added a pytest suite and GitHub Actions CI (Python 3.9-3.13)
-  - See CHANGELOG.md for the full list
-
-- **v1.2** (2026-06-16): Branch safety and workspace protection
-
-  - Added branch safety checks to protect working branches from sync conflicts
-  - Implemented workspace protection requiring clean workspace before operations
-  - Added automatic stashing support for uncommitted changes
-  - Added configurable safe branches list
-  - Added CLI arguments for branch safety control (--protect-working-branches, --safe-branches, --require-clean-workspace, --auto-stash)
-  - Enhanced error classification for better retry strategies
-  - Added adaptive worker pool for dynamic parallelism
-  - Updated documentation with branch safety section
-
-- **v1.1** (2026-05-24): Configuration system enhancement
-
-  - Added INI-based configuration file support
-  - Removed all hardcoded company/personal identifiers
-  - Added local and global config file support
-  - CLI arguments now override config file settings
-  - Improved security with externalized configuration
-  - Added tilde expansion for home directory paths
-  - Configurable timeouts and worker counts
-  - Added exponential backoff retry mechanism
-  - Added adaptive worker pool for dynamic parallelism
-  - Enhanced error classification for better retry strategies
-
-- **v1.0** (2026-05-10): Initial release
-
-  - Full synchronization pipeline
-  - Branch management
-  - Structure verification
-  - Concurrent processing
-  - Comprehensive error handling
+See [CHANGELOG.md](CHANGELOG.md) for the full, per-release history.
 
 ## Best Practices
 
