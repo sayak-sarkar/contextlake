@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Documentation refactored for readability.** The README is now a lean ~180-line
+  landing page (down from ~1,300); detailed command, configuration, branch-safety,
+  and scheduling docs live in `docs/usage.md`, and the knowledge layer in
+  `docs/knowledge-layer.md`. Standardized examples on the `gitlab-sync` command,
+  clarified the `status` output (what "Missing"/"Extra" mean), and removed the
+  repetitive install/security prose.
+
 ## [1.16.0] - 2026-06-22
 
 ### Added
