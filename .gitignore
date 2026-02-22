@@ -30,3 +30,6 @@ coverage.xml
 # IDE
 # .vscode/
 .idea/
+
+# Local project planning notes (may reference private data — never published)
+.notes/
