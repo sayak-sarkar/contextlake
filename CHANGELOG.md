@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-06-22
+
+### Changed
+
+- The **genericity guard** (no-org-data check) now scans the whole published surface
+  — `docs/`, `examples/`, `.github/`, and every top-level doc — not just `src/` and a
+  handful of root files, with a regression test pinning `docs/` coverage. (`tests/`
+  stays excluded: the guard itself contains the denylist tokens by design.)
+
 ## [1.17.0] - 2026-06-22
 
 ### Changed
