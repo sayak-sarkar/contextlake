@@ -92,8 +92,8 @@ palette, stretch, rotate, add shadows, or place the wordmark on low-contrast bac
 
 ## Mascot
 
-An otter who **dives into the lake and surfaces holding exactly the context you need** —
-the perfect picture of retrieval. See [`docs/branding/mascot.md`](docs/branding/mascot.md)
+**Pebble**, an otter who **dives into the lake and surfaces holding exactly the context you
+need** — the perfect picture of retrieval. See [`docs/branding/mascot.md`](docs/branding/mascot.md)
 for the full spec, ASCII sketch, and an image-generation prompt.
 
 ## Handles & namespaces

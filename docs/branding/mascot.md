@@ -15,12 +15,11 @@ context up to the surface for your AI. Playful, quick, and a little proud of wha
 > friendly *and* exactly the retrieval metaphor the tool is about. If you ever prefer a
 > calmer, more elegant feel, the heron spec applies — swap the species.
 
-## Name — **Pebble** *(recommended — confirm or pick)*
+## Name — **Pebble**
 
-- **Pebble** *(recommended)* — an otter's prized possession is its pebble; here the pebble
-  *is* the nugget of context it surfaces. Warm, concrete, memorable.
-- **Otto** — the easy, obvious otter name; friendly and instantly readable.
-- **Ripple** — ties to the glyph and the lake; calm and on-theme.
+**Pebble** — an otter's prized possession is its pebble; here the pebble *is* the nugget of
+context it surfaces. Warm, concrete, memorable. (Considered and set aside: *Otto*, the easy
+obvious otter name, and *Ripple*, tied to the lake.)
 
 ## Personality
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-06-22
+
+### Changed
+
+- Confirmed the mascot's name — **Pebble** the otter — in `BRANDING.md` and the mascot spec.
+
 ## [1.18.0] - 2026-06-22
 
 ### Added
