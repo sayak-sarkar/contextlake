@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-06-22
+
+### Added
+
+- **Brand identity — `contextlake`.** A `BRANDING.md` guide establishes the project's
+  name, voice, color palette (cool lake teals + a warm "spark" of fresh context),
+  open-source typography, logo, and otter mascot. Hand-authored SVG assets live in
+  `docs/branding/` (`glyph.svg`, `wordmark.svg`) alongside a mascot spec (`mascot.md`).
+  The name says what the tool does — a local lake of real context for your AI — and stays
+  source-agnostic so the brand survives growth beyond GitLab. This is the brand kit only;
+  the package/command rename is a separate, later step.
+
 ## [1.17.1] - 2026-06-22
 
 ### Changed

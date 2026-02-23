@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="contextlake">
+  <title>contextlake</title>
+  <desc>A lake in cross-section: bright shallows fading to dark deep, ripples on the surface, and a warm droplet of new context falling in.</desc>
+  <defs>
+    <clipPath id="tile"><rect x="2" y="2" width="60" height="60" rx="14"/></clipPath>
+  </defs>
+
+  <!-- tile -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#EAF4F4"/>
+
+  <!-- water: depth layers (bright shallows -> dark deep) -->
+  <g clip-path="url(#tile)">
+    <rect x="2" y="26" width="60" height="12" fill="#2BB3A3"/>
+    <rect x="2" y="38" width="60" height="12" fill="#137A8B"/>
+    <rect x="2" y="50" width="60" height="12" fill="#0E2A33"/>
+    <!-- surface ripples spreading from where the droplet lands -->
+    <g fill="none" stroke="#EAF4F4" stroke-width="2" stroke-linecap="round" opacity="0.75">
+      <path d="M23 28 q9 4 18 0"/>
+      <path d="M16 32 q16 5 32 0"/>
+    </g>
+  </g>
+
+  <!-- surface line -->
+  <rect x="2" y="24" width="60" height="2.5" fill="#137A8B"/>
+
+  <!-- a warm droplet of new context, about to fall in -->
+  <path d="M32 7 C 35 12, 37 14, 37 17 a5 5 0 1 1 -10 0 C 27 14, 29 12, 32 7 Z" fill="#E7B53C"/>
+</svg>
