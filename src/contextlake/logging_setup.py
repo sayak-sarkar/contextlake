@@ -1,6 +1,6 @@
 """Logging setup for contextlake.
 
-A single named logger ("gitlab_sync") backs the ``log()`` helper used throughout
+A single named logger ("contextlake") backs the ``log()`` helper used throughout
 the package, so call sites stay simple while output routing (console verbosity
 and an optional rotating audit file) is configured once in ``setup_logging()``.
 """
@@ -9,7 +9,7 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 
-LOGGER_NAME = "gitlab_sync"
+LOGGER_NAME = "contextlake"
 _FORMAT = "[%(asctime)s] %(message)s"
 _DATEFMT = "%Y-%m-%d %H:%M:%S"
 

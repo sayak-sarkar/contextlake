@@ -103,7 +103,7 @@ def _bfs_path(store: Store, src_id: str, dst_id: str, max_hops: int) -> list[str
 
 
 def build_server(
-    store: Store, *, name: str = "gitlab-sync-kb", host: str = "127.0.0.1", port: int = 8765,
+    store: Store, *, name: str = "contextlake-kb", host: str = "127.0.0.1", port: int = 8765,
     embedder=None, vector_store=None,
 ) -> FastMCP:
     mcp = FastMCP(

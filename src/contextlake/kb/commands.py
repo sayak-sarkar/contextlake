@@ -1,6 +1,6 @@
 """CLI commands for the knowledge layer: index / query / serve / doctor.
 
-Dispatched from the main ``gitlab-sync`` CLI. Imported lazily so the core sync
+Dispatched from the main ``contextlake`` CLI. Imported lazily so the core sync
 tool runs without the ``[kb]`` extra installed.
 """
 
@@ -558,7 +558,7 @@ def _query_as_of(args, commit: str) -> int:
 def cmd_query(args) -> int:
     text = " ".join(getattr(args, "args", []) or []).strip()
     if not text:
-        log("usage: gitlab-sync query \"<text>\" [--kind K] [--repo R] [--limit N] [--as-of C]")
+        log("usage: contextlake query \"<text>\" [--kind K] [--repo R] [--limit N] [--as-of C]")
         return 2
     as_of = getattr(args, "as_of", None)
     if as_of:
@@ -628,7 +628,7 @@ def _check(label: str, ok: bool, detail: str = "") -> bool:
 
 
 def cmd_doctor(args) -> int:
-    print("gitlab-sync knowledge layer — doctor")
+    print("contextlake knowledge layer — doctor")
     ok = True
 
     fts = False
