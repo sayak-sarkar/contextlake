@@ -7,8 +7,8 @@ most active development branch -- while protecting any local working branches.
 
 Entry points (all equivalent):
     gitlab-sync <command>          # installed console script
-    python -m gitlab_sync <command>
-    python3 gitlab_sync.py <command>   # bare script, no install
+    python -m contextlake <command>
+    python3 contextlake.py <command>   # bare script, no install
 """
 
 import argparse

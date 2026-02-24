@@ -4,14 +4,14 @@ plumbing, and best-effort metadata fetch against a spawned mock MCP server."""
 import os
 import sys
 
-from gitlab_sync.kb.connectors.figma import (
+from contextlake.kb.connectors.figma import (
     FigmaConnector,
     associate_designs,
     classify_figma_link,
     design_node,
     title_of,
 )
-from gitlab_sync.kb.model import Confidence
+from contextlake.kb.model import Confidence
 
 _MOCK_SERVER = """
 from mcp.server.fastmcp import FastMCP

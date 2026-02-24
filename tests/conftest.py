@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for gitlab_sync.
+"""Shared pytest fixtures for contextlake.
 
 The tool shells out to ``git`` and ``glab``; tests must never touch the network
 or a real GitLab. ``fake_subprocess`` swaps ``core.subprocess.run`` for a
@@ -11,7 +11,7 @@ import types
 
 import pytest
 
-from gitlab_sync import core
+from contextlake import core
 
 
 @pytest.fixture
@@ -112,7 +112,7 @@ def no_sleep(monkeypatch):
 @pytest.fixture
 def base_config():
     """A realistic config dict mirroring DEFAULT_CONFIG values."""
-    from gitlab_sync.config import DEFAULT_CONFIG
+    from contextlake.config import DEFAULT_CONFIG
 
     return DEFAULT_CONFIG.copy()
 

@@ -3,12 +3,12 @@ reconciled external nodes/edges persisted in an isolated store partition."""
 
 from argparse import Namespace
 
-import gitlab_sync.kb.connectors.orchestrate as orch
-import gitlab_sync.kb.references as refs
-from gitlab_sync.kb.commands import cmd_connect
-from gitlab_sync.kb.connectors.orchestrate import connect_partition
-from gitlab_sync.kb.state import check_schema
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+import contextlake.kb.connectors.orchestrate as orch
+import contextlake.kb.references as refs
+from contextlake.kb.commands import cmd_connect
+from contextlake.kb.connectors.orchestrate import connect_partition
+from contextlake.kb.state import check_schema
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 _CONFIG = """
 [kb]

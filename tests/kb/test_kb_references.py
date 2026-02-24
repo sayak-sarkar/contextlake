@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from gitlab_sync.kb.references import extract_issue_keys, scrape_links
+from contextlake.kb.references import extract_issue_keys, scrape_links
 
 
 def _git(path, *args):

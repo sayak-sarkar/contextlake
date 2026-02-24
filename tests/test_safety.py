@@ -5,7 +5,7 @@ import types
 import pytest
 
 from conftest import FakeCompleted
-from gitlab_sync import safety
+from contextlake import safety
 
 
 @pytest.fixture

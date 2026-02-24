@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from gitlab_sync.kb.model import Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 
 
 def _prov():

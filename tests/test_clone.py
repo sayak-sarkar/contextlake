@@ -1,8 +1,8 @@
 """Tests for clone behaviour: dry-run, corruption cleanup, retry, command choice."""
 
 from conftest import FakeCompleted
-from gitlab_sync import core
-from gitlab_sync.core import clone_repository
+from contextlake import core
+from contextlake.core import clone_repository
 
 
 def _cfg(base_config, **over):

@@ -3,14 +3,14 @@
 from argparse import Namespace
 from datetime import date
 
-import gitlab_sync.kb.llm as llm_pkg
-from gitlab_sync.kb.commands import cmd_wiki
-from gitlab_sync.kb.model import Confidence, Edge, Node, Provenance, Repo
-from gitlab_sync.kb.state import check_schema
-from gitlab_sync.kb.store.shards import GraphShard, write_shard
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
-from gitlab_sync.kb.wiki.council import _parse_review, council_gate, verdict
-from gitlab_sync.kb.wiki.generate import generate_page, render_prompt, repo_brief
+import contextlake.kb.llm as llm_pkg
+from contextlake.kb.commands import cmd_wiki
+from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.state import check_schema
+from contextlake.kb.store.shards import GraphShard, write_shard
+from contextlake.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.wiki.council import _parse_review, council_gate, verdict
+from contextlake.kb.wiki.generate import generate_page, render_prompt, repo_brief
 
 
 def _shard(store_dir):

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from gitlab_sync.cli import main
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+from contextlake.cli import main
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURE = REPO / "examples" / "fixtures" / "sample-graph.json"

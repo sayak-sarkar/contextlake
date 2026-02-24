@@ -1,6 +1,6 @@
 """Tests for the local vector store (cosine search, persistence, isolation)."""
 
-from gitlab_sync.kb.embeddings.store import VectorStore
+from contextlake.kb.embeddings.store import VectorStore
 
 
 def _store(tmp_path):

@@ -7,7 +7,7 @@ disabled branch protection and the clean-workspace requirement by default.
 
 import pytest
 
-from gitlab_sync.cli import apply_cli_overrides, build_parser
+from contextlake.cli import apply_cli_overrides, build_parser
 
 TRISTATE = [
     "clean_corrupted",

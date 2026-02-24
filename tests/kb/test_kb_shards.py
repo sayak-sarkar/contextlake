@@ -2,15 +2,15 @@
 
 from datetime import date
 
-from gitlab_sync.kb.model import Confidence, Edge, Node, Provenance
-from gitlab_sync.kb.store.shards import (
+from contextlake.kb.model import Confidence, Edge, Node, Provenance
+from contextlake.kb.store.shards import (
     GraphShard,
     read_shard,
     reindex_shard,
     shard_path,
     write_shard,
 )
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 
 def _shard():

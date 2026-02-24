@@ -5,9 +5,9 @@ from argparse import Namespace
 
 import pytest
 
-from gitlab_sync.kb.commands import _query_as_of
-from gitlab_sync.kb.model import Node
-from gitlab_sync.kb.store.shards import (
+from contextlake.kb.commands import _query_as_of
+from contextlake.kb.model import Node
+from contextlake.kb.store.shards import (
     GraphShard,
     archive_shard,
     list_indexed_commits,

@@ -2,7 +2,7 @@
 
 import pytest
 
-from gitlab_sync import cli, core
+from contextlake import cli, core
 
 PROJECTS = {
     "g/a": {"archived": False, "http": "ha", "ssh": "sa", "default_branch": "main"},

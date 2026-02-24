@@ -2,7 +2,7 @@
 
 import io
 
-from gitlab_sync import style
+from contextlake import style
 
 
 class _Tty(io.StringIO):

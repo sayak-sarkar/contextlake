@@ -1,8 +1,8 @@
 """Tests for update behaviour, incl. bug #5 (failed pulls reported as success)."""
 
 from conftest import FakeCompleted
-from gitlab_sync import core
-from gitlab_sync.core import update_repository
+from contextlake import core
+from contextlake.core import update_repository
 
 
 def _safe(monkeypatch, safe=True, warnings=None):

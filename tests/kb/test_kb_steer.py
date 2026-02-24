@@ -3,10 +3,10 @@
 import json
 from argparse import Namespace
 
-from gitlab_sync.kb.commands import cmd_steer
-from gitlab_sync.kb.model import Node, Repo
-from gitlab_sync.kb.state import check_schema
-from gitlab_sync.kb.steer.generate import (
+from contextlake.kb.commands import cmd_steer
+from contextlake.kb.model import Node, Repo
+from contextlake.kb.state import check_schema
+from contextlake.kb.steer.generate import (
     BEGIN,
     END,
     MARKER,
@@ -14,9 +14,9 @@ from gitlab_sync.kb.steer.generate import (
     render_agents_md,
     workspace_facts,
 )
-from gitlab_sync.kb.steer.skills import SKILLS, skill_files, skill_md
-from gitlab_sync.kb.store.shards import GraphShard, write_shard
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.steer.skills import SKILLS, skill_files, skill_md
+from contextlake.kb.store.shards import GraphShard, write_shard
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 
 def _seed(store_dir):

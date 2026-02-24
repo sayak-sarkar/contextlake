@@ -45,7 +45,7 @@ kb = [
 kb-vec = ["sqlite-vec>=0.1"]
 
 [project.scripts]
-gitlab-sync = "gitlab_sync.cli:main"
+gitlab-sync = "contextlake.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

@@ -2,14 +2,14 @@
 
 from argparse import Namespace
 
-import gitlab_sync.kb.embeddings as emb_pkg
-from gitlab_sync.kb.commands import cmd_embed
-from gitlab_sync.kb.embeddings.index import embed_repo, node_text
-from gitlab_sync.kb.embeddings.store import VectorStore, build_vector_store
-from gitlab_sync.kb.model import Node, Repo
-from gitlab_sync.kb.state import check_schema
-from gitlab_sync.kb.store.shards import GraphShard, write_shard
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+import contextlake.kb.embeddings as emb_pkg
+from contextlake.kb.commands import cmd_embed
+from contextlake.kb.embeddings.index import embed_repo, node_text
+from contextlake.kb.embeddings.store import VectorStore, build_vector_store
+from contextlake.kb.model import Node, Repo
+from contextlake.kb.state import check_schema
+from contextlake.kb.store.shards import GraphShard, write_shard
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 
 class _FakeEmbedder:

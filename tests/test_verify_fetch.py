@@ -3,7 +3,7 @@
 import json
 
 from conftest import FakeCompleted
-from gitlab_sync.core import (
+from contextlake.core import (
     fetch_gitlab_projects,
     find_nested_repos,
     load_gitlab_projects,
