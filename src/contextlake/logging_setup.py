@@ -1,4 +1,4 @@
-"""Logging setup for gitlab_sync.
+"""Logging setup for contextlake.
 
 A single named logger ("gitlab_sync") backs the ``log()`` helper used throughout
 the package, so call sites stay simple while output routing (console verbosity

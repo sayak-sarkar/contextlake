@@ -8,11 +8,11 @@ from datetime import date
 
 import pytest
 
-from gitlab_sync.kb.commands import _index_workspace, _watch_loop, cmd_lint
-from gitlab_sync.kb.model import Confidence, Edge, Node, Provenance, Repo
-from gitlab_sync.kb.state import check_schema, mark_repo_indexed
-from gitlab_sync.kb.store.shards import GraphShard, reindex_shard, write_shard
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.commands import _index_workspace, _watch_loop, cmd_lint
+from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.state import check_schema, mark_repo_indexed
+from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 _ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
         "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}

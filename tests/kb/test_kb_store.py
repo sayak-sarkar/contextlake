@@ -4,8 +4,8 @@ from datetime import date
 
 import pytest
 
-from gitlab_sync.kb.model import Confidence, Edge, Node, Provenance, Repo
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 
 def _node(nid, repo="team/api", kind="function", name=None, **kw):

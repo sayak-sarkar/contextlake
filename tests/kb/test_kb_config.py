@@ -2,8 +2,8 @@
 
 import os
 
-from gitlab_sync.kb import config as kbcfg
-from gitlab_sync.kb.config import KbConfig, load_kb_config
+from contextlake.kb import config as kbcfg
+from contextlake.kb.config import KbConfig, load_kb_config
 
 
 def _isolate(monkeypatch, tmp_path):

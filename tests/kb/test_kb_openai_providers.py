@@ -1,12 +1,12 @@
 """Tests for the OpenAI-compatible embedder and LLM providers (no network)."""
 
-import gitlab_sync.kb.embeddings.openai as emb_openai
-import gitlab_sync.kb.llm.openai as llm_openai
-from gitlab_sync.kb.config import EmbeddingsCfg, LlmCfg
-from gitlab_sync.kb.embeddings import build_embedder
-from gitlab_sync.kb.embeddings.openai import OpenAIEmbedder
-from gitlab_sync.kb.llm import build_llm
-from gitlab_sync.kb.llm.openai import OpenAILlm
+import contextlake.kb.embeddings.openai as emb_openai
+import contextlake.kb.llm.openai as llm_openai
+from contextlake.kb.config import EmbeddingsCfg, LlmCfg
+from contextlake.kb.embeddings import build_embedder
+from contextlake.kb.embeddings.openai import OpenAIEmbedder
+from contextlake.kb.llm import build_llm
+from contextlake.kb.llm.openai import OpenAILlm
 
 # --- factory wiring --------------------------------------------------------
 

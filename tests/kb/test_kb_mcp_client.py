@@ -2,7 +2,7 @@
 
 import sys
 
-from gitlab_sync.kb.mcp_client import call_tool, list_tools
+from contextlake.kb.mcp_client import call_tool, list_tools
 
 # A tiny stdio FastMCP server used as the connection target.
 _MOCK_SERVER = """

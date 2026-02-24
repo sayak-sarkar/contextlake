@@ -2,7 +2,7 @@
 
 import pytest
 
-from gitlab_sync.core import AdaptiveWorkerPool, classify_error, retry_with_backoff
+from contextlake.core import AdaptiveWorkerPool, classify_error, retry_with_backoff
 
 
 def test_pool_initializes_current_workers():

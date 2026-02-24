@@ -5,11 +5,11 @@ from datetime import date
 
 from mcp.shared.memory import create_connected_server_and_client_session as connect
 
-from gitlab_sync.kb.embeddings.hybrid import _expand, _ppr, hybrid_search
-from gitlab_sync.kb.embeddings.store import VectorStore
-from gitlab_sync.kb.model import Confidence, Edge, Node, Provenance
-from gitlab_sync.kb.server import build_server
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.embeddings.hybrid import _expand, _ppr, hybrid_search
+from contextlake.kb.embeddings.store import VectorStore
+from contextlake.kb.model import Confidence, Edge, Node, Provenance
+from contextlake.kb.server import build_server
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 
 class _FakeEmbedder:

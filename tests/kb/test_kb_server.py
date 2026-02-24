@@ -6,9 +6,9 @@ from datetime import date
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session as connect
 
-from gitlab_sync.kb.model import Confidence, Edge, Node, Provenance
-from gitlab_sync.kb.server import build_server
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.model import Confidence, Edge, Node, Provenance
+from contextlake.kb.server import build_server
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 
 def _seed(store):

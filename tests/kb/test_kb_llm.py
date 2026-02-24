@@ -2,10 +2,10 @@
 
 import pytest
 
-import gitlab_sync.kb.llm.ollama as ollama_mod
-from gitlab_sync.kb.config import LlmCfg
-from gitlab_sync.kb.llm import build_llm
-from gitlab_sync.kb.llm.ollama import OllamaLlm
+import contextlake.kb.llm.ollama as ollama_mod
+from contextlake.kb.config import LlmCfg
+from contextlake.kb.llm import build_llm
+from contextlake.kb.llm.ollama import OllamaLlm
 
 
 def test_build_llm_disabled_returns_none():

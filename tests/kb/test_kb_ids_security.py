@@ -1,7 +1,7 @@
 """Tests for stable IDs and label sanitization."""
 
-from gitlab_sync.kb.ids import make_id, normalize_id
-from gitlab_sync.kb.security import MAX_LABEL_LEN, sanitize_label
+from contextlake.kb.ids import make_id, normalize_id
+from contextlake.kb.security import MAX_LABEL_LEN, sanitize_label
 
 
 def test_normalize_id_is_idempotent():

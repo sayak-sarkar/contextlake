@@ -1,4 +1,4 @@
-"""Enable `python -m gitlab_sync`."""
+"""Enable `python -m contextlake`."""
 
 from .cli import main
 

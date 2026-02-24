@@ -1,8 +1,8 @@
 """Tests for branch selection strategies and protection."""
 
 from conftest import FakeCompleted
-from gitlab_sync import core
-from gitlab_sync.core import select_most_active_branch, switch_repository_branch
+from contextlake import core
+from contextlake.core import select_most_active_branch, switch_repository_branch
 
 PROJECTS = {"a": {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}}
 

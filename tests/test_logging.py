@@ -3,7 +3,7 @@
 import logging
 import sys
 
-from gitlab_sync import logging_setup
+from contextlake import logging_setup
 
 
 def _console_handler():

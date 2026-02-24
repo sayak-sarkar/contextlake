@@ -2,12 +2,12 @@
 
 from argparse import Namespace
 
-import gitlab_sync.kb.connectors.orchestrate as orch
-from gitlab_sync.kb.commands import cmd_connect
-from gitlab_sync.kb.connectors.gitlab import GitLabConnector, associate_gitlab
-from gitlab_sync.kb.model import Confidence, Repo
-from gitlab_sync.kb.state import check_schema
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+import contextlake.kb.connectors.orchestrate as orch
+from contextlake.kb.commands import cmd_connect
+from contextlake.kb.connectors.gitlab import GitLabConnector, associate_gitlab
+from contextlake.kb.model import Confidence, Repo
+from contextlake.kb.state import check_schema
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 
 class _FakeGlab:

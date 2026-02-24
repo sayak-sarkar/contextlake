@@ -1,7 +1,7 @@
 """Tests for package-manifest parsing and cross-repo dependency links."""
 
-from gitlab_sync.kb.manifest import is_manifest, parse_manifest
-from gitlab_sync.kb.model import Confidence
+from contextlake.kb.manifest import is_manifest, parse_manifest
+from contextlake.kb.model import Confidence
 
 
 def _names(nodes, ids):

@@ -2,10 +2,10 @@
 
 import pytest
 
-import gitlab_sync.kb.embeddings.ollama as ollama_mod
-from gitlab_sync.kb.config import EmbeddingsCfg
-from gitlab_sync.kb.embeddings import build_embedder
-from gitlab_sync.kb.embeddings.ollama import OllamaEmbedder
+import contextlake.kb.embeddings.ollama as ollama_mod
+from contextlake.kb.config import EmbeddingsCfg
+from contextlake.kb.embeddings import build_embedder
+from contextlake.kb.embeddings.ollama import OllamaEmbedder
 
 
 def test_build_embedder_disabled_returns_none():

@@ -4,7 +4,7 @@ result parsing against a spawned mock MCP server (no network)."""
 import os
 import sys
 
-from gitlab_sync.kb.connectors.atlassian import (
+from contextlake.kb.connectors.atlassian import (
     AtlassianConnector,
     associate,
     claims,
@@ -15,12 +15,12 @@ from gitlab_sync.kb.connectors.atlassian import (
     parse_search_issues,
     repo_node,
 )
-from gitlab_sync.kb.connectors.orchestrate import (
+from contextlake.kb.connectors.orchestrate import (
     connect_partition,
     enrich_repo,
     reconcile,
 )
-from gitlab_sync.kb.model import Confidence
+from contextlake.kb.model import Confidence
 
 # Mock MCP server exposing the two tools the connector calls.
 _MOCK_SERVER = """

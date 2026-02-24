@@ -7,8 +7,8 @@ always run.
 
 import pytest
 
-from gitlab_sync.kb.embeddings import store as store_mod
-from gitlab_sync.kb.embeddings.store import SqliteVecStore, VectorStore, build_vector_store
+from contextlake.kb.embeddings import store as store_mod
+from contextlake.kb.embeddings.store import SqliteVecStore, VectorStore, build_vector_store
 
 try:
     import sqlite_vec  # noqa: F401

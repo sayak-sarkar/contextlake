@@ -2,9 +2,9 @@
 
 import pytest
 
-from gitlab_sync.kb.model import Repo
-from gitlab_sync.kb.state import check_schema, mark_repo_indexed, needs_reindex
-from gitlab_sync.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.model import Repo
+from contextlake.kb.state import check_schema, mark_repo_indexed, needs_reindex
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 
 @pytest.fixture

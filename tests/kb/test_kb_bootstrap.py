@@ -2,8 +2,8 @@
 
 from argparse import Namespace
 
-import gitlab_sync.cli as cli
-import gitlab_sync.kb.commands as kb
+import contextlake.cli as cli
+import contextlake.kb.commands as kb
 
 _CORE = ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
          "switch_repository_branches", "verify_structure"]

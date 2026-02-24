@@ -2,8 +2,8 @@
 
 from datetime import date
 
-from gitlab_sync.kb.model import Confidence
-from gitlab_sync.kb.parse import index_repo_dir, parse_source
+from contextlake.kb.model import Confidence
+from contextlake.kb.parse import index_repo_dir, parse_source
 
 PY = b"""import os
 from a.b import c
@@ -107,14 +107,14 @@ def test_parse_csharp():
 
 
 def test_lang_by_ext_covers_target_languages():
-    from gitlab_sync.kb.parse import LANG_BY_EXT
+    from contextlake.kb.parse import LANG_BY_EXT
     for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs"):
         assert ext in LANG_BY_EXT
 
 
 def test_cross_repo_dependency_via_shared_package(tmp_path):
-    from gitlab_sync.kb.model import Repo
-    from gitlab_sync.kb.store.sqlite_store import SqliteStore
+    from contextlake.kb.model import Repo
+    from contextlake.kb.store.sqlite_store import SqliteStore
 
     (tmp_path / "producer").mkdir()
     (tmp_path / "producer" / "pyproject.toml").write_text('[project]\nname = "libx"\n')
@@ -136,7 +136,7 @@ def test_cross_repo_dependency_via_shared_package(tmp_path):
 
 
 def test_discover_repos_finds_and_prunes(tmp_path):
-    from gitlab_sync.kb.parse import discover_repos
+    from contextlake.kb.parse import discover_repos
 
     (tmp_path / "team" / "a" / ".git").mkdir(parents=True)
     (tmp_path / "b" / ".git").mkdir(parents=True)
