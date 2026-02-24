@@ -14,9 +14,9 @@ from ..store.shards import read_shard
 # Managed-block markers. Steering markdown is wrapped between BEGIN/END so an
 # existing user file is *enhanced* (our block appended/refreshed) rather than
 # overwritten — content outside the block is never touched.
-BEGIN = "<!-- BEGIN gitlab-sync (managed; this block is refreshed by `gitlab-sync steer`) -->"
-END = "<!-- END gitlab-sync -->"
-MARKER = BEGIN  # back-compat: presence marks gitlab-sync-managed content
+BEGIN = "<!-- BEGIN contextlake (managed; this block is refreshed by `contextlake steer`) -->"
+END = "<!-- END contextlake -->"
+MARKER = BEGIN  # back-compat: presence marks contextlake-managed content
 
 GUARDRAILS = """\
 ## Guardrails (non-negotiable)
@@ -65,7 +65,7 @@ def workspace_facts(store, store_dir) -> dict:
 
 
 def _serve_cmd(config_path: str | None) -> str:
-    return "gitlab-sync serve" + (f" --config {config_path}" if config_path else "")
+    return "contextlake serve" + (f" --config {config_path}" if config_path else "")
 
 
 def _repos(n: int) -> str:
@@ -81,7 +81,7 @@ def _repo_lines(facts: dict, limit: int = 40) -> str:
     )
     if len(facts["per_repo"]) > limit:
         out += f"\n- … and {len(facts['per_repo']) - limit} more"
-    return out or "- (none indexed yet — run `gitlab-sync index --workspace .`)"
+    return out or "- (none indexed yet — run `contextlake index --workspace .`)"
 
 
 def render_agents_md(facts: dict, *, config_path: str | None = None) -> str:
@@ -152,4 +152,4 @@ def mcp_server_entry(config_path: str | None = None) -> dict:
     args = ["serve"]
     if config_path:
         args += ["--config", config_path]
-    return {"command": "gitlab-sync", "args": args}
+    return {"command": "contextlake", "args": args}

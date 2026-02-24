@@ -3,10 +3,10 @@
 
 Lets the tool run without installation via ``python3 contextlake.py <command>``.
 It puts the ``src/`` layout on ``sys.path`` (ahead of the cwd) so that
-``import contextlake`` resolves to the package under ``src/gitlab_sync`` rather
+``import contextlake`` resolves to the package under ``src/contextlake`` rather
 than to this launcher file, then delegates to the package CLI.
 
-For an installed copy, prefer the ``gitlab-sync`` console command or
+For an installed copy, prefer the ``contextlake`` console command or
 ``python -m contextlake``.
 """
 

@@ -6,7 +6,7 @@ clones what is missing, updates existing clones, and moves each repo onto its
 most active development branch -- while protecting any local working branches.
 
 Entry points (all equivalent):
-    gitlab-sync <command>          # installed console script
+    contextlake <command>          # installed console script
     python -m contextlake <command>
     python3 contextlake.py <command>   # bare script, no install
 """
@@ -52,14 +52,14 @@ _SCALAR_FLAGS = (
 def build_parser():
     """Build the argument parser. Kept separate from main() so it is testable."""
     parser = argparse.ArgumentParser(
-        prog="gitlab-sync",
+        prog="contextlake",
         description="GitLab Workspace Synchronization CLI Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  gitlab-sync sync              # Run full synchronization
-  gitlab-sync status            # Show status (read-only)
-  gitlab-sync --dry-run sync    # Show what sync would do, change nothing
+  contextlake sync              # Run full synchronization
+  contextlake status            # Show status (read-only)
+  contextlake --dry-run sync    # Show what sync would do, change nothing
         """,
     )
 
@@ -228,7 +228,7 @@ def _bootstrap(args, config, work_dir, gitlab_group):
         from .kb import commands as kb
     except ImportError as e:
         log(f"Knowledge layer not installed — skipping index/connect/embed/wiki/steer. "
-            f"Install it with: pip install 'gitlab-sync[kb]'  ({e})")
+            f"Install it with: pip install 'contextlake[kb]'  ({e})")
         return
 
     # kb stages run against the workspace and the *kb* config (kb.toml), which is
@@ -256,7 +256,7 @@ def _bootstrap(args, config, work_dir, gitlab_group):
             log(f"  {style.warn(title + ' failed')} — {e}")
 
     log("")
-    serve = "gitlab-sync serve" + (f" --config {kb_args.config}" if kb_args.config else "")
+    serve = "contextlake serve" + (f" --config {kb_args.config}" if kb_args.config else "")
     log(style.ok(f"Bootstrap complete — workspace ready at {work_dir}."))
     log(f"  Editors are wired (.mcp.json + steering). Start the knowledge server: {serve}")
 
@@ -276,7 +276,7 @@ def main(argv=None):
             from .kb import commands as kb_commands
         except ImportError as e:
             log(f"The '{args.command}' command needs the knowledge-layer extra: "
-                f"pip install 'gitlab-sync[kb]'  ({e})")
+                f"pip install 'contextlake[kb]'  ({e})")
             sys.exit(1)
         sys.exit(kb_commands.dispatch(args.command, args))
 

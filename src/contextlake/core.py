@@ -1,5 +1,5 @@
 """
-Core git operations for gitlab_sync
+Core git operations for contextlake
 """
 
 import json

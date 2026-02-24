@@ -36,5 +36,5 @@ def check_schema(store: Store) -> None:
     if raw is not None and int(raw) > SCHEMA_VERSION:
         raise RuntimeError(
             f"knowledge-base schema v{raw} is newer than supported v{SCHEMA_VERSION}; "
-            "upgrade gitlab-sync"
+            "upgrade contextlake"
         )

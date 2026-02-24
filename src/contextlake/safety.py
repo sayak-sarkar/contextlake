@@ -1,5 +1,5 @@
 """
-Branch safety functions for gitlab_sync
+Branch safety functions for contextlake
 """
 
 import os
@@ -69,7 +69,7 @@ def stash_changes(full_path, config):
 
     try:
         result = subprocess.run(
-            ['git', 'stash', 'push', '-m', 'gitlab_sync_auto_stash'],
+            ['git', 'stash', 'push', '-m', 'contextlake_auto_stash'],
             capture_output=True, text=True, cwd=full_path
         )
         if result.returncode == 0:

@@ -60,7 +60,7 @@ def test_render_agents_md_is_specific_and_guarded(tmp_path):
         assert "2 repositories" in md
         assert "`team/api`" in md and "`team/ui`" in md  # repo list is specific
         assert "Cite, don't guess" in md  # guardrails present
-        assert "gitlab-sync serve --config /c/kb.toml" in md
+        assert "contextlake serve --config /c/kb.toml" in md
     finally:
         store.close()
 
@@ -82,8 +82,8 @@ def test_skill_md_has_frontmatter_and_marker():
 
 def test_mcp_server_entry():
     assert mcp_server_entry("/c/kb.toml") == {
-        "command": "gitlab-sync", "args": ["serve", "--config", "/c/kb.toml"]}
-    assert mcp_server_entry(None) == {"command": "gitlab-sync", "args": ["serve"]}
+        "command": "contextlake", "args": ["serve", "--config", "/c/kb.toml"]}
+    assert mcp_server_entry(None) == {"command": "contextlake", "args": ["serve"]}
 
 
 # --- command ---------------------------------------------------------------
@@ -119,7 +119,7 @@ def test_cmd_steer_writes_files_and_merges_mcp(tmp_path, monkeypatch):
 
     mcp = json.loads((out / ".mcp.json").read_text())
     assert "other" in mcp["mcpServers"]  # preserved
-    assert mcp["mcpServers"]["gitlab-kb"]["command"] == "gitlab-sync"
+    assert mcp["mcpServers"]["gitlab-kb"]["command"] == "contextlake"
 
 
 def test_cmd_steer_enhances_existing_files_without_clobbering(tmp_path, monkeypatch):

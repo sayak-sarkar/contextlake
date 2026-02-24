@@ -16,13 +16,13 @@ from contextlake import core
 
 @pytest.fixture
 def gls_logs(caplog):
-    """Capture the gitlab_sync logger's records regardless of propagation.
+    """Capture the contextlake logger's records regardless of propagation.
 
     The package logger sets propagate=False, so caplog's root handler misses it;
     attaching caplog's handler directly to the logger captures reliably.
     """
     caplog.set_level(logging.INFO)
-    logger = logging.getLogger("gitlab_sync")
+    logger = logging.getLogger("contextlake")
     logger.addHandler(caplog.handler)
     try:
         yield caplog
@@ -39,9 +39,9 @@ def reset_logging():
     handlers cleared, the first log() call in a test rebuilds against the current
     (captured) stdout.
     """
-    logging.getLogger("gitlab_sync").handlers.clear()
+    logging.getLogger("contextlake").handlers.clear()
     yield
-    logging.getLogger("gitlab_sync").handlers.clear()
+    logging.getLogger("contextlake").handlers.clear()
 
 
 class FakeCompleted:

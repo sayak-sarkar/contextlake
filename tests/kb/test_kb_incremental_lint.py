@@ -20,9 +20,9 @@ _ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
 
 @pytest.fixture
 def logs():
-    """Capture gitlab_sync log messages directly off the named logger (robust to
+    """Capture contextlake log messages directly off the named logger (robust to
     stdout swapping in capsys/caplog)."""
-    logger = logging.getLogger("gitlab_sync")
+    logger = logging.getLogger("contextlake")
     saved = logger.handlers[:]
     logger.handlers.clear()
     messages: list[str] = []

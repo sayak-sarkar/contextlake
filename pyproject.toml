@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gitlab-sync"
+name = "contextlake"
 version = "1.18.1"
 description = "Mirror your accessible GitLab repositories locally and keep each on its most active branch."
 readme = "README.md"
@@ -24,13 +24,13 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/sayak-sarkar/gitlab-sync"
-Repository = "https://github.com/sayak-sarkar/gitlab-sync"
-Changelog = "https://github.com/sayak-sarkar/gitlab-sync/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/sayak-sarkar/contextlake"
+Repository = "https://github.com/sayak-sarkar/contextlake"
+Changelog = "https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4"]
-# Optional knowledge-layer subsystem (gitlab_sync.kb). Note: `mcp` requires
+# Optional knowledge-layer subsystem (contextlake.kb). Note: `mcp` requires
 # Python >= 3.10, so this extra's floor is 3.10 while the core tool stays 3.9+.
 kb = [
     "mcp>=1.28", "pydantic>=2", "tomli; python_version<'3.11'",
@@ -45,6 +45,9 @@ kb = [
 kb-vec = ["sqlite-vec>=0.1"]
 
 [project.scripts]
+contextlake = "contextlake.cli:main"
+# Deprecated alias for the former package name (gitlab-sync); kept so existing
+# installs and scripts that call `gitlab-sync` keep working. Removed in a future major.
 gitlab-sync = "contextlake.cli:main"
 
 [tool.setuptools]

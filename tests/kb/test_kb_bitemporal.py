@@ -17,7 +17,7 @@ from contextlake.kb.store.shards import (
 
 @pytest.fixture
 def logs():
-    logger = logging.getLogger("gitlab_sync")
+    logger = logging.getLogger("contextlake")
     saved = logger.handlers[:]
     logger.handlers.clear()
     messages: list[str] = []
