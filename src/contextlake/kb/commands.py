@@ -468,9 +468,9 @@ def cmd_steer(args) -> int:
                 data = _json.loads(mcp.read_text())
             except _json.JSONDecodeError:
                 data = {}
-        data.setdefault("mcpServers", {})["gitlab-kb"] = mcp_server_entry(config_path)
+        data.setdefault("mcpServers", {})["contextlake-kb"] = mcp_server_entry(config_path)
         mcp.write_text(_json.dumps(data, indent=2) + "\n", encoding="utf-8")
-        log(f"  {style.ok('.mcp.json')} (gitlab-kb MCP server, other servers kept)")
+        log(f"  {style.ok('.mcp.json')} (contextlake-kb MCP server, other servers kept)")
 
         log(f"{style.ok()} Steering written to {out} (existing files enhanced, not replaced)")
         return 0

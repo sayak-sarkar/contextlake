@@ -148,7 +148,7 @@ Custom layers like `.devin/` are left untouched.
 To wire Claude Code by hand instead:
 
 ```bash
-claude mcp add gitlab-kb -- contextlake serve --config ~/.contextlake/kb.toml
+claude mcp add contextlake-kb -- contextlake serve --config ~/.contextlake/kb.toml
 ```
 
 **Windsurf / Devin** — add the same server in its MCP config (Cascade's *MCP
@@ -157,7 +157,7 @@ Servers* panel, or `~/.codeium/windsurf/mcp_config.json`):
 ```json
 {
   "mcpServers": {
-    "gitlab-kb": {
+    "contextlake-kb": {
       "command": "contextlake",
       "args": ["serve", "--config", "~/.contextlake/kb.toml"]
     }

@@ -69,7 +69,7 @@ the editor steering. Useful toggles:
 workspace. To register the server with **Claude Code** explicitly:
 
 ```bash
-claude mcp add gitlab-kb -- contextlake serve --config ~/.contextlake/kb.toml
+claude mcp add contextlake-kb -- contextlake serve --config ~/.contextlake/kb.toml
 ```
 
 **Windsurf / Devin** and **Kiro** pick up the generated config and rules
