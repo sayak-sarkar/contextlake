@@ -1,5 +1,5 @@
 """
-Configuration loading for gitlab_sync
+Configuration loading for contextlake
 """
 
 import configparser
@@ -7,9 +7,17 @@ import os
 
 from .logging_setup import log
 
-# Configuration file paths
-CONFIG_FILE = os.path.expanduser('~/.gitlab_sync.ini')
-LOCAL_CONFIG_FILE = '.gitlab_sync.ini'
+# Configuration file paths. The current (contextlake) files take precedence, but
+# the former gitlab-sync files are still read so existing setups keep working
+# without any change after the rename.
+CONFIG_FILE = os.path.expanduser('~/.contextlake.ini')
+LOCAL_CONFIG_FILE = '.contextlake.ini'
+LEGACY_CONFIG_FILE = os.path.expanduser('~/.gitlab_sync.ini')
+LEGACY_LOCAL_CONFIG_FILE = '.gitlab_sync.ini'
+
+# INI section names, low-to-high precedence: the current section wins if a file
+# happens to carry both.
+SECTIONS = ('gitlab_sync', 'contextlake')
 
 # Config values that name a filesystem location and so must have ~ and $VARS
 # expanded (the INI/CLI layers store them verbatim, unlike DEFAULT_CONFIG).
@@ -49,25 +57,34 @@ DEFAULT_CONFIG = {
 
 
 def _merge(config, path):
-    """Merge the [gitlab_sync] section of an INI file into config, if present."""
+    """Merge an INI file's config section into config, if present.
+
+    Accepts either the current ``[contextlake]`` section or the legacy
+    ``[gitlab_sync]`` one (current wins if both are present in one file).
+    """
     if not path or not os.path.exists(path):
         return
     parser = configparser.ConfigParser()
     parser.read(path)
-    if 'gitlab_sync' in parser:
-        config.update(parser['gitlab_sync'])
+    for section in SECTIONS:
+        if section in parser:
+            config.update(parser[section])
 
 
 def load_config(config_path=None):
     """Load configuration with precedence: explicit --config > local > global > defaults.
 
     Sources are merged from lowest to highest precedence so the later (more
-    specific) source wins on conflicting keys.
+    specific) source wins on conflicting keys. The legacy gitlab-sync files are
+    read just below their contextlake counterparts, so an existing setup keeps
+    working while a new contextlake file (if present) takes precedence.
     """
     config = DEFAULT_CONFIG.copy()
-    _merge(config, CONFIG_FILE)         # global (~/.gitlab_sync.ini)
-    _merge(config, LOCAL_CONFIG_FILE)   # local workspace config
-    _merge(config, config_path)         # explicit --config path
+    _merge(config, LEGACY_CONFIG_FILE)        # legacy global (~/.gitlab_sync.ini)
+    _merge(config, CONFIG_FILE)               # global (~/.contextlake.ini)
+    _merge(config, LEGACY_LOCAL_CONFIG_FILE)  # legacy local workspace config
+    _merge(config, LOCAL_CONFIG_FILE)         # local workspace config
+    _merge(config, config_path)               # explicit --config path
 
     # INI/CLI values are stored verbatim, so a `work_dir = ~/repos` would
     # otherwise be treated as a literal "~" directory. Expand here.
@@ -77,7 +94,7 @@ def load_config(config_path=None):
 
     if config.get('gitlab_group') == DEFAULT_CONFIG['gitlab_group']:
         log("WARNING: gitlab_group is still the placeholder 'your-gitlab-group'. "
-            "Copy .gitlab_sync.ini.example to .gitlab_sync.ini and set your group.")
+            "Copy .contextlake.ini.example to .contextlake.ini and set your group.")
 
     return config
 

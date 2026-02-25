@@ -1,5 +1,7 @@
 # Configuration files with sensitive data
 .gitlab_sync.ini
+.contextlake.ini
+.contextlake.kb.toml
 
 # Cache files
 /tmp/*.txt
