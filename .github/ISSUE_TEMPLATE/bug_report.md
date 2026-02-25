@@ -15,7 +15,7 @@ What you thought would happen instead.
 The exact command you ran and the steps to reproduce:
 
 ```bash
-gitlab-sync ...
+contextlake ...
 ```
 
 **Output**
@@ -27,7 +27,7 @@ or tokens first.
 ```
 
 **Environment**
-- `gitlab-sync --version`:
+- `contextlake --version`:
 - Python version (`python --version`):
 - `glab --version`:
 - OS:

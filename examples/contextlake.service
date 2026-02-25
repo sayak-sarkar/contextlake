@@ -2,19 +2,19 @@
 # fresh. Install both files under ~/.config/systemd/user/ and enable the timer:
 #
 #   systemctl --user daemon-reload
-#   systemctl --user enable --now gitlab-sync.timer
+#   systemctl --user enable --now contextlake.timer
 #
 # `bootstrap` is incremental and branch-safe: it re-mirrors, re-indexes only the
 # repos whose HEAD moved, refreshes connectors/embeddings/wiki, and rewrites the
 # editor steering — without ever disturbing an in-progress working tree.
 
-# ---- gitlab-sync.service ----
+# ---- contextlake.service ----
 [Unit]
-Description=gitlab-sync — refresh mirror + knowledge layer
+Description=contextlake — refresh mirror + knowledge layer
 After=network-online.target
 
 [Service]
 Type=oneshot
 # Adjust the binary path and config locations to your install.
-ExecStart=%h/.local/bin/gitlab-sync bootstrap --config %h/.gitlab_sync.ini --kb-config %h/.gitlab-sync/kb.toml
+ExecStart=%h/.local/bin/contextlake bootstrap --config %h/.contextlake.ini --kb-config %h/.contextlake/kb.toml
 Nice=10

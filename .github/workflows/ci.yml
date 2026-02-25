@@ -25,7 +25,7 @@ jobs:
       - name: Lint (ruff)
         run: ruff check src tests
       - name: Test core (no knowledge layer)
-        run: pytest --ignore=tests/kb --cov=gitlab_sync --cov-report=term-missing
+        run: pytest --ignore=tests/kb --cov=contextlake --cov-report=term-missing
 
   kb:
     name: knowledge-layer (py${{ matrix.python-version }})
@@ -47,4 +47,4 @@ jobs:
       - name: Lint (ruff)
         run: ruff check src tests
       - name: Test full suite
-        run: pytest --cov=gitlab_sync --cov-report=term-missing
+        run: pytest --cov=contextlake --cov-report=term-missing

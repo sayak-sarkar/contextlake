@@ -1,11 +1,34 @@
 # Changelog
 
-All notable changes to gitlab_sync will be documented in this file.
+All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.0.0] - 2026-06-22
+
+### Changed
+
+- **Renamed the project `gitlab-sync` → `contextlake`.** The tool grew from a GitLab
+  mirror into a local *context layer* for AI tools, and the name now reflects that. This
+  is a rename only — no behavior changes.
+  - The command, Python package, and PyPI project are now `contextlake`
+    (`contextlake <command>`, `python -m contextlake`, `python3 contextlake.py`).
+  - **A deprecated `gitlab-sync` command alias is kept** so existing installs and scripts
+    keep working; it will be removed in a future major release.
+  - **Existing config keeps working.** The former `~/.gitlab_sync.ini` / `.gitlab_sync.ini`
+    (and the `[gitlab_sync]` section) and the `~/.gitlab-sync/` knowledge store are still
+    read; new installs use `~/.contextlake.ini` and `~/.contextlake/`. An already-built
+    index at `~/.gitlab-sync/kb` is reused as-is — no re-index needed.
+  - The MCP server is now named `contextlake-kb`, and `steer` writes `contextlake` into the
+    files it generates (`.mcp.json`, `AGENTS.md`, …).
+
+### Note
+
+- The GitHub repository and CI-badge URLs point at `.../contextlake`; they resolve once the
+  repository is renamed on GitHub (the old URL auto-redirects).
 
 ## [1.18.1] - 2026-06-22
 
