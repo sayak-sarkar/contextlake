@@ -1,11 +1,11 @@
 # GitLab Workspace Synchronization Configuration
-# This is an example configuration file. Copy this file to .gitlab_sync.ini
+# This is an example configuration file. Copy this file to .contextlake.ini
 # and customize it with your specific settings.
 # 
-# IMPORTANT: .gitlab_sync.ini should be added to .gitignore to prevent
+# IMPORTANT: .contextlake.ini should be added to .gitignore to prevent
 # accidentally committing sensitive configuration to version control.
 
-[gitlab_sync]
+[contextlake]
 # Working directory where repositories will be cloned
 # Supports ~ for home directory expansion
 work_dir = ~/work

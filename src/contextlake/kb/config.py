@@ -4,10 +4,12 @@ All organization-specific facts — which Atlassian/Figma sites, which key->repo
 maps, which glossary — live in a user TOML file loaded at runtime, never in this
 package. The repo ships only ``examples/kb.toml.example`` with placeholders.
 
-Precedence (later wins): built-in defaults -> ``~/.gitlab-sync/kb.toml`` ->
-``.gitlab-sync.kb.toml`` (cwd) -> an explicit ``--config`` path. ``sources`` and
+Precedence (later wins): built-in defaults -> ``~/.contextlake/kb.toml`` ->
+``.contextlake.kb.toml`` (cwd) -> an explicit ``--config`` path. ``sources`` and
 ``rules`` lists are replaced wholesale by the highest-precedence file that sets
-them (predictable, no surprise merging).
+them (predictable, no surprise merging). The former ``~/.gitlab-sync/`` paths are
+still read (just below their contextlake counterparts) so existing setups keep
+working after the rename.
 """
 
 from __future__ import annotations
@@ -23,10 +25,27 @@ try:  # Python 3.11+
 except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
-DEFAULT_STORE_DIR = "~/.gitlab-sync/kb"
-GLOBAL_CONFIG = "~/.gitlab-sync/kb.toml"
-LOCAL_CONFIG = ".gitlab-sync.kb.toml"
+DEFAULT_STORE_DIR = "~/.contextlake/kb"
+GLOBAL_CONFIG = "~/.contextlake/kb.toml"
+LOCAL_CONFIG = ".contextlake.kb.toml"
+# Former gitlab-sync locations, still read so an existing store/config keeps working.
+LEGACY_STORE_DIR = "~/.gitlab-sync/kb"
+LEGACY_GLOBAL_CONFIG = "~/.gitlab-sync/kb.toml"
+LEGACY_LOCAL_CONFIG = ".gitlab-sync.kb.toml"
 DEFAULT_LANGUAGES = ["csharp", "typescript", "python"]
+
+
+def default_store_dir() -> str:
+    """The default knowledge-store location.
+
+    Prefer the current ``~/.contextlake/kb``; fall back to a pre-existing legacy
+    ``~/.gitlab-sync/kb`` store so an already-built index keeps working without a
+    re-index after the rename.
+    """
+    if not Path(expand_path(DEFAULT_STORE_DIR)).exists() \
+            and Path(expand_path(LEGACY_STORE_DIR)).exists():
+        return LEGACY_STORE_DIR
+    return DEFAULT_STORE_DIR
 
 
 class SourceCfg(BaseModel):
@@ -102,12 +121,15 @@ def _read_toml(path: str | None) -> dict:
 def load_kb_config(config_path: str | None = None) -> KbConfig:
     """Load and merge KB config from the precedence chain."""
     merged: dict = {}
-    for src in (GLOBAL_CONFIG, LOCAL_CONFIG, config_path):
+    # Legacy gitlab-sync files are read just below their contextlake counterparts,
+    # so an existing setup keeps working while a new file takes precedence.
+    for src in (LEGACY_GLOBAL_CONFIG, GLOBAL_CONFIG,
+                LEGACY_LOCAL_CONFIG, LOCAL_CONFIG, config_path):
         merged.update(_read_toml(src))
 
     kb = merged.get("kb", {})
     return KbConfig(
-        store_dir=kb.get("store_dir", DEFAULT_STORE_DIR),
+        store_dir=kb.get("store_dir", default_store_dir()),
         languages=kb.get("languages", list(DEFAULT_LANGUAGES)),
         embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
         llm=LlmCfg(**merged.get("llm", {})),

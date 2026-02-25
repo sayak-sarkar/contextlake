@@ -1,17 +1,17 @@
-# gitlab-sync knowledge-layer config (example).
+# contextlake knowledge-layer config (example).
 #
-# Copy to ~/.gitlab-sync/kb.toml (or pass with --config) and fill in your own
+# Copy to ~/.contextlake/kb.toml (or pass with --config) and fill in your own
 # values. Everything here is organization-specific — keep your real copy OUT of
 # version control. All values below are PLACEHOLDERS.
 
 [kb]
-store_dir = "~/.gitlab-sync/kb"
+store_dir = "~/.contextlake/kb"
 # Languages to parse (a pluggable parser registry backs these).
 languages = ["csharp", "typescript", "python"]
 
 [embeddings]
 # Semantic/NL search tier. Local-first; off by default. When enabled, run
-# `gitlab-sync embed` to vectorize indexed nodes; `serve` then exposes a
+# `contextlake embed` to vectorize indexed nodes; `serve` then exposes a
 # `semantic_search` tool. Code never leaves the machine (local Ollama by default).
 enabled = false
 provider = "ollama"                   # "ollama" (local) or "openai" (openai-compatible)
@@ -25,12 +25,12 @@ batch_size = 64
 #   base_url = "https://api.openai.com/v1"     # or e.g. http://127.0.0.1:1234/v1
 #   api_key_env = "OPENAI_API_KEY"             # env var with the key; never the key itself
 # Vector backend: "auto" uses the sqlite-vec ANN index when installed
-# (pip install "gitlab-sync[kb-vec]"), else an exact pure-Python cosine scan.
+# (pip install "contextlake[kb-vec]"), else an exact pure-Python cosine scan.
 # Force with "sqlite-vec" or "brute".
 vector_backend = "auto"
 
 [llm]
-# LLM tier for `gitlab-sync wiki` (curated pages + a verification council).
+# LLM tier for `contextlake wiki` (curated pages + a verification council).
 # Local-first and off by default; prompts never leave the machine with Ollama.
 enabled = false
 provider = "ollama"     # "ollama" (local) or "openai" (openai-compatible)
@@ -45,21 +45,21 @@ accept_score = 0.7      # mean council score required to publish a page
 #   api_key_env = "OPENAI_API_KEY"             # env var with the key; never the key itself
 
 # --- Knowledge-source connectors (0..N) -------------------------------------
-# `gitlab-sync connect` runs these after indexing to link repos to external
+# `contextlake connect` runs these after indexing to link repos to external
 # knowledge. Each Atlassian org is its own connector with its own auth session;
 # set a distinct `auth_dir` per org so their OAuth caches never collide.
 [[sources]]
 type = "atlassian"
 name = "primary"
 mcp = "https://mcp.atlassian.com/v1/mcp/authv2"
-# auth_dir = "~/.gitlab-sync/auth/primary"   # isolated mcp-remote OAuth cache
+# auth_dir = "~/.contextlake/auth/primary"   # isolated mcp-remote OAuth cache
 # timeout = 120                              # seconds per MCP call
 
 [[sources]]
 type = "atlassian"
 name = "secondary"
 mcp = "https://mcp.atlassian.com/v1/mcp/authv2"
-# auth_dir = "~/.gitlab-sync/auth/secondary"
+# auth_dir = "~/.contextlake/auth/secondary"
 
 # The Figma connector links repos to the design files their docs reference. The
 # file name comes from the URL itself; a configured Figma MCP is optional and only
@@ -91,7 +91,7 @@ pattern = '^[A-Z]+-\d+'           # extract an issue key from branch/commit name
 
 [[rules]]
 type = "key_map"
-file = "~/.gitlab-sync/key-map.toml"   # maps issue/space keys -> repo paths
+file = "~/.contextlake/key-map.toml"   # maps issue/space keys -> repo paths
 
 [[rules]]
 type = "link_scrape"
