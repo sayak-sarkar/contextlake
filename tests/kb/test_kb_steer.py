@@ -119,7 +119,7 @@ def test_cmd_steer_writes_files_and_merges_mcp(tmp_path, monkeypatch):
 
     mcp = json.loads((out / ".mcp.json").read_text())
     assert "other" in mcp["mcpServers"]  # preserved
-    assert mcp["mcpServers"]["gitlab-kb"]["command"] == "contextlake"
+    assert mcp["mcpServers"]["contextlake-kb"]["command"] == "contextlake"
 
 
 def test_cmd_steer_enhances_existing_files_without_clobbering(tmp_path, monkeypatch):
