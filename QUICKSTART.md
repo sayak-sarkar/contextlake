@@ -12,30 +12,30 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 ## 2. Install
 
 ```bash
-pipx install "git+https://github.com/sayak-sarkar/gitlab-sync[kb]"
+pipx install "git+https://github.com/sayak-sarkar/contextlake[kb]"
 # or from a clone:  pip install ".[kb]"
 # optional ANN backend for semantic search:  add the [kb-vec] extra
 ```
 
-This gives you the `gitlab-sync` command. (`python -m gitlab_sync` and
-`python3 gitlab_sync.py` work too.)
+This gives you the `contextlake` command. (`python -m contextlake` and
+`python3 contextlake.py` work too.)
 
 ## 3. Configure
 
-Two small files. **Mirror config** — `~/.gitlab_sync.ini`:
+Two small files. **Mirror config** — `~/.contextlake.ini`:
 
 ```ini
-[gitlab_sync]
+[contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
 ```
 
-**Knowledge-layer config** — `~/.gitlab-sync/kb.toml` (copy
+**Knowledge-layer config** — `~/.contextlake/kb.toml` (copy
 [`examples/kb.toml.example`](examples/kb.toml.example) and keep what you need):
 
 ```toml
 [kb]
-store_dir = "~/.gitlab-sync/kb"
+store_dir = "~/.contextlake/kb"
 
 # Link each repo to its open GitLab merge requests + issues (uses your glab login):
 [[sources]]
@@ -53,7 +53,7 @@ model at all.
 ## 4. Bootstrap — one command
 
 ```bash
-gitlab-sync bootstrap --config ~/.gitlab_sync.ini --kb-config ~/.gitlab-sync/kb.toml
+contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml
 ```
 
 It mirrors your repos, indexes them into the graph, runs your connectors, and writes
@@ -69,7 +69,7 @@ the editor steering. Useful toggles:
 workspace. To register the server with **Claude Code** explicitly:
 
 ```bash
-claude mcp add gitlab-kb -- gitlab-sync serve --config ~/.gitlab-sync/kb.toml
+claude mcp add gitlab-kb -- contextlake serve --config ~/.contextlake/kb.toml
 ```
 
 **Windsurf / Devin** and **Kiro** pick up the generated config and rules
@@ -85,7 +85,7 @@ moved and never touches an in-progress working tree — so it's safe to run on a
 schedule. Use cron:
 
 ```cron
-*/30 * * * * gitlab-sync bootstrap --config ~/.gitlab_sync.ini --kb-config ~/.gitlab-sync/kb.toml >> ~/.gitlab-sync/refresh.log 2>&1
+*/30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml >> ~/.contextlake/refresh.log 2>&1
 ```
 
 or the systemd user units in [`examples/`](examples/). See the

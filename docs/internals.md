@@ -14,8 +14,8 @@ The tool is built as a modular Python CLI application with the following compone
 The tool uses a hierarchical configuration system with the following precedence:
 
 1. **Configuration Files** (using Python's `configparser`):
-   - Local config: `.gitlab_sync.ini` in current directory
-   - Global config: `~/.gitlab_sync.ini` in home directory
+   - Local config: `.contextlake.ini` in current directory
+   - Global config: `~/.contextlake.ini` in home directory
    - Custom config: Specified via `--config` CLI argument
 
 2. **Default Values**: Built-in defaults for all settings
@@ -27,9 +27,9 @@ The tool uses a hierarchical configuration system with the following precedence:
 ```text
 load_config()
   ↓
-Check for local config (.gitlab_sync.ini)
+Check for local config (.contextlake.ini)
   ↓
-Check for global config (~/.gitlab_sync.ini)
+Check for global config (~/.contextlake.ini)
   ↓
 Merge with DEFAULT_CONFIG
   ↓
@@ -268,7 +268,7 @@ The `your-gitlab-group/` prefix is stripped when creating local paths.
 
 #### Issue: "Cache file not found"
 
-**Solution**: Run `python3 gitlab_sync.py fetch` first to populate cache
+**Solution**: Run `python3 contextlake.py fetch` first to populate cache
 
 #### Issue: "Permission denied" during cloning
 
@@ -305,7 +305,7 @@ rmdir repo
 **Solution**:
 
 - Check cron syntax: `crontab -l`
-- Verify script is executable: `ls -l gitlab_sync.py`
+- Verify script is executable: `ls -l contextlake.py`
 - Check cron logs: `grep CRON /var/log/syslog`
 - Test cron command manually in shell
 
@@ -322,7 +322,7 @@ The tool can be extended by:
 3. **Additional Verification**: Add checks in `verify_structure()`
 4. **Custom Output Formats**: Modify logging functions
 5. **Integration Hooks**: Add pre/post operation hooks
-6. **Configuration File**: Add support for `.gitlab_sync.yml` config
+6. **Configuration File**: Add support for `.contextlake.yml` config
 
 ### Dependencies
 
@@ -344,31 +344,31 @@ To avoid committing sensitive configuration to version control, add the configur
 ```bash
 
 # Add to .gitignore
-.gitlab_sync.ini
-~/.gitlab_sync.ini
+.contextlake.ini
+~/.contextlake.ini
 ```
 
 For team usage, consider including a sample configuration file:
 
 ```bash
-# Add .gitlab_sync.ini.example to git
-cp .gitlab_sync.ini .gitlab_sync.ini.example
-git add .gitlab_sync.ini.example
+# Add .contextlake.ini.example to git
+cp .contextlake.ini .contextlake.ini.example
+git add .contextlake.ini.example
 
 # Update .gitignore
-echo ".gitlab_sync.ini" >> .gitignore
+echo ".contextlake.ini" >> .gitignore
 ```
 
 Team members can then:
 
 ```bash
-cp .gitlab_sync.ini.example .gitlab_sync.ini
+cp .contextlake.ini.example .contextlake.ini
 # Edit with their personal settings
 ```
 
 ## Knowledge-layer architecture
 
-The optional `gitlab_sync.kb` subsystem (the `[kb]` extra) layers a knowledge graph
+The optional `contextlake.kb` subsystem (the `[kb]` extra) layers a knowledge graph
 over the mirrored repos. Its pieces:
 
 - **Model & store** (`kb/model.py`, `kb/store/`): pydantic `Node`/`Edge`/`Repo` carry

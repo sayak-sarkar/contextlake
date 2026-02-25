@@ -1,6 +1,6 @@
 # Roadmap
 
-`gitlab-sync` mirrors the GitLab repositories you can reach and builds an optional,
+`contextlake` mirrors the GitLab repositories you can reach and builds an optional,
 local-first knowledge layer over them. The mirroring core and the knowledge layer
 (indexing, connectors, semantic search, a curated wiki, incremental/bi-temporal
 sync) are shipped. What follows is a list of **future good-to-haves** — none are

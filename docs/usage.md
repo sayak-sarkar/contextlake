@@ -13,7 +13,7 @@ The tool supports the following commands:
 Shows the current state of your workspace compared to GitLab.
 
 ```bash
-gitlab-sync status
+contextlake status
 ```
 
 **Example output:**
@@ -29,7 +29,7 @@ Extra:                    1        # cloned locally but not on GitLab
 - **Missing** = a repo exists on GitLab but isn't in your workspace — `clone` (or
   `sync`) will fetch it.
 - **Extra** = a repo is in your workspace but not on GitLab — usually one that was
-  renamed, archived, or removed there; `gitlab-sync` leaves it alone for you to review.
+  renamed, archived, or removed there; `contextlake` leaves it alone for you to review.
 
 A fully synced workspace shows `0` for both.
 
@@ -38,7 +38,7 @@ A fully synced workspace shows `0` for both.
 Retrieves all repositories from the specified GitLab group and caches them locally.
 
 ```bash
-gitlab-sync fetch
+contextlake fetch
 ```
 
 This command:
@@ -53,7 +53,7 @@ This command:
 Clones any repositories that exist in GitLab but are missing locally.
 
 ```bash
-gitlab-sync clone
+contextlake clone
 ```
 
 This command:
@@ -69,7 +69,7 @@ This command:
 Fetches and pulls the latest changes for all local repositories.
 
 ```bash
-gitlab-sync update
+contextlake update
 ```
 
 This command:
@@ -84,7 +84,7 @@ This command:
 Analyzes all repositories and switches them to their most active development branch.
 
 ```bash
-gitlab-sync branches
+contextlake branches
 ```
 
 This command:
@@ -106,7 +106,7 @@ This command:
 Checks that the local workspace structure matches GitLab exactly.
 
 ```bash
-gitlab-sync verify
+contextlake verify
 ```
 
 This command:
@@ -122,7 +122,7 @@ This command:
 Runs the complete synchronization pipeline in sequence.
 
 ```bash
-gitlab-sync sync
+contextlake sync
 ```
 
 This command executes:
@@ -139,15 +139,20 @@ This command executes:
 
 The tool supports configuration files for persistent settings. Configuration is loaded in the following precedence order:
 
-1. **Local config**: `.gitlab_sync.ini` in the current directory (highest priority)
-2. **Global config**: `~/.gitlab_sync.ini` in the home directory
+1. **Local config**: `.contextlake.ini` in the current directory (highest priority)
+2. **Global config**: `~/.contextlake.ini` in the home directory
 3. **Default values**: Built-in defaults (lowest priority)
 4. **CLI arguments**: Override all other settings
 
-**Example configuration file (.gitlab_sync.ini):**
+> **Upgrading from `gitlab-sync`?** Your existing `~/.gitlab_sync.ini` / `.gitlab_sync.ini`
+> (with its `[gitlab_sync]` section) is still read, and the knowledge store at
+> `~/.gitlab-sync/` is reused as-is — nothing to migrate. New setups use `.contextlake.ini`
+> and `~/.contextlake/`; the `gitlab-sync` command also still works as a deprecated alias.
+
+**Example configuration file (.contextlake.ini):**
 
 ```ini
-[gitlab_sync]
+[contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
 cache_dir = /tmp
@@ -162,32 +167,32 @@ max_workers = 8
 
 ```bash
 # Using config file (recommended)
-# Edit .gitlab_sync.ini and set work_dir
+# Edit .contextlake.ini and set work_dir
 
 # Or override with CLI argument
-gitlab-sync --work-dir /path/to/workspace sync
+contextlake --work-dir /path/to/workspace sync
 ```
 
 #### Custom GitLab Group
 
 ```bash
 # Using config file (recommended)
-# Edit .gitlab_sync.ini and set gitlab_group
+# Edit .contextlake.ini and set gitlab_group
 
 # Or override with CLI argument
-gitlab-sync --group my-gitlab-group sync
+contextlake --group my-gitlab-group sync
 ```
 
 #### Combined Options
 
 ```bash
-gitlab-sync --work-dir /home/user/dev --group your-gitlab-group status
+contextlake --work-dir /home/user/dev --group your-gitlab-group status
 ```
 
 #### Custom Config File
 
 ```bash
-gitlab-sync --config /path/to/custom.ini sync
+contextlake --config /path/to/custom.ini sync
 ```
 
 ### Configuration Reference
@@ -196,7 +201,7 @@ gitlab-sync --config /path/to/custom.ini sync
 | --- | --- | --- | --- |
 | `work_dir` | Working directory for repositories | `~/work` | `/home/user/projects` |
 | `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
-| `cache_dir` | Directory for cache files | `/tmp` | `~/.cache/gitlab_sync` |
+| `cache_dir` | Directory for cache files | `/tmp` | `~/.cache/contextlake` |
 | `cache_file` | Name of projects cache file | `gitlab_projects.txt` | `projects.txt` |
 | `cache_json` | Name of JSON cache file | `gitlab_projects.json` | `projects.json` |
 | `clone_timeout` | Clone operation timeout (seconds) | `300` | `600` |
@@ -259,7 +264,7 @@ Branch safety is controlled by the following configuration options:
 
 ```bash
 # Repository is on feature/my-feature branch (not in safe branches)
-gitlab-sync update
+contextlake update
 
 # Output:
 # [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped branch switch (on working branch: feature/my-feature)
@@ -269,7 +274,7 @@ gitlab-sync update
 
 ```bash
 # Repository has uncommitted changes
-gitlab-sync update
+contextlake update
 
 # Output:
 # [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped (unsafe: Uncommitted changes detected)
@@ -279,7 +284,7 @@ gitlab-sync update
 
 ```bash
 # Repository has uncommitted changes, auto-stash enabled
-gitlab-sync --auto-stash update
+contextlake --auto-stash update
 
 # Output:
 # [2026-06-16 10:00:00] ⚠ backend/services/api-gateway: Changes stashed successfully
@@ -291,8 +296,8 @@ gitlab-sync --auto-stash update
 You can customize branch safety behavior via configuration or CLI:
 
 ```ini
-# In .gitlab_sync.ini
-[gitlab_sync]
+# In .contextlake.ini
+[contextlake]
 protect_working_branches = true
 safe_branches = main,master,develop,staging
 require_clean_workspace = true
@@ -301,7 +306,7 @@ auto_stash = false
 
 ```bash
 # Or via CLI
-gitlab-sync --safe-branches main,master,develop,staging --auto-stash update
+contextlake --safe-branches main,master,develop,staging --auto-stash update
 ```
 
 ### Disabling Safety Checks
@@ -310,7 +315,7 @@ If you want to disable safety checks (not recommended for production workflows):
 
 ```bash
 # Disable all safety checks
-gitlab-sync --no-protect-working-branches --no-require-clean-workspace update
+contextlake --no-protect-working-branches --no-require-clean-workspace update
 ```
 
 **Warning**: Disabling safety checks can lead to conflicts, lost work, or corruption of your local branches. Only disable if you understand the risks.
@@ -321,12 +326,12 @@ gitlab-sync --no-protect-working-branches --no-require-clean-workspace update
 
 Before setting up cron jobs, ensure you have:
 
-1. **Configuration file set up**: Create `~/.gitlab_sync.ini` with your settings
+1. **Configuration file set up**: Create `~/.contextlake.ini` with your settings
 
    ```bash
-   cp .gitlab_sync.ini ~/.gitlab_sync.ini
+   cp .contextlake.ini ~/.contextlake.ini
    # Edit with your work_dir and gitlab_group
-   nano ~/.gitlab_sync.ini
+   nano ~/.contextlake.ini
    ```
 
 2. **Absolute path to script**: Cron requires absolute paths
@@ -339,7 +344,7 @@ Before setting up cron jobs, ensure you have:
 3. **Test the command manually first**:
 
    ```bash
-   cd /home/user/work && gitlab-sync sync
+   cd /home/user/work && contextlake sync
    ```
 
 ### Basic Daily Sync
@@ -351,17 +356,17 @@ Run a full synchronization daily at 2 AM:
 crontab -e
 
 # Add the following line (replace paths as needed)
-0 2 * * * cd /home/user/work && /usr/bin/gitlab-sync sync >> /tmp/gitlab_sync.log 2>&1
+0 2 * * * cd /home/user/work && /usr/bin/contextlake sync >> /tmp/contextlake.log 2>&1
 ```
 
-**Note**: This uses the configuration from `~/.gitlab_sync.ini`. No need to specify work_dir or gitlab_group in the cron command.
+**Note**: This uses the configuration from `~/.contextlake.ini`. No need to specify work_dir or gitlab_group in the cron command.
 
 ### Hourly Updates (No Branch Switching)
 
 Update repositories hourly without changing branches (for CI/CD environments):
 
 ```bash
-0 * * * * cd /home/user/work && /usr/bin/gitlab-sync update >> /tmp/gitlab_hourly.log 2>&1
+0 * * * * cd /home/user/work && /usr/bin/contextlake update >> /tmp/gitlab_hourly.log 2>&1
 ```
 
 ### Weekly Full Sync with Branch Management
@@ -369,7 +374,7 @@ Update repositories hourly without changing branches (for CI/CD environments):
 Run full sync including branch switching weekly on Sunday at 3 AM:
 
 ```bash
-0 3 * * 0 cd /home/user/work && /usr/bin/gitlab-sync sync >> /tmp/gitlab_weekly.log 2>&1
+0 3 * * 0 cd /home/user/work && /usr/bin/contextlake sync >> /tmp/gitlab_weekly.log 2>&1
 ```
 
 ### Multiple Workspaces
@@ -378,14 +383,14 @@ For multiple workspaces, use separate config files:
 
 ```bash
 # Create workspace-specific config files
-cat > ~/.gitlab_sync_primary.ini << EOF
-[gitlab_sync]
+cat > ~/.contextlake_primary.ini << EOF
+[contextlake]
 work_dir = ~/work
 gitlab_group = example-group-primary
 EOF
 
-cat > ~/.gitlab_sync_secondary.ini << EOF
-[gitlab_sync]
+cat > ~/.contextlake_secondary.ini << EOF
+[contextlake]
 work_dir = ~/Projects/Secondary
 gitlab_group = example-group-secondary
 EOF
@@ -393,10 +398,10 @@ EOF
 # Add to crontab
 
 # Sync primary workspace daily
-0 2 * * * cd /home/user/work && /usr/bin/gitlab-sync --config ~/.gitlab_sync_primary.ini sync >> /tmp/gitlab_primary.log 2>&1
+0 2 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_primary.ini sync >> /tmp/gitlab_primary.log 2>&1
 
 # Sync secondary workspace every 6 hours
-0 */6 * * * cd /home/user/work && /usr/bin/gitlab-sync --config ~/.gitlab_sync_secondary.ini update >> /tmp/gitlab_secondary.log 2>&1
+0 */6 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_secondary.ini update >> /tmp/gitlab_secondary.log 2>&1
 ```
 
 ### Monitoring and Alerts
@@ -405,20 +410,20 @@ Add email notifications for failures:
 
 ```bash
 # Create a wrapper script
-cat > /home/user/scripts/gitlab_sync_wrapper.sh << 'EOF'
+cat > /home/user/scripts/contextlake_wrapper.sh << 'EOF'
 #!/bin/bash
 cd /home/user/work
-gitlab-sync sync >> /tmp/gitlab_sync.log 2>&1
+contextlake sync >> /tmp/contextlake.log 2>&1
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
     echo "GitLab sync failed with exit code $EXIT_CODE" | mail -s "GitLab Sync Failure" user@example.com
 fi
 EOF
-chmod +x /home/user/scripts/gitlab_sync_wrapper.sh
+chmod +x /home/user/scripts/contextlake_wrapper.sh
 
 # Add to crontab
-0 2 * * * /home/user/scripts/gitlab_sync_wrapper.sh
+0 2 * * * /home/user/scripts/contextlake_wrapper.sh
 ```
 
 ### Log Rotation
@@ -427,8 +432,8 @@ To prevent log files from growing indefinitely, set up log rotation:
 
 ```bash
 # Create logrotate configuration
-sudo cat > /etc/logrotate.d/gitlab_sync << 'EOF'
-/tmp/gitlab_sync.log {
+sudo cat > /etc/logrotate.d/contextlake << 'EOF'
+/tmp/contextlake.log {
     daily
     rotate 7
     compress
@@ -442,9 +447,9 @@ EOF
 
 ## Best Practices
 
-1. **Initial Setup**: Run `gitlab-sync sync` once to set up full workspace
-2. **Regular Updates**: Use `gitlab-sync update` for frequent, fast updates
-3. **Branch Management**: Run `gitlab-sync branches` periodically to stay on active branches
+1. **Initial Setup**: Run `contextlake sync` once to set up full workspace
+2. **Regular Updates**: Use `contextlake update` for frequent, fast updates
+3. **Branch Management**: Run `contextlake branches` periodically to stay on active branches
 4. **Monitoring**: Check logs regularly for errors or failures
 5. **Backup**: Commit workspace state to git before major branch switches
 6. **Testing**: Test cron commands manually before adding to crontab

@@ -1,6 +1,6 @@
-# Contributing to gitlab-sync
+# Contributing to contextlake
 
-First off — thanks for taking the time. `gitlab-sync` is a small, focused tool,
+First off — thanks for taking the time. `contextlake` is a small, focused tool,
 and small focused tools live or die by their sharp edges staying sharp. Bug
 reports, fixes, and well-scoped features are all welcome.
 
@@ -17,8 +17,8 @@ reports, fixes, and well-scoped features are all welcome.
 ## Getting set up
 
 ```bash
-git clone https://github.com/sayak-sarkar/gitlab-sync.git
-cd gitlab-sync
+git clone https://github.com/sayak-sarkar/contextlake.git
+cd contextlake
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"      # installs the CLI plus pytest + ruff
 ```
@@ -32,7 +32,7 @@ on your PATH to exercise the tool for real (`glab auth login`).
 ruff check src tests          # lint
 ruff check --fix src tests    # …and auto-fix what it can
 pytest                        # run the suite
-pytest --cov=gitlab_sync --cov-report=term-missing   # with coverage
+pytest --cov=contextlake --cov-report=term-missing   # with coverage
 pytest tests/test_clone.py -k retries -q             # a single test
 ```
 
@@ -42,7 +42,7 @@ pass locally you're in good shape.
 ## How the code is laid out
 
 ```
-src/gitlab_sync/
+src/contextlake/
 ├── cli.py            argument parsing + command dispatch (thin)
 ├── core.py           the real work: fetch / clone / update / branches / verify
 ├── config.py         INI loading, precedence, path expansion

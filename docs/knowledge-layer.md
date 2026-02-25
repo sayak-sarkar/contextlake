@@ -1,6 +1,6 @@
 # Knowledge layer
 
-An optional subsystem (`gitlab_sync.kb`) turns your mirrored repositories into a
+An optional subsystem (`contextlake.kb`) turns your mirrored repositories into a
 queryable **knowledge graph** and serves it to AI agents over **MCP** — so an
 assistant can ask "where is `X` defined?", "who calls `Y`?", or "which repos
 depend on package `Z`?" instead of grepping hundreds of repos. It's generic: it
@@ -11,17 +11,17 @@ a private config file).
 Install the extra (requires Python ≥ 3.10):
 
 ```bash
-pip install "gitlab-sync[kb]"
-gitlab-sync doctor                          # check the environment
-gitlab-sync index --source ./my-repo        # index one repository
-gitlab-sync index --workspace ~/work        # index every git repo (incremental; --force to rebuild)
-gitlab-sync connect --workspace ~/work      # link repos to their issues/docs (see below)
-gitlab-sync embed                           # build semantic vectors (optional, see below)
-gitlab-sync lint                            # graph health: stale repos + dangling edges
-gitlab-sync wiki                            # LLM-synthesized, council-verified wiki pages (optional)
-gitlab-sync steer                           # write per-tool steering: AGENTS.md, .mcp.json, …
-gitlab-sync query "OrderService"            # cited search across the index
-gitlab-sync serve                           # expose the graph over MCP (stdio or --transport http)
+pip install "contextlake[kb]"
+contextlake doctor                          # check the environment
+contextlake index --source ./my-repo        # index one repository
+contextlake index --workspace ~/work        # index every git repo (incremental; --force to rebuild)
+contextlake connect --workspace ~/work      # link repos to their issues/docs (see below)
+contextlake embed                           # build semantic vectors (optional, see below)
+contextlake lint                            # graph health: stale repos + dangling edges
+contextlake wiki                            # LLM-synthesized, council-verified wiki pages (optional)
+contextlake steer                           # write per-tool steering: AGENTS.md, .mcp.json, …
+contextlake query "OrderService"            # cited search across the index
+contextlake serve                           # expose the graph over MCP (stdio or --transport http)
 ```
 
 `index --workspace` is **incremental** — it re-indexes only repos whose git HEAD
@@ -30,9 +30,9 @@ to rebuild everything, or `--watch [--interval N]` to keep re-indexing in a loop
 Every indexed snapshot is kept, so `query "<text>" --repo R --as-of <commit>` does
 **time-travel** — it searches repo `R` as it was at a previously-indexed commit.
 
-**Health & maintenance.** `gitlab-sync doctor` is a quick environment check — SQLite
+**Health & maintenance.** `contextlake doctor` is a quick environment check — SQLite
 FTS5, `git`/`glab` on `PATH`, the store's reachability and counts, and the embeddings
-status — and exits non-zero if something's wrong. `gitlab-sync lint` audits the graph
+status — and exits non-zero if something's wrong. `contextlake lint` audits the graph
 itself, reporting **stale repos** (HEAD moved since they were indexed, so the index is
 behind) and **dangling edges** (an edge whose endpoint node is missing); it exits
 non-zero when it finds problems, so it's CI-friendly.
@@ -43,11 +43,11 @@ skipping anything not enabled, so a teammate goes from nothing to a fully-wired
 workspace in one step:
 
 ```bash
-gitlab-sync bootstrap --kb-config ~/.gitlab-sync/kb.toml
+contextlake bootstrap --kb-config ~/.contextlake/kb.toml
 ```
 
 Skip stages with `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect`. For an
-isolated CLI, install with `pipx install "git+https://github.com/sayak-sarkar/gitlab-sync"`
+isolated CLI, install with `pipx install "git+https://github.com/sayak-sarkar/contextlake"`
 (add the `[kb]` extra for the knowledge layer), or run ad-hoc with `uvx`.
 
 **Keep it fresh on a schedule.** `bootstrap` is incremental and branch-safe, so it's
@@ -56,11 +56,11 @@ refreshes the knowledge layer, and rewrites the steering, without touching an
 in-progress working tree. Run it from cron:
 
 ```cron
-*/30 * * * * gitlab-sync bootstrap --config ~/.gitlab_sync.ini --kb-config ~/.gitlab-sync/kb.toml >> ~/.gitlab-sync/refresh.log 2>&1
+*/30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml >> ~/.contextlake/refresh.log 2>&1
 ```
 
-or as a systemd user timer — see [`examples/gitlab-sync.service`](examples/gitlab-sync.service)
-and [`examples/gitlab-sync.timer`](examples/gitlab-sync.timer).
+or as a systemd user timer — see [`examples/contextlake.service`](examples/contextlake.service)
+and [`examples/contextlake.timer`](examples/contextlake.timer).
 
 **Code indexing** uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
@@ -84,26 +84,26 @@ small, self-contained module; output lands in an isolated graph partition, so
 re-indexing a repo's code never disturbs its external links.
 
 Configure it by copying [`examples/kb.toml.example`](examples/kb.toml.example) to
-`~/.gitlab-sync/kb.toml`. Every fact is provenance-stamped (source file + verified
+`~/.contextlake/kb.toml`. Every fact is provenance-stamped (source file + verified
 date) and confidence-tagged (`EXTRACTED` for AST facts, `INFERRED` for resolved
 calls/links, `AMBIGUOUS` for unconfirmed candidates), and all output is sanitized
 before it reaches an agent.
 
 **Semantic search** (optional) adds natural-language retrieval on top of the graph.
 Enable `[embeddings]` in the config (local-first — vectors come from an Ollama model
-by default, so code never leaves the machine), run `gitlab-sync embed` to vectorize
+by default, so code never leaves the machine), run `contextlake embed` to vectorize
 the indexed nodes into a local store, and `serve` then exposes two tools:
 `semantic_search` for queries where the exact symbol name is unknown, and
 `hybrid_search`, which seeds Personalized PageRank with the embedding hits and
 propagates relevance across the graph (HippoRAG-style) to surface structurally
 related nodes — a function's callers, a package's dependents — that a pure semantic
 match would miss. The vector store uses an exact pure-Python cosine scan by default;
-install the optional ANN backend with `pip install "gitlab-sync[kb-vec]"` (sqlite-vec)
+install the optional ANN backend with `pip install "contextlake[kb-vec]"` (sqlite-vec)
 for larger workspaces.
 
 **Curated wiki** (optional, local-first) turns the graph into prose. Enable
 `[llm]` in the config (generation runs on a local Ollama model by default — prompts
-never leave the machine) and run `gitlab-sync wiki`: for each repo it synthesizes a
+never leave the machine) and run `contextlake wiki`: for each repo it synthesizes a
 Markdown page grounded strictly in graph facts (top symbols, dependencies, files)
 with a provenance footer citing the commit and sources, then puts the draft through
 a **verification council** — reviewers score it for accuracy, completeness, and
@@ -119,7 +119,7 @@ servers that need no key work with it unset. See `examples/kb.toml.example`.
 
 ### Use it from your editor or agent (MCP)
 
-`gitlab-sync serve` is an MCP server, so any MCP client can query the graph — and
+`contextlake serve` is an MCP server, so any MCP client can query the graph — and
 **most of it needs no model**: the graph tools (`search_code`, `find_definition`,
 `find_callers`, `find_dependents`, `shortest_path`, `graph_stats`) work on their
 own; only `semantic_search`/`hybrid_search` need embeddings.
@@ -128,7 +128,7 @@ own; only `semantic_search`/`hybrid_search` need embeddings.
 workspace root:
 
 ```bash
-gitlab-sync steer --config ~/.gitlab-sync/kb.toml
+contextlake steer --config ~/.contextlake/kb.toml
 ```
 
 This writes workspace-specific **`AGENTS.md`** (overview, the knowledge tools, and
@@ -148,7 +148,7 @@ Custom layers like `.devin/` are left untouched.
 To wire Claude Code by hand instead:
 
 ```bash
-claude mcp add gitlab-kb -- gitlab-sync serve --config ~/.gitlab-sync/kb.toml
+claude mcp add gitlab-kb -- contextlake serve --config ~/.contextlake/kb.toml
 ```
 
 **Windsurf / Devin** — add the same server in its MCP config (Cascade's *MCP
@@ -158,8 +158,8 @@ Servers* panel, or `~/.codeium/windsurf/mcp_config.json`):
 {
   "mcpServers": {
     "gitlab-kb": {
-      "command": "gitlab-sync",
-      "args": ["serve", "--config", "~/.gitlab-sync/kb.toml"]
+      "command": "contextlake",
+      "args": ["serve", "--config", "~/.contextlake/kb.toml"]
     }
   }
 }

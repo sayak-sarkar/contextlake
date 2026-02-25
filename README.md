@@ -1,8 +1,8 @@
-# gitlab-sync
+# contextlake
 
 > **Mirror every GitLab repo you can touch — cloned, current, and on the branch that's actually alive.**
 
-[![CI](https://github.com/sayak-sarkar/gitlab-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/sayak-sarkar/gitlab-sync/actions/workflows/ci.yml)
+[![CI](https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml/badge.svg)](https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
@@ -11,7 +11,7 @@ GitLab group and its subgroups. You want them all on your laptop, in the same
 shape they have on GitLab, each sitting on the branch where the real work is
 happening, and you want a single command to keep it that way.
 
-That's the whole job. `gitlab-sync` enumerates everything you can reach, clones
+That's the whole job. `contextlake` enumerates everything you can reach, clones
 what's missing into a faithful mirror of the namespace tree, pulls what's stale,
 and parks each repo on its most active branch — concurrently, with retries, and
 **without ever stomping on the feature branch you're in the middle of.**
@@ -21,8 +21,8 @@ existing [`glab`](https://gitlab.com/gitlab-org/cli) login and `git` setup.
 
 ```bash
 pip install .
-gitlab-sync status      # see where you stand
-gitlab-sync sync        # fetch → clone → update → branches → verify
+contextlake status      # see where you stand
+contextlake sync        # fetch → clone → update → branches → verify
 ```
 
 > **New here?** [**QUICKSTART.md**](QUICKSTART.md) takes you from install to a
@@ -63,31 +63,31 @@ gitlab-sync sync        # fetch → clone → update → branches → verify
 authenticated [`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`).
 
 ```bash
-pipx install "git+https://github.com/sayak-sarkar/gitlab-sync"   # isolated CLI
+pipx install "git+https://github.com/sayak-sarkar/contextlake"   # isolated CLI
 # or:  pip install .          (add the [kb] extra for the knowledge layer)
 ```
 
-Once installed, `gitlab-sync`, `python -m gitlab_sync`, and `python3 gitlab_sync.py`
+Once installed, `contextlake`, `python -m contextlake`, and `python3 contextlake.py`
 are equivalent.
 
 **Configure** — copy the example and set your group + workspace:
 
 ```bash
-cp .gitlab_sync.ini.example ~/.gitlab_sync.ini
+cp .contextlake.ini.example ~/.contextlake.ini
 ```
 ```ini
-[gitlab_sync]
+[contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
 ```
 
 The tool carries no credentials of its own — auth rides on `glab` — so
-`.gitlab_sync.ini` holds only non-secret settings and is gitignored by default. The
+`.contextlake.ini` holds only non-secret settings and is gitignored by default. The
 full option reference is in [docs/usage.md](docs/usage.md).
 
 ## Usage
 
-Run commands as `gitlab-sync <command>` — full per-command docs are in
+Run commands as `contextlake <command>` — full per-command docs are in
 **[docs/usage.md](docs/usage.md)**.
 
 ### Commands at a glance
@@ -134,13 +134,13 @@ A read-only `status` followed by a `--dry-run sync` is the safest way to preview
 what a sync would do:
 
 ```bash
-gitlab-sync status
-gitlab-sync --dry-run sync
+contextlake status
+contextlake --dry-run sync
 ```
 
 ## Knowledge layer (optional)
 
-Beyond mirroring, an optional layer (`gitlab_sync.kb`) turns your repos into a
+Beyond mirroring, an optional layer (`contextlake.kb`) turns your repos into a
 **knowledge graph** and serves it to AI tools over **MCP** — so Claude Code, Windsurf,
 or Kiro can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 It can also link repos to their Atlassian / Figma / GitLab items, add semantic search,
@@ -150,7 +150,7 @@ it needs no model; the rest works with a local Ollama or any OpenAI-compatible e
 One command sets it all up:
 
 ```bash
-gitlab-sync bootstrap --kb-config ~/.gitlab-sync/kb.toml
+contextlake bootstrap --kb-config ~/.contextlake/kb.toml
 ```
 
 → Full guide: **[docs/knowledge-layer.md](docs/knowledge-layer.md)**.

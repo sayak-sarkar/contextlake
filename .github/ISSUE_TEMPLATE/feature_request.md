@@ -1,12 +1,12 @@
 ---
 name: Feature request
-about: Suggest an idea for gitlab-sync
+about: Suggest an idea for contextlake
 title: "feat: "
 labels: enhancement
 ---
 
 **The problem**
-What are you trying to do that gitlab-sync doesn't let you do today?
+What are you trying to do that contextlake doesn't let you do today?
 
 **Proposed solution**
 What you'd like to see. Remember the tool's mission: mirror the GitLab repos you
