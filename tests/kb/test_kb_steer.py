@@ -9,6 +9,8 @@ from contextlake.kb.state import check_schema
 from contextlake.kb.steer.generate import (
     BEGIN,
     END,
+    LEGACY_BEGIN,
+    LEGACY_END,
     MARKER,
     mcp_server_entry,
     render_agents_md,
@@ -140,6 +142,26 @@ def test_cmd_steer_enhances_existing_files_without_clobbering(tmp_path, monkeypa
     text2 = (out / "AGENTS.md").read_text()
     assert text2.count(BEGIN) == 1 and text2.count(END) == 1
     assert "keep this note" in text2
+
+
+def test_cmd_steer_refreshes_legacy_gitlab_sync_block(tmp_path, monkeypatch):
+    # Back-compat: a file carrying the former gitlab-sync managed block must be
+    # refreshed in place (replaced with the current block), not left orphaned
+    # with a second contextlake block appended below it.
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    out.mkdir()
+    (out / "AGENTS.md").write_text(
+        f"# my agents file\n\nkeep this note\n\n{LEGACY_BEGIN}\nold generated body\n{LEGACY_END}\n"
+    )
+
+    cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
+    text = (out / "AGENTS.md").read_text()
+    assert "keep this note" in text                       # user content preserved
+    assert LEGACY_BEGIN not in text and LEGACY_END not in text  # old block replaced
+    assert text.count(BEGIN) == 1 and text.count(END) == 1      # exactly one current block
+    assert "old generated body" not in text               # stale body gone
 
 
 def test_cmd_steer_keeps_foreign_kiro_and_skill_files(tmp_path, monkeypatch):

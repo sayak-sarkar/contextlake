@@ -1,6 +1,6 @@
 # contextlake
 
-> **Mirror every GitLab repo you can touch — cloned, current, and on the branch that's actually alive.**
+> **A local context layer for your AI tools — your repositories mirrored, indexed into a knowledge graph, and served over MCP, so agents work from real source instead of guessing.**
 
 [![CI](https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml/badge.svg)](https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
@@ -11,10 +11,14 @@ GitLab group and its subgroups. You want them all on your laptop, in the same
 shape they have on GitLab, each sitting on the branch where the real work is
 happening, and you want a single command to keep it that way.
 
-That's the whole job. `contextlake` enumerates everything you can reach, clones
+That's the foundation. `contextlake` enumerates everything you can reach, clones
 what's missing into a faithful mirror of the namespace tree, pulls what's stale,
 and parks each repo on its most active branch — concurrently, with retries, and
 **without ever stomping on the feature branch you're in the middle of.**
+
+On top of that mirror, an optional [knowledge layer](#knowledge-layer-optional)
+indexes everything into a graph and serves it to your AI tools over MCP — so they
+answer from real source. (Today the source is GitLab; the design is source-agnostic.)
 
 It carries no credentials of its own: authentication rides entirely on your
 existing [`glab`](https://gitlab.com/gitlab-org/cli) login and `git` setup.
