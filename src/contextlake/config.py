@@ -93,8 +93,21 @@ def load_config(config_path=None):
             config[key] = expand_path(config[key])
 
     if config.get('gitlab_group') == DEFAULT_CONFIG['gitlab_group']:
-        log("WARNING: gitlab_group is still the placeholder 'your-gitlab-group'. "
-            "Copy .contextlake.ini.example to .contextlake.ini and set your group.")
+        # No usable config was found. The local files are resolved against the
+        # CURRENT directory, which trips people up when the config lives next to
+        # the example in the repo but the command is run from elsewhere — so show
+        # the exact paths searched (absolute) and whether each exists.
+        log("WARNING: gitlab_group is still the placeholder 'your-gitlab-group' — "
+            "no config with your group was found. Searched (low to high precedence):")
+        for path in (LEGACY_CONFIG_FILE, CONFIG_FILE, LEGACY_LOCAL_CONFIG_FILE,
+                     LOCAL_CONFIG_FILE, config_path):
+            if not path:
+                continue
+            mark = "found" if os.path.exists(path) else "absent"
+            log(f"    [{mark}] {os.path.abspath(path)}")
+        log("  Local files (.contextlake.ini) are read from the CURRENT directory. "
+            "Copy .contextlake.ini.example to one of the paths above (or pass "
+            "--config PATH) and set gitlab_group.")
 
     return config
 
