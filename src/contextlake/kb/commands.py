@@ -397,6 +397,9 @@ def cmd_steer(args) -> int:
     from .steer.generate import (
         BEGIN,
         END,
+        LEGACY_BEGIN,
+        LEGACY_END,
+        LEGACY_MARKER,
         MARKER,
         mcp_server_entry,
         render_agents_md,
@@ -419,13 +422,17 @@ def cmd_steer(args) -> int:
             path.write_text(block + "\n", encoding="utf-8")
             return
         existing = path.read_text(encoding="utf-8", errors="ignore")
-        if BEGIN in existing and END in existing:
-            b, e = existing.index(BEGIN), existing.index(END) + len(END)
-            path.write_text(existing[:b] + block + existing[e:], encoding="utf-8")
-        else:
-            glue = "\n\n" if not existing.endswith("\n") else (
-                "" if existing.endswith("\n\n") else "\n")
-            path.write_text(existing + glue + block + "\n", encoding="utf-8")
+        # Refresh an existing managed block in place — current markers first, then
+        # the legacy gitlab-sync ones, so a pre-rename block is replaced (not duplicated).
+        for begin, end in ((BEGIN, END), (LEGACY_BEGIN, LEGACY_END)):
+            if begin in existing and end in existing:
+                b, e = existing.index(begin), existing.index(end) + len(end)
+                path.write_text(existing[:b] + block + existing[e:], encoding="utf-8")
+                return
+        # No managed block yet — append ours, keeping all the user's own content.
+        glue = "\n\n" if not existing.endswith("\n") else (
+            "" if existing.endswith("\n\n") else "\n")
+        path.write_text(existing + glue + block + "\n", encoding="utf-8")
 
     store, store_dir = _open_store(args)
     try:
@@ -452,9 +459,11 @@ def cmd_steer(args) -> int:
         skipped = 0
         for rel, content in skills.items():
             p = out / rel
-            if p.exists() and MARKER not in p.read_text(errors="ignore") and not force:
-                skipped += 1
-                continue
+            if p.exists() and not force:
+                _content = p.read_text(errors="ignore")
+                if MARKER not in _content and LEGACY_MARKER not in _content:
+                    skipped += 1
+                    continue
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
         log(f"  {style.ok(f'steering enhanced + {len(skills) // 2} skills')} "
