@@ -37,18 +37,35 @@ def test_has_uncommitted_changes(fake_safety_subprocess):
     assert not safety.has_uncommitted_changes("/repo")
 
 
-def test_check_repository_safety_flags_working_branch(fake_safety_subprocess, tmp_path):
-    def handler(cmd, **k):
-        if "rev-parse" in cmd:
-            return FakeCompleted(stdout="feature/x")
-        return FakeCompleted(stdout="")  # clean
+def test_clean_feature_branch_is_safe(fake_safety_subprocess, tmp_path):
+    """Branch name alone must NOT trigger a skip: a clean working tree is safe
+    even on a feature branch."""
+    fake_safety_subprocess.handler = lambda cmd, **k: FakeCompleted(stdout="")  # clean tree
+    cfg = {"protect_working_branches": "true", "require_clean_workspace": "true",
+           "safe_branches": "main,master"}
+    safe, warnings = safety.check_repository_safety("a", str(tmp_path), cfg)
+    assert safe
+    assert warnings == []
 
-    fake_safety_subprocess.handler = handler
+
+def test_dirty_tree_is_unsafe(fake_safety_subprocess, tmp_path):
+    """Only a dirty working tree (uncommitted/unstaged/untracked) makes a repo
+    unsafe -- regardless of which branch it is on."""
+    fake_safety_subprocess.handler = lambda cmd, **k: FakeCompleted(stdout=" M file.py\n")
     cfg = {"protect_working_branches": "true", "require_clean_workspace": "true",
            "safe_branches": "main,master"}
     safe, warnings = safety.check_repository_safety("a", str(tmp_path), cfg)
     assert not safe
-    assert any("working branch" in w for w in warnings)
+    assert any("Uncommitted changes" in w for w in warnings)
+
+
+def test_require_clean_workspace_off_allows_dirty(fake_safety_subprocess, tmp_path):
+    """With require_clean_workspace disabled, even a dirty tree is allowed."""
+    fake_safety_subprocess.handler = lambda cmd, **k: FakeCompleted(stdout=" M file.py\n")
+    cfg = {"require_clean_workspace": "false"}
+    safe, warnings = safety.check_repository_safety("a", str(tmp_path), cfg)
+    assert safe
+    assert warnings == []
 
 
 def test_stash_disabled_returns_false(fake_safety_subprocess):
