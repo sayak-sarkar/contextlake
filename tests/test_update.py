@@ -88,7 +88,26 @@ def test_dry_run_skips_pull(tmp_path, base_config, fake_subprocess, monkeypatch)
 
 
 def test_unsafe_repo_skipped(tmp_path, base_config, fake_subprocess, monkeypatch):
-    _safe(monkeypatch, safe=False, warnings=["On working branch: feature/x"])
+    # A dirty working tree is the only thing that makes a repo unsafe to update.
+    _safe(monkeypatch, safe=False, warnings=["Uncommitted changes detected"])
     status, _, msg = update_repository("a", str(tmp_path), base_config)
     assert status == "skip"
     assert "unsafe" in msg
+
+
+def test_clean_feature_branch_is_updated(tmp_path, base_config, fake_subprocess, monkeypatch):
+    """A clean repo on a feature branch is updated, not skipped by branch name."""
+    _safe(monkeypatch)  # check_repository_safety reports safe for a clean tree
+    heads = iter(["before", "after"])
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="feature/x")
+        if cmd == ["git", "rev-parse", "HEAD"]:
+            return FakeCompleted(stdout=next(heads))
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status in ("updated", "ok")
+    assert "feature/x" in msg

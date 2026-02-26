@@ -39,24 +39,26 @@ def is_safe_branch(branch, config):
 
 
 def check_repository_safety(local_path, work_dir, config):
-    """
-    Check repository safety before operations.
-    Returns (safe, warning_message) tuple.
+    """Check whether automated git operations may safely touch this repo.
+
+    The only genuinely unsafe condition for a fetch/pull is a *dirty working
+    tree* (uncommitted, unstaged, or untracked changes) -- those could be lost
+    or block a merge. Simply being on a feature ("working") branch is NOT
+    unsafe: pulling the branch you are already on is fine. Protecting a working
+    branch from being *switched away* is a separate concern, enforced only in
+    the branch-switch path (see ``switch_repository_branch`` via
+    ``protect_working_branches`` + ``is_safe_branch``) -- that is the operation
+    that would actually disrupt a checked-out working branch.
+
+    Returns an ``(is_safe, warnings)`` tuple.
     """
     full_path = os.path.join(work_dir, local_path)
-    protect_working_branches = config.get('protect_working_branches', 'true').lower() == 'true'
     require_clean_workspace = config.get('require_clean_workspace', 'true').lower() == 'true'
 
     warnings = []
 
-    if protect_working_branches:
-        current_branch = get_current_branch(full_path)
-        if current_branch and not is_safe_branch(current_branch, config):
-            warnings.append(f"On working branch: {current_branch}")
-
-    if require_clean_workspace:
-        if has_uncommitted_changes(full_path):
-            warnings.append("Uncommitted changes detected")
+    if require_clean_workspace and has_uncommitted_changes(full_path):
+        warnings.append("Uncommitted changes detected")
 
     return len(warnings) == 0, warnings
 
