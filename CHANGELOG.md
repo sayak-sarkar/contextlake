@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-06-22
+
+### Changed
+
+- **Clearer config-not-found warning.** When `gitlab_group` is still the placeholder, the
+  warning now lists the exact files searched (absolute paths, with `[found]`/`[absent]`) and
+  notes that local `.contextlake.ini` is read from the **current directory** — so a config
+  placed next to the example in the repo but run from elsewhere is no longer a silent miss.
+
+
 ## [2.0.0] - 2026-06-22
 
 ### Changed
