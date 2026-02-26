@@ -101,7 +101,7 @@ Run commands as `contextlake <command>` — full per-command docs are in
 | `status` | Show the workspace sync state vs GitLab (read-only) |
 | `fetch` | Cache the GitLab project list |
 | `clone` | Clone repos that exist on GitLab but not locally |
-| `update` | Pull updates for local repos (skips in-progress working branches) |
+| `update` | Pull updates for local repos (skips only repos with a dirty working tree) |
 | `branches` | Switch each repo to its most active branch |
 | `verify` | Check the local mirror matches GitLab (drift, orphans, nesting) |
 | `sync` | The full pipeline: fetch → clone → update → branches → verify |

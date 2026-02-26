@@ -216,59 +216,65 @@ contextlake --config /path/to/custom.ini sync
 | `adaptive_workers` | Enable adaptive worker pool | `true` | `false` |
 | `min_workers` | Minimum workers for adaptive pool | `2` | `4` |
 | `error_threshold` | Error rate threshold for adaptive workers | `0.5` | `0.3` |
-| `protect_working_branches` | Prevent operations on working branches | `true` | `false` |
-| `safe_branches` | Comma-separated list of safe branches | `main,master,develop,development` | `main,production` |
-| `require_clean_workspace` | Require clean workspace before operations | `true` | `false` |
+| `protect_working_branches` | Keep `branches` from switching a repo off a non-safe branch | `true` | `false` |
+| `safe_branches` | Branches the `branches` command may switch away from | `main,master,develop,development` | `main,production` |
+| `require_clean_workspace` | Skip repos with a dirty working tree (the main guard) | `true` | `false` |
 | `auto_stash` | Automatically stash changes before operations | `false` | `true` |
 
 ## Branch Safety
 
-The tool includes comprehensive branch safety features to prevent sync operations from impacting your local working branches.
+The tool protects your local work without getting in your way. The guiding rule:
+**a clean repo is always safe to act on — the branch name alone never causes a skip.**
+The only thing that blocks an `update` is a *dirty working tree*.
 
 ### Safety Checks
 
-The tool performs the following safety checks before operations:
-
-1. **Branch Protection**: Detects if the current branch is a "working branch" (not in the safe branches list)
-2. **Clean Workspace Check**: Detects uncommitted changes in the repository
-3. **Automatic Stashing**: Optionally stashes changes if workspace is not clean
+1. **Clean Workspace Check** (the main guard): detects a dirty working tree —
+   uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
+   `update` and `branches` so local work is never clobbered.
+2. **Automatic Stashing**: optionally stashes a dirty tree so `update` can proceed
+   instead of skipping.
+3. **Working-Branch Protection** (applies to `branches` only): keeps the `branches`
+   command from switching a repo off a branch outside `safe_branches`, so you are
+   never moved off a feature branch you are working on. This does **not** affect
+   `update` — a clean feature branch is still pulled.
 
 ### Configuration
 
-Branch safety is controlled by the following configuration options:
-
 | Setting | Description | Default |
 | --- | --- | --- |
-| `protect_working_branches` | Prevent operations on working branches | `true` |
-| `safe_branches` | Comma-separated list of safe branches | `main,master,develop,development` |
-| `require_clean_workspace` | Require clean workspace before operations | `true` |
-| `auto_stash` | Automatically stash changes before operations | `false` |
+| `require_clean_workspace` | Skip repos with a dirty working tree (the main guard) | `true` |
+| `protect_working_branches` | Keep `branches` from switching a repo off a non-safe branch | `true` |
+| `safe_branches` | Branches the `branches` command may switch away from | `main,master,develop,development` |
+| `auto_stash` | Stash a dirty tree before `update` instead of skipping | `false` |
 
 ### Behavior
 
-**When Branch Protection is Enabled:**
+**`update` (fetch + fast-forward the current branch):**
 
-- **Update operations**: Skips repositories on working branches (unless auto-stash is enabled)
-- **Branch switching operations**: Skips repositories on working branches
-- **Warning messages**: Clear messages indicate why operations were skipped
+- A **clean** repo is updated on whatever branch it is on — feature branches included.
+- A repo with a **dirty working tree** is skipped (or stashed first, if `auto_stash` is on).
 
-**When Workspace Clean Check is Enabled:**
+**`branches` (switch to the most active branch):**
 
-- **Update operations**: Skips repositories with uncommitted changes
-- **Branch switching operations**: Skips repositories with uncommitted changes
-- **Auto-stash**: If enabled, automatically stashes changes before proceeding
+- A repo with a **dirty working tree** is skipped.
+- With `protect_working_branches = true`, a repo on a branch outside `safe_branches`
+  is left where it is instead of being switched away.
 
 ### Example Scenarios
 
-#### Scenario 1: Working Branch Protection
+#### Scenario 1: Working-Branch Protection (branches command)
 
 ```bash
 # Repository is on feature/my-feature branch (not in safe branches)
-contextlake update
+contextlake branches
 
 # Output:
 # [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped branch switch (on working branch: feature/my-feature)
 ```
+
+> A plain `contextlake update` would instead **pull `feature/my-feature`** here,
+> since the working tree is clean.
 
 #### Scenario 2: Uncommitted Changes
 
