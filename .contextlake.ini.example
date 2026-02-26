@@ -67,7 +67,18 @@ min_workers = 2
 error_threshold = 0.5
 
 # Branch safety settings
+#
+# require_clean_workspace: the main guard. When true, a repo with a dirty
+#   working tree (uncommitted/unstaged/untracked changes) is skipped by update
+#   and branch-switch so local work is never clobbered. A CLEAN repo is acted
+#   on regardless of which branch it is on -- the branch name alone never causes
+#   a skip during update.
+# protect_working_branches: applies ONLY to the `branches` command. When true,
+#   a repo sitting on a branch outside `safe_branches` is left where it is
+#   instead of being switched to its most-active branch (so you are never moved
+#   off a feature branch you are working on). It does NOT affect `update`.
+# auto_stash: when true, update stashes a dirty tree instead of skipping it.
+require_clean_workspace = true
 protect_working_branches = true
 safe_branches = main,master,develop,development
-require_clean_workspace = true
 auto_stash = false

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Branch name alone no longer causes an `update` to be skipped.** A repo with a clean
+  working tree is now fetched and fast-forwarded on whatever branch it is checked out on —
+  feature branches included. The only thing that blocks an `update` is a *dirty working tree*
+  (uncommitted/unstaged/untracked changes), which is still skipped (or stashed with
+  `--auto-stash`). `protect_working_branches` now applies **only** to the `branches` command,
+  where it keeps a repo from being switched off a non-safe branch. Previously a clean repo on
+  any branch outside `safe_branches` was skipped outright.
+
 ## [2.0.1] - 2026-06-22
 
 ### Changed
