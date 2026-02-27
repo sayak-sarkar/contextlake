@@ -31,6 +31,9 @@ Changelog = "https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4"]
+# Tools for cutting a release (build the dist, validate + upload to PyPI).
+# See docs/releasing.md.
+release = ["build>=1.0", "twine>=5.0"]
 # Optional knowledge-layer subsystem (contextlake.kb). Note: `mcp` requires
 # Python >= 3.10, so this extra's floor is 3.10 while the core tool stays 3.9+.
 kb = [

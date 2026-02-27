@@ -91,6 +91,13 @@ and also reformats four files" is two commits wearing a trenchcoat.
 3. Update `CHANGELOG.md` under `[Unreleased]` if the change is user-visible.
 4. Open a PR describing **what** changed and **why**. Link any issue.
 
+## Releasing
+
+Maintainers: see [docs/releasing.md](docs/releasing.md) for the full runbook —
+version bump, changelog, tag, build, and publishing to PyPI (including the
+first-token and corporate-proxy gotchas). Install the tooling with
+`pip install -e ".[release]"`.
+
 ## Reporting bugs
 
 Open an issue with: what you ran, what you expected, what happened, and the

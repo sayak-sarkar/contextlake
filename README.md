@@ -165,6 +165,7 @@ contextlake bootstrap --kb-config ~/.contextlake/kb.toml
 - **[docs/usage.md](docs/usage.md)** — every command, configuration, branch safety, scheduling
 - **[docs/knowledge-layer.md](docs/knowledge-layer.md)** — the graph, connectors, search, wiki, steering
 - **[docs/internals.md](docs/internals.md)** — architecture & internals
+- **[docs/releasing.md](docs/releasing.md)** — maintainer runbook: versioning, tagging, publishing to PyPI
 - **[BRANDING.md](BRANDING.md)** — brand guide (name, palette, logo, mascot)
 - **[CHANGELOG.md](CHANGELOG.md)** · **[ROADMAP.md](ROADMAP.md)** · **[CONTRIBUTING.md](CONTRIBUTING.md)**
 

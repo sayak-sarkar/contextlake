@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Maintainer release runbook** at `docs/releasing.md` (versioning → tag → build → publish to
+  PyPI, with first-token and TLS-proxy troubleshooting) and a `release` extra
+  (`pip install -e ".[release]"`) bundling `build` + `twine`.
+
 ## [2.1.0] - 2026-06-22
 
 ### Added
