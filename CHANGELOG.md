@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Cleaner terminal output: the timestamp moves to the right edge.** On an interactive
+  terminal each line now shows the message on the left with a dim `HH:MM:SS` clock flushed
+  to the right edge, re-flowed to the live terminal width and dropped automatically when a
+  line is too long to fit (never wraps or misaligns). Alignment is ANSI- and wide-character
+  aware, so it lines up uniformly across terminals. Piped/redirected output and the rotating
+  **log file keep the full `[YYYY-MM-DD HH:MM:SS]` prefix** unchanged, so the audit trail is
+  untouched.
+
 ### Changed
 
 - **Branch name alone no longer causes an `update` to be skipped.** A repo with a clean

@@ -9,9 +9,46 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 
+from . import style
+
 LOGGER_NAME = "contextlake"
 _FORMAT = "[%(asctime)s] %(message)s"
 _DATEFMT = "%Y-%m-%d %H:%M:%S"
+_CLOCKFMT = "%H:%M:%S"  # terminal-only short clock, shown dim on the right edge
+
+
+class _ConsoleFormatter(logging.Formatter):
+    """Render log lines for an interactive terminal.
+
+    On a TTY the message sits on the left and a dim ``HH:MM:SS`` clock is flushed
+    to the right edge, re-flowed to the live terminal width and dropped when the
+    line is too long to fit (never wraps). When the stream is *not* a TTY (pipe,
+    redirect, cron) or the message spans multiple lines, it falls back to the
+    classic ``[full-timestamp] message`` form so redirected/audit output keeps
+    its timestamps. The log *file* always keeps the full prefix via ``_FORMAT``.
+    """
+
+    def __init__(self, handler):
+        super().__init__(_FORMAT, datefmt=_DATEFMT)
+        self._handler = handler
+
+    def _is_tty(self):
+        stream = getattr(self._handler, "stream", None)
+        try:
+            return stream, bool(stream and stream.isatty())
+        except Exception:  # noqa: BLE001 - stream without isatty -> not a tty
+            return stream, False
+
+    def format(self, record):
+        message = record.getMessage()
+        stream, is_tty = self._is_tty()
+        if not is_tty:
+            return f"[{self.formatTime(record, _DATEFMT)}] {message}"
+        if "\n" in message:
+            # multi-line block: show it as-is, no per-line timestamp clutter
+            return message
+        clock = style.dim(self.formatTime(record, _CLOCKFMT), stream=stream)
+        return style.align_right(message, clock, style.terminal_width(stream))
 
 
 def get_logger():
@@ -42,11 +79,13 @@ def setup_logging(verbose=False, quiet=False, log_file=None):
     else:
         console_level = logging.INFO
 
-    formatter = logging.Formatter(_FORMAT, datefmt=_DATEFMT)
+    # The console renders the clock on the right edge (TTY) or the classic prefix
+    # (pipes/redirects); the file always keeps the full audit prefix.
+    file_formatter = logging.Formatter(_FORMAT, datefmt=_DATEFMT)
 
     console = logging.StreamHandler(sys.stdout)
     console.setLevel(console_level)
-    console.setFormatter(formatter)
+    console.setFormatter(_ConsoleFormatter(console))
     logger.addHandler(console)
 
     file_level = logging.DEBUG
@@ -55,7 +94,7 @@ def setup_logging(verbose=False, quiet=False, log_file=None):
             log_file, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
         )
         file_handler.setLevel(file_level)
-        file_handler.setFormatter(formatter)
+        file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
     # Logger threshold must be the most permissive of its handlers.

@@ -7,13 +7,71 @@ not a TTY, so piped, redirected, and cron output stays clean. No third-party dep
 from __future__ import annotations
 
 import os
+import re
 import sys
+import unicodedata
 
 _CODES = {
     "reset": "0", "bold": "1", "dim": "2",
     "red": "31", "green": "32", "yellow": "33",
     "blue": "34", "magenta": "35", "cyan": "36", "gray": "90",
 }
+
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI SGR (colour) escape sequences from ``text``."""
+    return _ANSI_RE.sub("", text)
+
+
+def visible_width(text: str) -> int:
+    """Number of terminal columns ``text`` occupies once printed.
+
+    ANSI colour codes are ignored, zero-width/combining marks count as 0, and
+    East-Asian wide/fullwidth characters count as 2 -- so right-alignment lines
+    up identically regardless of colour or the characters in a repo path.
+    """
+    width = 0
+    for ch in strip_ansi(text):
+        if unicodedata.combining(ch):
+            continue
+        width += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+    return width
+
+
+def terminal_width(stream=None, default: int = 80) -> int:
+    """Best-effort current terminal width (columns).
+
+    Honours an explicit ``COLUMNS`` (useful in CI / for pinning), then the
+    stream's own size, then a sane default -- never raises.
+    """
+    env = os.environ.get("COLUMNS")
+    if env and env.strip().isdigit():
+        return int(env)
+    stream = stream if stream is not None else sys.stdout
+    try:
+        return os.get_terminal_size(stream.fileno()).columns
+    except Exception:  # noqa: BLE001 - not a real terminal; fall back
+        try:
+            import shutil
+
+            return shutil.get_terminal_size((default, 24)).columns
+        except Exception:  # noqa: BLE001
+            return default
+
+
+def align_right(left: str, right: str, width: int, min_gap: int = 2) -> str:
+    """Lay ``left`` out with ``right`` flush against column ``width``.
+
+    Returns ``left`` unchanged when there is not at least ``min_gap`` spaces of
+    room for ``right`` -- so a long line degrades to just the message instead of
+    wrapping or misaligning. Width is measured visibly (ANSI/wide-char aware).
+    """
+    pad = width - visible_width(left) - visible_width(right)
+    if pad < min_gap:
+        return left
+    return f"{left}{' ' * pad}{right}"
 
 
 def supports_color(stream=None) -> bool:
