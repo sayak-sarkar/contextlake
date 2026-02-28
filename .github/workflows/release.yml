@@ -71,3 +71,33 @@ jobs:
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: github release
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create / update the GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create GitHub Release from the CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Pull this version's section out of CHANGELOG.md for the release notes.
+          awk -v v="$version" 'index($0,"## ["v"]")==1{f=1;next} f&&/^## \[/{exit} f{print}' \
+            CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Release $GITHUB_REF_NAME" > notes.md
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --title "contextlake $version" --notes-file notes.md
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "contextlake $version" --notes-file notes.md --verify-tag
+          fi
