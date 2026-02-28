@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-06-22
+
+### Added
+
+- The release workflow now also **publishes a GitHub Release** on each `vX.Y.Z` tag, with notes
+  pulled from this changelog and the built sdist + wheel attached.
+
+### Changed
+
+- Adopt the SPDX **`license = "MIT"`** form (PEP 639) and drop the deprecated `License ::`
+  classifier — silences the setuptools deprecation warnings emitted during the build. Building
+  from source now needs `setuptools >= 77`.
+
 ## [2.1.1] - 2026-06-22
 
 ### Added
