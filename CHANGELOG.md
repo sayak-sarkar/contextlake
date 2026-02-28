@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-06-22
+
 ### Changed
 
 - **Sync is far more resilient to flaky networks and moved branches.** `update` and `branches`
