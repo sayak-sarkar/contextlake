@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Maintainer release runbook** at `docs/releasing.md` (versioning → tag → build → publish to
   PyPI, with first-token and TLS-proxy troubleshooting) and a `release` extra
   (`pip install -e ".[release]"`) bundling `build` + `twine`.
+- **Automated PyPI publishing** via `.github/workflows/release.yml`: pushing a `vX.Y.Z` tag
+  verifies the tag matches the package version, runs lint + core tests, builds, and publishes
+  using PyPI Trusted Publishing (OIDC) — no stored API token.
 
 ## [2.1.0] - 2026-06-22
 
