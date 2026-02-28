@@ -13,17 +13,17 @@ def _branch_main(cmd):
     return "rev-parse" in cmd and "--abbrev-ref" in cmd
 
 
-def test_failed_pull_reports_error_not_uptodate(
+def test_failed_merge_reports_error_not_uptodate(
     tmp_path, base_config, fake_subprocess, monkeypatch
 ):
-    """Bug #5: a non-zero `git pull` must be an error, never 'Already up to date'."""
+    """Bug #5: a non-zero fast-forward must be an error, never 'Already up to date'."""
     _safe(monkeypatch)
 
     def handler(cmd, **kwargs):
         if _branch_main(cmd):
             return FakeCompleted(stdout="main")
-        if cmd[:2] == ["git", "pull"]:
-            return FakeCompleted(returncode=1, stderr="merge conflict")
+        if cmd[:3] == ["git", "merge", "--ff-only"]:
+            return FakeCompleted(returncode=1, stderr="fatal: refusing to merge unrelated histories")  # noqa: E501
         if cmd[:2] == ["git", "rev-parse"]:
             return FakeCompleted(stdout="aaa")
         return FakeCompleted()
@@ -31,7 +31,71 @@ def test_failed_pull_reports_error_not_uptodate(
     fake_subprocess.handler = handler
     status, _, msg = update_repository("a", str(tmp_path), base_config)
     assert status == "error"
-    assert "conflict" in msg
+    assert "unrelated histories" in msg
+
+
+def test_diverged_branch_is_skipped(tmp_path, base_config, fake_subprocess, monkeypatch):
+    """A branch that diverged from origin is skipped cleanly (no merge/rebase)."""
+    _safe(monkeypatch)
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="dev")
+        if cmd[:3] == ["git", "merge", "--ff-only"]:
+            return FakeCompleted(returncode=1, stderr="fatal: Not possible to fast-forward, aborting.")  # noqa: E501
+        if cmd[:2] == ["git", "rev-parse"]:
+            return FakeCompleted(stdout="aaa")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "skip"
+    assert "Diverged" in msg
+
+
+def test_deleted_upstream_branch_is_skipped(
+    tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
+):
+    """A deleted upstream branch is reported as a clean skip, not a fatal error."""
+    _safe(monkeypatch)
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="feature/gone")
+        if cmd[:2] == ["git", "fetch"]:
+            return FakeCompleted(returncode=1, stderr="fatal: couldn't find remote ref feature/gone")  # noqa: E501
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "skip"
+    assert "deleted" in msg.lower()
+
+
+def test_transient_fetch_error_is_retried(
+    tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
+):
+    """A transient 'unexpected eof' fetch drop is retried, then the update succeeds."""
+    _safe(monkeypatch)
+    heads = iter(["before", "after"])
+    fetches = {"n": 0}
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="main")
+        if cmd[:2] == ["git", "fetch"]:
+            fetches["n"] += 1
+            if fetches["n"] == 1:  # first attempt drops, second succeeds
+                return FakeCompleted(returncode=1, stderr="TLS ... unexpected eof while reading")
+            return FakeCompleted()
+        if cmd == ["git", "rev-parse", "HEAD"]:
+            return FakeCompleted(stdout=next(heads))
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, _ = update_repository("a", str(tmp_path), base_config)
+    assert status == "ok"
+    assert fetches["n"] == 2  # retried exactly once
 
 
 def test_nochange_when_head_unmoved(tmp_path, base_config, fake_subprocess, monkeypatch):

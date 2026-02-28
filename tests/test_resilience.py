@@ -41,10 +41,39 @@ def test_pool_never_below_min():
         ("could not resolve host: lookup failed", "dns"),
         ("SSL handshake failed", "tls"),
         ("something else", "other"),
+        ("fatal: couldn't find remote ref feature/x", "missing-ref"),
+        ("fatal: Not possible to fast-forward, aborting.", "diverged"),
+        ("hint: You have divergent branches", "diverged"),
+        # a dropped TLS connection ("eof") is transient/network, not a tls failure
+        ("TLS connect error: error:0A000126:SSL routines::unexpected eof while reading", "network"),
     ],
 )
 def test_classify_error(msg, expected):
     assert classify_error(msg) == expected
+
+
+def test_retry_fails_fast_on_missing_ref(no_sleep):
+    calls = {"n": 0}
+
+    def gone():
+        calls["n"] += 1
+        raise RuntimeError("fatal: couldn't find remote ref feature/x")
+
+    with pytest.raises(RuntimeError):
+        retry_with_backoff(gone, max_retries=5)
+    assert calls["n"] == 1  # deleted upstream -> not retried
+
+
+def test_retry_fails_fast_on_diverged(no_sleep):
+    calls = {"n": 0}
+
+    def diverged():
+        calls["n"] += 1
+        raise RuntimeError("fatal: Not possible to fast-forward, aborting.")
+
+    with pytest.raises(RuntimeError):
+        retry_with_backoff(diverged, max_retries=5)
+    assert calls["n"] == 1  # diverged -> not retried
 
 
 def test_retry_succeeds_after_transient_failures(no_sleep):

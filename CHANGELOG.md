@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Sync is far more resilient to flaky networks and moved branches.** `update` and `branches`
+  now **retry transient proxy/network drops** (e.g. `unexpected eof`, `connection reset`) with
+  backoff instead of failing on the first hiccup. Pulls are **fast-forward only**: a branch that
+  has *diverged* from origin is reported as a clean `Diverged … — skipped (manual reconcile)`
+  (the tool never merges or rebases, and git's multi-line "divergent branches" hint no longer
+  leaks into the output), and a **deleted upstream branch** is reported as `Upstream branch
+  deleted` instead of a fatal error. Net effect: transient blips self-heal, and the remaining
+  "errors" are real and few.
+
 ## [2.1.2] - 2026-06-22
 
 ### Added
