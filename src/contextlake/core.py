@@ -56,25 +56,38 @@ def to_local_path(path_with_namespace, gitlab_group):
 
 
 def classify_error(error_msg):
-    """Classify error type for retry strategy."""
+    """Classify a git/network error to drive the retry strategy.
+
+    Transient categories (network/timeout) are retried. The rest fail fast:
+    dns/tls won't recover on retry, and the two expected "the remote moved"
+    states are not errors to retry but states to report -- ``missing-ref`` (the
+    upstream branch was deleted) and ``diverged`` (local and remote both moved).
+    """
     error_msg = error_msg.lower()
+    # 'eof' is checked first so a "TLS ... unexpected eof" (a dropped connection,
+    # not a cert failure) is treated as transient/network rather than tls.
     if 'eof' in error_msg or 'connection reset' in error_msg or 'broken pipe' in error_msg:
         return 'network'
-    elif 'timeout' in error_msg or 'timed out' in error_msg:
+    if "couldn't find remote ref" in error_msg or 'unknown revision' in error_msg:
+        return 'missing-ref'
+    if ('not possible to fast-forward' in error_msg or 'divergent branches' in error_msg
+            or 'have divergent' in error_msg):
+        return 'diverged'
+    if 'timeout' in error_msg or 'timed out' in error_msg:
         return 'timeout'
-    elif 'lookup' in error_msg or 'dns' in error_msg:
+    if 'lookup' in error_msg or 'dns' in error_msg:
         return 'dns'
-    elif 'tls' in error_msg or 'ssl' in error_msg or 'handshake' in error_msg:
+    if 'tls' in error_msg or 'ssl' in error_msg or 'handshake' in error_msg:
         return 'tls'
-    else:
-        return 'other'
+    return 'other'
 
 
 def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_max=30, **kwargs):
     """Retry ``func`` with exponential backoff and jitter.
 
-    Network/timeout/transient errors are retried; DNS and TLS errors are treated
-    as non-transient and fail fast. The last error is re-raised on exhaustion.
+    Network/timeout/transient errors are retried; DNS, TLS, deleted-upstream and
+    diverged-branch errors are non-transient and fail fast. The last error is
+    re-raised on exhaustion.
     """
     last_error = None
     for attempt in range(max_retries):
@@ -82,7 +95,7 @@ def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_ma
             return func(*args, **kwargs)
         except Exception as e:
             last_error = e
-            if classify_error(str(e)) in ('dns', 'tls'):
+            if classify_error(str(e)) in ('dns', 'tls', 'missing-ref', 'diverged'):
                 break
             if attempt < max_retries - 1:
                 backoff = min(backoff_initial * (2 ** attempt), backoff_max)
@@ -331,6 +344,35 @@ def _rev_parse(full_path, ref="HEAD"):
     return res.stdout.strip()
 
 
+def _run_git(args, cwd, timeout):
+    """Run a git command, raising ``RuntimeError(stderr)`` on a non-zero exit.
+
+    Raising (rather than returning a code) lets ``retry_with_backoff`` see the
+    git error text via ``classify_error`` and decide whether to retry.
+    """
+    res = subprocess.run(args, capture_output=True, text=True, cwd=cwd, timeout=timeout)
+    if res.returncode != 0:
+        raise RuntimeError((res.stderr or res.stdout or "git command failed").strip())
+    return res
+
+
+def _first_line(text, limit=200):
+    """First non-empty line of ``text``, trimmed -- keeps multi-line git output
+    (e.g. the 'divergent branches' hint) from spilling into a one-line status."""
+    stripped = (text or "").strip()
+    return stripped.splitlines()[0][:limit] if stripped else ""
+
+
+def _fetch_with_retry(git_args, full_path, fetch_timeout, config):
+    """Fetch with exponential-backoff retry on transient proxy/network drops."""
+    retry_with_backoff(
+        _run_git, git_args, full_path, fetch_timeout,
+        max_retries=_int(config, "max_retries", "3"),
+        backoff_initial=_float(config, "backoff_initial", "1"),
+        backoff_max=_float(config, "backoff_max", "30"),
+    )
+
+
 def update_repository(local_path, work_dir, config):
     """Fetch + fast-forward a single repo's current branch (safety-gated)."""
     full_path = os.path.join(work_dir, local_path)
@@ -362,18 +404,32 @@ def update_repository(local_path, work_dir, config):
         if dry_run:
             return ("dry-run", local_path, f"Would update {current}")
 
-        subprocess.run(
-            ["git", "fetch", "--all", "--quiet"],
-            capture_output=True, cwd=full_path, timeout=fetch_timeout,
-        )
+        # Fetch just this branch, retrying transient proxy/network drops (e.g.
+        # "unexpected eof", "connection reset") instead of failing on the first
+        # hiccup. A deleted upstream branch fails fast and is reported cleanly.
+        try:
+            _fetch_with_retry(
+                ["git", "fetch", "--quiet", "origin", current], full_path, fetch_timeout, config
+            )
+        except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
+            if classify_error(str(e)) == "missing-ref":
+                return ("skip", local_path, f"Upstream branch deleted: {current}")
+            return ("error", local_path, _first_line(str(e)))
 
         before = _rev_parse(full_path, "HEAD")
-        res = subprocess.run(
-            ["git", "pull", "--quiet", "origin", current],
+        # Fast-forward only: a mirror never merges or rebases. A branch that has
+        # diverged from origin is reported cleanly rather than dumping git's
+        # multi-line "divergent branches" hint into the output.
+        merge = subprocess.run(
+            ["git", "merge", "--ff-only", "--quiet", "FETCH_HEAD"],
             capture_output=True, text=True, cwd=full_path, timeout=pull_timeout,
         )
-        if res.returncode != 0:
-            return ("error", local_path, (res.stderr or "pull failed").strip()[:200])
+        if merge.returncode != 0:
+            detail = (merge.stderr or merge.stdout or "").strip()
+            if classify_error(detail) == "diverged":
+                return ("skip", local_path,
+                        f"Diverged from origin/{current} — skipped (manual reconcile)")
+            return ("error", local_path, _first_line(detail) or "fast-forward failed")
 
         after = _rev_parse(full_path, "HEAD")
         if before != after:
@@ -473,10 +529,14 @@ def switch_repository_branch(local_path, projects, work_dir, config):
         if not safe:
             return ("skip", local_path, f'Skipped (unsafe: {", ".join(warnings)})')
 
-        subprocess.run(
-            ["git", "fetch", "--all", "--quiet"],
-            capture_output=True, cwd=full_path, timeout=fetch_timeout,
-        )
+        # Retry transient proxy/network drops here too (this fetch feeds the
+        # most-active-branch selection, so a partial fetch would pick wrong).
+        try:
+            _fetch_with_retry(
+                ["git", "fetch", "--all", "--quiet"], full_path, fetch_timeout, config
+            )
+        except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
+            return ("error", local_path, _first_line(str(e)))
 
         curr_res = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -498,12 +558,17 @@ def switch_repository_branch(local_path, projects, work_dir, config):
         if dry_run:
             return ("dry-run", local_path, f"Would switch {current} -> {most_active}")
 
-        subprocess.run(
+        checkout = subprocess.run(
             ["git", "checkout", "--quiet", most_active],
-            capture_output=True, cwd=full_path, timeout=branch_timeout,
+            capture_output=True, text=True, cwd=full_path, timeout=branch_timeout,
         )
+        if checkout.returncode != 0:
+            return ("error", local_path, _first_line(checkout.stderr) or "checkout failed")
+        # Fast-forward the freshly-checked-out branch to origin. No network: we
+        # already fetched --all above, so this is a local ff (best effort -- a
+        # diverged branch is simply left at its current tip).
         subprocess.run(
-            ["git", "pull", "--quiet", "origin", most_active],
+            ["git", "merge", "--ff-only", "--quiet", f"origin/{most_active}"],
             capture_output=True, cwd=full_path, timeout=pull_timeout,
         )
         return ("switched", local_path, f"{current} -> {most_active}")
