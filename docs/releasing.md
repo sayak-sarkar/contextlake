@@ -95,12 +95,29 @@ pip install -e ".[release]"        # build + twine
    pip install --upgrade contextlake && contextlake --version
    ```
 
-## Tokenless publishing (recommended long-term)
+## Tokenless publishing via GitHub Actions (recommended)
 
-PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) lets a
-GitHub Actions workflow publish via short-lived OIDC tokens — no stored secret at
-all. Once configured, pushing a `vX.Y.Z` tag builds and uploads automatically.
-This is the preferred path for repeat releases.
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes to
+PyPI automatically using
+[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) — short-lived
+OIDC tokens minted per run, **no API token stored anywhere**. With this set up, a
+release is just steps 1–4 above (bump, changelog, commit, **push the `vX.Y.Z`
+tag**); the workflow then verifies the tag matches the package version, runs lint
++ core tests, builds, and uploads.
+
+**One-time PyPI configuration** (do this once, on PyPI):
+
+1. Go to <https://pypi.org/manage/project/contextlake/settings/publishing/>.
+2. **Add a new trusted publisher → GitHub** with:
+   - **Owner:** `sayak-sarkar`
+   - **Repository name:** `contextlake`
+   - **Workflow name:** `release.yml`
+   - **Environment name:** `pypi`
+3. Save. (These must match the workflow exactly, including the `pypi` environment.)
+
+After the first successful tag-triggered publish, you can **delete the stored API
+token** and remove `~/.pypirc` — the workflow no longer needs them. (Manual
+`twine upload` remains available as a fallback.)
 
 ## Troubleshooting
 
