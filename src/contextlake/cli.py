@@ -227,8 +227,17 @@ def _bootstrap(args, config, work_dir, gitlab_group):
     try:
         from .kb import commands as kb
     except ImportError as e:
-        log(f"Knowledge layer not installed — skipping index/connect/embed/wiki/steer. "
-            f"Install it with: pip install 'contextlake[kb]'  ({e})")
+        # The knowledge layer's deps (mcp/pydantic/tree-sitter) are missing *for the
+        # interpreter running this command*. The usual cause: bootstrap was launched
+        # via the bare ./contextlake.py (which uses the system Python) while the
+        # `[kb]` extra was installed into a virtualenv. Point at the exact interpreter
+        # so the fix is unambiguous.
+        log(style.warn("Knowledge layer not installed — skipping index/connect/embed/wiki/steer."))
+        log(f"  Running under: {sys.executable}  (missing: {e})")
+        log(f"  Fix (this interpreter): {sys.executable} -m pip install 'contextlake[kb]'")
+        log("  Or, if you installed contextlake[kb] in a virtualenv, run bootstrap via that venv's "
+            "executable (e.g. .venv/bin/contextlake bootstrap) instead of ./contextlake.py, which "
+            "uses the system Python.")
         return
 
     # kb stages run against the workspace and the *kb* config (kb.toml), which is
