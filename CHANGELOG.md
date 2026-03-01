@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.4] - 2026-06-22
+
 ### Changed
 
 - **`bootstrap`'s "knowledge layer not installed" message is now actionable.** It prints the exact
