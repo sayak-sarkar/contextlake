@@ -73,7 +73,10 @@ class EmbeddingsCfg(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     enabled: bool = False
-    provider: str = "ollama"  # ollama | openai (openai-compatible)
+    # auto | ollama | openai | builtin. "auto" resolves to a reachable local
+    # Ollama, else the built-in CPU embedder (needs the `kb-local` extra), else
+    # skips. Extra keys (engine, cache_dir, model_revision) ride along via extra="allow".
+    provider: str = "auto"
     model: str | None = None
     base_url: str = "http://127.0.0.1:11434"
     batch_size: int = 64
@@ -87,7 +90,9 @@ class LlmCfg(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     enabled: bool = False
-    provider: str = "ollama"  # ollama | openai (openai-compatible)
+    # auto | ollama | openai | builtin. "auto" resolves to a reachable local
+    # Ollama, else the built-in CPU LLM (needs the `llm-local` extra), else skips.
+    provider: str = "auto"
     model: str | None = None
     base_url: str = "http://127.0.0.1:11434"
     council_size: int = 3
