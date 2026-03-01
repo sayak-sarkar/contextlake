@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`bootstrap`'s "knowledge layer not installed" message is now actionable.** It prints the exact
+  Python interpreter in use and flags the common cause — running the bare `./contextlake.py`
+  (system Python) while the `[kb]` extra was installed into a virtualenv — with the precise install
+  command for that interpreter and the venv alternative (`./.venv/bin/contextlake bootstrap`).
+
 ## [2.1.3] - 2026-06-22
 
 ### Changed
