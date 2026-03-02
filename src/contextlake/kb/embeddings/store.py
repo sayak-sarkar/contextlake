@@ -185,6 +185,44 @@ class SqliteVecStore:
         self.conn.close()
 
 
+def guard_store_identity(store, identity: str, dim: int) -> None:
+    """Refuse to mix embedders / vector dimensions within one store.
+
+    The brute search silently skips dimension-mismatched rows, so re-embedding an
+    existing store with a different model (or dimension) would quietly degrade
+    results. On an empty/pre-guard store this records the embedder identity and
+    vector dim in ``vec_meta``; on a populated store it raises ``ValueError`` if
+    either changed, telling the user to re-embed from scratch.
+    """
+    conn = store.conn
+
+    def _get(key: str):
+        row = conn.execute("SELECT value FROM vec_meta WHERE key=?", (key,)).fetchone()
+        return row[0] if row else None
+
+    cur_dim, cur_id = _get("dim"), _get("embedder_identity")
+    if cur_dim is not None and int(cur_dim) != dim:
+        raise ValueError(
+            f"this embedding store was built with dimension {cur_dim} but the "
+            f"current embedder produces {dim}. Re-embed from scratch (delete the "
+            f"store's embeddings.sqlite) or keep the original embedder."
+        )
+    if cur_id is not None and cur_id != identity:
+        raise ValueError(
+            f"this embedding store was built with embedder {cur_id!r} but the "
+            f"current embedder is {identity!r}. Re-embed from scratch (delete the "
+            f"store's embeddings.sqlite) or keep the original embedder."
+        )
+    conn.execute(
+        "INSERT OR REPLACE INTO vec_meta(key, value) VALUES('embedder_identity', ?)",
+        (identity,),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO vec_meta(key, value) VALUES('dim', ?)", (str(dim),)
+    )
+    conn.commit()
+
+
 def build_vector_store(path: str | Path, *, backend: str = "auto"):
     """Return a vector store. ``backend``: ``auto`` | ``sqlite-vec`` | ``brute``.
 

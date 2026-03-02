@@ -319,6 +319,18 @@ def cmd_embed(args) -> int:
         vs = build_vector_store(store_dir / "embeddings.sqlite",
                                 backend=cfg.embeddings.vector_backend)
         try:
+            # Guard against re-embedding this store with a different model/dim (the
+            # brute search silently drops mismatched dims). Probe the dim once; a
+            # network failure here is left for the per-repo loop to report.
+            from .embeddings.store import guard_store_identity
+            try:
+                probe = embedder.embed(["contextlake"])
+            except Exception:  # noqa: BLE001 - unreachable embedder; loop reports it
+                probe = None
+            if probe and probe[0]:
+                identity = getattr(embedder, "identity", None) or getattr(
+                    embedder, "name", "embedder")
+                guard_store_identity(vs, identity, len(probe[0]))
             log(f"Embedding {len(targets)} repo(s) with {embedder.name} "
                 f"into the {vs.name} vector store")
             total = 0
