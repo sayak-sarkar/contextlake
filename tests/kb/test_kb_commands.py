@@ -92,3 +92,20 @@ def test_doctor_reports_ok(tmp_path, capsys):
     assert "doctor" in out
     assert "fts5" in out
     assert code == 0  # git + fts5 present in the test environment
+
+
+def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{store_dir}"\n'
+        '[embeddings]\nenabled = true\nprovider = "builtin"\n'
+        '[llm]\nenabled = true\nprovider = "builtin"\n'
+    )
+    _run(["doctor", "--config", str(cfg)])
+    out = capsys.readouterr().out
+    # filesystem-only presence report, no download in the test
+    assert "built-in embedder model" in out
+    assert "potion-base-8M" in out
+    assert "Qwen2.5-0.5B-Instruct-GGUF" in out
+    assert "not downloaded" in out

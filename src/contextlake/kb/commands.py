@@ -648,6 +648,14 @@ def _check(label: str, ok: bool, detail: str = "") -> bool:
     return ok
 
 
+def _builtin_model_present(cache_dir, model_id: str) -> bool:
+    """True if a HuggingFace-cached model dir exists under ``cache_dir/hub``.
+
+    Filesystem-only — never imports the heavy dep or triggers a download."""
+    hub = Path(cache_dir).expanduser() / "hub"
+    return (hub / ("models--" + model_id.replace("/", "--"))).is_dir()
+
+
 def cmd_doctor(args) -> int:
     print("contextlake knowledge layer — doctor")
     ok = True
@@ -695,6 +703,38 @@ def cmd_doctor(args) -> int:
             detail = f"{emb.provider} · {backend} · {count} vector(s)"
             _check("embeddings", True,
                    detail if vec_path.exists() else f"{detail} (run embed to build)")
+            if emb.provider in ("builtin", "auto"):
+                from .embeddings.builtin import BuiltinEmbedder
+
+                be = BuiltinEmbedder(engine=getattr(emb, "engine", "model2vec"),
+                                     model=getattr(emb, "model", None),
+                                     cache_dir=getattr(emb, "cache_dir", None))
+                present = _builtin_model_present(be.cache_dir, be.model_id)
+                _check("  built-in embedder model", True,
+                       f"{be.model_id} · "
+                       f"{'downloaded' if present else 'not downloaded (run embed to fetch)'}"
+                       f" · {be.cache_dir}")
+
+        llm = cfg.llm
+        if not llm.enabled:
+            _check("wiki LLM", True, "disabled")
+        elif llm.provider in ("builtin", "auto"):
+            from .llm.builtin import BuiltinLlm
+
+            kw = {}
+            if getattr(llm, "model", None):
+                kw["repo_id"] = llm.model
+            if getattr(llm, "model_file", None):
+                kw["filename"] = llm.model_file
+            if getattr(llm, "cache_dir", None):
+                kw["cache_dir"] = llm.cache_dir
+            bl = BuiltinLlm(**kw)
+            present = _builtin_model_present(bl.cache_dir, bl.repo_id)
+            _check("wiki LLM", True,
+                   f"{llm.provider} · {bl.repo_id} · "
+                   f"{'downloaded' if present else 'not downloaded (run wiki to fetch)'}")
+        else:
+            _check("wiki LLM", True, f"{llm.provider} · {llm.model or 'default model'}")
     except Exception as e:  # noqa: BLE001 - doctor reports, never crashes
         ok &= _check("config + store", False, str(e))
 
