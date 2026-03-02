@@ -16,6 +16,14 @@ class Embedder(ABC):
 
     name: str = "embedder"
 
+    @property
+    def identity(self) -> str:
+        """Stable ``provider:model`` string used by the vector-store guard to
+        detect a store being re-embedded with a different model. Subclasses may
+        override for a more specific identity."""
+        model = getattr(self, "model", None) or getattr(self, "model_id", "")
+        return f"{self.name}:{model}"
+
     @abstractmethod
     def embed(self, texts: list[str]) -> list[list[float]]:
         """Return one vector per input text, in the same order."""

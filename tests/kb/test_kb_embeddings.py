@@ -130,3 +130,39 @@ def test_auto_returns_none_when_nothing_available(monkeypatch):
     monkeypatch.setattr(base_mod, "_ollama_reachable", lambda *a, **k: False)
     monkeypatch.setattr(base_mod.importlib.util, "find_spec", lambda name: None)
     assert build_embedder(EmbeddingsCfg(enabled=True, provider="auto")) is None  # no raise
+
+
+# --- dimension/identity guard ----------------------------------------------
+
+def test_embedder_identity_default_and_override():
+    assert OllamaEmbedder(model="nomic").identity == "ollama:nomic"
+    assert BuiltinEmbedder(engine="model2vec").identity.startswith("builtin:model2vec:")
+
+
+def test_guard_store_identity_records_then_matches(tmp_path):
+    from contextlake.kb.embeddings.store import VectorStore, guard_store_identity
+
+    vs = VectorStore(tmp_path / "e.sqlite")
+    guard_store_identity(vs, "builtin:model2vec:m", 256)  # empty store -> records
+    guard_store_identity(vs, "builtin:model2vec:m", 256)  # same again -> no raise
+    vs.close()
+
+
+def test_guard_store_identity_rejects_dim_change(tmp_path):
+    from contextlake.kb.embeddings.store import VectorStore, guard_store_identity
+
+    vs = VectorStore(tmp_path / "e.sqlite")
+    guard_store_identity(vs, "builtin:model2vec:m", 256)
+    with pytest.raises(ValueError, match="dimension"):
+        guard_store_identity(vs, "builtin:model2vec:m", 384)
+    vs.close()
+
+
+def test_guard_store_identity_rejects_model_change(tmp_path):
+    from contextlake.kb.embeddings.store import VectorStore, guard_store_identity
+
+    vs = VectorStore(tmp_path / "e.sqlite")
+    guard_store_identity(vs, "ollama:nomic", 256)
+    with pytest.raises(ValueError, match="embedder"):
+        guard_store_identity(vs, "builtin:model2vec:m", 256)
+    vs.close()
