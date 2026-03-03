@@ -108,9 +108,9 @@ Run commands as `contextlake <command>` — full per-command docs are in
 | `bootstrap` | **Turnkey**: sync + index + connect + embed + wiki + steer |
 | `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
 | `connect` | Link repos to Atlassian / Figma / GitLab sources |
-| `embed` | Build semantic-search vectors (needs an embeddings model) |
+| `embed` | Build semantic-search vectors (zero-config built-in CPU model, or Ollama / an API) |
 | `lint` | Graph health — stale repos (HEAD moved) and dangling edges; exits non-zero if any |
-| `wiki` | LLM-synthesized, council-verified wiki pages (needs a model) |
+| `wiki` | LLM-synthesized, council-verified wiki pages (zero-config built-in model, or Ollama / an API) |
 | `steer` | Write editor steering — `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
 | `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
 | `query` | Search the index (`--kind`, `--repo`, `--limit`, `--as-of <commit>`) |
