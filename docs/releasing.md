@@ -119,6 +119,33 @@ After the first successful tag-triggered publish, you can **delete the stored AP
 token** and remove `~/.pypirc` — the workflow no longer needs them. (Manual
 `twine upload` remains available as a fallback.)
 
+## Container image (ghcr.io)
+
+The same tag push also builds and publishes a Docker image to the **GitHub
+Container Registry** via the `docker` job in `release.yml` (using the built-in
+`GITHUB_TOKEN` with `packages: write` — no extra secret). The image bundles the
+`[kb]` + built-in model extras and **bakes in the pinned models** (see
+[`Dockerfile`](../Dockerfile) and [`docker/prefetch_models.py`](../docker/prefetch_models.py)),
+so `docker run` needs no model download at runtime — useful for zero-config or
+air-gapped use:
+
+```bash
+docker run -v "$PWD/repositories:/work/repositories" \
+  ghcr.io/sayak-sarkar/contextlake doctor
+```
+
+Tags published: the release version (e.g. `2.1.5`) and `latest`. PyPI remains the
+**primary** distribution; GitHub Packages does not host PyPI-style Python packages,
+so the image is the only relevant GitHub Packages artifact. Note the image is large
+(it compiles `llama-cpp-python` and bundles a GGUF) and the build downloads the
+models from HuggingFace — fine on GitHub's runners. To **build locally behind a
+TLS-inspecting proxy**, pass your OS CA bundle so the in-build HF download trusts it,
+e.g. `docker build --network=host --build-arg ... ` after baking
+`REQUESTS_CA_BUNDLE` into the build (or build on a network without interception).
+
+The image is **public by default for public repos**; check the package's visibility
+under the repo's *Packages* once published.
+
 ## Troubleshooting
 
 **`SSLError: CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate`**

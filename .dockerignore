@@ -1,0 +1,13 @@
+# Keep the build context small + reproducible.
+.venv
+.git
+.github
+dist
+build
+*.egg-info
+**/__pycache__
+.notes
+.pytest_cache
+.ruff_cache
+htmlcov
+.coverage
