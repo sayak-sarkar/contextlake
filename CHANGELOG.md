@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.5] - 2026-06-23
+
 ### Added
 
 - **Built-in, zero-config CPU models for the knowledge base — no Ollama and no API key.**
