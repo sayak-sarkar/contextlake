@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Built-in, zero-config CPU models for the knowledge base — no Ollama and no API key.**
+  The embeddings and wiki tiers now accept `provider = "auto"` (the new default), which uses a
+  reachable local Ollama, else an in-process **built-in** model, else skips. The built-in embedder
+  ships two engines — **model2vec** (`potion-base-8M`, ~30MB, default; `pip install
+  "contextlake[kb-local]"`) and **fastembed** (ONNX `bge-small`; `[kb-fastembed]`) — and the
+  built-in wiki LLM runs a small `Qwen2.5-0.5B-Instruct` GGUF via `llama-cpp-python`
+  (`[llm-local]`). Models auto-download once to `~/.contextlake/models` on first use (honoring
+  `REQUESTS_CA_BUNDLE`/`SSL_CERT_FILE` behind a TLS proxy) and load lazily. `doctor` reports model
+  presence. A new guard refuses to mix embedder models/dimensions in one vector store.
+
 ## [2.1.4] - 2026-06-22
 
 ### Changed

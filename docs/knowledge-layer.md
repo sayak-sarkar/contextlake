@@ -110,12 +110,34 @@ a **verification council** — reviewers score it for accuracy, completeness, an
 clarity and a chairman publishes only pages above a configurable threshold. Nothing
 that fails review is written.
 
-**Model providers are pluggable.** The embeddings and wiki tiers default to a local
-Ollama (`provider = "ollama"`); set `provider = "openai"` to use **any
-OpenAI-compatible API** instead — a hosted key, or a local server like LM Studio,
-Jan, llama.cpp, or vLLM. The key is read from an environment variable named by
-`api_key_env` (default `OPENAI_API_KEY`) and is never stored in config; local
-servers that need no key work with it unset. See `examples/kb.toml.example`.
+**Model providers are pluggable.** Both the embeddings and wiki tiers take a
+`provider`, defaulting to **`"auto"`**:
+
+- **`auto`** (default) — resolves to a reachable local **Ollama**, else the
+  **built-in** CPU model if its extra is installed, else it skips that tier. So the
+  semantic/wiki tiers Just Work the moment you set `enabled = true`, with no daemon
+  and no API key.
+- **`builtin`** — a small model that runs **in-process on CPU** and auto-downloads
+  once to `cache_dir` (default `~/.contextlake/models`):
+  - *Embeddings* — `engine = "model2vec"` (default): static `potion-base-8M`
+    (~30MB, MIT), numpy inference, very fast at scale — `pip install
+    "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small` (~90MB,
+    MIT, higher quality) — `pip install "contextlake[kb-fastembed]"`.
+  - *Wiki LLM* — a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via
+    `llama-cpp-python` — `pip install "contextlake[llm-local]"`. CPU generation is
+    **slow** and the wiki makes ~4 calls per repo, so prefer Ollama / an API / the
+    Docker image for large workspaces.
+- **`ollama`** — a local Ollama daemon (`base_url`).
+- **`openai`** — **any OpenAI-compatible API** (a hosted key, or a local server like
+  LM Studio, Jan, llama.cpp, vLLM). The key is read from the env var named by
+  `api_key_env` (default `OPENAI_API_KEY`), never stored in config.
+
+Notes: behind a TLS-inspecting corporate proxy the first built-in download needs
+your OS CA bundle (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see
+`docs/releasing.md`). Don't switch the embedder model/dimension against an existing
+vector store without re-embedding from scratch — a guard refuses the mismatch. The
+prebuilt Docker image (`ghcr.io/sayak-sarkar/contextlake`) bundles these models so
+nothing downloads at runtime. See `examples/kb.toml.example`.
 
 ### Use it from your editor or agent (MCP)
 

@@ -10,20 +10,42 @@ store_dir = "~/.contextlake/kb"
 languages = ["csharp", "typescript", "python"]
 
 [embeddings]
-# Semantic/NL search tier. Local-first; off by default. When enabled, run
-# `contextlake embed` to vectorize indexed nodes; `serve` then exposes a
-# `semantic_search` tool. Code never leaves the machine (local Ollama by default).
+# Semantic/NL search tier. Off by default; when enabled, run `contextlake embed`
+# to vectorize indexed nodes and `serve` then exposes a `semantic_search` tool.
 enabled = false
-provider = "ollama"                   # "ollama" (local) or "openai" (openai-compatible)
-model = "nomic-embed-text"
-base_url = "http://127.0.0.1:11434"   # local Ollama daemon
+# Provider: "auto" (default) | "builtin" | "ollama" | "openai".
+#   auto    -> a reachable local Ollama, else the built-in CPU embedder (if its
+#              extra is installed), else skip. Zero-config: works the moment you
+#              flip enabled=true (no daemon, no API key).
+#   builtin -> always the in-process CPU embedder (see engine below).
+provider = "auto"
 batch_size = 64
+# Built-in CPU embedder (no Ollama / API key). The model auto-downloads once to
+# `cache_dir` on first `embed`. Two engines:
+#   engine = "model2vec"  -> static potion-base-8M (~30MB, MIT), numpy, very fast.
+#                            Install: pip install "contextlake[kb-local]"
+#   engine = "fastembed"  -> ONNX bge-small (~90MB, MIT), higher quality, heavier.
+#                            Install: pip install "contextlake[kb-fastembed]"
+# engine = "model2vec"
+# model = "minishlab/potion-base-8M"     # override the default model id if you like
+# cache_dir = "~/.contextlake/models"    # where downloaded models live
+#
+# For a local Ollama daemon instead:
+#   provider = "ollama"
+#   model = "nomic-embed-text"
+#   base_url = "http://127.0.0.1:11434"
 # For an OpenAI-compatible API (hosted, or a local server like LM Studio / Jan /
-# llama.cpp / vLLM) instead, set:
+# llama.cpp / vLLM) instead:
 #   provider = "openai"
 #   model = "text-embedding-3-small"
 #   base_url = "https://api.openai.com/v1"     # or e.g. http://127.0.0.1:1234/v1
 #   api_key_env = "OPENAI_API_KEY"             # env var with the key; never the key itself
+#
+# Behind a TLS-inspecting corporate proxy, the first model download needs your OS
+# CA bundle: export REQUESTS_CA_BUNDLE / SSL_CERT_FILE to it (see docs/releasing.md).
+# Do NOT switch the embedder model/dimension against an existing store without
+# re-embedding from scratch (delete the store's embeddings.sqlite) — a guard errors.
+#
 # Vector backend: "auto" uses the sqlite-vec ANN index when installed
 # (pip install "contextlake[kb-vec]"), else an exact pure-Python cosine scan.
 # Force with "sqlite-vec" or "brute".
@@ -31,14 +53,27 @@ vector_backend = "auto"
 
 [llm]
 # LLM tier for `contextlake wiki` (curated pages + a verification council).
-# Local-first and off by default; prompts never leave the machine with Ollama.
+# Off by default. Provider: "auto" (default) | "builtin" | "ollama" | "openai".
+#   auto    -> reachable local Ollama, else the built-in CPU LLM (if installed), else skip.
+#   builtin -> in-process small GGUF via llama-cpp-python.
 enabled = false
-provider = "ollama"     # "ollama" (local) or "openai" (openai-compatible)
-model = "llama3.1"
-base_url = "http://127.0.0.1:11434"
+provider = "auto"
 council_size = 3        # reviewer lenses (accuracy / completeness / clarity)
 accept_score = 0.7      # mean council score required to publish a page
-# For an OpenAI-compatible chat API (hosted, or a local server) instead, set:
+# Built-in CPU LLM (no Ollama / API key): a small Qwen2.5-0.5B-Instruct GGUF
+# (Apache-2.0), auto-downloaded once to cache_dir. CPU generation is SLOW and the
+# wiki makes ~4 calls/repo, so this suits small workspaces — prefer Ollama / an API
+# / the Docker image at scale. Install: pip install "contextlake[llm-local]"
+# provider = "builtin"
+# model = "Qwen/Qwen2.5-0.5B-Instruct-GGUF"       # GGUF repo id
+# model_file = "qwen2.5-0.5b-instruct-q4_k_m.gguf" # specific quant
+# cache_dir = "~/.contextlake/models"
+#
+# For a local Ollama daemon instead:
+#   provider = "ollama"
+#   model = "llama3.1"
+#   base_url = "http://127.0.0.1:11434"
+# For an OpenAI-compatible chat API (hosted, or a local server) instead:
 #   provider = "openai"
 #   model = "gpt-4o-mini"
 #   base_url = "https://api.openai.com/v1"     # or your local server's /v1
