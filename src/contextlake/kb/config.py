@@ -103,6 +103,12 @@ class LlmCfg(BaseModel):
 class KbConfig(BaseModel):
     store_dir: str = DEFAULT_STORE_DIR
     languages: list[str] = Field(default_factory=lambda: list(DEFAULT_LANGUAGES))
+    # Indexing scope. Skip machine-generated/derived files (designer.cs, *.min.js,
+    # @generated headers, …) — graph noise derived from real sources — and code
+    # files larger than max_file_bytes (data blobs / vendored bundles). Both are
+    # logged, never silent. Set skip_generated=false / raise max_file_bytes to index them.
+    skip_generated: bool = True
+    max_file_bytes: int = 5_000_000
     embeddings: EmbeddingsCfg = Field(default_factory=EmbeddingsCfg)
     llm: LlmCfg = Field(default_factory=LlmCfg)
     sources: list[SourceCfg] = Field(default_factory=list)

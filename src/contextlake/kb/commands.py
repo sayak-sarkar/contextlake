@@ -72,9 +72,12 @@ def _watch_loop(run_once, *, interval: float = 60, iterations=None, sleep=time.s
     return runs
 
 
-def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False) -> int:
-    from .parse import discover_repos, index_repo_dir  # lazy: tree-sitter
+def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
+                     skip_generated: bool = True, max_file_bytes: int | None = None) -> int:
+    from .parse import DEFAULT_MAX_FILE_BYTES, discover_repos, index_repo_dir  # lazy: tree-sitter
 
+    if max_file_bytes is None:
+        max_file_bytes = DEFAULT_MAX_FILE_BYTES
     repos = discover_repos(str(workspace))
     if not repos:
         log(f"No git repositories found under {workspace}")
@@ -88,7 +91,8 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False) 
             if not force and not needs_reindex(store, repo_id, head):
                 skipped += 1
                 continue
-            shard = index_repo_dir(path, repo_id, head_commit=head)
+            shard = index_repo_dir(path, repo_id, head_commit=head,
+                                   skip_generated=skip_generated, max_file_bytes=max_file_bytes)
             store.upsert_repo(Repo(id=repo_id, path=path))
             write_shard(store_dir, shard)
             archive_shard(store_dir, shard)
@@ -108,6 +112,8 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False) 
 
 def cmd_index(args) -> int:
     store, store_dir = _open_store(args)
+    cfg = load_kb_config(getattr(args, "config", None))
+    idx_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes)
     try:
         workspace = getattr(args, "workspace", None)
         if workspace:
@@ -117,11 +123,12 @@ def cmd_index(args) -> int:
                 log(f"{style.cyan('watch')}: re-indexing {workspace} every "
                     f"{interval}s (Ctrl-C to stop)")
                 _watch_loop(
-                    lambda: _index_workspace(store, store_dir, Path(workspace), force=force),
+                    lambda: _index_workspace(store, store_dir, Path(workspace),
+                                             force=force, **idx_opts),
                     interval=interval,
                 )
                 return 0
-            return _index_workspace(store, store_dir, Path(workspace), force=force)
+            return _index_workspace(store, store_dir, Path(workspace), force=force, **idx_opts)
 
         source = getattr(args, "source", None)
         if not source:
@@ -134,7 +141,7 @@ def cmd_index(args) -> int:
 
             repo_id = getattr(args, "repo", None) or src.name
             head = _git_head(src)
-            shard = index_repo_dir(str(src), repo_id, head_commit=head)
+            shard = index_repo_dir(str(src), repo_id, head_commit=head, **idx_opts)
             return _store_and_index(store, store_dir, repo_id, src.resolve(), head, shard)
 
         # otherwise treat --source as a graph-shard JSON file
