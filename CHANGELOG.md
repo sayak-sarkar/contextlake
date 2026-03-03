@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`[llm-local]`). Models auto-download once to `~/.contextlake/models` on first use (honoring
   `REQUESTS_CA_BUNDLE`/`SSL_CERT_FILE` behind a TLS proxy) and load lazily. `doctor` reports model
   presence. A new guard refuses to mix embedder models/dimensions in one vector store.
+- **Container image on GitHub Container Registry** (`ghcr.io/sayak-sarkar/contextlake`), published
+  by the release workflow. It bundles the `[kb]` + built-in model extras and **pre-downloaded
+  models**, so `docker run … contextlake bootstrap` works with zero config / offline.
 
 ## [2.1.4] - 2026-06-22
 
