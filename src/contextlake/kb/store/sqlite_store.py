@@ -119,23 +119,37 @@ class SqliteStore(Store):
 
     # -- nodes ----------------------------------------------------------------
     def upsert_nodes(self, repo_id: str, nodes: Iterable[Node]) -> None:
+        nodes = list(nodes)
+        if not nodes:
+            return
         cur = self.conn.cursor()
-        for n in nodes:
+        # Refresh the FTS rows for these nodes with ONE set-based delete per chunk,
+        # not a DELETE per node. ``node_fts`` is an FTS5 table with no index on
+        # node_id, so a per-row ``DELETE ... WHERE node_id=?`` scans the entire
+        # (global, ever-growing) table each time -> O(nodes x store) per repo, which
+        # is what made indexing the 600th repo take minutes. One IN-delete is a
+        # single scan regardless of how many of this repo's nodes it removes.
+        ids = [n.id for n in nodes]
+        for i in range(0, len(ids), 900):  # stay under SQLite's bound-variable limit
+            chunk = ids[i:i + 900]
             cur.execute(
-                "INSERT INTO nodes(node_id, repo_id, kind, name, qualified_name, file, "
-                "line_start, line_end, lang, attrs) VALUES(?,?,?,?,?,?,?,?,?,?) "
-                "ON CONFLICT(node_id) DO UPDATE SET repo_id=excluded.repo_id, "
-                "kind=excluded.kind, name=excluded.name, qualified_name=excluded.qualified_name, "
-                "file=excluded.file, line_start=excluded.line_start, line_end=excluded.line_end, "
-                "lang=excluded.lang, attrs=excluded.attrs",
-                (n.id, repo_id, n.kind, n.name, n.qualified_name, n.file,
-                 n.line_start, n.line_end, n.lang, json.dumps(n.attrs)),
+                f"DELETE FROM node_fts WHERE node_id IN ({','.join('?' * len(chunk))})",
+                chunk,
             )
-            cur.execute("DELETE FROM node_fts WHERE node_id=?", (n.id,))
-            cur.execute(
-                "INSERT INTO node_fts(node_id, name, qualified_name, file) VALUES(?,?,?,?)",
-                (n.id, n.name, n.qualified_name or "", n.file or ""),
-            )
+        cur.executemany(
+            "INSERT INTO nodes(node_id, repo_id, kind, name, qualified_name, file, "
+            "line_start, line_end, lang, attrs) VALUES(?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(node_id) DO UPDATE SET repo_id=excluded.repo_id, "
+            "kind=excluded.kind, name=excluded.name, qualified_name=excluded.qualified_name, "
+            "file=excluded.file, line_start=excluded.line_start, line_end=excluded.line_end, "
+            "lang=excluded.lang, attrs=excluded.attrs",
+            [(n.id, repo_id, n.kind, n.name, n.qualified_name, n.file,
+              n.line_start, n.line_end, n.lang, json.dumps(n.attrs)) for n in nodes],
+        )
+        cur.executemany(
+            "INSERT INTO node_fts(node_id, name, qualified_name, file) VALUES(?,?,?,?)",
+            [(n.id, n.name, n.qualified_name or "", n.file or "") for n in nodes],
+        )
         self.conn.commit()
 
     def get_node(self, node_id: str) -> Node | None:

@@ -47,6 +47,27 @@ def test_node_upsert_get_and_update(store):
     assert store.get_node("missing") is None
 
 
+def test_reupsert_refreshes_fts_without_duplicates(store):
+    # The batched FTS refresh (one set-based delete + executemany, replacing the
+    # old O(N^2) per-row delete) must still drop the stale row and never duplicate.
+    store.upsert_nodes("team/api", [_node("n1", name="OldName")])
+    store.upsert_nodes("team/api", [_node("n1", name="NewName")])
+    assert {n.name for n in store.search("oldname")} == set()  # stale entry gone
+    assert {n.name for n in store.search("newname")} == {"NewName"}
+    fts = store.conn.execute("SELECT count(*) FROM node_fts WHERE node_id='n1'").fetchone()[0]
+    assert fts == 1  # exactly one FTS row, not two
+
+
+def test_upsert_nodes_batches_across_chunk_boundary(store):
+    # More nodes than the 900-id delete chunk: every node must be searchable and
+    # the FTS row count must match the node count (no rows lost at a chunk seam).
+    nodes = [_node(f"n{i}", name=f"Sym{i}") for i in range(2000)]
+    store.upsert_nodes("team/api", nodes)
+    assert store.stats().nodes == 2000
+    assert store.conn.execute("SELECT count(*) FROM node_fts").fetchone()[0] == 2000
+    assert {n.id for n in store.nodes_by_name("Sym1999")} == {"n1999"}
+
+
 def test_search_finds_by_prefix(store):
     store.upsert_nodes("team/api", [
         _node("n1", name="OrderService"),
