@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Re-indexing a repo into a 23k-node store dropped from **6.5s to 0.11s (≈59×)** and is now flat
   regardless of store size; the FTS contents are byte-for-byte identical.
 
+### Added
+
+- **Parallel repository indexing.** `contextlake index --workspace` (and `bootstrap`) now parse
+  repositories across worker processes (CPU-bound work), persisting to SQLite serially from the
+  parent. Defaults to `cpu_count - 1` (capped at 8); tune with `[kb] index_workers` (set `1` to force
+  serial). Uses the `spawn` start method on every platform for identical behaviour on Linux, macOS and
+  Windows, and falls back to serial automatically if a worker pool cannot start. With the quadratic
+  fix above in place, a full warm re-index of a 33-repo subtree dropped from ~8.8s (serial) to ~3.1s
+  (8 workers, ≈2.9×); the parse speedup grows with both repo count and core count.
+
 ### Changed
 
 - **Indexing skips generated/derived files and oversized blobs (configurable, logged).** The code

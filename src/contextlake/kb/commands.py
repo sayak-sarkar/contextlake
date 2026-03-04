@@ -6,6 +6,7 @@ tool runs without the ``[kb]`` extra installed.
 
 from __future__ import annotations
 
+import os
 import shutil
 import sqlite3
 import subprocess
@@ -72,8 +73,13 @@ def _watch_loop(run_once, *, interval: float = 60, iterations=None, sleep=time.s
     return runs
 
 
+def _default_index_workers() -> int:
+    return min(8, max(1, (os.cpu_count() or 2) - 1))
+
+
 def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
-                     skip_generated: bool = True, max_file_bytes: int | None = None) -> int:
+                     skip_generated: bool = True, max_file_bytes: int | None = None,
+                     workers: int | None = None) -> int:
     from .parse import DEFAULT_MAX_FILE_BYTES, discover_repos, index_repo_dir  # lazy: tree-sitter
 
     if max_file_bytes is None:
@@ -83,26 +89,89 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         log(f"No git repositories found under {workspace}")
         return 0
     mode = "full" if force else "incremental"
-    log(f"Found {len(repos)} repositories under {workspace} ({mode})")
-    failed = skipped = 0
-    for i, (repo_id, path) in enumerate(repos, 1):
-        try:
-            head = _git_head(Path(path))
-            if not force and not needs_reindex(store, repo_id, head):
-                skipped += 1
+    failed = skipped = done = 0
+
+    # Incremental filter first (cheap serial DB reads): only repos whose HEAD moved.
+    todo = []
+    for repo_id, path in repos:
+        head = _git_head(Path(path))
+        if not force and not needs_reindex(store, repo_id, head):
+            skipped += 1
+        else:
+            todo.append((repo_id, path, head))
+    total = len(todo)
+    if workers is None or workers <= 0:
+        workers = _default_index_workers()
+    log(f"Found {len(repos)} repositories under {workspace} ({mode}); "
+        f"indexing {total} with {workers} worker(s)")
+
+    def _persist(repo_id, path, head, shard):
+        store.upsert_repo(Repo(id=repo_id, path=path))
+        write_shard(store_dir, shard)
+        archive_shard(store_dir, shard)
+        reindex_shard(store, store_dir, repo_id)
+        mark_repo_indexed(store, repo_id, head)
+
+    def _report(repo_id, shard):
+        nonlocal done
+        done += 1
+        log(f"  {style.bar(done, total, 14)} {style.cyan(repo_id)}: "
+            f"{len(shard.nodes)} nodes, {len(shard.edges)} edges")
+
+    def _run_serial(items):
+        nonlocal failed
+        for repo_id, path, head in items:
+            try:
+                shard = index_repo_dir(path, repo_id, head_commit=head,
+                                       skip_generated=skip_generated, max_file_bytes=max_file_bytes)
+            except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
+                failed += 1
+                log(f"  {style.fail(repo_id)}: {e}")
                 continue
-            shard = index_repo_dir(path, repo_id, head_commit=head,
-                                   skip_generated=skip_generated, max_file_bytes=max_file_bytes)
-            store.upsert_repo(Repo(id=repo_id, path=path))
-            write_shard(store_dir, shard)
-            archive_shard(store_dir, shard)
-            reindex_shard(store, store_dir, repo_id)
-            mark_repo_indexed(store, repo_id, head)
-            log(f"  {style.bar(i, len(repos), 14)} {style.cyan(repo_id)}: "
-                f"{len(shard.nodes)} nodes, {len(shard.edges)} edges")
-        except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
-            failed += 1
-            log(f"  {style.fail(repo_id)}: {e}")
+            _persist(repo_id, path, head, shard)
+            _report(repo_id, shard)
+
+    if workers <= 1 or total <= 1:
+        _run_serial(todo)
+    else:
+        # Parse repos in parallel (CPU-bound); persist serially here, since SQLite
+        # must be written from a single process. Use the `spawn` start method on
+        # every platform so behaviour and efficiency are identical on Linux, macOS
+        # and Windows (Windows has only spawn; macOS defaults to it; on Linux spawn
+        # benchmarks the same as fork). Workers re-import the package, which is safe
+        # because every entry point is __main__-guarded; the per-worker startup is a
+        # one-time cost amortised across the whole repo set.
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        from concurrent.futures.process import BrokenProcessPool
+
+        ctx = mp.get_context("spawn")
+        try:
+            with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as ex:
+                futs = {
+                    ex.submit(index_repo_dir, path, repo_id, head, None,
+                              max_file_bytes=max_file_bytes, skip_generated=skip_generated):
+                        (repo_id, path, head)
+                    for repo_id, path, head in todo
+                }
+                for fut in as_completed(futs):
+                    repo_id, path, head = futs[fut]
+                    try:
+                        shard = fut.result()
+                    except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
+                        failed += 1
+                        log(f"  {style.fail(repo_id)}: {e}")
+                        continue
+                    _persist(repo_id, path, head, shard)
+                    _report(repo_id, shard)
+        except (BrokenProcessPool, OSError) as e:
+            # The worker pool could not run here (sandboxed env, no fork/spawn, …).
+            # Re-run the full work-list serially — persist is upsert-based and
+            # idempotent, so repos already written simply update in place.
+            log(f"{style.warn()} Parallel indexing unavailable ({e}); "
+                f"falling back to serial.")
+            done = 0
+            _run_serial(todo)
     st = store.stats()
     glyph = style.ok() if failed == 0 else style.warn()
     log(f"{glyph} Workspace indexed: {st.repos} repos, {st.nodes} nodes, "
@@ -113,7 +182,8 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
 def cmd_index(args) -> int:
     store, store_dir = _open_store(args)
     cfg = load_kb_config(getattr(args, "config", None))
-    idx_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes)
+    parse_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes)
+    workers = cfg.index_workers
     try:
         workspace = getattr(args, "workspace", None)
         if workspace:
@@ -124,11 +194,12 @@ def cmd_index(args) -> int:
                     f"{interval}s (Ctrl-C to stop)")
                 _watch_loop(
                     lambda: _index_workspace(store, store_dir, Path(workspace),
-                                             force=force, **idx_opts),
+                                             force=force, workers=workers, **parse_opts),
                     interval=interval,
                 )
                 return 0
-            return _index_workspace(store, store_dir, Path(workspace), force=force, **idx_opts)
+            return _index_workspace(store, store_dir, Path(workspace),
+                                    force=force, workers=workers, **parse_opts)
 
         source = getattr(args, "source", None)
         if not source:
@@ -141,7 +212,7 @@ def cmd_index(args) -> int:
 
             repo_id = getattr(args, "repo", None) or src.name
             head = _git_head(src)
-            shard = index_repo_dir(str(src), repo_id, head_commit=head, **idx_opts)
+            shard = index_repo_dir(str(src), repo_id, head_commit=head, **parse_opts)
             return _store_and_index(store, store_dir, repo_id, src.resolve(), head, shard)
 
         # otherwise treat --source as a graph-shard JSON file

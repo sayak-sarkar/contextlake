@@ -109,6 +109,9 @@ class KbConfig(BaseModel):
     # logged, never silent. Set skip_generated=false / raise max_file_bytes to index them.
     skip_generated: bool = True
     max_file_bytes: int = 5_000_000
+    # Parallel workers for the per-repo parse (CPU-bound). None -> auto (cpu-1,
+    # capped at 8). Set 1 to force serial.
+    index_workers: int | None = None
     embeddings: EmbeddingsCfg = Field(default_factory=EmbeddingsCfg)
     llm: LlmCfg = Field(default_factory=LlmCfg)
     sources: list[SourceCfg] = Field(default_factory=list)
