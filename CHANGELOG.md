@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Quadratic indexing slowdown at scale (the real fix for "indexing got slower the more repos I
+  had").** Each node was refreshed in the full-text index with a per-row `DELETE FROM node_fts WHERE
+  node_id = ?`; because the FTS5 table has no index on `node_id`, every one of those scanned the
+  entire, ever-growing global FTS table — so persisting a repo cost O(repo_nodes × total_store_nodes)
+  and the 600th repo took minutes. Now done with one set-based delete + batched `executemany` inserts.
+  Re-indexing a repo into a 23k-node store dropped from **6.5s to 0.11s (≈59×)** and is now flat
+  regardless of store size; the FTS contents are byte-for-byte identical.
+
 ### Changed
 
 - **Indexing skips generated/derived files and oversized blobs (configurable, logged).** The code
