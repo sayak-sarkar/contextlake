@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.6] - 2026-06-23
+
 ### Fixed
 
 - **Quadratic indexing slowdown at scale (the real fix for "indexing got slower the more repos I
