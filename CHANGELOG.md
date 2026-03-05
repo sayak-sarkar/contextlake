@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Resilient project enumeration behind slow/corporate DNS (e.g. Zscaler).** When `GITLAB_TOKEN`
+  (a `read_api` token) is set, `fetch`/`sync`/`bootstrap` enumerate a group's projects via
+  contextlake's own GitLab REST client instead of the `glab` CLI. The `glab` CLI imposes a short Go
+  dial timeout that a multi-second corporate DNS lookup trips on every call; the native client uses
+  the system resolver's more generous budget, so enumeration completes where `glab` fails. Without a
+  token it transparently falls back to `glab` (its own auth). Configurable via `gitlab_token_env`,
+  `gitlab_host`, and `network_timeout`; the per-page fetch now retries with backoff on transient
+  errors. Additionally, child `git` operations get a widened per-process DNS budget
+  (`RES_OPTIONS=timeout:15 attempts:3`, root-free, tunable via `dns_timeout`/`dns_attempts`, and
+  skipped if you already set `RES_OPTIONS`) so slow lookups don't surface as `i/o timeout`.
+
 ## [2.1.6] - 2026-06-23
 
 ### Fixed

@@ -103,6 +103,16 @@ def fake_subprocess(monkeypatch):
     return fake
 
 
+@pytest.fixture(autouse=True)
+def _clean_gitlab_env(monkeypatch):
+    """Keep tests hermetic: the developer's own GITLAB_TOKEN/GITLAB_HOST (and any
+    RES_OPTIONS) must not leak in and silently switch the fetch path or hit the
+    network. Tests that want a token set it explicitly via monkeypatch.setenv.
+    """
+    for var in ("GITLAB_TOKEN", "GITLAB_HOST", "RES_OPTIONS"):
+        monkeypatch.delenv(var, raising=False)
+
+
 @pytest.fixture
 def no_sleep(monkeypatch):
     """Make time.sleep a no-op so backoff tests run instantly."""

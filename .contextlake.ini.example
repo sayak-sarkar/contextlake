@@ -14,6 +14,23 @@ work_dir = ~/work
 # Replace with your GitLab group name as it appears in GitLab
 gitlab_group = your-gitlab-group
 
+# Authentication for project enumeration.
+#   - If the GITLAB_TOKEN environment variable is set (a read_api token),
+#     contextlake calls the GitLab REST API directly. This is the robust path
+#     behind a slow/TLS-inspecting corporate proxy (e.g. Zscaler), where the
+#     `glab` CLI's short dial timeout would otherwise fail every request.
+#   - Otherwise it falls back to the `glab` CLI (which carries its own auth).
+# Override the env var name or the API host here if needed (defaults shown):
+# gitlab_token_env = GITLAB_TOKEN
+# gitlab_host = gitlab.com
+# HTTP timeout (seconds) for the REST API enumeration:
+# network_timeout = 30
+# Per-process DNS resolver budget for child git operations, widened so slow
+# corporate DNS (multi-second lookups) doesn't trip "i/o timeout" (root-free;
+# skipped if you already export RES_OPTIONS):
+# dns_timeout = 15
+# dns_attempts = 3
+
 # Cache directory for storing GitLab project information
 # Default: /tmp
 cache_dir = /tmp
