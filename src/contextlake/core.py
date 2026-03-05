@@ -8,9 +8,12 @@ import random
 import shutil
 import subprocess
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from functools import partial
 
 from . import style
 from .config import get_cache_paths
@@ -93,6 +96,8 @@ def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_ma
     for attempt in range(max_retries):
         try:
             return func(*args, **kwargs)
+        except FileNotFoundError:
+            raise  # a missing binary/path never recovers on retry
         except Exception as e:
             last_error = e
             if classify_error(str(e)) in ('dns', 'tls', 'missing-ref', 'diverged'):
@@ -141,8 +146,83 @@ class AdaptiveWorkerPool:
 # Fetch / cache
 # ---------------------------------------------------------------------------
 
+DEFAULT_GITLAB_HOST = "gitlab.com"
+
+
+def configure_network_resilience(config):
+    """Make child git/glab DNS lookups tolerant of slow corporate resolvers.
+
+    Some networks (notably a TLS-inspecting proxy like Zscaler) answer DNS for
+    the GitLab host in several seconds. glibc's resolver gives up after its
+    default ``timeout`` x ``attempts`` budget, so git operations intermittently
+    fail with "i/o timeout". Widen that budget for this process tree via
+    ``RES_OPTIONS`` -- root-free, and only when the user hasn't set it. (This
+    does not lift glab's own short Go dial timeout; project enumeration sidesteps
+    that by using the native HTTP client below when a token is available.)
+    """
+    if not os.environ.get("RES_OPTIONS"):
+        timeout = config.get("dns_timeout", "15")
+        attempts = config.get("dns_attempts", "3")
+        os.environ["RES_OPTIONS"] = f"timeout:{timeout} attempts:{attempts}"
+
+
+def _gitlab_token(config):
+    """The GitLab API token from the configured env var (default GITLAB_TOKEN).
+
+    Returns None when unset -- callers then fall back to the ``glab`` CLI, which
+    carries its own auth. Read only here; never logged.
+    """
+    env_name = config.get("gitlab_token_env", "GITLAB_TOKEN")
+    return os.environ.get(env_name) or os.environ.get("GITLAB_TOKEN") or None
+
+
+def _gitlab_api_base(config):
+    """Base ``https://host`` for the GitLab REST API (GITLAB_HOST / config / default)."""
+    host = (os.environ.get("GITLAB_HOST") or config.get("gitlab_host")
+            or DEFAULT_GITLAB_HOST).strip().rstrip("/")
+    if host.startswith(("http://", "https://")):
+        return host
+    return f"https://{host}"
+
+
+def _projects_endpoint(group_enc, per_page, page):
+    return (f"groups/{group_enc}/projects"
+            f"?include_subgroups=true&archived=false&per_page={per_page}&page={page}")
+
+
+def _fetch_projects_page_http(base_url, group_enc, token, per_page, timeout, page):
+    """One page of a group's projects via the GitLab REST API (native HTTP).
+
+    Used instead of the ``glab`` CLI so a slow corporate DNS that exceeds glab's
+    short dial timeout still succeeds (Python's resolver budget is more generous).
+    Raises on HTTP/network error so the caller's retry/backoff can engage.
+    """
+    url = f"{base_url}/api/v4/{_projects_endpoint(group_enc, per_page, page)}"
+    req = urllib.request.Request(
+        url, headers={"PRIVATE-TOKEN": token, "User-Agent": "contextlake"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode())
+
+
+def _fetch_projects_page_glab(group_enc, per_page, page):
+    """One page via the ``glab`` CLI (uses glab's own auth). Raises on failure."""
+    result = subprocess.run(
+        ["glab", "api", _projects_endpoint(group_enc, per_page, page)],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "glab api failed")
+    return json.loads(result.stdout)
+
+
 def fetch_gitlab_projects(gitlab_group, config):
-    """Fetch all projects in a GitLab group (incl. subgroups) via the glab API.
+    """Fetch all projects in a GitLab group (incl. subgroups).
+
+    Prefers contextlake's own HTTP client when ``GITLAB_TOKEN`` is set -- this
+    avoids glab's short dial timeout, which a slow corporate DNS (e.g. Zscaler)
+    would otherwise trip on every call. Falls back to the ``glab`` CLI (its own
+    auth) when no token is configured. Each page is retried with backoff on
+    transient errors.
 
     Results are written to two caches under ``cache_dir``: a JSON map keyed by
     ``path_with_namespace`` and a pipe-delimited text file
@@ -151,37 +231,34 @@ def fetch_gitlab_projects(gitlab_group, config):
     cache_file, cache_json = get_cache_paths(config)
     log(f"Fetching GitLab projects for group: {gitlab_group}")
 
-    all_projects = {}
-    page = 1
     per_page = 100
     group_enc = urllib.parse.quote(gitlab_group, safe="")
+    token = _gitlab_token(config)
+    timeout = int(config.get("network_timeout", 30))
 
+    if token:
+        base = _gitlab_api_base(config)
+        log(f"Enumerating via the GitLab REST API at {base} (token auth)")
+        fetch_page = partial(_fetch_projects_page_http,
+                             base, group_enc, token, per_page, timeout)
+    else:
+        log("No GITLAB_TOKEN set -- enumerating via the 'glab' CLI (its own auth)")
+        fetch_page = partial(_fetch_projects_page_glab, group_enc, per_page)
+
+    all_projects = {}
+    page = 1
     while True:
-        endpoint = (
-            f"groups/{group_enc}/projects"
-            f"?include_subgroups=true&archived=false&per_page={per_page}&page={page}"
-        )
         try:
-            result = subprocess.run(
-                ["glab", "api", endpoint], capture_output=True, text=True
-            )
+            projects = retry_with_backoff(fetch_page, page)
         except FileNotFoundError:
-            log("ERROR: 'glab' not found. Install the GitLab CLI and run 'glab auth login'.")
+            log("ERROR: 'glab' not found and no GITLAB_TOKEN set. Set GITLAB_TOKEN "
+                "(a read_api token), or install the GitLab CLI and run 'glab auth login'.")
             break
-
-        if result.returncode != 0:
-            log(f"Error fetching projects (page {page}): {result.stderr.strip()}")
+        except Exception as e:  # noqa: BLE001 - report and stop paging on a hard failure
+            log(f"Error fetching projects (page {page}): {e}")
             break
-
-        try:
-            projects = json.loads(result.stdout)
-        except json.JSONDecodeError:
-            log(f"Error: could not parse glab output on page {page}")
-            break
-
         if not projects:
             break
-
         for p in projects:
             full = p.get("path_with_namespace")
             if full:
@@ -192,7 +269,6 @@ def fetch_gitlab_projects(gitlab_group, config):
                     "archived": p.get("archived", False),
                     "default_branch": p.get("default_branch", "main"),
                 }
-
         log(f"Fetched page {page}, total projects: {len(all_projects)}")
         if len(projects) < per_page:
             break
