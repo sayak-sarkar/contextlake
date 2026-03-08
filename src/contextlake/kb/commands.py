@@ -23,7 +23,8 @@ from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
-KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "steer", "serve", "query", "doctor")
+KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
+            "graph", "doctor")
 
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
@@ -820,9 +821,86 @@ def cmd_doctor(args) -> int:
     return 0 if ok else 1
 
 
+def _has_seed(args) -> bool:
+    return bool(getattr(args, "node", None) or getattr(args, "name", None)
+                or getattr(args, "search", None)
+                or " ".join(getattr(args, "args", []) or []).strip())
+
+
+def cmd_graph(args) -> int:
+    from . import visualize as viz
+
+    store, _ = _open_store(args)
+    try:
+        fmt = getattr(args, "format", None) or "html"
+        max_fanout = getattr(args, "max_fanout", None) or 50
+        hops = getattr(args, "hops", None) or 2
+        overview = getattr(args, "overview", False)
+        # The overview is a fleet inventory — default to loading every repo (so any
+        # is findable); neighbourhood/repo views stay bounded at 500.
+        max_nodes = getattr(args, "max_nodes", None) or (5000 if overview else 500)
+
+        if overview:
+            nodes, edges = viz.overview_subgraph(store, max_nodes=max_nodes)
+            meta = {"mode": "overview"}
+        elif getattr(args, "repo", None) and not _has_seed(args):
+            nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes)
+            meta = {"mode": "repo", "repo": args.repo}
+        else:
+            seeds = viz.seed_ids_from_args(store, args)
+            if not seeds:
+                log("usage: contextlake graph (--node ID | --name NAME | --search TEXT | "
+                    "--repo R | --overview) [--hops N] [--format html|dot|mermaid|json]")
+                return 2
+            nodes, edges = viz.extract_subgraph(
+                store, seeds, hops=hops, max_nodes=max_nodes, max_fanout=max_fanout,
+                relation=getattr(args, "relation", None),
+                direction=getattr(args, "direction", None) or "both")
+            meta = {"mode": "neighborhood", "seed_ids": seeds, "hops": hops}
+
+        payload = viz.to_payload(nodes, edges, meta)
+        cdn = getattr(args, "cdn", False)
+        # cose (organic clusters) suits small neighbourhoods; for the fleet-scale
+        # overview default to the instant, uniform concentric rings (hubs centred).
+        layout = getattr(args, "layout", None) or ("concentric" if overview else "cose")
+
+        if getattr(args, "serve", False):
+            viz.serve_graph(store, payload, host=getattr(args, "host", None) or "127.0.0.1",
+                            port=getattr(args, "port", None) or 8765,
+                            cdn=cdn, layout=layout, max_fanout=max_fanout)
+            return 0
+
+        if fmt == "json":
+            text = viz.to_json(payload)
+        elif fmt == "dot":
+            text = viz.to_dot(payload)
+        elif fmt == "mermaid":
+            text = viz.to_mermaid(payload)
+        else:
+            text = viz.to_html(payload, cdn=cdn, layout=layout)
+
+        out = getattr(args, "output", None)
+        if fmt == "html" and not out:
+            out = "graph.html"
+        if out:
+            Path(out).write_text(text, encoding="utf-8")
+            log(style.ok(f"Wrote {fmt} ({len(payload['nodes'])} nodes, "
+                         f"{len(payload['edges'])} edges) -> {out}"))
+            if fmt == "html" and getattr(args, "open", False):
+                import webbrowser
+                webbrowser.open("file://" + str(Path(out).resolve()))
+        else:
+            from ..logging_setup import use_stderr
+            use_stderr()
+            print(text)
+        return 0
+    finally:
+        store.close()
+
+
 def dispatch(command: str, args) -> int:
     return {
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
         "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
-        "serve": cmd_serve, "doctor": cmd_doctor,
+        "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor,
     }[command](args)

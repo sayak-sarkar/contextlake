@@ -72,7 +72,7 @@ Examples:
             "bootstrap",
             # knowledge layer (optional [kb] extra)
             "index", "connect", "embed", "lint", "wiki", "steer",
-            "serve", "query", "doctor",
+            "serve", "query", "graph", "doctor",
         ],
         help="Command to execute",
     )
@@ -111,6 +111,30 @@ Examples:
     kb.add_argument("--limit", type=int, help="query: max results")
     kb.add_argument("--as-of", dest="as_of",
                     help="query: search a repo's snapshot at this indexed commit (needs --repo)")
+    # graph: visualize a bounded subgraph (--repo/--kind/--limit/--host/--port reused from above)
+    kb.add_argument("--node", help="graph: seed from this exact node id")
+    kb.add_argument("--name", help="graph: seed from nodes with this exact name (+ --kind)")
+    kb.add_argument("--search", help="graph: seed from a full-text search (+ --kind/--repo)")
+    kb.add_argument("--overview", action="store_true",
+                    help="graph: repos-as-nodes with aggregated cross-repo edges")
+    kb.add_argument("--hops", type=int, help="graph: expansion radius from the seeds (default 2)")
+    kb.add_argument("--max-nodes", dest="max_nodes", type=int,
+                    help="graph: cap on rendered nodes (default 500)")
+    kb.add_argument("--max-fanout", dest="max_fanout", type=int,
+                    help="graph: per-node neighbour cap, anti-hub (default 50)")
+    kb.add_argument("--relation", help="graph: only follow edges of this relation")
+    kb.add_argument("--direction", choices=["in", "out", "both"],
+                    help="graph: edge direction to follow (default both)")
+    kb.add_argument("--format", choices=["html", "dot", "mermaid", "json"],
+                    help="graph: output format (default html)")
+    kb.add_argument("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
+                    help="graph html: initial layout (default cose; switchable in the page)")
+    kb.add_argument("--output", help="graph: write to this path (default graph.html; else stdout)")
+    kb.add_argument("--open", action="store_true", help="graph: open the written HTML in a browser")
+    kb.add_argument("--cdn", action="store_true",
+                    help="graph: load cytoscape.js from a CDN (smaller file, needs network)")
+    kb.add_argument("--serve", action="store_true",
+                    help="graph: serve a live click-to-expand UI (uses --host/--port)")
 
     parser.add_argument(
         "--dry-run", action="store_true", dest="dry_run",
@@ -281,7 +305,7 @@ def main(argv=None):
     # need the sync config/preamble. Imported lazily so the core tool runs
     # without the [kb] extra.
     if args.command in ("index", "connect", "embed", "lint", "wiki", "steer",
-                        "serve", "query", "doctor"):
+                        "serve", "query", "graph", "doctor"):
         try:
             from .kb import commands as kb_commands
         except ImportError as e:
