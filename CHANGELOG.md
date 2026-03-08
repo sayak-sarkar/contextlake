@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`contextlake graph` — visualize the knowledge graph.** Extracts a *bounded* subgraph (the full
+  graph is far too large to draw) and renders it to an interactive, **offline-first** HTML page
+  (vendored cytoscape.js, inlined — no network needed; `--cdn` for a small online file), or to
+  `dot` / `mermaid` / `json`. Seed from a symbol (`--node`/`--name`+`--kind`/`--search`), a single
+  repo (`--repo`), or the whole fleet (`--overview` = repos-as-nodes with aggregated cross-repo
+  edges — the architecture map). Scoping knobs `--hops` / `--max-nodes` / `--max-fanout` /
+  `--relation` / `--direction` keep hub nodes from exploding (truncation is always logged). The HTML
+  is a full mini-explorer: nodes coloured by kind and sized by degree; edge labels hidden until a node
+  is selected; a node **search** box, a **detail panel** (kind / repo / qualified-name / file:line),
+  a clickable **legend that filters by kind**, hover tooltips, a **switchable layout**
+  (`cose`/`concentric`/`breadthfirst`/`circle`/`grid`, default via `--layout`), and a toolbar
+  (fit / reset / **save-PNG**) — all wrapped in the **contextlake brand** (inlined lake glyph,
+  wordmark, palette, frosted material cards). `--open` launches the browser; `--serve` runs a local
+  UI with click-to-expand. Adds zero required Python dependencies.
+
 - **Resilient project enumeration behind slow/corporate DNS (e.g. Zscaler).** When `GITLAB_TOKEN`
   (a `read_api` token) is set, `fetch`/`sync`/`bootstrap` enumerate a group's projects via
   contextlake's own GitLab REST client instead of the `glab` CLI. The `glab` CLI imposes a short Go

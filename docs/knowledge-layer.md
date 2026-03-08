@@ -21,6 +21,7 @@ contextlake lint                            # graph health: stale repos + dangli
 contextlake wiki                            # LLM-synthesized, council-verified wiki pages (optional)
 contextlake steer                           # write per-tool steering: AGENTS.md, .mcp.json, …
 contextlake query "OrderService"            # cited search across the index
+contextlake graph --overview --open         # visualize the graph (HTML/dot/mermaid/json; offline)
 contextlake serve                           # expose the graph over MCP (stdio or --transport http)
 ```
 
@@ -150,6 +151,43 @@ your OS CA bundle (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see
 vector store without re-embedding from scratch — a guard refuses the mismatch. The
 prebuilt Docker image (`ghcr.io/sayak-sarkar/contextlake`) bundles these models so
 nothing downloads at runtime. See `examples/kb.toml.example`.
+
+### Visualizing the graph
+
+`contextlake graph` draws a **bounded** slice of the graph — the whole thing
+(hundreds of thousands of nodes) is far too large to render, so every view is
+scoped from a seed and capped:
+
+```bash
+contextlake graph --overview --open                 # repos-as-nodes: the architecture map
+contextlake graph --name OrderService --kind class  # a symbol's neighbourhood (default 2 hops)
+contextlake graph --node <id> --hops 3              # expand around an exact node id
+contextlake graph --search "payment" --open         # seed from a full-text search
+contextlake graph --repo team/service-api           # one repo's internal code graph
+```
+
+Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` /
+`--overview`. Bound the result with `--hops` (default 2), `--max-nodes` (500),
+`--max-fanout` (50, a per-node cap that stops hub nodes from exploding),
+`--relation`, and `--direction {in,out,both}` — whatever is dropped is **logged**,
+never silently truncated.
+
+Output is chosen with `--format`:
+
+- **`html`** (default) — a single **self-contained, offline** page (cytoscape.js is
+  inlined, so it opens from `file://` with no network — handy air-gapped / behind a
+  proxy). Nodes are coloured by kind and sized by degree; edges are styled by
+  relation/confidence with their labels hidden until you click a node (so the view
+  stays readable). Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`,
+  `breadthfirst`, `circle`, `grid`) in the page — set the initial one with `--layout`.
+  `--open` launches the browser; `--cdn` produces a small online-only file instead.
+- **`dot`** — Graphviz (`contextlake graph … --format dot | dot -Tsvg > g.svg`).
+- **`mermaid`** — pastes into Markdown / GitHub.
+- **`json`** — the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
+
+For interactive exploration of a large graph, `contextlake graph --serve` runs a
+local web UI where clicking a node **expands** it (fetches its neighbours on
+demand) so you can walk the graph without pre-rendering all of it.
 
 ### Use it from your editor or agent (MCP)
 
