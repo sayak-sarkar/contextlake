@@ -33,7 +33,21 @@ KIND_COLORS = {
     "design": "#9d4edd",
 }
 DEFAULT_COLOR = "#c9c9c9"
+# Relation -> edge hue (within the brand family; greys for structural relations).
+# Open vocabulary: unknown relations fall back to DEFAULT_EDGE_COLOR.
+RELATION_COLORS = {
+    "calls": "#137A8B", "imports": "#2BB3A3", "contains": "#9fb4b8",
+    "depends_on": "#E7B53C", "publishes": "#D7C5A0", "tracked_by": "#577590",
+    "documented_by": "#9d4edd",
+}
+DEFAULT_EDGE_COLOR = "#aecace"
 _CONF_DOT = {"EXTRACTED": "solid", "INFERRED": "dashed", "AMBIGUOUS": "dotted"}
+# Confidence -> human label + trust dot, surfaced in the edge inspector.
+CONF_META = {
+    "EXTRACTED": ("Extracted", "#2BB3A3", "Direct from source (AST / manifest)"),
+    "INFERRED": ("Inferred", "#E7B53C", "Deduced — second-pass / heuristic"),
+    "AMBIGUOUS": ("Ambiguous", "#e76f51", "Uncertain — flagged for review"),
+}
 _CDN_URL = "https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"
 
 # contextlake brand palette (see BRANDING.md): a lake seen in cross-section.
@@ -73,8 +87,14 @@ def _edge_dict(e) -> dict:
     if isinstance(e, dict):
         return e
     conf = e.confidence.value if hasattr(e.confidence, "value") else str(e.confidence)
+    prov = getattr(e, "provenance", None)
+    # verified_at is a datetime.date — must serialize to a string or json.dumps throws.
+    verified = getattr(prov, "verified_at", None)
     return {"src": e.src, "dst": e.dst, "relation": e.relation, "confidence": conf,
-            "context": e.context, "weight": e.weight}
+            "context": e.context, "weight": e.weight,
+            "prov_file": getattr(prov, "source_file", None),
+            "prov_line": getattr(prov, "source_line", None),
+            "verified_at": verified.isoformat() if verified else None}
 
 
 def to_payload(nodes, edges, meta: dict | None = None) -> dict:
@@ -314,7 +334,12 @@ def _cytoscape_elements(payload: dict) -> list[dict]:
     for e in payload["edges"]:
         els.append({"data": {"source": e["src"], "target": e["dst"],
                              "relation": e.get("relation", ""),
-                             "confidence": e.get("confidence", "EXTRACTED")}})
+                             "confidence": e.get("confidence", "EXTRACTED"),
+                             "context": e.get("context") or "",
+                             "weight": e.get("weight", 1.0),  # always present -> mapData safe
+                             "prov_file": e.get("prov_file") or "",
+                             "prov_line": e.get("prov_line"),
+                             "verified_at": e.get("verified_at") or ""}})
     return els
 
 
@@ -345,6 +370,14 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     legend = "".join(
         f'<span class="lg" data-kind="{k}"><i style="background:{c}"></i>{k}</span>'
         for k, c in KIND_COLORS.items())
+    # edge legend = relations actually present (known hues first, then open-vocab)
+    present = {e.get("relation") for e in payload["edges"]} - {None, ""}
+    known = [r for r in RELATION_COLORS if r in present]
+    rel_order = known + sorted(present - set(RELATION_COLORS))
+    edge_legend = "".join(
+        f'<span class="lg rel" data-rel="{r}">'
+        f'<i style="background:{RELATION_COLORS.get(r, DEFAULT_EDGE_COLOR)}"></i>{r}</span>'
+        for r in rel_order)
     options = "".join(f'<option value="{n}">{n}</option>' for n in LAYOUTS)
     meta = json.dumps(payload.get("meta", {}))
     return (_HTML_TEMPLATE
@@ -353,7 +386,11 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
             .replace("__ELEMENTS__", elements)
             .replace("__COLORS__", colors)
             .replace("__DEFAULT_COLOR__", DEFAULT_COLOR)
+            .replace("__REL_COLORS__", json.dumps(RELATION_COLORS))
+            .replace("__DEFAULT_EDGE_COLOR__", DEFAULT_EDGE_COLOR)
+            .replace("__CONF_META__", json.dumps(CONF_META))
             .replace("__LEGEND__", legend)
+            .replace("__EDGE_LEGEND__", edge_legend)
             .replace("__LAYOUT_OPTIONS__", options)
             .replace("__GLYPH__", _GLYPH_SVG)
             .replace("__META__", meta)
@@ -510,6 +547,17 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
     border-radius:7px;max-width:42ch;box-shadow:0 4px 14px -4px rgba(14,42,51,.5)}
   #footer{position:fixed;bottom:8px;right:12px;z-index:10;font-size:11px;color:var(--muted)}
   #footer .l{color:var(--lake)}
+  .leg-h{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    margin:4px 0 5px;font-weight:600}
+  #edgelegend{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+  .lg.rel i{border-radius:1px;width:12px;height:3px}
+  .rel-chip{display:inline-block;padding:2px 9px;border-radius:999px;color:#fff;
+    font-size:11px;font-weight:600}
+  #info .edge-flow{font-size:11px;color:var(--muted);margin:5px 0 2px;word-break:break-all}
+  #info .trust{display:flex;align-items:center;gap:6px;margin:7px 0 2px;font-size:11px}
+  #info .trust .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  #info .trust .blurb{color:var(--muted)}
+  #info .copy-prov{margin-top:9px;font-size:11px;padding:4px 9px}
 </style>
 __LIB_TAG__
 </head>
@@ -529,7 +577,10 @@ __LIB_TAG__
     <button id="reset" title="Clear selection &amp; filters">Reset</button>
     <button id="png" class="primary" title="Save a PNG snapshot">PNG</button>
   </div>
+  <div class="leg-h">Nodes</div>
   <div id="legend">__LEGEND__</div>
+  <div class="leg-h">Relationships</div>
+  <div id="edgelegend">__EDGE_LEGEND__</div>
   <div id="meta"></div>
 </div>
 <div id="info" class="card"></div>
@@ -540,9 +591,14 @@ __LIB_TAG__
   var ELEMENTS = __ELEMENTS__;
   var COLORS = __COLORS__;
   var DEFAULT_COLOR = "__DEFAULT_COLOR__";
+  var REL_COLORS = __REL_COLORS__;
+  var DEFAULT_EDGE_COLOR = "__DEFAULT_EDGE_COLOR__";
+  var CONF_META = __CONF_META__;
   var META = __META__;
   var LIVE = __LIVE__;
   var LAYOUT = "__LAYOUT__";
+
+  function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COLOR; }
 
   var cy = cytoscape({
     container: document.getElementById("cy"),
@@ -556,24 +612,27 @@ __LIB_TAG__
           "text-wrap": "ellipsis", "text-max-width": 120,
           "text-valign": "bottom", "text-margin-y": 2,
           "border-width": 0.5, "border-color": "#fff" } },
+      // edges: relation -> hue, confidence -> line-style + opacity, weight -> thickness
       { selector: "edge", style: {
-          "width": 0.8, "line-color": "#aecace", "target-arrow-color": "#aecace",
-          "target-arrow-shape": "triangle", "arrow-scale": 0.7,
-          "curve-style": "bezier", "opacity": 0.6 } },
-      { selector: 'edge[confidence = "INFERRED"]', style: { "line-style": "dashed" } },
+          "line-color": edgeColor, "target-arrow-color": edgeColor,
+          "width": "mapData(weight, 1, 10, 0.8, 4.5)",
+          "target-arrow-shape": "triangle", "arrow-scale": 0.7, "curve-style": "bezier" } },
+      { selector: 'edge[confidence = "EXTRACTED"]',
+        style: { "line-style": "solid", "opacity": 0.7 } },
+      { selector: 'edge[confidence = "INFERRED"]',
+        style: { "line-style": "dashed", "opacity": 0.55 } },
       { selector: 'edge[confidence = "AMBIGUOUS"]',
-        style: { "line-style": "dotted", "line-color": "#e76f51" } },
-      { selector: ".faded", style: { "opacity": 0.06, "text-opacity": 0 } },
+        style: { "line-style": "dotted", "opacity": 0.45 } },
+      { selector: ".faded", style: { "opacity": 0.05, "text-opacity": 0 } },
       { selector: "node.hi", style: { "background-color": "#0E2A33", "color": "#0E2A33",
           "z-index": 99, "border-width": 2, "border-color": "#2BB3A3" } },
       { selector: "node.found", style: { "border-width": 4, "border-color": "#E7B53C",
           "z-index": 100 } },
       // edge labels are hidden by default (clutter); shown only when highlighted
-      { selector: "edge.hi", style: { "line-color": "#137A8B",
-          "target-arrow-color": "#137A8B", "width": 1.8, "opacity": 1,
+      { selector: "edge.hi", style: { "width": 2.2, "opacity": 1,
           "label": "data(relation)", "font-size": 7, "color": "#0E2A33",
           "text-rotation": "autorotate", "text-background-color": "#EAF4F4",
-          "text-background-opacity": 0.9 } }
+          "text-background-opacity": 0.9, "z-index": 99 } }
     ],
     layout: { name: "preset" }
   });
@@ -614,27 +673,39 @@ __LIB_TAG__
   };
   document.getElementById("reset").onclick = function(){
     cy.elements().removeClass("faded hi found");
-    hidden = {}; applyFilter(); syncLegend();
+    hidden = {}; hiddenRel = {}; applyFilter(); syncLegend();
     document.getElementById("search").value = "";
     hideInfo(); cy.fit(undefined, 30);
   };
 
-  // legend = kind filter
-  var hidden = {};
+  // legends = kind filter (nodes) + relationship filter (edges)
+  var hidden = {}, hiddenRel = {};
   function applyFilter(){
     cy.nodes().forEach(function(n){
       n.style("display", hidden[n.data("kind")] ? "none" : "element");
+    });
+    cy.edges().forEach(function(e){
+      e.style("display", hiddenRel[e.data("relation")] ? "none" : "element");
     });
   }
   function syncLegend(){
     document.querySelectorAll("#legend .lg").forEach(function(el){
       el.classList.toggle("off", !!hidden[el.getAttribute("data-kind")]);
     });
+    document.querySelectorAll("#edgelegend .lg").forEach(function(el){
+      el.classList.toggle("off", !!hiddenRel[el.getAttribute("data-rel")]);
+    });
   }
   document.querySelectorAll("#legend .lg").forEach(function(el){
     el.addEventListener("click", function(){
       var k = el.getAttribute("data-kind");
       hidden[k] = !hidden[k]; applyFilter(); syncLegend();
+    });
+  });
+  document.querySelectorAll("#edgelegend .lg").forEach(function(el){
+    el.addEventListener("click", function(){
+      var r = el.getAttribute("data-rel");
+      hiddenRel[r] = !hiddenRel[r]; applyFilter(); syncLegend();
     });
   });
 
@@ -666,11 +737,19 @@ __LIB_TAG__
     }
   });
   cy.on("mouseout", "node", function(){ tip.style.display = "none"; });
+  cy.on("mouseover", "edge", function(e){
+    var d = e.target.data();
+    var prov = d.prov_file
+      ? "  \\u00b7  " + d.prov_file + (d.prov_line ? ":" + d.prov_line : "") : "";
+    tip.textContent = d.relation + "  \\u00b7  " + d.confidence + prov;
+    tip.style.display = "block";
+  });
+  cy.on("mouseout", "edge", function(){ tip.style.display = "none"; });
 
-  // selection -> focus neighbours + detail panel
+  // selection -> focus + detail panel (nodes AND edges)
   var info = document.getElementById("info");
-  function esc(s){ return (s == null ? "" : ("" + s)).replace(/[&<>]/g, function(c){
-    return { "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]; }); }
+  function esc(s){ return (s == null ? "" : ("" + s)).replace(/[&<>"]/g, function(c){
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
   function row(k, v){
     return (v === undefined || v === null || v === "")
       ? "" : "<dt>" + k + "</dt><dd>" + esc(v) + "</dd>";
@@ -684,6 +763,29 @@ __LIB_TAG__
       + (LIVE ? '<div class="hint">click again to expand neighbours</div>' : "");
     info.style.display = "block";
   }
+  function showEdgeInfo(ed){
+    var d = ed.data();
+    var c = CONF_META[d.confidence] || CONF_META.EXTRACTED;  // [label, dot, blurb]
+    var hue = REL_COLORS[d.relation] || DEFAULT_EDGE_COLOR;
+    var sN = cy.getElementById(d.source), tN = cy.getElementById(d.target);
+    var prov = d.prov_file ? (d.prov_file + (d.prov_line ? ":" + d.prov_line : "")) : "";
+    info.innerHTML =
+      '<h2><span class="rel-chip" style="background:' + hue + '">'
+      + esc(d.relation) + "</span></h2>"
+      + '<div class="edge-flow">' + esc(sN.data("label"))
+      + " \\u2192 " + esc(tN.data("label")) + "</div>"
+      + '<div class="trust"><span class="dot" style="background:' + c[1] + '"></span>'
+      + "<b>" + esc(c[0]) + "</b><span class=\\"blurb\\">" + esc(c[2]) + "</span></div>"
+      + "<dl>" + row("context", d.context) + row("weight", d.weight)
+      + row("source", prov) + row("verified", d.verified_at) + "</dl>"
+      + (prov ? '<button class="copy-prov" data-prov="' + esc(prov)
+                + '">copy file:line</button>' : "");
+    info.style.display = "block";
+  }
+  info.addEventListener("click", function(ev){
+    var b = ev.target.closest && ev.target.closest(".copy-prov");
+    if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); }
+  });
   function hideInfo(){ info.style.display = "none"; }
 
   function focus(node){
@@ -696,6 +798,12 @@ __LIB_TAG__
   cy.on("tap", "node", function(e){
     focus(e.target); showInfo(e.target);
     if(LIVE){ expand(e.target.id()); }
+  });
+  cy.on("tap", "edge", function(e){
+    var ed = e.target;
+    cy.elements().addClass("faded").removeClass("hi");
+    ed.connectedNodes().add(ed).removeClass("faded").addClass("hi");
+    showEdgeInfo(ed);
   });
 
   function expand(id){
@@ -714,7 +822,10 @@ __LIB_TAG__
           var eid = ed.src + "->" + ed.dst + ":" + ed.relation;
           if(cy.getElementById(eid).empty()){
             added.push({ group:"edges", data:{ id:eid, source:ed.src, target:ed.dst,
-              relation:ed.relation, confidence:(ed.confidence||"EXTRACTED") } });
+              relation:ed.relation, confidence:(ed.confidence||"EXTRACTED"),
+              context:(ed.context||""), weight:(ed.weight==null?1.0:ed.weight),
+              prov_file:(ed.prov_file||""), prov_line:ed.prov_line,
+              verified_at:(ed.verified_at||"") } });
           }
         });
         if(added.length){

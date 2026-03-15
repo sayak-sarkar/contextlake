@@ -181,6 +181,28 @@ def test_html_carries_contextlake_branding(store):
 
 # --- packaging -----------------------------------------------------------
 
+def test_edge_detail_is_surfaced(store):
+    from datetime import date
+
+    from contextlake.kb.model import Provenance
+    store.upsert_nodes("r", [_node("a", kind="class"), _node("b")])
+    store.upsert_edges("r", [Edge(
+        src="a", dst="b", relation="calls", confidence=Confidence.INFERRED,
+        provenance=Provenance(source_file="o.py", source_line=12, verified_at=date(2026, 6, 21)),
+        context="call", weight=3.0)])
+    n, e = viz.extract_subgraph(store, ["a"], hops=1)
+    pay = viz.to_payload(n, e, {"mode": "neighborhood"})
+    # to_json must NOT throw on the verified_at date, and must carry full provenance
+    d = json.loads(viz.to_json(pay))
+    ed = d["edges"][0]
+    assert ed["prov_file"] == "o.py" and ed["prov_line"] == 12 and ed["verified_at"] == "2026-06-21"
+    assert ed["context"] == "call" and ed["confidence"] == "INFERRED" and ed["weight"] == 3.0
+    html = viz.to_html(pay, cdn=True)
+    assert 'id="edgelegend"' in html and 'data-rel="calls"' in html  # relationship legend/filter
+    assert "var REL_COLORS" in html and "showEdgeInfo" in html       # edge inspector wired
+    assert '"prov_file": "o.py"' in html                              # provenance reaches the page
+
+
 def test_cytoscape_asset_is_packaged():
     from importlib.resources import files
     asset = files("contextlake.kb") / "static" / "cytoscape.min.js"
