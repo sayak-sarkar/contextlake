@@ -12,6 +12,7 @@ Entry points (all equivalent):
 """
 
 import argparse
+import os
 import sys
 
 from . import __version__
@@ -26,6 +27,7 @@ from .core import (
     verify_structure,
 )
 from .logging_setup import log, setup_logging
+from .metrics import run_audit
 
 # Boolean flags backed by paired --x / --no-x switches. They must default to
 # None so we can tell "user passed a flag" from "user said nothing" -- otherwise
@@ -68,6 +70,8 @@ Examples:
         "command",
         choices=[
             "fetch", "clone", "update", "branches", "verify", "sync", "status",
+            # post-sync repo health & age report
+            "audit",
             # one-command turnkey setup (sync + knowledge layer + steering)
             "bootstrap",
             # knowledge layer (optional [kb] extra)
@@ -81,6 +85,11 @@ Examples:
     parser.add_argument("--work-dir", help="Working directory (overrides config file)")
     parser.add_argument("--group", help="GitLab group (overrides config file)")
     parser.add_argument("--config", help="Path to config file (overrides default search paths)")
+    parser.add_argument("--report",
+                        help="audit/sync: path for the per-repo audit report "
+                             "(JSON + .csv; default <cache_dir>/repo_audit.json)")
+    parser.add_argument("--no-audit", dest="no_audit", action="store_true",
+                        help="sync/bootstrap: skip the post-sync repo audit")
 
     # Knowledge-layer options (used by index/serve/query/doctor)
     kb = parser.add_argument_group("knowledge layer")
@@ -227,6 +236,21 @@ def apply_cli_overrides(args, config):
     return config
 
 
+def _audit_report_path(args, config):
+    """Where the per-repo audit report is written (CLI --report, else cache_dir)."""
+    if getattr(args, "report", None):
+        return expand_path(args.report)
+    cache_file, _ = get_cache_paths(config)
+    return os.path.join(os.path.dirname(cache_file) or ".", "repo_audit.json")
+
+
+def _audit_workers(config):
+    try:
+        return int(config.get("max_workers", 8))
+    except (TypeError, ValueError):
+        return 8
+
+
 def _bootstrap(args, config, work_dir, gitlab_group):
     """One-command turnkey setup: mirror repos, build the knowledge layer, and write
     editor steering. Optional/unconfigured stages are skipped; a failing stage warns
@@ -248,6 +272,12 @@ def _bootstrap(args, config, work_dir, gitlab_group):
         verify_structure(work_dir, config, gitlab_group)
     else:
         log("Skipping the GitLab mirror step (--no-sync)")
+
+    if not getattr(args, "no_audit", False):
+        _stage("Audit repositories (health & age)")
+        run_audit(work_dir, config, gitlab_group,
+                  report_path=_audit_report_path(args, config),
+                  max_workers=_audit_workers(config))
 
     try:
         from .kb import commands as kb
@@ -355,6 +385,14 @@ def main(argv=None):
             switch_repository_branches(work_dir, config, gitlab_group)
             verify_structure(work_dir, config, gitlab_group)
             log("Full synchronization complete!")
+            if not getattr(args, "no_audit", False):
+                run_audit(work_dir, config, gitlab_group,
+                          report_path=_audit_report_path(args, config),
+                          max_workers=_audit_workers(config))
+        elif args.command == "audit":
+            run_audit(work_dir, config, gitlab_group,
+                      report_path=_audit_report_path(args, config),
+                      max_workers=_audit_workers(config))
         elif args.command == "status":
             show_status(work_dir, config, gitlab_group)
         elif args.command == "bootstrap":
