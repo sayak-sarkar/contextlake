@@ -26,7 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   edges — the architecture map). Scoping knobs `--hops` / `--max-nodes` / `--max-fanout` /
   `--relation` / `--direction` keep hub nodes from exploding (truncation is always logged). The HTML
   is a full mini-explorer: nodes coloured by kind and sized by degree; edge labels hidden until a node
-  is selected; a node **search** box, a **detail panel** (kind / repo / qualified-name / file:line),
+  is selected; **clickable edges with an inspector** (relation, a confidence trust indicator, the
+  source `file:line` provenance with copy, context and weight) — edges are coloured by relation,
+  styled by confidence, and sized by weight, with a **relationship legend that filters by relation**;
+  a node **search** box, a **detail panel** (kind / repo / qualified-name / file:line),
   a clickable **legend that filters by kind**, hover tooltips, a **switchable layout**
   (`cose`/`concentric`/`breadthfirst`/`circle`/`grid`, default via `--layout`), and a toolbar
   (fit / reset / **save-PNG**) — all wrapped in the **contextlake brand** (inlined lake glyph,
