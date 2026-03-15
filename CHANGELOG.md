@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Post-sync repo audit (`contextlake audit`, also auto-runs after `sync`/`bootstrap`).** Scans every
+  local clone and reports which repos are effectively empty — **empty** (no commits / no files),
+  **readme-only** (just a template README), or **boilerplate** (only meta files like LICENSE/.gitignore)
+  — plus age/activity: each repo's **creation date** (GitLab `created_at`, captured during fetch; falls
+  back to the first git commit) and **last commit date** (from the local clone). Prints an aggregate
+  summary (counts, oldest/newest, how many stale >1y/>2y, repos with no commits) and writes a full
+  per-repo report as JSON + CSV (`--report PATH`, default `<cache_dir>/repo_audit.json`). The scan is
+  parallel, read-only, and works offline; `--no-audit` skips the automatic run. Zero new dependencies.
+
 - **`contextlake graph` — visualize the knowledge graph.** Extracts a *bounded* subgraph (the full
   graph is far too large to draw) and renders it to an interactive, **offline-first** HTML page
   (vendored cytoscape.js, inlined — no network needed; `--cdn` for a small online file), or to

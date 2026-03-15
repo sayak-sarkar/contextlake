@@ -132,6 +132,26 @@ This command executes:
 3. `update` - Update existing repositories
 4. `branches` - Switch to active branches
 5. `verify` - Verify structure
+6. `audit` - Report repo health & age (skip with `--no-audit`)
+
+#### 8. `audit` - Repo health & age report
+
+Scans every local clone and reports which repos are effectively empty and how old/active
+they are. Runs automatically at the end of `sync`/`bootstrap`, or on demand:
+
+```bash
+contextlake audit                       # summary to console + report to <cache_dir>/repo_audit.json
+contextlake audit --report ./audit.json # choose where the per-repo JSON + .csv are written
+contextlake sync --no-audit             # run sync without the audit step
+```
+
+It classifies each repo as **empty** (no commits/files), **readme-only** (just a template
+README), **boilerplate** (only meta files), or **content**, and reports each repo's
+**creation date** (GitLab `created_at`, captured during fetch; falls back to the first git
+commit) and **last commit date** (from the local clone) — with an aggregate summary
+(counts, oldest/newest, how many stale over 1–2 years, repos with no commits). The full
+per-repo table is written as JSON **and** CSV. The scan is parallel, read-only, and works
+offline from the fetch cache.
 
 ### Advanced Usage
 

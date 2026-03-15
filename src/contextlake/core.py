@@ -268,6 +268,9 @@ def fetch_gitlab_projects(gitlab_group, config):
                     "ssh": p.get("ssh_url_to_repo", ""),
                     "archived": p.get("archived", False),
                     "default_branch": p.get("default_branch", "main"),
+                    # captured for the post-sync audit (repo age / activity)
+                    "created_at": p.get("created_at"),
+                    "last_activity_at": p.get("last_activity_at"),
                 }
         log(f"Fetched page {page}, total projects: {len(all_projects)}")
         if len(projects) < per_page:
