@@ -365,18 +365,24 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
         lib_tag = f'<script src="{_CDN_URL}"></script>'
     else:
         lib_tag = f"<script>{_cytoscape_js()}</script>"
+    from collections import Counter
     elements = json.dumps(_cytoscape_elements(payload))
     colors = json.dumps(KIND_COLORS)
+    kind_counts = Counter(n.get("kind", "") for n in payload["nodes"])
     legend = "".join(
-        f'<span class="lg" data-kind="{k}"><i style="background:{c}"></i>{k}</span>'
-        for k, c in KIND_COLORS.items())
+        f'<button type="button" class="lg" data-kind="{k}">'
+        f'<i style="background:{c}"></i><span class="lbl">{k}</span>'
+        f'<span class="cnt">{kind_counts[k]}</span></button>'
+        for k, c in KIND_COLORS.items() if kind_counts.get(k, 0) > 0)
     # edge legend = relations actually present (known hues first, then open-vocab)
-    present = {e.get("relation") for e in payload["edges"]} - {None, ""}
+    rel_counts = Counter(e.get("relation") for e in payload["edges"])
+    present = {r for r in rel_counts if r}
     known = [r for r in RELATION_COLORS if r in present]
     rel_order = known + sorted(present - set(RELATION_COLORS))
     edge_legend = "".join(
-        f'<span class="lg rel" data-rel="{r}">'
-        f'<i style="background:{RELATION_COLORS.get(r, DEFAULT_EDGE_COLOR)}"></i>{r}</span>'
+        f'<button type="button" class="lg rel" data-rel="{r}">'
+        f'<i style="background:{RELATION_COLORS.get(r, DEFAULT_EDGE_COLOR)}"></i>'
+        f'<span class="lbl">{r}</span><span class="cnt">{rel_counts[r]}</span></button>'
         for r in rel_order)
     options = "".join(f'<option value="{n}">{n}</option>' for n in LAYOUTS)
     meta = json.dumps(payload.get("meta", {}))
@@ -486,107 +492,159 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   :root{
     --deepwater:#0E2A33;--lake:#137A8B;--current:#2BB3A3;--mist:#EAF4F4;
     --shore:#D7C5A0;--sun:#E7B53C;
-    --ink:#0E2A33;--muted:#5b7177;--line:#d6e4e6;--card:#ffffffe6;
-    --elev:0 6px 24px -8px rgba(14,42,51,.28);
+    --bg:#f5fafb;--surface:#ffffff;--surface-2:#eef6f7;--line:#dce8ea;--line-2:#c6d8db;
+    --text:#0E2A33;--muted:#5b7177;--subtle:#8aa2a6;--brand:#137A8B;--brand-h:#0f6473;
+    --accent:#2BB3A3;--focus:#2BB3A3;--canvas-label:#0E2A33;--surface-solid:#ffffff;
+    --cy-bg:radial-gradient(120% 90% at 50% -10%,#ffffff 0%,#f1fafb 45%,#e3f1f2 100%);
+    --e1:0 1px 2px rgba(14,42,51,.07);--e2:0 4px 14px -4px rgba(14,42,51,.18);
+    --rail:288px;--inspect:0px;--bar:48px;--status:30px;
+    --ff:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    --ff-d:"Space Grotesk",var(--ff);--dur:.16s;--ease:cubic-bezier(.2,.6,.2,1);
   }
+  body[data-theme="dark"]{
+    --bg:#0a1f26;--surface:#102e38;--surface-2:#16414e;--line:#1d4d5b;--line-2:#286675;
+    --text:#EAF4F4;--muted:#9bbcc2;--subtle:#6f969e;--brand:#2BB3A3;--brand-h:#3fc6b6;
+    --canvas-label:#EAF4F4;--surface-solid:#102e38;
+    --cy-bg:radial-gradient(120% 90% at 50% -10%,#103039 0%,#0c252d 45%,#081b21 100%);
+    --e1:0 1px 2px rgba(0,0,0,.4);--e2:0 6px 18px -6px rgba(0,0,0,.55);
+  }
+  body[data-sidebar="collapsed"]{--rail:0px}
+  body[data-inspect="open"]{--inspect:340px}
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;color:var(--ink);
-    font-family:"Space Grotesk",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-  #cy{position:absolute;inset:0;
-    background:radial-gradient(120% 90% at 50% -10%,#ffffff 0%,#f1fafb 45%,#e3f1f2 100%)}
-  #topbar{position:fixed;top:0;left:0;right:0;z-index:15;height:48px;display:flex;
-    align-items:center;gap:10px;padding:0 14px;
-    background:linear-gradient(180deg,#fffffff2,#ffffffd9);
-    border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
-  #topbar .glyph{width:26px;height:26px;border-radius:8px;display:block;
-    box-shadow:0 1px 4px rgba(14,42,51,.25)}
-  .wm{font-size:16px;font-weight:600;letter-spacing:-.01em;color:var(--deepwater)}
-  .wm .l{color:var(--lake)}
-  #topbar .mode{font-size:12px;color:var(--muted);padding:2px 9px;
-    border:1px solid var(--line);border-radius:999px;background:var(--mist)}
-  #topbar .tag{margin-left:auto;font-size:12px;color:var(--lake);font-weight:500}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    box-shadow:var(--elev);backdrop-filter:blur(6px)}
-  #panel{position:absolute;top:60px;left:12px;z-index:10;width:300px;max-width:46vw;
-    padding:12px 14px;font-size:12px}
-  #panel h1{font-size:11px;font-weight:600;margin:0 0 9px;color:var(--lake);
-    letter-spacing:.06em;text-transform:uppercase}
-  #search{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;
-    font-size:12px;margin-bottom:10px;background:var(--mist);
-    transition:box-shadow .15s,border-color .15s}
-  #search:focus{outline:none;border-color:var(--lake);
-    box-shadow:0 0 0 3px rgba(43,179,163,.25)}
-  .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  html,body{margin:0;height:100%;color:var(--text);background:var(--bg);font-family:var(--ff)}
+  #app{display:grid;height:100%;grid-template-columns:var(--rail) 1fr var(--inspect);
+    grid-template-rows:var(--bar) 1fr var(--status);
+    grid-template-areas:"top top top" "side cy inspect" "status status status";
+    transition:grid-template-columns var(--dur) var(--ease)}
+  #topbar{grid-area:top;display:flex;align-items:center;gap:10px;padding:0 12px;
+    background:var(--surface);border-bottom:1px solid var(--line);z-index:5}
+  .glyph{width:26px;height:26px;border-radius:7px;display:block;box-shadow:var(--e1)}
+  .wm{font-family:var(--ff-d);font-size:16px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
+  .wm .l{color:var(--brand)}
+  #mode{font-size:11px;color:var(--muted);padding:2px 9px;border:1px solid var(--line);
+    border-radius:999px;background:var(--surface-2);text-transform:capitalize}
+  .grow{flex:1}
+  .tsearch{position:relative;display:flex;align-items:center;width:260px;max-width:34vw}
+  .tsearch .si{position:absolute;left:9px;width:14px;height:14px;color:var(--subtle)}
+  #search{width:100%;padding:7px 10px 7px 28px;font-size:12px;border:1px solid var(--line);
+    border-radius:8px;background:var(--surface-2);color:var(--text);
+    transition:border-color var(--dur),box-shadow var(--dur)}
+  #search:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(43,179,163,.25);
+    background:var(--surface)}
+  #panel{grid-area:side;overflow-y:auto;background:var(--surface);
+    border-right:1px solid var(--line);padding:14px;font-size:12px;min-width:0}
+  body[data-sidebar="collapsed"] #panel{padding:0;border:0;overflow:hidden}
+  .sgroup{margin-bottom:16px}
+  .sgroup h2{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--muted);margin:0 0 8px}
+  .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   label{font-size:11px;color:var(--muted)}
-  button,select{font:inherit;font-size:12px;padding:6px 10px;border:1px solid var(--line);
-    border-radius:9px;background:#fff;color:var(--deepwater);cursor:pointer;
-    transition:background .15s,box-shadow .15s,transform .05s}
-  button:hover{background:var(--mist)}
-  button:active{transform:translateY(1px)}
-  button.primary{background:var(--lake);border-color:var(--lake);color:#fff;
-    box-shadow:0 2px 8px -2px rgba(19,122,139,.6)}
-  button.primary:hover{background:var(--current);border-color:var(--current)}
-  #legend{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
-  .lg{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
-    border:1px solid var(--line);background:#fff;cursor:pointer;user-select:none;
-    transition:background .12s,box-shadow .12s}
-  .lg:hover{box-shadow:0 1px 6px -2px rgba(14,42,51,.3)}
+  select,.btn,.ibtn{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:8px;
+    background:var(--surface);color:var(--text);cursor:pointer;
+    transition:background var(--dur),border-color var(--dur),box-shadow var(--dur)}
+  select{padding:6px 8px}
+  .btn{padding:6px 11px;display:inline-flex;align-items:center;gap:6px}
+  .ibtn{padding:6px;width:30px;height:30px;display:inline-flex;align-items:center;
+    justify-content:center}
+  .ibtn svg,.btn svg{width:15px;height:15px}
+  .btn:hover,.ibtn:hover{background:var(--surface-2);border-color:var(--line-2)}
+  .btn:active,.ibtn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:var(--e1)}
+  .btn.primary:hover{background:var(--brand-h);border-color:var(--brand-h)}
+  :focus-visible{outline:none;box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--focus)}
+  #legend,#edgelegend{display:flex;flex-wrap:wrap;gap:5px}
+  .lg{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;
+    border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer;
+    user-select:none;font-size:11px;transition:background var(--dur),border-color var(--dur)}
+  .lg:hover{background:var(--surface-2);border-color:var(--line-2)}
   .lg i{width:9px;height:9px;border-radius:50%;display:inline-block}
-  .lg.off{opacity:.4;text-decoration:line-through}
-  #meta{color:var(--muted)}
-  #info{position:absolute;bottom:34px;left:12px;z-index:10;width:320px;max-width:46vw;
-    padding:12px 14px;font-size:12px;display:none}
-  #info h2{font-size:13px;margin:0 0 2px;color:var(--deepwater);word-break:break-all}
-  #info dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0 0;
-    border-top:1px solid var(--line);padding-top:8px}
-  #info dt{color:var(--lake);font-weight:500}
-  #info dd{margin:0;word-break:break-all}
-  #info .hint{color:var(--muted);margin-top:8px;font-style:italic}
-  #tip{position:absolute;z-index:20;pointer-events:none;display:none;
-    background:var(--deepwater);color:var(--mist);font-size:11px;padding:4px 8px;
-    border-radius:7px;max-width:42ch;box-shadow:0 4px 14px -4px rgba(14,42,51,.5)}
-  #footer{position:fixed;bottom:8px;right:12px;z-index:10;font-size:11px;color:var(--muted)}
-  #footer .l{color:var(--lake)}
-  .leg-h{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
-    margin:4px 0 5px;font-weight:600}
-  #edgelegend{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
   .lg.rel i{border-radius:1px;width:12px;height:3px}
-  .rel-chip{display:inline-block;padding:2px 9px;border-radius:999px;color:#fff;
-    font-size:11px;font-weight:600}
+  .lg .cnt{color:var(--subtle);font-variant-numeric:tabular-nums;font-size:10px}
+  .lg.off{opacity:.4}
+  .lg.off .lbl{text-decoration:line-through}
+  #cy{grid-area:cy;min-width:0;min-height:0;position:relative;background:var(--cy-bg)}
+  #info{grid-area:inspect;overflow-y:auto;background:var(--surface);
+    border-left:1px solid var(--line);padding:14px;font-size:12px;display:none}
+  body[data-inspect="open"] #info{display:block}
+  #info h2{font-size:14px;margin:0 0 2px;color:var(--text);word-break:break-all}
+  #info dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:9px 0 0;
+    border-top:1px solid var(--line);padding-top:9px}
+  #info dt{color:var(--brand);font-weight:500;font-size:11px}
+  #info dd{margin:0;word-break:break-all;font-size:11px}
+  #info .hint{color:var(--subtle);margin-top:9px;font-style:italic}
   #info .edge-flow{font-size:11px;color:var(--muted);margin:5px 0 2px;word-break:break-all}
-  #info .trust{display:flex;align-items:center;gap:6px;margin:7px 0 2px;font-size:11px}
+  #info .trust{display:flex;align-items:center;gap:6px;margin:8px 0 2px;font-size:11px}
   #info .trust .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
   #info .trust .blurb{color:var(--muted)}
-  #info .copy-prov{margin-top:9px;font-size:11px;padding:4px 9px}
+  #info .copy-prov{margin-top:10px}
+  .rel-chip{display:inline-block;padding:2px 9px;border-radius:999px;color:#fff;
+    font-size:12px;font-weight:600}
+  #statusbar{grid-area:status;display:flex;align-items:center;gap:10px;padding:0 12px;
+    background:var(--surface);border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+  #statusbar .l{color:var(--brand)}
+  #tip{position:absolute;z-index:40;pointer-events:none;display:none;background:var(--deepwater);
+    color:var(--mist);font-size:11px;padding:4px 8px;border-radius:6px;max-width:42ch;
+    box-shadow:var(--e2)}
+  #empty{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:6px;color:var(--muted);text-align:center;padding:20px}
+  #empty.show{display:flex}
+  #empty .et{font-size:14px;color:var(--text);font-weight:600}
+  #empty code{background:var(--surface-2);padding:1px 5px;border-radius:4px;font-size:11px}
+  #cy.loading::after{content:"";position:absolute;top:0;left:0;height:2px;width:28%;
+    background:var(--accent);animation:ld 1s var(--ease) infinite}
+  @keyframes ld{0%{left:-28%}100%{left:100%}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 __LIB_TAG__
 </head>
-<body>
-<div id="topbar">
-  __GLYPH__
-  <span class="wm">context<span class="l">lake</span></span>
-  <span class="mode" id="mode"></span>
-  <span class="tag">All your real context, in one local lake.</span>
+<body data-theme="light" data-sidebar="open" data-inspect="closed">
+<div id="app">
+  <header id="topbar">
+    <button class="ibtn" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar"><svg
+      viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path
+      d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+    __GLYPH__
+    <span class="wm">context<span class="l">lake</span></span>
+    <span id="mode"></span>
+    <span class="grow"></span>
+    <div class="tsearch"><svg class="si" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+      stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M11 11l3 3"/></svg>
+      <input id="search" type="search" placeholder="Search nodes…" autocomplete="off"
+        aria-label="Search nodes"></div>
+    <button class="ibtn" id="theme" title="Toggle dark mode" aria-label="Toggle dark mode"><svg
+      viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8"
+      r="3.2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M13 3l-1.4 1.4M4.4
+      11.6L3 13"/></svg></button>
+  </header>
+  <aside id="panel" role="complementary" aria-label="Controls">
+    <div class="sgroup"><h2>View</h2>
+      <div class="row">
+        <label>layout <select id="layout" aria-label="Layout">__LAYOUT_OPTIONS__</select></label>
+        <button class="ibtn" id="fit" title="Fit to view" aria-label="Fit to view"><svg
+          viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path
+          d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg></button>
+        <button class="ibtn" id="reset" title="Reset view &amp; filters" aria-label="Reset"><svg
+          viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path
+          d="M13 8a5 5 0 1 1-1.5-3.5M13 2v3h-3"/></svg></button>
+        <button class="btn primary" id="png" title="Save a PNG snapshot"><svg viewBox="0 0 16 16"
+          fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
+          13h10"/></svg>PNG</button>
+      </div>
+    </div>
+    <div class="sgroup"><h2>Nodes</h2><div id="legend">__LEGEND__</div></div>
+    <div class="sgroup"><h2>Relationships</h2><div id="edgelegend">__EDGE_LEGEND__</div></div>
+  </aside>
+  <main id="cy" role="application" aria-label="Knowledge graph" tabindex="0">
+    <div id="empty"><div class="et">No nodes in this view</div>
+      <div>Widen the seed, raise <code>--max-nodes</code>, or clear filters.</div></div>
+  </main>
+  <aside id="info" role="complementary" aria-label="Details"></aside>
+  <footer id="statusbar" role="status" aria-live="polite">
+    <span id="meta"></span><span class="grow"></span>
+    <span>context<span class="l">lake</span> graph</span>
+  </footer>
 </div>
-<div id="panel" class="card">
-  <h1>Explore</h1>
-  <input id="search" type="search" placeholder="search nodes by name…" autocomplete="off">
-  <div class="row">
-    <label>layout <select id="layout">__LAYOUT_OPTIONS__</select></label>
-    <button id="fit" title="Fit graph to view">Fit</button>
-    <button id="reset" title="Clear selection &amp; filters">Reset</button>
-    <button id="png" class="primary" title="Save a PNG snapshot">PNG</button>
-  </div>
-  <div class="leg-h">Nodes</div>
-  <div id="legend">__LEGEND__</div>
-  <div class="leg-h">Relationships</div>
-  <div id="edgelegend">__EDGE_LEGEND__</div>
-  <div id="meta"></div>
-</div>
-<div id="info" class="card"></div>
-<div id="tip"></div>
-<div id="footer">context<span class="l">lake</span> graph</div>
-<div id="cy"></div>
+<div id="tip" role="tooltip"></div>
 <script>
   var ELEMENTS = __ELEMENTS__;
   var COLORS = __COLORS__;
@@ -599,20 +657,22 @@ __LIB_TAG__
   var LAYOUT = "__LAYOUT__";
 
   function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COLOR; }
+  function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
 
-  var cy = cytoscape({
-    container: document.getElementById("cy"),
-    elements: ELEMENTS,
-    wheelSensitivity: 0.2,
-    style: [
+  // The cytoscape stylesheet is rebuilt on theme change: CSS variables can't reach
+  // canvas pixels, so node-label / highlight text colours are re-read here. (node.hi
+  // is a RING, not a background swap, so it reads on both light and dark themes.)
+  function graphStyle(){
+    var label = cssVar("--canvas-label") || "#0E2A33";
+    var surf = cssVar("--surface-solid") || "#ffffff";
+    return [
       { selector: "node", style: {
           "background-color": function(n){ return COLORS[n.data("kind")] || DEFAULT_COLOR; },
-          "label": "data(label)", "font-size": 9, "color": "#0E2A33",
+          "label": "data(label)", "font-size": 9, "color": label,
           "width": "mapData(deg, 0, 24, 14, 52)", "height": "mapData(deg, 0, 24, 14, 52)",
           "text-wrap": "ellipsis", "text-max-width": 120,
           "text-valign": "bottom", "text-margin-y": 2,
-          "border-width": 0.5, "border-color": "#fff" } },
-      // edges: relation -> hue, confidence -> line-style + opacity, weight -> thickness
+          "border-width": 0.5, "border-color": surf } },
       { selector: "edge", style: {
           "line-color": edgeColor, "target-arrow-color": edgeColor,
           "width": "mapData(weight, 1, 10, 0.8, 4.5)",
@@ -624,16 +684,22 @@ __LIB_TAG__
       { selector: 'edge[confidence = "AMBIGUOUS"]',
         style: { "line-style": "dotted", "opacity": 0.45 } },
       { selector: ".faded", style: { "opacity": 0.05, "text-opacity": 0 } },
-      { selector: "node.hi", style: { "background-color": "#0E2A33", "color": "#0E2A33",
-          "z-index": 99, "border-width": 2, "border-color": "#2BB3A3" } },
+      { selector: "node.hi", style: { "border-width": 3, "border-color": "#2BB3A3",
+          "z-index": 99 } },
       { selector: "node.found", style: { "border-width": 4, "border-color": "#E7B53C",
           "z-index": 100 } },
-      // edge labels are hidden by default (clutter); shown only when highlighted
       { selector: "edge.hi", style: { "width": 2.2, "opacity": 1,
-          "label": "data(relation)", "font-size": 7, "color": "#0E2A33",
-          "text-rotation": "autorotate", "text-background-color": "#EAF4F4",
+          "label": "data(relation)", "font-size": 7, "color": label,
+          "text-rotation": "autorotate", "text-background-color": surf,
           "text-background-opacity": 0.9, "z-index": 99 } }
-    ],
+    ];
+  }
+
+  var cy = cytoscape({
+    container: document.getElementById("cy"),
+    elements: ELEMENTS,
+    wheelSensitivity: 0.2,
+    style: graphStyle(),
     layout: { name: "preset" }
   });
 
@@ -641,6 +707,27 @@ __LIB_TAG__
   document.getElementById("mode").textContent = META.mode || "graph";
   document.getElementById("meta").textContent =
     cy.nodes().length + " nodes \\u00b7 " + cy.edges().length + " edges";
+  if(!cy.nodes().length){ document.getElementById("empty").classList.add("show"); }
+
+  // theme toggle — re-skins the canvas (CSS vars don't reach canvas pixels)
+  document.getElementById("theme").onclick = function(){
+    document.body.dataset.theme = document.body.dataset.theme === "dark" ? "light" : "dark";
+    cy.style(graphStyle());
+  };
+  if(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches){
+    document.body.dataset.theme = "dark"; cy.style(graphStyle());
+  }
+  document.getElementById("navToggle").onclick = function(){
+    var c = document.body.dataset.sidebar === "collapsed";
+    document.body.dataset.sidebar = c ? "open" : "collapsed"; afterResize();
+  };
+  document.addEventListener("keydown", function(e){
+    if(e.target.tagName === "INPUT"){ if(e.key === "Escape"){ e.target.blur(); } return; }
+    if(e.key === "/"){ e.preventDefault(); document.getElementById("search").focus(); }
+    else if(e.key === "f" || e.key === "F"){ cy.fit(undefined, 30); }
+    else if(e.key === "t" || e.key === "T"){ document.getElementById("theme").click(); }
+    else if(e.key === "Escape"){ cy.elements().removeClass("faded hi"); hideInfo(); }
+  });
 
   function layoutOpts(name){
     if(name === "cose") return { name:"cose", animate:false, randomize:true, padding:40,
@@ -761,7 +848,7 @@ __LIB_TAG__
       + row("kind", d.kind) + row("repo", d.repo) + row("qualified", d.qn)
       + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg) + "</dl>"
       + (LIVE ? '<div class="hint">click again to expand neighbours</div>' : "");
-    info.style.display = "block";
+    openInspector();
   }
   function showEdgeInfo(ed){
     var d = ed.data();
@@ -780,13 +867,15 @@ __LIB_TAG__
       + row("source", prov) + row("verified", d.verified_at) + "</dl>"
       + (prov ? '<button class="copy-prov" data-prov="' + esc(prov)
                 + '">copy file:line</button>' : "");
-    info.style.display = "block";
+    openInspector();
   }
   info.addEventListener("click", function(ev){
     var b = ev.target.closest && ev.target.closest(".copy-prov");
     if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); }
   });
-  function hideInfo(){ info.style.display = "none"; }
+  function afterResize(){ setTimeout(function(){ cy.resize(); }, 190); }
+  function openInspector(){ document.body.dataset.inspect = "open"; afterResize(); }
+  function hideInfo(){ document.body.dataset.inspect = "closed"; afterResize(); }
 
   function focus(node){
     cy.elements().addClass("faded").removeClass("hi");
@@ -807,9 +896,12 @@ __LIB_TAG__
   });
 
   function expand(id){
+    var cyEl = document.getElementById("cy");
+    cyEl.classList.add("loading");
     fetch("/neighbors?id=" + encodeURIComponent(id) + "&direction=both")
       .then(function(r){ return r.json(); })
       .then(function(p){
+        cyEl.classList.remove("loading");
         var added = [];
         p.nodes.forEach(function(n){
           if(cy.getElementById(n.id).empty()){
@@ -835,7 +927,7 @@ __LIB_TAG__
           runLayout(sel.value || LAYOUT);
         }
       })
-      .catch(function(){ /* offline / endpoint absent — ignore */ });
+      .catch(function(){ cyEl.classList.remove("loading"); });
   }
 </script>
 </body>
