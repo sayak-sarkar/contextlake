@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Graph visualizer reworked into an enterprise app shell.** The floating translucent cards are
+  replaced by a real layout — a top bar (brand, mode, search), a collapsible left sidebar (view
+  controls + Nodes/Relationships legends with live counts), the graph filling the centre, a slide-in
+  right inspector, and a status bar — on a CSS grid with a tokenised design system. Adds a **dark
+  mode** (Deepwater theme; re-skins the canvas, not just the chrome), icon-button controls, empty/
+  loading states, keyboard shortcuts (`/` search, `f` fit, `t` theme, `Esc` clear), and focus-visible
+  rings. Still one self-contained offline HTML, zero new dependencies.
+
 ## [2.2.0] - 2026-06-23
 
 ### Added

@@ -173,7 +173,6 @@ def test_html_carries_contextlake_branding(store):
     html = viz.to_html(_payload(store), cdn=True)
     assert 'class="glyph"' in html                    # the brand glyph is inlined
     assert 'context<span class="l">lake</span>' in html  # two-tone wordmark
-    assert "All your real context" in html            # tagline
     # the brand palette drives the styling
     for hexcolor in ("#0E2A33", "#137A8B", "#2BB3A3", "#EAF4F4"):
         assert hexcolor in html, hexcolor
