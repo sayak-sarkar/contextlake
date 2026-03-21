@@ -1,10 +1,17 @@
-# contextlake
+<p align="center">
+  <img src="docs/branding/glyph.svg" alt="" width="76" height="76">
+</p>
+<h1 align="center">contextlake</h1>
+<p align="center"><em>All your real context, in one local lake.</em></p>
+
+<p align="center">
+  <a href="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml"><img src="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/contextlake/"><img src="https://img.shields.io/pypi/v/contextlake?color=137A8B" alt="PyPI"></a>
+  <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT">
+</p>
 
 > **A local context layer for your AI tools — your repositories mirrored, indexed into a knowledge graph, and served over MCP, so agents work from real source instead of guessing.**
-
-[![CI](https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml/badge.svg)](https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/python-3.9%2B-blue)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
 You have access to dozens — maybe hundreds — of repositories scattered across a
 GitLab group and its subgroups. You want them all on your laptop, in the same
@@ -89,6 +96,11 @@ The tool carries no credentials of its own — auth rides on `glab` — so
 `.contextlake.ini` holds only non-secret settings and is gitignored by default. The
 full option reference is in [docs/usage.md](docs/usage.md).
 
+> **Behind a slow / TLS-inspecting corporate proxy** (e.g. Zscaler) where `glab`'s API
+> calls time out, set `GITLAB_TOKEN` (a `read_api` token) — contextlake then enumerates
+> projects via its own HTTP client, which tolerates the slow DNS where `glab`'s short
+> dial timeout fails.
+
 ## Usage
 
 Run commands as `contextlake <command>` — full per-command docs are in
@@ -104,7 +116,8 @@ Run commands as `contextlake <command>` — full per-command docs are in
 | `update` | Pull updates for local repos (skips only repos with a dirty working tree) |
 | `branches` | Switch each repo to its most active branch |
 | `verify` | Check the local mirror matches GitLab (drift, orphans, nesting) |
-| `sync` | The full pipeline: fetch → clone → update → branches → verify |
+| `sync` | The full pipeline: fetch → clone → update → branches → verify → audit |
+| `audit` | Repo health & age: empty/README-only repos + creation & last-commit dates (JSON + CSV) |
 | `bootstrap` | **Turnkey**: sync + index + connect + embed + wiki + steer |
 | `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
 | `connect` | Link repos to Atlassian / Figma / GitLab sources |
@@ -114,9 +127,10 @@ Run commands as `contextlake <command>` — full per-command docs are in
 | `steer` | Write editor steering — `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
 | `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
 | `query` | Search the index (`--kind`, `--repo`, `--limit`, `--as-of <commit>`) |
+| `graph` | Visualize the graph — offline interactive HTML / DOT / Mermaid / JSON (`--overview`, `--serve`) |
 | `doctor` | Check the knowledge-layer environment (SQLite FTS5, git/glab, store, embeddings) |
 
-The first seven are the core sync (detailed below); the rest are the optional
+The first eight are the core sync (detailed below); the rest are the optional
 **[knowledge layer](#knowledge-layer)**. Run any command with `--config` (sync INI)
 and, for the knowledge layer, `--config`/`--kb-config` pointing at your `kb.toml`.
 
@@ -148,8 +162,10 @@ Beyond mirroring, an optional layer (`contextlake.kb`) turns your repos into a
 **knowledge graph** and serves it to AI tools over **MCP** — so Claude Code, Windsurf,
 or Kiro can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 It can also link repos to their Atlassian / Figma / GitLab items, add semantic search,
-write a curated wiki, and generate per-tool steering files + a skills library. Most of
-it needs no model; the rest works with a local Ollama or any OpenAI-compatible endpoint.
+write a curated wiki, **visualize the graph** (`contextlake graph` → an offline, interactive
+HTML — fleet overview, a symbol's neighbourhood, or a single repo), and generate per-tool
+steering files + a skills library. Most of it needs no model; the rest works with a local
+Ollama or any OpenAI-compatible endpoint.
 
 One command sets it all up:
 
