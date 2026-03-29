@@ -40,13 +40,19 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     ];
   }
 
+  var cyEl = document.getElementById("cy");
   var cy = cytoscape({
-    container: document.getElementById("cy"),
+    container: cyEl,
     elements: ELEMENTS,
     wheelSensitivity: 0.2,
     style: graphStyle(),
     layout: { name: "preset" }
   });
+
+  // Keep the cytoscape <canvas> synced to its grid cell through ANY layout change
+  // (inspector slide-in, sidebar collapse, window resize) — robust, no timing
+  // guess. cy.resize() re-reads the container each frame the cell animates.
+  if(window.ResizeObserver){ new ResizeObserver(function(){ cy.resize(); }).observe(cyEl); }
 
   cy.nodes().forEach(function(n){ n.data("deg", n.degree(false)); });
   document.getElementById("mode").textContent = META.mode || "graph";
@@ -225,7 +231,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     var b = ev.target.closest && ev.target.closest(".copy-prov");
     if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); }
   });
-  function afterResize(){ setTimeout(function(){ cy.resize(); }, 190); }
+  function afterResize(){ cy.resize(); }  // ResizeObserver also catches the post-transition size
   function openInspector(){ document.body.dataset.inspect = "open"; afterResize(); }
   function hideInfo(){ document.body.dataset.inspect = "closed"; afterResize(); }
 
