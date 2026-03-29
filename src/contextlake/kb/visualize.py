@@ -232,32 +232,25 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
 
 def overview_subgraph(store: Store, *, max_nodes: int = 5000,
                       meta: dict | None = None) -> tuple[list[dict], list[dict]]:
-    """Repos-as-nodes with aggregated cross-repo edges (the architecture map).
+    """Repos-as-nodes with **real** cross-repo dependency edges (the architecture map).
 
-    Edges carry no per-endpoint repo column, so we double-join through ``nodes``
-    on ``src``/``dst``. The ``cross_repo`` flag is deliberately NOT used: it is
-    populated order-dependently during indexing (it can be *partially* set), so
-    trusting it would silently under-report. We always run the authoritative
-    ``repo != repo`` scan — slower, but complete.
+    Edges come from the package two-hop (``publishes ⨝ depends_on``, see
+    ``arch.resolve.repo_dependency_edges``) — the only trustworthy cross-repo
+    signal. The raw cross-repo ``imports`` join is deliberately NOT used: it is
+    dominated by import-star artifacts (global ``module`` nodes shared fleet-wide),
+    which would render hundreds of thousands of phantom edges. Dependencies are
+    marked ``INFERRED`` (manifest-derived, a likely undercount — not ground truth).
     """
+    from .arch.resolve import repo_dependency_edges
     sizes = dict(store.conn.execute(
         "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
-    log("  aggregating cross-repo edges…")
-    rows = store.conn.execute(
-        "SELECT ns.repo_id, nd.repo_id, e.relation, COUNT(*) "
-        "FROM edges e "
-        "JOIN nodes ns ON ns.node_id = e.src "
-        "JOIN nodes nd ON nd.node_id = e.dst "
-        "WHERE ns.repo_id != nd.repo_id "
-        "GROUP BY ns.repo_id, nd.repo_id, e.relation"
-    ).fetchall()
+    log("  resolving real cross-repo dependencies (package two-hop)…")
+    dep_edges = repo_dependency_edges(store)
 
     degree: dict[str, int] = {}
-    raw_edges = []
-    for src_repo, dst_repo, rel, cnt in rows:
-        degree[src_repo] = degree.get(src_repo, 0) + cnt
-        degree[dst_repo] = degree.get(dst_repo, 0) + cnt
-        raw_edges.append((src_repo, dst_repo, rel, cnt))
+    for e in dep_edges:
+        degree[e["src"]] = degree.get(e["src"], 0) + e["weight"]
+        degree[e["dst"]] = degree.get(e["dst"], 0) + e["weight"]
 
     # One node per repo for the WHOLE fleet: the repo registry (list_repos) unioned
     # with any repo that has nodes — so even a repo with no parsed code (no edges) is
@@ -272,10 +265,9 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000,
     nodes = [{"id": r, "repo": r, "kind": "repo", "name": r, "qualified_name": None,
               "file": None, "line": None, "lang": None,
               "attrs": {"node_count": sizes.get(r, 0)}} for r in repo_ids]
-    edges = [{"src": s, "dst": d, "relation": rel, "confidence": "EXTRACTED", "weight": cnt}
-             for (s, d, rel, cnt) in raw_edges if s in keep and d in keep]
+    edges = [e for e in dep_edges if e["src"] in keep and e["dst"] in keep]
     if truncated:
-        log(f"  {len(ranked)} repos have cross-repo edges; showing the {max_nodes} most "
+        log(f"  {len(ranked)} repos; showing the {max_nodes} most "
             f"connected (raise --max-nodes to see more)")
     if meta is not None:
         meta["truncated"] = truncated

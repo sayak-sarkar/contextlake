@@ -102,16 +102,21 @@ def test_repo_subgraph_is_internal_only(store):
 
 
 def test_overview_aggregates_cross_repo(store):
+    # the overview's cross-repo edges come from the package two-hop (publishes ⨝
+    # depends_on), NOT raw imports: repoA publishes pkg, repoB depends_on it ->
+    # repoB depends_on repoA.
     store.upsert_repo(Repo(id="repoA", path="/a"))
     store.upsert_repo(Repo(id="repoB", path="/b"))
     store.upsert_nodes("repoA", [_node("a1", repo="repoA")])
     store.upsert_nodes("repoB", [_node("b1", repo="repoB")])
-    store.upsert_edges("repoA", [_edge("a1", "b1", "imports"), _edge("a1", "b1", "imports")])
+    store.upsert_edges("repoA", [_edge("a1", "pkg", "publishes")])
+    store.upsert_edges("repoB", [_edge("b1", "pkg", "depends_on")])
     nodes, edges = viz.overview_subgraph(store, max_nodes=50)
     assert {n["id"] for n in nodes} == {"repoA", "repoB"}
     assert all(n["kind"] == "repo" for n in nodes)
-    cross = [e for e in edges if e["src"] == "repoA" and e["dst"] == "repoB"]
-    assert len(cross) == 1 and cross[0]["relation"] == "imports" and cross[0]["weight"] == 2
+    dep = [e for e in edges if e["src"] == "repoB" and e["dst"] == "repoA"]
+    assert len(dep) == 1 and dep[0]["relation"] == "depends_on"
+    assert dep[0]["confidence"] == "INFERRED"  # manifest-derived, not ground truth
 
 
 def test_overview_keeps_most_connected_not_alphabetical(store):
@@ -121,9 +126,10 @@ def test_overview_keeps_most_connected_not_alphabetical(store):
     for r in ("aaa", "bbb", "ccc", "zzz"):
         store.upsert_repo(Repo(id=r, path="/" + r))
         store.upsert_nodes(r, [_node(r + "1", repo=r)])
-    store.upsert_edges("zzz", [_edge("zzz1", "aaa1", "imports"),
-                               _edge("zzz1", "bbb1", "imports"),
-                               _edge("zzz1", "ccc1", "imports")])
+    # zzz publishes a package the other three depend on -> it's the connectivity hub
+    store.upsert_edges("zzz", [_edge("zzz1", "pkgz", "publishes")])
+    for r in ("aaa", "bbb", "ccc"):
+        store.upsert_edges(r, [_edge(r + "1", "pkgz", "depends_on")])
     nodes, _ = viz.overview_subgraph(store, max_nodes=2)
     ids = {n["id"] for n in nodes}
     assert "zzz" in ids and len(ids) == 2  # the hub is kept despite sorting last
