@@ -1,5 +1,7 @@
 function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COLOR; }
   function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+  var RM = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+  function dur(ms){ return RM.matches ? 0 : ms; }   // collapse motion to instant under reduced-motion
 
   // The cytoscape stylesheet is rebuilt on theme change: CSS variables can't reach
   // canvas pixels, so node-label / highlight text colours are re-read here. (node.hi
@@ -25,7 +27,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
         style: { "line-style": "dashed", "opacity": 0.55 } },
       { selector: 'edge[confidence = "AMBIGUOUS"]',
         style: { "line-style": "dotted", "opacity": 0.45 } },
-      { selector: ".faded", style: { "opacity": 0.05, "text-opacity": 0 } },
+      { selector: ".faded", style: {
+          "opacity": (parseFloat(cssVar("--faded-opacity")) || 0.1), "text-opacity": 0 } },
       { selector: "node.hi", style: { "border-width": 3, "border-color": "#2BB3A3",
           "z-index": 99 } },
       { selector: "node.found", style: { "border-width": 4, "border-color": "#E7B53C",
@@ -50,6 +53,13 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   document.getElementById("meta").textContent =
     cy.nodes().length + " nodes \u00b7 " + cy.edges().length + " edges";
   if(!cy.nodes().length){ document.getElementById("empty").classList.add("show"); }
+  // honesty: when the view was capped, say so (never imply completeness)
+  if(META.truncated){
+    var tb = document.getElementById("trunc");
+    tb.textContent = "\u26a0 showing " + cy.nodes().length
+      + (META.total ? " of " + META.total : "") + " \u2014 truncated; raise --max-nodes";
+    tb.classList.add("show");
+  }
 
   // theme toggle — re-skins the canvas (CSS vars don't reach canvas pixels)
   document.getElementById("theme").onclick = function(){
@@ -149,7 +159,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
           || (n.data("qn")||"").toLowerCase().indexOf(q) >= 0;
     });
     hits.addClass("found");
-    if(hits.length){ cy.animate({ fit:{ eles:hits, padding:90 } }, { duration:300 }); }
+    if(hits.length){ cy.animate({ fit:{ eles:hits, padding:90 } }, { duration: dur(300) }); }
   });
 
   // hover tooltip
@@ -189,7 +199,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     info.innerHTML = "<h2>" + esc(d.label || d.id) + "</h2><dl>"
       + row("kind", d.kind) + row("repo", d.repo) + row("qualified", d.qn)
       + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg) + "</dl>"
-      + (LIVE ? '<div class="hint">click again to expand neighbours</div>' : "");
+      + (LIVE ? '<div class="hint">tap any node to expand its neighbours</div>' : "");
     openInspector();
   }
   function showEdgeInfo(ed){

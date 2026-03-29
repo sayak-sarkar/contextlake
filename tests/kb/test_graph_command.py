@@ -61,6 +61,30 @@ def test_extract_respects_max_nodes_and_induces_edges(store):
     assert len(edges) == 19
 
 
+def test_truncation_meta_is_honest(store):
+    _hub(store, leaves=30)
+    # overview/repo report a true total; extract reports truncation WITHOUT a total
+    # (BFS early-stops, so a number would be a fabrication).
+    rm = {}
+    viz.repo_subgraph(store, "r", max_nodes=5, meta=rm)
+    assert rm["truncated"] is True and rm["total"] == 31
+    em = {}
+    viz.extract_subgraph(store, ["H"], hops=1, max_nodes=5, max_fanout=100, meta=em)
+    assert em["truncated"] is True and "total" not in em
+    # an untruncated view says so, with no scary banner
+    full = {}
+    viz.repo_subgraph(store, "r", max_nodes=500, meta=full)
+    assert full["truncated"] is False
+
+
+def test_truncation_banner_reaches_html(store):
+    _hub(store, leaves=2)
+    pay = viz.to_payload(_payload(store)["nodes"], [],
+                         {"mode": "repo", "truncated": True, "total": 99})
+    html = viz.to_html(pay, cdn=True)
+    assert 'id="trunc"' in html and '"truncated": true' in html and '"total": 99' in html
+
+
 def test_extract_skips_unknown_seed(store):
     store.upsert_nodes("r", [_node("a")])
     nodes, edges = viz.extract_subgraph(store, ["does-not-exist", "a"], hops=1)
