@@ -350,6 +350,19 @@ def _cytoscape_js() -> str:
     return js.replace("</script", "<\\/script")
 
 
+def _app_css() -> str:
+    """The visualizer's stylesheet (extracted to static/app.css, inlined at emit)."""
+    from importlib.resources import files
+    return (files("contextlake.kb") / "static" / "app.css").read_text(encoding="utf-8")
+
+
+def _app_js() -> str:
+    """The visualizer's app JS (static/app.js), made safe to inline in a <script>."""
+    from importlib.resources import files
+    js = (files("contextlake.kb") / "static" / "app.js").read_text(encoding="utf-8")
+    return js.replace("</script", "<\\/script")
+
+
 LAYOUTS = ("cose", "concentric", "breadthfirst", "circle", "grid")
 
 
@@ -387,6 +400,8 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     options = "".join(f'<option value="{n}">{n}</option>' for n in LAYOUTS)
     meta = json.dumps(payload.get("meta", {}))
     return (_HTML_TEMPLATE
+            .replace("__APP_CSS__", _app_css())
+            .replace("__APP_JS__", _app_js())
             .replace("__TITLE__", title)
             .replace("__LIB_TAG__", lib_tag)
             .replace("__ELEMENTS__", elements)
@@ -488,113 +503,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
-<style>
-  :root{
-    --deepwater:#0E2A33;--lake:#137A8B;--current:#2BB3A3;--mist:#EAF4F4;
-    --shore:#D7C5A0;--sun:#E7B53C;
-    --bg:#f5fafb;--surface:#ffffff;--surface-2:#eef6f7;--line:#dce8ea;--line-2:#c6d8db;
-    --text:#0E2A33;--muted:#5b7177;--subtle:#8aa2a6;--brand:#137A8B;--brand-h:#0f6473;
-    --accent:#2BB3A3;--focus:#2BB3A3;--canvas-label:#0E2A33;--surface-solid:#ffffff;
-    --cy-bg:radial-gradient(120% 90% at 50% -10%,#ffffff 0%,#f1fafb 45%,#e3f1f2 100%);
-    --e1:0 1px 2px rgba(14,42,51,.07);--e2:0 4px 14px -4px rgba(14,42,51,.18);
-    --rail:288px;--inspect:0px;--bar:48px;--status:30px;
-    --ff:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    --ff-d:"Space Grotesk",var(--ff);--dur:.16s;--ease:cubic-bezier(.2,.6,.2,1);
-  }
-  body[data-theme="dark"]{
-    --bg:#0a1f26;--surface:#102e38;--surface-2:#16414e;--line:#1d4d5b;--line-2:#286675;
-    --text:#EAF4F4;--muted:#9bbcc2;--subtle:#6f969e;--brand:#2BB3A3;--brand-h:#3fc6b6;
-    --canvas-label:#EAF4F4;--surface-solid:#102e38;
-    --cy-bg:radial-gradient(120% 90% at 50% -10%,#103039 0%,#0c252d 45%,#081b21 100%);
-    --e1:0 1px 2px rgba(0,0,0,.4);--e2:0 6px 18px -6px rgba(0,0,0,.55);
-  }
-  body[data-sidebar="collapsed"]{--rail:0px}
-  body[data-inspect="open"]{--inspect:340px}
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%;color:var(--text);background:var(--bg);font-family:var(--ff)}
-  #app{display:grid;height:100%;grid-template-columns:var(--rail) 1fr var(--inspect);
-    grid-template-rows:var(--bar) 1fr var(--status);
-    grid-template-areas:"top top top" "side cy inspect" "status status status";
-    transition:grid-template-columns var(--dur) var(--ease)}
-  #topbar{grid-area:top;display:flex;align-items:center;gap:10px;padding:0 12px;
-    background:var(--surface);border-bottom:1px solid var(--line);z-index:5}
-  .glyph{width:26px;height:26px;border-radius:7px;display:block;box-shadow:var(--e1)}
-  .wm{font-family:var(--ff-d);font-size:16px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
-  .wm .l{color:var(--brand)}
-  #mode{font-size:11px;color:var(--muted);padding:2px 9px;border:1px solid var(--line);
-    border-radius:999px;background:var(--surface-2);text-transform:capitalize}
-  .grow{flex:1}
-  .tsearch{position:relative;display:flex;align-items:center;width:260px;max-width:34vw}
-  .tsearch .si{position:absolute;left:9px;width:14px;height:14px;color:var(--subtle)}
-  #search{width:100%;padding:7px 10px 7px 28px;font-size:12px;border:1px solid var(--line);
-    border-radius:8px;background:var(--surface-2);color:var(--text);
-    transition:border-color var(--dur),box-shadow var(--dur)}
-  #search:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(43,179,163,.25);
-    background:var(--surface)}
-  #panel{grid-area:side;overflow-y:auto;background:var(--surface);
-    border-right:1px solid var(--line);padding:14px;font-size:12px;min-width:0}
-  body[data-sidebar="collapsed"] #panel{padding:0;border:0;overflow:hidden}
-  .sgroup{margin-bottom:16px}
-  .sgroup h2{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
-    color:var(--muted);margin:0 0 8px}
-  .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  label{font-size:11px;color:var(--muted)}
-  select,.btn,.ibtn{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:8px;
-    background:var(--surface);color:var(--text);cursor:pointer;
-    transition:background var(--dur),border-color var(--dur),box-shadow var(--dur)}
-  select{padding:6px 8px}
-  .btn{padding:6px 11px;display:inline-flex;align-items:center;gap:6px}
-  .ibtn{padding:6px;width:30px;height:30px;display:inline-flex;align-items:center;
-    justify-content:center}
-  .ibtn svg,.btn svg{width:15px;height:15px}
-  .btn:hover,.ibtn:hover{background:var(--surface-2);border-color:var(--line-2)}
-  .btn:active,.ibtn:active{transform:translateY(1px)}
-  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:var(--e1)}
-  .btn.primary:hover{background:var(--brand-h);border-color:var(--brand-h)}
-  :focus-visible{outline:none;box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--focus)}
-  #legend,#edgelegend{display:flex;flex-wrap:wrap;gap:5px}
-  .lg{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;
-    border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer;
-    user-select:none;font-size:11px;transition:background var(--dur),border-color var(--dur)}
-  .lg:hover{background:var(--surface-2);border-color:var(--line-2)}
-  .lg i{width:9px;height:9px;border-radius:50%;display:inline-block}
-  .lg.rel i{border-radius:1px;width:12px;height:3px}
-  .lg .cnt{color:var(--subtle);font-variant-numeric:tabular-nums;font-size:10px}
-  .lg.off{opacity:.4}
-  .lg.off .lbl{text-decoration:line-through}
-  #cy{grid-area:cy;min-width:0;min-height:0;position:relative;background:var(--cy-bg)}
-  #info{grid-area:inspect;overflow-y:auto;background:var(--surface);
-    border-left:1px solid var(--line);padding:14px;font-size:12px;display:none}
-  body[data-inspect="open"] #info{display:block}
-  #info h2{font-size:14px;margin:0 0 2px;color:var(--text);word-break:break-all}
-  #info dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:9px 0 0;
-    border-top:1px solid var(--line);padding-top:9px}
-  #info dt{color:var(--brand);font-weight:500;font-size:11px}
-  #info dd{margin:0;word-break:break-all;font-size:11px}
-  #info .hint{color:var(--subtle);margin-top:9px;font-style:italic}
-  #info .edge-flow{font-size:11px;color:var(--muted);margin:5px 0 2px;word-break:break-all}
-  #info .trust{display:flex;align-items:center;gap:6px;margin:8px 0 2px;font-size:11px}
-  #info .trust .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
-  #info .trust .blurb{color:var(--muted)}
-  #info .copy-prov{margin-top:10px}
-  .rel-chip{display:inline-block;padding:2px 9px;border-radius:999px;color:#fff;
-    font-size:12px;font-weight:600}
-  #statusbar{grid-area:status;display:flex;align-items:center;gap:10px;padding:0 12px;
-    background:var(--surface);border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
-  #statusbar .l{color:var(--brand)}
-  #tip{position:absolute;z-index:40;pointer-events:none;display:none;background:var(--deepwater);
-    color:var(--mist);font-size:11px;padding:4px 8px;border-radius:6px;max-width:42ch;
-    box-shadow:var(--e2)}
-  #empty{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
-    justify-content:center;gap:6px;color:var(--muted);text-align:center;padding:20px}
-  #empty.show{display:flex}
-  #empty .et{font-size:14px;color:var(--text);font-weight:600}
-  #empty code{background:var(--surface-2);padding:1px 5px;border-radius:4px;font-size:11px}
-  #cy.loading::after{content:"";position:absolute;top:0;left:0;height:2px;width:28%;
-    background:var(--accent);animation:ld 1s var(--ease) infinite}
-  @keyframes ld{0%{left:-28%}100%{left:100%}}
-  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-</style>
+<style>__APP_CSS__</style>
 __LIB_TAG__
 </head>
 <body data-theme="light" data-sidebar="open" data-inspect="closed">
@@ -656,280 +565,7 @@ __LIB_TAG__
   var LIVE = __LIVE__;
   var LAYOUT = "__LAYOUT__";
 
-  function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COLOR; }
-  function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
-
-  // The cytoscape stylesheet is rebuilt on theme change: CSS variables can't reach
-  // canvas pixels, so node-label / highlight text colours are re-read here. (node.hi
-  // is a RING, not a background swap, so it reads on both light and dark themes.)
-  function graphStyle(){
-    var label = cssVar("--canvas-label") || "#0E2A33";
-    var surf = cssVar("--surface-solid") || "#ffffff";
-    return [
-      { selector: "node", style: {
-          "background-color": function(n){ return COLORS[n.data("kind")] || DEFAULT_COLOR; },
-          "label": "data(label)", "font-size": 9, "color": label,
-          "width": "mapData(deg, 0, 24, 14, 52)", "height": "mapData(deg, 0, 24, 14, 52)",
-          "text-wrap": "ellipsis", "text-max-width": 120,
-          "text-valign": "bottom", "text-margin-y": 2,
-          "border-width": 0.5, "border-color": surf } },
-      { selector: "edge", style: {
-          "line-color": edgeColor, "target-arrow-color": edgeColor,
-          "width": "mapData(weight, 1, 10, 0.8, 4.5)",
-          "target-arrow-shape": "triangle", "arrow-scale": 0.7, "curve-style": "bezier" } },
-      { selector: 'edge[confidence = "EXTRACTED"]',
-        style: { "line-style": "solid", "opacity": 0.7 } },
-      { selector: 'edge[confidence = "INFERRED"]',
-        style: { "line-style": "dashed", "opacity": 0.55 } },
-      { selector: 'edge[confidence = "AMBIGUOUS"]',
-        style: { "line-style": "dotted", "opacity": 0.45 } },
-      { selector: ".faded", style: { "opacity": 0.05, "text-opacity": 0 } },
-      { selector: "node.hi", style: { "border-width": 3, "border-color": "#2BB3A3",
-          "z-index": 99 } },
-      { selector: "node.found", style: { "border-width": 4, "border-color": "#E7B53C",
-          "z-index": 100 } },
-      { selector: "edge.hi", style: { "width": 2.2, "opacity": 1,
-          "label": "data(relation)", "font-size": 7, "color": label,
-          "text-rotation": "autorotate", "text-background-color": surf,
-          "text-background-opacity": 0.9, "z-index": 99 } }
-    ];
-  }
-
-  var cy = cytoscape({
-    container: document.getElementById("cy"),
-    elements: ELEMENTS,
-    wheelSensitivity: 0.2,
-    style: graphStyle(),
-    layout: { name: "preset" }
-  });
-
-  cy.nodes().forEach(function(n){ n.data("deg", n.degree(false)); });
-  document.getElementById("mode").textContent = META.mode || "graph";
-  document.getElementById("meta").textContent =
-    cy.nodes().length + " nodes \\u00b7 " + cy.edges().length + " edges";
-  if(!cy.nodes().length){ document.getElementById("empty").classList.add("show"); }
-
-  // theme toggle — re-skins the canvas (CSS vars don't reach canvas pixels)
-  document.getElementById("theme").onclick = function(){
-    document.body.dataset.theme = document.body.dataset.theme === "dark" ? "light" : "dark";
-    cy.style(graphStyle());
-  };
-  if(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches){
-    document.body.dataset.theme = "dark"; cy.style(graphStyle());
-  }
-  document.getElementById("navToggle").onclick = function(){
-    var c = document.body.dataset.sidebar === "collapsed";
-    document.body.dataset.sidebar = c ? "open" : "collapsed"; afterResize();
-  };
-  document.addEventListener("keydown", function(e){
-    if(e.target.tagName === "INPUT"){ if(e.key === "Escape"){ e.target.blur(); } return; }
-    if(e.key === "/"){ e.preventDefault(); document.getElementById("search").focus(); }
-    else if(e.key === "f" || e.key === "F"){ cy.fit(undefined, 30); }
-    else if(e.key === "t" || e.key === "T"){ document.getElementById("theme").click(); }
-    else if(e.key === "Escape"){ cy.elements().removeClass("faded hi"); hideInfo(); }
-  });
-
-  function layoutOpts(name){
-    if(name === "cose") return { name:"cose", animate:false, randomize:true, padding:40,
-        nodeOverlap:24, componentSpacing:140, gravity:0.2, numIter:1500,
-        nodeRepulsion:function(){ return 14000; },
-        idealEdgeLength:function(){ return 120; }, edgeElasticity:function(){ return 80; } };
-    if(name === "concentric") return { name:"concentric", animate:false, padding:40,
-        minNodeSpacing:28, concentric:function(n){ return n.degree(false); },
-        levelWidth:function(){ return 2; } };
-    if(name === "breadthfirst") return { name:"breadthfirst", animate:false, padding:40,
-        spacingFactor:1.5, circle:false };
-    if(name === "circle") return { name:"circle", animate:false, padding:40, spacingFactor:1.3 };
-    if(name === "grid") return { name:"grid", animate:false, padding:40, avoidOverlap:true,
-        avoidOverlapPadding:24 };
-    return { name:name, animate:false };
-  }
-  function runLayout(name){ cy.layout(layoutOpts(name)).run(); cy.fit(undefined, 30); }
-  runLayout(LAYOUT);
-
-  var sel = document.getElementById("layout");
-  sel.value = LAYOUT;
-  sel.addEventListener("change", function(){ runLayout(sel.value); });
-
-  // toolbar
-  document.getElementById("fit").onclick = function(){ cy.fit(undefined, 30); };
-  document.getElementById("png").onclick = function(){
-    var uri = cy.png({ full:true, scale:2, bg:"#ffffff" });
-    var a = document.createElement("a");
-    a.href = uri; a.download = "contextlake-graph.png"; a.click();
-  };
-  document.getElementById("reset").onclick = function(){
-    cy.elements().removeClass("faded hi found");
-    hidden = {}; hiddenRel = {}; applyFilter(); syncLegend();
-    document.getElementById("search").value = "";
-    hideInfo(); cy.fit(undefined, 30);
-  };
-
-  // legends = kind filter (nodes) + relationship filter (edges)
-  var hidden = {}, hiddenRel = {};
-  function applyFilter(){
-    cy.nodes().forEach(function(n){
-      n.style("display", hidden[n.data("kind")] ? "none" : "element");
-    });
-    cy.edges().forEach(function(e){
-      e.style("display", hiddenRel[e.data("relation")] ? "none" : "element");
-    });
-  }
-  function syncLegend(){
-    document.querySelectorAll("#legend .lg").forEach(function(el){
-      el.classList.toggle("off", !!hidden[el.getAttribute("data-kind")]);
-    });
-    document.querySelectorAll("#edgelegend .lg").forEach(function(el){
-      el.classList.toggle("off", !!hiddenRel[el.getAttribute("data-rel")]);
-    });
-  }
-  document.querySelectorAll("#legend .lg").forEach(function(el){
-    el.addEventListener("click", function(){
-      var k = el.getAttribute("data-kind");
-      hidden[k] = !hidden[k]; applyFilter(); syncLegend();
-    });
-  });
-  document.querySelectorAll("#edgelegend .lg").forEach(function(el){
-    el.addEventListener("click", function(){
-      var r = el.getAttribute("data-rel");
-      hiddenRel[r] = !hiddenRel[r]; applyFilter(); syncLegend();
-    });
-  });
-
-  // search -> highlight + frame matches
-  var search = document.getElementById("search");
-  search.addEventListener("input", function(){
-    var q = search.value.trim().toLowerCase();
-    cy.nodes().removeClass("found");
-    if(!q) return;
-    var hits = cy.nodes().filter(function(n){
-      return (n.data("label")||"").toLowerCase().indexOf(q) >= 0
-          || (n.data("qn")||"").toLowerCase().indexOf(q) >= 0;
-    });
-    hits.addClass("found");
-    if(hits.length){ cy.animate({ fit:{ eles:hits, padding:90 } }, { duration:300 }); }
-  });
-
-  // hover tooltip
-  var tip = document.getElementById("tip");
-  cy.on("mouseover", "node", function(e){
-    var n = e.target;
-    tip.textContent = (n.data("label")||"") + "  \\u00b7  " + (n.data("kind")||"");
-    tip.style.display = "block";
-  });
-  cy.on("mousemove", function(e){
-    if(tip.style.display === "block"){
-      tip.style.left = (e.renderedPosition.x + 12) + "px";
-      tip.style.top  = (e.renderedPosition.y + 12) + "px";
-    }
-  });
-  cy.on("mouseout", "node", function(){ tip.style.display = "none"; });
-  cy.on("mouseover", "edge", function(e){
-    var d = e.target.data();
-    var prov = d.prov_file
-      ? "  \\u00b7  " + d.prov_file + (d.prov_line ? ":" + d.prov_line : "") : "";
-    tip.textContent = d.relation + "  \\u00b7  " + d.confidence + prov;
-    tip.style.display = "block";
-  });
-  cy.on("mouseout", "edge", function(){ tip.style.display = "none"; });
-
-  // selection -> focus + detail panel (nodes AND edges)
-  var info = document.getElementById("info");
-  function esc(s){ return (s == null ? "" : ("" + s)).replace(/[&<>"]/g, function(c){
-    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
-  function row(k, v){
-    return (v === undefined || v === null || v === "")
-      ? "" : "<dt>" + k + "</dt><dd>" + esc(v) + "</dd>";
-  }
-  function showInfo(n){
-    var d = n.data();
-    var fileline = d.file ? (d.file + (d.line ? ":" + d.line : "")) : "";
-    info.innerHTML = "<h2>" + esc(d.label || d.id) + "</h2><dl>"
-      + row("kind", d.kind) + row("repo", d.repo) + row("qualified", d.qn)
-      + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg) + "</dl>"
-      + (LIVE ? '<div class="hint">click again to expand neighbours</div>' : "");
-    openInspector();
-  }
-  function showEdgeInfo(ed){
-    var d = ed.data();
-    var c = CONF_META[d.confidence] || CONF_META.EXTRACTED;  // [label, dot, blurb]
-    var hue = REL_COLORS[d.relation] || DEFAULT_EDGE_COLOR;
-    var sN = cy.getElementById(d.source), tN = cy.getElementById(d.target);
-    var prov = d.prov_file ? (d.prov_file + (d.prov_line ? ":" + d.prov_line : "")) : "";
-    info.innerHTML =
-      '<h2><span class="rel-chip" style="background:' + hue + '">'
-      + esc(d.relation) + "</span></h2>"
-      + '<div class="edge-flow">' + esc(sN.data("label"))
-      + " \\u2192 " + esc(tN.data("label")) + "</div>"
-      + '<div class="trust"><span class="dot" style="background:' + c[1] + '"></span>'
-      + "<b>" + esc(c[0]) + "</b><span class=\\"blurb\\">" + esc(c[2]) + "</span></div>"
-      + "<dl>" + row("context", d.context) + row("weight", d.weight)
-      + row("source", prov) + row("verified", d.verified_at) + "</dl>"
-      + (prov ? '<button class="copy-prov" data-prov="' + esc(prov)
-                + '">copy file:line</button>' : "");
-    openInspector();
-  }
-  info.addEventListener("click", function(ev){
-    var b = ev.target.closest && ev.target.closest(".copy-prov");
-    if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); }
-  });
-  function afterResize(){ setTimeout(function(){ cy.resize(); }, 190); }
-  function openInspector(){ document.body.dataset.inspect = "open"; afterResize(); }
-  function hideInfo(){ document.body.dataset.inspect = "closed"; afterResize(); }
-
-  function focus(node){
-    cy.elements().addClass("faded").removeClass("hi");
-    node.closedNeighborhood().removeClass("faded").addClass("hi");
-  }
-  cy.on("tap", function(e){
-    if(e.target === cy){ cy.elements().removeClass("faded hi"); hideInfo(); }
-  });
-  cy.on("tap", "node", function(e){
-    focus(e.target); showInfo(e.target);
-    if(LIVE){ expand(e.target.id()); }
-  });
-  cy.on("tap", "edge", function(e){
-    var ed = e.target;
-    cy.elements().addClass("faded").removeClass("hi");
-    ed.connectedNodes().add(ed).removeClass("faded").addClass("hi");
-    showEdgeInfo(ed);
-  });
-
-  function expand(id){
-    var cyEl = document.getElementById("cy");
-    cyEl.classList.add("loading");
-    fetch("/neighbors?id=" + encodeURIComponent(id) + "&direction=both")
-      .then(function(r){ return r.json(); })
-      .then(function(p){
-        cyEl.classList.remove("loading");
-        var added = [];
-        p.nodes.forEach(function(n){
-          if(cy.getElementById(n.id).empty()){
-            added.push({ group:"nodes", data:{ id:n.id, label:(n.name||n.id),
-              kind:(n.kind||""), repo:(n.repo||""), qn:(n.qualified_name||""),
-              file:(n.file||""), line:n.line } });
-          }
-        });
-        p.edges.forEach(function(ed){
-          var eid = ed.src + "->" + ed.dst + ":" + ed.relation;
-          if(cy.getElementById(eid).empty()){
-            added.push({ group:"edges", data:{ id:eid, source:ed.src, target:ed.dst,
-              relation:ed.relation, confidence:(ed.confidence||"EXTRACTED"),
-              context:(ed.context||""), weight:(ed.weight==null?1.0:ed.weight),
-              prov_file:(ed.prov_file||""), prov_line:ed.prov_line,
-              verified_at:(ed.verified_at||"") } });
-          }
-        });
-        if(added.length){
-          cy.add(added);
-          cy.nodes().forEach(function(n){ n.data("deg", n.degree(false)); });
-          applyFilter();
-          runLayout(sel.value || LAYOUT);
-        }
-      })
-      .catch(function(){ cyEl.classList.remove("loading"); });
-  }
-</script>
+  __APP_JS__</script>
 </body>
 </html>
 """

@@ -209,6 +209,27 @@ def test_cytoscape_asset_is_packaged():
     assert "cytoscape" in asset.read_text(encoding="utf-8")[:4000].lower()
 
 
+def test_app_assets_are_packaged():
+    # the visualizer's CSS/JS were extracted to static/ files; they must resolve.
+    from importlib.resources import files
+    css = files("contextlake.kb") / "static" / "app.css"
+    js = files("contextlake.kb") / "static" / "app.js"
+    assert css.is_file() and js.is_file()
+    assert "--deepwater" in css.read_text(encoding="utf-8")        # a known rule
+    assert "function edgeColor" in js.read_text(encoding="utf-8")  # a known function
+
+
+def test_html_inlines_extracted_assets(store):
+    _hub(store, leaves=3)
+    html = viz.to_html(_payload(store))
+    # the extracted CSS + JS are inlined into the single offline file...
+    assert "--deepwater" in html and "function edgeColor" in html
+    # ...and no asset placeholder survives in the output.
+    assert "__APP_CSS__" not in html and "__APP_JS__" not in html
+    import re
+    assert not re.findall(r"__[A-Z][A-Z]+__", html)  # no residual placeholder token
+
+
 # --- live server ---------------------------------------------------------
 
 def test_serve_endpoints(store):
