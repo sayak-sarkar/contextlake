@@ -199,12 +199,35 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     return (v === undefined || v === null || v === "")
       ? "" : "<dt>" + k + "</dt><dd>" + esc(v) + "</dd>";
   }
-  function showInfo(n){
+  // List the node's relationships in the inspector; each neighbour is clickable
+  // (data-id) to jump to it — in-view navigation between connected entities.
+  function connList(n, all){
+    var es = n.connectedEdges(), id = n.id(), cap = all ? es.length : 14;
+    if(!es.length) return "";
+    var rows = es.sort(function(a, b){ return (b.data("weight")||1) - (a.data("weight")||1); });
+    var items = "";
+    rows.slice(0, cap).forEach(function(ed){
+      var out = ed.data("source") === id;
+      var other = out ? ed.target() : ed.source();
+      var hue = REL_COLORS[ed.data("relation")] || DEFAULT_EDGE_COLOR;
+      items += '<li><span class="rdot" style="background:' + hue + '"></span>'
+        + '<span class="rl">' + esc(ed.data("relation")) + (out ? " →" : " ←") + "</span>"
+        + '<span class="rn" data-id="' + esc(other.id()) + '">'
+        + esc(other.data("label") || other.id()) + "</span></li>";
+    });
+    if(es.length > cap){ items += '<li class="rmore">+' + (es.length - cap) + " more — show all</li>"; }
+    return '<div class="conns"><h3>connections <span class="cc">' + es.length
+      + "</span></h3><ul>" + items + "</ul></div>";
+  }
+  var curNode = null;  // node whose detail is open, so "show all" can re-render it
+  function showInfo(n, allConns){
+    curNode = n;
     var d = n.data();
     var fileline = d.file ? (d.file + (d.line ? ":" + d.line : "")) : "";
     info.innerHTML = "<h2>" + esc(d.label || d.id) + "</h2><dl>"
       + row("kind", d.kind) + row("repo", d.repo) + row("qualified", d.qn)
       + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg) + "</dl>"
+      + connList(n, allConns)
       + (LIVE ? '<div class="hint">tap any node to expand its neighbours</div>' : "");
     openInspector();
   }
@@ -229,11 +252,29 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   }
   info.addEventListener("click", function(ev){
     var b = ev.target.closest && ev.target.closest(".copy-prov");
-    if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); }
+    if(b && navigator.clipboard){ navigator.clipboard.writeText(b.getAttribute("data-prov")); return; }
+    if(ev.target.closest && ev.target.closest(".rmore")){
+      if(curNode){ showInfo(curNode, true); }
+      return;
+    }
+    var rn = ev.target.closest && ev.target.closest(".rn");
+    if(rn){
+      var node = cy.getElementById(rn.getAttribute("data-id"));
+      if(node && node.nonempty()){ focus(node); showInfo(node); frameOn(node.closedNeighborhood()); }
+    }
   });
   function afterResize(){ cy.resize(); }  // ResizeObserver also catches the post-transition size
   function openInspector(){ document.body.dataset.inspect = "open"; afterResize(); }
   function hideInfo(){ document.body.dataset.inspect = "closed"; afterResize(); }
+  // After the inspector slide settles, re-fit the canvas onto the selection so it
+  // reflows AND stays legible (plain cy.resize() keeps the old zoom/pan -> clipped).
+  function frameOn(eles){
+    if(!eles || !eles.nonempty()) return;
+    setTimeout(function(){
+      cy.resize();
+      cy.animate({ fit:{ eles: eles, padding: 80 } }, { duration: dur(300) });
+    }, 210);
+  }
 
   function focus(node){
     cy.elements().addClass("faded").removeClass("hi");
@@ -245,12 +286,14 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   cy.on("tap", "node", function(e){
     focus(e.target); showInfo(e.target);
     if(LIVE){ expand(e.target.id()); }
+    else { frameOn(e.target.closedNeighborhood()); }
   });
   cy.on("tap", "edge", function(e){
     var ed = e.target;
     cy.elements().addClass("faded").removeClass("hi");
     ed.connectedNodes().add(ed).removeClass("faded").addClass("hi");
     showEdgeInfo(ed);
+    frameOn(ed.connectedNodes());
   });
 
   function expand(id){
