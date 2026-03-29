@@ -840,12 +840,13 @@ def cmd_graph(args) -> int:
         # is findable); neighbourhood/repo views stay bounded at 500.
         max_nodes = getattr(args, "max_nodes", None) or (5000 if overview else 500)
 
+        meta: dict = {}
         if overview:
-            nodes, edges = viz.overview_subgraph(store, max_nodes=max_nodes)
-            meta = {"mode": "overview"}
+            nodes, edges = viz.overview_subgraph(store, max_nodes=max_nodes, meta=meta)
+            meta["mode"] = "overview"
         elif getattr(args, "repo", None) and not _has_seed(args):
-            nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes)
-            meta = {"mode": "repo", "repo": args.repo}
+            nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes, meta=meta)
+            meta.update(mode="repo", repo=args.repo)
         else:
             seeds = viz.seed_ids_from_args(store, args)
             if not seeds:
@@ -855,8 +856,8 @@ def cmd_graph(args) -> int:
             nodes, edges = viz.extract_subgraph(
                 store, seeds, hops=hops, max_nodes=max_nodes, max_fanout=max_fanout,
                 relation=getattr(args, "relation", None),
-                direction=getattr(args, "direction", None) or "both")
-            meta = {"mode": "neighborhood", "seed_ids": seeds, "hops": hops}
+                direction=getattr(args, "direction", None) or "both", meta=meta)
+            meta.update(mode="neighborhood", seed_ids=seeds, hops=hops)
 
         payload = viz.to_payload(nodes, edges, meta)
         cdn = getattr(args, "cdn", False)

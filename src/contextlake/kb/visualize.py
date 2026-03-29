@@ -135,7 +135,8 @@ def seed_ids_from_args(store: Store, args) -> list[str]:
 
 def extract_subgraph(store: Store, seed_ids, *, hops: int = 2, max_nodes: int = 500,
                      max_fanout: int = 50, relation: str | None = None,
-                     direction: str = "both") -> tuple[list[Node], list[Edge]]:
+                     direction: str = "both",
+                     meta: dict | None = None) -> tuple[list[Node], list[Edge]]:
     """BFS a bounded subgraph out from ``seed_ids``.
 
     Caps are enforced while expanding: each ``neighbors()`` result is sliced to
@@ -192,11 +193,15 @@ def extract_subgraph(store: Store, seed_ids, *, hops: int = 2, max_nodes: int = 
     if truncated:
         log(f"  truncated: reached max_nodes={max_nodes} / max_fanout={max_fanout} "
             f"(the real neighbourhood is larger)")
+    if meta is not None:
+        # BFS early-stops, so the true size is unknown — flag truncation but DON'T
+        # report a total (a number here would be a fabrication).
+        meta["truncated"] = truncated
     return nodes, edges
 
 
-def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500
-                  ) -> tuple[list[Node], list[Edge]]:
+def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
+                  meta: dict | None = None) -> tuple[list[Node], list[Edge]]:
     """One repo's internal graph: its nodes (capped) and the edges among them."""
     rows = store.conn.execute(
         "SELECT node_id FROM nodes WHERE repo_id=? ORDER BY node_id LIMIT ?",
@@ -217,11 +222,16 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500
                     edges.append(e)
     if truncated:
         log(f"  truncated: repo {repo_id!r} has more than {max_nodes} nodes")
+    if meta is not None:
+        meta["truncated"] = truncated
+        if truncated:  # cheap exact total only when we actually capped
+            meta["total"] = store.conn.execute(
+                "SELECT COUNT(*) FROM nodes WHERE repo_id=?", (repo_id,)).fetchone()[0]
     return nodes, edges
 
 
-def overview_subgraph(store: Store, *, max_nodes: int = 5000
-                      ) -> tuple[list[dict], list[dict]]:
+def overview_subgraph(store: Store, *, max_nodes: int = 5000,
+                      meta: dict | None = None) -> tuple[list[dict], list[dict]]:
     """Repos-as-nodes with aggregated cross-repo edges (the architecture map).
 
     Edges carry no per-endpoint repo column, so we double-join through ``nodes``
@@ -267,6 +277,9 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000
     if truncated:
         log(f"  {len(ranked)} repos have cross-repo edges; showing the {max_nodes} most "
             f"connected (raise --max-nodes to see more)")
+    if meta is not None:
+        meta["truncated"] = truncated
+        meta["total"] = len(ranked)  # exact: every repo is a known candidate
     return nodes, edges
 
 
@@ -549,7 +562,8 @@ __LIB_TAG__
   </main>
   <aside id="info" role="complementary" aria-label="Details"></aside>
   <footer id="statusbar" role="status" aria-live="polite">
-    <span id="meta"></span><span class="grow"></span>
+    <span id="meta"></span>
+    <span id="trunc" class="trunc"></span><span class="grow"></span>
     <span>context<span class="l">lake</span> graph</span>
   </footer>
 </div>
