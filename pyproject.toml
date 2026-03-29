@@ -72,9 +72,9 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-# Vendored, MIT-licensed cytoscape.js for the offline `contextlake graph` HTML.
-# Without this the wheel silently omits the asset (works from a checkout only).
-"contextlake.kb" = ["static/*.js"]
+# Vendored cytoscape.js + the extracted app.css/app.js for the offline
+# `contextlake graph` HTML. Without this the wheel silently omits them.
+"contextlake.kb" = ["static/*.js", "static/*.css"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
