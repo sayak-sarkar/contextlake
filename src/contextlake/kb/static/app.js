@@ -56,8 +56,10 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
 
   cy.nodes().forEach(function(n){ n.data("deg", n.degree(false)); });
   document.getElementById("mode").textContent = META.mode || "graph";
+  var isolated = cy.nodes().filter(function(n){ return n.data("deg") === 0; }).length;
   document.getElementById("meta").textContent =
-    cy.nodes().length + " nodes \u00b7 " + cy.edges().length + " edges";
+    cy.nodes().length + " nodes \u00b7 " + cy.edges().length + " edges"
+    + (isolated ? " \u00b7 " + isolated + " isolated" : "");
   if(!cy.nodes().length){ document.getElementById("empty").classList.add("show"); }
   // honesty: when the view was capped, say so (never imply completeness)
   if(META.truncated){
@@ -79,10 +81,17 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     var c = document.body.dataset.sidebar === "collapsed";
     document.body.dataset.sidebar = c ? "open" : "collapsed"; afterResize();
   };
+  // "Fit" frames the readable view: the connected core when isolated repos
+  // dominate (the fleet overview), else the whole graph.
+  function reframe(){
+    var core = cy.nodes().filter(function(n){ return n.degree(false) > 0; });
+    var dominated = core.nonempty() && (cy.nodes().length - core.length) > core.length;
+    cy.fit(dominated ? core : undefined, 30);
+  }
   document.addEventListener("keydown", function(e){
     if(e.target.tagName === "INPUT"){ if(e.key === "Escape"){ e.target.blur(); } return; }
     if(e.key === "/"){ e.preventDefault(); document.getElementById("search").focus(); }
-    else if(e.key === "f" || e.key === "F"){ cy.fit(undefined, 30); }
+    else if(e.key === "f" || e.key === "F"){ reframe(); }
     else if(e.key === "t" || e.key === "T"){ document.getElementById("theme").click(); }
     else if(e.key === "Escape"){ cy.elements().removeClass("faded hi"); hideInfo(); }
   });
@@ -102,7 +111,28 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
         avoidOverlapPadding:24 };
     return { name:name, animate:false };
   }
-  function runLayout(name){ cy.layout(layoutOpts(name)).run(); cy.fit(undefined, 30); }
+  // The fleet overview is mostly isolated repos (no detected deps). Mixed into one
+  // layout they scatter the connected dependency map across the whole canvas and
+  // crush it into an unreadable speck. When they dominate, lay out ONLY the
+  // connected core compactly and park the isolated repos in a tidy grid block
+  // beneath it (still present + searchable), then frame the readable core.
+  function runLayout(name){
+    var core = cy.nodes().filter(function(n){ return n.degree(false) > 0; });
+    var iso = cy.nodes().not(core);
+    if(core.nonempty() && iso.length > core.length){
+      core.layout(layoutOpts(name)).run();
+      var bb = core.boundingBox();
+      var cols = Math.max(1, Math.ceil(Math.sqrt(iso.length)));
+      var gap = 64, x0 = bb.x1, y0 = bb.y2 + 160;
+      iso.forEach(function(n, i){
+        n.position({ x: x0 + (i % cols) * gap, y: y0 + Math.floor(i / cols) * gap });
+      });
+      cy.fit(core, 40);
+    } else {
+      cy.layout(layoutOpts(name)).run();
+      cy.fit(undefined, 30);
+    }
+  }
   runLayout(LAYOUT);
 
   var sel = document.getElementById("layout");
@@ -110,7 +140,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   sel.addEventListener("change", function(){ runLayout(sel.value); });
 
   // toolbar
-  document.getElementById("fit").onclick = function(){ cy.fit(undefined, 30); };
+  document.getElementById("fit").onclick = function(){ reframe(); };
   document.getElementById("png").onclick = function(){
     var uri = cy.png({ full:true, scale:2, bg:"#ffffff" });
     var a = document.createElement("a");
