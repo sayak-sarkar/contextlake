@@ -262,8 +262,12 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000,
     truncated = len(ranked) > max_nodes
     repo_ids = ranked[:max_nodes]
     keep = set(repo_ids)
-    nodes = [{"id": r, "repo": r, "kind": "repo", "name": r, "qualified_name": None,
-              "file": None, "line": None, "lang": None,
+    # Label with the short repo name (last path segment) so nodes are distinguishable
+    # — the full id is a long shared-prefix path that truncates to an identical,
+    # useless stub on every node. The full id stays as qualified_name (searchable +
+    # shown in the inspector) and as repo.
+    nodes = [{"id": r, "repo": r, "kind": "repo", "name": r.rsplit("/", 1)[-1],
+              "qualified_name": r, "file": None, "line": None, "lang": None,
               "attrs": {"node_count": sizes.get(r, 0)}} for r in repo_ids]
     edges = [e for e in dep_edges if e["src"] in keep and e["dst"] in keep]
     if truncated:
