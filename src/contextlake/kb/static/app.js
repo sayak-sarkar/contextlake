@@ -117,22 +117,41 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
         avoidOverlapPadding:24 };
     return { name:name, animate:false };
   }
-  // The fleet overview is mostly isolated repos (no detected deps). Mixed into one
-  // layout they scatter the connected dependency map across the whole canvas and
-  // crush it into an unreadable speck. When they dominate, lay out ONLY the
-  // connected core compactly and park the isolated repos in a tidy grid block
-  // beneath it (still present + searchable), then frame the readable core.
+  // Grid-pack a set of bounding-boxed groups (component tiles, or no-dep nodes) into
+  // rows no wider than maxW, mutating each group's node positions into place.
+  function packRows(groups, maxW, pad){
+    var x = 0, y = 0, rowH = 0;
+    groups.forEach(function(g){
+      var bb = g.boundingBox();
+      if(x > 0 && x + bb.w > maxW){ x = 0; y += rowH + pad; rowH = 0; }
+      var dx = x - bb.x1, dy = y - bb.y1;
+      g.nodes().positions(function(n){ var p = n.position(); return { x: p.x + dx, y: p.y + dy }; });
+      x += bb.w + pad; rowH = Math.max(rowH, bb.h);
+    });
+  }
+  // The fleet overview is dozens of small hub-and-satellite dependency clusters plus
+  // many repos with no detected deps. A single global layout either scatters each
+  // hub's dependents onto far rings (concentric) or collapses the disconnected
+  // clusters into a sliver (cose). Instead, lay out EACH dependency cluster
+  // compactly on its own (hub centred) and pack the cluster-tiles into a grid, so
+  // the overview reads as a map of clusters. No-dep repos are parked (hidden) below.
   function runLayout(name){
     var core = cy.nodes().filter(function(n){ return n.degree(false) > 0; });
     var iso = cy.nodes().not(core);
-    if(core.nonempty() && iso.length > core.length){
-      core.layout(layoutOpts(name)).run();
-      var bb = core.boundingBox();
-      var cols = Math.max(1, Math.ceil(Math.sqrt(iso.length)));
-      var gap = 64, x0 = bb.x1, y0 = bb.y2 + 160;
-      iso.forEach(function(n, i){
-        n.position({ x: x0 + (i % cols) * gap, y: y0 + Math.floor(i / cols) * gap });
-      });
+    if(OVERVIEW && core.nonempty()){
+      // cose is jittery on 2-4 node tiles; concentric centres the hub cleanly.
+      var per = layoutOpts(name === "cose" ? "concentric" : name);
+      var comps = cy.elements().components().filter(function(c){ return c.nodes().length > 1; });
+      comps.sort(function(a, b){ return b.nodes().length - a.nodes().length; });
+      comps.forEach(function(c){ c.layout(per).run(); });
+      var totalW = comps.reduce(function(s, c){ return s + c.boundingBox().w + 70; }, 0);
+      packRows(comps, Math.max(1400, totalW / Math.max(1, Math.round(Math.sqrt(comps.length)))), 70);
+      if(iso.length){
+        var bb = core.boundingBox(), cols = Math.max(1, Math.ceil(Math.sqrt(iso.length)));
+        iso.forEach(function(n, i){
+          n.position({ x: bb.x1 + (i % cols) * 64, y: bb.y2 + 180 + Math.floor(i / cols) * 64 });
+        });
+      }
       cy.fit(core, 40);
     } else {
       cy.layout(layoutOpts(name)).run();
