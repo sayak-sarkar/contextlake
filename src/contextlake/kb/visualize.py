@@ -536,6 +536,15 @@ __LIB_TAG__
   </header>
   <aside id="panel" role="complementary" aria-label="Controls">
     <div class="sgroup"><h2>View</h2>
+      <div class="row" id="viewmodes" hidden>
+        <div class="seg" role="tablist" aria-label="Overview mode">
+          <button class="segbtn on" id="vm-clusters" role="tab" aria-selected="true"
+            title="Namespace clusters — the repo tree, drill in on click">Namespace</button>
+          <button class="segbtn" id="vm-flow" role="tab" aria-selected="false"
+            title="Dependency clusters — connected repos grouped by what they depend on"
+            >Dependencies</button>
+        </div>
+      </div>
       <div class="row">
         <label>layout <select id="layout" aria-label="Layout">__LAYOUT_OPTIONS__</select></label>
         <button class="ibtn" id="fit" title="Fit to view" aria-label="Fit to view"><svg
