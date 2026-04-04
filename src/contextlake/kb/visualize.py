@@ -544,6 +544,8 @@ __LIB_TAG__
           fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
           13h10"/></svg>PNG</button>
       </div>
+      <label class="tog" id="nodeprow" hidden><input type="checkbox" id="shownodeps">
+        show repos with no detected dependency <span id="nodepn" class="cnt"></span></label>
     </div>
     <div class="sgroup"><h2>Nodes</h2><div id="legend">__LEGEND__</div></div>
     <div class="sgroup"><h2>Relationships</h2><div id="edgelegend">__EDGE_LEGEND__</div></div>

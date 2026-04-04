@@ -56,10 +56,16 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
 
   cy.nodes().forEach(function(n){ n.data("deg", n.degree(false)); });
   document.getElementById("mode").textContent = META.mode || "graph";
-  var isolated = cy.nodes().filter(function(n){ return n.data("deg") === 0; }).length;
+  // In the fleet overview, repos with no detected cross-repo dependency are hidden
+  // by default (they dominate and convey no structure) \u2014 kept in the graph and
+  // findable via search. "no detected dependency" is honest: the two-hop resolver
+  // is a known undercount, so absence here is not proof a repo is truly isolated.
+  var OVERVIEW = (META.mode === "overview");
+  function isNoDep(n){ return OVERVIEW && n.data("deg") === 0; }
+  var noDepCount = cy.nodes().filter(isNoDep).length;
   document.getElementById("meta").textContent =
     cy.nodes().length + " nodes \u00b7 " + cy.edges().length + " edges"
-    + (isolated ? " \u00b7 " + isolated + " isolated" : "");
+    + (noDepCount ? " \u00b7 " + noDepCount + " with no detected dependency" : "");
   if(!cy.nodes().length){ document.getElementById("empty").classList.add("show"); }
   // honesty: when the view was capped, say so (never imply completeness)
   if(META.truncated){
@@ -148,16 +154,20 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   };
   document.getElementById("reset").onclick = function(){
     cy.elements().removeClass("faded hi found");
-    hidden = {}; hiddenRel = {}; applyFilter(); syncLegend();
+    hidden = {}; hiddenRel = {}; showNodeps = false;
+    var sn = document.getElementById("shownodeps");
+    if(sn){ sn.checked = false; }
+    applyFilter(); syncLegend();
     document.getElementById("search").value = "";
-    hideInfo(); cy.fit(undefined, 30);
+    hideInfo(); reframe();
   };
 
   // legends = kind filter (nodes) + relationship filter (edges)
-  var hidden = {}, hiddenRel = {};
+  var hidden = {}, hiddenRel = {}, showNodeps = false;
   function applyFilter(){
     cy.nodes().forEach(function(n){
-      n.style("display", hidden[n.data("kind")] ? "none" : "element");
+      var off = hidden[n.data("kind")] || (isNoDep(n) && !showNodeps);
+      n.style("display", off ? "none" : "element");
     });
     cy.edges().forEach(function(e){
       e.style("display", hiddenRel[e.data("relation")] ? "none" : "element");
@@ -184,16 +194,31 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     });
   });
 
-  // search -> highlight + frame matches
+  // no-dependency repos: hidden by default in the overview, revealable via a toggle.
+  var shownodeps = document.getElementById("shownodeps");
+  if(OVERVIEW && noDepCount){
+    document.getElementById("nodepn").textContent = noDepCount;
+    document.getElementById("nodeprow").hidden = false;
+    applyFilter();  // hide them now (showNodeps starts false; layout already framed the core)
+    shownodeps.addEventListener("change", function(){
+      showNodeps = shownodeps.checked;
+      applyFilter();
+      if(showNodeps){ cy.fit(undefined, 30); } else { reframe(); }
+    });
+  }
+
+  // search -> highlight + frame matches (reveals hidden no-dep repos so every repo
+  // stays findable; clearing the box restores the hidden state)
   var search = document.getElementById("search");
   search.addEventListener("input", function(){
     var q = search.value.trim().toLowerCase();
     cy.nodes().removeClass("found");
-    if(!q) return;
+    if(!q){ applyFilter(); return; }
     var hits = cy.nodes().filter(function(n){
       return (n.data("label")||"").toLowerCase().indexOf(q) >= 0
           || (n.data("qn")||"").toLowerCase().indexOf(q) >= 0;
     });
+    hits.style("display", "element");
     hits.addClass("found");
     if(hits.length){ cy.animate({ fit:{ eles:hits, padding:90 } }, { duration: dur(300) }); }
   });
