@@ -36,7 +36,22 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       { selector: "edge.hi", style: { "width": 2.2, "opacity": 1,
           "label": "data(relation)", "font-size": 7, "color": label,
           "text-rotation": "autorotate", "text-background-color": surf,
-          "text-background-opacity": 0.9, "z-index": 99 } }
+          "text-background-opacity": 0.9, "z-index": 99 } },
+      // overview namespace mindmap: cluster nodes, faint "contains" spokes, and
+      // aggregated namespace-to-namespace dependency edges
+      { selector: 'node[kind = "namespace"]', style: {
+          "shape": "round-rectangle", "background-color": "#137A8B",
+          "background-opacity": 0.13, "border-width": 1.5, "border-color": "#137A8B",
+          "label": "data(label)", "font-size": 12, "font-weight": 600, "color": label,
+          "text-valign": "center", "text-halign": "center", "text-wrap": "wrap",
+          "text-max-width": 130, "text-margin-y": 0,
+          "width": "mapData(count, 1, 120, 46, 130)",
+          "height": "mapData(count, 1, 120, 46, 130)", "z-index": 2 } },
+      { selector: 'edge[scaffold]', style: {
+          "line-color": "#9bbcc2", "width": 0.7, "target-arrow-shape": "none",
+          "opacity": 0.4, "curve-style": "straight" } },
+      { selector: 'edge[aggregated]', style: {
+          "width": "mapData(weight, 1, 20, 1.6, 7)", "opacity": 0.75 } }
     ];
   }
 
@@ -136,33 +151,130 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   // compactly on its own (hub centred) and pack the cluster-tiles into a grid, so
   // the overview reads as a map of clusters. No-dep repos are parked (hidden) below.
   function runLayout(name){
-    var core = cy.nodes().filter(function(n){ return n.degree(false) > 0; });
-    var iso = cy.nodes().not(core);
-    if(OVERVIEW && core.nonempty()){
-      // cose is jittery on 2-4 node tiles; concentric centres the hub cleanly.
-      var per = layoutOpts(name === "cose" ? "concentric" : name);
-      var comps = cy.elements().components().filter(function(c){ return c.nodes().length > 1; });
-      comps.sort(function(a, b){ return b.nodes().length - a.nodes().length; });
-      comps.forEach(function(c){ c.layout(per).run(); });
-      var totalW = comps.reduce(function(s, c){ return s + c.boundingBox().w + 70; }, 0);
-      packRows(comps, Math.max(1400, totalW / Math.max(1, Math.round(Math.sqrt(comps.length)))), 70);
-      if(iso.length){
-        var bb = core.boundingBox(), cols = Math.max(1, Math.ceil(Math.sqrt(iso.length)));
-        iso.forEach(function(n, i){
-          n.position({ x: bb.x1 + (i % cols) * 64, y: bb.y2 + 180 + Math.floor(i / cols) * 64 });
-        });
-      }
-      cy.fit(core, 40);
-    } else {
-      cy.layout(layoutOpts(name)).run();
-      cy.fit(undefined, 30);
-    }
+    cy.layout(layoutOpts(name)).run();
+    cy.fit(undefined, 30);
   }
-  runLayout(LAYOUT);
+
+  // ===== Overview: two interlocking views — namespace mindmap <-> dependency flow.
+  // One graph, two layouts. Clusters mode shows the repo tree as ~N namespace nodes
+  // (the structure the user knows) with aggregated namespace→namespace dependency
+  // edges; tapping a namespace expands its repos (mindmap drill-in). Flow mode drops
+  // the scaffolding and lays the connected repos out by depends-on DIRECTION. =====
+  var VIEWMODE = "clusters", nsExpanded = {};
+  function nsOf(id){ return String(id).split("/")[0]; }
+  function buildOverviewModel(){
+    var repos = cy.nodes('[kind = "repo"]'), groups = {}, add = [], agg = {};
+    repos.forEach(function(n){ var k = nsOf(n.id()); (groups[k] = groups[k] || []).push(n); });
+    Object.keys(groups).forEach(function(ns){
+      add.push({ group: "nodes", data: { id: "ns:" + ns, kind: "namespace",
+        label: ns + " · " + groups[ns].length, count: groups[ns].length, ns: ns } });
+      groups[ns].forEach(function(r){
+        r.data("ns", ns);
+        add.push({ group: "edges", data: { id: "sc:" + r.id(),
+          source: "ns:" + ns, target: r.id(), scaffold: true } });
+      });
+      nsExpanded[ns] = false;
+    });
+    cy.edges('[relation = "depends_on"]').forEach(function(e){
+      var a = nsOf(e.data("source")), b = nsOf(e.data("target"));
+      if(a === b){ return; }
+      var k = a + "" + b; agg[k] = (agg[k] || 0) + (e.data("weight") || 1);
+    });
+    Object.keys(agg).forEach(function(k){
+      var p = k.split("");
+      add.push({ group: "edges", data: { id: "agg:" + k, source: "ns:" + p[0],
+        target: "ns:" + p[1], relation: "depends_on", confidence: "INFERRED",
+        weight: agg[k], aggregated: true } });
+    });
+    cy.add(add);
+  }
+  function applyOverview(){
+    var clusters = (VIEWMODE === "clusters");
+    cy.batch(function(){
+      cy.nodes('[kind = "namespace"]').style("display", clusters ? "element" : "none");
+      cy.nodes('[kind = "repo"]').forEach(function(r){
+        var show = clusters ? !!nsExpanded[r.data("ns")] : (r.data("deg") > 0 || showNodeps);
+        r.style("display", show ? "element" : "none");
+      });
+      cy.edges('[scaffold]').forEach(function(e){
+        e.style("display", clusters && nsExpanded[nsOf(e.data("target"))] ? "element" : "none");
+      });
+      cy.edges('[aggregated]').forEach(function(e){
+        var a = e.data("source").slice(3), b = e.data("target").slice(3);
+        e.style("display", clusters && !(nsExpanded[a] && nsExpanded[b]) ? "element" : "none");
+      });
+      cy.edges('[relation = "depends_on"]').not('[aggregated]').forEach(function(e){
+        var show = clusters
+          ? (nsExpanded[nsOf(e.data("source"))] && nsExpanded[nsOf(e.data("target"))])
+          : true;
+        e.style("display", show ? "element" : "none");
+      });
+    });
+  }
+  function layoutClusters(){
+    var vis = cy.elements().filter(function(el){ return el.visible(); });
+    vis.layout({ name: "cose", animate: false, randomize: true, padding: 40,
+      nodeOverlap: 24, componentSpacing: 120, gravity: 0.3, numIter: 1200,
+      nodeRepulsion: function(){ return 12000; },
+      idealEdgeLength: function(e){ return e.data("scaffold") ? 64 : 210; } }).run();
+    cy.fit(vis, 45);
+  }
+  function layoutFlow(){
+    var repoEls = cy.nodes('[kind = "repo"]')
+      .add(cy.edges('[relation = "depends_on"]').not('[aggregated]'));
+    var comps = repoEls.components().filter(function(c){ return c.nodes().length > 1; });
+    comps.sort(function(a, b){ return b.nodes().length - a.nodes().length; });
+    // Per-cluster layout, honouring the dropdown. depends_on is hub-and-spoke
+    // (libraries everyone uses), not directional chains, so concentric (hub centred)
+    // reads best by default; breadthfirst gives a directed-flow attempt on demand.
+    var nm = (document.getElementById("layout").value || LAYOUT);
+    var per = layoutOpts(nm === "cose" ? "concentric" : nm);
+    comps.forEach(function(c){ c.layout(per).run(); });
+    if(comps.length){
+      var tw = comps.reduce(function(s, c){ return s + c.boundingBox().w + 90; }, 0);
+      packRows(comps, Math.max(1500, tw / Math.max(1, Math.round(Math.sqrt(comps.length)))), 100);
+    }
+    var core = cy.nodes('[kind = "repo"]').filter(function(n){ return n.data("deg") > 0; });
+    var iso = cy.nodes('[kind = "repo"]').filter(function(n){ return n.data("deg") === 0; });
+    var bb = core.nonempty() ? core.boundingBox() : { x1: 0, y2: 0 };
+    var cols = Math.max(1, Math.ceil(Math.sqrt(iso.length || 1)));
+    iso.forEach(function(n, i){
+      n.position({ x: bb.x1 + (i % cols) * 64, y: bb.y2 + 200 + Math.floor(i / cols) * 64 });
+    });
+    cy.fit(core, 45);
+  }
+  function relayoutOverview(){ if(VIEWMODE === "clusters"){ layoutClusters(); } else { layoutFlow(); } }
+  function setMode(m){
+    VIEWMODE = m;
+    ["clusters", "flow"].forEach(function(k){
+      var b = document.getElementById("vm-" + k);
+      b.classList.toggle("on", k === m); b.setAttribute("aria-selected", String(k === m));
+    });
+    var np = document.getElementById("nodeprow");
+    if(np){ np.hidden = (m !== "flow") || !noDepCount; }
+    cy.elements().removeClass("faded hi found");
+    applyOverview(); relayoutOverview();
+  }
+  function toggleNs(nsNode){
+    nsExpanded[nsNode.data("ns")] = !nsExpanded[nsNode.data("ns")];
+    applyOverview(); relayoutOverview();
+  }
+
+  if(OVERVIEW){
+    buildOverviewModel();
+    document.getElementById("viewmodes").hidden = false;
+    document.getElementById("vm-clusters").onclick = function(){ setMode("clusters"); };
+    document.getElementById("vm-flow").onclick = function(){ setMode("flow"); };
+    setMode("clusters");
+  } else {
+    runLayout(LAYOUT);
+  }
 
   var sel = document.getElementById("layout");
   sel.value = LAYOUT;
-  sel.addEventListener("change", function(){ runLayout(sel.value); });
+  sel.addEventListener("change", function(){
+    if(OVERVIEW){ relayoutOverview(); } else { runLayout(sel.value); }
+  });
 
   // toolbar
   document.getElementById("fit").onclick = function(){ reframe(); };
@@ -176,9 +288,14 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     hidden = {}; hiddenRel = {}; showNodeps = false;
     var sn = document.getElementById("shownodeps");
     if(sn){ sn.checked = false; }
-    applyFilter(); syncLegend();
     document.getElementById("search").value = "";
-    hideInfo(); reframe();
+    hideInfo(); syncLegend();
+    if(OVERVIEW){
+      Object.keys(nsExpanded).forEach(function(k){ nsExpanded[k] = false; });
+      setMode("clusters");
+    } else {
+      applyFilter(); reframe();
+    }
   };
 
   // legends = kind filter (nodes) + relationship filter (edges)
@@ -214,25 +331,25 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   });
 
   // no-dependency repos: hidden by default in the overview, revealable via a toggle.
+  // no-dep toggle (flow mode only): the overview controller governs visibility, so
+  // route the change through applyOverview rather than the kind-filter.
   var shownodeps = document.getElementById("shownodeps");
   if(OVERVIEW && noDepCount){
     document.getElementById("nodepn").textContent = noDepCount;
-    document.getElementById("nodeprow").hidden = false;
-    applyFilter();  // hide them now (showNodeps starts false; layout already framed the core)
     shownodeps.addEventListener("change", function(){
       showNodeps = shownodeps.checked;
-      applyFilter();
-      if(showNodeps){ cy.fit(undefined, 30); } else { reframe(); }
+      applyOverview(); relayoutOverview();
     });
   }
 
-  // search -> highlight + frame matches (reveals hidden no-dep repos so every repo
-  // stays findable; clearing the box restores the hidden state)
+  // search -> highlight + frame matches (reveals hidden repos so every repo stays
+  // findable; clearing restores the mode's visibility state)
+  function restoreVisibility(){ if(OVERVIEW){ applyOverview(); } else { applyFilter(); } }
   var search = document.getElementById("search");
   search.addEventListener("input", function(){
     var q = search.value.trim().toLowerCase();
     cy.nodes().removeClass("found");
-    if(!q){ applyFilter(); return; }
+    if(!q){ restoreVisibility(); return; }
     var hits = cy.nodes().filter(function(n){
       return (n.data("label")||"").toLowerCase().indexOf(q) >= 0
           || (n.data("qn")||"").toLowerCase().indexOf(q) >= 0;
@@ -358,6 +475,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     if(e.target === cy){ cy.elements().removeClass("faded hi"); hideInfo(); }
   });
   cy.on("tap", "node", function(e){
+    // overview clusters mode: tapping a namespace drills in/out (mindmap), not focus
+    if(e.target.data("kind") === "namespace"){ toggleNs(e.target); return; }
     focus(e.target); showInfo(e.target);
     if(LIVE){ expand(e.target.id()); }
     else { frameOn(e.target.closedNeighborhood()); }

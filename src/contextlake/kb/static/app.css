@@ -50,6 +50,15 @@
   .sgroup h2{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
     color:var(--muted);margin:0 0 8px}
   .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  #viewmodes{margin-bottom:9px}
+  #viewmodes[hidden]{display:none}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;
+    background:var(--surface-2)}
+  .segbtn{font:inherit;font-size:12px;padding:6px 13px;border:0;background:transparent;
+    color:var(--muted);cursor:pointer;transition:background var(--dur),color var(--dur)}
+  .segbtn+.segbtn{border-left:1px solid var(--line)}
+  .segbtn.on{background:var(--brand);color:#fff;font-weight:500}
+  .segbtn:not(.on):hover{background:var(--surface);color:var(--text)}
   .tog{display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11px;
     color:var(--muted);cursor:pointer}
   .tog[hidden]{display:none}
