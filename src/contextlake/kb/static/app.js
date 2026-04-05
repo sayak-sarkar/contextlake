@@ -51,7 +51,10 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
           "line-color": "#9bbcc2", "width": 0.7, "target-arrow-shape": "none",
           "opacity": 0.4, "curve-style": "straight" } },
       { selector: 'edge[aggregated]', style: {
-          "width": "mapData(weight, 1, 20, 1.6, 7)", "opacity": 0.75 } }
+          "width": "mapData(weight, 1, 20, 1.6, 7)", "opacity": 0.8,
+          "label": "data(weight)", "font-size": 10, "font-weight": 600, "color": label,
+          "text-background-color": surf, "text-background-opacity": 0.9,
+          "text-background-padding": 2, "text-rotation": "autorotate" } }
     ];
   }
 
@@ -184,7 +187,9 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       var p = k.split("");
       add.push({ group: "edges", data: { id: "agg:" + k, source: "ns:" + p[0],
         target: "ns:" + p[1], relation: "depends_on", confidence: "INFERRED",
-        weight: agg[k], aggregated: true } });
+        weight: agg[k], aggregated: true,
+        context: p[0] + " depends on " + p[1] + " — " + agg[k]
+                 + " cross-namespace package " + (agg[k] === 1 ? "dependency" : "dependencies") } });
     });
     cy.add(add);
   }
@@ -255,9 +260,32 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     cy.elements().removeClass("faded hi found");
     applyOverview(); relayoutOverview();
   }
+  // Mindmap drill: expand lays out ONLY this namespace's repos as a local cluster
+  // around the (fixed) namespace node — every other namespace stays put, so there's
+  // no disorienting global reshuffle. Collapse just hides them.
   function toggleNs(nsNode){
-    nsExpanded[nsNode.data("ns")] = !nsExpanded[nsNode.data("ns")];
-    applyOverview(); relayoutOverview();
+    var ns = nsNode.data("ns");
+    var opening = !nsExpanded[ns];
+    nsExpanded[ns] = opening;
+    cy.elements().removeClass("faded hi found");
+    applyOverview();
+    if(opening){
+      var kids = cy.nodes('[kind = "repo"]').filter(function(n){ return n.data("ns") === ns; });
+      // compact grid directly beneath the namespace node (a mindmap branch), so it
+      // stays tight instead of a wide ring that collides with other namespaces
+      var cx = nsNode.position("x"), cy0 = nsNode.position("y");
+      var cols = Math.max(1, Math.ceil(Math.sqrt(kids.length))), sp = 72;
+      var w = cols * sp, h = Math.ceil(kids.length / cols) * sp;
+      kids.layout({ name: "grid", animate: false, avoidOverlap: true, condense: true,
+        boundingBox: { x1: cx - w / 2, y1: cy0 + 56, w: w, h: h } }).run();
+      var grp = nsNode.union(kids);
+      cy.elements().addClass("faded");        // spotlight the opened branch
+      grp.union(kids.connectedEdges()).removeClass("faded");
+      cy.animate({ fit: { eles: grp, padding: 55 } }, { duration: dur(350) });
+    } else {
+      cy.animate({ fit: { eles: cy.nodes('[kind = "namespace"]').filter(function(n){
+        return n.visible(); }), padding: 45 } }, { duration: dur(350) });
+    }
   }
 
   if(OVERVIEW){
@@ -375,9 +403,13 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   cy.on("mouseout", "node", function(){ tip.style.display = "none"; });
   cy.on("mouseover", "edge", function(e){
     var d = e.target.data();
-    var prov = d.prov_file
-      ? "  \u00b7  " + d.prov_file + (d.prov_line ? ":" + d.prov_line : "") : "";
-    tip.textContent = d.relation + "  \u00b7  " + d.confidence + prov;
+    if(d.aggregated){
+      tip.textContent = d.context;
+    } else {
+      var prov = d.prov_file
+        ? "  \u00b7  " + d.prov_file + (d.prov_line ? ":" + d.prov_line : "") : "";
+      tip.textContent = d.relation + "  \u00b7  " + d.confidence + prov;
+    }
     tip.style.display = "block";
   });
   cy.on("mouseout", "edge", function(){ tip.style.display = "none"; });
