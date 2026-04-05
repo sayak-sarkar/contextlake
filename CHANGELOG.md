@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-06-24
+
+### Added
+
+- **Two interlocking overview views — a `Namespace` mindmap and a `Dependencies` graph.** The fleet
+  overview now has a mode toggle over one graph. **Namespace** (default) collapses the 660 repos into
+  the ~14 top-level GitLab namespaces you know (sized by repo count), with aggregated, weight-labelled
+  namespace→namespace dependency edges; tapping a namespace expands its repos in place as a compact
+  mindmap branch (the rest dims to spotlight it) and tapping again collapses — every repo stays placed
+  and searchable. **Dependencies** lays the connected repos out as readable hub-and-spoke clusters.
+  Both modes share selection, search, and the inspector.
+- **Inspector lists a node's relationships**, each neighbour clickable to navigate to it (in-view
+  hop-to-hop). Tapping a node/edge reframes the canvas onto the selection so it stays legible.
+
 ### Changed
 
 - **Graph visualizer reworked into an enterprise app shell.** The floating translucent cards are
@@ -16,6 +30,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mode** (Deepwater theme; re-skins the canvas, not just the chrome), icon-button controls, empty/
   loading states, keyboard shortcuts (`/` search, `f` fit, `t` theme, `Esc` clear), and focus-visible
   rings. Still one self-contained offline HTML, zero new dependencies.
+- **Fleet overview now shows real cross-repo dependencies.** Repointed from the raw cross-repo
+  `imports` join (≈4,800 import-star artifacts from fleet-wide `module` nodes) to the **package
+  two-hop** (`publishes ⨝ depends_on`) — 217 trustworthy, manifest-derived `depends_on` edges, marked
+  `INFERRED` (a deliberate, honest undercount). Repos are labelled by short name (the full path moves
+  to the inspector + search) so nodes are distinguishable.
+- **Graph-visualizer CSS/JS extracted into `static/app.css` + `static/app.js`** (inlined at emit time
+  like the vendored cytoscape), so the source is lint/`node --check`-able. Output is still one
+  self-contained offline HTML.
+
+### Fixed
+
+- **Truncation is now visible in the UI.** A bounded subgraph that was clipped used to read as
+  complete; a persistent status-bar banner now says "showing N of M — truncated" (honest counts only).
+- **Overview readability.** Isolated/no-dependency repos (533 of 660) no longer scatter the connected
+  map into an unreadable speck — they're hidden by default behind a toggle (and revealed by search),
+  and the layout frames the meaningful core. Expanding a namespace no longer triggers a disorienting
+  global re-layout (scoped, position-stable).
+- Canvas now reflows/reframes correctly when the inspector or sidebar opens (was leaving the old
+  zoom/pan). Dark-mode faded opacity and `prefers-reduced-motion` gating for JS animations.
 
 ## [2.2.0] - 2026-06-23
 
