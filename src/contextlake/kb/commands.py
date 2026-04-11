@@ -883,9 +883,15 @@ def cmd_graph(args) -> int:
         layout = getattr(args, "layout", None) or ("concentric" if overview else "cose")
 
         if getattr(args, "serve", False):
-            viz.serve_graph(store, payload, host=getattr(args, "host", None) or "127.0.0.1",
-                            port=getattr(args, "port", None) or 8765,
-                            cdn=cdn, layout=layout, max_fanout=max_fanout)
+            host = getattr(args, "host", None) or "127.0.0.1"
+            port = getattr(args, "port", None) or 8765
+            if overview:
+                # serve the whole cross-linked site, rendering repo pages on demand
+                viz.serve_site(store, host=host, port=port, max_nodes=max_nodes,
+                               overview_layout=layout, max_fanout=max_fanout)
+            else:
+                viz.serve_graph(store, payload, host=host, port=port,
+                                cdn=cdn, layout=layout, max_fanout=max_fanout)
             return 0
 
         if fmt == "json":

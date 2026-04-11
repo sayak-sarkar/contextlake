@@ -521,7 +521,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     // overview clusters mode: tapping a namespace drills in/out (mindmap), not focus
     if(e.target.data("kind") === "namespace"){ toggleNs(e.target); return; }
     focus(e.target); showInfo(e.target);
-    if(LIVE){ expand(e.target.id()); }
+    // overview repo nodes navigate via the inspector link, never /neighbors-expand
+    if(LIVE && !OVERVIEW){ expand(e.target.id()); }
     else { frameOn(e.target.closedNeighborhood()); }
   });
   cy.on("tap", "edge", function(e){

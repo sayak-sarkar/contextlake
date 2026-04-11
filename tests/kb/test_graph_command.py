@@ -4,6 +4,7 @@ import json
 import socket
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import date
 from pathlib import Path
@@ -326,6 +327,32 @@ def test_serve_endpoints(store):
         assert b"<html" in body.lower()
         nb = json.loads(_get(base + "/neighbors?id=H"))
         assert "nodes" in nb and "edges" in nb and nb["nodes"]
+    finally:
+        srv.shutdown()
+
+
+def test_site_server_lazy_routes(store):
+    store.upsert_repo(Repo(id="team/repoA", path="/a"))
+    store.upsert_nodes("team/repoA", [_node("a1", repo="team/repoA")])
+    port = _free_port()
+    srv = viz.build_site_server(store, host="127.0.0.1", port=port)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{port}"
+        # overview references the shared asset (not inlined); asset served separately
+        overview = _get(base + "/")
+        assert b'src="cytoscape.min.js"' in overview and b"--deepwater" not in overview
+        assert b"--deepwater" in _get(base + "/app.css")
+        # repo page is rendered on demand from the store
+        repo = _get(base + "/repo-team__repoA.html")
+        assert b"<html" in repo.lower() and b'"repo": "team/repoA"' in repo
+        # unknown repo slug -> 404 (direct request; _get retries would mask it)
+        try:
+            urllib.request.urlopen(base + "/repo-nope.html", timeout=1)
+            raise AssertionError("expected 404")
+        except urllib.error.HTTPError as e:
+            assert e.code == 404
     finally:
         srv.shutdown()
 
