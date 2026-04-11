@@ -15,6 +15,7 @@ Pure-Python/stdlib only; no module-level heavy imports.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..logging_setup import log
@@ -338,7 +339,7 @@ def _cytoscape_elements(payload: dict) -> list[dict]:
             "id": n["id"], "label": n.get("name") or n["id"], "kind": n.get("kind", ""),
             "repo": n.get("repo", ""), "qn": n.get("qualified_name") or "",
             "file": n.get("file") or "", "line": n.get("line"),
-            "count": attrs.get("node_count"),
+            "count": attrs.get("node_count"), "href": n.get("href") or "",
         }})
     for e in payload["edges"]:
         els.append({"data": {"source": e["src"], "target": e["dst"],
@@ -376,17 +377,30 @@ LAYOUTS = ("cose", "concentric", "breadthfirst", "circle", "grid")
 
 
 def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
-            layout: str = "cose", title: str = "contextlake graph") -> str:
+            layout: str = "cose", title: str = "contextlake graph",
+            assets: str = "inline", site: bool = False) -> str:
     """A single self-contained HTML page rendering the subgraph with cytoscape.js.
 
-    Default inlines the vendored lib so the file works offline / air-gapped; pass
-    ``cdn=True`` for a small online-only file. ``live=True`` wires node taps to a
-    ``/neighbors`` endpoint for click-to-expand (used by ``serve_graph``).
+    Default inlines the vendored lib + CSS/JS so the file works offline / air-gapped;
+    pass ``cdn=True`` for a small online-only file. ``assets="sibling"`` references
+    ``cytoscape.min.js`` / ``app.css`` / ``app.js`` as relative files instead of
+    inlining them — used by ``build_site`` so a folder of cross-linked pages shares
+    one copy of each asset rather than inlining ~1 MB per page. ``site=True`` enables
+    cross-page navigation (overview repo nodes carry an ``href`` to their repo page).
+    ``live=True`` wires node taps to a ``/neighbors`` endpoint (used by ``serve_graph``).
     """
     if cdn:
         lib_tag = f'<script src="{_CDN_URL}"></script>'
+    elif assets == "sibling":
+        lib_tag = '<script src="cytoscape.min.js"></script>'
     else:
         lib_tag = f"<script>{_cytoscape_js()}</script>"
+    if assets == "sibling":
+        style_block = '<link rel="stylesheet" href="app.css">'
+        app_js_block = '</script>\n<script src="app.js"></script>'
+    else:
+        style_block = f"<style>{_app_css()}</style>"
+        app_js_block = f"  {_app_js()}</script>"
     from collections import Counter
     elements = json.dumps(_cytoscape_elements(payload))
     colors = json.dumps(KIND_COLORS)
@@ -409,9 +423,10 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     options = "".join(f'<option value="{n}">{n}</option>' for n in LAYOUTS)
     meta = json.dumps(payload.get("meta", {}))
     return (_HTML_TEMPLATE
-            .replace("__APP_CSS__", _app_css())
-            .replace("__APP_JS__", _app_js())
+            .replace("__STYLE_BLOCK__", style_block)
+            .replace("__APP_JS_BLOCK__", app_js_block)
             .replace("__TITLE__", title)
+            .replace("__SITE__", "true" if site else "false")
             .replace("__LIB_TAG__", lib_tag)
             .replace("__ELEMENTS__", elements)
             .replace("__COLORS__", colors)
@@ -426,6 +441,135 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
             .replace("__META__", meta)
             .replace("__LAYOUT__", layout if layout in LAYOUTS else "cose")
             .replace("__LIVE__", "true" if live else "false"))
+
+
+# ---------------------------------------------------------------------------
+# Static cross-linked site
+# ---------------------------------------------------------------------------
+def repo_slug(repo_id: str) -> str:
+    """Filesystem-safe page name for a repo id (matches the wiki convention)."""
+    return repo_id.replace("/", "__")
+
+
+def _read_static_raw(name: str) -> str:
+    from importlib.resources import files
+    return (files("contextlake.kb") / "static" / name).read_text(encoding="utf-8")
+
+
+_INDEX_TEMPLATE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>contextlake — index</title>
+<style>
+  :root{--deepwater:#0E2A33;--lake:#137A8B;--current:#2BB3A3;--bg:#f5fafb;
+    --surface:#fff;--line:#dce8ea;--text:#0E2A33;--muted:#5b7177;--subtle:#8aa2a6;
+    --ff:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    --ff-d:"Space Grotesk",var(--ff)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ff);
+    line-height:1.5}
+  header{display:flex;align-items:center;gap:10px;padding:16px 28px;background:var(--surface);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+  .glyph{width:30px;height:30px;border-radius:8px;display:block;
+    box-shadow:0 1px 2px rgba(14,42,51,.1)}
+  .wm{font-family:var(--ff-d);font-size:19px;font-weight:600;letter-spacing:-.01em}
+  .wm .l{color:var(--lake)}
+  header .sub{color:var(--muted);font-size:13px;margin-left:4px}
+  header a{margin-left:auto;color:var(--lake);text-decoration:none;font-size:14px;font-weight:500}
+  header a:hover{text-decoration:underline}
+  main{max-width:1100px;margin:0 auto;padding:24px 28px 60px;
+    columns:320px;column-gap:24px}
+  section{break-inside:avoid;margin:0 0 20px;background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  h2{font-family:var(--ff-d);font-size:14px;margin:0 0 10px;display:flex;
+    align-items:center;gap:8px;text-transform:none}
+  h2 .c{margin-left:auto;color:var(--subtle);font-size:12px;font-weight:500;
+    font-variant-numeric:tabular-nums}
+  ul{list-style:none;margin:0;padding:0}
+  li{display:flex;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--line);
+    font-size:13px}
+  li:first-of-type{border-top:0}
+  li a{color:var(--lake);text-decoration:none;font-weight:500;flex:none}
+  li a:hover{text-decoration:underline}
+  li .p{color:var(--subtle);font-size:11px;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;flex:1}
+  li .c{color:var(--subtle);font-size:11px;font-variant-numeric:tabular-nums;flex:none}
+</style></head>
+<body>
+  <header>__GLYPH__
+    <span class="wm">context<span class="l">lake</span></span>
+    <span class="sub">__N__ repos with a parsed graph</span>
+    <a href="overview.html">Fleet overview →</a></header>
+  <main>__BODY__</main>
+</body></html>
+"""
+
+
+def _site_index(repos: list[str], sizes: dict, pages: dict) -> str:
+    from collections import defaultdict
+    groups: dict[str, list[str]] = defaultdict(list)
+    for r in repos:
+        groups[r.split("/")[0]].append(r)
+    sections = []
+    for ns in sorted(groups):
+        items = "".join(
+            f'<li><a href="{pages[r]}">{r.rsplit("/", 1)[-1]}</a>'
+            f'<span class="p">{r}</span><span class="c">{sizes.get(r, 0)}</span></li>'
+            for r in sorted(groups[ns]))
+        sections.append(
+            f'<section><h2>{ns}<span class="c">{len(groups[ns])}</span></h2>'
+            f"<ul>{items}</ul></section>")
+    return (_INDEX_TEMPLATE
+            .replace("__GLYPH__", _GLYPH_SVG)
+            .replace("__N__", str(len(repos)))
+            .replace("__BODY__", "\n".join(sections)))
+
+
+def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
+               repo_max_nodes: int = 500, overview_layout: str = "concentric",
+               repo_layout: str = "cose", log=lambda _m: None) -> Path:
+    """Emit a folder of cross-linked, offline HTML pages sharing one set of assets.
+
+    Writes ``index.html`` + ``overview.html`` + one ``repo-<slug>.html`` per repo
+    that has parsed nodes, plus a single shared ``cytoscape.min.js`` / ``app.css`` /
+    ``app.js`` (referenced, not inlined — so the folder stays small instead of
+    repeating ~1 MB per page). Overview repo nodes link to their repo page; every
+    page links back to the overview + index. Fully offline.
+    """
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    for name in ("cytoscape.min.js", "app.css", "app.js"):
+        (out / name).write_text(_read_static_raw(name), encoding="utf-8")
+
+    sizes = dict(store.conn.execute(
+        "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
+    repos_with_nodes = sorted(r for r, c in sizes.items() if c)
+    pages = {r: f"repo-{repo_slug(r)}.html" for r in repos_with_nodes}
+
+    meta: dict = {}
+    nodes, edges = overview_subgraph(store, max_nodes=max_nodes, meta=meta)
+    for n in nodes:
+        if n["id"] in pages:
+            n["href"] = pages[n["id"]]
+    meta["mode"] = "overview"
+    (out / "overview.html").write_text(
+        to_html(to_payload(nodes, edges, meta),
+                layout=overview_layout, assets="sibling", site=True,
+                title="contextlake — fleet overview"), encoding="utf-8")
+
+    for r in repos_with_nodes:
+        m: dict = {}
+        rn, re_ = repo_subgraph(store, r, max_nodes=repo_max_nodes, meta=m)
+        m.update(mode="repo", repo=r)
+        (out / pages[r]).write_text(
+            to_html(to_payload(rn, re_, m),
+                    layout=repo_layout, assets="sibling", site=True,
+                    title=f"contextlake — {r}"), encoding="utf-8")
+    log(f"  wrote overview + {len(repos_with_nodes)} repo pages + index")
+
+    (out / "index.html").write_text(_site_index(repos_with_nodes, sizes, pages),
+                                    encoding="utf-8")
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -512,7 +656,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
-<style>__APP_CSS__</style>
+__STYLE_BLOCK__
 __LIB_TAG__
 </head>
 <body data-theme="light" data-sidebar="open" data-inspect="closed">
@@ -585,8 +729,8 @@ __LIB_TAG__
   var META = __META__;
   var LIVE = __LIVE__;
   var LAYOUT = "__LAYOUT__";
-
-  __APP_JS__</script>
+  var SITE = __SITE__;
+__APP_JS_BLOCK__
 </body>
 </html>
 """

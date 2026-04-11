@@ -830,8 +830,20 @@ def _has_seed(args) -> bool:
 def cmd_graph(args) -> int:
     from . import visualize as viz
 
-    store, _ = _open_store(args)
+    store, store_dir = _open_store(args)
+    # Generated artifacts live in a dedicated dir next to the store, never the cwd
+    # or the user's home — keep generated content close to the knowledge base.
+    graphs_dir = store_dir / "graphs"
     try:
+        # --site: build the cross-linked offline folder and stop
+        site = getattr(args, "site", None)
+        if site is not None:
+            out_dir = Path(site) if site else (graphs_dir / "site")
+            log("Building cross-linked graph site…")
+            viz.build_site(store, out_dir, log=log)
+            log(style.ok(f"Wrote site -> {out_dir}  (open {out_dir / 'index.html'})"))
+            return 0
+
         fmt = getattr(args, "format", None) or "html"
         max_fanout = getattr(args, "max_fanout", None) or 50
         hops = getattr(args, "hops", None) or 2
@@ -882,8 +894,12 @@ def cmd_graph(args) -> int:
 
         out = getattr(args, "output", None)
         if fmt == "html" and not out:
-            out = "graph.html"
+            # default into the dedicated graphs dir, not the cwd
+            name = "overview.html" if overview else "graph.html"
+            graphs_dir.mkdir(parents=True, exist_ok=True)
+            out = str(graphs_dir / name)
         if out:
+            Path(out).parent.mkdir(parents=True, exist_ok=True)
             Path(out).write_text(text, encoding="utf-8")
             log(style.ok(f"Wrote {fmt} ({len(payload['nodes'])} nodes, "
                          f"{len(payload['edges'])} edges) -> {out}"))

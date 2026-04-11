@@ -138,12 +138,16 @@ Examples:
                     help="graph: output format (default html)")
     kb.add_argument("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
                     help="graph html: initial layout (default cose; switchable in the page)")
-    kb.add_argument("--output", help="graph: write to this path (default graph.html; else stdout)")
+    kb.add_argument("--output", help="graph: write to this path "
+                    "(default <store>/graphs/graph.html; else stdout for non-html)")
     kb.add_argument("--open", action="store_true", help="graph: open the written HTML in a browser")
     kb.add_argument("--cdn", action="store_true",
                     help="graph: load cytoscape.js from a CDN (smaller file, needs network)")
     kb.add_argument("--serve", action="store_true",
                     help="graph: serve a live click-to-expand UI (uses --host/--port)")
+    kb.add_argument("--site", nargs="?", const="", default=None, metavar="DIR",
+                    help="graph: build a cross-linked offline site (overview + per-repo "
+                         "pages + index) into DIR (default <store>/graphs/site)")
 
     parser.add_argument(
         "--dry-run", action="store_true", dest="dry_run",

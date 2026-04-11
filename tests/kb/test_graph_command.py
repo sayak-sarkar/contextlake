@@ -260,6 +260,42 @@ def test_html_inlines_extracted_assets(store):
     assert not re.findall(r"__[A-Z][A-Z]+__", html)  # no residual placeholder token
 
 
+def test_html_sibling_assets_reference_not_inline(store):
+    _hub(store, leaves=3)
+    html = viz.to_html(_payload(store), assets="sibling")
+    # sibling mode references the shared files instead of inlining them
+    assert '<link rel="stylesheet" href="app.css">' in html
+    assert '<script src="app.js"></script>' in html
+    assert '<script src="cytoscape.min.js"></script>' in html
+    assert "--deepwater" not in html and "function edgeColor" not in html  # not inlined
+
+
+def test_build_site_emits_cross_linked_offline_pages(store, tmp_path):
+    store.upsert_repo(Repo(id="repoA", path="/a"))
+    store.upsert_repo(Repo(id="repoB", path="/b"))
+    store.upsert_nodes("repoA", [_node("a1", repo="repoA")])
+    store.upsert_nodes("repoB", [_node("b1", repo="repoB")])
+    store.upsert_edges("repoA", [_edge("a1", "pkg", "publishes")])
+    store.upsert_edges("repoB", [_edge("b1", "pkg", "depends_on")])
+    out = tmp_path / "site"
+    viz.build_site(store, out)
+
+    # one shared copy of each asset, plus index + overview + a page per repo
+    for asset in ("cytoscape.min.js", "app.css", "app.js"):
+        assert (out / asset).is_file()
+    assert (out / "index.html").is_file() and (out / "overview.html").is_file()
+    assert (out / "repo-repoA.html").is_file() and (out / "repo-repoB.html").is_file()
+
+    overview = (out / "overview.html").read_text(encoding="utf-8")
+    index = (out / "index.html").read_text(encoding="utf-8")
+    assert '"href": "repo-repoA.html"' in overview   # repo node -> its page
+    assert 'href="repo-repoA.html"' in index         # index lists the page
+    # per-repo pages reference the shared lib rather than inlining ~1 MB each
+    repo_html = (out / "repo-repoA.html").read_text(encoding="utf-8")
+    assert '<script src="cytoscape.min.js"></script>' in repo_html
+    assert "--deepwater" not in repo_html            # css linked, not inlined
+
+
 # --- live server ---------------------------------------------------------
 
 def test_serve_endpoints(store):
