@@ -525,9 +525,16 @@ def _site_index(repos: list[str], sizes: dict, pages: dict) -> str:
             .replace("__BODY__", "\n".join(sections)))
 
 
+def _match_repo(repo_id: str, patterns: list[str]) -> bool:
+    """A repo matches if any pattern is a glob hit or a plain substring of its id."""
+    from fnmatch import fnmatch
+    return any(fnmatch(repo_id, p) or p in repo_id for p in patterns)
+
+
 def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
                repo_max_nodes: int = 500, overview_layout: str = "concentric",
-               repo_layout: str = "cose", log=lambda _m: None) -> Path:
+               repo_layout: str = "cose", repos: list[str] | None = None,
+               log=lambda _m: None) -> Path:
     """Emit a folder of cross-linked, offline HTML pages sharing one set of assets.
 
     Writes ``index.html`` + ``overview.html`` + one ``repo-<slug>.html`` per repo
@@ -535,6 +542,11 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     ``app.js`` (referenced, not inlined — so the folder stays small instead of
     repeating ~1 MB per page). Overview repo nodes link to their repo page; every
     page links back to the overview + index. Fully offline.
+
+    ``repos`` is an optional list of filter patterns (glob or substring against the
+    repo id); when given, only matching repos get per-repo pages (and overview links
+    to them) — the fleet overview itself still shows every repo. This keeps a scoped
+    build small instead of materialising a page for all ~hundreds of repos.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -544,6 +556,8 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     sizes = dict(store.conn.execute(
         "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
     repos_with_nodes = sorted(r for r, c in sizes.items() if c)
+    if repos:
+        repos_with_nodes = [r for r in repos_with_nodes if _match_repo(r, repos)]
     pages = {r: f"repo-{repo_slug(r)}.html" for r in repos_with_nodes}
 
     meta: dict = {}

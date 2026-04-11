@@ -839,8 +839,13 @@ def cmd_graph(args) -> int:
         site = getattr(args, "site", None)
         if site is not None:
             out_dir = Path(site) if site else (graphs_dir / "site")
-            log("Building cross-linked graph site…")
-            viz.build_site(store, out_dir, log=log)
+            repos_arg = getattr(args, "repos", None)
+            patterns = [p.strip() for p in repos_arg.split(",") if p.strip()] if repos_arg else None
+            if patterns:
+                log(f"Building cross-linked graph site (repos matching {patterns})…")
+            else:
+                log("Building cross-linked graph site…")
+            viz.build_site(store, out_dir, repos=patterns, log=log)
             log(style.ok(f"Wrote site -> {out_dir}  (open {out_dir / 'index.html'})"))
             return 0
 
