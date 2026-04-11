@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `overview.html` + one `repo-<slug>.html` per repo with a parsed graph, sharing a single
   `cytoscape.min.js` / `app.css` / `app.js` (referenced, not inlined, so the folder stays small).
   Overview repo nodes link to their repo page (and the inspector gains an "Open this repo's graph →"
-  button); every page has an Index/Overview nav. Fully offline.
+  button); every page has an Index/Overview nav. Fully offline. Scope it with **`--repos PATTERN`**
+  (comma-separated glob/substring) to build pages for only a subset of repos.
+- **`contextlake graph --overview --serve` now serves the whole site live**, rendering each repo page
+  **on demand** from the store instead of materialising the fleet up front — so online serving never
+  inlines hundreds of MB. Shared assets are served once (browser-cached); `/neighbors` keeps
+  click-to-expand inside a repo view.
 
 ### Changed
 
