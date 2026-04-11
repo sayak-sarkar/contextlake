@@ -148,6 +148,9 @@ Examples:
     kb.add_argument("--site", nargs="?", const="", default=None, metavar="DIR",
                     help="graph: build a cross-linked offline site (overview + per-repo "
                          "pages + index) into DIR (default <store>/graphs/site)")
+    kb.add_argument("--repos", metavar="PATTERN",
+                    help="graph --site: only build repo pages whose id matches a "
+                         "pattern (comma-separated glob/substring, e.g. 'frontend/*,auth-service')")
 
     parser.add_argument(
         "--dry-run", action="store_true", dest="dry_run",

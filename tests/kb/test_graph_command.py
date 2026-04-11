@@ -296,6 +296,21 @@ def test_build_site_emits_cross_linked_offline_pages(store, tmp_path):
     assert "--deepwater" not in repo_html            # css linked, not inlined
 
 
+def test_build_site_repos_filter(store, tmp_path):
+    store.upsert_repo(Repo(id="team/repoA", path="/a"))
+    store.upsert_repo(Repo(id="other/repoB", path="/b"))
+    store.upsert_nodes("team/repoA", [_node("a1", repo="team/repoA")])
+    store.upsert_nodes("other/repoB", [_node("b1", repo="other/repoB")])
+    out = tmp_path / "site"
+    viz.build_site(store, out, repos=["team/*"])
+    # only the matching repo gets a page; the other is filtered out
+    assert (out / "repo-team__repoA.html").is_file()
+    assert not (out / "repo-other__repoB.html").exists()
+    # the overview still lists every repo (fleet map stays whole)
+    overview = (out / "overview.html").read_text(encoding="utf-8")
+    assert '"id": "team/repoA"' in overview and '"id": "other/repoB"' in overview
+
+
 # --- live server ---------------------------------------------------------
 
 def test_serve_endpoints(store):
