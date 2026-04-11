@@ -298,6 +298,15 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     runLayout(LAYOUT);
   }
 
+  // cross-page nav (only in a built --site folder): link back to index + overview
+  if(SITE){
+    var mode = document.getElementById("mode");
+    var nav = document.createElement("nav");
+    nav.className = "sitenav";
+    nav.innerHTML = '<a href="index.html">Index</a><a href="overview.html">Overview</a>';
+    mode.parentNode.insertBefore(nav, mode.nextSibling);
+  }
+
   var sel = document.getElementById("layout");
   sel.value = LAYOUT;
   sel.addEventListener("change", function(){
@@ -450,6 +459,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     info.innerHTML = "<h2>" + esc(d.label || d.id) + "</h2><dl>"
       + row("kind", d.kind) + row("repo", d.repo) + row("qualified", d.qn)
       + row("file", fileline) + row("nodes", d.count) + row("degree", d.deg) + "</dl>"
+      + (SITE && d.href ? '<a class="gopage" href="' + esc(d.href)
+          + '">Open this repo’s graph →</a>' : "")
       + connList(n, allConns)
       + (LIVE ? '<div class="hint">tap any node to expand its neighbours</div>' : "");
     openInspector();

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`contextlake graph --site DIR` — a cross-linked offline graph site.** Emits `index.html` +
+  `overview.html` + one `repo-<slug>.html` per repo with a parsed graph, sharing a single
+  `cytoscape.min.js` / `app.css` / `app.js` (referenced, not inlined, so the folder stays small).
+  Overview repo nodes link to their repo page (and the inspector gains an "Open this repo's graph →"
+  button); every page has an Index/Overview nav. Fully offline.
+
+### Changed
+
+- **Generated graphs now default to a dedicated `<store>/graphs/` directory** instead of the current
+  working directory — `graph` HTML output and `--site` land next to the knowledge base, not wherever
+  the command happened to run. Pass `--output` / `--site DIR` to override.
+
 ## [2.3.0] - 2026-06-24
 
 ### Added

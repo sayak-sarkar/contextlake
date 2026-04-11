@@ -103,6 +103,14 @@
   #info .trust .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
   #info .trust .blurb{color:var(--muted)}
   #info .copy-prov{margin-top:10px}
+  #info .gopage{display:inline-block;margin:10px 0 2px;padding:7px 12px;border-radius:8px;
+    background:var(--brand);color:#fff;text-decoration:none;font-size:12px;font-weight:500;
+    box-shadow:var(--e1)}
+  #info .gopage:hover{background:var(--brand-h)}
+  .sitenav{display:flex;gap:4px;margin-left:2px}
+  .sitenav a{font-size:12px;color:var(--muted);text-decoration:none;padding:3px 9px;
+    border:1px solid var(--line);border-radius:999px;background:var(--surface-2)}
+  .sitenav a:hover{color:var(--text);border-color:var(--line-2)}
   #info .conns{margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
   #info .conns h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
     color:var(--muted);margin:0 0 7px}
