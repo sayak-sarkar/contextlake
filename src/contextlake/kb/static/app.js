@@ -178,18 +178,23 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       });
       nsExpanded[ns] = false;
     });
-    cy.edges('[relation = "depends_on"]').forEach(function(e){
+    // aggregate every cross-namespace repo->repo edge by (src ns, dst ns, relation)
+    // so both structural depends_on and runtime flow roll up to the cluster level
+    cy.edges().forEach(function(e){
       var a = nsOf(e.data("source")), b = nsOf(e.data("target"));
       if(a === b){ return; }
-      var k = a + "" + b; agg[k] = (agg[k] || 0) + (e.data("weight") || 1);
+      var k = a + "" + b + "" + (e.data("relation") || "depends_on");
+      agg[k] = (agg[k] || 0) + (e.data("weight") || 1);
     });
     Object.keys(agg).forEach(function(k){
-      var p = k.split("");
+      var p = k.split(""), rel = p[2], n = agg[k];
+      var what = rel === "flow"
+        ? n + " cross-namespace HTTP " + (n === 1 ? "call" : "calls")
+        : n + " cross-namespace package " + (n === 1 ? "dependency" : "dependencies");
       add.push({ group: "edges", data: { id: "agg:" + k, source: "ns:" + p[0],
-        target: "ns:" + p[1], relation: "depends_on", confidence: "INFERRED",
-        weight: agg[k], aggregated: true,
-        context: p[0] + " depends on " + p[1] + " — " + agg[k]
-                 + " cross-namespace package " + (agg[k] === 1 ? "dependency" : "dependencies") } });
+        target: "ns:" + p[1], relation: rel, confidence: "INFERRED",
+        weight: n, aggregated: true,
+        context: p[0] + (rel === "flow" ? " calls " : " depends on ") + p[1] + " — " + what } });
     });
     cy.add(add);
   }

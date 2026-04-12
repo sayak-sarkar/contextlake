@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **on demand** from the store instead of materialising the fleet up front — so online serving never
   inlines hundreds of MB. Shared assets are served once (browser-cached); `/neighbors` keeps
   click-to-expand inside a repo view.
+- **HTTP/REST flow extraction (the first true cross-repo *flow* signal).** Indexing now detects, per
+  file, the HTTP endpoints a repo **exposes** (ASP.NET / Express / FastAPI·Flask routes) and **calls**
+  (HttpClient / axios·fetch / requests·httpx), as `INFERRED` edges to a shared `endpoint` node keyed by
+  a normalised path. A two-hop join (`exposes ⨝ calls_http`) yields directional `caller --flow-->
+  exposer` repo edges, which the fleet overview now renders alongside structural `depends_on` (distinct
+  colour, aggregated per namespace). Path matching is deliberately conservative (host/query stripped,
+  params → `{}`, trivially-generic paths dropped) so unrelated repos don't falsely link. Re-run
+  `index` / `bootstrap` to populate. Event/messaging flow (SNS/SQS/EventBridge/Kafka) is the next slice.
 
 ### Changed
 
