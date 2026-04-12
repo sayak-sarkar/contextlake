@@ -42,3 +42,31 @@ def repo_dependency_edges(store: Store) -> list[dict]:
     return [{"src": dep, "dst": pub, "relation": "depends_on",
              "confidence": "INFERRED", "weight": shared}
             for dep, pub, shared in rows]
+
+
+# caller_repo --flow--> exposer_repo, via a shared HTTP endpoint node. Direction
+# follows the request: the repo that CALLS an endpoint flows to the repo that
+# EXPOSES it. Weighted by the count of shared endpoints.
+_HTTP_FLOW = """
+SELECT cl.repo AS caller, ex.repo AS exposer, COUNT(DISTINCT ex.ep) AS shared
+FROM (SELECT ne.repo_id AS repo, e.dst AS ep FROM edges e
+        JOIN nodes ne ON ne.node_id = e.src WHERE e.relation = 'exposes') ex
+JOIN (SELECT nc.repo_id AS repo, e.dst AS ep FROM edges e
+        JOIN nodes nc ON nc.node_id = e.src WHERE e.relation = 'calls_http') cl
+  ON ex.ep = cl.ep
+WHERE ex.repo != cl.repo
+GROUP BY cl.repo, ex.repo
+"""
+
+
+def repo_http_flow_edges(store: Store) -> list[dict]:
+    """Real repo→repo HTTP flow via the endpoint two-hop (``exposes ⨝ calls_http``).
+
+    Each edge is ``caller --flow--> exposer`` (the direction a request travels),
+    ``weight`` = number of shared endpoints, ``context='http'``, marked ``INFERRED``
+    (regex-detected + path-matched — a likely undercount, never ground truth).
+    """
+    rows = store.conn.execute(_HTTP_FLOW).fetchall()
+    return [{"src": caller, "dst": exposer, "relation": "flow",
+             "confidence": "INFERRED", "weight": shared, "context": "http"}
+            for caller, exposer, shared in rows]
