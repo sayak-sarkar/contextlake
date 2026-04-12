@@ -39,7 +39,8 @@ DEFAULT_COLOR = "#c9c9c9"
 RELATION_COLORS = {
     "calls": "#137A8B", "imports": "#2BB3A3", "contains": "#9fb4b8",
     "depends_on": "#E7B53C", "publishes": "#D7C5A0", "tracked_by": "#577590",
-    "documented_by": "#9d4edd",
+    "documented_by": "#9d4edd", "flow": "#e5571f", "exposes": "#f08c3a",
+    "calls_http": "#c1440e",
 }
 DEFAULT_EDGE_COLOR = "#aecace"
 _CONF_DOT = {"EXTRACTED": "solid", "INFERRED": "dashed", "AMBIGUOUS": "dotted"}
@@ -242,11 +243,13 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000,
     which would render hundreds of thousands of phantom edges. Dependencies are
     marked ``INFERRED`` (manifest-derived, a likely undercount — not ground truth).
     """
-    from .arch.resolve import repo_dependency_edges
+    from .arch.resolve import repo_dependency_edges, repo_http_flow_edges
     sizes = dict(store.conn.execute(
         "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
     log("  resolving real cross-repo dependencies (package two-hop)…")
-    dep_edges = repo_dependency_edges(store)
+    # structural deps (depends_on) + runtime HTTP flow (flow); both INFERRED, both
+    # repo→repo. Flow is empty until an index has run the HTTP-flow extractor.
+    dep_edges = repo_dependency_edges(store) + repo_http_flow_edges(store)
 
     degree: dict[str, int] = {}
     for e in dep_edges:
