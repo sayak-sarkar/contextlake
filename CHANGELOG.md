@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP: repo-level architecture tools `repo_dependencies` / `repo_flow`.** Surface the cross-repo
+  wedge to AI agents: `repo_dependencies(repo, direction)` returns the package two-hop
+  (`dependent → publisher`, weighted), `repo_flow(repo, direction)` returns the HTTP endpoint two-hop
+  (`caller → exposer`, weighted) — both INFERRED, weight-ranked, with "undercount, verify" guidance.
+  Previously these edges fed only the visualizer.
 - **`contextlake graph --site DIR` — a cross-linked offline graph site.** Emits `index.html` +
   `overview.html` + one `repo-<slug>.html` per repo with a parsed graph, sharing a single
   `cytoscape.min.js` / `app.css` / `app.js` (referenced, not inlined, so the folder stays small).
@@ -30,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **MCP: result budgeting on `get_neighbors` / `find_callers` / `find_dependents`.** They now take a
+  `limit` (default 50), order EXTRACTED-first, and return `{..., total, truncated}` instead of an
+  unbounded list — so a hub node can't silently blow up an agent's context, and a clipped result
+  announces itself.
 - **Generated graphs now default to a dedicated `<store>/graphs/` directory** instead of the current
   working directory — `graph` HTML output and `--site` land next to the knowledge base, not wherever
   the command happened to run. Pass `--output` / `--site DIR` to override.

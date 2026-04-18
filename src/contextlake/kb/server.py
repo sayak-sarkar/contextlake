@@ -55,6 +55,43 @@ class StatsOut(BaseModel):
     by_confidence: dict[str, int]
 
 
+class NeighborsOut(BaseModel):
+    edges: list[EdgeOut]
+    total: int
+    truncated: bool  # true => more edges exist than returned; raise limit or narrow relation
+
+
+class NodesOut(BaseModel):
+    nodes: list[NodeOut]
+    total: int
+    truncated: bool
+
+
+class RepoEdgeOut(BaseModel):
+    src: str      # repo id
+    dst: str      # repo id
+    relation: str
+    confidence: str
+    weight: float
+    context: str | None = None
+
+
+class RepoEdgesOut(BaseModel):
+    edges: list[RepoEdgeOut]
+    total: int
+    truncated: bool
+
+
+# EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
+# result keeps the most trustworthy edges.
+_CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
+
+
+def _budget(items: list, limit: int) -> tuple[list, int, bool]:
+    total = len(items)
+    return items[:limit], total, total > limit
+
+
 def _node_out(n: Node) -> NodeOut:
     s = sanitize_label
     return NodeOut(
@@ -126,13 +163,19 @@ def build_server(
 
     @mcp.tool()
     def get_neighbors(
-        node_id: str, relation: str | None = None, direction: str = "both"
-    ) -> list[EdgeOut]:
-        """List edges incident to a node. direction: in | out | both; optional relation filter."""
-        return [
-            _edge_out(e)
-            for e in store.neighbors(node_id, relation=relation, direction=direction)
-        ]
+        node_id: str, relation: str | None = None, direction: str = "both", limit: int = 50
+    ) -> NeighborsOut:
+        """List edges incident to a node (EXTRACTED-first), capped at `limit`.
+
+        direction: in | out | both; optional relation filter. `truncated`/`total`
+        report when a hub has more edges than returned — raise `limit` or filter by
+        relation rather than assuming the list is complete.
+        """
+        edges = sorted(
+            store.neighbors(node_id, relation=relation, direction=direction),
+            key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
+        kept, total, truncated = _budget(edges, limit)
+        return NeighborsOut(edges=[_edge_out(e) for e in kept], total=total, truncated=truncated)
 
     @mcp.tool()
     def search_code(
@@ -149,22 +192,32 @@ def build_server(
         return [_node_out(n) for n in store.nodes_by_name(name, kind=kind, repo=repo)]
 
     @mcp.tool()
-    def find_callers(node_id: str) -> list[NodeOut]:
-        """Find the definitions that call a node — 'who calls X?' (incoming calls edges)."""
+    def find_callers(node_id: str, limit: int = 50) -> NodesOut:
+        """Find the definitions that call a node — 'who calls X?' (incoming calls edges).
+
+        EXTRACTED-first, capped at `limit`; `truncated`/`total` flag hot symbols with
+        more callers than returned.
+        """
+        edges = sorted(store.neighbors(node_id, relation="calls", direction="in"),
+                       key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
         seen: set[str] = set()
         out: list[NodeOut] = []
-        for e in store.neighbors(node_id, relation="calls", direction="in"):
+        for e in edges:
             if e.src in seen:
                 continue
             seen.add(e.src)
             n = store.get_node(e.src)
             if n:
                 out.append(_node_out(n))
-        return out
+        kept, total, truncated = _budget(out, limit)
+        return NodesOut(nodes=kept, total=total, truncated=truncated)
 
     @mcp.tool()
-    def find_dependents(package: str) -> list[NodeOut]:
-        """Find files/repos that depend on a package — cross-repo 'who uses X?'."""
+    def find_dependents(package: str, limit: int = 50) -> NodesOut:
+        """Find files/repos that depend on a package — cross-repo 'who uses X?'.
+
+        Capped at `limit`; `truncated`/`total` flag widely-used packages.
+        """
         seen: set[str] = set()
         out: list[NodeOut] = []
         for pkg in store.nodes_by_name(package, kind="package"):
@@ -175,7 +228,49 @@ def build_server(
                 n = store.get_node(e.src)
                 if n:
                     out.append(_node_out(n))
-        return out
+        kept, total, truncated = _budget(out, limit)
+        return NodesOut(nodes=kept, total=total, truncated=truncated)
+
+    @mcp.tool()
+    def repo_dependencies(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
+        """Repo→repo package dependencies for `repo` (the cross-repo architecture map).
+
+        From the package two-hop (publishes ⨝ depends_on): edges are
+        ``dependent --depends_on--> publisher``, weight = shared package count.
+        direction: out (what `repo` depends on) | in (who depends on `repo`) | both.
+        INFERRED, manifest-derived — a likely undercount; verify against the cited repo.
+        """
+        from .arch.resolve import repo_dependency_edges
+        rows = [e for e in repo_dependency_edges(store)
+                if (direction in ("out", "both") and e["src"] == repo)
+                or (direction in ("in", "both") and e["dst"] == repo)]
+        rows.sort(key=lambda e: -e["weight"])
+        kept, total, truncated = _budget(rows, limit)
+        return RepoEdgesOut(total=total, truncated=truncated, edges=[
+            RepoEdgeOut(src=sanitize_label(e["src"]), dst=sanitize_label(e["dst"]),
+                        relation=e["relation"], confidence=e["confidence"],
+                        weight=e["weight"]) for e in kept])
+
+    @mcp.tool()
+    def repo_flow(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
+        """Repo→repo HTTP request flow for `repo` (who calls whom over HTTP).
+
+        From the endpoint two-hop (exposes ⨝ calls_http): edges are
+        ``caller --flow--> exposer`` (the direction a request travels), weight =
+        shared endpoint count. direction: out (endpoints `repo` calls) | in (callers
+        of `repo`'s endpoints) | both. INFERRED, regex+path-matched — an undercount
+        that omits async/event coupling; verify against the cited repo.
+        """
+        from .arch.resolve import repo_http_flow_edges
+        rows = [e for e in repo_http_flow_edges(store)
+                if (direction in ("out", "both") and e["src"] == repo)
+                or (direction in ("in", "both") and e["dst"] == repo)]
+        rows.sort(key=lambda e: -e["weight"])
+        kept, total, truncated = _budget(rows, limit)
+        return RepoEdgesOut(total=total, truncated=truncated, edges=[
+            RepoEdgeOut(src=sanitize_label(e["src"]), dst=sanitize_label(e["dst"]),
+                        relation=e["relation"], confidence=e["confidence"],
+                        weight=e["weight"], context=e.get("context")) for e in kept])
 
     @mcp.tool()
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:
