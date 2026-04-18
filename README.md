@@ -70,16 +70,28 @@ contextlake sync        # fetch → clone → update → branches → verify
 
 ## Installation
 
-**Prerequisites:** Python 3.9+ (3.10+ for the knowledge layer), `git`, and an
-authenticated [`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`).
+The fastest, zero-config path is [`uv`](https://docs.astral.sh/uv/) — it fetches
+the right Python and an isolated environment for you, so there's nothing to set up:
 
 ```bash
-pipx install "git+https://github.com/sayak-sarkar/contextlake"   # isolated CLI
-# or:  pip install .          (add the [kb] extra for the knowledge layer)
+uv tool install "contextlake[kb]"        # install the CLI on your PATH
+# or run it once, ephemerally, without installing:
+uvx --from "contextlake[kb]" contextlake --help
 ```
 
-Once installed, `contextlake`, `python -m contextlake`, and `python3 contextlake.py`
-are equivalent.
+Prefer pipx or pip? Those work too:
+
+```bash
+pipx install "contextlake[kb]"
+# pip install "contextlake[kb]"          # into an active virtualenv
+```
+
+The **`[kb]` extra** pulls in the knowledge layer (graph index, embeddings,
+LLM-wiki, MCP server). Plain `contextlake` is just the GitLab-mirroring CLI.
+
+**Other prerequisites:** `git`, and — for mirroring — an authenticated
+[`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`). Once installed,
+`contextlake`, `python -m contextlake`, and `python3 contextlake.py` are equivalent.
 
 **Configure** — copy the example and set your group + workspace:
 
