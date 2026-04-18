@@ -53,6 +53,7 @@ def test_lists_expected_tools(server):
     assert {
         "graph_stats", "get_node", "get_neighbors", "search_code",
         "find_definition", "find_callers", "shortest_path",
+        "repo_dependencies", "repo_flow",
     } <= names
 
 
@@ -65,8 +66,9 @@ def test_find_definition_exact(server):
 def test_find_callers(server):
     # the seeded edge is a --calls--> b, so b's caller is a
     res = asyncio.run(_call(server, "find_callers", {"node_id": "b"}))
-    items = _unwrap(res.structuredContent)
-    assert [n["id"] for n in items] == ["a"]
+    out = _unwrap(res.structuredContent)
+    assert [n["id"] for n in out["nodes"]] == ["a"]
+    assert out["total"] == 1 and out["truncated"] is False
 
 
 def test_shortest_path(server):
@@ -88,8 +90,8 @@ def test_find_dependents(tmp_path):
         provenance=Provenance(source_file="pyproject.toml", verified_at=date(2026, 6, 21)),
     )])
     res = asyncio.run(_call(build_server(s), "find_dependents", {"package": "libx"}))
-    items = _unwrap(res.structuredContent)
-    assert [n["repo"] for n in items] == ["consumer"]
+    out = _unwrap(res.structuredContent)
+    assert [n["repo"] for n in out["nodes"]] == ["consumer"]
     s.close()
 
 
@@ -115,10 +117,65 @@ def test_search_code(server):
 
 def test_get_neighbors_with_provenance(server):
     res = asyncio.run(_call(server, "get_neighbors", {"node_id": "a", "direction": "out"}))
-    edges = _unwrap(res.structuredContent)
+    out = _unwrap(res.structuredContent)
+    edges = out["edges"]
     assert edges[0]["dst"] == "b"
     assert edges[0]["confidence"] == "EXTRACTED"
     assert edges[0]["verified_at"] == "2026-06-21"
+    assert out["total"] == 1 and out["truncated"] is False
+
+
+def test_get_neighbors_budgets_and_reports_truncation(tmp_path):
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("r", [Node(id="h", repo="r", kind="function", name="hub")]
+                   + [Node(id=f"c{i}", repo="r", kind="function", name=f"c{i}") for i in range(10)])
+    s.upsert_edges("r", [Edge(src="h", dst=f"c{i}", relation="calls",
+                              confidence=Confidence.EXTRACTED,
+                              provenance=Provenance(source_file="f", verified_at=date(2026, 6, 21)))
+                         for i in range(10)])
+    res = asyncio.run(_call(build_server(s), "get_neighbors",
+                            {"node_id": "h", "direction": "out", "limit": 3}))
+    out = _unwrap(res.structuredContent)
+    assert len(out["edges"]) == 3 and out["total"] == 10 and out["truncated"] is True
+    s.close()
+
+
+def _seed_cross_repo(s):
+    # repoB depends_on a package repoA publishes; repoB also calls an endpoint repoA exposes
+    s.upsert_nodes("repoA", [
+        Node(id="A:man", repo="repoA", kind="file", name="pkg.json"),
+        Node(id="pkg:lib", repo="(packages)", kind="package", name="lib"),
+        Node(id="ep:/api/x", repo="repoA", kind="endpoint", name="/api/x")])
+    s.upsert_nodes("repoB", [
+        Node(id="B:man", repo="repoB", kind="file", name="pkg.json"),
+        Node(id="B:cli", repo="repoB", kind="file", name="client.ts")])
+    prov = Provenance(source_file="f", verified_at=date(2026, 6, 21))
+    e = lambda src, dst, rel, c: Edge(src=src, dst=dst, relation=rel, confidence=c, provenance=prov)  # noqa: E731
+    # exposes/publishes edges originate from repoA nodes so the two-hop attributes them to repoA
+    s.upsert_edges("repoA", [
+        e("A:man", "pkg:lib", "publishes", Confidence.EXTRACTED),
+        e("A:man", "ep:/api/x", "exposes", Confidence.INFERRED)])
+    s.upsert_edges("repoB", [
+        e("B:man", "pkg:lib", "depends_on", Confidence.EXTRACTED),
+        e("B:cli", "ep:/api/x", "calls_http", Confidence.INFERRED)])
+
+
+def test_repo_dependencies_and_flow_tools(tmp_path):
+    s = SqliteStore(tmp_path / "k.sqlite")
+    _seed_cross_repo(s)
+    srv = build_server(s)
+
+    def call(tool):
+        res = asyncio.run(_call(srv, tool, {"repo": "repoB", "direction": "out"}))
+        return _unwrap(res.structuredContent)["edges"]
+
+    # repoB depends on repoA (out)
+    assert any(x["src"] == "repoB" and x["dst"] == "repoA" and x["relation"] == "depends_on"
+               for x in call("repo_dependencies"))
+    # repoB calls repoA over HTTP (out): caller --flow--> exposer
+    assert any(x["src"] == "repoB" and x["dst"] == "repoA" and x["relation"] == "flow"
+               for x in call("repo_flow"))
+    s.close()
 
 
 def test_output_is_sanitized(tmp_path):
