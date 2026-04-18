@@ -93,7 +93,29 @@ LLM-wiki, MCP server). Plain `contextlake` is just the GitLab-mirroring CLI.
 [`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`). Once installed,
 `contextlake`, `python -m contextlake`, and `python3 contextlake.py` are equivalent.
 
-**Configure** — copy the example and set your group + workspace:
+## Quickstart — one repo, no setup
+
+You don't need GitLab or any config to try contextlake on a repo you already have.
+Point it at any local git repo:
+
+```bash
+contextlake index --source .          # parse this repo into a local knowledge graph
+contextlake graph --overview --open   # open the interactive graph in your browser
+contextlake serve                     # …or serve it to your AI IDE over MCP
+```
+
+Everything lands in a local store (`~/.contextlake/kb`) — nothing leaves your machine.
+Index any path with `--source PATH`, or every git repo under a directory with
+`--workspace DIR`. Keep separate stores by pointing `--config my.toml` at a file with
+`[kb]` / `store_dir = "..."`.
+
+Where contextlake goes beyond single-repo tools is mirroring and cross-referencing a
+**whole GitLab fleet** — that's the setup below.
+
+## Configure (fleet mode)
+
+To mirror and cross-reference a whole GitLab group, copy the example and set your
+group + workspace:
 
 ```bash
 cp .contextlake.ini.example ~/.contextlake.ini
