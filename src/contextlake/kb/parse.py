@@ -355,33 +355,57 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
 _CALLABLE_KINDS = {"class", "function", "method", "interface", "struct"}
 
 
+# A call name that resolves to 2..N definitions is emitted as AMBIGUOUS edges to
+# each candidate (so blast-radius doesn't miss hot symbols); a name matching more
+# than this is too generic (e.g. `get`/`handle`) to be signal and is skipped.
+_MAX_AMBIG_FANOUT = 6
+
+
 def _resolve_calls(
     calls: list[tuple[str, str, str, int]], nodes_by_id: dict[str, Node]
 ) -> list[Edge]:
-    """Resolve callee names to definitions repo-wide (unambiguous matches only).
+    """Resolve callee names to definitions repo-wide.
 
-    Call edges are INFERRED: resolution is by name, so only names that map to a
-    single definition are linked; ambiguous or external callees are skipped.
+    Call edges are INFERRED when a name maps to a single definition. When a name
+    maps to 2..``_MAX_AMBIG_FANOUT`` definitions the call is genuinely ambiguous —
+    rather than drop it (which silently loses the hottest symbols and undercounts
+    blast radius), emit an AMBIGUOUS edge to each candidate. Names matching more
+    than the cap are too generic to be signal and are skipped; self-calls and
+    duplicate (caller, callee) pairs are de-duplicated.
     """
     name_index: dict[str, set[str]] = {}
     for node in nodes_by_id.values():
         if node.kind in _CALLABLE_KINDS:
             name_index.setdefault(node.name, set()).add(node.id)
 
-    edges, ambiguous = [], 0
+    edges: list[Edge] = []
+    seen: set[tuple[str, str]] = set()
+    resolved = ambiguous = dropped = 0
     for caller_id, callee, rel, line in calls:
         matches = name_index.get(callee)
         if not matches:
             continue
-        if len(matches) > 1:
+        if len(matches) == 1:
+            conf, targets = Confidence.INFERRED, list(matches)
+        elif len(matches) <= _MAX_AMBIG_FANOUT:
+            conf, targets = Confidence.AMBIGUOUS, sorted(matches)  # deterministic
             ambiguous += 1
+        else:
+            dropped += 1  # too many candidates -> noise
             continue
-        (target,) = tuple(matches)
-        edges.append(Edge(
-            src=caller_id, dst=target, relation="calls", confidence=Confidence.INFERRED,
-            provenance=Provenance(source_file=rel, source_line=line, verified_at=date.today()),
-        ))
-    if edges or ambiguous:
-        log(f"  resolved {len(edges)} call edge(s) ({ambiguous} ambiguous skipped)",
+        for target in targets:
+            if target == caller_id or (caller_id, target) in seen:
+                continue
+            seen.add((caller_id, target))
+            edges.append(Edge(
+                src=caller_id, dst=target, relation="calls", confidence=conf,
+                context="ambiguous" if conf is Confidence.AMBIGUOUS else None,
+                provenance=Provenance(source_file=rel, source_line=line,
+                                      verified_at=date.today())))
+            if conf is Confidence.INFERRED:
+                resolved += 1
+    if edges or dropped:
+        log(f"  resolved {resolved} call edge(s); {ambiguous} ambiguous call(s) "
+            f"(<= {_MAX_AMBIG_FANOUT} candidates), {dropped} too-generic skipped",
             level=logging.DEBUG)
     return edges

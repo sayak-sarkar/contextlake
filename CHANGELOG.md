@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Ambiguous calls are no longer silently dropped.** When a call name resolves to 2–6 candidate
+  definitions, indexing now emits an `AMBIGUOUS` `calls` edge to each candidate (de-duplicated,
+  self-calls excluded) instead of discarding the call — so the hottest symbols aren't lost and
+  blast-radius isn't undercounted. Names matching more than the cap are too generic to be signal and
+  are still skipped. AMBIGUOUS edges render dotted in the visualizer.
+
 ### Added
 
 - **`contextlake eval --golden FILE.json` — a retrieval-quality harness.** Score a labelled
