@@ -20,6 +20,7 @@ from pathlib import Path
 import tree_sitter as ts
 
 from ..logging_setup import log
+from .flow.events import extract_event_flow
 from .flow.http import extract_http_flow
 from .ids import make_id
 from .manifest import is_manifest, parse_manifest
@@ -308,10 +309,11 @@ def index_repo_dir(
                 if is_code:
                     nodes, edges, calls = parse_source(repo_id, rel, source, LANG_BY_EXT[ext])
                     all_calls.extend(calls)
-                    # cross-repo HTTP flow surfaces (endpoints exposed / called)
+                    # cross-repo flow surfaces: HTTP endpoints + message topics
                     hn, he = extract_http_flow(repo_id, rel, source, LANG_BY_EXT[ext])
-                    nodes.extend(hn)
-                    edges.extend(he)
+                    en, ee = extract_event_flow(repo_id, rel, source, LANG_BY_EXT[ext])
+                    nodes += hn + en
+                    edges += he + ee
                 else:
                     nodes, edges = parse_manifest(repo_id, rel, source)
             except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
