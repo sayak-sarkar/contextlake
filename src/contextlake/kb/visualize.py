@@ -243,13 +243,14 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000,
     which would render hundreds of thousands of phantom edges. Dependencies are
     marked ``INFERRED`` (manifest-derived, a likely undercount — not ground truth).
     """
-    from .arch.resolve import repo_dependency_edges, repo_http_flow_edges
+    from .arch.resolve import repo_dependency_edges, repo_event_flow_edges, repo_http_flow_edges
     sizes = dict(store.conn.execute(
         "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
     log("  resolving real cross-repo dependencies (package two-hop)…")
-    # structural deps (depends_on) + runtime HTTP flow (flow); both INFERRED, both
-    # repo→repo. Flow is empty until an index has run the HTTP-flow extractor.
-    dep_edges = repo_dependency_edges(store) + repo_http_flow_edges(store)
+    # structural deps (depends_on) + runtime flow (HTTP + events); all INFERRED,
+    # all repo→repo. Flow is empty until an index has run the flow extractors.
+    dep_edges = (repo_dependency_edges(store) + repo_http_flow_edges(store)
+                 + repo_event_flow_edges(store))
 
     degree: dict[str, int] = {}
     for e in dep_edges:

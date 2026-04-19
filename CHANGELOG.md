@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Event/messaging flow extraction (Kafka/MSK, SNS, EventBridge).** Indexing now detects, per file,
+  the message topics a repo **publishes** to and **consumes** from (literal topics in Kafka
+  producer/`@KafkaListener`/`subscribe`, EventBridge `DetailType`, SNS), as `INFERRED` edges to a
+  shared `topic` node. A two-hop join (`publishes_event ⨝ consumes_event`) yields directional
+  `publisher --flow--> consumer` repo edges — the direction an event travels — shown in the fleet
+  overview alongside HTTP `flow` and structural `depends_on`. High-precision (literal topics only);
+  config-variable topics are an honest undercount, never a false link. Re-run `index` to populate.
+
 ## [2.4.0] - 2026-06-25
 
 ### Added

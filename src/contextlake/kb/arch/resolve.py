@@ -70,3 +70,32 @@ def repo_http_flow_edges(store: Store) -> list[dict]:
     return [{"src": caller, "dst": exposer, "relation": "flow",
              "confidence": "INFERRED", "weight": shared, "context": "http"}
             for caller, exposer, shared in rows]
+
+
+# publisher_repo --flow--> consumer_repo, via a shared topic node. Direction
+# follows the event: the repo that PUBLISHES to a topic flows to the repo that
+# CONSUMES it. Weighted by the count of shared topics.
+_EVENT_FLOW = """
+SELECT pub.repo AS publisher, con.repo AS consumer, COUNT(DISTINCT pub.topic) AS shared
+FROM (SELECT np.repo_id AS repo, e.dst AS topic FROM edges e
+        JOIN nodes np ON np.node_id = e.src WHERE e.relation = 'publishes_event') pub
+JOIN (SELECT nc.repo_id AS repo, e.dst AS topic FROM edges e
+        JOIN nodes nc ON nc.node_id = e.src WHERE e.relation = 'consumes_event') con
+  ON pub.topic = con.topic
+WHERE pub.repo != con.repo
+GROUP BY pub.repo, con.repo
+"""
+
+
+def repo_event_flow_edges(store: Store) -> list[dict]:
+    """Real repo→repo event flow via the topic two-hop (``publishes_event ⨝ consumes_event``).
+
+    Each edge is ``publisher --flow--> consumer`` (the direction an event travels),
+    ``weight`` = number of shared topics, ``context='event'``, marked ``INFERRED``
+    (regex-detected literal topics — a likely undercount that omits config-variable
+    topics, never ground truth).
+    """
+    rows = store.conn.execute(_EVENT_FLOW).fetchall()
+    return [{"src": publisher, "dst": consumer, "relation": "flow",
+             "confidence": "INFERRED", "weight": shared, "context": "event"}
+            for publisher, consumer, shared in rows]
