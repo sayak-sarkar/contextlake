@@ -168,13 +168,28 @@ def test_resolves_calls_across_files(tmp_path):
                                            if e.relation == "calls"}
 
 
-def test_ambiguous_calls_are_skipped(tmp_path):
-    # two methods named 'h' -> a call to h() is ambiguous and not linked
+def test_ambiguous_calls_emit_ambiguous_edges(tmp_path):
+    # two methods named 'h' -> a call to h() is ambiguous: emit an AMBIGUOUS edge
+    # to each candidate (so blast-radius doesn't lose the hottest symbols)
     (tmp_path / "a.py").write_text(
         "class A:\n    def h(self):\n        pass\n\n\n"
         "class B:\n    def h(self):\n        pass\n\n\n"
         "def c():\n    h()\n"
     )
+    shard = index_repo_dir(str(tmp_path), "r")
+    calls = [e for e in shard.edges if e.relation == "calls"]
+    assert len(calls) == 2
+    assert all(e.confidence == Confidence.AMBIGUOUS for e in calls)
+    assert all(e.context == "ambiguous" for e in calls)
+    assert len({e.dst for e in calls}) == 2  # both A.h and B.h are candidate targets
+
+
+def test_over_ambiguous_calls_are_skipped(tmp_path):
+    # a name matching more than the fan-out cap is too generic to be signal
+    from contextlake.kb.parse import _MAX_AMBIG_FANOUT
+    defs = "\n\n\n".join(f"class C{i}:\n    def g(self):\n        pass"
+                         for i in range(_MAX_AMBIG_FANOUT + 1))
+    (tmp_path / "a.py").write_text(defs + "\n\n\ndef caller():\n    g()\n")
     shard = index_repo_dir(str(tmp_path), "r")
     assert [e for e in shard.edges if e.relation == "calls"] == []
 
