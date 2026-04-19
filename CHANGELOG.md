@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`contextlake eval --golden FILE.json` — a retrieval-quality harness.** Score a labelled
+  `query → expected-nodes` set against the index and get **precision@k / recall@k / MRR / hit-rate**
+  (aggregate + per-query), over any retriever (FTS today; semantic/hybrid pluggable). Makes retrieval
+  changes (embed-bodies, reranking, a future `ask` router) *falsifiable* instead of vibes. Stdlib-only;
+  the golden set is plain JSON, `match` by node id or name.
 - **Event/messaging flow extraction (Kafka/MSK, SNS, EventBridge).** Indexing now detects, per file,
   the message topics a repo **publishes** to and **consumes** from (literal topics in Kafka
   producer/`@KafkaListener`/`subscribe`, EventBridge `DetailType`, SNS), as `INFERRED` edges to a

@@ -926,9 +926,38 @@ def cmd_graph(args) -> int:
         store.close()
 
 
+def cmd_eval(args) -> int:
+    """Score a golden-query set against the index — precision@k / recall@k / MRR."""
+    from . import eval as kb_eval
+
+    golden_path = getattr(args, "golden", None)
+    if not golden_path:
+        log("usage: contextlake eval --golden FILE.json [--limit K]")
+        return 2
+    try:
+        golden = kb_eval.load_golden(golden_path)
+    except (OSError, ValueError, TypeError) as e:
+        log(f"Cannot load golden set {golden_path!r}: {e}")
+        return 1
+    k = getattr(args, "limit", None) or 10
+    store, _ = _open_store(args)
+    try:
+        result = kb_eval.evaluate(store, golden, k=k)
+    finally:
+        store.close()
+    log(style.ok(f"Eval: {result['n']} queries @k={k}  ·  "
+                 f"P@k={result['precision@k']}  R@k={result['recall@k']}  "
+                 f"MRR={result['mrr']}  hit-rate={result['hit_rate']}"))
+    for p in result["per_query"]:
+        mark = "✓" if p["hit"] else "✗"
+        log(f"  {mark} {p['query'][:60]:60s} P={p['precision@k']:.2f} "
+            f"R={p['recall@k']:.2f} rr={p['rr']:.2f}")
+    return 0
+
+
 def dispatch(command: str, args) -> int:
     return {
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
         "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
-        "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor,
+        "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
     }[command](args)
