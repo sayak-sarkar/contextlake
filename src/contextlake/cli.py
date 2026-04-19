@@ -76,7 +76,7 @@ Examples:
             "bootstrap",
             # knowledge layer (optional [kb] extra)
             "index", "connect", "embed", "lint", "wiki", "steer",
-            "serve", "query", "graph", "doctor",
+            "serve", "query", "graph", "doctor", "eval",
         ],
         help="Command to execute",
     )
@@ -118,6 +118,8 @@ Examples:
     kb.add_argument("--kind", help="query: filter by node kind")
     kb.add_argument("--repo", help="query: filter by repo")
     kb.add_argument("--limit", type=int, help="query: max results")
+    kb.add_argument("--golden", help="eval: a golden-query JSON file "
+                    "({queries:[{query, expected, kind?, repo?, match?}]})")
     kb.add_argument("--as-of", dest="as_of",
                     help="query: search a repo's snapshot at this indexed commit (needs --repo)")
     # graph: visualize a bounded subgraph (--repo/--kind/--limit/--host/--port reused from above)
@@ -342,7 +344,7 @@ def main(argv=None):
     # need the sync config/preamble. Imported lazily so the core tool runs
     # without the [kb] extra.
     if args.command in ("index", "connect", "embed", "lint", "wiki", "steer",
-                        "serve", "query", "graph", "doctor"):
+                        "serve", "query", "graph", "doctor", "eval"):
         try:
             from .kb import commands as kb_commands
         except ImportError as e:
