@@ -53,7 +53,7 @@ def test_lists_expected_tools(server):
     assert {
         "graph_stats", "get_node", "get_neighbors", "search_code",
         "find_definition", "find_callers", "shortest_path",
-        "repo_dependencies", "repo_flow",
+        "repo_dependencies", "repo_flow", "blast_radius",
     } <= names
 
 
@@ -184,4 +184,24 @@ def test_output_is_sanitized(tmp_path):
     res = asyncio.run(_call(build_server(s), "get_node", {"node_id": "x"}))
     name = _unwrap(res.structuredContent)["name"]
     assert "\x1b" not in name and "\x00" not in name and "evilname" in name
+    s.close()
+
+
+def test_blast_radius_reverse_reach(tmp_path):
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("r", [Node(id=x, repo="r", kind="function", name=x) for x in ("a", "b", "c")])
+    prov = Provenance(source_file="f", source_line=1, verified_at=date(2026, 6, 25))
+    # a --calls--> b --calls--> c
+    s.upsert_edges("r", [
+        Edge(src="a", dst="b", relation="calls", confidence=Confidence.INFERRED, provenance=prov),
+        Edge(src="b", dst="c", relation="calls", confidence=Confidence.INFERRED, provenance=prov)])
+    out = _unwrap(asyncio.run(
+        _call(build_server(s), "blast_radius", {"node_id": "c", "hops": 3})).structuredContent)
+    # changing c could break b (direct caller, hop 1) and a (transitive, hop 2)
+    assert {h["id"]: h["hop"] for h in out["hits"]} == {"b": 1, "a": 2}
+    assert out["total"] == 2 and out["truncated"] is False
+    # a 1-hop radius stops at the direct caller
+    out1 = _unwrap(asyncio.run(
+        _call(build_server(s), "blast_radius", {"node_id": "c", "hops": 1})).structuredContent)
+    assert [h["id"] for h in out1["hits"]] == ["b"]
     s.close()

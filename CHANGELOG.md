@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP: `blast_radius(node_id, hops)` — "what could break if I change this".** Bounded transitive
+  *reverse* reach over incoming `calls` + `depends_on` edges (configurable), breadth-first, capped by
+  `hops` and `limit`. Each hit carries its hop distance, the relation, and confidence (EXTRACTED-first,
+  `truncated` when capped) — an impact slice for agents, made correct by the AMBIGUOUS-edge change
+  below so the hottest symbols aren't missed.
+
 ### Changed
 
 - **Ambiguous calls are no longer silently dropped.** When a call name resolves to 2–6 candidate
