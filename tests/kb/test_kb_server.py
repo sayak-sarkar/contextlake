@@ -6,7 +6,7 @@ from datetime import date
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session as connect
 
-from contextlake.kb.model import Confidence, Edge, Node, Provenance
+from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.server import build_server
 from contextlake.kb.store.sqlite_store import SqliteStore
 
@@ -53,7 +53,7 @@ def test_lists_expected_tools(server):
     assert {
         "graph_stats", "get_node", "get_neighbors", "search_code",
         "find_definition", "find_callers", "shortest_path",
-        "repo_dependencies", "repo_flow", "blast_radius",
+        "repo_dependencies", "repo_flow", "blast_radius", "get_wiki",
     } <= names
 
 
@@ -204,4 +204,32 @@ def test_blast_radius_reverse_reach(tmp_path):
     out1 = _unwrap(asyncio.run(
         _call(build_server(s), "blast_radius", {"node_id": "c", "hops": 1})).structuredContent)
     assert [h["id"] for h in out1["hits"]] == ["b"]
+    s.close()
+
+
+def test_get_wiki_serves_prose_with_staleness(tmp_path):
+    s = SqliteStore(tmp_path / "k.sqlite")          # store.path.parent == tmp_path
+    s.upsert_repo(Repo(id="team/api", path="/a", head_commit="abc123"))
+    wdir = tmp_path / "wiki"
+    wdir.mkdir()
+    (wdir / "team__api.md").write_text(
+        "# team/api\n\nThe order service.\n\n"
+        "*Generated from the knowledge graph of `team/api` at commit `abc123` on 2026-06-25.*\n")
+
+    out = _unwrap(asyncio.run(
+        _call(build_server(s), "get_wiki", {"repo": "team/api"})).structuredContent)
+    assert out["found"] and out["stale"] is False   # wiki commit == current head
+    assert "The order service." in out["markdown"]
+    assert out["wiki_commit"] == "abc123"
+
+    # repo moves on -> the wiki is now stale
+    s.upsert_repo(Repo(id="team/api", path="/a", head_commit="def456"))
+    out2 = _unwrap(asyncio.run(
+        _call(build_server(s), "get_wiki", {"repo": "team/api"})).structuredContent)
+    assert out2["stale"] is True and out2["current_commit"] == "def456"
+
+    # no wiki page -> found=False, stale=True (nothing to trust)
+    out3 = _unwrap(asyncio.run(
+        _call(build_server(s), "get_wiki", {"repo": "team/missing"})).structuredContent)
+    assert out3["found"] is False and out3["stale"] is True
     s.close()

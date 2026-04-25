@@ -10,7 +10,9 @@ graph is an index, so inferred edges should be verified against the source.
 from __future__ import annotations
 
 import json
+import re
 from collections import deque
+from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel
@@ -98,6 +100,15 @@ class BlastRadiusOut(BaseModel):
     hits: list[BlastHit]
     total: int
     truncated: bool
+
+
+class WikiOut(BaseModel):
+    repo: str
+    found: bool
+    stale: bool                  # the wiki may describe code that has since changed
+    wiki_commit: str | None      # commit the wiki was generated from
+    current_commit: str | None   # the repo's current indexed head
+    markdown: str
 
 
 # EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
@@ -331,6 +342,34 @@ def build_server(
                 frontier.append((e.src, hop + 1))
         return BlastRadiusOut(seed=node_id, hops=hops, total=len(hits),
                               truncated=truncated, hits=hits)
+
+    @mcp.tool()
+    def get_wiki(repo: str) -> WikiOut:
+        """The generated LLM-wiki page for a repo (Markdown prose).
+
+        **Advisory, not ground truth** — synthesized text to verify against the
+        cited sources/graph; it never outranks EXTRACTED facts. ``stale`` is true
+        when the wiki was generated from a different commit than the repo's current
+        indexed head (or either is unknown), so an agent never cites prose that
+        describes code which has since changed.
+        """
+        sp = getattr(store, "path", None)
+        wiki_file = (Path(sp).parent / "wiki" / (repo.replace("/", "__") + ".md")
+                     if sp else None)
+        if not wiki_file or not wiki_file.exists():
+            return WikiOut(repo=sanitize_label(repo), found=False, stale=True,
+                           wiki_commit=None, current_commit=None, markdown="")
+        raw = wiki_file.read_text(encoding="utf-8", errors="replace")
+        m = re.search(r"at commit `([^`]+)`", raw)
+        wiki_commit = m.group(1) if m else None
+        r = store.get_repo(repo)
+        current = r.head_commit if r else None
+        stale = wiki_commit is None or current is None or wiki_commit != current
+        return WikiOut(
+            repo=sanitize_label(repo), found=True, stale=stale,
+            wiki_commit=sanitize_label(wiki_commit) if wiki_commit else None,
+            current_commit=sanitize_label(current) if current else None,
+            markdown=sanitize_label(raw, max_len=200_000))
 
     @mcp.tool()
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP: `get_wiki(repo)` — serve the LLM-wiki to agents (with a staleness signal).** The generated
+  wiki was written to `<store>/wiki/` but read by nothing; now an agent can fetch a repo's wiki prose
+  (sanitised Markdown), explicitly labelled **advisory** (verify against cited sources; never outranks
+  EXTRACTED facts) and carrying **`stale`** — true when the wiki's `head_commit` differs from the
+  repo's current indexed head, so prose describing changed code is never cited as current.
 - **MCP: `blast_radius(node_id, hops)` — "what could break if I change this".** Bounded transitive
   *reverse* reach over incoming `calls` + `depends_on` edges (configurable), breadth-first, capped by
   `hops` and `limit`. Each hit carries its hop distance, the relation, and confidence (EXTRACTED-first,
