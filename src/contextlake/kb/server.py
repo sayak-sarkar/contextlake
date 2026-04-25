@@ -82,6 +82,24 @@ class RepoEdgesOut(BaseModel):
     truncated: bool
 
 
+class BlastHit(BaseModel):
+    id: str
+    repo: str
+    kind: str
+    name: str
+    hop: int          # distance from the seed (1 = direct caller/dependent)
+    via: str          # the relation traversed
+    confidence: str   # verify INFERRED / AMBIGUOUS hits against the cited source
+
+
+class BlastRadiusOut(BaseModel):
+    seed: str
+    hops: int
+    hits: list[BlastHit]
+    total: int
+    truncated: bool
+
+
 # EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
 # result keeps the most trustworthy edges.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
@@ -271,6 +289,48 @@ def build_server(
             RepoEdgeOut(src=sanitize_label(e["src"]), dst=sanitize_label(e["dst"]),
                         relation=e["relation"], confidence=e["confidence"],
                         weight=e["weight"], context=e.get("context")) for e in kept])
+
+    @mcp.tool()
+    def blast_radius(node_id: str, hops: int = 3, relations: list[str] | None = None,
+                     limit: int = 100) -> BlastRadiusOut:
+        """What could break if you change this node — bounded transitive REVERSE reach.
+
+        Walks INCOMING edges (who calls / depends on the node) breadth-first up to
+        `hops`, capped at `limit`, over `relations` (default calls + depends_on).
+        Each hit carries its hop distance, the relation, and confidence —
+        EXTRACTED-first; verify INFERRED/AMBIGUOUS against the cited source. A
+        bounded impact slice, never an exhaustive guarantee (`truncated` says when
+        the cap was hit).
+        """
+        rels = set(relations or ["calls", "depends_on"])
+        seen = {node_id}
+        hits: list[BlastHit] = []
+        frontier = [(node_id, 0)]
+        truncated = False
+        while frontier and not truncated:
+            cur, hop = frontier.pop(0)
+            if hop >= hops:
+                continue
+            incoming = sorted(store.neighbors(cur, direction="in"),
+                              key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
+            for e in incoming:
+                if e.relation not in rels or e.src in seen:
+                    continue
+                if len(hits) >= limit:
+                    truncated = True
+                    break
+                seen.add(e.src)
+                n = store.get_node(e.src)
+                if not n:
+                    continue
+                hits.append(BlastHit(
+                    id=sanitize_label(n.id), repo=sanitize_label(n.repo),
+                    kind=sanitize_label(n.kind), name=sanitize_label(n.name),
+                    hop=hop + 1, via=sanitize_label(e.relation),
+                    confidence=e.confidence.value))
+                frontier.append((e.src, hop + 1))
+        return BlastRadiusOut(seed=node_id, hops=hops, total=len(hits),
+                              truncated=truncated, hits=hits)
 
     @mcp.tool()
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:
