@@ -7,6 +7,7 @@ tool runs without the ``[kb]`` extra installed.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -452,11 +453,21 @@ def cmd_wiki(args) -> int:
         wiki_dir.mkdir(parents=True, exist_ok=True)
         log(f"Generating wiki for {len(targets)} repo(s) with {llm.name} "
             f"(council of {len(LENSES)})")
-        written = rejected = 0
+        force = getattr(args, "force", False)
+        written = rejected = skipped = 0
         for repo_id, _ in targets:
             brief = repo_brief(store_dir, repo_id)
             if brief is None:
                 continue
+            wiki_file = wiki_dir / (repo_id.replace("/", "__") + ".md")
+            # freshness: skip the (expensive) LLM call when an existing page was
+            # already generated from this repo's current head commit.
+            if not force and wiki_file.exists() and brief.get("head"):
+                prev = wiki_file.read_text(encoding="utf-8", errors="replace")
+                m = re.search(r"at commit `([^`]+)`", prev)
+                if m and m.group(1) == brief["head"]:
+                    skipped += 1
+                    continue
             try:
                 page = generate_page(llm, store_dir, repo_id)
                 gate = council_gate(llm, page, render_prompt(brief),
@@ -465,8 +476,7 @@ def cmd_wiki(args) -> int:
                 log(f"  {style.fail(repo_id)}: {e}")
                 continue
             if gate["accepted"]:
-                (wiki_dir / (repo_id.replace("/", "__") + ".md")).write_text(
-                    page, encoding="utf-8")
+                wiki_file.write_text(page, encoding="utf-8")
                 written += 1
                 log(f"  {style.ok(repo_id)}: written (score {gate['score']})")
             else:
@@ -474,7 +484,8 @@ def cmd_wiki(args) -> int:
                 log(f"  {style.warn(repo_id)}: rejected by council (score {gate['score']})")
                 for issue in gate["issues"][:5]:
                     log(f"      - {issue}")
-        log(f"{style.ok()} Wiki: {written} written, {rejected} rejected → {wiki_dir}")
+        log(f"{style.ok()} Wiki: {written} written, {rejected} rejected, "
+            f"{skipped} unchanged (skipped) → {wiki_dir}  (--force to regenerate)")
         return 0
     finally:
         store.close()
