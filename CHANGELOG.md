@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Wiki generation is now incremental (skip-if-unchanged).** `contextlake wiki` skips the (expensive)
+  LLM call for any repo whose existing page was already generated from its current head commit — so a
+  no-op fleet re-run drops from O(repos × LLM calls) to ~0. `--force` regenerates regardless; the
+  summary reports how many were skipped.
 - **Ambiguous calls are no longer silently dropped.** When a call name resolves to 2–6 candidate
   definitions, indexing now emits an `AMBIGUOUS` `calls` edge to each candidate (de-duplicated,
   self-calls excluded) instead of discarding the call — so the hottest symbols aren't lost and

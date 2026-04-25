@@ -115,3 +115,28 @@ def test_cmd_wiki_rejects_low_score(tmp_path, monkeypatch):
 
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     assert not (store_dir / "wiki" / "r.md").exists()  # council rejected it
+
+
+def test_cmd_wiki_skips_unchanged_and_force_regenerates(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    calls = {"n": 0}
+
+    class _Counting(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            calls["n"] += 1
+            return super().generate(prompt, system=system)
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _Counting(score=0.95))
+    cfg = str(tmp_path / "kb.toml")
+
+    assert cmd_wiki(Namespace(config=cfg)) == 0          # first run generates
+    assert (store_dir / "wiki" / "r.md").exists()
+    first = calls["n"]
+    assert first > 0
+
+    assert cmd_wiki(Namespace(config=cfg)) == 0          # head unchanged -> skip
+    assert calls["n"] == first                           # no further LLM calls
+
+    assert cmd_wiki(Namespace(config=cfg, force=True)) == 0  # --force regenerates
+    assert calls["n"] > first
