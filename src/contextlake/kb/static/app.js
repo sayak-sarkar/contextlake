@@ -1,4 +1,16 @@
 function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COLOR; }
+  // Only the *architectural* relations get an edge label — labelling the hundreds of
+  // structural calls/contains/imports edges would bury the diagram in text.
+  var ARCH_RELS = { depends_on: 1, flow: 1, calls_http: 1, exposes: 1,
+                    publishes: 1, publishes_event: 1, consumes_event: 1 };
+  // contexts that are internal markers, not a human-meaningful path/package/topic
+  var GENERIC_CTX = { "": 1, ambiguous: 1, event: 1, http: 1 };
+  function edgeLabel(e){
+    var r = e.data("relation");
+    if (!ARCH_RELS[r]) return "";
+    var ctx = e.data("context");
+    return (ctx && !GENERIC_CTX[ctx]) ? r + " · " + ctx : r;
+  }
   function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
   var RM = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
   function dur(ms){ return RM.matches ? 0 : ms; }   // collapse motion to instant under reduced-motion
@@ -25,7 +37,12 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       { selector: "edge", style: {
           "line-color": edgeColor, "target-arrow-color": edgeColor,
           "width": "mapData(weight, 1, 10, 0.8, 4.5)",
-          "target-arrow-shape": "triangle", "arrow-scale": 0.7, "curve-style": "bezier" } },
+          "target-arrow-shape": "triangle", "arrow-scale": 0.7, "curve-style": "bezier",
+          // labelled flows: relation (+ path/package/topic) on architectural edges only
+          "label": edgeLabel, "font-size": 7, "color": label,
+          "text-rotation": "autorotate", "text-margin-y": -3,
+          "text-background-color": surf, "text-background-opacity": 0.85,
+          "text-background-padding": 2, "text-background-shape": "roundrectangle" } },
       { selector: 'edge[confidence = "EXTRACTED"]',
         style: { "line-style": "solid", "opacity": 0.7 } },
       { selector: 'edge[confidence = "INFERRED"]',

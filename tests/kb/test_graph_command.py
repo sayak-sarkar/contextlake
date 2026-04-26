@@ -1,6 +1,7 @@
 """Tests for the `contextlake graph` visualizer (bounded subgraph + renderers)."""
 
 import json
+import re
 import socket
 import threading
 import time
@@ -195,6 +196,15 @@ def test_html_inlines_icon_map_token():
     html = viz.to_html({"nodes": [{"id": "a", "kind": "class", "name": "A"}], "edges": []})
     assert "__ICONS__" not in html and "var ICONS =" in html
     assert "data:image/svg+xml" in html
+
+
+def test_only_architectural_edges_are_labelled():
+    # the labelled-flow wiring ships in the inlined app.js
+    html = viz.to_html({"nodes": [{"id": "a", "kind": "repo", "name": "A"}], "edges": []})
+    assert '"label": edgeLabel' in html and "ARCH_RELS" in html
+    block = re.search(r"var ARCH_RELS = \{([^}]*)\}", html, re.S).group(1)
+    assert "calls_http" in block and "depends_on" in block   # architectural -> labelled
+    assert "contains" not in block                           # structural -> stays clean
 
 
 def test_html_carries_node_detail_and_ui_controls(store):

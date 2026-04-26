@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Architectural edges are now labelled — flows read like a C4 diagram.** Dependency / flow edges
+  (`depends_on`, `calls_http`, `exposes`, `flow`, `publishes`, `publishes_event`, `consumes_event`)
+  carry an autorotated label of the relation plus its context where meaningful (`depends_on · requests`,
+  `calls_http · /v1/orders`, the event topic). Structural edges (`calls`/`contains`/`imports`) stay
+  unlabelled so the hundreds of them don't bury the diagram in text.
 - **Graph nodes now carry type glyphs — the first step toward architecture diagrams.** Every node is
   painted with a Lucide-style icon for its kind (file, class, function, package, repo, HTTP endpoint,
   event topic, …) so a graph reads by *type* at a glance instead of by colour alone. Glyphs are inlined
