@@ -207,6 +207,26 @@ def test_only_architectural_edges_are_labelled():
     assert "contains" not in block                           # structural -> stays clean
 
 
+def test_overview_repo_carries_dominant_language(store):
+    store.upsert_nodes("py-svc", [
+        Node(id="a", repo="py-svc", kind="function", name="a", lang="python"),
+        Node(id="b", repo="py-svc", kind="function", name="b", lang="python"),
+        Node(id="c", repo="py-svc", kind="function", name="c", lang="c")])
+    store.upsert_nodes("js-svc", [
+        Node(id="x", repo="js-svc", kind="function", name="x", lang="javascript")])
+    nodes, _ = viz.overview_subgraph(store, max_nodes=50)
+    by_id = {n["id"]: n for n in nodes}
+    assert by_id["py-svc"]["lang"] == "python"        # dominant of {python:2, c:1}
+    assert by_id["js-svc"]["lang"] == "javascript"
+
+
+def test_lang_icons_are_offline_lettermarks():
+    li = viz._lang_icons()
+    assert {"python", "javascript", "typescript", "csharp"} <= set(li)
+    for uri in li.values():
+        assert uri.startswith("data:image/svg+xml;utf8,") and "%3Ctext" in uri
+
+
 def test_html_carries_node_detail_and_ui_controls(store):
     store.upsert_nodes("team/x", [Node(id="a", repo="team/x", kind="class", name="A",
                                        qualified_name="x.A", file="a.py", line_start=3),

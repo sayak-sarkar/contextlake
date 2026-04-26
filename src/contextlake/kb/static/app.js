@@ -24,8 +24,12 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     return [
       { selector: "node", style: {
           "background-color": function(n){ return COLORS[n.data("kind")] || DEFAULT_COLOR; },
-          // type glyph painted onto the node (data-URI, offline) — reads by kind at a glance
-          "background-image": function(n){ return ICONS[n.data("kind")] || "none"; },
+          // type glyph painted onto the node (data-URI, offline) — reads by kind at a
+          // glance; repo nodes show their primary-language lettermark (tech stack) instead
+          "background-image": function(n){
+            if (n.data("kind") === "repo" && LANG_ICONS[n.data("lang")]) return LANG_ICONS[n.data("lang")];
+            return ICONS[n.data("kind")] || "none";
+          },
           "background-fit": "none", "background-clip": "none",
           "background-width": "58%", "background-height": "58%",
           "background-image-opacity": 0.96,
