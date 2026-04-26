@@ -12,8 +12,13 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     return [
       { selector: "node", style: {
           "background-color": function(n){ return COLORS[n.data("kind")] || DEFAULT_COLOR; },
+          // type glyph painted onto the node (data-URI, offline) — reads by kind at a glance
+          "background-image": function(n){ return ICONS[n.data("kind")] || "none"; },
+          "background-fit": "none", "background-clip": "none",
+          "background-width": "58%", "background-height": "58%",
+          "background-image-opacity": 0.96,
           "label": "data(label)", "font-size": 9, "color": label,
-          "width": "mapData(deg, 0, 24, 14, 52)", "height": "mapData(deg, 0, 24, 14, 52)",
+          "width": "mapData(deg, 0, 24, 20, 56)", "height": "mapData(deg, 0, 24, 20, 56)",
           "text-wrap": "ellipsis", "text-max-width": 120,
           "text-valign": "bottom", "text-margin-y": 2,
           "border-width": 0.5, "border-color": surf } },

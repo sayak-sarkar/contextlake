@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
 from ..logging_setup import log
 
@@ -32,6 +33,8 @@ KIND_COLORS = {
     "struct": "#f4a261", "function": "#90be6d", "method": "#43aa8b", "enum": "#577590",
     "package": "#e76f51", "repo": "#264653", "issue": "#bc6c25", "page": "#606c38",
     "design": "#9d4edd",
+    # flow nodes (from the HTTP / event extractors) — a service surface, not a symbol
+    "endpoint": "#f08c3a", "topic": "#b07fd0",
 }
 DEFAULT_COLOR = "#c9c9c9"
 # Relation -> edge hue (within the brand family; greys for structural relations).
@@ -72,6 +75,71 @@ _GLYPH_SVG = (
     '<path d="M32 7 C 35 12, 37 14, 37 17 a5 5 0 1 1 -10 0 C 27 14, 29 12, 32 7 Z"'
     ' fill="#E7B53C"/></svg>'
 )
+
+# Per-kind glyphs (inner SVG paths, Lucide-style line icons) painted onto nodes so a
+# diagram reads by *type* at a glance — a file vs a service vs an HTTP endpoint. Kept
+# as bare 24x24 path content; the stroke colour is chosen per node at build time
+# (_kind_icons) for contrast, and the data-URI is inlined so the page stays offline.
+_KIND_ICON_PATHS = {
+    "file": '<path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12'
+            'a2 2 0 0 0 2-2V8z"/>',
+    "page": '<path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12'
+            'a2 2 0 0 0 2-2V8z"/><line x1="8" y1="13" x2="15" y2="13"/>'
+            '<line x1="8" y1="17" x2="15" y2="17"/>',
+    "module": '<path d="M12 2 2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/>'
+              '<path d="M2 12l10 5 10-5"/>',
+    "class": '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8'
+             'v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
+    "struct": '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" '
+              'height="7"/><rect x="14" y="14" width="7" height="7"/>'
+              '<rect x="3" y="14" width="7" height="7"/>',
+    "interface": '<path d="M8 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h1"/>'
+                 '<path d="M16 3h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-1"/>',
+    "enum": '<circle cx="4" cy="6" r="1.3"/><circle cx="4" cy="12" r="1.3"/>'
+            '<circle cx="4" cy="18" r="1.3"/><line x1="9" y1="6" x2="21" y2="6"/>'
+            '<line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/>',
+    "function": '<polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/>',
+    "method": '<polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/>',
+    "package": '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8'
+               'a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>'
+               '<path d="M3.3 7 12 12l8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/>',
+    "repo": '<rect x="3" y="4" width="18" height="7" rx="1.5"/>'
+            '<rect x="3" y="13" width="18" height="7" rx="1.5"/>'
+            '<line x1="7" y1="7.5" x2="7.01" y2="7.5"/>'
+            '<line x1="7" y1="16.5" x2="7.01" y2="16.5"/>',
+    "issue": '<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/>'
+             '<line x1="12" y1="16" x2="12.01" y2="16"/>',
+    "design": '<path d="M12 3l1.9 5.1L19 11l-5.1 1.9L12 18l-1.9-5L5 11l5.1-1.9z"/>',
+    "endpoint": '<circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/>'
+                '<path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/>',
+    "topic": '<path d="M21 14a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+}
+
+
+def _luma(hex_color: str) -> float:
+    """Perceived brightness (0-255) of a #rrggbb colour — picks glyph contrast."""
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def _icon_uri(inner: str, stroke: str) -> str:
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" '
+        'viewBox="0 0 24 24" fill="none" stroke="' + stroke + '" stroke-width="2.2" '
+        'stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>'
+    )
+    return "data:image/svg+xml;utf8," + quote(svg, safe="")
+
+
+def _kind_icons() -> dict:
+    """kind -> data-URI glyph, stroke coloured for contrast against the node fill."""
+    out = {}
+    for kind, inner in _KIND_ICON_PATHS.items():
+        color = KIND_COLORS.get(kind, DEFAULT_COLOR)
+        stroke = "#0E2A33" if _luma(color) > 150 else "#ffffff"
+        out[kind] = _icon_uri(inner, stroke)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -408,6 +476,7 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     from collections import Counter
     elements = json.dumps(_cytoscape_elements(payload))
     colors = json.dumps(KIND_COLORS)
+    icons = json.dumps(_kind_icons())
     kind_counts = Counter(n.get("kind", "") for n in payload["nodes"])
     legend = "".join(
         f'<button type="button" class="lg" data-kind="{k}">'
@@ -434,6 +503,7 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
             .replace("__LIB_TAG__", lib_tag)
             .replace("__ELEMENTS__", elements)
             .replace("__COLORS__", colors)
+            .replace("__ICONS__", icons)
             .replace("__DEFAULT_COLOR__", DEFAULT_COLOR)
             .replace("__REL_COLORS__", json.dumps(RELATION_COLORS))
             .replace("__DEFAULT_EDGE_COLOR__", DEFAULT_EDGE_COLOR)
@@ -1023,6 +1093,7 @@ __LIB_TAG__
 <script>
   var ELEMENTS = __ELEMENTS__;
   var COLORS = __COLORS__;
+  var ICONS = __ICONS__;
   var DEFAULT_COLOR = "__DEFAULT_COLOR__";
   var REL_COLORS = __REL_COLORS__;
   var DEFAULT_EDGE_COLOR = "__DEFAULT_EDGE_COLOR__";

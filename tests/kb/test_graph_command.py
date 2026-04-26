@@ -175,7 +175,26 @@ def test_html_is_offline_by_default(store):
     assert len(html) > 100_000         # the vendored lib is inlined
     html_cdn = viz.to_html(_payload(store), cdn=True)
     assert _CDN_URL in html_cdn        # --cdn references the CDN
-    assert len(html_cdn) < 50_000      # ...and does not inline the lib
+    assert len(html_cdn) < 70_000      # ...and does not inline the ~1MB lib (icons add ~5KB)
+
+
+def test_kind_icons_are_offline_data_uris_with_contrast():
+    icons = viz._kind_icons()
+    # one glyph per palette kind, including the flow nodes (endpoint/topic)
+    assert {"file", "class", "function", "package", "repo", "endpoint", "topic"} <= set(icons)
+    for kind, uri in icons.items():
+        assert uri.startswith("data:image/svg+xml;utf8,"), kind   # inlined, no CDN/sprite fetch
+        assert "%3Csvg" in uri                                    # percent-encoded SVG
+    # contrast is chosen per node fill: white glyph on the dark navy repo node,
+    # dark glyph on the light yellow module node — a single colour would vanish on one.
+    assert "%23ffffff" in icons["repo"]
+    assert "%230E2A33" in icons["module"]
+
+
+def test_html_inlines_icon_map_token():
+    html = viz.to_html({"nodes": [{"id": "a", "kind": "class", "name": "A"}], "edges": []})
+    assert "__ICONS__" not in html and "var ICONS =" in html
+    assert "data:image/svg+xml" in html
 
 
 def test_html_carries_node_detail_and_ui_controls(store):
