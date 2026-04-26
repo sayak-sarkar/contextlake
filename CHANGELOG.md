@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Graph nodes now carry type glyphs — the first step toward architecture diagrams.** Every node is
+  painted with a Lucide-style icon for its kind (file, class, function, package, repo, HTTP endpoint,
+  event topic, …) so a graph reads by *type* at a glance instead of by colour alone. Glyphs are inlined
+  as percent-encoded SVG `data:` URIs (no CDN, no sprite fetch — the page stays a single offline file),
+  and each glyph's stroke colour is chosen per node fill at build time (white on the dark `repo` node,
+  dark on the light `module` node) so it never washes out. Flow nodes (`endpoint`/`topic`) joined the
+  palette + legend.
 - **`--site` now renders the LLM-wiki as cross-linked pages.** Each repo with a generated wiki gets a
   `wiki-<slug>.html` (the index links it, the page links back to the graph), rendered by a tiny
   dependency-free Markdown→HTML converter (HTML-escaped — the wiki is untrusted LLM output), carrying
