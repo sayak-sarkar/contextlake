@@ -312,6 +312,33 @@ def test_build_site_repos_filter(store, tmp_path):
     assert '"id": "team/repoA"' in overview and '"id": "other/repoB"' in overview
 
 
+def test_md_to_html_renders_and_escapes():
+    h = viz._md_to_html(
+        "# Title\n\nA `code` and **bold**.\n\n- one\n- two\n\n```\nx=1\n```\n\n<script>x</script>")
+    assert "<h1>Title</h1>" in h and "<code>code</code>" in h and "<strong>bold</strong>" in h
+    assert "<ul>" in h and "<li>one</li>" in h and "<pre><code>x=1" in h
+    assert "&lt;script&gt;" in h and "<script>" not in h   # injection escaped
+
+
+def test_build_site_emits_wiki_page_with_staleness(store, tmp_path):
+    # store.path.parent is the kb dir; build_site reads <kb>/wiki/<slug>.md
+    store.upsert_repo(Repo(id="team/api", path="/a", head_commit="abc123"))
+    store.upsert_nodes("team/api", [_node("a1", repo="team/api")])
+    wiki_dir = store.path.parent / "wiki"
+    wiki_dir.mkdir(parents=True, exist_ok=True)
+    (wiki_dir / "team__api.md").write_text(
+        "# team/api\n\nThe order service.\n\n"
+        "*Generated from the knowledge graph of `team/api` at commit `abc123` on 2026-06-25.*\n")
+    out = tmp_path / "site"
+    viz.build_site(store, out)
+    wiki_html = out / "wiki-team__api.html"
+    assert wiki_html.is_file()
+    body = wiki_html.read_text(encoding="utf-8")
+    assert "The order service." in body and "fresh" in body   # commit matches -> fresh
+    assert 'href="repo-team__api.html"' in body               # links back to the graph
+    assert 'href="wiki-team__api.html"' in (out / "index.html").read_text(encoding="utf-8")
+
+
 # --- live server ---------------------------------------------------------
 
 def test_serve_endpoints(store):
