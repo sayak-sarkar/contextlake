@@ -471,14 +471,20 @@ def _md_to_html(md: str) -> str:
     import re as _re
 
     def esc(s: str) -> str:
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        # Escape quotes too: rendered text is interpolated into href="…" attributes
+        # below, and the wiki is untrusted (LLM-derived from repo content) — without
+        # this, a crafted link URL could break out of the attribute (stored XSS).
+        return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace('"', "&quot;").replace("'", "&#39;"))
 
     def inline(s: str) -> str:
         s = esc(s)
         s = _re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         s = _re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         s = _re.sub(r"(?<![*\w])\*([^*\n]+)\*(?!\w)", r"<em>\1</em>", s)
-        s = _re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
+        # URL class excludes quotes/brackets/whitespace so it can't escape the
+        # attribute even if escaping above ever regressed (defense in depth).
+        s = _re.sub(r"\[([^\]]+)\]\((https?://[^)\s\"'<>]+)\)",
                     r'<a href="\2" rel="noopener noreferrer">\1</a>', s)
         return s
 
@@ -644,7 +650,8 @@ def _wiki_page(repo: str, md: str, store: Store) -> str:
     r = store.get_repo(repo)
     current = r.head_commit if r else None
     stale = wiki_commit is None or current is None or wiki_commit != current
-    repo_esc = repo.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    repo_esc = (repo.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace('"', "&quot;").replace("'", "&#39;"))
     badge = ("stale · regenerate" if stale
              else "fresh · " + (wiki_commit or "")[:8])
     return (_WIKI_TEMPLATE
