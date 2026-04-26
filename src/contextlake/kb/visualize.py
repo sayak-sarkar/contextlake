@@ -142,6 +142,31 @@ def _kind_icons() -> dict:
     return out
 
 
+# Primary-language lettermark for repo nodes, so the fleet diagram shows its tech
+# stack at a glance. Keys are the parser's lang ids; unknown languages keep the
+# generic repo glyph. White text reads on the dark navy repo fill.
+_LANG_LABELS = {
+    "python": "PY", "javascript": "JS", "typescript": "TS", "tsx": "TS",
+    "csharp": "C#", "c_sharp": "C#", "java": "JV", "go": "GO", "ruby": "RB",
+    "rust": "RS", "php": "PHP", "kotlin": "KT", "cpp": "C++", "c": "C",
+}
+
+
+def _lang_icon(label: str) -> str:
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" '
+        'viewBox="0 0 24 24"><text x="12" y="16" text-anchor="middle" '
+        'font-family="ui-sans-serif,system-ui,sans-serif" font-size="10" '
+        'font-weight="700" fill="#ffffff">' + label + '</text></svg>'
+    )
+    return "data:image/svg+xml;utf8," + quote(svg, safe="")
+
+
+def _lang_icons() -> dict:
+    """lang id -> data-URI lettermark glyph (overlaid on repo nodes)."""
+    return {lang: _lang_icon(label) for lang, label in _LANG_LABELS.items()}
+
+
 # ---------------------------------------------------------------------------
 # Canonical serialization (one shape reused by json / html / the /neighbors API)
 # ---------------------------------------------------------------------------
@@ -339,8 +364,18 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000,
     # — the full id is a long shared-prefix path that truncates to an identical,
     # useless stub on every node. The full id stays as qualified_name (searchable +
     # shown in the inspector) and as repo.
+    # dominant language per repo -> drives the tech-stack lettermark in the overview,
+    # so the fleet architecture map reads its stack at a glance (one GROUP BY pass).
+    dom_lang: dict[str, str] = {}
+    best_lang_count: dict[str, int] = {}
+    for repo, lang, cnt in store.conn.execute(
+            "SELECT repo_id, lang, COUNT(*) FROM nodes "
+            "WHERE lang IS NOT NULL GROUP BY repo_id, lang").fetchall():
+        if repo in keep and cnt > best_lang_count.get(repo, 0):
+            best_lang_count[repo] = cnt
+            dom_lang[repo] = lang
     nodes = [{"id": r, "repo": r, "kind": "repo", "name": r.rsplit("/", 1)[-1],
-              "qualified_name": r, "file": None, "line": None, "lang": None,
+              "qualified_name": r, "file": None, "line": None, "lang": dom_lang.get(r),
               "attrs": {"node_count": sizes.get(r, 0)}} for r in repo_ids]
     edges = [e for e in dep_edges if e["src"] in keep and e["dst"] in keep]
     if truncated:
@@ -412,6 +447,7 @@ def _cytoscape_elements(payload: dict) -> list[dict]:
             "repo": n.get("repo", ""), "qn": n.get("qualified_name") or "",
             "file": n.get("file") or "", "line": n.get("line"),
             "count": attrs.get("node_count"), "href": n.get("href") or "",
+            "lang": n.get("lang") or "",
         }})
     for e in payload["edges"]:
         els.append({"data": {"source": e["src"], "target": e["dst"],
@@ -477,6 +513,7 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     elements = json.dumps(_cytoscape_elements(payload))
     colors = json.dumps(KIND_COLORS)
     icons = json.dumps(_kind_icons())
+    lang_icons = json.dumps(_lang_icons())
     kind_counts = Counter(n.get("kind", "") for n in payload["nodes"])
     legend = "".join(
         f'<button type="button" class="lg" data-kind="{k}">'
@@ -504,6 +541,7 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
             .replace("__ELEMENTS__", elements)
             .replace("__COLORS__", colors)
             .replace("__ICONS__", icons)
+            .replace("__LANG_ICONS__", lang_icons)
             .replace("__DEFAULT_COLOR__", DEFAULT_COLOR)
             .replace("__REL_COLORS__", json.dumps(RELATION_COLORS))
             .replace("__DEFAULT_EDGE_COLOR__", DEFAULT_EDGE_COLOR)
@@ -1094,6 +1132,7 @@ __LIB_TAG__
   var ELEMENTS = __ELEMENTS__;
   var COLORS = __COLORS__;
   var ICONS = __ICONS__;
+  var LANG_ICONS = __LANG_ICONS__;
   var DEFAULT_COLOR = "__DEFAULT_COLOR__";
   var REL_COLORS = __REL_COLORS__;
   var DEFAULT_EDGE_COLOR = "__DEFAULT_EDGE_COLOR__";

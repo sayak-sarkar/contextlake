@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Repo nodes show their primary language — the fleet's tech stack at a glance.** In the overview,
+  each repo node now carries a lettermark (`PY`, `JS`, `TS`, `C#`, …) for its dominant language (a
+  single GROUP-BY over data the parser already records), so an architecture map reads its stack
+  without clicking in. Trademark-free white-on-navy lettermarks, inlined offline; unknown languages
+  keep the generic repo glyph.
 - **Architectural edges are now labelled — flows read like a C4 diagram.** Dependency / flow edges
   (`depends_on`, `calls_http`, `exposes`, `flow`, `publishes`, `publishes_event`, `consumes_event`)
   carry an autorotated label of the relation plus its context where meaningful (`depends_on · requests`,
