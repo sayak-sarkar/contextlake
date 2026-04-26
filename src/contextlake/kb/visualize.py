@@ -460,6 +460,130 @@ def _read_static_raw(name: str) -> str:
     return (files("contextlake.kb") / "static" / name).read_text(encoding="utf-8")
 
 
+def _md_to_html(md: str) -> str:
+    """A tiny, dependency-free Markdown -> HTML renderer for wiki prose.
+
+    Handles headings, fenced code, unordered lists, paragraphs, and inline
+    code/bold/italic/links — enough for generated wiki pages. HTML is escaped
+    *first* (the wiki is LLM-derived from repo content, so it's untrusted), then
+    the Markdown punctuation that survives escaping is transformed.
+    """
+    import re as _re
+
+    def esc(s: str) -> str:
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def inline(s: str) -> str:
+        s = esc(s)
+        s = _re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+        s = _re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
+        s = _re.sub(r"(?<![*\w])\*([^*\n]+)\*(?!\w)", r"<em>\1</em>", s)
+        s = _re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
+                    r'<a href="\2" rel="noopener noreferrer">\1</a>', s)
+        return s
+
+    out: list[str] = []
+    para: list[str] = []
+    in_list = False
+    lines = md.split("\n")
+    i = 0
+
+    def flush_para():
+        if para:
+            out.append("<p>" + inline(" ".join(para)) + "</p>")
+            para.clear()
+
+    while i < len(lines):
+        line = lines[i]
+        if line.strip().startswith("```"):
+            flush_para()
+            if in_list:
+                out.append("</ul>")
+                in_list = False
+            i += 1
+            code = []
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                code.append(lines[i])
+                i += 1
+            out.append("<pre><code>" + esc("\n".join(code)) + "</code></pre>")
+            i += 1
+            continue
+        h = _re.match(r"(#{1,4})\s+(.*)", line)
+        if h:
+            flush_para()
+            if in_list:
+                out.append("</ul>")
+                in_list = False
+            lvl = len(h.group(1))
+            out.append(f"<h{lvl}>{inline(h.group(2))}</h{lvl}>")
+            i += 1
+            continue
+        li = _re.match(r"\s*[-*]\s+(.*)", line)
+        if li:
+            flush_para()
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append("<li>" + inline(li.group(1)) + "</li>")
+            i += 1
+            continue
+        if not line.strip():
+            flush_para()
+            if in_list:
+                out.append("</ul>")
+                in_list = False
+            i += 1
+            continue
+        para.append(line.strip())
+        i += 1
+    flush_para()
+    if in_list:
+        out.append("</ul>")
+    return "\n".join(out)
+
+
+_WIKI_TEMPLATE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>contextlake — __REPO__ wiki</title>
+<style>
+  :root{--lake:#137A8B;--bg:#f5fafb;--surface:#fff;--line:#dce8ea;--text:#0E2A33;
+    --muted:#5b7177;--sun:#E7B53C;--ff:"Inter",system-ui,-apple-system,Segoe UI,sans-serif;
+    --ff-d:"Space Grotesk",var(--ff)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ff);line-height:1.6}
+  header{display:flex;align-items:center;gap:10px;padding:14px 28px;background:var(--surface);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+  .wm{font-family:var(--ff-d);font-weight:600}.wm .l{color:var(--lake)}
+  header .repo{color:var(--muted);font-size:14px}
+  header a{margin-left:auto;color:var(--lake);text-decoration:none;font-size:14px}
+  header a:hover{text-decoration:underline}
+  .badge{font-size:12px;padding:3px 10px;border-radius:999px;font-weight:600}
+  .badge.fresh{background:#e6f6f1;color:#0f6473}
+  .badge.stale{background:#fbf0d6;color:#7a5b16}
+  main{max-width:820px;margin:0 auto;padding:8px 28px 64px}
+  .advisory{font-size:13px;color:var(--muted);border-left:3px solid var(--sun);
+    padding:8px 12px;margin:18px 0;background:var(--surface);border-radius:6px}
+  h1,h2,h3{font-family:var(--ff-d);line-height:1.25;margin:1.4em 0 .5em}
+  h1{font-size:24px}h2{font-size:19px}h3{font-size:16px}
+  code{background:#eef6f7;padding:1px 5px;border-radius:4px;font-size:.92em}
+  pre{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:14px;overflow:auto}pre code{background:none;padding:0}
+  a{color:var(--lake)} ul{padding-left:22px}
+</style></head>
+<body>
+  <header>__GLYPH__<span class="wm">context<span class="l">lake</span></span>
+    <span class="repo">__REPO__</span><span class="badge __STALECLASS__">__STALE__</span>
+    <a href="repo-__SLUG__.html">graph →</a></header>
+  <main>
+    <div class="advisory">Advisory — this page is LLM-synthesised from the knowledge graph.
+      Verify against the cited sources; it never outranks extracted facts.</div>
+    __BODY__
+  </main>
+</body></html>
+"""
+
+
 _INDEX_TEMPLATE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -494,6 +618,9 @@ _INDEX_TEMPLATE = """<!doctype html>
     font-size:13px}
   li:first-of-type{border-top:0}
   li a{color:var(--lake);text-decoration:none;font-weight:500;flex:none}
+  li a.wk{font-size:11px;color:var(--muted);font-weight:400;border:1px solid var(--line);
+    border-radius:999px;padding:0 7px}
+  li a.wk:hover{color:var(--lake);border-color:var(--lake)}
   li a:hover{text-decoration:underline}
   li .p{color:var(--subtle);font-size:11px;overflow:hidden;text-overflow:ellipsis;
     white-space:nowrap;flex:1}
@@ -509,8 +636,29 @@ _INDEX_TEMPLATE = """<!doctype html>
 """
 
 
-def _site_index(repos: list[str], sizes: dict, pages: dict) -> str:
+def _wiki_page(repo: str, md: str, store: Store) -> str:
+    """Render a repo's wiki Markdown into a standalone HTML page with a staleness badge."""
+    import re as _re
+    m = _re.search(r"at commit `([^`]+)`", md)
+    wiki_commit = m.group(1) if m else None
+    r = store.get_repo(repo)
+    current = r.head_commit if r else None
+    stale = wiki_commit is None or current is None or wiki_commit != current
+    repo_esc = repo.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    badge = ("stale · regenerate" if stale
+             else "fresh · " + (wiki_commit or "")[:8])
+    return (_WIKI_TEMPLATE
+            .replace("__GLYPH__", _GLYPH_SVG)
+            .replace("__REPO__", repo_esc)
+            .replace("__SLUG__", repo_slug(repo))
+            .replace("__STALECLASS__", "stale" if stale else "fresh")
+            .replace("__STALE__", badge)
+            .replace("__BODY__", _md_to_html(md)))
+
+
+def _site_index(repos: list[str], sizes: dict, pages: dict, wiki: dict | None = None) -> str:
     from collections import defaultdict
+    wiki = wiki or {}
     groups: dict[str, list[str]] = defaultdict(list)
     for r in repos:
         groups[r.split("/")[0]].append(r)
@@ -518,7 +666,8 @@ def _site_index(repos: list[str], sizes: dict, pages: dict) -> str:
     for ns in sorted(groups):
         items = "".join(
             f'<li><a href="{pages[r]}">{r.rsplit("/", 1)[-1]}</a>'
-            f'<span class="p">{r}</span><span class="c">{sizes.get(r, 0)}</span></li>'
+            + (f'<a class="wk" href="{wiki[r]}">wiki</a>' if r in wiki else "")
+            + f'<span class="p">{r}</span><span class="c">{sizes.get(r, 0)}</span></li>'
             for r in sorted(groups[ns]))
         sections.append(
             f'<section><h2>{ns}<span class="c">{len(groups[ns])}</span></h2>'
@@ -575,6 +724,11 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
                 layout=overview_layout, assets="sibling", site=True,
                 title="contextlake — fleet overview"), encoding="utf-8")
 
+    # wiki pages, if the LLM-wiki has been generated (store_dir/wiki/<slug>.md)
+    sp = getattr(store, "path", None)
+    wiki_dir = (Path(sp).parent / "wiki") if sp else None
+    wiki_pages: dict[str, str] = {}
+
     for r in repos_with_nodes:
         m: dict = {}
         rn, re_ = repo_subgraph(store, r, max_nodes=repo_max_nodes, meta=m)
@@ -583,10 +737,18 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
             to_html(to_payload(rn, re_, m),
                     layout=repo_layout, assets="sibling", site=True,
                     title=f"contextlake — {r}"), encoding="utf-8")
-    log(f"  wrote overview + {len(repos_with_nodes)} repo pages + index")
+        if wiki_dir:
+            wf = wiki_dir / (repo_slug(r) + ".md")
+            if wf.exists():
+                wiki_pages[r] = f"wiki-{repo_slug(r)}.html"
+                (out / wiki_pages[r]).write_text(
+                    _wiki_page(r, wf.read_text(encoding="utf-8", errors="replace"), store),
+                    encoding="utf-8")
+    log(f"  wrote overview + {len(repos_with_nodes)} repo pages "
+        f"+ {len(wiki_pages)} wiki pages + index")
 
-    (out / "index.html").write_text(_site_index(repos_with_nodes, sizes, pages),
-                                    encoding="utf-8")
+    (out / "index.html").write_text(
+        _site_index(repos_with_nodes, sizes, pages, wiki_pages), encoding="utf-8")
     return out
 
 

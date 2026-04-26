@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--site` now renders the LLM-wiki as cross-linked pages.** Each repo with a generated wiki gets a
+  `wiki-<slug>.html` (the index links it, the page links back to the graph), rendered by a tiny
+  dependency-free Markdown→HTML converter (HTML-escaped — the wiki is untrusted LLM output), carrying
+  the same fresh/stale badge as `get_wiki`. Stays fully offline, zero new deps.
 - **MCP: `get_wiki(repo)` — serve the LLM-wiki to agents (with a staleness signal).** The generated
   wiki was written to `<store>/wiki/` but read by nothing; now an agent can fetch a repo's wiki prose
   (sanitised Markdown), explicitly labelled **advisory** (verify against cited sources; never outranks
