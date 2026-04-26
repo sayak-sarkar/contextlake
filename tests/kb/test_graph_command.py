@@ -320,6 +320,16 @@ def test_md_to_html_renders_and_escapes():
     assert "&lt;script&gt;" in h and "<script>" not in h   # injection escaped
 
 
+def test_md_to_html_no_href_attribute_breakout():
+    # a crafted link URL with a quote must not break out of href="..." into a handler
+    h = viz._md_to_html('[click](https://evil.com" onmouseover="alert(1))')
+    assert 'onmouseover="alert' not in h        # no attribute breakout
+    assert "&quot;" in h                         # the quote was escaped
+    # a normal http(s) link still renders correctly
+    h2 = viz._md_to_html("see [docs](https://example.com/x) now")
+    assert '<a href="https://example.com/x" rel="noopener noreferrer">docs</a>' in h2
+
+
 def test_build_site_emits_wiki_page_with_staleness(store, tmp_path):
     # store.path.parent is the kb dir; build_site reads <kb>/wiki/<slug>.md
     store.upsert_repo(Repo(id="team/api", path="/a", head_commit="abc123"))
