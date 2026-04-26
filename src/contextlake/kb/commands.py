@@ -805,6 +805,20 @@ def cmd_doctor(args) -> int:
                        f"{'downloaded' if present else 'not downloaded (run embed to fetch)'}"
                        f" · {be.cache_dir}")
 
+            # ANN capability: can sqlite-vec actually load here? (else semantic
+            # search silently uses brute-force cosine — fine small, slow at scale)
+            from .embeddings.store import build_vector_store
+            try:
+                _vs = build_vector_store(":memory:", backend="sqlite-vec")
+                _vs.close()
+                ann = True
+            except Exception:  # noqa: BLE001 - any import/load failure means no ANN
+                ann = False
+            _check("  ANN index (sqlite-vec)", ann,
+                   "available — native KNN" if ann else
+                   "not loadable — brute-force cosine (ok at small scale; install sqlite-vec "
+                   "+ a sqlite3 that allows extensions for ANN at scale)")
+
         llm = cfg.llm
         if not llm.enabled:
             _check("wiki LLM", True, "disabled")

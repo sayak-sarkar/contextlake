@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`doctor` now probes ANN (sqlite-vec) availability.** When embeddings are enabled it reports whether
+  the native sqlite-vec KNN index actually loads in this environment, or whether semantic search will
+  fall back to brute-force cosine — so the silent fallback (a known offline/corporate-env failure mode)
+  is visible *before* you embed, not after.
 - **Wiki generation is now incremental (skip-if-unchanged).** `contextlake wiki` skips the (expensive)
   LLM call for any repo whose existing page was already generated from its current head commit — so a
   no-op fleet re-run drops from O(repos × LLM calls) to ~0. `--force` regenerates regardless; the
