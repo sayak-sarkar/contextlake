@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **README logo now renders on PyPI.** The header glyph used a repo-relative `src`, which PyPI can't
+  resolve (it doesn't host the repo files), so it showed as a broken image on the project page. Pointed
+  it at the absolute `raw.githubusercontent.com` URL (correct `image/svg+xml` content-type, verified
+  through PyPI's own `readme_renderer`). Badges were already absolute.
+
 ### Changed
 
 - **Docs reconciled with the shipped MCP surface.** `docs/knowledge-layer.md` now lists the cross-repo

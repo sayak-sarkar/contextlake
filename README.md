@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/branding/glyph.svg" alt="" width="76" height="76">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/glyph.svg" alt="" width="76" height="76">
 </p>
 <h1 align="center">contextlake</h1>
 <p align="center"><em>All your real context, in one local lake.</em></p>
