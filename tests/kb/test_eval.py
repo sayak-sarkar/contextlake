@@ -3,8 +3,13 @@ import json
 import pytest
 
 from contextlake.kb.eval import (
-    GoldenQuery, evaluate, fts_retriever, load_golden,
-    precision_at_k, recall_at_k, reciprocal_rank,
+    GoldenQuery,
+    evaluate,
+    fts_retriever,
+    load_golden,
+    precision_at_k,
+    recall_at_k,
+    reciprocal_rank,
 )
 from contextlake.kb.model import Node
 from contextlake.kb.store.sqlite_store import SqliteStore
