@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-06-26
+
 ### Added
 
 - **`[kb-full]` one-step install for local semantic search** — `pip install "contextlake[kb-full]"`
