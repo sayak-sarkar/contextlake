@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-06-26
+
 ### Fixed
 
 - **README logo now renders on PyPI.** The header glyph used a repo-relative `src`, which PyPI can't
