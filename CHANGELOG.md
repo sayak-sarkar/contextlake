@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`[kb-full]` one-step install for local semantic search** — `pip install "contextlake[kb-full]"`
+  pulls the knowledge layer + the built-in CPU embedder (`kb-local`) + the sqlite-vec ANN backend
+  (`kb-vec`) together, so `index → embed → semantic search` just works with no Ollama and no API key.
 - **Repo nodes show their primary language — the fleet's tech stack at a glance.** In the overview,
   each repo node now carries a lettermark (`PY`, `JS`, `TS`, `C#`, …) for its dominant language (a
   single GROUP-BY over data the parser already records), so an architecture map reads its stack
@@ -43,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`embed`'s "disabled" message is now actionable.** Instead of the dead-end "Embeddings are
+  disabled", it names the exact next step — install `contextlake[kb-full]` (when the embedder is
+  missing) and/or set `[embeddings] enabled = true` — and notes the one-time ~30 MB model download,
+  so the post-`bootstrap` "Build semantic vectors" stage no longer silently goes nowhere.
 - **Documented and test-locked the no-pollution invariant (INV-1).** `docs/storage.md` now states that
   every generated artifact lives under the store (`~/.contextlake/kb` by default) and never inside a
   synced repo working tree, and `tests/kb/test_no_repo_pollution.py` enforces it by driving the

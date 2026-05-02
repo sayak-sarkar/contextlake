@@ -13,7 +13,9 @@ a private config file).
 Install the extra (requires Python ≥ 3.10):
 
 ```bash
-pip install "contextlake[kb]"
+pip install "contextlake[kb]"               # knowledge layer (parse + graph + serve)
+# ...or get everything for local semantic search in one step (no Ollama / API key):
+pip install "contextlake[kb-full]"          # = kb + built-in CPU embedder + sqlite-vec ANN
 contextlake doctor                          # check the environment
 contextlake index --source ./my-repo        # index one repository
 contextlake index --workspace ~/work        # index every git repo (incremental; --force to rebuild)

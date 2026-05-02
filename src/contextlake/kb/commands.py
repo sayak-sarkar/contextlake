@@ -379,6 +379,31 @@ def cmd_connect(args) -> int:
         store.close()
 
 
+def _embed_unavailable_hint(cfg) -> str:
+    """Why is there no embedder, and the exact one-liner to fix it.
+
+    `build_embedder` returns None either because semantic search is off (the
+    opt-in default) or because it is on but no engine is installed/reachable.
+    Either way the old "Embeddings are disabled" message left the user stuck — so
+    spell out the install + enable steps, tailored to what is actually missing.
+    """
+    import importlib.util
+
+    has_local = importlib.util.find_spec("model2vec") is not None
+    if not getattr(cfg, "enabled", False):
+        install = ("" if has_local
+                   else "install the embedder (pip install 'contextlake[kb-full]'), then ")
+        return ("Semantic search is off (opt-in). To enable it: " + install
+                + 'set [embeddings] enabled = true in kb.toml (provider "auto"). '
+                "The first embed downloads a small CPU model (~30MB, one-time).")
+    if not has_local:
+        return ("Embeddings are enabled but no embedder is installed — "
+                "install one with: pip install 'contextlake[kb-full]' (built-in CPU model), "
+                "or run a local Ollama.")
+    return ("Embeddings are enabled but no embedder resolved (no local Ollama, and the built-in "
+            "engine failed to load). Run `contextlake doctor` for details.")
+
+
 def cmd_embed(args) -> int:
     from .embeddings import build_embedder
     from .embeddings.index import embed_repo
@@ -389,7 +414,7 @@ def cmd_embed(args) -> int:
         cfg = load_kb_config(getattr(args, "config", None))
         embedder = build_embedder(cfg.embeddings)
         if embedder is None:
-            log("Embeddings are disabled (set [embeddings] enabled = true in kb.toml)")
+            log(_embed_unavailable_hint(cfg.embeddings))
             return 0
         targets = _connect_targets(args, store)
         if not targets:
