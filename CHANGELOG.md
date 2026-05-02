@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs reconciled with the shipped MCP surface.** `docs/knowledge-layer.md` now lists the cross-repo
+  tools (`repo_dependencies`, `repo_flow`, `blast_radius`, `get_wiki`) alongside the existing graph
+  tools, and the README command table documents `eval` (the golden-query retrieval-quality harness).
+
 ## [2.5.0] - 2026-06-26
 
 ### Added
