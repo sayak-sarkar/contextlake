@@ -54,6 +54,10 @@ kb-local = ["model2vec>=0.3", "huggingface_hub>=0.20"]
 # Optional higher-quality built-in embedder engine (ONNX bge-small via fastembed,
 # ~90MB). Heavier than kb-local; selected with `engine = "fastembed"`.
 kb-fastembed = ["fastembed>=0.3"]
+# One-step "everything for local semantic search" convenience extra: the knowledge
+# layer + the built-in CPU embedder + the sqlite-vec ANN backend. Install this when
+# you want index -> embed -> semantic search to just work, with no Ollama or API key.
+kb-full = ["contextlake[kb]", "contextlake[kb-local]", "contextlake[kb-vec]"]
 # Optional built-in, CPU-only generative LLM for the wiki tier (no Ollama / API
 # key). Small auto-downloaded GGUF via llama-cpp-python. Heavier + slow on CPU;
 # off by default. See docs/knowledge-layer.md.

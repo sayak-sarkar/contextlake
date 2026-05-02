@@ -109,3 +109,21 @@ def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
     assert "potion-base-8M" in out
     assert "Qwen2.5-0.5B-Instruct-GGUF" in out
     assert "not downloaded" in out
+
+
+def test_embed_unavailable_hint_is_actionable():
+    """The embed no-op must tell the user how to turn semantic search on."""
+    import importlib.util
+
+    from contextlake.kb.commands import _embed_unavailable_hint
+    from contextlake.kb.config import EmbeddingsCfg
+
+    off = _embed_unavailable_hint(EmbeddingsCfg(enabled=False))
+    assert "enabled = true" in off                       # the opt-in step is always named
+    on_no_engine = _embed_unavailable_hint(EmbeddingsCfg(enabled=True))
+
+    if importlib.util.find_spec("model2vec") is None:
+        assert "kb-full" in off                          # tell them to install the embedder
+        assert "kb-full" in on_no_engine or "Ollama" in on_no_engine
+    else:
+        assert "doctor" in on_no_engine                  # engine present -> point at diagnostics
