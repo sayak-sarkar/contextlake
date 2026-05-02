@@ -163,6 +163,7 @@ Run commands as `contextlake <command>` — full per-command docs are in
 | `query` | Search the index (`--kind`, `--repo`, `--limit`, `--as-of <commit>`) |
 | `graph` | Visualize the graph — offline interactive HTML / DOT / Mermaid / JSON (`--overview`, `--serve`) |
 | `doctor` | Check the knowledge-layer environment (SQLite FTS5, git/glab, store, embeddings) |
+| `eval` | Score retrieval quality against a golden-query set (precision@k / recall@k / MRR) |
 
 The first eight are the core sync (detailed below); the rest are the optional
 **[knowledge layer](#knowledge-layer)**. Run any command with `--config` (sync INI)
