@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Documented and test-locked the no-pollution invariant (INV-1).** `docs/storage.md` now states that
+  every generated artifact lives under the store (`~/.contextlake/kb` by default) and never inside a
+  synced repo working tree, and `tests/kb/test_no_repo_pollution.py` enforces it by driving the
+  generating commands over a temp two-repo mirror and asserting each repo tree is byte-identical.
 - **`doctor` now probes ANN (sqlite-vec) availability.** When embeddings are enabled it reports whether
   the native sqlite-vec KNN index actually loads in this environment, or whether semantic search will
   fall back to brute-force cosine — so the silent fallback (a known offline/corporate-env failure mode)
