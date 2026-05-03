@@ -25,6 +25,21 @@ temporary two-repo mirror and asserts each repo's working tree is byte-identical
 | `wiki/` | generated LLM-wiki pages (when `wiki` has run) |
 | `embeddings.sqlite` | semantic vectors (when `embed` has run) |
 
+## INV-2 — the offline boundary
+
+> **Code parse → graph → FTS → query → visualize → embed all run fully offline.
+> `connect` (enrichment) is the single, opt-in, online exception.**
+
+Everything that builds and serves the knowledge layer works with no network: indexing,
+search, the graph/visualizer, linting, and embedding (the built-in model is cached
+under the store after a one-time fetch). Only `connect` reaches out — to the
+Atlassian / Figma / GitLab MCPs — and even then it must **degrade, not fail**: with no
+network or no connector configured it skips/warns and exits cleanly. This is enforced
+by `tests/kb/test_offline_boundary.py`, which blocks all outbound sockets and asserts
+the offline commands still succeed. So running contextlake in an air-gapped or
+egress-restricted environment is safe by construction — only the enrichment step needs
+connectivity, and its *cached* results stay queryable offline afterward.
+
 ## The one deliberate carve-out: steering files
 
 `steer` (and the steering stage of `bootstrap`) writes editor-config files — `AGENTS.md`,
