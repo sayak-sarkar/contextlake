@@ -21,9 +21,9 @@ contextlake status
 **Example output:**
 
 ```text
-GitLab projects (cached): 481      # repos you can see on GitLab
-Local repositories:       481      # repos cloned in your workspace
-Synchronized:             480      # present in both and matching
+GitLab projects (cached): 128      # repos you can see on GitLab
+Local repositories:       128      # repos cloned in your workspace
+Synchronized:             127      # present in both and matching
 Missing:                  1        # on GitLab but not cloned yet
 Extra:                    1        # cloned locally but not on GitLab
 ```
