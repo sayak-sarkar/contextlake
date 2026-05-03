@@ -35,3 +35,6 @@ coverage.xml
 
 # Local project planning notes (may reference private data — never published)
 .notes/
+
+# Local-only private token denylist for the publish guard (never published)
+.publish-denylist

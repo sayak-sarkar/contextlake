@@ -13,6 +13,17 @@ reports, fixes, and well-scoped features are all welcome.
   faked. A passing test suite should never touch GitLab.
 - **Every change ships with a test.** Bug fix? Add the test that fails without
   it. Feature? Cover the happy path and the obvious failure.
+- **Nothing deployment-specific, ever.** No secrets, internal
+  hosts/URLs, absolute paths, private identifiers, foreign emails, or
+  example figures (e.g. a specific repo count) in code, docs, examples,
+  comments, or commit messages. Use generic placeholders (`frontend/*`,
+  `auth-service`, `user@example.com`). The publish guard
+  (`tests/kb/test_publish_guard.py`) enforces this: structural checks (no
+  foreign emails) always run, and a token scan runs when an private token denylist is
+  supplied out-of-band via the `CONTEXTLAKE_PUBLISH_DENYLIST` env var or a
+  local, git-ignored `.publish-denylist` file — the real tokens are **never**
+  committed. (Maintainers: set the `PUBLISH_DENYLIST` repo secret so CI
+  enforces the token scan.)
 
 ## Getting set up
 
