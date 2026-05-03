@@ -53,7 +53,7 @@ def test_lists_expected_tools(server):
     assert {
         "graph_stats", "get_node", "get_neighbors", "search_code",
         "find_definition", "find_callers", "shortest_path",
-        "repo_dependencies", "repo_flow", "blast_radius", "get_wiki",
+        "repo_dependencies", "repo_flow", "repo_event_flow", "blast_radius", "get_wiki",
     } <= names
 
 
@@ -158,6 +158,11 @@ def _seed_cross_repo(s):
     s.upsert_edges("repoB", [
         e("B:man", "pkg:lib", "depends_on", Confidence.EXTRACTED),
         e("B:cli", "ep:/api/x", "calls_http", Confidence.INFERRED)])
+    # event flow: repoB publishes a topic repoA consumes -> repoB --flow--> repoA
+    s.upsert_nodes("repoB", [Node(id="topic:orders", repo="(topics)",
+                                  kind="topic", name="orders.created")])
+    s.upsert_edges("repoB", [e("B:cli", "topic:orders", "publishes_event", Confidence.INFERRED)])
+    s.upsert_edges("repoA", [e("A:man", "topic:orders", "consumes_event", Confidence.INFERRED)])
 
 
 def test_repo_dependencies_and_flow_tools(tmp_path):
@@ -175,6 +180,9 @@ def test_repo_dependencies_and_flow_tools(tmp_path):
     # repoB calls repoA over HTTP (out): caller --flow--> exposer
     assert any(x["src"] == "repoB" and x["dst"] == "repoA" and x["relation"] == "flow"
                for x in call("repo_flow"))
+    # repoB publishes an event repoA consumes (out): publisher --flow--> consumer
+    assert any(x["src"] == "repoB" and x["dst"] == "repoA" and x["relation"] == "flow"
+               for x in call("repo_event_flow"))
     s.close()
 
 
