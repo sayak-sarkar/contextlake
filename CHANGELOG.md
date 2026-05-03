@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Genericity guard hardened — the leak-detector no longer leaks.** The org-token denylist used to be
+  hardcoded in the test file (shipping real org identifiers in the published package). It now lives
+  **outside the repo** — supplied via the `CONTEXTLAKE_GENERICITY_DENYLIST` env var or a git-ignored
+  `.genericity-denylist` file (CI uses a secret) — so no real token is ever committed. The scan also
+  now covers **every git-tracked file** (not a fixed list), and an always-on structural check rejects
+  any non-allowlisted email address even when no denylist is configured.
+
 ### Added
 
 - **`eval` now scores any retriever and reports a cost dimension.** Retrievers are built by factories

@@ -47,4 +47,9 @@ jobs:
       - name: Lint (ruff)
         run: ruff check src tests
       - name: Test full suite
+        # The org-token denylist lives in a secret, never in the repo (see
+        # tests/kb/test_genericity_guard.py). Absent, the token scan skips loudly;
+        # the structural genericity checks still run.
+        env:
+          CONTEXTLAKE_GENERICITY_DENYLIST: ${{ secrets.GENERICITY_DENYLIST }}
         run: pytest --cov=contextlake --cov-report=term-missing

@@ -35,3 +35,6 @@ coverage.xml
 
 # Local project planning notes (may reference private data — never published)
 .notes/
+
+# Local-only org-token denylist for the genericity guard (never published)
+.genericity-denylist

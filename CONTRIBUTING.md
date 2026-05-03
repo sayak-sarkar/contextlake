@@ -13,6 +13,17 @@ reports, fixes, and well-scoped features are all welcome.
   faked. A passing test suite should never touch GitLab.
 - **Every change ships with a test.** Bug fix? Add the test that fails without
   it. Feature? Cover the happy path and the obvious failure.
+- **Nothing organization-specific, ever.** No company/product names, internal
+  hosts/URLs, real repo paths, private identifiers, foreign emails, or
+  deployment-scale figures (e.g. a specific repo count) in code, docs, examples,
+  comments, or commit messages. Use generic placeholders (`frontend/*`,
+  `auth-service`, `user@example.com`). The genericity guard
+  (`tests/kb/test_genericity_guard.py`) enforces this: structural checks (no
+  foreign emails) always run, and a token scan runs when an org-token denylist is
+  supplied out-of-band via the `CONTEXTLAKE_GENERICITY_DENYLIST` env var or a
+  local, git-ignored `.genericity-denylist` file — the real tokens are **never**
+  committed. (Maintainers: set the `GENERICITY_DENYLIST` repo secret so CI
+  enforces the token scan.)
 
 ## Getting set up
 
