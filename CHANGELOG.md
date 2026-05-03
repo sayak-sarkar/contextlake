@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP: `repo_event_flow(repo, direction, limit)`** — repo→repo **event** flow (who publishes events
+  that whom consumes), from the topic two-hop (`publishes_event ⨝ consumes_event`). Completes the
+  cross-repo flow trio alongside `repo_dependencies` (package) and `repo_flow` (HTTP); the SQL already
+  existed (used by the overview) but had no dedicated tool.
+
 ## [2.6.0] - 2026-06-26
 
 ### Security

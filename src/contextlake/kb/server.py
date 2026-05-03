@@ -302,6 +302,27 @@ def build_server(
                         weight=e["weight"], context=e.get("context")) for e in kept])
 
     @mcp.tool()
+    def repo_event_flow(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
+        """Repo→repo EVENT flow for `repo` (who publishes events that whom consumes).
+
+        From the topic two-hop (publishes_event ⨝ consumes_event): edges are
+        ``publisher --flow--> consumer`` (the direction an event travels), weight =
+        shared topic count. direction: out (topics `repo` publishes that others consume)
+        | in (publishers `repo` consumes from) | both. INFERRED, regex-detected literal
+        topics — an undercount that omits config-variable topics; verify against the repo.
+        """
+        from .arch.resolve import repo_event_flow_edges
+        rows = [e for e in repo_event_flow_edges(store)
+                if (direction in ("out", "both") and e["src"] == repo)
+                or (direction in ("in", "both") and e["dst"] == repo)]
+        rows.sort(key=lambda e: -e["weight"])
+        kept, total, truncated = _budget(rows, limit)
+        return RepoEdgesOut(total=total, truncated=truncated, edges=[
+            RepoEdgeOut(src=sanitize_label(e["src"]), dst=sanitize_label(e["dst"]),
+                        relation=e["relation"], confidence=e["confidence"],
+                        weight=e["weight"], context=e.get("context")) for e in kept])
+
+    @mcp.tool()
     def blast_radius(node_id: str, hops: int = 3, relations: list[str] | None = None,
                      limit: int = 100) -> BlastRadiusOut:
         """What could break if you change this node — bounded transitive REVERSE reach.
