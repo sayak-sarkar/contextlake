@@ -5,8 +5,9 @@ import pytest
 from contextlake.kb.eval import (
     GoldenQuery,
     evaluate,
-    fts_retriever,
     load_golden,
+    make_fts_retriever,
+    make_semantic_retriever,
     precision_at_k,
     recall_at_k,
     reciprocal_rank,
@@ -27,7 +28,7 @@ def test_metric_primitives():
 def test_evaluate_aggregates_with_a_stub_retriever():
     golden = [GoldenQuery("q1", ["a"]), GoldenQuery("q2", ["z"])]
 
-    def stub(store, query, k, kind=None, repo=None):
+    def stub(query, k, kind=None, repo=None):
         return {"q1": ["a", "b"], "q2": ["b", "c"]}[query]  # q1 hits @1, q2 misses
 
     r = evaluate(None, golden, k=2, retriever=stub)
@@ -56,7 +57,8 @@ def test_fts_retriever_scores_real_search(tmp_path):
         Node(id="os", repo="r", kind="class", name="OrderService"),
         Node(id="bh", repo="r", kind="class", name="BaggageHandler"),
     ])
-    r = evaluate(s, [GoldenQuery("OrderService", ["os"])], k=5, retriever=fts_retriever)
+    r = evaluate(s, [GoldenQuery("OrderService", ["os"])], k=5,
+                 retriever=make_fts_retriever(s))
     assert r["hit_rate"] == 1.0          # search finds the node we asked for
     assert r["mrr"] > 0.0
     s.close()
@@ -66,7 +68,32 @@ def test_match_by_name(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     s.upsert_nodes("r", [Node(id="n1", repo="r", kind="function", name="charge")])
     # expected by NAME ("charge"), not id — harness resolves retrieved ids -> names
-    r = evaluate(s, [GoldenQuery("charge", ["charge"], match="name")], k=5,
-                 retriever=fts_retriever)
+    r = evaluate(s, [GoldenQuery("charge", ["charge"], match="name")], k=5)
     assert r["hit_rate"] == 1.0
     s.close()
+
+
+def test_evaluate_reports_cost_dimension(tmp_path):
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class",
+                              name="OrderService", file="svc.py")])
+    r = evaluate(s, [GoldenQuery("OrderService", ["os"])], k=5)
+    assert r["est_tokens_per_query"] > 0                 # returning a node costs tokens
+    assert r["precision_per_1k_tokens"] > 0              # found it, at finite token cost
+    assert "est_tokens" in r["per_query"][0]
+    s.close()
+
+
+def test_make_semantic_retriever_binds_deps():
+    # the factory closes over vector_store + embedder, so semantic is scorable —
+    # the whole point of the refactor (the old fixed call site couldn't pass them)
+    class FakeEmb:
+        def embed(self, texts):
+            return [[0.1, 0.2, 0.3]]
+
+    class FakeVS:
+        def search(self, vec, k=10, repo=None):
+            return [("os", 0.9), ("bh", 0.4)]
+
+    r = make_semantic_retriever(store=None, vector_store=FakeVS(), embedder=FakeEmb())
+    assert r("anything", 5, None, None) == ["os", "bh"]   # binds deps, returns ranked ids

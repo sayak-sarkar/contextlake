@@ -120,6 +120,14 @@ match would miss. The vector store uses an exact pure-Python cosine scan by defa
 install the optional ANN backend with `pip install "contextlake[kb-vec]"` (sqlite-vec)
 for larger workspaces.
 
+**Measuring retrieval quality** (`contextlake eval`) keeps all this falsifiable. Point
+it at a golden-query JSON file (`--golden`, e.g. `examples/fixtures/golden-queries.json`)
+and it reports **precision@k / recall@k / MRR** plus a **cost** dimension — estimated
+tokens per query and **precision per 1k tokens** — so "route to the cheapest sufficient
+source" is a number, not a vibe. Score any retriever with `--retriever fts|semantic|hybrid`
+(semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then
+judged by whether the numbers move.
+
 **Curated wiki** (optional, local-first) turns the graph into prose. Enable
 `[llm]` in the config (generation runs on a local Ollama model by default — prompts
 never leave the machine) and run `contextlake wiki`: for each repo it synthesizes a
