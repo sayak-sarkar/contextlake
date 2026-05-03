@@ -1,0 +1,8 @@
+{
+  "_comment": "A tiny golden set for the sample-graph fixture — score it with: contextlake eval --golden examples/fixtures/golden-queries.json (add --retriever semantic|hybrid once embeddings are built). Each entry is one query-shape.",
+  "queries": [
+    {"query": "OrderService", "expected": ["demo_app_orderservice"]},
+    {"query": "order service", "expected": ["demo_app_orderservice"]},
+    {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+  ]
+}

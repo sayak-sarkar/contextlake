@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`eval` now scores any retriever and reports a cost dimension.** Retrievers are built by factories
+  (`make_fts_retriever` / `make_semantic_retriever` / `make_hybrid_retriever`) that close over their
+  deps, so semantic and hybrid are scorable — not just FTS (the old fixed call site couldn't pass a
+  vector store + embedder). The harness now also reports **estimated tokens per query** and
+  **precision per 1k tokens**, making "route to the cheapest sufficient source" measurable, and
+  `eval --retriever fts|semantic|hybrid` selects which to score. Ships a seed golden set at
+  `examples/fixtures/golden-queries.json`.
+
 ## [2.5.1] - 2026-06-26
 
 ### Fixed

@@ -120,6 +120,9 @@ Examples:
     kb.add_argument("--limit", type=int, help="query: max results")
     kb.add_argument("--golden", help="eval: a golden-query JSON file "
                     "({queries:[{query, expected, kind?, repo?, match?}]})")
+    kb.add_argument("--retriever", choices=("fts", "semantic", "hybrid"),
+                    help="eval: which retriever to score (default: fts; "
+                    "semantic/hybrid need embeddings)")
     kb.add_argument("--as-of", dest="as_of",
                     help="query: search a repo's snapshot at this indexed commit (needs --repo)")
     # graph: visualize a bounded subgraph (--repo/--kind/--limit/--host/--port reused from above)
