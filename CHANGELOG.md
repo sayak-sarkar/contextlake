@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Removed deployment-scale figures from docs.** Genericized specific fleet counts (the example
   `status` output, the overview-feature notes) to illustrative values, so nothing in the published repo
   is tied to any particular deployment's repository count.
+- **Test-locked the offline boundary (INV-2).** A new test blocks all outbound sockets and asserts the
+  core commands (`index`/`query`/`graph`/`lint`/`embed`) still run, while `connect` degrades rather than
+  fails — proving contextlake is safe in air-gapped/egress-restricted environments, with enrichment the
+  single opt-in online step. Documented in `docs/storage.md`.
 
 ### Added
 
