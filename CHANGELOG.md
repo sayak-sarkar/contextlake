@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.genericity-denylist` file (CI uses a secret) — so no real token is ever committed. The scan also
   now covers **every git-tracked file** (not a fixed list), and an always-on structural check rejects
   any non-allowlisted email address even when no denylist is configured.
+- **Removed deployment-scale figures from docs.** Genericized specific fleet counts (the example
+  `status` output, the overview-feature notes) to illustrative values, so nothing in the published repo
+  is tied to any particular deployment's repository count.
 
 ### Added
 
@@ -162,8 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Two interlocking overview views — a `Namespace` mindmap and a `Dependencies` graph.** The fleet
-  overview now has a mode toggle over one graph. **Namespace** (default) collapses the 660 repos into
-  the ~14 top-level GitLab namespaces you know (sized by repo count), with aggregated, weight-labelled
+  overview now has a mode toggle over one graph. **Namespace** (default) collapses the whole repo fleet
+  into its top-level GitLab namespaces (sized by repo count), with aggregated, weight-labelled
   namespace→namespace dependency edges; tapping a namespace expands its repos in place as a compact
   mindmap branch (the rest dims to spotlight it) and tapping again collapses — every repo stays placed
   and searchable. **Dependencies** lays the connected repos out as readable hub-and-spoke clusters.
@@ -193,8 +196,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Truncation is now visible in the UI.** A bounded subgraph that was clipped used to read as
   complete; a persistent status-bar banner now says "showing N of M — truncated" (honest counts only).
-- **Overview readability.** Isolated/no-dependency repos (533 of 660) no longer scatter the connected
-  map into an unreadable speck — they're hidden by default behind a toggle (and revealed by search),
+- **Overview readability.** Isolated/no-dependency repos — typically the bulk of a large fleet — no
+  longer scatter the connected map into an unreadable speck — they're hidden by default behind a toggle
+  (and revealed by search),
   and the layout frames the meaningful core. Expanding a namespace no longer triggers a disorienting
   global re-layout (scoped, position-stable).
 - Canvas now reflows/reframes correctly when the inspector or sidebar opens (was leaving the old
