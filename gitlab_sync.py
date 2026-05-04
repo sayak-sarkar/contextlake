@@ -67,12 +67,23 @@ def load_config():
         parser.read(LOCAL_CONFIG_FILE)
         if 'gitlab_sync' in parser:
             config.update(parser['gitlab_sync'])
+        
+        # Warn if using example config
+        if config.get('gitlab_group', '') == 'your-gitlab-group':
+            log("WARNING: You are using example configuration values.")
+            log("Please copy .gitlab_sync.ini.example to .gitlab_sync.ini")
+            log("and customize it with your GitLab group and settings.")
     
     # Then try global config
     elif os.path.exists(CONFIG_FILE):
         parser.read(CONFIG_FILE)
         if 'gitlab_sync' in parser:
             config.update(parser['gitlab_sync'])
+        
+        # Warn if using example config
+        if config.get('gitlab_group', '') == 'your-gitlab-group':
+            log("WARNING: You are using example configuration values.")
+            log("Please customize ~/.gitlab_sync.ini with your GitLab group and settings.")
     
     # Expand tilde for work_dir
     if 'work_dir' in config:
