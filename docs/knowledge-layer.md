@@ -209,7 +209,7 @@ demand) so you can walk the graph without pre-rendering all of it.
 `contextlake serve` is an MCP server, so any MCP client can query the graph — and
 **most of it needs no model**: the graph tools (`search_code`, `find_definition`,
 `find_callers`, `find_dependents`, `shortest_path`, `graph_stats`,
-`repo_dependencies`, `repo_flow`, `repo_event_flow`, `blast_radius`, `get_wiki`) work on their own;
+`repo_dependencies`, `repo_flow`, `repo_event_flow`, `blast_radius`, `get_wiki`, `get_readme`) work on their own;
 only `semantic_search`/`hybrid_search` need embeddings.
 
 **The quickest way** is to let the tool wire your editors for you. From your
