@@ -111,6 +111,13 @@ class WikiOut(BaseModel):
     markdown: str
 
 
+class ReadmeOut(BaseModel):
+    repo: str
+    found: bool
+    path: str | None             # the README filename that was read, e.g. "README.md"
+    markdown: str
+
+
 # EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
 # result keeps the most trustworthy edges.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
@@ -391,6 +398,25 @@ def build_server(
             wiki_commit=sanitize_label(wiki_commit) if wiki_commit else None,
             current_commit=sanitize_label(current) if current else None,
             markdown=sanitize_label(raw, max_len=200_000))
+
+    @mcp.tool()
+    def get_readme(repo: str) -> ReadmeOut:
+        """The repo's own README, read from its local clone (offline).
+
+        Ground truth — the maintainers' own words, straight from the working tree —
+        distinct from the synthesized, advisory ``get_wiki`` prose. Returns the first
+        README-like file found, or ``found=False`` if the clone has none.
+        """
+        r = store.get_repo(repo)
+        base = Path(r.path) if r and getattr(r, "path", None) else None
+        if base and base.is_dir():
+            for name in ("README.md", "README.rst", "README.txt", "README", "readme.md"):
+                f = base / name
+                if f.is_file():
+                    raw = f.read_text(encoding="utf-8", errors="replace")
+                    return ReadmeOut(repo=sanitize_label(repo), found=True, path=name,
+                                     markdown=sanitize_label(raw, max_len=200_000))
+        return ReadmeOut(repo=sanitize_label(repo), found=False, path=None, markdown="")
 
     @mcp.tool()
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:

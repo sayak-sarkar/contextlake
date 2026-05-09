@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that whom consumes), from the topic two-hop (`publishes_event ⨝ consumes_event`). Completes the
   cross-repo flow trio alongside `repo_dependencies` (package) and `repo_flow` (HTTP); the SQL already
   existed (used by the overview) but had no dedicated tool.
+- **MCP: `get_readme(repo)`** — the repo's own README read straight from its local clone (offline).
+  Ground truth (the maintainers' words), distinct from the advisory synthesized `get_wiki` prose.
 
 ## [2.6.0] - 2026-06-26
 

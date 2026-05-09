@@ -186,6 +186,21 @@ def test_repo_dependencies_and_flow_tools(tmp_path):
     s.close()
 
 
+def test_get_readme_reads_local_clone(tmp_path):
+    clone = tmp_path / "clone"
+    clone.mkdir()
+    (clone / "README.md").write_text("# My Service\nDoes the thing.\n")
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_repo(Repo(id="r", path=str(clone)))
+    srv = build_server(s)
+    out = _unwrap(asyncio.run(_call(srv, "get_readme", {"repo": "r"})).structuredContent)
+    assert out["found"] and out["path"] == "README.md" and "Does the thing" in out["markdown"]
+    # a repo with no clone / no README -> found False, never an error
+    absent = _unwrap(asyncio.run(_call(srv, "get_readme", {"repo": "nope"})).structuredContent)
+    assert absent["found"] is False
+    s.close()
+
+
 def test_output_is_sanitized(tmp_path):
     s = SqliteStore(tmp_path / "k.sqlite")
     s.upsert_nodes("r", [Node(id="x", repo="r", kind="function", name="ev\x1bil\x00name")])
