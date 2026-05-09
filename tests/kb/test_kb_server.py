@@ -54,7 +54,7 @@ def test_lists_expected_tools(server):
         "graph_stats", "get_node", "get_neighbors", "search_code",
         "find_definition", "find_callers", "shortest_path",
         "repo_dependencies", "repo_flow", "repo_event_flow", "blast_radius", "get_wiki",
-        "get_readme", "get_repo_brief", "list_repos",
+        "get_readme", "get_repo_brief", "list_repos", "get_repo_links",
     } <= names
 
 
@@ -219,6 +219,33 @@ def test_get_repo_brief_from_shard(tmp_path):
     assert out["kinds"].get("class") == 1 and "requests" in out["packages"]
     missing = _unwrap(asyncio.run(_call(srv, "get_repo_brief", {"repo": "x"})).structuredContent)
     assert missing["found"] is False
+    s.close()
+
+
+def test_get_repo_links_grouped(tmp_path):
+    from contextlake.kb.ids import make_id
+    s = SqliteStore(tmp_path / "k.sqlite")
+    rid = make_id("repo", "team/api")
+    s.upsert_nodes("@connect:team/api", [
+        Node(id=rid, repo="team/api", kind="repo", name="team/api"),
+        Node(id="iss:PROJ-1", repo="team/api", kind="issue", name="PROJ-1",
+             attrs={"url": "https://example.atlassian.net/browse/PROJ-1",
+                    "summary": "Fix the thing", "status": "Open"}),
+        Node(id="pg:42", repo="team/api", kind="page", name="Design Doc",
+             attrs={"url": "https://example.atlassian.net/wiki/42", "title": "Design Doc"})])
+    prov = Provenance(source_file="connect", verified_at=date(2026, 6, 21))
+
+    def ed(dst, rel):
+        return Edge(src=rid, dst=dst, relation=rel,
+                    confidence=Confidence.EXTRACTED, provenance=prov)
+    s.upsert_edges("@connect:team/api", [ed("iss:PROJ-1", "tracked_by"),
+                                         ed("pg:42", "documented_by")])
+    srv = build_server(s)
+    out = _unwrap(asyncio.run(_call(srv, "get_repo_links", {"repo": "team/api"})).structuredContent)
+    assert out["total"] == 2
+    assert "tracked_by" in out["links"] and "documented_by" in out["links"]
+    assert out["links"]["tracked_by"][0]["title"] == "Fix the thing"      # summary -> title
+    assert out["links"]["tracked_by"][0]["status"] == "Open"
     s.close()
 
 
