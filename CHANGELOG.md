@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   existed (used by the overview) but had no dedicated tool.
 - **MCP: `get_readme(repo)`** — the repo's own README read straight from its local clone (offline).
   Ground truth (the maintainers' words), distinct from the advisory synthesized `get_wiki` prose.
+- **MCP: `get_repo_brief(repo)`** — a repo's "anatomy" from its indexed graph: node/edge counts, kind +
+  language breakdown, top symbols by connectivity, packages, and a file sample.
+- **MCP: `list_repos(include_stats)`** — the repo fleet with per-repo branch, indexed head, last-index
+  time, and node count — the dashboard's repository list.
 
 ## [2.6.0] - 2026-06-26
 

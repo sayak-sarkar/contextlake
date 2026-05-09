@@ -54,6 +54,7 @@ def test_lists_expected_tools(server):
         "graph_stats", "get_node", "get_neighbors", "search_code",
         "find_definition", "find_callers", "shortest_path",
         "repo_dependencies", "repo_flow", "repo_event_flow", "blast_radius", "get_wiki",
+        "get_readme", "get_repo_brief", "list_repos",
     } <= names
 
 
@@ -198,6 +199,41 @@ def test_get_readme_reads_local_clone(tmp_path):
     # a repo with no clone / no README -> found False, never an error
     absent = _unwrap(asyncio.run(_call(srv, "get_readme", {"repo": "nope"})).structuredContent)
     assert absent["found"] is False
+    s.close()
+
+
+def test_get_repo_brief_from_shard(tmp_path):
+    from contextlake.kb.store.shards import GraphShard, write_shard
+    nodes = [
+        Node(id="svc", repo="r", kind="class", name="OrderService", file="svc.py"),
+        Node(id="chg", repo="r", kind="function", name="charge", file="svc.py", lang="python"),
+        Node(id="pkg", repo="(packages)", kind="package", name="requests")]
+    prov = Provenance(source_file="svc.py", source_line=1, verified_at=date(2026, 6, 21))
+    edges = [Edge(src="svc", dst="chg", relation="calls", confidence=Confidence.EXTRACTED,
+                  provenance=prov)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    srv = build_server(s)
+    out = _unwrap(asyncio.run(_call(srv, "get_repo_brief", {"repo": "r"})).structuredContent)
+    assert out["found"] and out["node_count"] == 3 and out["head"] == "abc"
+    assert out["kinds"].get("class") == 1 and "requests" in out["packages"]
+    missing = _unwrap(asyncio.run(_call(srv, "get_repo_brief", {"repo": "x"})).structuredContent)
+    assert missing["found"] is False
+    s.close()
+
+
+def test_list_repos_with_stats(tmp_path):
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_repo(Repo(id="team/a", path="/a", head_commit="aaa"))
+    s.upsert_repo(Repo(id="team/b", path="/b", head_commit="bbb"))
+    s.upsert_nodes("team/a", [Node(id="n1", repo="team/a", kind="function", name="f"),
+                              Node(id="n2", repo="team/a", kind="class", name="C")])
+    srv = build_server(s)
+    out = _unwrap(asyncio.run(_call(srv, "list_repos", {})).structuredContent)
+    assert out["total"] == 2
+    by_id = {r["id"]: r for r in out["repos"]}
+    assert by_id["team/a"]["node_count"] == 2 and by_id["team/b"]["node_count"] == 0
+    assert by_id["team/a"]["head_commit"] == "aaa"
     s.close()
 
 

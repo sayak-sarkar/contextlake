@@ -118,6 +118,39 @@ class ReadmeOut(BaseModel):
     markdown: str
 
 
+class TopSymbol(BaseModel):
+    kind: str
+    name: str
+    file: str | None
+
+
+class RepoBriefOut(BaseModel):
+    repo: str
+    found: bool
+    head: str | None = None
+    node_count: int = 0
+    edge_count: int = 0
+    kinds: dict[str, int] = {}       # kind -> count (e.g. {"function": 412, ...})
+    langs: dict[str, int] = {}       # language -> count
+    top_symbols: list[TopSymbol] = []
+    packages: list[str] = []
+    files: list[str] = []
+
+
+class RepoSummaryOut(BaseModel):
+    id: str
+    default_branch: str | None = None
+    head_commit: str | None = None
+    indexed_at: str | None = None    # ISO timestamp of the last index, or null
+    node_count: int | None = None    # only when include_stats
+
+
+class ReposOut(BaseModel):
+    total: int
+    truncated: bool
+    repos: list[RepoSummaryOut]
+
+
 # EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
 # result keeps the most trustworthy edges.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
@@ -417,6 +450,54 @@ def build_server(
                     return ReadmeOut(repo=sanitize_label(repo), found=True, path=name,
                                      markdown=sanitize_label(raw, max_len=200_000))
         return ReadmeOut(repo=sanitize_label(repo), found=False, path=None, markdown="")
+
+    @mcp.tool()
+    def get_repo_brief(repo: str) -> RepoBriefOut:
+        """A repo's 'anatomy' — grounded facts from its indexed graph (offline).
+
+        node/edge counts, kind + language breakdown, the top symbols by connectivity,
+        packages, and a file sample. ``found=False`` if the repo has no indexed shard.
+        """
+        from .wiki.generate import repo_brief
+        sp = getattr(store, "path", None)
+        brief = repo_brief(Path(sp).parent, repo) if sp else None
+        if not brief:
+            return RepoBriefOut(repo=sanitize_label(repo), found=False)
+        return RepoBriefOut(
+            repo=sanitize_label(repo), found=True,
+            head=sanitize_label(brief["head"]) if brief.get("head") else None,
+            node_count=brief["node_count"], edge_count=brief["edge_count"],
+            kinds=brief["kinds"], langs=brief["langs"],
+            top_symbols=[TopSymbol(kind=k, name=sanitize_label(n),
+                                   file=sanitize_label(f) if f else None)
+                         for (k, n, f) in brief["top_symbols"]],
+            packages=[sanitize_label(p) for p in brief["packages"]],
+            files=[sanitize_label(f) for f in brief["files"]])
+
+    @mcp.tool()
+    def list_repos(include_stats: bool = True, limit: int = 500) -> ReposOut:
+        """The repo fleet — the dashboard's repository list (offline).
+
+        Each entry carries the branch, indexed head, and last-index time; with
+        ``include_stats`` (default) also the indexed node count. Capped at ``limit``.
+        """
+        counts = {}
+        if include_stats:
+            counts = dict(store.conn.execute(
+                "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
+        rows = store.conn.execute(
+            "SELECT repo_id, default_branch, head_commit, indexed_at FROM repos "
+            "ORDER BY repo_id LIMIT ?", (limit + 1,)).fetchall()
+        truncated = len(rows) > limit
+        repos = [RepoSummaryOut(
+            id=sanitize_label(r["repo_id"]),
+            default_branch=r["default_branch"],
+            head_commit=sanitize_label(r["head_commit"]) if r["head_commit"] else None,
+            indexed_at=r["indexed_at"],
+            node_count=int(counts.get(r["repo_id"], 0)) if include_stats else None,
+        ) for r in rows[:limit]]
+        total = store.conn.execute("SELECT COUNT(*) FROM repos").fetchone()[0]
+        return ReposOut(total=total, truncated=truncated, repos=repos)
 
     @mcp.tool()
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:
