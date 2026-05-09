@@ -151,6 +151,21 @@ class ReposOut(BaseModel):
     repos: list[RepoSummaryOut]
 
 
+class LinkOut(BaseModel):
+    kind: str                        # issue | page | design | merge_request | ...
+    name: str
+    url: str | None = None
+    title: str | None = None
+    status: str | None = None
+    confidence: str
+
+
+class RepoLinksOut(BaseModel):
+    repo: str
+    total: int
+    links: dict[str, list[LinkOut]]  # relation (tracked_by/documented_by/…) -> links
+
+
 # EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
 # result keeps the most trustworthy edges.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
@@ -498,6 +513,34 @@ def build_server(
         ) for r in rows[:limit]]
         total = store.conn.execute("SELECT COUNT(*) FROM repos").fetchone()[0]
         return ReposOut(total=total, truncated=truncated, repos=repos)
+
+    @mcp.tool()
+    def get_repo_links(repo: str) -> RepoLinksOut:
+        """A repo's cross-links to external knowledge — Jira / Confluence / Figma /
+        GitLab — grouped by relation (tracked_by / documented_by / designed_in /
+        has_merge_request / has_issue). Populated by `connect`; served offline after.
+        """
+        from .ids import make_id
+        link_rels = {"tracked_by", "documented_by", "designed_in",
+                     "has_merge_request", "has_issue"}
+        grouped: dict[str, list[LinkOut]] = {}
+        for e in store.neighbors(make_id("repo", repo), direction="out"):
+            if e.relation not in link_rels:
+                continue
+            n = store.get_node(e.dst)
+            if not n:
+                continue
+            attrs = getattr(n, "attrs", None) or {}
+            title = attrs.get("title") or attrs.get("summary")
+            conf = e.confidence.value if hasattr(e.confidence, "value") else str(e.confidence)
+            grouped.setdefault(e.relation, []).append(LinkOut(
+                kind=n.kind, name=sanitize_label(n.name),
+                url=sanitize_label(attrs["url"]) if attrs.get("url") else None,
+                title=sanitize_label(title) if title else None,
+                status=sanitize_label(attrs["status"]) if attrs.get("status") else None,
+                confidence=conf))
+        total = sum(len(v) for v in grouped.values())
+        return RepoLinksOut(repo=sanitize_label(repo), total=total, links=grouped)
 
     @mcp.tool()
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:

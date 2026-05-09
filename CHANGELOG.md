@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   language breakdown, top symbols by connectivity, packages, and a file sample.
 - **MCP: `list_repos(include_stats)`** — the repo fleet with per-repo branch, indexed head, last-index
   time, and node count — the dashboard's repository list.
+- **MCP: `get_repo_links(repo)`** — a repo's cross-links to Jira / Confluence / Figma / GitLab (url,
+  title, status), grouped by relation. Populated by `connect`; served offline afterward.
 
 ## [2.6.0] - 2026-06-26
 
