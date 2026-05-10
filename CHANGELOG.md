@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Captured docstrings + signatures now feed the wiki and `get_repo_brief`.** `repo_brief`'s top
+  symbols carry their `doc` + `signature`, so the LLM-wiki is synthesized from real docstrings (not
+  just symbol names) and `get_repo_brief` returns them per symbol — closing the capture→consume loop
+  for the doc/signature feature (richer, better-grounded wikis and repo anatomy).
+
 ## [2.8.0] - 2026-06-26
 
 ### Added

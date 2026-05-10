@@ -38,7 +38,9 @@ def repo_brief(store_dir, repo_id: str) -> dict | None:
         "edge_count": len(shard.edges),
         "kinds": dict(Counter(n.kind for n in nodes)),
         "langs": dict(Counter(n.lang for n in nodes if n.lang)),
-        "top_symbols": [(n.kind, n.name, n.file) for n in top],
+        "top_symbols": [{"kind": n.kind, "name": n.name, "file": n.file,
+                         "doc": (n.attrs or {}).get("doc"),
+                         "signature": (n.attrs or {}).get("signature")} for n in top],
         "packages": [n.name for n in nodes if n.kind == "package"][:20],
         "files": sorted({n.file for n in nodes if n.file})[:20],
     }
@@ -51,9 +53,14 @@ def render_prompt(brief: dict) -> str:
         f"{brief['node_count']} symbols, {brief['edge_count']} relations.",
         f"Languages: {brief['langs']}",
         f"Symbol kinds: {brief['kinds']}",
-        "Key symbols (kind, name, file):",
+        "Key symbols (kind, name, file — with signature/docstring where known):",
     ]
-    lines += [f"  - {kind} {name} ({f or '?'})" for kind, name, f in brief["top_symbols"]]
+    for t in brief["top_symbols"]:
+        sig = t.get("signature") or ""
+        line = f"  - {t['kind']} {t['name']}{sig} ({t.get('file') or '?'})"
+        if t.get("doc"):
+            line += f" — {t['doc'][:160]}"
+        lines.append(line)
     if brief["packages"]:
         lines.append("Depends on packages: " + ", ".join(brief["packages"]))
     if brief["files"]:

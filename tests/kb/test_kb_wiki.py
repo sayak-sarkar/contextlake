@@ -48,6 +48,22 @@ def test_repo_brief_and_prompt(tmp_path):
     assert "OrderService" in prompt and "svc.py" in prompt and "requests" in prompt
 
 
+def test_repo_brief_carries_docstrings_into_the_wiki_prompt(tmp_path):
+    nodes = [
+        Node(id="svc", repo="r", kind="class", name="OrderService", file="svc.py",
+             attrs={"doc": "Handles orders end to end.", "signature": "(self)"}),
+        Node(id="chg", repo="r", kind="function", name="charge", file="svc.py")]
+    edges = [Edge(src="svc", dst="chg", relation="calls", confidence=Confidence.EXTRACTED,
+                  provenance=Provenance(source_file="svc.py", source_line=1,
+                                        verified_at=date(2026, 6, 21)))]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+    top = {t["name"]: t for t in brief["top_symbols"]}
+    assert top["OrderService"]["doc"] == "Handles orders end to end."
+    assert top["OrderService"]["signature"] == "(self)"
+    assert "Handles orders end to end." in render_prompt(brief)   # docstring reaches the wiki
+
+
 def test_generate_page_has_title_body_provenance(tmp_path):
     _shard(tmp_path)
     page = generate_page(_FakeLlm(), tmp_path, "r", verified_at=date(2026, 6, 21))

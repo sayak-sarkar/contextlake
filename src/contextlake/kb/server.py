@@ -124,6 +124,8 @@ class TopSymbol(BaseModel):
     kind: str
     name: str
     file: str | None
+    signature: str | None = None
+    doc: str | None = None
 
 
 class RepoBriefOut(BaseModel):
@@ -504,9 +506,12 @@ def build_server(
             head=sanitize_label(brief["head"]) if brief.get("head") else None,
             node_count=brief["node_count"], edge_count=brief["edge_count"],
             kinds=brief["kinds"], langs=brief["langs"],
-            top_symbols=[TopSymbol(kind=k, name=sanitize_label(n),
-                                   file=sanitize_label(f) if f else None)
-                         for (k, n, f) in brief["top_symbols"]],
+            top_symbols=[TopSymbol(
+                kind=t["kind"], name=sanitize_label(t["name"]),
+                file=sanitize_label(t["file"]) if t.get("file") else None,
+                signature=sanitize_label(t["signature"]) if t.get("signature") else None,
+                doc=sanitize_label(t["doc"]) if t.get("doc") else None,
+            ) for t in brief["top_symbols"]],
             packages=[sanitize_label(p) for p in brief["packages"]],
             files=[sanitize_label(f) for f in brief["files"]])
 
