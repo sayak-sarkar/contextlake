@@ -614,44 +614,59 @@ def cmd_steer(args) -> int:
         store.close()
 
 
-def cmd_lint(args) -> int:
-    """Graph-health checks: stale repos (HEAD moved) and dangling edges."""
+def lint_result(store, store_dir) -> dict:
+    """Graph health as pure data: stale repos (HEAD moved past the index) + dangling
+    edges (an endpoint whose node is missing). Shared by ``cmd_lint`` and the
+    ``graph_health`` MCP tool. Reads local git HEADs — offline.
+    """
     from .store.shards import read_shard
 
+    repos = store.list_repos()
+    stale_repos: list[str] = []
+    dangling: list[dict] = []
+    checked = 0
+    node_cache: dict[str, bool] = {}
+
+    def _exists(node_id: str) -> bool:
+        if node_id not in node_cache:
+            node_cache[node_id] = store.get_node(node_id) is not None
+        return node_cache[node_id]
+
+    for r in repos:
+        head = _git_head(Path(r.path)) if r.path else None
+        if needs_reindex(store, r.id, head):
+            stale_repos.append(r.id)
+        shard = read_shard(store_dir, r.id)
+        if shard is None:
+            continue
+        for e in shard.edges:
+            checked += 1
+            if not _exists(e.src) or not _exists(e.dst):
+                dangling.append({"repo": r.id, "src": e.src,
+                                 "relation": e.relation, "dst": e.dst})
+    return {"repos": len(repos), "checked": checked,
+            "stale": len(stale_repos), "dangling": len(dangling),
+            "stale_repos": stale_repos, "dangling_sample": dangling[:20]}
+
+
+def cmd_lint(args) -> int:
+    """Graph-health checks: stale repos (HEAD moved) and dangling edges."""
     store, store_dir = _open_store(args)
     try:
-        repos = store.list_repos()
-        if not repos:
+        if not store.list_repos():
             log("Nothing indexed yet — run index first.")
             return 0
-        stale = dangling = checked = 0
-        node_cache: dict[str, bool] = {}
-
-        def _exists(node_id: str) -> bool:
-            if node_id not in node_cache:
-                node_cache[node_id] = store.get_node(node_id) is not None
-            return node_cache[node_id]
-
-        for r in repos:
-            head = _git_head(Path(r.path)) if r.path else None
-            if needs_reindex(store, r.id, head):
-                stale += 1
-                log(f"  stale: {r.id} (HEAD moved or never finished — re-run index)")
-            shard = read_shard(store_dir, r.id)
-            if shard is None:
-                continue
-            for e in shard.edges:
-                checked += 1
-                if not _exists(e.src) or not _exists(e.dst):
-                    dangling += 1
-                    if dangling <= 20:
-                        log(f"  dangling: {r.id}: {e.src} -{e.relation}-> {e.dst}")
-        if dangling > 20:
-            log(f"  … and {dangling - 20} more dangling edge(s)")
-        clean = dangling == 0 and stale == 0
+        res = lint_result(store, store_dir)
+        for rid in res["stale_repos"]:
+            log(f"  stale: {rid} (HEAD moved or never finished — re-run index)")
+        for d in res["dangling_sample"]:
+            log(f"  dangling: {d['repo']}: {d['src']} -{d['relation']}-> {d['dst']}")
+        if res["dangling"] > 20:
+            log(f"  … and {res['dangling'] - 20} more dangling edge(s)")
+        clean = res["dangling"] == 0 and res["stale"] == 0
         glyph = style.ok() if clean else style.warn()
-        log(f"{glyph} Lint: {len(repos)} repos, {checked} edges checked — "
-            f"{dangling} dangling, {stale} stale")
+        log(f"{glyph} Lint: {res['repos']} repos, {res['checked']} edges checked — "
+            f"{res['dangling']} dangling, {res['stale']} stale")
         return 0 if clean else 1
     finally:
         store.close()

@@ -54,7 +54,7 @@ def test_lists_expected_tools(server):
         "graph_stats", "get_node", "get_neighbors", "search_code",
         "find_definition", "find_callers", "shortest_path",
         "repo_dependencies", "repo_flow", "repo_event_flow", "blast_radius", "get_wiki",
-        "get_readme", "get_repo_brief", "list_repos", "get_repo_links",
+        "get_readme", "get_repo_brief", "list_repos", "get_repo_links", "graph_health",
     } <= names
 
 
@@ -219,6 +219,24 @@ def test_get_repo_brief_from_shard(tmp_path):
     assert out["kinds"].get("class") == 1 and "requests" in out["packages"]
     missing = _unwrap(asyncio.run(_call(srv, "get_repo_brief", {"repo": "x"})).structuredContent)
     assert missing["found"] is False
+    s.close()
+
+
+def test_graph_health_detects_dangling(tmp_path):
+    from contextlake.kb.store.shards import GraphShard, write_shard
+    nodes = [Node(id="a", repo="r", kind="function", name="a")]
+    prov = Provenance(source_file="f", verified_at=date(2026, 6, 21))
+    # edge to a node that was never upserted -> dangling
+    edges = [Edge(src="a", dst="ghost", relation="calls",
+                  confidence=Confidence.EXTRACTED, provenance=prov)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    s.upsert_repo(Repo(id="r", path=str(tmp_path / "clone"), head_commit="abc"))
+    s.upsert_nodes("r", nodes)        # only 'a' exists in the store; 'ghost' does not
+    srv = build_server(s)
+    out = _unwrap(asyncio.run(_call(srv, "graph_health", {})).structuredContent)
+    assert out["repos"] == 1 and out["checked"] == 1
+    assert out["dangling"] == 1 and out["dangling_sample"][0]["dst"] == "ghost"
     s.close()
 
 
