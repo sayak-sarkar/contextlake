@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Python definitions now capture their docstring + signature** (on node `attrs`: `doc`, `signature`).
-  Richer graph facts surfaced by `get_node` / `get_repo_brief` / the wiki, and the additive groundwork
-  for body-aware embeddings (the `node_text()` change that would feed these to the embedder stays gated
-  on the eval harness, so retrieval quality is measured, not assumed). Best-effort, Python-only for now.
+- **Python definitions now capture their docstring + signature** (on node `attrs`: `doc`, `signature`),
+  **surfaced through the MCP `NodeOut`** (`get_node` / `find_definition` / neighbors etc. now return
+  `doc` + `signature`), so an agent gets a function's purpose and parameters in one call. This is also
+  the additive groundwork for body-aware embeddings — the `node_text()` change that would feed bodies
+  to the embedder stays gated on the eval harness (quality measured, not assumed). Best-effort, Python.
 
 ## [2.7.0] - 2026-06-26
 

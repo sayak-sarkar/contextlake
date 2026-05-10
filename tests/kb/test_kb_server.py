@@ -267,6 +267,16 @@ def test_get_repo_links_grouped(tmp_path):
     s.close()
 
 
+def test_get_node_surfaces_doc_and_signature(tmp_path):
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("r", [Node(id="fn", repo="r", kind="function", name="charge",
+                              attrs={"doc": "Charge a card.", "signature": "(amount, currency)"})])
+    srv = build_server(s)
+    out = _unwrap(asyncio.run(_call(srv, "get_node", {"node_id": "fn"})).structuredContent)
+    assert out["doc"] == "Charge a card." and out["signature"] == "(amount, currency)"
+    s.close()
+
+
 def test_list_repos_with_stats(tmp_path):
     s = SqliteStore(tmp_path / "k.sqlite")
     s.upsert_repo(Repo(id="team/a", path="/a", head_commit="aaa"))

@@ -38,6 +38,8 @@ class NodeOut(BaseModel):
     line_start: int | None = None
     line_end: int | None = None
     lang: str | None = None
+    signature: str | None = None     # parameter signature (definitions)
+    doc: str | None = None           # captured docstring (definitions)
 
 
 class EdgeOut(BaseModel):
@@ -194,10 +196,13 @@ def _budget(items: list, limit: int) -> tuple[list, int, bool]:
 
 def _node_out(n: Node) -> NodeOut:
     s = sanitize_label
+    attrs = getattr(n, "attrs", None) or {}
     return NodeOut(
         id=s(n.id), repo=s(n.repo), kind=s(n.kind), name=s(n.name),
         qualified_name=s(n.qualified_name) or None, file=s(n.file) or None,
         line_start=n.line_start, line_end=n.line_end, lang=s(n.lang) or None,
+        signature=s(attrs["signature"]) if attrs.get("signature") else None,
+        doc=s(attrs["doc"]) if attrs.get("doc") else None,
     )
 
 
