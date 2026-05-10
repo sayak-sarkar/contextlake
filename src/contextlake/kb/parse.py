@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from datetime import date
 from pathlib import Path
 
@@ -166,13 +167,44 @@ def _query(lang: str) -> ts.Query:
     return _COMPILED[lang]
 
 
+def _leading_doc(def_ts: ts.Node) -> str | None:
+    """A definition's leading doc-comment — JSDoc ``/** */`` or C# ``///`` XML docs.
+
+    Restricted to *doc-comment* syntax (not plain ``//`` / ``/*``) so a stray code
+    comment above a function isn't mistaken for documentation. Collects the contiguous
+    run of doc-comments immediately above the def, strips the comment + XML syntax.
+    """
+    raws: list[str] = []
+    node = def_ts.prev_sibling
+    last_line = def_ts.start_point[0]
+    while node is not None and node.type == "comment" and last_line - node.end_point[0] <= 1:
+        raw = node.text.decode("utf-8", "replace").strip()
+        if not (raw.startswith("/**") or raw.startswith("///")):
+            break  # a plain comment ends the doc run
+        raws.append(raw)
+        last_line = node.start_point[0]
+        node = node.prev_sibling
+    if not raws:
+        return None
+    parts: list[str] = []
+    for raw in reversed(raws):
+        if raw.startswith("/**"):
+            inner = raw[3:-2] if raw.endswith("*/") else raw[3:]
+            parts += [ln.strip().lstrip("*").strip() for ln in inner.splitlines()]
+        else:  # /// XML doc line
+            parts.append(raw.lstrip("/").strip())
+    doc = re.sub(r"<[^>]+>", " ", " ".join(p for p in parts if p))
+    doc = " ".join(doc.split())  # collapse whitespace left by tag/comment stripping
+    return doc[:1000] or None
+
+
 def _doc_sig(def_ts: ts.Node, lang: str) -> dict:
     """Capture a definition's signature (parameters) and docstring as node attrs.
 
     Additive, best-effort — richer graph facts (shown in the UI, wiki, and
-    ``get_repo_brief``) and the groundwork for body-aware embeddings. The signature is
-    captured across languages (py/js/ts/c#); the docstring is Python-only for now
-    (other languages use leading comments). Never raises; returns {} when nothing found.
+    ``get_repo_brief``) and the groundwork for body-aware embeddings. Signature is
+    captured across languages (py/js/ts/c#); the docstring comes from Python's
+    first-statement string or, elsewhere, a JSDoc/C#-XML leading comment. Never raises.
     """
     out: dict = {}
     try:
@@ -184,19 +216,21 @@ def _doc_sig(def_ts: ts.Node, lang: str) -> dict:
             sig = params.text.decode("utf-8", "replace").strip()
             if sig:
                 out["signature"] = sig[:300]
-        # docstring: Python-only for now (other languages use leading comments).
-        if lang != "python":
-            return out
-        body = def_ts.child_by_field_name("body")
-        if body is not None and body.named_child_count:
-            first = body.named_child(0)
-            if first.type == "expression_statement" and first.named_child_count:
-                lit = first.named_child(0)
-                if lit.type == "string":
-                    doc = lit.text.decode("utf-8", "replace").lstrip("rRbBuUfF")
-                    doc = doc.strip().strip("\"'").strip()
-                    if doc:
-                        out["doc"] = doc[:1000]
+        if lang == "python":
+            body = def_ts.child_by_field_name("body")
+            if body is not None and body.named_child_count:
+                first = body.named_child(0)
+                if first.type == "expression_statement" and first.named_child_count:
+                    lit = first.named_child(0)
+                    if lit.type == "string":
+                        doc = lit.text.decode("utf-8", "replace").lstrip("rRbBuUfF")
+                        doc = doc.strip().strip("\"'").strip()
+                        if doc:
+                            out["doc"] = doc[:1000]
+        else:
+            doc = _leading_doc(def_ts)
+            if doc:
+                out["doc"] = doc
     except Exception:  # noqa: BLE001 - capture is best-effort, never blocks indexing
         return out
     return out

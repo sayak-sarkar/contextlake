@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **surfaced through the MCP `NodeOut`** (`get_node` / `find_definition` / neighbors etc. now return
   `doc` + `signature`), so an agent gets a function's purpose and parameters in one call. This is also
   the additive groundwork for body-aware embeddings — the `node_text()` change that would feed bodies
-  to the embedder stays gated on the eval harness (quality measured, not assumed). Best-effort; signature is multi-language, docstrings are Python.
+  to the embedder stays gated on the eval harness (quality measured, not assumed). Best-effort and
+  multi-language: signatures across py/js/ts/c#, and docstrings from Python first-statement strings,
+  **JSDoc** (`/** */`), and **C# XML** (`///`) leading doc-comments (plain comments are ignored).
 
 ## [2.7.0] - 2026-06-26
 
