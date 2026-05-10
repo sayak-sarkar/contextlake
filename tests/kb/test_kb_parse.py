@@ -45,6 +45,18 @@ def test_signature_captured_across_languages():
     assert "amount" in by_name["charge"].attrs.get("signature", "")   # JS, not just Python
 
 
+def test_doc_comment_captured_for_js_and_csharp():
+    js = b"/**\n * Charge a card.\n */\nfunction charge(amount) { return 1; }\n"
+    jn = {n.name: n for n in parse_source("r", "p.js", js, "javascript",
+                                          verified_at=date(2026, 6, 21))[0]}
+    assert jn["charge"].attrs.get("doc") == "Charge a card."           # JSDoc block
+    cs = (b"class P {\n  /// <summary>Charges a card.</summary>\n"
+          b"  public int Charge(int a) { return 1; }\n}\n")
+    cn = {n.name: n for n in parse_source("r", "P.cs", cs, "csharp",
+                                          verified_at=date(2026, 6, 21))[0]}
+    assert cn["Charge"].attrs.get("doc") == "Charges a card."          # /// XML, tags stripped
+
+
 def test_parse_extracts_defs_and_imports():
     nodes, edges, _ = parse_source(
         "team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21)
