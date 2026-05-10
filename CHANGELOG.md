@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-06-26
+
 ### Added
 
-- **Python definitions now capture their docstring + signature** (on node `attrs`: `doc`, `signature`),
+- **Definitions now capture their docstring + signature** (on node `attrs`: `doc`, `signature`),
   **surfaced through the MCP `NodeOut`** (`get_node` / `find_definition` / neighbors etc. now return
   `doc` + `signature`), so an agent gets a function's purpose and parameters in one call. This is also
   the additive groundwork for body-aware embeddings — the `node_text()` change that would feed bodies
