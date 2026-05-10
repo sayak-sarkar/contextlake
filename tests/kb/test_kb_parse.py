@@ -24,6 +24,20 @@ def top():
 """
 
 
+def test_captures_python_docstring_and_signature():
+    src = (b'def charge(amount, currency="USD"):\n'
+           b'    """Charge a card and return a receipt."""\n'
+           b'    return 1\n\n\n'
+           b'class Order:\n'
+           b'    """An order aggregate."""\n'
+           b'    pass\n')
+    nodes, _edges, _ = parse_source("r", "pay.py", src, "python", verified_at=date(2026, 6, 21))
+    by_name = {n.name: n for n in nodes}
+    assert by_name["charge"].attrs.get("doc") == "Charge a card and return a receipt."
+    assert "amount" in by_name["charge"].attrs.get("signature", "")
+    assert by_name["Order"].attrs.get("doc") == "An order aggregate."   # class docstring too
+
+
 def test_parse_extracts_defs_and_imports():
     nodes, edges, _ = parse_source(
         "team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21)

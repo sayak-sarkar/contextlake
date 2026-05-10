@@ -166,6 +166,37 @@ def _query(lang: str) -> ts.Query:
     return _COMPILED[lang]
 
 
+def _doc_sig(def_ts: ts.Node, lang: str) -> dict:
+    """Capture a definition's signature (parameters) and docstring as node attrs.
+
+    Additive, best-effort, Python-only for now — richer graph facts (shown in the UI,
+    wiki, and ``get_repo_brief``) and the groundwork for body-aware embeddings. Never
+    raises; returns {} when nothing is found or the language isn't handled.
+    """
+    if lang != "python":
+        return {}
+    out: dict = {}
+    try:
+        params = def_ts.child_by_field_name("parameters")
+        if params is not None:
+            sig = params.text.decode("utf-8", "replace").strip()
+            if sig:
+                out["signature"] = sig[:300]
+        body = def_ts.child_by_field_name("body")
+        if body is not None and body.named_child_count:
+            first = body.named_child(0)
+            if first.type == "expression_statement" and first.named_child_count:
+                lit = first.named_child(0)
+                if lit.type == "string":
+                    doc = lit.text.decode("utf-8", "replace").lstrip("rRbBuUfF")
+                    doc = doc.strip().strip("\"'").strip()
+                    if doc:
+                        out["doc"] = doc[:1000]
+    except Exception:  # noqa: BLE001 - capture is best-effort, never blocks indexing
+        return out
+    return out
+
+
 def _enclosing_defs(name_node: ts.Node, def_types: set[str]) -> list[ts.Node]:
     """Definition nodes enclosing this name's definition, innermost first."""
     out = []
@@ -215,6 +246,7 @@ def parse_source(
         nodes.append(Node(
             id=nid, repo=repo_id, kind=kind, name=name, qualified_name=f"{rel_path}::{qualified}",
             file=rel_path, line_start=line, line_end=def_ts.end_point[0] + 1, lang=lang,
+            attrs=_doc_sig(def_ts, lang),
         ))
         pending.append((def_ts, qualified, line))
 

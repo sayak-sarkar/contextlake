@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Python definitions now capture their docstring + signature** (on node `attrs`: `doc`, `signature`).
+  Richer graph facts surfaced by `get_node` / `get_repo_brief` / the wiki, and the additive groundwork
+  for body-aware embeddings (the `node_text()` change that would feed these to the embedder stays gated
+  on the eval harness, so retrieval quality is measured, not assumed). Best-effort, Python-only for now.
+
 ## [2.7.0] - 2026-06-26
 
 ### Added
