@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   time, and node count — the dashboard's repository list.
 - **MCP: `get_repo_links(repo)`** — a repo's cross-links to Jira / Confluence / Figma / GitLab (url,
   title, status), grouped by relation. Populated by `connect`; served offline afterward.
+- **MCP: `graph_health()`** — knowledge-graph health as data (stale repos + dangling edges, with a
+  sample) for the dashboard's health panel; `lint`'s logic is now a reusable `lint_result()`.
 
 ## [2.6.0] - 2026-06-26
 

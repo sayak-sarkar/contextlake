@@ -210,7 +210,7 @@ demand) so you can walk the graph without pre-rendering all of it.
 **most of it needs no model**: the graph tools (`search_code`, `find_definition`,
 `find_callers`, `find_dependents`, `shortest_path`, `graph_stats`,
 `repo_dependencies`, `repo_flow`, `repo_event_flow`, `blast_radius`, `get_wiki`, `get_readme`,
-`get_repo_brief`, `list_repos`, `get_repo_links`) work on their own;
+`get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`) work on their own;
 only `semantic_search`/`hybrid_search` need embeddings.
 
 **The quickest way** is to let the tool wire your editors for you. From your

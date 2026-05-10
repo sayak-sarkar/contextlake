@@ -166,6 +166,22 @@ class RepoLinksOut(BaseModel):
     links: dict[str, list[LinkOut]]  # relation (tracked_by/documented_by/…) -> links
 
 
+class DanglingOut(BaseModel):
+    repo: str
+    src: str
+    relation: str
+    dst: str
+
+
+class GraphHealthOut(BaseModel):
+    repos: int
+    checked: int                     # edges checked
+    stale: int                       # repos whose HEAD moved past the index
+    dangling: int                    # edges pointing at a missing node
+    stale_repos: list[str]
+    dangling_sample: list[DanglingOut]   # first 20
+
+
 # EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
 # result keeps the most trustworthy edges.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
@@ -541,6 +557,26 @@ def build_server(
                 confidence=conf))
         total = sum(len(v) for v in grouped.values())
         return RepoLinksOut(repo=sanitize_label(repo), total=total, links=grouped)
+
+    @mcp.tool()
+    def graph_health() -> GraphHealthOut:
+        """Knowledge-graph health — stale repos (local HEAD moved past the index) and
+        dangling edges (pointing at a missing node). The dashboard's health panel;
+        offline (reads local git HEADs).
+        """
+        from .commands import lint_result
+        sp = getattr(store, "path", None)
+        res = lint_result(store, Path(sp).parent) if sp else {
+            "repos": 0, "checked": 0, "stale": 0, "dangling": 0,
+            "stale_repos": [], "dangling_sample": []}
+        return GraphHealthOut(
+            repos=res["repos"], checked=res["checked"], stale=res["stale"],
+            dangling=res["dangling"],
+            stale_repos=[sanitize_label(x) for x in res["stale_repos"]],
+            dangling_sample=[DanglingOut(
+                repo=sanitize_label(d["repo"]), src=sanitize_label(d["src"]),
+                relation=d["relation"], dst=sanitize_label(d["dst"]))
+                for d in res["dangling_sample"]])
 
     @mcp.tool()
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:
