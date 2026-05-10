@@ -169,19 +169,24 @@ def _query(lang: str) -> ts.Query:
 def _doc_sig(def_ts: ts.Node, lang: str) -> dict:
     """Capture a definition's signature (parameters) and docstring as node attrs.
 
-    Additive, best-effort, Python-only for now — richer graph facts (shown in the UI,
-    wiki, and ``get_repo_brief``) and the groundwork for body-aware embeddings. Never
-    raises; returns {} when nothing is found or the language isn't handled.
+    Additive, best-effort — richer graph facts (shown in the UI, wiki, and
+    ``get_repo_brief``) and the groundwork for body-aware embeddings. The signature is
+    captured across languages (py/js/ts/c#); the docstring is Python-only for now
+    (other languages use leading comments). Never raises; returns {} when nothing found.
     """
-    if lang != "python":
-        return {}
     out: dict = {}
     try:
-        params = def_ts.child_by_field_name("parameters")
+        # signature: the parameter list — generalizes across languages (field name
+        # is "parameters" in py/js/ts, "parameter_list" in c#); graceful if absent.
+        params = (def_ts.child_by_field_name("parameters")
+                  or def_ts.child_by_field_name("parameter_list"))
         if params is not None:
             sig = params.text.decode("utf-8", "replace").strip()
             if sig:
                 out["signature"] = sig[:300]
+        # docstring: Python-only for now (other languages use leading comments).
+        if lang != "python":
+            return out
         body = def_ts.child_by_field_name("body")
         if body is not None and body.named_child_count:
             first = body.named_child(0)

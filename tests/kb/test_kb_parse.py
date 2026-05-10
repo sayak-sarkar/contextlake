@@ -38,6 +38,13 @@ def test_captures_python_docstring_and_signature():
     assert by_name["Order"].attrs.get("doc") == "An order aggregate."   # class docstring too
 
 
+def test_signature_captured_across_languages():
+    js = b"function charge(amount, currency) {\n  return 1;\n}\n"
+    nodes, _e, _ = parse_source("r", "pay.js", js, "javascript", verified_at=date(2026, 6, 21))
+    by_name = {n.name: n for n in nodes}
+    assert "amount" in by_name["charge"].attrs.get("signature", "")   # JS, not just Python
+
+
 def test_parse_extracts_defs_and_imports():
     nodes, edges, _ = parse_source(
         "team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21)
