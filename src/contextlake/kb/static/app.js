@@ -55,10 +55,15 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
         style: { "line-style": "dotted", "opacity": 0.45 } },
       { selector: ".faded", style: {
           "opacity": (parseFloat(cssVar("--faded-opacity")) || 0.1), "text-opacity": 0 } },
+      // level-of-detail labels: at low zoom only high-degree hubs keep their text
+      // (driven by applyLOD). dim-label hides; lbl-on (hover) and hi/found (highlight,
+      // search) force it back on. lbl-on sits AFTER dim-label so it wins on a tie.
+      { selector: "node.dim-label", style: { "text-opacity": 0 } },
+      { selector: "node.lbl-on", style: { "text-opacity": 1 } },
       { selector: "node.hi", style: { "border-width": 3, "border-color": "#2BB3A3",
-          "z-index": 99 } },
+          "text-opacity": 1, "z-index": 99 } },
       { selector: "node.found", style: { "border-width": 4, "border-color": "#E7B53C",
-          "z-index": 100 } },
+          "text-opacity": 1, "z-index": 100 } },
       { selector: "edge.hi", style: { "width": 2.2, "opacity": 1,
           "label": "data(relation)", "font-size": 7, "color": label,
           "text-rotation": "autorotate", "text-background-color": surf,
@@ -89,6 +94,9 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     container: cyEl,
     elements: ELEMENTS,
     wheelSensitivity: 0.2,
+    // Clamp wheel-zoom so the graph can't shrink to unreadable specks or balloon
+    // past usefulness; fitClamped (below) enforces a higher readable floor on "fit".
+    minZoom: 0.06, maxZoom: 2.5,
     style: graphStyle(),
     layout: { name: "preset" }
   });
@@ -131,12 +139,29 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     var c = document.body.dataset.sidebar === "collapsed";
     document.body.dataset.sidebar = c ? "open" : "collapsed"; afterResize();
   };
+  // Fit, but never below a readable floor: cy.fit on a large graph drives the zoom
+  // so low that nodes become illegible specks (the #1 complaint). Fit, then if we
+  // landed under the floor, snap up to it and re-center on the framed elements
+  // (cy.fit sets pan AFTER zoom, so the recentre must come last). 0.45 lands in the
+  // LOD tier where hub labels are still drawn, so a fit is always at least scannable.
+  var FIT_FLOOR = 0.45;
+  function fitClamped(eles, padding){
+    cy.fit(eles, padding);
+    if(cy.zoom() < FIT_FLOOR){ cy.zoom(FIT_FLOOR); cy.center(eles); }
+  }
+  function fitClampedAnimated(eles, padding, ms){
+    if(!dur(ms)){ fitClamped(eles, padding); return; }   // reduced motion -> instant
+    cy.animate({ fit: { eles: eles, padding: padding } }, { duration: dur(ms),
+      complete: function(){
+        if(cy.zoom() < FIT_FLOOR){ cy.zoom(FIT_FLOOR); cy.center(eles); }
+      } });
+  }
   // "Fit" frames the readable view: the connected core when isolated repos
   // dominate (the fleet overview), else the whole graph.
   function reframe(){
     var core = cy.nodes().filter(function(n){ return n.degree(false) > 0; });
     var dominated = core.nonempty() && (cy.nodes().length - core.length) > core.length;
-    cy.fit(dominated ? core : undefined, 30);
+    fitClamped(dominated ? core : undefined, 30);
   }
   document.addEventListener("keydown", function(e){
     if(e.target.tagName === "INPUT"){ if(e.key === "Escape"){ e.target.blur(); } return; }
@@ -181,7 +206,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   // the overview reads as a map of clusters. No-dep repos are parked (hidden) below.
   function runLayout(name){
     cy.layout(layoutOpts(name)).run();
-    cy.fit(undefined, 30);
+    fitClamped(undefined, 30);
+    applyLOD(true);
   }
 
   // ===== Overview: two interlocking views — namespace mindmap <-> dependency flow.
@@ -246,6 +272,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
         e.style("display", show ? "element" : "none");
       });
     });
+    cy.emit("clake-vis");   // visibility changed -> let the minimap refresh its node layer
   }
   function layoutClusters(){
     var vis = cy.elements().filter(function(el){ return el.visible(); });
@@ -253,7 +280,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       nodeOverlap: 24, componentSpacing: 120, gravity: 0.3, numIter: 1200,
       nodeRepulsion: function(){ return 12000; },
       idealEdgeLength: function(e){ return e.data("scaffold") ? 64 : 210; } }).run();
-    cy.fit(vis, 45);
+    fitClamped(vis, 45);
+    applyLOD(true);
   }
   function layoutFlow(){
     var repoEls = cy.nodes('[kind = "repo"]')
@@ -277,7 +305,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     iso.forEach(function(n, i){
       n.position({ x: bb.x1 + (i % cols) * 64, y: bb.y2 + 200 + Math.floor(i / cols) * 64 });
     });
-    cy.fit(core, 45);
+    fitClamped(core, 45);
+    applyLOD(true);
   }
   function relayoutOverview(){ if(VIEWMODE === "clusters"){ layoutClusters(); } else { layoutFlow(); } }
   function setMode(m){
@@ -293,30 +322,96 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   }
   // Mindmap drill: expand lays out ONLY this namespace's repos as a local cluster
   // around the (fixed) namespace node — every other namespace stays put, so there's
-  // no disorienting global reshuffle. Collapse just hides them.
+  // no disorienting global reshuffle. Collapse just hides them. gridKids/expandNs/
+  // collapseNs are the reusable primitives: toggleNs adds the click-driven framing
+  // animation, while semantic zoom (below) drives the same primitives from zoom level.
+  function gridKids(nsNode){
+    var ns = nsNode.data("ns");
+    var kids = cy.nodes('[kind = "repo"]').filter(function(n){ return n.data("ns") === ns; });
+    // compact grid directly beneath the namespace node (a mindmap branch), so it
+    // stays tight instead of a wide ring that collides with other namespaces. fit:false
+    // is essential — a fitting sub-layout in the zoom path would re-fire "zoom" forever.
+    var cx = nsNode.position("x"), cy0 = nsNode.position("y");
+    var cols = Math.max(1, Math.ceil(Math.sqrt(kids.length))), sp = 72;
+    var w = cols * sp, h = Math.ceil(kids.length / cols) * sp;
+    kids.layout({ name: "grid", animate: false, fit: false, avoidOverlap: true, condense: true,
+      boundingBox: { x1: cx - w / 2, y1: cy0 + 56, w: w, h: h } }).run();
+    return kids;
+  }
+  function expandNs(nsNode){
+    var ns = nsNode.data("ns");
+    if(nsExpanded[ns]) return cy.collection();
+    nsExpanded[ns] = true;
+    applyOverview();
+    var kids = gridKids(nsNode);
+    applyLOD(true);
+    return kids;
+  }
+  function collapseNs(ns){
+    if(!nsExpanded[ns]) return;
+    nsExpanded[ns] = false;
+    applyOverview();
+  }
   function toggleNs(nsNode){
     var ns = nsNode.data("ns");
-    var opening = !nsExpanded[ns];
-    nsExpanded[ns] = opening;
     cy.elements().removeClass("faded hi found");
-    applyOverview();
-    if(opening){
-      var kids = cy.nodes('[kind = "repo"]').filter(function(n){ return n.data("ns") === ns; });
-      // compact grid directly beneath the namespace node (a mindmap branch), so it
-      // stays tight instead of a wide ring that collides with other namespaces
-      var cx = nsNode.position("x"), cy0 = nsNode.position("y");
-      var cols = Math.max(1, Math.ceil(Math.sqrt(kids.length))), sp = 72;
-      var w = cols * sp, h = Math.ceil(kids.length / cols) * sp;
-      kids.layout({ name: "grid", animate: false, avoidOverlap: true, condense: true,
-        boundingBox: { x1: cx - w / 2, y1: cy0 + 56, w: w, h: h } }).run();
+    if(!nsExpanded[ns]){
+      var kids = expandNs(nsNode);
       var grp = nsNode.union(kids);
       cy.elements().addClass("faded");        // spotlight the opened branch
       grp.union(kids.connectedEdges()).removeClass("faded");
-      cy.animate({ fit: { eles: grp, padding: 55 } }, { duration: dur(350) });
+      fitClampedAnimated(grp, 55, 350);
     } else {
-      cy.animate({ fit: { eles: cy.nodes('[kind = "namespace"]').filter(function(n){
-        return n.visible(); }), padding: 45 } }, { duration: dur(350) });
+      collapseNs(ns);
+      var nsVis = cy.nodes('[kind = "namespace"]').filter(function(n){ return n.visible(); });
+      fitClampedAnimated(nsVis, 45, 350);
     }
+  }
+
+  // Level-of-detail labels: dense graphs overlap their text into illegibility, so
+  // below a readable zoom we keep labels only on the higher-degree hubs. Re-styling
+  // every node on each zoom tick is wasteful, so recompute only when zoom crosses a
+  // tier boundary, coalesced via requestAnimationFrame. Namespace nodes are exempt.
+  var lodTier = -2, lodRAF = 0;
+  function lodThreshold(z){ return z >= 0.9 ? 0 : (z >= 0.45 ? 3 : 8); }
+  function applyLOD(force){
+    var thr = lodThreshold(cy.zoom());
+    if(thr === lodTier && !force){ return; }
+    lodTier = thr;
+    cy.batch(function(){
+      cy.nodes('[kind != "namespace"]').forEach(function(n){
+        n[(n.data("deg") || 0) < thr ? "addClass" : "removeClass"]("dim-label");
+      });
+    });
+  }
+
+  // Semantic zoom (overview clusters only): as you zoom into a region, the namespace
+  // clusters whose blob is on-screen expand into their repos; zoom back out and they
+  // collapse. A hysteresis gap (SZ_COLLAPSE..SZ_EXPAND) prevents flapping; we NEVER
+  // fit/center/animate here and guard re-entrancy, so zoom can't feed back on itself.
+  // Flags are flipped first, then ONE applyOverview + the grid layouts (batched).
+  var SZ_EXPAND = 0.5, SZ_COLLAPSE = 0.32, szRAF = 0, szGuard = false;
+  function applySemanticZoom(){
+    if(szGuard || !(OVERVIEW && VIEWMODE === "clusters")){ return; }
+    szGuard = true;
+    var z = cy.zoom(), ext = cy.extent(), toGrid = [], changed = false;
+    cy.nodes('[kind = "namespace"]').forEach(function(ns){
+      var nm = ns.data("ns"), open = !!nsExpanded[nm];
+      if(z >= SZ_EXPAND && !open){
+        var bb = ns.boundingBox();
+        if(bb.x2 >= ext.x1 && bb.x1 <= ext.x2 && bb.y2 >= ext.y1 && bb.y1 <= ext.y2){
+          nsExpanded[nm] = true; toGrid.push(ns); changed = true;
+        }
+      } else if(z < SZ_COLLAPSE && open){
+        nsExpanded[nm] = false; changed = true;
+      }
+    });
+    if(changed){
+      applyOverview();
+      toGrid.forEach(function(ns){ gridKids(ns); });
+      applyLOD(true);
+    }
+    szGuard = false;
   }
 
   if(OVERVIEW){
@@ -328,6 +423,14 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   } else {
     runLayout(LAYOUT);
   }
+
+  // zoom-driven behaviours: LOD labels (every graph) + semantic cluster zoom
+  // (overview only). Separate rAF flags so a burst of zoom events collapses to one
+  // recompute each. Registered AFTER the initial layout so we don't react to its fit.
+  cy.on("zoom", function(){
+    if(!lodRAF){ lodRAF = requestAnimationFrame(function(){ lodRAF = 0; applyLOD(false); }); }
+    if(!szRAF){ szRAF = requestAnimationFrame(function(){ szRAF = 0; applySemanticZoom(); }); }
+  });
 
   // cross-page nav (only in a built --site folder): link back to index + overview
   if(SITE){
@@ -376,6 +479,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     cy.edges().forEach(function(e){
       e.style("display", hiddenRel[e.data("relation")] ? "none" : "element");
     });
+    cy.emit("clake-vis");   // visibility changed -> let the minimap refresh its node layer
   }
   function syncLegend(){
     document.querySelectorAll("#legend .lg").forEach(function(el){
@@ -424,13 +528,14 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     });
     hits.style("display", "element");
     hits.addClass("found");
-    if(hits.length){ cy.animate({ fit:{ eles:hits, padding:90 } }, { duration: dur(300) }); }
+    if(hits.length){ fitClampedAnimated(hits, 90, 300); }
   });
 
   // hover tooltip
   var tip = document.getElementById("tip");
   cy.on("mouseover", "node", function(e){
     var n = e.target;
+    n.addClass("lbl-on");   // always reveal the hovered node's label, even when LOD-dimmed
     tip.textContent = (n.data("label")||"") + "  \u00b7  " + (n.data("kind")||"");
     tip.style.display = "block";
   });
@@ -440,7 +545,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       tip.style.top  = (e.renderedPosition.y + 12) + "px";
     }
   });
-  cy.on("mouseout", "node", function(){ tip.style.display = "none"; });
+  cy.on("mouseout", "node", function(e){ e.target.removeClass("lbl-on"); tip.style.display = "none"; });
   cy.on("mouseover", "edge", function(e){
     var d = e.target.data();
     if(d.aggregated){
@@ -537,7 +642,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     if(!eles || !eles.nonempty()) return;
     setTimeout(function(){
       cy.resize();
-      cy.animate({ fit:{ eles: eles, padding: 80 } }, { duration: dur(300) });
+      fitClampedAnimated(eles, 80, 300);
     }, 210);
   }
 
@@ -563,6 +668,84 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     showEdgeInfo(ed);
     frameOn(ed.connectedNodes());
   });
+
+  // ===== Minimap: a custom radar (no cytoscape extension — offline, zero deps).
+  // Two layers: a STATIC bitmap of every visible node dot (recomputed only when the
+  // layout changes) and a DYNAMIC viewport rectangle redrawn on pan/zoom. Click or
+  // drag inside it to recentre the main view — navigate a big graph without 10x scroll.
+  (function(){
+    var mm = document.getElementById("minimap");
+    if(!mm){ return; }
+    if(!cy.nodes().length){ mm.style.display = "none"; return; }
+    var mctx = mm.getContext("2d");
+    var W = mm.width, H = mm.height, PAD = 7;
+    var off = document.createElement("canvas"); off.width = W; off.height = H;
+    var octx = off.getContext("2d");
+    var tf = null, dynRAF = 0, statRAF = 0;   // tf = {s, ox, oy} model->minimap transform
+
+    function visBB(){
+      var els = cy.elements(":visible");
+      return els.nonempty() ? els.boundingBox()
+                            : { x1: 0, y1: 0, x2: 1, y2: 1, w: 1, h: 1 };
+    }
+    function drawStatic(){
+      var bb = visBB();
+      var s = Math.min((W - 2 * PAD) / Math.max(bb.w, 1), (H - 2 * PAD) / Math.max(bb.h, 1));
+      tf = { s: s,
+             ox: PAD + ((W - 2 * PAD) - bb.w * s) / 2 - bb.x1 * s,
+             oy: PAD + ((H - 2 * PAD) - bb.h * s) / 2 - bb.y1 * s };
+      octx.clearRect(0, 0, W, H);
+      // draw EVERY visible node — in collapsed overview the only visible nodes are the
+      // namespace clusters, so skipping them would leave the minimap blank (the very
+      // "too many nodes" case this is for). Namespaces take the brand lake colour.
+      cy.nodes(":visible").forEach(function(n){
+        var ns = n.data("kind") === "namespace";
+        var p = n.position(), r = ns ? 2.5 : 1.6;
+        octx.fillStyle = ns ? "#137A8B" : (COLORS[n.data("kind")] || DEFAULT_COLOR);
+        octx.fillRect(p.x * s + tf.ox - r, p.y * s + tf.oy - r, r * 2, r * 2);
+      });
+      drawDynamic();
+    }
+    function drawDynamic(){
+      if(!tf){ return; }
+      mctx.clearRect(0, 0, W, H);
+      mctx.drawImage(off, 0, 0);
+      var e = cy.extent();
+      mctx.strokeStyle = cssVar("--brand") || "#2BB3A3";
+      mctx.lineWidth = 1.5;
+      mctx.strokeRect(e.x1 * tf.s + tf.ox, e.y1 * tf.s + tf.oy,
+                      (e.x2 - e.x1) * tf.s, (e.y2 - e.y1) * tf.s);
+    }
+    function schedule(which){
+      if(which === "static"){
+        if(statRAF){ return; }
+        statRAF = requestAnimationFrame(function(){ statRAF = 0; drawStatic(); });
+      } else {
+        if(dynRAF){ return; }
+        dynRAF = requestAnimationFrame(function(){ dynRAF = 0; drawDynamic(); });
+      }
+    }
+    function panToEvent(evt){
+      if(!tf){ return; }
+      var r = mm.getBoundingClientRect();
+      var mx = (evt.clientX - r.left - tf.ox) / tf.s;
+      var my = (evt.clientY - r.top - tf.oy) / tf.s;
+      cy.pan({ x: cy.width() / 2 - mx * cy.zoom(), y: cy.height() / 2 - my * cy.zoom() });
+    }
+    var dragging = false;
+    mm.addEventListener("mousedown", function(e){ dragging = true; panToEvent(e); e.preventDefault(); });
+    window.addEventListener("mousemove", function(e){ if(dragging){ panToEvent(e); } });
+    window.addEventListener("mouseup", function(){ dragging = false; });
+
+    cy.on("pan zoom resize", function(){ schedule("dynamic"); });
+    cy.on("layoutstop dragfree add remove clake-vis", function(){ schedule("static"); });
+    var themeBtn = document.getElementById("theme");
+    if(themeBtn){
+      var prev = themeBtn.onclick;
+      themeBtn.onclick = function(){ if(prev){ prev.call(this); } drawDynamic(); };
+    }
+    drawStatic();
+  })();
 
   function expand(id){
     var cyEl = document.getElementById("cy");

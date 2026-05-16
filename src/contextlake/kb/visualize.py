@@ -512,12 +512,24 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     from collections import Counter
     elements = json.dumps(_cytoscape_elements(payload))
     colors = json.dumps(KIND_COLORS)
-    icons = json.dumps(_kind_icons())
-    lang_icons = json.dumps(_lang_icons())
+    icon_map = _kind_icons()
+    lang_icon_map = _lang_icons()
+    icons = json.dumps(icon_map)
+    lang_icons = json.dumps(lang_icon_map)
     kind_counts = Counter(n.get("kind", "") for n in payload["nodes"])
+
+    def _kind_swatch(k: str, c: str) -> str:
+        # Reuse the very data-URI glyph the node paints (zero extra payload, one
+        # source of truth). The glyph stroke is contrast-picked for the node FILL, so
+        # render it on a fill-coloured swatch — exactly mirroring the node on canvas.
+        icon = icon_map.get(k)
+        if icon:
+            return f'<span class="gl" style="background:{c}"><img src="{icon}" alt=""></span>'
+        return f'<i style="background:{c}"></i>'   # open-vocab kind with no glyph
+
     legend = "".join(
         f'<button type="button" class="lg" data-kind="{k}">'
-        f'<i style="background:{c}"></i><span class="lbl">{k}</span>'
+        f'{_kind_swatch(k, c)}<span class="lbl">{k}</span>'
         f'<span class="cnt">{kind_counts[k]}</span></button>'
         for k, c in KIND_COLORS.items() if kind_counts.get(k, 0) > 0)
     # edge legend = relations actually present (known hues first, then open-vocab)
@@ -530,6 +542,30 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
         f'<i style="background:{RELATION_COLORS.get(r, DEFAULT_EDGE_COLOR)}"></i>'
         f'<span class="lbl">{r}</span><span class="cnt">{rel_counts[r]}</span></button>'
         for r in rel_order)
+    # Legend key (collapsible): line-style = edge confidence; lettermark = repo
+    # language. Both filtered to what is actually present so the key never lies.
+    conf_present = [cf for cf in _CONF_DOT
+                    if cf in {e.get("confidence") for e in payload["edges"]}]
+    conf_key = "".join(
+        f'<div class="ck"><span class="ln {_CONF_DOT[cf]}"></span>'
+        f'<span class="lbl">{CONF_META[cf][0]}</span>'
+        f'<span class="cnt">{CONF_META[cf][2]}</span></div>'
+        for cf in conf_present)
+    repo_langs = {n.get("lang") for n in payload["nodes"] if n.get("kind") == "repo"}
+    langs_present = [lg for lg in _LANG_LABELS if lg in repo_langs]
+    repo_fill = KIND_COLORS.get("repo", DEFAULT_COLOR)
+    lang_key = "".join(
+        f'<div class="ck"><span class="gl" style="background:{repo_fill}">'
+        f'<img src="{lang_icon_map[lg]}" alt=""></span>'
+        f'<span class="lbl">{_LANG_LABELS[lg]}</span></div>'
+        for lg in langs_present)
+    keys_inner = ""
+    if conf_key:
+        keys_inner += f'<div class="kgroup"><h3>Confidence</h3>{conf_key}</div>'
+    if lang_key:
+        keys_inner += f'<div class="kgroup"><h3>Languages</h3>{lang_key}</div>'
+    legend_keys = (f'<details class="legend-keys"><summary>Legend key</summary>'
+                   f'{keys_inner}</details>') if keys_inner else ""
     options = "".join(f'<option value="{n}">{n}</option>' for n in LAYOUTS)
     meta = json.dumps(payload.get("meta", {}))
     return (_HTML_TEMPLATE
@@ -548,6 +584,7 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
             .replace("__CONF_META__", json.dumps(CONF_META))
             .replace("__LEGEND__", legend)
             .replace("__EDGE_LEGEND__", edge_legend)
+            .replace("__LEGEND_KEYS__", legend_keys)
             .replace("__LAYOUT_OPTIONS__", options)
             .replace("__GLYPH__", _GLYPH_SVG)
             .replace("__META__", meta)
@@ -1115,10 +1152,13 @@ __LIB_TAG__
     </div>
     <div class="sgroup"><h2>Nodes</h2><div id="legend">__LEGEND__</div></div>
     <div class="sgroup"><h2>Relationships</h2><div id="edgelegend">__EDGE_LEGEND__</div></div>
+    __LEGEND_KEYS__
   </aside>
   <main id="cy" role="application" aria-label="Knowledge graph" tabindex="0">
     <div id="empty"><div class="et">No nodes in this view</div>
       <div>Widen the seed, raise <code>--max-nodes</code>, or clear filters.</div></div>
+    <canvas id="minimap" width="180" height="130" aria-hidden="true"
+      title="Overview map — click or drag to navigate"></canvas>
   </main>
   <aside id="info" role="complementary" aria-label="Details"></aside>
   <footer id="statusbar" role="status" aria-live="polite">

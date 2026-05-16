@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Graph readability overhaul — the dense-graph pain points are fixed.** Three long-standing
+  complaints addressed in the shared visualizer (`graph --serve`, `--site`, and every embedded graph):
+  - **Zoom floor** — "fit" no longer shrinks a big graph into unreadable specks. A clamp keeps any
+    fit at or above a readable zoom (≥0.45); below that it snaps to the floor and re-centres, so you
+    always land somewhere scannable instead of scrolling in 5–10 times.
+  - **Level-of-detail labels** — dense graphs no longer pile their text into an illegible smear. Below
+    a readable zoom only the higher-degree hubs keep their labels (degree-gated by zoom tier); hovering
+    or selecting any node always reveals its label, and search/highlight are unaffected.
+  - **Semantic cluster zoom** (namespace overview) — zoom into a region and the on-screen namespace
+    clusters expand into their repos; zoom back out and they collapse. A hysteresis gap prevents
+    flapping, and the zoom path never re-frames, so it can't feed back on itself.
+  - **Minimap** — a custom radar (bottom-right, no new dependency) showing every visible node; click or
+    drag to recentre the main view. Tracks filters and cluster expand/collapse live.
+  - **On-canvas legend key** — the node legend now shows each kind's actual glyph (the same icon the
+    node paints), plus a collapsible key for edge-confidence line styles and per-language repo
+    lettermarks — so the iconography is self-explanatory. All still offline/self-contained.
+
 ### Changed
 
 - **Captured docstrings + signatures now feed the wiki and `get_repo_brief`.** `repo_brief`'s top
