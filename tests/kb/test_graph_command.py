@@ -176,7 +176,10 @@ def test_html_is_offline_by_default(store):
     assert len(html) > 100_000         # the vendored lib is inlined
     html_cdn = viz.to_html(_payload(store), cdn=True)
     assert _CDN_URL in html_cdn        # --cdn references the CDN
-    assert len(html_cdn) < 70_000      # ...and does not inline the ~1MB lib (icons add ~5KB)
+    # ...and does not inline the ~1MB cytoscape lib. The page's own JS/CSS (app shell,
+    # minimap, semantic zoom, LOD labels, legend glyphs) is always inlined and sits
+    # ~73KB; the bound just has to stay well under the lib size (>1MB) to catch a regression.
+    assert len(html_cdn) < 90_000
 
 
 def test_kind_icons_are_offline_data_uris_with_contrast():
