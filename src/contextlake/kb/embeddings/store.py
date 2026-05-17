@@ -9,6 +9,7 @@ search path later behind this same interface, without touching callers.
 from __future__ import annotations
 
 import array
+import logging
 import math
 import sqlite3
 from pathlib import Path
@@ -232,7 +233,12 @@ def build_vector_store(path: str | Path, *, backend: str = "auto"):
     if backend in ("sqlite-vec", "auto"):
         try:
             return SqliteVecStore(path)
-        except Exception:
+        except Exception as e:  # noqa: BLE001 - any load failure falls back to brute
             if backend == "sqlite-vec":
                 raise
+            # auto: degrade to the pure-Python store, but say so -- an operator
+            # otherwise has no idea search silently dropped to O(n) brute force.
+            from ...logging_setup import log
+            log(f"sqlite-vec unavailable ({e}); using slower brute-force vector "
+                "search. Install the 'kb-vec' extra for ANN.", level=logging.WARNING)
     return VectorStore(path)
