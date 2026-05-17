@@ -37,6 +37,33 @@ def test_has_uncommitted_changes(fake_safety_subprocess):
     assert not safety.has_uncommitted_changes("/repo")
 
 
+def test_has_uncommitted_changes_fails_closed_on_git_error(fake_safety_subprocess):
+    """A non-zero git exit (e.g. not a repo) must read as 'dirty', never 'clean':
+    treating an unknown tree as safe to modify is what loses local work."""
+    fake_safety_subprocess.handler = lambda cmd, **k: FakeCompleted(returncode=128,
+                                                                     stderr="not a git repo")
+    assert safety.has_uncommitted_changes("/repo")
+
+
+def test_has_uncommitted_changes_fails_closed_on_exception(fake_safety_subprocess):
+    """A crashed/timed-out git invocation must also fail closed (unsafe)."""
+    def boom(cmd, **k):
+        raise OSError("git missing")
+    fake_safety_subprocess.handler = boom
+    assert safety.has_uncommitted_changes("/repo")
+
+
+def test_get_current_branch_none_on_error(fake_safety_subprocess):
+    """An unreadable branch returns None (the fail-closed value is_safe_branch rejects)."""
+    fake_safety_subprocess.handler = lambda cmd, **k: FakeCompleted(returncode=128)
+    assert safety.get_current_branch("/repo") is None
+
+    def boom(cmd, **k):
+        raise OSError("git missing")
+    fake_safety_subprocess.handler = boom
+    assert safety.get_current_branch("/repo") is None
+
+
 def test_clean_feature_branch_is_safe(fake_safety_subprocess, tmp_path):
     """Branch name alone must NOT trigger a skip: a clean working tree is safe
     even on a feature branch."""

@@ -4,30 +4,46 @@ Branch safety functions for contextlake
 
 import os
 import subprocess
+from subprocess import SubprocessError
 
 
 def has_uncommitted_changes(full_path):
-    """Check if repository has uncommitted changes."""
+    """Return True if the repo has uncommitted changes -- OR if that can't be
+    determined.
+
+    This gates destructive operations (update / stash / merge), so it FAILS
+    CLOSED: a git error, a timeout, a non-zero exit, or a path that is not a git
+    repo is reported as "dirty" rather than "clean". Reading an unknown working
+    tree as clean is exactly the bug that loses local work.
+    """
     try:
         result = subprocess.run(
             ['git', 'status', '--porcelain'],
-            capture_output=True, text=True, cwd=full_path
+            capture_output=True, text=True, cwd=full_path, timeout=30,
         )
-        return bool(result.stdout.strip())
-    except Exception:
-        return False
+    except (OSError, SubprocessError):
+        return True   # can't tell -> treat as unsafe to modify
+    if result.returncode != 0:
+        return True   # not a repo / git failed -> unsafe
+    return bool(result.stdout.strip())
 
 
 def get_current_branch(full_path):
-    """Get the current branch of a repository."""
+    """Get the current branch of a repository, or None if it can't be read.
+
+    None is the fail-closed value: callers feed it to ``is_safe_branch`` which
+    treats None as unsafe, so an unreadable branch never enables a branch switch.
+    """
     try:
         result = subprocess.run(
             ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-            capture_output=True, text=True, cwd=full_path
+            capture_output=True, text=True, cwd=full_path, timeout=30,
         )
-        return result.stdout.strip()
-    except Exception:
+    except (OSError, SubprocessError):
         return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
 
 
 def is_safe_branch(branch, config):
@@ -58,7 +74,7 @@ def check_repository_safety(local_path, work_dir, config):
     warnings = []
 
     if require_clean_workspace and has_uncommitted_changes(full_path):
-        warnings.append("Uncommitted changes detected")
+        warnings.append("Uncommitted changes (or indeterminate working-tree state)")
 
     return len(warnings) == 0, warnings
 

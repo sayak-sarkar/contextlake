@@ -416,10 +416,16 @@ def clone_repository(local_path, gitlab_path, http, ssh, work_dir, config):
 # Update
 # ---------------------------------------------------------------------------
 
-def _rev_parse(full_path, ref="HEAD"):
+def _rev_parse(full_path, ref="HEAD", timeout=30):
+    """Resolve ``ref`` to its commit sha. Raises on a git failure rather than
+    returning "" -- a silent empty result makes the before/after comparison in
+    ``update_repository`` misread the update state (e.g. report 'nochange' when
+    the fetch actually advanced HEAD)."""
     res = subprocess.run(
-        ["git", "rev-parse", ref], capture_output=True, text=True, cwd=full_path
+        ["git", "rev-parse", ref], capture_output=True, text=True, cwd=full_path, timeout=timeout
     )
+    if res.returncode != 0:
+        raise RuntimeError((res.stderr or "git rev-parse failed").strip())
     return res.stdout.strip()
 
 
@@ -472,9 +478,10 @@ def update_repository(local_path, work_dir, config):
             else:
                 return ("skip", local_path, f'Skipped (unsafe: {", ".join(warnings)})')
 
-        curr_res = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True, cwd=full_path,
+        # _run_git raises on a non-zero exit, so a failed branch read surfaces as a
+        # clean per-repo error instead of an empty string that fetches branch "".
+        curr_res = _run_git(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], full_path, 30
         )
         current = curr_res.stdout.strip()
         if current == "HEAD":
@@ -571,6 +578,10 @@ def _collect_branch_info(full_path, branch_timeout):
          "refs/remotes/origin/"],
         capture_output=True, text=True, cwd=full_path, timeout=branch_timeout,
     )
+    # A git failure here must not masquerade as "No branches found" (a skip);
+    # raise so the caller reports a real error instead of silently mis-selecting.
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or "git for-each-ref failed").strip())
     branch_info = []
     for line in result.stdout.strip().split("\n"):
         if not line or "HEAD" in line:
@@ -617,9 +628,8 @@ def switch_repository_branch(local_path, projects, work_dir, config):
         except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
             return ("error", local_path, _first_line(str(e)))
 
-        curr_res = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True, cwd=full_path,
+        curr_res = _run_git(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], full_path, branch_timeout
         )
         current = curr_res.stdout.strip()
 
