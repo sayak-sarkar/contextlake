@@ -94,6 +94,35 @@ def test_cmd_embed_e2e(tmp_path, monkeypatch):
         vs.close()
 
 
+def test_cmd_embed_returns_nonzero_when_all_repos_fail(tmp_path, monkeypatch):
+    """If every repo in a non-empty work set fails to embed (e.g. the embedder
+    goes unreachable mid-run), cmd_embed must exit non-zero, not report success."""
+    import contextlake.kb.embeddings.index as emb_index
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(parents=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_EMBED_CONFIG.format(store=store_dir.as_posix()))
+
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_repo(Repo(id="r", path=str(tmp_path / "r")))
+    s.close()
+    write_shard(store_dir, GraphShard(
+        repo="r", head_commit="h",
+        nodes=[Node(id="n1", repo="r", kind="function", name="foo")], edges=[]))
+
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _FakeEmbedder())
+
+    def boom(*a, **k):
+        raise RuntimeError("embedder unreachable")
+    monkeypatch.setattr(emb_index, "embed_repo", boom)
+
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
+    assert cmd_embed(args) == 1
+
+
 def test_cmd_embed_disabled_is_noop(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = tmp_path / "kbstore"

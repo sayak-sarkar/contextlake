@@ -65,6 +65,29 @@ def test_connect_persists_confirmed_links(tmp_path, monkeypatch):
         store.close()
 
 
+def test_connect_returns_nonzero_when_all_sources_fail(tmp_path, monkeypatch):
+    """Every source call failing (e.g. an unreachable connector) is a non-zero
+    exit, not a silent 'Connect complete: 0 links'."""
+    import contextlake.kb.commands as cmds
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_CONFIG.format(store=store_dir.as_posix()))
+    repo = tmp_path / "app"
+    repo.mkdir()
+
+    def boom_enricher(repo_id, keys, links):
+        raise RuntimeError("atlassian unreachable")
+
+    monkeypatch.setattr(cmds, "_build_enrichers", lambda sources: ([boom_enricher], ["site-a"]))
+    monkeypatch.setattr(refs, "extract_issue_keys", lambda path, pattern, **k: ["PROJ-1"])
+    monkeypatch.setattr(refs, "scrape_links", lambda path, patterns, **k: [])
+
+    args = Namespace(config=str(cfg), workspace=None, source=str(repo), repo="group/app")
+    assert cmd_connect(args) == 1
+
+
 def test_partition_name():
     assert connect_partition("group/app") == "@connect:group/app"
 

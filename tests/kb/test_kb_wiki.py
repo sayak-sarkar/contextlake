@@ -133,6 +133,21 @@ def test_cmd_wiki_rejects_low_score(tmp_path, monkeypatch):
     assert not (store_dir / "wiki" / "r.md").exists()  # council rejected it
 
 
+def test_cmd_wiki_returns_nonzero_when_all_repos_fail(tmp_path, monkeypatch):
+    """LLM unreachable for every repo (nothing written, nothing council-rejected)
+    must be a non-zero exit, not a silent success."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+
+    class _BoomLlm(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            raise RuntimeError("llm unreachable")
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _BoomLlm())
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 1
+    assert not (store_dir / "wiki" / "r.md").exists()
+
+
 def test_cmd_wiki_skips_unchanged_and_force_regenerates(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = _setup_repo(tmp_path)
