@@ -350,6 +350,7 @@ def cmd_connect(args) -> int:
             f"{len(enrichers)} source(s): {', '.join(names)}")
 
         total_edges = 0
+        attempts = src_failed = 0
         for repo_id, path in targets:
             keys = extract_issue_keys(path, branch_key) if branch_key else []
             links = scrape_links(path, link_patterns) if link_patterns else []
@@ -357,10 +358,12 @@ def cmd_connect(args) -> int:
                 continue  # GitLab sources fetch by repo, so don't skip when one exists
             merged_nodes, merged_edges = {}, {}
             for name, enrich in zip(names, enrichers):
+                attempts += 1
                 try:
                     nodes, edges = enrich(repo_id, keys, links)
                 except Exception as e:  # noqa: BLE001 - one source/repo must not abort the run
                     log(f"  {repo_id}: source {name!r} failed — {e}")
+                    src_failed += 1
                     continue
                 for n in nodes:
                     merged_nodes[n.id] = n
@@ -374,6 +377,11 @@ def cmd_connect(args) -> int:
             if merged_edges:
                 log(f"  {repo_id}: {len(merged_edges)} link(s)")
         log(f"Connect complete: {total_edges} external link(s) stored")
+        # Honest exit: every source call attempted failed (e.g. an unreachable
+        # connector) -> a failure, even though per-repo errors were logged.
+        if attempts and src_failed == attempts:
+            log(style.warn(f"All {attempts} source call(s) failed — no links stored"))
+            return 1
         return 0
     finally:
         store.close()
@@ -438,18 +446,24 @@ def cmd_embed(args) -> int:
                 guard_store_identity(vs, identity, len(probe[0]))
             log(f"Embedding {len(targets)} repo(s) with {embedder.name} "
                 f"into the {vs.name} vector store")
-            total = 0
+            total = failed = 0
             for repo_id, _ in targets:
                 try:
                     n = embed_repo(store_dir, vs, embedder, repo_id,
                                    batch_size=cfg.embeddings.batch_size, limit=limit)
                 except Exception as e:  # noqa: BLE001 - one repo must not abort the run
                     log(f"  {repo_id}: embed failed — {e}")
+                    failed += 1
                     continue
                 total += n
                 if n:
                     log(f"  {repo_id}: embedded {n} node(s)")
             log(f"Embed complete: {total} vector(s) written ({vs.count()} total in store)")
+            # Honest exit: if every repo in a non-empty work set failed (e.g. the
+            # embedder went unreachable mid-run), this is a failure, not success.
+            if failed == len(targets):
+                log(style.warn(f"Embed failed for all {len(targets)} repo(s) — no vectors written"))
+                return 1
             return 0
         finally:
             vs.close()
@@ -479,7 +493,7 @@ def cmd_wiki(args) -> int:
         log(f"Generating wiki for {len(targets)} repo(s) with {llm.name} "
             f"(council of {len(LENSES)})")
         force = getattr(args, "force", False)
-        written = rejected = skipped = 0
+        written = rejected = skipped = failed = 0
         for repo_id, _ in targets:
             brief = repo_brief(store_dir, repo_id)
             if brief is None:
@@ -499,6 +513,7 @@ def cmd_wiki(args) -> int:
                                     accept_score=cfg.llm.accept_score)
             except Exception as e:  # noqa: BLE001 - one repo must not abort the run
                 log(f"  {style.fail(repo_id)}: {e}")
+                failed += 1
                 continue
             if gate["accepted"]:
                 wiki_file.write_text(page, encoding="utf-8")
@@ -511,6 +526,11 @@ def cmd_wiki(args) -> int:
                     log(f"      - {issue}")
         log(f"{style.ok()} Wiki: {written} written, {rejected} rejected, "
             f"{skipped} unchanged (skipped) → {wiki_dir}  (--force to regenerate)")
+        # Honest exit: failures with nothing written and nothing council-rejected
+        # means the LLM was effectively unreachable for the whole run -> not success.
+        if failed and not written and not rejected:
+            log(style.warn(f"Wiki generation failed for all {failed} repo(s) — none written"))
+            return 1
         return 0
     finally:
         store.close()

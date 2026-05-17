@@ -2,6 +2,8 @@
 
 from argparse import Namespace
 
+import pytest
+
 import contextlake.cli as cli
 import contextlake.kb.commands as kb
 
@@ -40,16 +42,41 @@ def test_bootstrap_skip_flags(monkeypatch, tmp_path):
     assert calls == ["cmd_index", "cmd_steer"]
 
 
-def test_bootstrap_continues_past_a_failing_stage(monkeypatch, tmp_path):
+def test_bootstrap_continues_past_a_failing_stage_then_exits_nonzero(monkeypatch, tmp_path):
     calls = _record(monkeypatch)
 
     def boom(a):
         raise RuntimeError("connect blew up")
 
     monkeypatch.setattr(kb, "cmd_connect", boom)
-    cli._bootstrap(_args(no_sync=True, no_embed=True, no_wiki=True), {}, str(tmp_path), "grp")
-    # connect failed but index + steer still ran
+    # a non-foundational stage failing must not abort the run -- index + steer still
+    # run -- but bootstrap must NOT report a hollow success: it exits non-zero.
+    with pytest.raises(SystemExit) as exc:
+        cli._bootstrap(_args(no_sync=True, no_embed=True, no_wiki=True), {}, str(tmp_path), "grp")
+    assert exc.value.code == 1
     assert calls == ["cmd_index", "cmd_steer"]
+
+
+def test_bootstrap_exits_nonzero_when_a_stage_returns_failure(monkeypatch, tmp_path):
+    """A stage that returns a non-zero code (not just raising) is a failure too."""
+    calls = _record(monkeypatch)
+    monkeypatch.setattr(kb, "cmd_wiki", lambda a: (calls.append("cmd_wiki"), 1)[1])
+    args = _args(no_sync=True, no_connect=True, no_embed=True)
+    with pytest.raises(SystemExit) as exc:
+        cli._bootstrap(args, {}, str(tmp_path), "grp")
+    assert exc.value.code == 1
+    assert calls == ["cmd_index", "cmd_wiki", "cmd_steer"]
+
+
+def test_bootstrap_aborts_when_index_fails(monkeypatch, tmp_path):
+    """The code graph is foundational: if index fails, stop immediately (non-zero)
+    and do not run connect/embed/wiki/steer on an absent graph."""
+    calls = _record(monkeypatch)
+    monkeypatch.setattr(kb, "cmd_index", lambda a: (calls.append("cmd_index"), 1)[1])
+    with pytest.raises(SystemExit) as exc:
+        cli._bootstrap(_args(no_sync=True), {}, str(tmp_path), "grp")
+    assert exc.value.code == 1
+    assert calls == ["cmd_index"]   # nothing downstream ran
 
 
 def test_bootstrap_passes_kb_config_not_sync_config(monkeypatch, tmp_path):

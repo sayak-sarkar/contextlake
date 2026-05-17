@@ -324,15 +324,32 @@ def _bootstrap(args, config, work_dir, gitlab_group):
         stages.append(("Generate the curated wiki", kb.cmd_wiki))
     stages.append(("Write editor steering (.mcp.json, AGENTS.md, …)", kb.cmd_steer))
 
+    failures = []
     for title, fn in stages:
         _stage(title)
         try:
-            fn(kb_args)
+            rc = fn(kb_args)
         except Exception as e:  # noqa: BLE001 - one stage must not abort bootstrap
+            rc = 1
             log(f"  {style.warn(title + ' failed')} — {e}")
+        if rc:
+            failures.append(title)
+            # The code graph is foundational — connect/embed/wiki/steer all read it.
+            # If indexing failed there is nothing downstream to build on, so stop
+            # honestly with a non-zero exit instead of reporting a hollow success.
+            if fn is kb.cmd_index:
+                log(style.warn("Bootstrap aborted — the code graph could not be built; "
+                               "nothing downstream can run."))
+                sys.exit(1)
 
     log("")
     serve = "contextlake serve" + (f" --config {kb_args.config}" if kb_args.config else "")
+    if failures:
+        log(style.warn(f"Bootstrap finished with {len(failures)} failed stage(s): "
+                       f"{', '.join(failures)}."))
+        log(f"  Workspace is at {work_dir}; re-run after fixing the above. "
+            f"Start the server only once healthy: {serve}")
+        sys.exit(1)
     log(style.ok(f"Bootstrap complete — workspace ready at {work_dir}."))
     log(f"  Editors are wired (.mcp.json + steering). Start the knowledge server: {serve}")
 
