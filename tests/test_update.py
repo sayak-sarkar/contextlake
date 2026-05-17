@@ -159,6 +159,40 @@ def test_unsafe_repo_skipped(tmp_path, base_config, fake_subprocess, monkeypatch
     assert "unsafe" in msg
 
 
+def test_branch_read_failure_is_error_not_empty_fetch(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """A failed branch read must surface as an error, not proceed with branch ''."""
+    _safe(monkeypatch)
+    fake_subprocess.handler = lambda cmd, **k: (
+        FakeCompleted(returncode=128, stderr="fatal: not a git repository")
+        if _branch_main(cmd) else FakeCompleted()
+    )
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "error"
+    assert "not a git repository" in msg
+
+
+def test_rev_parse_failure_is_error_not_nochange(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """If the before/after HEAD read fails, report an error -- never a silent
+    'nochange' from two empty strings comparing equal."""
+    _safe(monkeypatch)
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="main")
+        if cmd == ["git", "rev-parse", "HEAD"]:
+            return FakeCompleted(returncode=128, stderr="fatal: bad object HEAD")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "error"
+    assert "bad object" in msg
+
+
 def test_clean_feature_branch_is_updated(tmp_path, base_config, fake_subprocess, monkeypatch):
     """A clean repo on a feature branch is updated, not skipped by branch name."""
     _safe(monkeypatch)  # check_repository_safety reports safe for a clean tree
