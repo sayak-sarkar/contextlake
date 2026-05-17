@@ -8,6 +8,7 @@ can be dropped and rebuilt at any time.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import sqlite3
 from collections.abc import Iterable
@@ -186,8 +187,15 @@ class SqliteStore(Store):
         params.append(limit)
         try:
             rows = self.conn.execute(sql, params).fetchall()
-        except sqlite3.OperationalError:
-            # Belt-and-suspenders: never let a malformed FTS query crash a search.
+        except sqlite3.OperationalError as e:
+            # Resilience: never let a search crash the caller. But distinguish an
+            # expected malformed-FTS-query (quiet) from a real DB problem -- a locked
+            # db / missing table / I/O error must not masquerade silently as "no hits".
+            msg = str(e).lower()
+            expected = "fts5" in msg or "syntax error" in msg or "malformed match" in msg
+            from ...logging_setup import log
+            log(f"search query failed ({e}); returning no results",
+                level=logging.DEBUG if expected else logging.WARNING)
             return []
         return [self._row_to_node(r) for r in rows]
 
