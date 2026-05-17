@@ -11,3 +11,11 @@ build
 .ruff_cache
 htmlcov
 .coverage
+# Local-only config / secrets — gitignored, so the published image (built from a
+# clean checkout) never sees them, but a local `docker build .` would COPY them in.
+.gitlab_sync.ini
+.contextlake.ini
+.contextlake.kb.toml
+.genericity-denylist
+.contextlake
+.env
