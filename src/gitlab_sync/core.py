@@ -10,8 +10,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-from config import get_cache_paths, DEFAULT_CONFIG
-from safety import check_repository_safety, stash_changes, is_safe_branch
+from .config import get_cache_paths, DEFAULT_CONFIG
+from .safety import check_repository_safety, stash_changes, is_safe_branch
 
 
 def log(message):

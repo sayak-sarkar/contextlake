@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gitlab-sync"
+version = "1.3.0"
+description = "Mirror your accessible GitLab repositories locally and keep each on its most active branch."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "Sayak Sarkar", email = "sayak.bugsmith@gmail.com" }]
+keywords = ["gitlab", "git", "sync", "mirror", "cli", "glab", "workspace"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+# Runtime depends only on the Python standard library plus the external
+# `git` and `glab` command-line tools (not pip-installable).
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/sayak-sarkar/gitlab-sync"
+Repository = "https://github.com/sayak-sarkar/gitlab-sync"
+Changelog = "https://github.com/sayak-sarkar/gitlab-sync/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4"]
+
+[project.scripts]
+gitlab-sync = "gitlab_sync.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
