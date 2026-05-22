@@ -25,9 +25,10 @@ import sys
 
 from .config import load_config, get_cache_paths, DEFAULT_CONFIG
 from .core import (
-    log, fetch_gitlab_projects, clone_missing_repos, update_repositories,
+    fetch_gitlab_projects, clone_missing_repos, update_repositories,
     switch_repository_branches, verify_structure, show_status
 )
+from .logging_setup import log, setup_logging
 
 
 def main():
@@ -81,7 +82,9 @@ Examples:
                        help='Disable automatic stashing')
     
     args = parser.parse_args()
-    
+
+    setup_logging()
+
     # Load configuration
     config = load_config()
     
