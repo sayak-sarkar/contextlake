@@ -8,6 +8,7 @@ so it can run incrementally and be capped for very large workspaces.
 
 from __future__ import annotations
 
+from .._util import chunks
 from ..store.shards import read_shard
 
 
@@ -21,11 +22,6 @@ def node_text(node) -> str:
     return " ".join(p for p in parts if p)
 
 
-def _chunks(seq, n):
-    for i in range(0, len(seq), n):
-        yield seq[i:i + n]
-
-
 def embed_repo(store_dir, vector_store, embedder, repo_id, *,
                batch_size: int = 64, limit: int | None = None, kinds=None) -> int:
     """Embed a repo's nodes into ``vector_store``. Returns the number embedded."""
@@ -37,7 +33,7 @@ def embed_repo(store_dir, vector_store, embedder, repo_id, *,
         nodes = nodes[:limit]
     vector_store.clear_repo(repo_id)
     total = 0
-    for batch in _chunks(nodes, max(1, batch_size)):
+    for batch in chunks(nodes, max(1, batch_size)):
         vectors = embedder.embed([node_text(n) for n in batch])
         vector_store.upsert(
             (n.id, repo_id, v) for n, v in zip(batch, vectors)

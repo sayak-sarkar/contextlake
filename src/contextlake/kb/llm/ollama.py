@@ -7,19 +7,8 @@ so prompts never leave the machine.
 
 from __future__ import annotations
 
-import json
-import urllib.request
-
+from .._util import post_json
 from .base import LlmClient
-
-
-def _post_json(url: str, payload: dict, timeout: float) -> dict:
-    data = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - fixed local URL
-        return json.loads(resp.read().decode())
 
 
 class OllamaLlm(LlmClient):
@@ -35,5 +24,5 @@ class OllamaLlm(LlmClient):
         payload = {"model": self.model, "prompt": prompt, "stream": False}
         if system:
             payload["system"] = system
-        res = _post_json(f"{self.base_url}/api/generate", payload, self.timeout)
+        res = post_json(f"{self.base_url}/api/generate", payload, self.timeout)
         return (res.get("response") or "").strip()

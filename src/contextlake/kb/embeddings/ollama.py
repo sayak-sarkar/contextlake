@@ -7,19 +7,8 @@ Uses the stable ``POST /api/embeddings`` endpoint ({"model","prompt"} ->
 
 from __future__ import annotations
 
-import json
-import urllib.request
-
+from .._util import post_json
 from .base import Embedder
-
-
-def _post_json(url: str, payload: dict, timeout: float) -> dict:
-    data = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - fixed local URL
-        return json.loads(resp.read().decode())
 
 
 class OllamaEmbedder(Embedder):
@@ -37,6 +26,6 @@ class OllamaEmbedder(Embedder):
         url = f"{self.base_url}/api/embeddings"
         out: list[list[float]] = []
         for text in texts:
-            res = _post_json(url, {"model": self.model, "prompt": text}, self.timeout)
+            res = post_json(url, {"model": self.model, "prompt": text}, self.timeout)
             out.append([float(x) for x in res.get("embedding", [])])
         return out

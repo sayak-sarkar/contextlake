@@ -26,7 +26,7 @@ def test_build_llm_openai():
 def test_openai_embed_batches_and_orders(monkeypatch):
     seen = {}
 
-    def fake_post(url, payload, headers, timeout):
+    def fake_post(url, payload, timeout, headers=None):
         seen["url"] = url
         seen["headers"] = headers
         # return rows out of order to prove we sort by index
@@ -36,7 +36,7 @@ def test_openai_embed_batches_and_orders(monkeypatch):
         ]}
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    monkeypatch.setattr(emb_openai, "_post_json", fake_post)
+    monkeypatch.setattr(emb_openai, "post_json", fake_post)
     vecs = OpenAIEmbedder(model="m", base_url="http://x/v1/").embed(["a", "b"])
 
     assert vecs == [[0.1], [0.2]]  # reordered by index
@@ -47,12 +47,12 @@ def test_openai_embed_batches_and_orders(monkeypatch):
 def test_openai_embed_no_key_omits_auth(monkeypatch):
     captured = {}
 
-    def fake_post(url, payload, headers, timeout):
+    def fake_post(url, payload, timeout, headers=None):
         captured["headers"] = headers
         return {"data": [{"embedding": [1.0], "index": 0}]}
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setattr(emb_openai, "_post_json", fake_post)
+    monkeypatch.setattr(emb_openai, "post_json", fake_post)
     OpenAIEmbedder(api_key_env="OPENAI_API_KEY").embed(["x"])
     assert "Authorization" not in captured["headers"]  # local server, no key needed
 
@@ -62,13 +62,13 @@ def test_openai_embed_no_key_omits_auth(monkeypatch):
 def test_openai_generate(monkeypatch):
     seen = {}
 
-    def fake_post(url, payload, headers, timeout):
+    def fake_post(url, payload, timeout, headers=None):
         seen["url"] = url
         seen["messages"] = payload["messages"]
         return {"choices": [{"message": {"content": "  a page  "}}]}
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    monkeypatch.setattr(llm_openai, "_post_json", fake_post)
+    monkeypatch.setattr(llm_openai, "post_json", fake_post)
     out = OpenAILlm(model="g", base_url="http://x/v1").generate("hi", system="be precise")
 
     assert out == "a page"  # stripped
@@ -80,5 +80,5 @@ def test_openai_generate(monkeypatch):
 
 
 def test_openai_generate_empty_choices(monkeypatch):
-    monkeypatch.setattr(llm_openai, "_post_json", lambda *a, **k: {"choices": []})
+    monkeypatch.setattr(llm_openai, "post_json", lambda *a, **k: {"choices": []})
     assert OpenAILlm().generate("hi") == ""
