@@ -1,102 +1,94 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/glyph.svg" alt="" width="76" height="76">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble-hero.png" alt="Pebble, the contextlake otter, surfacing from a lake holding a glowing drop of context" width="190" height="190">
 </p>
 <h1 align="center">contextlake</h1>
-<p align="center"><em>All your real context, in one local lake.</em></p>
+<p align="center"><strong>All your real context, in one local lake.</strong></p>
+<p align="center">
+  A local context layer for your AI tools — mirror your repositories, index them<br>
+  into a knowledge graph, and serve it over MCP, so agents answer from <em>real source</em> instead of guessing.
+</p>
 
 <p align="center">
   <a href="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml"><img src="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/contextlake/"><img src="https://img.shields.io/pypi/v/contextlake?color=137A8B" alt="PyPI"></a>
   <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+">
+  <img src="https://img.shields.io/badge/offline-first-2BB3A3" alt="Offline-first">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT">
 </p>
 
-> **A local context layer for your AI tools — your repositories mirrored, indexed into a knowledge graph, and served over MCP, so agents work from real source instead of guessing.**
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph.jpg" alt="The contextlake graph visualizer showing a repository's symbols as a navigable node graph, with a type-glyph legend, search, and a corner minimap" width="840">
+</p>
+<p align="center"><em><code>contextlake graph</code> — a whole codebase as one offline, navigable graph.</em></p>
 
-You have access to dozens — maybe hundreds — of repositories scattered across a
-GitLab group and its subgroups. You want them all on your laptop, in the same
-shape they have on GitLab, each sitting on the branch where the real work is
-happening, and you want a single command to keep it that way.
+---
 
-That's the foundation. `contextlake` enumerates everything you can reach, clones
-what's missing into a faithful mirror of the namespace tree, pulls what's stale,
-and parks each repo on its most active branch — concurrently, with retries, and
-**without ever stomping on the feature branch you're in the middle of.**
+## Why contextlake
 
-On top of that mirror, an optional [knowledge layer](#knowledge-layer-optional)
-indexes everything into a graph and serves it to your AI tools over MCP — so they
-answer from real source. (Today the source is GitLab; the design is source-agnostic.)
+Your AI assistant is only as good as what it can actually see. Point it at one file and
+it's sharp; ask it about *the system* — which service calls this API, who depends on that
+package, where a symbol is really defined across dozens of repos — and it starts guessing.
 
-It carries no credentials of its own: authentication rides entirely on your
-existing [`glab`](https://gitlab.com/gitlab-org/cli) login and `git` setup.
+**contextlake gives your tools the real source to read.** It mirrors your repositories to
+your machine, indexes them into a queryable knowledge graph, and serves that graph to your
+editor over [MCP](https://modelcontextprotocol.io). Everything runs locally and offline —
+no code leaves your machine, and it carries no credentials of its own.
 
-```bash
-pip install .
-contextlake status      # see where you stand
-contextlake sync        # fetch → clone → update → branches → verify
+## How it works
+
+contextlake is three layers you adopt one at a time — the mirror is useful on its own, and
+each layer above it is optional.
+
+```
+   your repos            contextlake                         your AI tools
+  ┌───────────┐   index   ┌──────────────────────┐   serve   ┌──────────────────┐
+  │  GitLab   │ ────────▶ │  graph · embeddings  │ ────────▶ │  Claude Code     │
+  │  group    │  mirror   │  wiki · connectors   │   (MCP)   │  Windsurf · Kiro │
+  └───────────┘           └──────────────────────┘           └──────────────────┘
+   Figma / Jira ───────────────▲ (optional connectors)        Cursor · Postman …
 ```
 
-> **New here?** [**QUICKSTART.md**](QUICKSTART.md) takes you from install to a
-> fully-wired AI workspace (mirror → knowledge graph → Claude Code / Windsurf) in a
-> few minutes.
+1. **Mirror** — clone every repo you can reach in a GitLab group into a faithful copy of its
+   namespace tree, each on its most active branch, kept fresh with one command. *(The source
+   is GitLab today; the design is source-agnostic.)*
+2. **Knowledge layer** *(optional)* — parse the mirror into a code + dependency **graph**, add
+   **semantic search**, a council-verified **wiki**, and **connectors** to Atlassian / Figma / GitLab.
+3. **Serve** — expose it all over **MCP** and an offline interactive **graph visualizer**, so
+   agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
-## What's in the box
-
-**The core loop**
-
-- **Discovers everything** in a GitLab group and its subgroups via the API.
-- **Clones what's missing**, preserving GitLab's exact directory structure.
-- **Updates what's stale** with a fast-forward pull, honestly reporting whether
-  anything actually changed.
-- **Rides the active branch** — picks each repo's liveliest branch by commit
-  count, recency, or a hybrid of both (your call).
-- **Verifies the mirror** against GitLab and flags drift, orphans, and
-  repos-nested-inside-repos.
-
-**Because it runs across hundreds of repos**
-
-- **Concurrent** by default, with an **adaptive worker pool** that backs off when
-  the network starts misbehaving and ramps back up when it recovers.
-- **Resilient** — exponential backoff with jitter on transient failures, fail-fast
-  on the ones that won't recover (DNS, TLS).
-
-**Because it's your working machine**
-
-- **Branch safety**: never yanks you off a working branch or clobbers uncommitted
-  changes — skip, or `--auto-stash`, your choice.
-- **`--dry-run`** everything first if you're the cautious type.
-- **Configurable** via INI files (local + global) with sensible precedence, plus
-  per-run CLI overrides.
-
-## Installation
-
-The fastest, zero-config path is [`uv`](https://docs.astral.sh/uv/) — it fetches
-the right Python and an isolated environment for you, so there's nothing to set up:
+## Install
 
 ```bash
-uv tool install "contextlake[kb]"        # install the CLI on your PATH
-# or run it once, ephemerally, without installing:
-uvx --from "contextlake[kb]" contextlake --help
+pip install contextlake             # the mirroring CLI
+pip install "contextlake[kb]"       # + the knowledge layer (graph, search, wiki, MCP server)
 ```
 
-Prefer pipx or pip? Those work too:
+Prefer an isolated, zero-setup install? [`uv`](https://docs.astral.sh/uv/) fetches the right
+Python and an isolated environment for you:
 
 ```bash
-pipx install "contextlake[kb]"
-# pip install "contextlake[kb]"          # into an active virtualenv
+uv tool install "contextlake[kb]"            # install the CLI on your PATH
+uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without installing
+# pipx install "contextlake[kb]"             # pipx works too
 ```
 
-The **`[kb]` extra** pulls in the knowledge layer (graph index, embeddings,
-LLM-wiki, MCP server). Plain `contextlake` is just the GitLab-mirroring CLI.
+<details>
+<summary>From source (for contributors)</summary>
 
-**Other prerequisites:** `git`, and — for mirroring — an authenticated
-[`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`). Once installed,
-`contextlake`, `python -m contextlake`, and `python3 contextlake.py` are equivalent.
+```bash
+git clone https://github.com/sayak-sarkar/contextlake && cd contextlake
+pip install -e ".[kb]"
+```
+</details>
+
+**Prerequisites:** `git`, and — only for GitLab mirroring — an authenticated
+[`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`). The knowledge layer needs
+neither. Once installed, `contextlake`, `python -m contextlake`, and `python3 contextlake.py`
+are equivalent.
 
 ## Quickstart — one repo, no setup
 
-You don't need GitLab or any config to try contextlake on a repo you already have.
-Point it at any local git repo:
+You don't need GitLab or any config to try contextlake on a repo you already have:
 
 ```bash
 contextlake index --source .          # parse this repo into a local knowledge graph
@@ -104,18 +96,16 @@ contextlake graph --overview --open   # open the interactive graph in your brows
 contextlake serve                     # …or serve it to your AI IDE over MCP
 ```
 
-Everything lands in a local store (`~/.contextlake/kb`) — nothing leaves your machine.
-Index any path with `--source PATH`, or every git repo under a directory with
-`--workspace DIR`. Keep separate stores by pointing `--config my.toml` at a file with
-`[kb]` / `store_dir = "..."`.
+Everything lands in a local store (`~/.contextlake/kb`) — nothing leaves your machine. Index
+any path with `--source PATH`, or every git repo under a directory with `--workspace DIR`.
 
-Where contextlake goes beyond single-repo tools is mirroring and cross-referencing a
-**whole GitLab fleet** — that's the setup below.
+> **Want the full path** — mirror a GitLab fleet → graph → wired editor in a few minutes?
+> [**QUICKSTART.md**](QUICKSTART.md) walks the whole flow.
 
-## Configure (fleet mode)
+## Fleet mode — mirror a GitLab group
 
-To mirror and cross-reference a whole GitLab group, copy the example and set your
-group + workspace:
+Where contextlake goes beyond single-repo tools is mirroring and cross-referencing a *whole
+GitLab fleet*. Copy the example config and set your group + workspace:
 
 ```bash
 cp .contextlake.ini.example ~/.contextlake.ini
@@ -126,81 +116,54 @@ work_dir = ~/work
 gitlab_group = your-gitlab-group
 ```
 
-The tool carries no credentials of its own — auth rides on `glab` — so
-`.contextlake.ini` holds only non-secret settings and is gitignored by default. The
-full option reference is in [docs/usage.md](docs/usage.md).
+```bash
+contextlake status      # see where you stand (read-only)
+contextlake sync        # fetch → clone → update → branches → verify → audit
+```
 
-> **Behind a slow / TLS-inspecting corporate proxy** (e.g. Zscaler) where `glab`'s API
-> calls time out, set `GITLAB_TOKEN` (a `read_api` token) — contextlake then enumerates
-> projects via its own HTTP client, which tolerates the slow DNS where `glab`'s short
-> dial timeout fails.
+It carries no credentials of its own — auth rides on your existing `glab` login — so
+`.contextlake.ini` holds only non-secret settings and is gitignored by default. It runs
+across hundreds of repos **concurrently**, with an adaptive worker pool, retries with
+backoff, and **never stomps on the feature branch you're in the middle of**.
 
-## Usage
+> **Behind a slow / TLS-inspecting corporate proxy** (e.g. Zscaler) where `glab`'s API calls
+> time out? Set `GITLAB_TOKEN` (a `read_api` token) and contextlake enumerates projects via
+> its own HTTP client, which tolerates the slow DNS where `glab`'s short dial timeout fails.
 
-Run commands as `contextlake <command>` — full per-command docs are in
-**[docs/usage.md](docs/usage.md)**.
+## Commands at a glance
 
-### Commands at a glance
+Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage.md](docs/usage.md)**.
 
 | Command | What it does |
 | --- | --- |
 | `status` | Show the workspace sync state vs GitLab (read-only) |
-| `fetch` | Cache the GitLab project list |
-| `clone` | Clone repos that exist on GitLab but not locally |
-| `update` | Pull updates for local repos (skips only repos with a dirty working tree) |
-| `branches` | Switch each repo to its most active branch |
-| `verify` | Check the local mirror matches GitLab (drift, orphans, nesting) |
 | `sync` | The full pipeline: fetch → clone → update → branches → verify → audit |
-| `audit` | Repo health & age: empty/README-only repos + creation & last-commit dates (JSON + CSV) |
+| `fetch` · `clone` · `update` | The sync steps, individually |
+| `branches` | Switch each repo to its most active branch |
+| `verify` · `audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
 | `bootstrap` | **Turnkey**: sync + index + connect + embed + wiki + steer |
 | `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
-| `connect` | Link repos to Atlassian / Figma / GitLab sources |
-| `embed` | Build semantic-search vectors (zero-config built-in CPU model, or Ollama / an API) |
-| `lint` | Graph health — stale repos (HEAD moved) and dangling edges; exits non-zero if any |
-| `wiki` | LLM-synthesized, council-verified wiki pages (zero-config built-in model, or Ollama / an API) |
-| `steer` | Write editor steering — `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
+| `connect` | Link repos to Atlassian / Figma / GitLab items |
+| `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API) |
+| `wiki` | LLM-synthesized, council-verified wiki pages |
+| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
+| `graph` | Visualize the graph — offline interactive HTML / DOT / Mermaid / JSON |
 | `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
-| `query` | Search the index (`--kind`, `--repo`, `--limit`, `--as-of <commit>`) |
-| `graph` | Visualize the graph — offline interactive HTML / DOT / Mermaid / JSON (`--overview`, `--serve`) |
-| `doctor` | Check the knowledge-layer environment (SQLite FTS5, git/glab, store, embeddings) |
-| `eval` | Score retrieval quality against a golden-query set (precision@k / recall@k / MRR) |
+| `steer` | Write editor steering — `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
+| `lint` · `doctor` · `eval` | Graph health · environment check · retrieval-quality scoring |
 
-The first eight are the core sync (detailed below); the rest are the optional
-**[knowledge layer](#knowledge-layer)**. Run any command with `--config` (sync INI)
-and, for the knowledge layer, `--config`/`--kb-config` pointing at your `kb.toml`.
+Global options apply to any command: `--dry-run` (preview without changing anything),
+`-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`, `--version`. Output is colorized on
+a TTY and plain when piped; set `NO_COLOR` to force-disable.
 
-### Global options
+## Knowledge layer
 
-These apply to any command:
-
-- `--dry-run` — preview clone/update/branch actions without changing anything.
-- `-v` / `--verbose`, `-q` / `--quiet` — control console verbosity.
-- `--log-file PATH` — append a full timestamped audit log (rotating).
-- `--config PATH` — use a specific config file (highest precedence).
-- `--version` — print the version and exit.
-
-Output is colorized on a terminal (status glyphs, a progress bar); set `NO_COLOR`
-to disable or `FORCE_COLOR` to keep colours when piping. Colours are dropped
-automatically for non-TTY output (pipes, cron, log files).
-
-A read-only `status` followed by a `--dry-run sync` is the safest way to preview
-what a sync would do:
-
-```bash
-contextlake status
-contextlake --dry-run sync
-```
-
-## Knowledge layer (optional)
-
-Beyond mirroring, an optional layer (`contextlake.kb`) turns your repos into a
-**knowledge graph** and serves it to AI tools over **MCP** — so Claude Code, Windsurf,
-or Kiro can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
-It can also link repos to their Atlassian / Figma / GitLab items, add semantic search,
-write a curated wiki, **visualize the graph** (`contextlake graph` → an offline, interactive
-HTML — fleet overview, a symbol's neighbourhood, or a single repo), and generate per-tool
-steering files + a skills library. Most of it needs no model; the rest works with a local
-Ollama or any OpenAI-compatible endpoint.
+Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge
+graph** and serves it to AI tools over **MCP**. It can link repos to their Atlassian / Figma /
+GitLab items, add **semantic search**, write a curated **wiki**, **visualize** the graph
+(offline interactive HTML — fleet overview, a symbol's neighbourhood, or a single repo), and
+generate per-tool **steering files** + a skills library. Most of it needs no model; the rest
+works with a local Ollama or any OpenAI-compatible endpoint.
 
 One command sets it all up:
 
@@ -216,20 +179,9 @@ contextlake bootstrap --kb-config ~/.contextlake/kb.toml
 - **[docs/usage.md](docs/usage.md)** — every command, configuration, branch safety, scheduling
 - **[docs/knowledge-layer.md](docs/knowledge-layer.md)** — the graph, connectors, search, wiki, steering
 - **[docs/internals.md](docs/internals.md)** — architecture & internals
-- **[docs/releasing.md](docs/releasing.md)** — maintainer runbook: versioning, tagging, publishing to PyPI
-- **[BRANDING.md](BRANDING.md)** — brand guide (name, palette, logo, mascot)
-- **[CHANGELOG.md](CHANGELOG.md)** · **[ROADMAP.md](ROADMAP.md)** · **[CONTRIBUTING.md](CONTRIBUTING.md)**
+- **[docs/releasing.md](docs/releasing.md)** — maintainer runbook: versioning, tagging, publishing
+- **[CHANGELOG.md](CHANGELOG.md)** · **[ROADMAP.md](ROADMAP.md)** · **[CONTRIBUTING.md](CONTRIBUTING.md)** · **[BRANDING.md](BRANDING.md)**
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For issues or questions:
-
-1. Check this documentation first
-2. Review log files for error messages
-3. Test individual commands to isolate issues
-4. Verify `glab` authentication: `glab auth status`
-5. Check GitLab access permissions in web interface
+MIT — see [LICENSE](LICENSE). Pebble the otter is the project mascot; *deep context, clear answers.*
