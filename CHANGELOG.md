@@ -32,6 +32,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   symbols carry their `doc` + `signature`, so the LLM-wiki is synthesized from real docstrings (not
   just symbol names) and `get_repo_brief` returns them per symbol — closing the capture→consume loop
   for the doc/signature feature (richer, better-grounded wikis and repo anatomy).
+- **`build_vector_store` and `SqliteStore.search` no longer fall back silently.** A sqlite-vec load
+  failure now warns that search dropped to brute force; a search `OperationalError` is logged (DEBUG
+  for an expected malformed-FTS query, WARNING for a real DB problem) instead of always returning `[]`.
+- **Deduplicated HTTP/util helpers** (`_ollama_reachable`, `_post_json`, `_chunks`) — previously copied
+  across the llm/ and embeddings/ providers and the connector — into one stdlib-only `kb/_util`. No
+  behaviour change.
+
+### Fixed
+
+- **Safety gate now fails *closed* on an indeterminate git state.** `has_uncommitted_changes` and the
+  branch/HEAD reads in the sync core swallowed errors and returned a permissive default, so a failed,
+  timed-out, or non-repo git call read as "clean / safe to modify" or "no change" — silently
+  mis-driving the destructive update/stash/merge they guard. They now check return codes + add
+  timeouts and treat any unknown state as unsafe; `_rev_parse` and `_collect_branch_info` raise on a
+  git failure instead of returning an empty string that misreads the update.
+- **`bootstrap` and `embed`/`wiki`/`connect` now exit non-zero on failure.** `bootstrap` ignored every
+  stage's result and always reported success; the three commands returned `0` even when every repo or
+  source in a non-empty work set failed (embedder/LLM/connector unreachable → zero output, CI green on
+  a broken knowledge layer). `bootstrap` now propagates stage failures (and hard-aborts if the
+  foundational index stage fails); the commands return non-zero on total failure.
+
+### Security
+
+- **`.dockerignore` now excludes the gitignored local config/secret files** (`.gitlab_sync.ini`,
+  `.contextlake.ini`, `.contextlake.kb.toml`, `.genericity-denylist`) so a local `docker build .`
+  can't bake them into an image. The published image is unaffected (built from a clean checkout).
 
 ## [2.8.0] - 2026-06-26
 
