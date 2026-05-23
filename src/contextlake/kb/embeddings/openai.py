@@ -9,19 +9,10 @@ key work with the variable unset.
 
 from __future__ import annotations
 
-import json
 import os
-import urllib.request
 
+from .._util import post_json
 from .base import Embedder
-
-
-def _post_json(url: str, payload: dict, headers: dict, timeout: float) -> dict:
-    body = json.dumps(payload).encode()
-    head = {"Content-Type": "application/json", **(headers or {})}
-    req = urllib.request.Request(url, data=body, headers=head)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - configured URL
-        return json.loads(resp.read().decode())
 
 
 class OpenAIEmbedder(Embedder):
@@ -46,9 +37,9 @@ class OpenAIEmbedder(Embedder):
         step = max(1, self.batch_size)
         for i in range(0, len(texts), step):
             batch = texts[i:i + step]
-            res = _post_json(f"{self.base_url}/embeddings",
-                             {"model": self.model, "input": batch},
-                             self._headers(), self.timeout)
+            res = post_json(f"{self.base_url}/embeddings",
+                            {"model": self.model, "input": batch},
+                            self.timeout, headers=self._headers())
             rows = sorted(res.get("data", []), key=lambda d: d.get("index", 0))
             out.extend([float(x) for x in row.get("embedding", [])] for row in rows)
         return out

@@ -7,8 +7,9 @@ fixed-length vectors; the rest of the knowledge layer stays provider-agnostic.
 from __future__ import annotations
 
 import importlib.util
-import urllib.request
 from abc import ABC, abstractmethod
+
+from .._util import ollama_reachable
 
 
 class Embedder(ABC):
@@ -75,21 +76,11 @@ def _build_builtin_embedder(cfg):
     )
 
 
-def _ollama_reachable(base_url: str, timeout: float = 1.5) -> bool:
-    """True if a local Ollama daemon answers quickly (so 'auto' never hangs)."""
-    try:
-        url = base_url.rstrip("/") + "/api/tags"
-        with urllib.request.urlopen(url, timeout=timeout):  # noqa: S310 - local URL
-            return True
-    except Exception:  # noqa: BLE001 - any failure means "not reachable"
-        return False
-
-
 def _resolve_auto_embedder(cfg) -> Embedder | None:
     """Resolve provider="auto": a reachable local Ollama, else the built-in
     embedder if its extra is importable, else None (graceful skip). Never raises."""
     base_url = getattr(cfg, "base_url", "http://127.0.0.1:11434")
-    if _ollama_reachable(base_url):
+    if ollama_reachable(base_url):
         from .ollama import OllamaEmbedder
 
         return OllamaEmbedder(

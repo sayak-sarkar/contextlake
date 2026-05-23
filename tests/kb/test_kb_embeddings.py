@@ -55,7 +55,7 @@ def test_ollama_embed_posts_per_text(monkeypatch):
         calls.append((url, payload["prompt"]))
         return {"embedding": [1.0, 2.0, 3.0]}
 
-    monkeypatch.setattr(ollama_mod, "_post_json", fake_post)
+    monkeypatch.setattr(ollama_mod, "post_json", fake_post)
     emb = OllamaEmbedder(model="m", base_url="http://x:11434/")
     vecs = emb.embed(["alpha", "beta"])
 
@@ -111,13 +111,13 @@ def test_builtin_embed_model2vec_mocked(monkeypatch):
 # --- the "auto" resolver ----------------------------------------------------
 
 def test_auto_prefers_reachable_ollama(monkeypatch):
-    monkeypatch.setattr(base_mod, "_ollama_reachable", lambda *a, **k: True)
+    monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: True)
     emb = build_embedder(EmbeddingsCfg(enabled=True, provider="auto"))
     assert isinstance(emb, OllamaEmbedder)
 
 
 def test_auto_falls_back_to_builtin(monkeypatch):
-    monkeypatch.setattr(base_mod, "_ollama_reachable", lambda *a, **k: False)
+    monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: False)
     monkeypatch.setattr(
         base_mod.importlib.util, "find_spec",
         lambda name: object() if name == "model2vec" else None,
@@ -127,7 +127,7 @@ def test_auto_falls_back_to_builtin(monkeypatch):
 
 
 def test_auto_returns_none_when_nothing_available(monkeypatch):
-    monkeypatch.setattr(base_mod, "_ollama_reachable", lambda *a, **k: False)
+    monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: False)
     monkeypatch.setattr(base_mod.importlib.util, "find_spec", lambda name: None)
     assert build_embedder(EmbeddingsCfg(enabled=True, provider="auto")) is None  # no raise
 

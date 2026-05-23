@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import re
 
+from .._util import chunks
 from ..ids import make_id
 from ..mcp_client import call_tool
 from ..model import Confidence, Edge, Node
@@ -67,7 +68,7 @@ class AtlassianConnector:
         ordered = list(dict.fromkeys(k for k in keys if k))
         found: dict[str, dict] = {}
         cmd, args, env = self._spawn()
-        for chunk in _chunks(ordered, batch):
+        for chunk in chunks(ordered, batch):
             jql = "key in (" + ", ".join(chunk) + ")"
             res = call_tool(
                 cmd, args, "searchJiraIssuesUsingJql",
@@ -83,11 +84,6 @@ class AtlassianConnector:
 
 
 # --- pure parsing of fetched payloads (no network) -------------------------
-
-def _chunks(seq, n):
-    for i in range(0, len(seq), n):
-        yield seq[i:i + n]
-
 
 def parse_search_issues(result) -> list:
     """Issue nodes out of a searchJiraIssuesUsingJql result (Rovo or REST shape)."""

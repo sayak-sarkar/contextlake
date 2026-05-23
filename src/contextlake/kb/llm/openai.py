@@ -9,19 +9,10 @@ key work with the variable unset.
 
 from __future__ import annotations
 
-import json
 import os
-import urllib.request
 
+from .._util import post_json
 from .base import LlmClient
-
-
-def _post_json(url: str, payload: dict, headers: dict, timeout: float) -> dict:
-    body = json.dumps(payload).encode()
-    head = {"Content-Type": "application/json", **(headers or {})}
-    req = urllib.request.Request(url, data=body, headers=head)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - configured URL
-        return json.loads(resp.read().decode())
 
 
 class OpenAILlm(LlmClient):
@@ -44,9 +35,9 @@ class OpenAILlm(LlmClient):
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        res = _post_json(f"{self.base_url}/chat/completions",
-                         {"model": self.model, "messages": messages},
-                         self._headers(), self.timeout)
+        res = post_json(f"{self.base_url}/chat/completions",
+                        {"model": self.model, "messages": messages},
+                        self.timeout, headers=self._headers())
         choices = res.get("choices") or []
         if not choices:
             return ""

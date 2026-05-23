@@ -54,7 +54,7 @@ def test_ollama_generate(monkeypatch):
         seen["payload"] = payload
         return {"response": "  hello world  "}
 
-    monkeypatch.setattr(ollama_mod, "_post_json", fake_post)
+    monkeypatch.setattr(ollama_mod, "post_json", fake_post)
     out = OllamaLlm(model="m", base_url="http://x:11434/").generate("hi", system="be precise")
 
     assert out == "hello world"  # stripped
@@ -90,12 +90,12 @@ def test_builtin_generate_mocked(monkeypatch):
 
 
 def test_auto_prefers_reachable_ollama(monkeypatch):
-    monkeypatch.setattr(base_mod, "_ollama_reachable", lambda *a, **k: True)
+    monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: True)
     assert isinstance(build_llm(LlmCfg(enabled=True, provider="auto")), OllamaLlm)
 
 
 def test_auto_falls_back_to_builtin(monkeypatch):
-    monkeypatch.setattr(base_mod, "_ollama_reachable", lambda *a, **k: False)
+    monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: False)
     monkeypatch.setattr(
         base_mod.importlib.util, "find_spec",
         lambda name: object() if name == "llama_cpp" else None,
@@ -104,6 +104,6 @@ def test_auto_falls_back_to_builtin(monkeypatch):
 
 
 def test_auto_returns_none_when_nothing_available(monkeypatch):
-    monkeypatch.setattr(base_mod, "_ollama_reachable", lambda *a, **k: False)
+    monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: False)
     monkeypatch.setattr(base_mod.importlib.util, "find_spec", lambda name: None)
     assert build_llm(LlmCfg(enabled=True, provider="auto")) is None  # no raise
