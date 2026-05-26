@@ -85,8 +85,8 @@ Examples:
 
     setup_logging()
 
-    # Load configuration
-    config = load_config()
+    # Load configuration (honouring an explicit --config path if given)
+    config = load_config(args.config)
     
     # Override config with CLI arguments if provided
     work_dir = args.work_dir or config.get('work_dir', DEFAULT_CONFIG['work_dir'])

@@ -5,6 +5,8 @@ Configuration loading for gitlab_sync
 import configparser
 import os
 
+from .logging_setup import log
+
 # Configuration file paths
 CONFIG_FILE = os.path.expanduser('~/.gitlab_sync.ini')
 LOCAL_CONFIG_FILE = '.gitlab_sync.ini'
@@ -35,29 +37,31 @@ DEFAULT_CONFIG = {
 }
 
 
-def load_config(config_path=None):
-    """Load configuration from config files with precedence: local > global > defaults."""
-    config = DEFAULT_CONFIG.copy()
+def _merge(config, path):
+    """Merge the [gitlab_sync] section of an INI file into config, if present."""
+    if not path or not os.path.exists(path):
+        return
     parser = configparser.ConfigParser()
-    
-    # Try local config first
-    if os.path.exists(LOCAL_CONFIG_FILE):
-        parser.read(LOCAL_CONFIG_FILE)
-        if 'gitlab_sync' in parser:
-            config.update(parser['gitlab_sync'])
-    
-    # Then try global config
-    if os.path.exists(CONFIG_FILE):
-        parser.read(CONFIG_FILE)
-        if 'gitlab_sync' in parser:
-            config.update(parser['gitlab_sync'])
-    
-    # If custom config path provided, use it
-    if config_path and os.path.exists(config_path):
-        parser.read(config_path)
-        if 'gitlab_sync' in parser:
-            config.update(parser['gitlab_sync'])
-    
+    parser.read(path)
+    if 'gitlab_sync' in parser:
+        config.update(parser['gitlab_sync'])
+
+
+def load_config(config_path=None):
+    """Load configuration with precedence: explicit --config > local > global > defaults.
+
+    Sources are merged from lowest to highest precedence so the later (more
+    specific) source wins on conflicting keys.
+    """
+    config = DEFAULT_CONFIG.copy()
+    _merge(config, CONFIG_FILE)         # global (~/.gitlab_sync.ini)
+    _merge(config, LOCAL_CONFIG_FILE)   # local workspace config
+    _merge(config, config_path)         # explicit --config path
+
+    if config.get('gitlab_group') == DEFAULT_CONFIG['gitlab_group']:
+        log("WARNING: gitlab_group is still the placeholder 'your-gitlab-group'. "
+            "Copy .gitlab_sync.ini.example to .gitlab_sync.ini and set your group.")
+
     return config
 
 
