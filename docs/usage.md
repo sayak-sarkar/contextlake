@@ -28,9 +28,9 @@ Missing:                  1        # on GitLab but not cloned yet
 Extra:                    1        # cloned locally but not on GitLab
 ```
 
-- **Missing** = a repo exists on GitLab but isn't in your workspace — `clone` (or
+- **Missing** = a repo exists on GitLab but isn't in your workspace, `clone` (or
   `sync`) will fetch it.
-- **Extra** = a repo is in your workspace but not on GitLab — usually one that was
+- **Extra** = a repo is in your workspace but not on GitLab, usually one that was
   renamed, archived, or removed there; `contextlake` leaves it alone for you to review.
 
 A fully synced workspace shows `0` for both.
@@ -150,7 +150,7 @@ contextlake sync --no-audit             # run sync without the audit step
 It classifies each repo as **empty** (no commits/files), **readme-only** (just a template
 README), **boilerplate** (only meta files), or **content**, and reports each repo's
 **creation date** (GitLab `created_at`, captured during fetch; falls back to the first git
-commit) and **last commit date** (from the local clone) — with an aggregate summary
+commit) and **last commit date** (from the local clone), with an aggregate summary
 (counts, oldest/newest, how many stale over 1–2 years, repos with no commits). The full
 per-repo table is written as JSON **and** CSV. The scan is parallel, read-only, and works
 offline from the fetch cache.
@@ -168,7 +168,7 @@ The tool supports configuration files for persistent settings. Configuration is 
 
 > **Upgrading from `gitlab-sync`?** Your existing `~/.gitlab_sync.ini` / `.gitlab_sync.ini`
 > (with its `[gitlab_sync]` section) is still read, and the knowledge store at
-> `~/.gitlab-sync/` is reused as-is — nothing to migrate. New setups use `.contextlake.ini`
+> `~/.gitlab-sync/` is reused as-is, nothing to migrate. New setups use `.contextlake.ini`
 > and `~/.contextlake/`; the `gitlab-sync` command also still works as a deprecated alias.
 
 **Example configuration file (.contextlake.ini):**
@@ -246,12 +246,12 @@ contextlake --config /path/to/custom.ini sync
 ## Branch Safety
 
 The tool protects your local work without getting in your way. The guiding rule:
-**a clean repo is always safe to act on — the branch name alone never causes a skip.**
+**a clean repo is always safe to act on, the branch name alone never causes a skip.**
 The only thing that blocks an `update` is a *dirty working tree*.
 
 ### Safety Checks
 
-1. **Clean Workspace Check** (the main guard): detects a dirty working tree —
+1. **Clean Workspace Check** (the main guard): detects a dirty working tree, 
    uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
    `update` and `branches` so local work is never clobbered.
 2. **Automatic Stashing**: optionally stashes a dirty tree so `update` can proceed
@@ -259,7 +259,7 @@ The only thing that blocks an `update` is a *dirty working tree*.
 3. **Working-Branch Protection** (applies to `branches` only): keeps the `branches`
    command from switching a repo off a branch outside `safe_branches`, so you are
    never moved off a feature branch you are working on. This does **not** affect
-   `update` — a clean feature branch is still pulled.
+   `update`, a clean feature branch is still pulled.
 
 ### Configuration
 
@@ -274,7 +274,7 @@ The only thing that blocks an `update` is a *dirty working tree*.
 
 **`update` (fetch + fast-forward the current branch):**
 
-- A **clean** repo is updated on whatever branch it is on — feature branches included.
+- A **clean** repo is updated on whatever branch it is on, feature branches included.
 - A repo with a **dirty working tree** is skipped (or stashed first, if `auto_stash` is on).
 
 **`branches` (switch to the most active branch):**
