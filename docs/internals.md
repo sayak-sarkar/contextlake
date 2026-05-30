@@ -212,9 +212,9 @@ To identify the most active branch the tool:
 
 The `branch_strategy` setting controls step 3:
 
-- `commits` — rank purely by commit count (legacy behaviour)
-- `recency` — rank purely by most recent commit
-- `hybrid` (default) — a weighted blend of normalized commit count and recency,
+- `commits`, rank purely by commit count (legacy behaviour)
+- `recency`, rank purely by most recent commit
+- `hybrid` (default), a weighted blend of normalized commit count and recency,
   so a branch that is both busy and recently active wins; this avoids picking a
   long-lived branch that has gone stale, or a brand-new branch with few commits
 
@@ -373,7 +373,7 @@ over the mirrored repos. Its pieces:
 
 - **Model & store** (`kb/model.py`, `kb/store/`): pydantic `Node`/`Edge`/`Repo` carry
   provenance + confidence; a SQLite + FTS5 cross-repo index (`sqlite_store.py`) is
-  built from per-repo JSON **shards** (`shards.py`) — the durable source of truth.
+  built from per-repo JSON **shards** (`shards.py`), the durable source of truth.
   Each shard is also snapshotted by commit under `history/` for bi-temporal queries.
 - **Extraction** (`kb/parse.py`, `kb/manifest.py`, `kb/references.py`): tree-sitter
   builds the code graph (defs/imports/containment + an inferred call graph) for
