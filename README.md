@@ -39,14 +39,9 @@ no code leaves your machine, and it carries no credentials of its own.
 contextlake is three layers you adopt one at a time. The mirror is useful on its own, and
 each layer above it is optional.
 
-```
-   your repos            contextlake                         your AI tools
-  ┌───────────┐   index   ┌──────────────────────┐   serve   ┌──────────────────┐
-  │  GitLab   │ ────────▶ │  graph · embeddings  │ ────────▶ │  Claude Code     │
-  │  group    │  mirror   │  wiki · connectors   │   (MCP)   │  Windsurf · Kiro │
-  └───────────┘           └──────────────────────┘           └──────────────────┘
-   Figma / Jira ───────────────▲ (optional connectors)        Cursor · Postman …
-```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/architecture.jpg" width="860" alt="contextlake architecture. On the left, your repos: a GitLab group, plus optional Figma, Jira, and other MCP connectors. In the centre, contextlake indexes and mirrors them into a graph and embeddings, a wiki, and connectors. On the right, it serves the result over MCP to your AI tools: Claude Code, Windsurf, Kiro, Cursor, and Postman.">
+</p>
 
 1. **Mirror**: clone every repo you can reach in a GitLab group into a faithful copy of its
    namespace tree, each on its most active branch, kept fresh with one command. *(The source
