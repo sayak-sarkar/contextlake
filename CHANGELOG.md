@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.1] - 2026-06-26
+
 ### Changed
 
-- **README overhaul**, corrected the primary install to `pip install contextlake` (the old
-  `pip install .` only works from a clone), led with the value prop + a real graph screenshot and
-  the Pebble mascot, added a dual-render-safe "How it works" architecture flow, and tightened the
-  prose. Images are committed PNG/JPG with absolute URLs so the README renders identically on GitHub
-  and PyPI (no SVG-only assets).
+- **README overhaul** (this also fixes the instruction shown on PyPI): corrected the primary install
+  to `pip install contextlake` (the old `pip install .` only works from a clone), led with the value
+  prop, a real graph screenshot, the Pebble mascot, and a branded "How it works" architecture diagram,
+  and tightened the prose. Images are committed PNG/JPG with absolute URLs so the README renders
+  identically on GitHub and PyPI (no SVG-only assets). Removed em-dashes across the prose docs.
 
 ## [2.9.0] - 2026-06-26
 
