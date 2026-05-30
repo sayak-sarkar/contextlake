@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble-hero.png" alt="Pebble, the contextlake otter, surfacing from a lake holding a glowing drop of context" width="190" height="190">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble-hero.png" alt="Pebble, the contextlake otter, surfacing from the lake cradling a glowing translucent pebble of context" width="230">
 </p>
 <h1 align="center">contextlake</h1>
 <p align="center"><strong>All your real context, in one local lake.</strong></p>
