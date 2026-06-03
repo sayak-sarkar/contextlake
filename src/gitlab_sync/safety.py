@@ -2,8 +2,8 @@
 Branch safety functions for gitlab_sync
 """
 
-import subprocess
 import os
+import subprocess
 
 
 def has_uncommitted_changes(full_path):
@@ -46,18 +46,18 @@ def check_repository_safety(local_path, work_dir, config):
     full_path = os.path.join(work_dir, local_path)
     protect_working_branches = config.get('protect_working_branches', 'true').lower() == 'true'
     require_clean_workspace = config.get('require_clean_workspace', 'true').lower() == 'true'
-    
+
     warnings = []
-    
+
     if protect_working_branches:
         current_branch = get_current_branch(full_path)
         if current_branch and not is_safe_branch(current_branch, config):
             warnings.append(f"On working branch: {current_branch}")
-    
+
     if require_clean_workspace:
         if has_uncommitted_changes(full_path):
             warnings.append("Uncommitted changes detected")
-    
+
     return len(warnings) == 0, warnings
 
 
@@ -66,7 +66,7 @@ def stash_changes(full_path, config):
     auto_stash = config.get('auto_stash', 'false').lower() == 'true'
     if not auto_stash:
         return False, "Auto-stash disabled in config"
-    
+
     try:
         result = subprocess.run(
             ['git', 'stash', 'push', '-m', 'gitlab_sync_auto_stash'],
