@@ -1,73 +1,117 @@
 # contextlake mascot
 
-> A spec for the brand's character. Finished artwork needs a designer or image model —
-> this gives them everything to work from, plus a rough ASCII sketch and a ready prompt.
+> Canon for Pebble and the context-pebble. The full system lives in
+> [BRANDING.md](../../BRANDING.md) section 5; this file is the working spec for generating
+> artwork. Finished art needs a designer or an image model. No em-dashes; lowercase
+> "contextlake" always.
 
-## Concept
+## Who Pebble is
 
-A friendly **otter**. An otter *dives into the water and surfaces holding exactly the thing
-it went for* — real otters famously come up clutching a favourite item. That's precisely
-what contextlake does: it dives through your pooled sources and brings the *right* piece of
-context up to the surface for your AI. Playful, quick, and a little proud of what it finds.
+**Pebble** is a small, friendly, innocent-faced **dark blue-grey river otter** who surfaces
+from the contextlake cradling a glowing translucent **context-pebble** in both forepaws,
+offering it forward. Read in one beat: "I went down, I found the real thing, here it is."
+Calm, competent, never frantic. Pebble embodies the anti-hallucination promise: it returns
+with real context, not a guess.
 
-> **Why an otter** (vs. a heron or beaver): the heron reads "precise but stern" and the
-> beaver "industrious builder"; the otter reads "dives and surfaces the right thing" —
-> friendly *and* exactly the retrieval metaphor the tool is about. If you ever prefer a
-> calmer, more elegant feel, the heron spec applies — swap the species.
+## Silhouette and proportions
 
-## Name — **Pebble**
+- Rounded, buoyant, river-smoothed. Soft pebble-like mass, no sharp anatomy.
+- Head-to-body ratio 1:1.6 (deliberately juvenile and cute).
+- Broad rounded head; short muzzle (35% of head width or less); small rounded ears set wide and low.
+- Large round dark eyes about 40% down the face, one soft upper-left catch-light only.
+- Small rounded heart/triangle nose in deepwater.
+- Small 4-digit forepaws always cradling the pebble from below (cup, never grip).
+- Recognizable as a solid silhouette at 10% size, with the pebble glow as the single brightest point.
 
-**Pebble** — an otter's prized possession is its pebble; here the pebble *is* the nugget of
-context it surfaces. Warm, concrete, memorable. (Considered and set aside: *Otto*, the easy
-obvious otter name, and *Ripple*, tied to the lake.)
+## Fur and body color (illustration ramp)
 
-## Personality
+| Zone | Hex |
+| --- | --- |
+| Primary fur (back, head, tail) | `#23424B` |
+| Mid fur / form transition (also the flat mark body) | `#2F5A63` |
+| Belly, chest, muzzle, brow | `#6E8E92` |
+| Inner-ear / paw-pad | `#8A9C8F` |
+| Nose, eye iris | `#0E2A33` (deepwater, the darkest allowed point) |
+| Eye catch-light | `#EAF4F4` |
 
-Warm, quick, plain-spoken — the same voice as the brand. Helpful without showing off;
-surfaces facts, never guesses ("I only bring up what I actually found down there").
+Wet-fur sheen is soft mist highlights at low opacity, never discrete water droplets.
 
-## Visual design
+## The context-pebble (the most controlled element)
 
-- **Species:** a rounded, cartoon river otter — soft, app-icon-friendly silhouette.
-- **Signature prop:** holds up a small glowing **pebble of context** (a smooth stone or a
-  faceted droplet) — the piece of knowledge it just surfaced.
-- **Optional gesture:** mid-surface, water sheeting off, the pebble held proudly in both paws.
-- **Palette:** otter body in **Lake `#137A8B`** deepening to **Deepwater `#0E2A33`**, with a
-  **Shore `#D7C5A0`** muzzle/belly; the pebble glows **Sun `#E7B53C`** or **Current
-  `#2BB3A3`**; set on **Mist `#EAF4F4`** water.
-- **Shapes:** rounded, friendly, low-detail so it reads at favicon size.
+- Smooth polished **translucent agate / sea-glass**, lit from within; a rounded organic
+  pebble, slightly taller than wide. No facet edges that read as a cut gem.
+- Inner glow: core **current `#2BB3A3`** falling off to **lake `#137A8B`**, with a thin
+  **mist `#EAF4F4`** rim where it meets dark fur. The glow is the brightest value present.
+- Exactly **one** small warm **sun `#E7B53C`** glint near the upper third. One glint, never a constellation.
+- It casts a soft teal glow onto Pebble's paws, chest, and chin.
+- Painterly scale: 45 to 55% of head width (a co-subject, never larger than the head).
 
-## Poses & expressions
+**Hard rule:** NOT an amber sphere with star-dots (Dragon Ball), NOT a faceted crystal or
+gem, NOT a gold nugget, NOT a node-graph inside. The knowledge-graph idea lives in large
+illustration and the product UI, never inside the carried pebble.
 
-- **Hero:** surfacing from the water holding the glowing pebble of context (default avatar /
-  social).
-- **Thinking:** floating on its back beside a small ripple, paw to chin (docs, "how it works").
-- **Done:** a happy spin with a tidy row of pebbles lined up (success states, "bootstrap
-  complete").
+## Expressions (the only approved set)
+
+Calm-warm (default), quietly proud / presenting (at a CTA), curious-focused (looking toward
+content), friendly-delight (sparing, for success). Out of canon: anxious, sweating,
+surprised, angry, sad, sleepy, winking, tongue-out, any overacting.
+
+## Poses
+
+Presenting (hero, front-facing at the waterline, both paws forward), diving / snorkel
+(fetching or indexing states, may be empty-pawed), surfacing (loading to success), peeking
+corner accent (small, decorative), resting-on-pebble (idle, glow dimmed). **Gaze always
+points toward the content, the CTA, or the pebble, never off-page.**
+
+## Dual register
+
+- **Painterly Pebble:** rich, dimensional, subsurface glow, soft volumetric light, no hard
+  outlines (forms separate by value and rim light). For hero, OG/social, large illustration, onboarding.
+- **Flat Pebble / logo mark:** bold front-facing otter-head, clean sticker/stamp fills,
+  deepwater `#0E2A33` keyline (never black). For logo, favicon, app icon, small UI. See BRANDING.md section 2.
 
 ## Do / don't
 
-- **Do** keep it rounded, warm, and on-palette; let the glyph (lake layers + ripple) echo in
-  the background.
-- **Don't** make it photoreal, add lots of detail, give it edginess/weapons, or recolor
-  outside the palette.
-
-## Rough sketch
-
-```
-        .---.
-       (o   o)      Pebble — an otter who dives through your
-       (  ^  )      pooled sources and surfaces holding the
-      /  \_/  \     one piece of context you actually need.
-     (    (*)  )    (*) = a freshly-surfaced pebble of
-    ~~~~~~~~~~~~~~        knowledge, glowing warm
-```
+- **Do:** keep the pebble glow the single brightest point; cast its teal glow onto Pebble;
+  aim the painterly gaze at content/CTA/pebble; use deepwater `#0E2A33` as the darkest value.
+- **Don't:** node-graph or star-dots inside the pebble; amber sphere, faceted gem, or
+  gold-nugget pebble; water droplets on the face; hard black outlines or any `#000`;
+  off-page stare; more than one gold glint; anxious/silly expressions; two-Pebble
+  compositions; Pebble over a live graph; AI-generated wordmark.
 
 ## Image-generation prompt
 
-> Flat vector mascot logo of a friendly cartoon **river otter**, rounded and simple,
-> surfacing from still water and proudly holding up a small glowing pebble of knowledge in
-> both paws, water droplets sheeting off. Cool palette: lake teal (#137A8B) deepening to
-> deep teal (#0E2A33), warm sand muzzle (#D7C5A0), warm amber glow on the pebble (#E7B53C),
-> on a misty pale background (#EAF4F4). Warm, trustworthy, low-detail, app-icon friendly,
-> centered, no text. Subtle concentric surface ripples around it.
+Generate the painterly background without text, then overlay the wordmark in real Space
+Grotesk. Never ship a single AI generation with baked-in lettering. Vary only [POSE] and [CONTEXT].
+
+> Mascot illustration of **Pebble**, a cute innocent-faced **dark blue-grey river otter**
+> with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle,
+> large soft dark eyes with a single upper-left catch-light, small rounded ears. Fur in deep
+> blue-grey teal tones (`#23424B` back, `#2F5A63` midtone, `#6E8E92` mist-lifted belly),
+> deepwater `#0E2A33` nose, no pure black. Pebble is **[POSE]**, cradling in both forepaws a
+> **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner
+> glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint
+> (`#E7B53C`)**; the pebble is lit from within and casts a soft teal glow onto Pebble's paws
+> and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**. Calm, trustworthy,
+> friendly-but-precise mood. **[STYLE BLOCK]**. Gaze directed toward the context-pebble.
+> Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore
+> `#D7C5A0`, gold `#E7B53C`.
+
+**[STYLE BLOCK] painterly:** Rich dimensional painterly illustration, soft volumetric
+subsurface lighting, gentle rim light in mist `#EAF4F4`, no hard outlines, forms separated by
+value and color, soft depth-of-field lake background.
+
+**[STYLE BLOCK] flat/logo:** Flat bold vector mascot mark, clean filled shapes, front-facing
+otter head, single deepwater `#0E2A33` keyline outline (never black), sticker/stamp style,
+legible at small sizes, flat background.
+
+**Negative prompt (always include):** amber sphere, glowing orb with star dots, dragon ball,
+faceted crystal, cut gem, gold nugget, network graph inside the stone, glowing nodes inside,
+water droplets on face, sweat drops, tears, anxious expression, shocked face, angry, sleepy,
+hard black outlines, pure black, neon, text, watermark, two otters, realistic otter anatomy,
+off-page stare.
+
+**Slot examples:** Hero = [POSE] surfacing at the waterline presenting the pebble forward,
+[CONTEXT] soft sunrise mist on calm reflective water, painterly. Loading = [POSE] diving
+downward wearing a small snorkel, [CONTEXT] deeper teal underwater light, painterly. Favicon
+= [POSE] front-facing head-and-shoulders only, pebble centered below the chin, flat.
