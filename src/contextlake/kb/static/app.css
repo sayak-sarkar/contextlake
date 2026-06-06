@@ -160,6 +160,7 @@
     justify-content:center;gap:6px;color:var(--muted);text-align:center;padding:20px}
   #empty.show{display:flex}
   #empty .et{font-size:14px;color:var(--text);font-weight:600}
+  #empty .peek{width:118px;height:auto;margin-bottom:16px;opacity:.96;filter:drop-shadow(0 6px 18px rgba(0,0,0,.35))}
   #empty code{background:var(--surface-2);padding:1px 5px;border-radius:4px;font-size:11px}
   #cy.loading::after{content:"";position:absolute;top:0;left:0;height:2px;width:28%;
     background:var(--accent);animation:ld 1s var(--ease) infinite}
