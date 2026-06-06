@@ -180,5 +180,3 @@ contextlake bootstrap --kb-config ~/.contextlake/kb.toml
 ## License
 
 MIT, see [LICENSE](LICENSE). Pebble the otter is the project mascot; *deep context, clear answers.*
-
-<p align="center"><img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble-peek.png" alt="Pebble, the contextlake otter, peeking over the edge" width="240"></p>
