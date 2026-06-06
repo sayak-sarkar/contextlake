@@ -1,5 +1,3 @@
-<p align="center"><a href="../README.md"><img src="branding/glyph.svg" alt="contextlake" width="52" height="52"></a></p>
-
 # Command & configuration guide
 
 > Every command, plus configuration, branch safety, and scheduling. New here?

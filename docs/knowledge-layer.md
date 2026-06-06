@@ -1,5 +1,3 @@
-<p align="center"><a href="../README.md"><img src="branding/glyph.svg" alt="contextlake" width="52" height="52"></a></p>
-
 # Knowledge layer
 
 An optional subsystem (`contextlake.kb`) turns your mirrored repositories into a
