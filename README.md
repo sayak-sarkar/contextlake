@@ -16,11 +16,6 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT">
 </p>
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph.jpg" alt="The contextlake graph visualizer showing a repository's symbols as a navigable node graph, with a type-glyph legend, search, and a corner minimap" width="840">
-</p>
-<p align="center"><em><code>contextlake graph</code>, a whole codebase as one offline, navigable graph.</em></p>
-
 ---
 
 ## Why contextlake
@@ -90,6 +85,11 @@ contextlake index --source .          # parse this repo into a local knowledge g
 contextlake graph --overview --open   # open the interactive graph in your browser
 contextlake serve                     # …or serve it to your AI IDE over MCP
 ```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph.jpg" alt="The contextlake graph visualizer showing a repository's symbols as a navigable node graph, with a type-glyph legend, search, and a corner minimap" width="840">
+</p>
+<p align="center"><em><code>contextlake graph</code>, a whole codebase as one offline, navigable graph.</em></p>
 
 Everything lands in a local store (`~/.contextlake/kb`), nothing leaves your machine. Index
 any path with `--source PATH`, or every git repo under a directory with `--workspace DIR`.
