@@ -1,3 +1,5 @@
+<p align="center"><a href="https://github.com/sayak-sarkar/contextlake#readme"><img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/icon-64.png" alt="contextlake" width="64"></a></p>
+
 # Quick start
 
 From a fresh machine to a fully-wired AI workspace, your GitLab repos mirrored,
