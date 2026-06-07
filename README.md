@@ -82,12 +82,22 @@ are equivalent.
 
 ## Quickstart: one repo, no setup
 
-You don't need GitLab or any config to try contextlake on a repo you already have:
+You don't need GitLab or any config to try contextlake on a repo you already have.
+No install? Run it once with [`uvx`](https://docs.astral.sh/uv/): prefix any command
+below with `uvx --from "contextlake[kb]"` (e.g. `uvx --from "contextlake[kb]" contextlake index --source .`).
 
 ```bash
 contextlake index --source .          # parse this repo into a local knowledge graph
 contextlake graph --overview --open   # open the interactive graph in your browser
 contextlake serve                     # …or serve it to your AI IDE over MCP
+```
+
+**Wire it into your editor in one line**, no config file needed (it uses the local
+`~/.contextlake/kb` store you just built):
+
+```bash
+claude mcp add contextlake -- contextlake serve      # Claude Code
+# zero-install variant: claude mcp add contextlake -- uvx --from "contextlake[kb]" contextlake serve
 ```
 
 <p align="center">
