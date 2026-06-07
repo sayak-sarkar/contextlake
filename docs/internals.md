@@ -22,21 +22,12 @@ The tool uses a hierarchical configuration system with the following precedence:
 
 3. **CLI Arguments**: Override all other settings
 
-**Configuration Loading Flow:**
+**Configuration loading flow** — `load_config()` merges each layer over the one
+before it, so the most specific source wins:
 
-```text
-load_config()
-  ↓
-Check for local config (.contextlake.ini)
-  ↓
-Check for global config (~/.contextlake.ini)
-  ↓
-Merge with DEFAULT_CONFIG
-  ↓
-Apply CLI argument overrides
-  ↓
-Return final config dictionary
-```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the local ./.contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
+</p>
 
 #### Core modules
 
@@ -53,29 +44,11 @@ each command in the [Usage guide](usage.md) maps onto one group:
 | **Verify / status** | Compare local vs GitLab, detect nested `.git`, report missing / extra / synced. |
 | **CLI** | `main()` loads config, parses args (CLI overrides config), and dispatches to a command handler. |
 
-### Data Flow
+### Data flow
 
-```text
-User Command
-    ↓
-Argument Parsing (argparse)
-    ↓
-Command Dispatch
-    ↓
-┌─────────────────────────────────────┐
-│ GitLab API (glab)                    │
-│ ↓                                    │
-│ Cache Files (/tmp/*.txt, *.json)     │
-│ ↓                                    │
-│ Local Workspace (find .git)          │
-│ ↓                                    │
-│ Comparison & Analysis                │
-│ ↓                                    │
-│ Git Operations (clone, fetch, pull)  │
-│ ↓                                    │
-│ Logging & Reporting                  │
-└─────────────────────────────────────┘
-```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/data-flow.png" alt="Sync data flow: a contextlake command is parsed and dispatched, then fetches the accessible projects via glab, caches them, scans the workspace for local .git repos, compares GitLab vs local, runs git operations (clone/fetch/pull/switch), and logs a per-repo report." width="340">
+</p>
 
 ### Concurrency Model
 
