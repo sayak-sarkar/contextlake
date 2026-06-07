@@ -38,100 +38,20 @@ Apply CLI argument overrides
 Return final config dictionary
 ```
 
-#### Core Functions
+#### Core modules
 
-1. **`load_config()`**
+The sync core is plain Python (stdlib only). Its functions group by responsibility,
+each command in the [Usage guide](usage.md) maps onto one group:
 
-   - Loads configuration from INI files
-   - Supports local, global, and custom config files
-   - Expands tilde (~) for home directory paths
-   - Returns configuration dictionary
-
-2. **`get_cache_paths(config)`**
-
-   - Constructs cache file paths from configuration
-   - Returns tuple of (cache_file, cache_json)
-
-3. **`fetch_gitlab_projects(gitlab_group, config)`**
-
-   - Uses `glab api projects?membership=true` to fetch all accessible projects
-   - Filters projects by group prefix (e.g., `your-gitlab-group/`)
-   - Works even without direct access to top-level group
-   - Supports subgroups automatically via prefix filtering
-   - Filters out archived repositories
-   - Caches results in JSON and plain text formats (paths from config)
-
-4. **`load_gitlab_projects(config, gitlab_group)`**
-
-   - Loads cached project data from configured cache file
-   - Parses pipe-delimited format: `path|ssh_url|http_url|default_branch|archived`
-   - Returns dictionary keyed by local path
-
-5. **`get_local_repos(work_dir)`**
-
-   - Uses `find` command to locate all `.git` directories
-   - Extracts repository paths by removing `.git` suffix
-   - Returns set of local repository paths
-
-6. **`clone_repository(project, work_dir, config)`**
-
-   - Creates parent directories as needed
-   - Executes `git clone` with timeout from config
-   - Returns status tuple: `(status, path, message)`
-
-7. **`clone_missing_repos(work_dir, config, gitlab_group)`**
-
-   - Identifies repositories to clone by comparing GitLab vs local
-   - Uses ThreadPoolExecutor with max_workers from config
-   - Tracks successes and failures separately
-
-8. **`update_repository(local_path, work_dir, config)`**
-
-   - Fetches all remote branches (timeout from config)
-   - Identifies current branch
-   - Pulls latest changes from origin (timeout from config)
-   - Handles detached HEAD states
-
-9. **`update_repositories(work_dir, config)`**
-
-   - Processes all local repositories concurrently
-   - Uses max_workers from config
-   - Reports updates, no-change cases, and errors
-
-10. **`switch_repository_branch(local_path, projects, work_dir, config)`**
-
-    - Fetches all remote branches (timeout from config)
-    - Calculates commit count for each branch using `git rev-list --count` (timeout from config)
-    - Sorts branches by commit count (descending)
-    - Switches to most active branch if different from current
-    - Pulls latest changes after switching (timeout from config)
-
-11. **`switch_active_branches(work_dir, config, gitlab_group)`**
-
-    - Processes all repositories concurrently
-    - Uses max_workers from config
-    - Tracks switched, already-correct, skipped, and error cases
-
-12. **`verify_structure(work_dir, config, gitlab_group)`**
-
-    - Detects nested `.git` directories (indicates incorrect structure)
-    - Compares local vs GitLab repository lists
-    - Reports extra and missing repositories
-    - Validates structure matches GitLab exactly
-
-13. **`show_status(work_dir, config, gitlab_group)`**
-
-    - Displays current synchronization state
-    - Shows GitLab project count, local repo count
-    - Lists synchronized, missing, and extra repositories
-
-14. **`main()`**
-
-    - Entry point for CLI application
-    - Loads configuration
-    - Parses CLI arguments
-    - Overrides config with CLI arguments
-    - Dispatches to appropriate command handler
+| Responsibility | What it does |
+| --- | --- |
+| **Config** | Load and merge INI files (local / global / custom), expand `~`, resolve cache paths. |
+| **Discover** | `fetch` accessible GitLab projects (via `glab`, filtered by group prefix, archived dropped) and cache them; enumerate local `.git` repos. |
+| **Clone** | Clone missing repos concurrently (`ThreadPoolExecutor`, `max_workers`), creating namespace parents, with per-op timeouts. |
+| **Update** | Fetch + fast-forward each repo's current branch concurrently, handling detached HEAD. |
+| **Branches** | Rank each repo's branches by `git rev-list --count` and switch to the most active (subject to branch safety). |
+| **Verify / status** | Compare local vs GitLab, detect nested `.git`, report missing / extra / synced. |
+| **CLI** | `main()` loads config, parses args (CLI overrides config), and dispatches to a command handler. |
 
 ### Data Flow
 
