@@ -480,6 +480,18 @@ sudo cat > /etc/logrotate.d/contextlake << 'EOF'
 EOF
 ```
 
+## Troubleshooting
+
+| Symptom | What to do |
+| --- | --- |
+| **"Cache file not found"** | Run `contextlake fetch` first to populate the projects cache. |
+| **"Permission denied" during cloning** | Make sure `glab` is authenticated (`glab auth login`) and you can reach the repositories. |
+| **"Timeout" errors** | Raise the relevant `*_timeout` settings, check connectivity, or lower `max_workers` (set it to `1` to run serially). Behind a TLS-inspecting proxy, set `GITLAB_TOKEN` so enumeration uses the built-in HTTP client. |
+| **"Detached HEAD" states** | Handled automatically, the repo is skipped for pulls rather than failing. |
+| **Nested `.git` directories** | A repo cloned into a subfolder of itself. `contextlake verify` flags it; fix by moving the inner tree up one level and removing the empty folder. |
+| **Cron job not running** | Check `crontab -l`, use absolute paths, and test the exact command in a shell first; inspect cron logs (`grep CRON /var/log/syslog`). See [Scheduling & automation](#scheduling-automation). |
+| **Large log files** | Set up log rotation, see [Scheduling & automation](#scheduling-automation). |
+
 ## Best Practices
 
 1. **Initial Setup**: Run `contextlake sync` once to set up full workspace
