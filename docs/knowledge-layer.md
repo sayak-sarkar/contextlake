@@ -101,12 +101,9 @@ Code indexing uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
 TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads
 manifests (`pyproject.toml`, `package.json`, `*.csproj`) to build a **cross-repo
-dependency graph** through shared package nodes. Over MCP, agents get tools to
-traverse it: `search_code`, `find_definition`, `find_callers`, `find_dependents`,
-`get_neighbors`, `shortest_path`, `graph_stats`, the cross-repo
-`repo_dependencies` / `repo_flow` / `repo_event_flow` (which services depend on,
-call, or exchange events with which),
-`blast_radius` ("what could break if I change this"), and `get_wiki`.
+dependency graph** through shared package nodes. Agents traverse all of this over MCP,
+from finding a definition to cross-repo `blast_radius` ("what could break if I change
+this"), see [the full tool list under Serve](#serve-it-to-your-editor-mcp).
 
 ## Connectors
 
