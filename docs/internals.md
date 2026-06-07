@@ -157,55 +157,6 @@ The `your-gitlab-group/` prefix is stripped when creating local paths.
 4. **Local Operations**: All git operations are local; no external API calls beyond initial fetch
 5. **File Permissions**: Respects existing file permissions; creates directories with default umask
 
-### Troubleshooting
-
-#### Issue: "Cache file not found"
-
-**Solution**: Run `python3 contextlake.py fetch` first to populate cache
-
-#### Issue: "Permission denied" during cloning
-
-**Solution**: Ensure `glab` is authenticated and you have access to the repositories
-
-#### Issue: "Timeout" errors
-
-**Solution**:
-
-- Increase timeout values in the script
-- Check network connectivity
-- Reduce ThreadPoolExecutor worker count
-- Run operations sequentially instead of concurrently
-
-#### Issue: "Detached HEAD" states
-
-**Solution**: The tool handles this automatically by skipping pull operations in detached HEAD state
-
-#### Issue: Nested `.git` directories detected
-
-**Solution**: This indicates incorrect cloning. Manually fix by:
-
-```bash
-
-# Example: repo/repo/.git
-cd repo
-mv repo/* .
-mv repo/.* . 2>/dev/null || true
-rmdir repo
-```
-
-#### Issue: Cron job not running
-
-**Solution**:
-
-- Check cron syntax: `crontab -l`
-- Verify script is executable: `ls -l contextlake.py`
-- Check cron logs: `grep CRON /var/log/syslog`
-- Test cron command manually in shell
-
-#### Issue: Large log files
-
-**Solution**: Set up log rotation (see "Log Rotation" section above)
-
 ### Extension Points
 
 The tool can be extended by:
