@@ -169,6 +169,10 @@ that fails review is written.
 Both the embeddings and wiki tiers are pluggable and take a
 `provider`, defaulting to **`"auto"`**:
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
+</p>
+
 - **`auto`** (default), resolves to a reachable local **Ollama**, else the
   **built-in** CPU model if its extra is installed, else it skips that tier. So the
   semantic/wiki tiers Just Work the moment you set `enabled = true`, with no daemon

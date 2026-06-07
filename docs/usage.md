@@ -252,6 +252,10 @@ The tool protects your local work without getting in your way. The guiding rule:
 **a clean repo is always safe to act on, the branch name alone never causes a skip.**
 The only thing that blocks an `update` is a *dirty working tree*.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
+</p>
+
 ### Safety Checks
 
 1. **Clean Workspace Check** (the main guard): detects a dirty working tree, 
