@@ -46,6 +46,10 @@ each layer above it is optional.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
+Each layer has its own guide: the mirror in **[Usage & config](docs/usage.md)**, the knowledge
+layer and serving in **[Knowledge layer](docs/knowledge-layer.md)**, and the whole flow start to
+finish in **[QUICKSTART](QUICKSTART.md)**.
+
 ## Install
 
 ```bash

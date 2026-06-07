@@ -64,6 +64,10 @@ non-zero when it finds problems, so it's CI-friendly.
 
 ## One-command setup
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then wiki, then steer." width="760">
+</p>
+
 Rather than running the steps by hand, `bootstrap`
 chains them, mirror repos → index → connect → embed → wiki → write editor steering, 
 skipping anything not enabled, so a teammate goes from nothing to a fully-wired
