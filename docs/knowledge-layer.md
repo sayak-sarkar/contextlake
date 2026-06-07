@@ -8,6 +8,8 @@ indexes *any* repositories and connects to *any* configured knowledge sources; n
 organization-specific data lives in the package (your sites, keys, and rules go in
 a private config file).
 
+## Setup
+
 Install the extra (requires Python ≥ 3.10):
 
 ```bash
@@ -27,13 +29,19 @@ contextlake graph --overview --open         # visualize the graph (HTML/dot/merm
 contextlake serve                           # expose the graph over MCP (stdio or --transport http)
 ```
 
+## Indexing
+
+### Incremental & time-travel
+
 `index --workspace` is **incremental**, it re-indexes only repos whose git HEAD
 moved since their last index, so a scheduled (cron) run stays cheap; pass `--force`
 to rebuild everything, or `--watch [--interval N]` to keep re-indexing in a loop.
 Every indexed snapshot is kept, so `query "<text>" --repo R --as-of <commit>` does
 **time-travel**, it searches repo `R` as it was at a previously-indexed commit.
 
-**Indexing is parallel and noise-pruned.** Repositories are parsed across worker
+### Parallelism & noise-pruning
+
+Repositories are parsed across worker
 processes (CPU-bound work) while the SQLite store is written serially from the
 parent, the `spawn` start method is used on every platform, so behaviour is
 identical on Linux, macOS and Windows, with an automatic serial fallback if a
@@ -45,14 +53,18 @@ machine-generated/derived files (`*.designer.cs`, `*.min.js`, `AssemblyInfo.cs`,
 what it skipped (no silent gaps). Set `[kb] skip_generated = false` or raise
 `max_file_bytes` to index them anyway.
 
-**Health & maintenance.** `contextlake doctor` is a quick environment check, SQLite
+### Health & maintenance
+
+`contextlake doctor` is a quick environment check, SQLite
 FTS5, `git`/`glab` on `PATH`, the store's reachability and counts, and the embeddings
 status, and exits non-zero if something's wrong. `contextlake lint` audits the graph
 itself, reporting **stale repos** (HEAD moved since they were indexed, so the index is
 behind) and **dangling edges** (an edge whose endpoint node is missing); it exits
 non-zero when it finds problems, so it's CI-friendly.
 
-**One command to set it all up.** Rather than running the steps by hand, `bootstrap`
+## One-command setup
+
+Rather than running the steps by hand, `bootstrap`
 chains them, mirror repos → index → connect → embed → wiki → write editor steering, 
 skipping anything not enabled, so a teammate goes from nothing to a fully-wired
 workspace in one step:
@@ -65,7 +77,9 @@ Skip stages with `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect`. For 
 isolated CLI, install with `pipx install "git+https://github.com/sayak-sarkar/contextlake"`
 (add the `[kb]` extra for the knowledge layer), or run ad-hoc with `uvx`.
 
-**Keep it fresh on a schedule.** `bootstrap` is incremental and branch-safe, so it's
+### Keep it fresh on a schedule
+
+`bootstrap` is incremental and branch-safe, so it's
 safe to run repeatedly, it re-mirrors, re-indexes only the repos whose HEAD moved,
 refreshes the knowledge layer, and rewrites the steering, without touching an
 in-progress working tree. Run it from cron:
@@ -77,7 +91,9 @@ in-progress working tree. Run it from cron:
 or as a systemd user timer, see [`examples/contextlake.service`](examples/contextlake.service)
 and [`examples/contextlake.timer`](examples/contextlake.timer).
 
-**Code indexing** uses tree-sitter to extract files, classes, functions/methods,
+## Code indexing
+
+Code indexing uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
 TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads
 manifests (`pyproject.toml`, `package.json`, `*.csproj`) to build a **cross-repo
@@ -88,7 +104,9 @@ traverse it: `search_code`, `find_definition`, `find_callers`, `find_dependents`
 call, or exchange events with which),
 `blast_radius` ("what could break if I change this"), and `get_wiki`.
 
-**Knowledge connectors** (`connect`) enrich the graph with external context. The
+## Connectors
+
+`connect` enriches the graph with external context. The
 **Atlassian** connector links each repo to the Jira issues and Confluence pages it
 references, issue keys harvested from branch/commit names are confirmed against
 the live tracker (a single batched JQL call per site prunes false-positives and
@@ -107,7 +125,9 @@ date) and confidence-tagged (`EXTRACTED` for AST facts, `INFERRED` for resolved
 calls/links, `AMBIGUOUS` for unconfirmed candidates), and all output is sanitized
 before it reaches an agent.
 
-**Semantic search** (optional) adds natural-language retrieval on top of the graph.
+## Semantic search
+
+Semantic search (optional) adds natural-language retrieval on top of the graph.
 Enable `[embeddings]` in the config (local-first, vectors come from an Ollama model
 by default, so code never leaves the machine), run `contextlake embed` to vectorize
 the indexed nodes into a local store, and `serve` then exposes two tools:
@@ -119,7 +139,9 @@ match would miss. The vector store uses an exact pure-Python cosine scan by defa
 install the optional ANN backend with `pip install "contextlake[kb-vec]"` (sqlite-vec)
 for larger workspaces.
 
-**Measuring retrieval quality** (`contextlake eval`) keeps all this falsifiable. Point
+## Measuring retrieval quality
+
+`contextlake eval` keeps all this falsifiable. Point
 it at a golden-query JSON file (`--golden`, e.g. `examples/fixtures/golden-queries.json`)
 and it reports **precision@k / recall@k / MRR** plus a **cost** dimension, estimated
 tokens per query and **precision per 1k tokens**, so "route to the cheapest sufficient
@@ -127,7 +149,9 @@ source" is a number, not a vibe. Score any retriever with `--retriever fts|seman
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then
 judged by whether the numbers move.
 
-**Curated wiki** (optional, local-first) turns the graph into prose. Enable
+## Curated wiki
+
+The wiki (optional, local-first) turns the graph into prose. Enable
 `[llm]` in the config (generation runs on a local Ollama model by default, prompts
 never leave the machine) and run `contextlake wiki`: for each repo it synthesizes a
 Markdown page grounded strictly in graph facts (top symbols, dependencies, files)
@@ -136,7 +160,9 @@ a **verification council**, reviewers score it for accuracy, completeness, and
 clarity and a chairman publishes only pages above a configurable threshold. Nothing
 that fails review is written.
 
-**Model providers are pluggable.** Both the embeddings and wiki tiers take a
+## Model providers
+
+Both the embeddings and wiki tiers are pluggable and take a
 `provider`, defaulting to **`"auto"`**:
 
 - **`auto`** (default), resolves to a reachable local **Ollama**, else the
@@ -165,7 +191,7 @@ vector store without re-embedding from scratch, a guard refuses the mismatch. Th
 prebuilt Docker image (`ghcr.io/sayak-sarkar/contextlake`) bundles these models so
 nothing downloads at runtime. See `examples/kb.toml.example`.
 
-### Visualizing the graph
+## Visualizing the graph
 
 `contextlake graph` draws a **bounded** slice of the graph, the whole thing
 (hundreds of thousands of nodes) is far too large to render, so every view is
@@ -202,7 +228,7 @@ For interactive exploration of a large graph, `contextlake graph --serve` runs a
 local web UI where clicking a node **expands** it (fetches its neighbours on
 demand) so you can walk the graph without pre-rendering all of it.
 
-### Use it from your editor or agent (MCP)
+## Serve it to your editor (MCP)
 
 `contextlake serve` is an MCP server, so any MCP client can query the graph, and
 **most of it needs no model**: the graph tools (`search_code`, `find_definition`,

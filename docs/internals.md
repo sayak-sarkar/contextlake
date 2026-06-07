@@ -326,7 +326,7 @@ The tool can be extended by:
 
 ### Dependencies
 
-- **Python 3.6+**: Core language
+- **Python 3.9+**: Core language (the optional knowledge layer needs 3.10+)
 - **configparser**: Configuration file parsing (standard library)
 - **argparse**: CLI argument parsing (standard library)
 - **subprocess**: Git and system command execution (standard library)
