@@ -170,7 +170,7 @@ One command sets it all up:
 contextlake bootstrap --kb-config ~/.contextlake/kb.toml
 ```
 
-→ Full guide: **[docs/knowledge-layer.md](docs/knowledge-layer.md)**.
+Full guide: **[docs/knowledge-layer.md](docs/knowledge-layer.md)**.
 
 ## Documentation
 
