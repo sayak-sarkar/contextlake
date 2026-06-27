@@ -229,7 +229,7 @@ def fetch_gitlab_projects(gitlab_group, config):
     (``path|ssh|http|default_branch|archived``) for quick human/script use.
     """
     cache_file, cache_json = get_cache_paths(config)
-    log(f"Fetching GitLab projects for group: {gitlab_group}")
+    log(f"Fetching GitLab projects for group: {style.cyan(gitlab_group)}")
 
     per_page = 100
     group_enc = urllib.parse.quote(gitlab_group, safe="")
@@ -272,13 +272,13 @@ def fetch_gitlab_projects(gitlab_group, config):
                     "created_at": p.get("created_at"),
                     "last_activity_at": p.get("last_activity_at"),
                 }
-        log(f"Fetched page {page}, total projects: {len(all_projects)}")
+        log(style.dim(f"Fetched page {page}, total projects: {len(all_projects)}"))
         if len(projects) < per_page:
             break
         page += 1
 
     _write_caches(all_projects, cache_json, cache_file)
-    log(f"Fetched {len(all_projects)} total projects")
+    log(f"{style.ok()} Fetched {style.bold(str(len(all_projects)))} total projects")
     return all_projects
 
 
@@ -902,13 +902,28 @@ def verify_structure(work_dir, config, gitlab_group):
     _report_list("Nested repositories (repo inside another repo)", nested)
 
 
+def _status_summary(active, local, synced, missing, extra, width=None):
+    """Styled, right-aligned glyph summary lines for `status` (pure, testable)."""
+    rows = [
+        (style.dim("•"), "GitLab projects (active)", active),
+        (style.dim("•"), "Local repositories", local),
+        (style.green("✓"), "Synchronized", synced),
+        (style.yellow("⚠") if missing else style.dim("·"), "Missing", missing),
+        (style.yellow("⚠") if extra else style.dim("·"), "Extra", extra),
+    ]
+    if width is None:  # widest "  glyph label" (4 visible chrome) + gap + widest count
+        width = 4 + max(len(label) for _, label, _ in rows) + 2 \
+            + max(len(str(n)) for _, _, n in rows)
+    return [style.align_right(f"  {g} {label}", str(n), width) for g, label, n in rows]
+
+
 def show_status(work_dir, config, gitlab_group):
     """Show a read-only summary of local vs GitLab state."""
-    log("Current synchronization status:")
+    log(style.bold("Synchronization status"))
 
     projects = load_gitlab_projects(config, gitlab_group)
     if not projects:
-        log("No projects loaded - run 'fetch' first")
+        log(f"{style.warn()} No projects loaded, run 'fetch' first")
         return
 
     local_repos = set(get_local_repos(work_dir))
@@ -918,10 +933,8 @@ def show_status(work_dir, config, gitlab_group):
     missing = [p for p in active_projects if p not in local_repos]
     extra = [p for p in local_repos if p not in active_projects]
 
-    log(f"GitLab projects (active): {len(active_projects)}")
-    log(f"Local repositories: {len(local_repos)}")
-    log(f"Synchronized: {len(synchronized)}")
-    log(f"Missing: {len(missing)}")
-    log(f"Extra: {len(extra)}")
+    for line in _status_summary(len(active_projects), len(local_repos),
+                                len(synchronized), len(missing), len(extra)):
+        log(line)
     _report_list("Missing repositories", missing)
     _report_list("Extra repositories", extra)
