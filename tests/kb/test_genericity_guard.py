@@ -56,15 +56,31 @@ def _tracked_files() -> list[Path]:
     return files
 
 
+def _read_text(f: Path) -> str | None:
+    """Read a tracked file as text, or None if it is binary.
+
+    The guard scans *source* (code/docs/config) for org tokens; binary assets
+    (brand images, webp, etc.) can't carry meaningful ones, and decoding their
+    bytes as text yields random ``x@y.z`` runs that false-match the email regex.
+    A null byte is the standard, content-based binary signal (what git uses)."""
+    try:
+        raw = f.read_bytes()
+    except OSError:
+        return None
+    if b"\x00" in raw:
+        return None
+    return raw.decode("utf-8", errors="ignore")
+
+
 def _scan(files, denylist) -> list[tuple[str, str]]:
     hits = []
     for f in files:
-        try:
-            text = f.read_text(encoding="utf-8", errors="ignore").lower()
-        except OSError:
+        text = _read_text(f)
+        if text is None:
             continue
+        low = text.lower()
         for token in denylist:
-            if token in text:
+            if token in low:
                 hits.append((Path(f).name, token))
     return hits
 
@@ -88,9 +104,8 @@ def test_no_foreign_emails_in_published_source():
         pytest.skip("not a git checkout")
     bad = []
     for f in files:
-        try:
-            text = f.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
+        text = _read_text(f)
+        if text is None:
             continue
         for m in _EMAIL_RE.findall(text):
             low = m.lower()
