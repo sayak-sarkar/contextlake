@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Colorful output now reaches `status` and `fetch`.** `status` prints a right-aligned,
+  glyph-coded summary (`✓` synchronized, `⚠` missing/extra), and `fetch` styles its header and
+  final count, matching the existing coloured per-repo output of `clone` / `update` / `branches`.
+  Still plain and `NO_COLOR`-friendly when not a TTY.
+
 ## [2.9.1] - 2026-06-26
 
 ### Changed

@@ -1,5 +1,7 @@
 """Integration-level tests for the orchestration verbs and CLI dispatch."""
 
+import re
+
 import pytest
 
 from contextlake import cli, core
@@ -54,8 +56,9 @@ def test_show_status_counts(tmp_path, base_config, monkeypatch, gls_logs):
     monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
     (tmp_path / "g" / "a" / ".git").mkdir(parents=True)
     core.show_status(str(tmp_path), base_config, "g")
-    assert "Synchronized: 1" in gls_logs.text
-    assert "Missing: 1" in gls_logs.text  # g/b missing (g/old is archived, excluded)
+    # styled, right-aligned summary: "<glyph> Synchronized   1"
+    assert re.search(r"Synchronized\s+1\b", gls_logs.text)
+    assert re.search(r"Missing\s+1\b", gls_logs.text)  # g/b missing (g/old archived)
 
 
 @pytest.mark.parametrize(
