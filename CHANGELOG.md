@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`contextlake index` with no arguments now indexes the current directory** instead of
+  doing nothing, so `cd my-repo && contextlake index` just works. Pass `--source PATH` or
+  `--workspace DIR` to index elsewhere.
+
 ## [2.10.0] - 2026-06-28
 
 ### Added

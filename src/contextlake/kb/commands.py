@@ -205,14 +205,18 @@ def cmd_index(args) -> int:
 
         source = getattr(args, "source", None)
         if not source:
-            log(f"Knowledge store ready at {store_dir} (no --source given; nothing indexed)")
-            return 0
+            # Zero-config: with no --source/--workspace, index the current directory
+            # so `cd my-repo && contextlake index` just works.
+            source = "."
+            log(f"No --source/--workspace given; indexing the current directory "
+                f"({Path(source).resolve()}). Pass --source PATH or --workspace DIR "
+                f"to index elsewhere.")
         src = Path(source)
 
         if src.is_dir():
             from .parse import index_repo_dir  # lazy: only needs tree-sitter when indexing code
 
-            repo_id = getattr(args, "repo", None) or src.name
+            repo_id = getattr(args, "repo", None) or src.resolve().name  # "." -> cwd name
             head = _git_head(src)
             shard = index_repo_dir(str(src), repo_id, head_commit=head, **parse_opts)
             return _store_and_index(store, store_dir, repo_id, src.resolve(), head, shard)
