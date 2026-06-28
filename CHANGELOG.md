@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.1] - 2026-06-28
+
+### Fixed
+
+- **Dashboard: the command palette (and the provenance drawer and pin chip) no longer render
+  stuck-open.** Their `[hidden]` attribute was being overridden by a CSS `display:` value, so
+  the "Jump to a repo, symbol, or action" palette stayed permanently open as a full-screen
+  overlay that blocked the entire interface. Added `[hidden]` guard rules so each element is
+  actually removed from layout when closed.
+
 ## [2.19.0] - 2026-06-28
 
 ### Added
