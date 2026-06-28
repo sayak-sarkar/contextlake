@@ -25,7 +25,7 @@ from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
 KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
-            "graph", "doctor", "owners")
+            "graph", "doctor", "owners", "impact")
 
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
@@ -832,6 +832,40 @@ def cmd_owners(args) -> int:
     return 0
 
 
+def cmd_impact(args) -> int:
+    """What could break if a node changes — reverse blast radius over the graph."""
+    from .impact import blast_radius
+
+    target = (getattr(args, "args", []) or [None])[0]
+    if not target:
+        log('usage: contextlake impact <node-id-or-symbol> [--hops N] [--limit N]')
+        return 2
+    hops = getattr(args, "hops", None) or 3
+    limit = getattr(args, "limit", None) or 100
+    store, _ = _open_store(args)
+    try:
+        node = store.get_node(target)
+        if node is None:                       # fall back to a name/symbol search
+            matches = store.search(target, limit=1)
+            if not matches:
+                log(f"No node matches {target!r} — index first, or try `query`")
+                return 1
+            node = matches[0]
+        hits, truncated = blast_radius(store, node.id, hops=hops, limit=limit)
+        head = f"Impact of changing {style.cyan(node.name)} ({node.id})"
+        if not hits:
+            log(f"{head}: nothing depends on it within {hops} hop(s)")
+            return 0
+        log(f"{head}: {len(hits)} affected node(s) within {hops} hop(s)"
+            + (style.dim(" (truncated)") if truncated else ""))
+        for h in hits:
+            log(f"  h{h.hop}  {h.repo}:{h.name}  ({h.kind}, via {h.via}, "
+                f"{h.confidence.lower()})")
+        return 0
+    finally:
+        store.close()
+
+
 def cmd_serve(args) -> int:
     from .server import run_server  # imported here so `query`/`index` don't load it
 
@@ -1145,5 +1179,5 @@ def dispatch(command: str, args) -> int:
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
         "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
         "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
-        "owners": cmd_owners,
+        "owners": cmd_owners, "impact": cmd_impact,
     }[command](args)

@@ -444,35 +444,14 @@ def build_server(
         bounded impact slice, never an exhaustive guarantee (`truncated` says when
         the cap was hit).
         """
-        rels = set(relations or ["calls", "depends_on"])
-        seen = {node_id}
-        hits: list[BlastHit] = []
-        frontier = [(node_id, 0)]
-        truncated = False
-        while frontier and not truncated:
-            cur, hop = frontier.pop(0)
-            if hop >= hops:
-                continue
-            incoming = sorted(store.neighbors(cur, direction="in"),
-                              key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
-            for e in incoming:
-                if e.relation not in rels or e.src in seen:
-                    continue
-                if len(hits) >= limit:
-                    truncated = True
-                    break
-                seen.add(e.src)
-                n = store.get_node(e.src)
-                if not n:
-                    continue
-                hits.append(BlastHit(
-                    id=sanitize_label(n.id), repo=sanitize_label(n.repo),
-                    kind=sanitize_label(n.kind), name=sanitize_label(n.name),
-                    hop=hop + 1, via=sanitize_label(e.relation),
-                    confidence=e.confidence.value))
-                frontier.append((e.src, hop + 1))
-        return BlastRadiusOut(seed=node_id, hops=hops, total=len(hits),
-                              truncated=truncated, hits=hits)
+        from .impact import blast_radius as _blast
+        hits, truncated = _blast(store, node_id, hops=hops, relations=relations, limit=limit)
+        return BlastRadiusOut(
+            seed=node_id, hops=hops, total=len(hits), truncated=truncated,
+            hits=[BlastHit(id=sanitize_label(h.id), repo=sanitize_label(h.repo),
+                           kind=sanitize_label(h.kind), name=sanitize_label(h.name),
+                           hop=h.hop, via=sanitize_label(h.via), confidence=h.confidence)
+                  for h in hits])
 
     @mcp.tool()
     def get_wiki(repo: str) -> WikiOut:
