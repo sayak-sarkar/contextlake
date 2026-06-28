@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-06-28
+
+### Added
+
+- **`contextlake ingest` — aggregate external documents (RAG) into the knowledge layer.**
+  Documents become `kind="document"` graph nodes and, when embeddings are on, their bodies
+  are embedded so semantic search spans code *and* docs. Zero-config: `contextlake ingest
+  --path ./docs`.
+- **A source/plugin seam (`contextlake.kb.sources`).** Common sources are **built-in and
+  config-only** (the `files` source ships now); anything heavier is a **loosely-coupled
+  plugin** — a class with `iter_documents()` registered via a `contextlake.sources` entry
+  point, discovered automatically (a broken plugin is skipped, never fatal). Bake in the
+  common, plugin the rest.
+
 ## [2.14.0] - 2026-06-28
 
 ### Added
