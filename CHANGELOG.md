@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-06-28
+
+### Added
+
+- **`connect --watch` and `embed --watch`.** The live-refresh loop that `index` already
+  had now covers the connector and embedding passes too — `connect --watch` re-links and
+  `embed --watch` re-embeds on an interval (`--interval N`, default 60s; Ctrl-C to stop),
+  each re-resolving its targets so newly indexed repos are picked up. `embed --watch`
+  stays cheap by re-using the incremental HEAD gate.
+- **Tunable sqlite-vec chunk size.** A new `[embeddings] vector_chunk_size` setting exposes
+  the sqlite-vec `vec0` KNN chunk size (default 1024) for tuning large stores. Clamped to a
+  multiple of 8; applied when the vector table is first created (re-embed to change it).
+
 ## [2.11.0] - 2026-06-28
 
 ### Changed
