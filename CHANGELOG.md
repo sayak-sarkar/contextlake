@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-06-28
+
+### Added
+
+- **Built-in `mcp` source for `ingest`.** contextlake now connects as an MCP *client*
+  (stdio via `command`/`args`, or streamable-HTTP via `url`) to another MCP server, lists
+  its resources, and ingests each into the graph + semantic store. So it both serves a
+  knowledge graph over MCP and consumes other servers' resources — on the same source seam.
+
 ## [2.17.0] - 2026-06-28
 
 ### Added
