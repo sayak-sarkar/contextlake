@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture · contextlake docs</title>
+<meta name="description" content="How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.">
+<link rel="canonical" href="https://sayak.in/contextlake/internals.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Architecture · contextlake docs">
+<meta property="og:description" content="How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.">
+<meta property="og:url" content="https://sayak.in/contextlake/internals.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Architecture · contextlake docs">
+<meta name="twitter:description" content="How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Documentation</h2><nav aria-label="Docs"><a href="index.html">Home</a><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="internals.html" class="active">Architecture</a><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></div></div></aside>
+  <main class="prose" id="doc">
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Under the hood</div><h1>Architecture & internals</h1><p class="doc-sub">How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<blockquote>
+<p>Deep-dive companion to the <a href="../README.md">README</a>: how the core sync and the
+knowledge layer work under the hood.</p>
+</blockquote>
+<h2 id="core-sync-internals">Core sync internals<a class="anchor" href="#core-sync-internals" title="Link to this section">#</a></h2>
+<h3 id="architecture">Architecture<a class="anchor" href="#architecture" title="Link to this section">#</a></h3>
+<p>The tool is built as a modular Python CLI application with the following components:</p>
+<h4 id="configuration-system">Configuration System<a class="anchor" href="#configuration-system" title="Link to this section">#</a></h4>
+<p>The tool uses a hierarchical configuration system with the following precedence:</p>
+<ol>
+<li>
+<p><strong>Configuration Files</strong> (using Python's <code>configparser</code>):
+   - Local config: <code>.contextlake.ini</code> in current directory
+   - Global config: <code>~/.contextlake.ini</code> in home directory
+   - Custom config: Specified via <code>--config</code> CLI argument</p>
+</li>
+<li>
+<p><strong>Default Values</strong>: Built-in defaults for all settings</p>
+</li>
+<li>
+<p><strong>CLI Arguments</strong>: Override all other settings</p>
+</li>
+</ol>
+<p><strong>Configuration loading flow</strong>, <code>load_config()</code> merges each layer over the one
+before it, so the most specific source wins:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the local ./.contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
+</p>
+
+<h4 id="core-modules">Core modules<a class="anchor" href="#core-modules" title="Link to this section">#</a></h4>
+<p>The sync core is plain Python (stdlib only). Its functions group by responsibility,
+each command in the <a href="usage.md">Usage guide</a> maps onto one group:</p>
+<table>
+<thead>
+<tr>
+<th>Responsibility</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Config</strong></td>
+<td>Load and merge INI files (local / global / custom), expand <code>~</code>, resolve cache paths.</td>
+</tr>
+<tr>
+<td><strong>Discover</strong></td>
+<td><code>fetch</code> accessible GitLab projects (via <code>glab</code>, filtered by group prefix, archived dropped) and cache them; enumerate local <code>.git</code> repos.</td>
+</tr>
+<tr>
+<td><strong>Clone</strong></td>
+<td>Clone missing repos concurrently (<code>ThreadPoolExecutor</code>, <code>max_workers</code>), creating namespace parents, with per-op timeouts.</td>
+</tr>
+<tr>
+<td><strong>Update</strong></td>
+<td>Fetch + fast-forward each repo's current branch concurrently, handling detached HEAD.</td>
+</tr>
+<tr>
+<td><strong>Branches</strong></td>
+<td>Rank each repo's branches by <code>git rev-list --count</code> and switch to the most active (subject to branch safety).</td>
+</tr>
+<tr>
+<td><strong>Verify / status</strong></td>
+<td>Compare local vs GitLab, detect nested <code>.git</code>, report missing / extra / synced.</td>
+</tr>
+<tr>
+<td><strong>CLI</strong></td>
+<td><code>main()</code> loads config, parses args (CLI overrides config), and dispatches to a command handler.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="data-flow">Data flow<a class="anchor" href="#data-flow" title="Link to this section">#</a></h3>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/data-flow.png" alt="Sync data flow: a contextlake command is parsed and dispatched, then fetches the accessible projects via glab, caches them, scans the workspace for local .git repos, compares GitLab vs local, runs git operations (clone/fetch/pull/switch), and logs a per-repo report." width="600">
+</p>
+
+<h3 id="concurrency-model">Concurrency Model<a class="anchor" href="#concurrency-model" title="Link to this section">#</a></h3>
+<p>The tool uses Python's <code>ThreadPoolExecutor</code> for concurrent operations:</p>
+<ul>
+<li><strong>Cloning</strong>: 8 parallel workers</li>
+<li><strong>Updating</strong>: 8 parallel workers</li>
+<li><strong>Branch Switching</strong>: 8 parallel workers</li>
+</ul>
+<p>Each worker operates independently with its own timeout:</p>
+<ul>
+<li>Clone operations: 300s timeout</li>
+<li>Fetch operations: 60s timeout</li>
+<li>Branch operations: 30s timeout</li>
+<li>Pull operations: 60s timeout</li>
+</ul>
+<h3 id="error-handling">Error Handling<a class="anchor" href="#error-handling" title="Link to this section">#</a></h3>
+<p>The tool implements comprehensive error handling:</p>
+<ol>
+<li><strong>Timeout Handling</strong>: All subprocess calls have explicit timeouts</li>
+<li><strong>Exception Catching</strong>: All functions catch and report exceptions</li>
+<li><strong>Status Reporting</strong>: Operations return status tuples for tracking</li>
+<li><strong>Graceful Degradation</strong>: Failed operations don't stop the entire process</li>
+<li><strong>Detailed Logging</strong>: All errors are logged with context</li>
+</ol>
+<h3 id="cache-management">Cache Management<a class="anchor" href="#cache-management" title="Link to this section">#</a></h3>
+<p>The tool uses two cache files:</p>
+<ol>
+<li><strong><code>/tmp/gitlab_projects.json</code></strong></li>
+</ol>
+<ul>
+<li>Full JSON response from GitLab API</li>
+<li>Used for debugging and detailed inspection</li>
+<li>Contains complete project metadata</li>
+</ul>
+<ol start="2">
+<li><strong><code>/tmp/gitlab_projects.txt</code></strong></li>
+</ol>
+<ul>
+<li>Pipe-delimited format for faster loading</li>
+<li>Format: <code>path_with_namespace|ssh_url|http_url|default_branch|archived</code></li>
+<li>Primary data source for all operations</li>
+</ul>
+<p>Cache is refreshed by running the <code>fetch</code> command or <code>sync</code> (which includes fetch).</p>
+<h3 id="branch-selection-algorithm">Branch Selection Algorithm<a class="anchor" href="#branch-selection-algorithm" title="Link to this section">#</a></h3>
+<p>To identify the most active branch the tool:</p>
+<ol>
+<li><strong>Fetches all branches</strong> with <code>git for-each-ref</code> (collecting each branch's last
+   commit date)</li>
+<li><strong>Calculates commit count</strong> per branch via <code>git rev-list --count origin/branch</code></li>
+<li><strong>Scores and ranks</strong> branches according to <code>branch_strategy</code></li>
+<li><strong>Switches</strong> to the top branch (and pulls) if it differs from the current one</li>
+</ol>
+<p>The <code>branch_strategy</code> setting controls step 3:</p>
+<ul>
+<li><code>commits</code>, rank purely by commit count (legacy behaviour)</li>
+<li><code>recency</code>, rank purely by most recent commit</li>
+<li><code>hybrid</code> (default), a weighted blend of normalized commit count and recency,
+  so a branch that is both busy and recently active wins; this avoids picking a
+  long-lived branch that has gone stale, or a brand-new branch with few commits</li>
+</ul>
+<p>Branch switching is skipped entirely for repositories checked out on a working
+branch (see <a href="#branch-safety">Branch Safety</a>).</p>
+<h3 id="directory-structure-mapping">Directory Structure Mapping<a class="anchor" href="#directory-structure-mapping" title="Link to this section">#</a></h3>
+<p>The tool maintains GitLab's exact directory structure:</p>
+<div class="codehilite"><pre><span></span><code>GitLab Path: your-gitlab-group/backend/services/api-gateway
+Local Path:  backend/services/api-gateway
+
+GitLab Path: your-gitlab-group/backend/pricing/quote-engine
+Local Path:  backend/pricing/quote-engine
+
+GitLab Path: your-gitlab-group/frontend/platform/ui-toolkit
+Local Path:  frontend/platform/ui-toolkit
+</code></pre></div>
+
+<p>The <code>your-gitlab-group/</code> prefix is stripped when creating local paths.</p>
+<h3 id="performance-characteristics">Performance Characteristics<a class="anchor" href="#performance-characteristics" title="Link to this section">#</a></h3>
+<p><strong>Typical Performance Metrics</strong> (based on a large workspace of several hundred repositories):</p>
+<ul>
+<li><strong>Fetch</strong>: 30-60 seconds (depends on GitLab API response time)</li>
+<li><strong>Clone</strong>: 5-10 minutes (for missing repos, concurrent)</li>
+<li><strong>Update</strong>: 3-5 minutes (all repos, concurrent)</li>
+<li><strong>Branch Switching</strong>: 5-10 minutes (all repos, concurrent)</li>
+<li><strong>Verify</strong>: 30-60 seconds</li>
+<li><strong>Full Sync</strong>: 15-30 minutes (all operations)</li>
+</ul>
+<p><strong>Performance Optimization Tips:</strong></p>
+<ol>
+<li>Run <code>fetch</code> less frequently if repository list doesn't change often</li>
+<li>Use <code>update</code> for frequent syncs (faster than full sync)</li>
+<li>Run <code>branches</code> only when branch management is needed</li>
+<li>Adjust ThreadPoolExecutor worker count based on system resources</li>
+</ol>
+<h3 id="security-considerations">Security Considerations<a class="anchor" href="#security-considerations" title="Link to this section">#</a></h3>
+<ol>
+<li><strong>Authentication</strong>: Uses <code>glab</code> authentication (tokens, SSH keys, etc.)</li>
+<li><strong>HTTPS Cloning</strong>: Default cloning method uses HTTPS for better compatibility</li>
+<li><strong>No Credential Storage</strong>: Does not store credentials; relies on <code>glab</code> auth</li>
+<li><strong>Local Operations</strong>: All git operations are local; no external API calls beyond initial fetch</li>
+<li><strong>File Permissions</strong>: Respects existing file permissions; creates directories with default umask</li>
+</ol>
+<h3 id="extension-points">Extension Points<a class="anchor" href="#extension-points" title="Link to this section">#</a></h3>
+<p>The tool can be extended by:</p>
+<ol>
+<li><strong>Adding New Commands</strong>: Add new function and update <code>main()</code> command dispatch</li>
+<li><strong>Custom Branch Selection</strong>: Modify <code>switch_repository_branch()</code> algorithm</li>
+<li><strong>Additional Verification</strong>: Add checks in <code>verify_structure()</code></li>
+<li><strong>Custom Output Formats</strong>: Modify logging functions</li>
+<li><strong>Integration Hooks</strong>: Add pre/post operation hooks</li>
+<li><strong>Configuration File</strong>: Add support for <code>.contextlake.yml</code> config</li>
+</ol>
+<h3 id="dependencies">Dependencies<a class="anchor" href="#dependencies" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Python 3.9+</strong>: Core language (the optional knowledge layer needs 3.10+)</li>
+<li><strong>configparser</strong>: Configuration file parsing (standard library)</li>
+<li><strong>argparse</strong>: CLI argument parsing (standard library)</li>
+<li><strong>subprocess</strong>: Git and system command execution (standard library)</li>
+<li><strong>concurrent.futures</strong>: Parallel processing (standard library)</li>
+<li><strong>json</strong>: Data serialization (standard library)</li>
+<li><strong>datetime</strong>: Timestamp generation (standard library)</li>
+<li><strong>pathlib</strong>: Path manipulation (standard library)</li>
+<li><strong>glab</strong>: GitLab CLI tool (external dependency)</li>
+<li><strong>git</strong>: Version control system (external dependency)</li>
+</ul>
+<h3 id="git-integration">Git Integration<a class="anchor" href="#git-integration" title="Link to this section">#</a></h3>
+<p>To avoid committing sensitive configuration to version control, add the configuration file to your <code>.gitignore</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Add to .gitignore</span>
+.contextlake.ini
+~/.contextlake.ini
+</code></pre></div>
+
+<p>For team usage, consider including a sample configuration file:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Add .contextlake.ini.example to git</span>
+cp<span class="w"> </span>.contextlake.ini<span class="w"> </span>.contextlake.ini.example
+git<span class="w"> </span>add<span class="w"> </span>.contextlake.ini.example
+
+<span class="c1"># Update .gitignore</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;.contextlake.ini&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>.gitignore
+</code></pre></div>
+
+<p>Team members can then:</p>
+<div class="codehilite"><pre><span></span><code>cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>.contextlake.ini
+<span class="c1"># Edit with their personal settings</span>
+</code></pre></div>
+
+<h2 id="knowledge-layer-architecture">Knowledge-layer architecture<a class="anchor" href="#knowledge-layer-architecture" title="Link to this section">#</a></h2>
+<p>The optional <code>contextlake.kb</code> subsystem (the <code>[kb]</code> extra) layers a knowledge graph
+over the mirrored repos. Its pieces:</p>
+<ul>
+<li><strong>Model &amp; store</strong> (<code>kb/model.py</code>, <code>kb/store/</code>): pydantic <code>Node</code>/<code>Edge</code>/<code>Repo</code> carry
+  provenance + confidence; a SQLite + FTS5 cross-repo index (<code>sqlite_store.py</code>) is
+  built from per-repo JSON <strong>shards</strong> (<code>shards.py</code>), the durable source of truth.
+  Each shard is also snapshotted by commit under <code>history/</code> for bi-temporal queries.</li>
+<li><strong>Extraction</strong> (<code>kb/parse.py</code>, <code>kb/manifest.py</code>, <code>kb/references.py</code>): tree-sitter
+  builds the code graph (defs/imports/containment + an inferred call graph) for
+  Python/JS/TS/C#; manifests yield the cross-repo dependency graph; references capture
+  issue keys and doc links.</li>
+<li><strong>Connectors</strong> (<code>kb/connectors/</code>): Atlassian, Figma, and GitLab sources on one
+  generic seam (fetched over MCP / <code>glab</code>), written into an isolated graph partition
+  so code re-indexing never disturbs them.</li>
+<li><strong>Semantic tier</strong> (<code>kb/embeddings/</code>): a pluggable <code>Embedder</code> (Ollama / OpenAI), a
+  vector store (pure-Python cosine or optional <code>sqlite-vec</code>), and hybrid graph+vector
+  (Personalized PageRank) retrieval.</li>
+<li><strong>Wiki tier</strong> (<code>kb/llm/</code>, <code>kb/wiki/</code>): a pluggable <code>LlmClient</code> generates
+  provenance-stamped pages gated by a verification council.</li>
+<li><strong>Serving &amp; steering</strong> (<code>kb/server.py</code>, <code>kb/steer/</code>): a FastMCP server exposes the
+  graph tools; <code>steer</code> writes the per-tool steering files + skills library.</li>
+<li><strong>CLI</strong> (<code>kb/commands.py</code>): the <code>index/connect/embed/lint/wiki/steer/serve/query/
+  doctor</code> handlers, dispatched from the main CLI and imported lazily so the core tool
+  runs without the extra installed.</li>
+</ul>
+<h2 id="storage-invariants">Storage &amp; invariants<a class="anchor" href="#storage-invariants" title="Link to this section">#</a></h2>
+<p>Everything contextlake generates lives under <strong>one store directory</strong> (default
+<code>~/.contextlake/kb</code>, <code>store_dir</code> in <code>kb.toml</code>), never scattered into your home, your
+cwd, or your repos. Two invariants make this safe by construction, each locked by a test:</p>
+<ul>
+<li><strong>INV-1, no repo pollution.</strong> No generated file is ever written inside a mirrored repo's
+  working tree, the mirror holds <em>your repos, untouched</em>; the knowledge layer lives in the
+  separate store. (<code>tests/kb/test_no_repo_pollution.py</code> asserts each repo tree is
+  byte-identical before/after every generating command.)</li>
+<li><strong>INV-2, the offline boundary.</strong> Parse → graph → FTS → query → visualize → embed all run
+  fully offline; <code>connect</code> (enrichment) is the single opt-in online exception, and even it
+  must <strong>degrade, not fail</strong> (skip/warn and exit cleanly with no network). Cached connect
+  results stay queryable offline afterward. (<code>tests/kb/test_offline_boundary.py</code> blocks
+  outbound sockets and asserts the offline commands still succeed.)</li>
+</ul>
+<p>Under the store: <code>index.sqlite</code> (graph + FTS), <code>graph/</code> (per-repo JSON shards),
+<code>history/&lt;repo&gt;/</code> (bitemporal snapshots), <code>graphs/</code> (rendered visualizations), <code>wiki/</code>
+(LLM pages), <code>embeddings.sqlite</code> (vectors). The one deliberate carve-out is <strong>steering
+files</strong> (<code>AGENTS.md</code>, <code>.mcp.json</code>, skills), which an IDE must find at the workspace root,
+so <code>steer --out</code> writes them to the target you point it at (never inside a synced repo).
+Full detail: <a href="storage.md">storage.md</a>.</p>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="usage.html"><span>Usage & config</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="knowledge-layer.html"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#core-sync-internals">Core sync internals</a><ul>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#data-flow">Data flow</a></li>
+<li><a href="#concurrency-model">Concurrency Model</a></li>
+<li><a href="#error-handling">Error Handling</a></li>
+<li><a href="#cache-management">Cache Management</a></li>
+<li><a href="#branch-selection-algorithm">Branch Selection Algorithm</a></li>
+<li><a href="#directory-structure-mapping">Directory Structure Mapping</a></li>
+<li><a href="#performance-characteristics">Performance Characteristics</a></li>
+<li><a href="#security-considerations">Security Considerations</a></li>
+<li><a href="#extension-points">Extension Points</a></li>
+<li><a href="#dependencies">Dependencies</a></li>
+<li><a href="#git-integration">Git Integration</a></li>
+</ul>
+</li>
+<li><a href="#knowledge-layer-architecture">Knowledge-layer architecture</a></li>
+<li><a href="#storage-invariants">Storage &amp; invariants</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
