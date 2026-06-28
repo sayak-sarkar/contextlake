@@ -342,6 +342,28 @@ For interactive exploration of a large graph, `contextlake graph --serve` runs a
 local web UI where clicking a node **expands** it (fetches its neighbours on
 demand) so you can walk the graph without pre-rendering all of it.
 
+## The dashboard
+
+Where `graph` shows the graph, **`contextlake dashboard`** is the human UI into the whole
+knowledge system — a local, read-only app that travels three *altitudes* (fleet → repo →
+symbol) with cross-cutting *lenses* (architecture, health, search):
+
+```bash
+contextlake dashboard                 # serve the live dashboard against your store
+contextlake dashboard --site ./out    # export a fully static, offline (file://) copy
+contextlake dashboard --site ./out --sample   # a shareable showcase built from the sample fixture
+```
+
+It surfaces per-repo **anatomy / README / wiki / owners / connector links**, repo→repo
+**dependency / HTTP-flow / event-flow** (each with confidence + provenance — INFERRED data is
+marked, never shown as ground truth), an embedded interactive **architecture graph**, a
+**change-impact** explorer, **health**, and **search**. Every fact carries its receipt.
+
+It's offline-first and self-contained (no CDN, works from `file://`). **Privacy note:** a
+real-store `--site` export inlines repo names, git-author identities, and connector URLs — it
+prints a "do not publish unscrubbed" warning; use `--anonymize` (hashes authors, drops external
+URLs) or `--sample` for anything you intend to share. Read-only in v1; sync/MCP controls are planned.
+
 ## Serve it to your editor (MCP)
 
 `contextlake serve` is an MCP server, so any MCP client can query the graph, and

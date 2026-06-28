@@ -65,3 +65,12 @@ def test_connect_degrades_not_fails_offline(tmp_path, no_network):
     cfg = _cfg(tmp_path)
     assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     assert _run(["connect", "--config", str(cfg)]) == 0
+
+
+def test_dashboard_site_builds_offline(tmp_path, no_network):
+    # The static dashboard --site export (sample showcase) must build with all outbound
+    # connections blocked — it reads only the committed fixture + local templates.
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "dash"
+    assert _run(["dashboard", "--config", str(cfg), "--site", str(out), "--sample"]) == 0
+    assert (out / "index.html").exists() and (out / "data.json").exists()
