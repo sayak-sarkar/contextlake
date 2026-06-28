@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.2] - 2026-06-28
+
+### Fixed
+
+- **`impact <symbol>` no longer silently resolves an ambiguous name to the wrong repo.**
+  A bare name (e.g. `Node`, `Order`) was resolved via a full-text search and the top hit
+  taken blindly, so a common name could seed an unrelated repo's symbol and report a
+  confidently-wrong (often empty) blast radius. Resolution is now exact-id → exact-name →
+  fuzzy: when a name is defined in several repos the CLI lists the candidates and asks you
+  to narrow with `--repo`, and `--repo` now actually scopes resolution. The dashboard's
+  change-impact API returns `ambiguous` + `candidates` for the same case. Shared resolver
+  (`impact.resolve_target`) drives both the CLI verb and the dashboard so they behave
+  identically.
+
 ## [2.19.1] - 2026-06-28
 
 ### Fixed
