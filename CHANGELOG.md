@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`.contextlakeignore`** — drop one at a repo's root to exclude your own paths from
+  indexing (one glob per line; `*.lock` ignores by name anywhere, `vendor/` prunes a
+  directory). A small, dependency-free subset of gitignore syntax; ignored files are
+  counted and reported, never silently dropped.
+
 ### Changed
 
 - **Colorful output now reaches `status` and `fetch`.** `status` prints a right-aligned,
