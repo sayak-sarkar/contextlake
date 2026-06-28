@@ -12,6 +12,7 @@ in the tables below; the rest of the pipeline is language-agnostic.
 
 from __future__ import annotations
 
+import fnmatch
 import logging
 import os
 import re
@@ -31,6 +32,36 @@ from .store.shards import GraphShard
 # Directories never worth walking.
 _SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "node_modules", "dist", "build",
               ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", ".idea"}
+
+# Optional per-repo ignore file (gitignore-flavoured *subset*): one glob per line,
+# blank lines and `#` comments skipped. Matched with fnmatch against the POSIX path
+# relative to the repo root and against the basename, so `*.lock` ignores by name and
+# `vendor/` (or `vendor`) ignores a directory and everything under it. No negation /
+# `**` / anchoring semantics — a deliberately small, dependency-free subset.
+_IGNORE_FILE = ".contextlakeignore"
+
+
+def load_ignore_patterns(root: Path) -> list[str]:
+    f = root / _IGNORE_FILE
+    if not f.is_file():
+        return []
+    try:
+        lines = f.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return []
+    return [ln.strip() for ln in lines if ln.strip() and not ln.lstrip().startswith("#")]
+
+
+def match_ignore(rel: str, patterns: list[str]) -> bool:
+    """True if the POSIX-relative path ``rel`` is covered by any ignore pattern."""
+    rel = rel.replace(os.sep, "/")
+    base = rel.rsplit("/", 1)[-1]
+    for raw in patterns:
+        p = raw.rstrip("/")
+        if p and (fnmatch.fnmatch(rel, p) or fnmatch.fnmatch(base, p)
+                  or fnmatch.fnmatch(rel, f"{p}/*")):
+            return True
+    return False
 
 LANG_BY_EXT = {
     ".py": "python",
@@ -341,13 +372,17 @@ def index_repo_dir(
     root = Path(repo_path)
     allowed_exts = {ext for ext, lang in LANG_BY_EXT.items()
                     if not languages or lang in languages}
+    ignore = load_ignore_patterns(root)
     shard = GraphShard(repo=repo_id, head_commit=head_commit)
     by_id: dict[str, Node] = {}
     all_calls: list[tuple[str, str, str, int]] = []
-    n_files = n_generated = n_oversize = 0
+    n_files = n_generated = n_oversize = n_ignored = 0
 
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        relbase = os.path.relpath(dirpath, root)
+        relbase = "" if relbase == "." else relbase.replace(os.sep, "/")
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS
+                       and not (ignore and match_ignore(f"{relbase}/{d}".lstrip("/"), ignore))]
         for fn in filenames:
             ext = os.path.splitext(fn)[1]
             is_code = ext in allowed_exts
@@ -356,6 +391,9 @@ def index_repo_dir(
                 continue
             fpath = Path(dirpath) / fn
             rel = str(fpath.relative_to(root))
+            if ignore and match_ignore(rel, ignore):
+                n_ignored += 1
+                continue
             # Skip generated/derived code by name, and oversized blobs by stat —
             # both without reading the file.
             if is_code and skip_generated and _is_generated_name(fn):
@@ -398,7 +436,7 @@ def index_repo_dir(
     shard.nodes.extend(by_id.values())
     shard.edges.extend(_resolve_calls(all_calls, by_id))
     log(f"  parsed {n_files} file(s); skipped {n_generated} generated, "
-        f"{n_oversize} oversized", level=logging.DEBUG)
+        f"{n_oversize} oversized, {n_ignored} ignored", level=logging.DEBUG)
     return shard
 
 

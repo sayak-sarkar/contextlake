@@ -7,6 +7,8 @@ from contextlake.kb.parse import (
     _has_generated_header,
     _is_generated_name,
     index_repo_dir,
+    load_ignore_patterns,
+    match_ignore,
     parse_source,
 )
 
@@ -266,3 +268,36 @@ def test_index_repo_dir_skips_oversized_code(tmp_path):
     shard = index_repo_dir(str(tmp_path), "demo/app", max_file_bytes=200)
     names = {n.name for n in shard.nodes}
     assert "Small" in names and "Big" not in names  # big.py skipped by size
+
+
+def test_match_ignore_semantics():
+    pats = ["*.lock", "vendor/", "src/gen/*"]
+    assert match_ignore("poetry.lock", pats)        # basename glob
+    assert match_ignore("a/b/x.lock", pats)         # ...anywhere in the tree
+    assert match_ignore("vendor", pats)             # bare dir
+    assert match_ignore("vendor/lib/x.py", pats)    # ...and everything under it
+    assert match_ignore("src/gen/api.py", pats)     # path glob
+    assert not match_ignore("src/app.py", pats)
+    assert not match_ignore("vendoring.py", pats)   # not a loose prefix match
+
+
+def test_load_ignore_patterns(tmp_path):
+    (tmp_path / ".contextlakeignore").write_text("# comment\n\nvendor/\n  *.lock  \n")
+    assert load_ignore_patterns(tmp_path) == ["vendor/", "*.lock"]
+    assert load_ignore_patterns(tmp_path / "missing") == []
+
+
+def test_contextlakeignore_excludes_dirs_and_files(tmp_path):
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "keep.py").write_text("def keep():\n    pass\n")
+    (tmp_path / "vendor").mkdir()
+    (tmp_path / "vendor" / "lib.py").write_text("def vendored():\n    pass\n")
+    (tmp_path / "thing_pb2.py").write_text("def gen():\n    pass\n")
+    (tmp_path / ".contextlakeignore").write_text("vendor/\n*_pb2.py\n")
+
+    shard = index_repo_dir(str(tmp_path), "r")
+    files = {n.name for n in shard.nodes if n.kind == "file"}
+    assert files == {"pkg/keep.py"}
+    names = {n.name for n in shard.nodes}
+    assert "keep" in names
+    assert "vendored" not in names and "gen" not in names

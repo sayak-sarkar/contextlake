@@ -53,6 +53,13 @@ machine-generated/derived files (`*.designer.cs`, `*.min.js`, `AssemblyInfo.cs`,
 what it skipped (no silent gaps). Set `[kb] skip_generated = false` or raise
 `max_file_bytes` to index them anyway.
 
+To exclude your own paths, drop a **`.contextlakeignore`** at a repo's root: one
+glob per line (`#` comments and blank lines ignored), matched against each file's
+path relative to the repo and its name, so `*.lock` ignores by name anywhere and
+`vendor/` ignores a directory and everything under it. It's a small, dependency-free
+subset of gitignore syntax (no negation, `**`, or anchoring), enough to drop
+vendored trees and lockfiles from the graph.
+
 ### Health & maintenance
 
 `contextlake doctor` is a quick environment check, SQLite
