@@ -87,7 +87,7 @@ No install? Run it once with [`uvx`](https://docs.astral.sh/uv/): prefix any com
 below with `uvx --from "contextlake[kb]"` (e.g. `uvx --from "contextlake[kb]" contextlake index --source .`).
 
 ```bash
-contextlake index --source .          # parse this repo into a local knowledge graph
+contextlake index                     # parse the current repo into a local knowledge graph
 contextlake graph --overview --open   # open the interactive graph in your browser
 contextlake serve                     # …or serve it to your AI IDE over MCP
 ```

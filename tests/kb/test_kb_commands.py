@@ -56,10 +56,17 @@ def test_index_workspace_indexes_each_repo(tmp_path):
     store.close()
 
 
-def test_index_without_source_just_initializes(tmp_path):
+def test_index_without_source_indexes_cwd(tmp_path, monkeypatch):
     cfg = _kb_config(tmp_path)
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "app.py").write_text("def widget():\n    pass\n")
+    monkeypatch.chdir(proj)  # no --source/--workspace -> index the current directory
     assert _run(["index", "--config", str(cfg)]) == 0
-    assert (tmp_path / "kb" / "index.sqlite").exists()
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    assert store.nodes_by_name("widget")  # cwd got indexed
+    assert {r.id for r in store.list_repos()} == {"proj"}  # repo id = cwd dir name
+    store.close()
 
 
 def test_index_missing_source_errors_cleanly(tmp_path, capsys):
