@@ -154,7 +154,7 @@ Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage
 | `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
 | `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
-| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api` sources, or plugins) |
+| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
 | `wiki` | LLM-synthesized, council-verified wiki pages |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
