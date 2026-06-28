@@ -127,6 +127,8 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
   border: 1px solid var(--cl-line); border-radius: 4px; padding: 0 4px;
   background: var(--cl-surface); }
 .cl-pinchip { background: color-mix(in srgb, var(--cl-lake) 12%, var(--cl-surface)); }
+/* the [hidden] attr must beat display:inline-flex, else the pin chip never clears */
+.cl-pinchip[hidden] { display: none; }
 
 .cl-groundtruth { display: inline-flex; border: 1px solid var(--cl-line);
   border-radius: 999px; overflow: hidden; }
@@ -342,6 +344,8 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 
 .cl-palette-wrap { position: fixed; inset: 0; z-index: 60; background: rgba(14,42,51,.35);
   display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+/* the [hidden] attribute must beat display:flex, else the palette is always open */
+.cl-palette-wrap[hidden] { display: none; }
 .cl-palette { width: min(640px, 92vw); background: var(--cl-surface);
   border: 1px solid var(--cl-line); border-radius: var(--cl-radius);
   box-shadow: var(--cl-shadow); overflow: hidden; }
@@ -359,6 +363,9 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-drawer { background: var(--cl-surface); border-left: 1px solid var(--cl-line);
   position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
   display: flex; flex-direction: column; }
+/* the [hidden] attr must beat display:flex; the :has() rule only sizes the grid
+   column, it does not remove the drawer element when closed */
+.cl-drawer[hidden] { display: none; }
 .cl-drawer__head { display: flex; align-items: center; justify-content: space-between;
   padding: var(--sp-4); border-bottom: 1px solid var(--cl-line); }
 .cl-drawer__title { font-size: var(--fs-500); margin: 0; }
