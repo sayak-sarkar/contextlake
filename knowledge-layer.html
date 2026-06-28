@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge layer · contextlake docs</title>
+<meta name="description" content="Turn the mirror into a queryable graph with search, a wiki, and connectors, then serve it to your editor over MCP.">
+<link rel="canonical" href="https://sayak.in/contextlake/knowledge-layer.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Knowledge layer · contextlake docs">
+<meta property="og:description" content="Turn the mirror into a queryable graph with search, a wiki, and connectors, then serve it to your editor over MCP.">
+<meta property="og:url" content="https://sayak.in/contextlake/knowledge-layer.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Knowledge layer · contextlake docs">
+<meta name="twitter:description" content="Turn the mirror into a queryable graph with search, a wiki, and connectors, then serve it to your editor over MCP.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Documentation</h2><nav aria-label="Docs"><a href="index.html">Home</a><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a><a href="usage.html">Usage & config</a><a href="knowledge-layer.html" class="active">Knowledge layer</a><a href="internals.html">Architecture</a><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></div></div></aside>
+  <main class="prose" id="doc">
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Layers 2–3 · Knowledge + Serve</div><h1>Knowledge layer</h1><p class="doc-sub">Turn the mirror into a queryable graph with search, a wiki, and connectors, then serve it to your editor over MCP.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>An optional subsystem (<code>contextlake.kb</code>) turns your mirrored repositories into a
+queryable <strong>knowledge graph</strong> and serves it to AI agents over <strong>MCP</strong>, so an
+assistant can ask "where is <code>X</code> defined?", "who calls <code>Y</code>?", or "which repos
+depend on package <code>Z</code>?" instead of grepping hundreds of repos. It's generic: it
+indexes <em>any</em> repositories and connects to <em>any</em> configured knowledge sources; no
+organization-specific data lives in the package (your sites, keys, and rules go in
+a private config file).</p>
+<h2 id="setup">Setup<a class="anchor" href="#setup" title="Link to this section">#</a></h2>
+<p>Install the extra (requires Python ≥ 3.10):</p>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">               </span><span class="c1"># knowledge layer (parse + graph + serve)</span>
+<span class="c1"># ...or get everything for local semantic search in one step (no Ollama / API key):</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span><span class="w">          </span><span class="c1"># = kb + built-in CPU embedder + sqlite-vec ANN</span>
+contextlake<span class="w"> </span>doctor<span class="w">                          </span><span class="c1"># check the environment</span>
+contextlake<span class="w"> </span>index<span class="w"> </span>--source<span class="w"> </span>./my-repo<span class="w">        </span><span class="c1"># index one repository</span>
+contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">        </span><span class="c1"># index every git repo (incremental; --force to rebuild)</span>
+contextlake<span class="w"> </span>connect<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">      </span><span class="c1"># link repos to their issues/docs (see below)</span>
+contextlake<span class="w"> </span>embed<span class="w">                           </span><span class="c1"># build semantic vectors (optional, see below)</span>
+contextlake<span class="w"> </span>lint<span class="w">                            </span><span class="c1"># graph health: stale repos + dangling edges</span>
+contextlake<span class="w"> </span>wiki<span class="w">                            </span><span class="c1"># LLM-synthesized, council-verified wiki pages (optional)</span>
+contextlake<span class="w"> </span>steer<span class="w">                           </span><span class="c1"># write per-tool steering: AGENTS.md, .mcp.json, …</span>
+contextlake<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;OrderService&quot;</span><span class="w">            </span><span class="c1"># cited search across the index</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">         </span><span class="c1"># visualize the graph (HTML/dot/mermaid/json; offline)</span>
+contextlake<span class="w"> </span>serve<span class="w">                           </span><span class="c1"># expose the graph over MCP (stdio or --transport http)</span>
+</code></pre></div>
+
+<h2 id="indexing">Indexing<a class="anchor" href="#indexing" title="Link to this section">#</a></h2>
+<h3 id="incremental-time-travel">Incremental &amp; time-travel<a class="anchor" href="#incremental-time-travel" title="Link to this section">#</a></h3>
+<p><code>index --workspace</code> is <strong>incremental</strong>, it re-indexes only repos whose git HEAD
+moved since their last index, so a scheduled (cron) run stays cheap; pass <code>--force</code>
+to rebuild everything, or <code>--watch [--interval N]</code> to keep re-indexing in a loop.
+Every indexed snapshot is kept, so <code>query "&lt;text&gt;" --repo R --as-of &lt;commit&gt;</code> does
+<strong>time-travel</strong>, it searches repo <code>R</code> as it was at a previously-indexed commit.</p>
+<h3 id="parallelism-noise-pruning">Parallelism &amp; noise-pruning<a class="anchor" href="#parallelism-noise-pruning" title="Link to this section">#</a></h3>
+<p>Repositories are parsed across worker
+processes (CPU-bound work) while the SQLite store is written serially from the
+parent, the <code>spawn</code> start method is used on every platform, so behaviour is
+identical on Linux, macOS and Windows, with an automatic serial fallback if a
+worker pool can't start. It defaults to <code>cpu_count - 1</code> workers (capped at 8);
+set <code>[kb] index_workers</code> to tune it (<code>1</code> forces serial). The parser also skips
+machine-generated/derived files (<code>*.designer.cs</code>, <code>*.min.js</code>, <code>AssemblyInfo.cs</code>,
+<code>@generated</code>/<code>&lt;auto-generated&gt;</code> headers) and code files larger than
+<code>[kb] max_file_bytes</code> (5 MB), derived graph noise, not real sources, reporting
+what it skipped (no silent gaps). Set <code>[kb] skip_generated = false</code> or raise
+<code>max_file_bytes</code> to index them anyway.</p>
+<p>To exclude your own paths, drop a <strong><code>.contextlakeignore</code></strong> at a repo's root: one
+glob per line (<code>#</code> comments and blank lines ignored), matched against each file's
+path relative to the repo and its name, so <code>*.lock</code> ignores by name anywhere and
+<code>vendor/</code> ignores a directory and everything under it. It's a small, dependency-free
+subset of gitignore syntax (no negation, <code>**</code>, or anchoring), enough to drop
+vendored trees and lockfiles from the graph.</p>
+<h3 id="health-maintenance">Health &amp; maintenance<a class="anchor" href="#health-maintenance" title="Link to this section">#</a></h3>
+<p><code>contextlake doctor</code> is a quick environment check, SQLite
+FTS5, <code>git</code>/<code>glab</code> on <code>PATH</code>, the store's reachability and counts, and the embeddings
+status, and exits non-zero if something's wrong. <code>contextlake lint</code> audits the graph
+itself, reporting <strong>stale repos</strong> (HEAD moved since they were indexed, so the index is
+behind) and <strong>dangling edges</strong> (an edge whose endpoint node is missing); it exits
+non-zero when it finds problems, so it's CI-friendly.</p>
+<h2 id="one-command-setup">One-command setup<a class="anchor" href="#one-command-setup" title="Link to this section">#</a></h2>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then wiki, then steer." width="760">
+</p>
+
+<p>Rather than running the steps by hand, <code>bootstrap</code>
+chains them, mirror repos → index → connect → embed → wiki → write editor steering, 
+skipping anything not enabled, so a teammate goes from nothing to a fully-wired
+workspace in one step:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--kb-config<span class="w"> </span>~/.contextlake/kb.toml
+</code></pre></div>
+
+<p>Skip stages with <code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code>. For an
+isolated CLI, install with <code>pipx install "git+https://github.com/sayak-sarkar/contextlake"</code>
+(add the <code>[kb]</code> extra for the knowledge layer), or run ad-hoc with <code>uvx</code>.</p>
+<h3 id="keep-it-fresh-on-a-schedule">Keep it fresh on a schedule<a class="anchor" href="#keep-it-fresh-on-a-schedule" title="Link to this section">#</a></h3>
+<p><code>bootstrap</code> is incremental and branch-safe, so it's
+safe to run repeatedly, it re-mirrors, re-indexes only the repos whose HEAD moved,
+refreshes the knowledge layer, and rewrites the steering, without touching an
+in-progress working tree. Run it from cron:</p>
+<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
+</code></pre></div>
+
+<p>or as a systemd user timer, see <a href="examples/contextlake.service"><code>examples/contextlake.service</code></a>
+and <a href="examples/contextlake.timer"><code>examples/contextlake.timer</code></a>.</p>
+<h2 id="code-indexing">Code indexing<a class="anchor" href="#code-indexing" title="Link to this section">#</a></h2>
+<p>Code indexing uses tree-sitter to extract files, classes, functions/methods,
+interfaces, imports, and an intra-repo <strong>call graph</strong> from <strong>Python, JavaScript,
+TypeScript/TSX, and C#</strong> (the parser registry is pluggable). It also reads
+manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>) to build a <strong>cross-repo
+dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP,
+from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
+this"), see <a href="#serve-it-to-your-editor-mcp">the full tool list under Serve</a>.</p>
+<h2 id="connectors">Connectors<a class="anchor" href="#connectors" title="Link to this section">#</a></h2>
+<p><code>connect</code> enriches the graph with external context. The
+<strong>Atlassian</strong> connector links each repo to the Jira issues and Confluence pages it
+references, issue keys harvested from branch/commit names are confirmed against
+the live tracker (a single batched JQL call per site prunes false-positives and
+fetches each issue's summary/status), and Atlassian URLs found in docs are
+classified into issue/page links. It talks to one or more Atlassian sites over
+MCP, each independently authenticated. The <strong>Figma</strong> connector links repos to the
+design files they reference, classifying <code>figma.com</code> URLs to a stable file key. The
+<strong>GitLab</strong> connector links each repo to its open <strong>merge requests and issues</strong> (read
+through your authenticated <code>glab</code>). Connectors share one seam, so adding another is a
+small, self-contained module; output lands in an isolated graph partition, so
+re-indexing a repo's code never disturbs its external links.</p>
+<p>Configure it by copying <a href="examples/kb.toml.example"><code>examples/kb.toml.example</code></a> to
+<code>~/.contextlake/kb.toml</code>. Every fact is provenance-stamped (source file + verified
+date) and confidence-tagged (<code>EXTRACTED</code> for AST facts, <code>INFERRED</code> for resolved
+calls/links, <code>AMBIGUOUS</code> for unconfirmed candidates), and all output is sanitized
+before it reaches an agent.</p>
+<h2 id="semantic-search">Semantic search<a class="anchor" href="#semantic-search" title="Link to this section">#</a></h2>
+<p>Semantic search (optional) adds natural-language retrieval on top of the graph.
+Enable <code>[embeddings]</code> in the config (local-first, vectors come from an Ollama model
+by default, so code never leaves the machine), run <code>contextlake embed</code> to vectorize
+the indexed nodes into a local store, and <code>serve</code> then exposes two tools:
+<code>semantic_search</code> for queries where the exact symbol name is unknown, and
+<code>hybrid_search</code>, which seeds Personalized PageRank with the embedding hits and
+propagates relevance across the graph (HippoRAG-style) to surface structurally
+related nodes, a function's callers, a package's dependents, that a pure semantic
+match would miss. The vector store uses an exact pure-Python cosine scan by default;
+install the optional ANN backend with <code>pip install "contextlake[kb-vec]"</code> (sqlite-vec)
+for larger workspaces.</p>
+<p>Like <code>index</code>, <code>embed</code> is <strong>incremental</strong>: it re-embeds only repos whose indexed HEAD
+moved since they were last embedded, so a scheduled refresh over a large fleet stays
+cheap. Pass <code>--force</code> to re-embed everything.</p>
+<h2 id="measuring-retrieval-quality">Measuring retrieval quality<a class="anchor" href="#measuring-retrieval-quality" title="Link to this section">#</a></h2>
+<p><code>contextlake eval</code> keeps all this falsifiable. Point
+it at a golden-query JSON file (<code>--golden</code>, e.g. <code>examples/fixtures/golden-queries.json</code>)
+and it reports <strong>precision@k / recall@k / MRR</strong> plus a <strong>cost</strong> dimension, estimated
+tokens per query and <strong>precision per 1k tokens</strong>, so "route to the cheapest sufficient
+source" is a number, not a vibe. Score any retriever with <code>--retriever fts|semantic|hybrid</code>
+(semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then
+judged by whether the numbers move.</p>
+<h2 id="curated-wiki">Curated wiki<a class="anchor" href="#curated-wiki" title="Link to this section">#</a></h2>
+<p>The wiki (optional, local-first) turns the graph into prose. Enable
+<code>[llm]</code> in the config (generation runs on a local Ollama model by default, prompts
+never leave the machine) and run <code>contextlake wiki</code>: for each repo it synthesizes a
+Markdown page grounded strictly in graph facts (top symbols, dependencies, files)
+with a provenance footer citing the commit and sources, then puts the draft through
+a <strong>verification council</strong>, reviewers score it for accuracy, completeness, and
+clarity and a chairman publishes only pages above a configurable threshold. Nothing
+that fails review is written.</p>
+<h2 id="model-providers">Model providers<a class="anchor" href="#model-providers" title="Link to this section">#</a></h2>
+<p>Both the embeddings and wiki tiers are pluggable and take a
+<code>provider</code>, defaulting to <strong><code>"auto"</code></strong>:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
+</p>
+
+<ul>
+<li><strong><code>auto</code></strong> (default), resolves to a reachable local <strong>Ollama</strong>, else the
+  <strong>built-in</strong> CPU model if its extra is installed, else it skips that tier. So the
+  semantic/wiki tiers Just Work the moment you set <code>enabled = true</code>, with no daemon
+  and no API key.</li>
+<li><strong><code>builtin</code></strong>, a small model that runs <strong>in-process on CPU</strong> and auto-downloads
+  once to <code>cache_dir</code> (default <code>~/.contextlake/models</code>):</li>
+<li><em>Embeddings</em>, <code>engine = "model2vec"</code> (default): static <code>potion-base-8M</code>
+    (~30MB, MIT), numpy inference, very fast at scale, <code>pip install
+    "contextlake[kb-local]"</code>. Or <code>engine = "fastembed"</code>: ONNX <code>bge-small</code> (~90MB,
+    MIT, higher quality), <code>pip install "contextlake[kb-fastembed]"</code>.</li>
+<li><em>Wiki LLM</em>, a <code>Qwen2.5-0.5B-Instruct</code> GGUF (Apache-2.0) via
+    <code>llama-cpp-python</code>, <code>pip install "contextlake[llm-local]"</code>. CPU generation is
+    <strong>slow</strong> and the wiki makes ~4 calls per repo, so prefer Ollama / an API / the
+    Docker image for large workspaces.</li>
+<li><strong><code>ollama</code></strong>, a local Ollama daemon (<code>base_url</code>).</li>
+<li><strong><code>openai</code></strong>, <strong>any OpenAI-compatible API</strong> (a hosted key, or a local server like
+  LM Studio, Jan, llama.cpp, vLLM). The key is read from the env var named by
+  <code>api_key_env</code> (default <code>OPENAI_API_KEY</code>), never stored in config.</li>
+</ul>
+<p>Notes: behind a TLS-inspecting corporate proxy the first built-in download needs
+your OS CA bundle (<code>export REQUESTS_CA_BUNDLE</code> / <code>SSL_CERT_FILE</code>; see
+<code>docs/releasing.md</code>). Don't switch the embedder model/dimension against an existing
+vector store without re-embedding from scratch, a guard refuses the mismatch. The
+prebuilt Docker image (<code>ghcr.io/sayak-sarkar/contextlake</code>) bundles these models so
+nothing downloads at runtime. See <code>examples/kb.toml.example</code>.</p>
+<h2 id="visualizing-the-graph">Visualizing the graph<a class="anchor" href="#visualizing-the-graph" title="Link to this section">#</a></h2>
+<p><code>contextlake graph</code> draws a <strong>bounded</strong> slice of the graph, the whole thing
+(hundreds of thousands of nodes) is far too large to render, so every view is
+scoped from a seed and capped:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">                 </span><span class="c1"># repos-as-nodes: the architecture map</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--name<span class="w"> </span>OrderService<span class="w"> </span>--kind<span class="w"> </span>class<span class="w">  </span><span class="c1"># a symbol&#39;s neighbourhood (default 2 hops)</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--node<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--hops<span class="w"> </span><span class="m">3</span><span class="w">              </span><span class="c1"># expand around an exact node id</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--search<span class="w"> </span><span class="s2">&quot;payment&quot;</span><span class="w"> </span>--open<span class="w">         </span><span class="c1"># seed from a full-text search</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--repo<span class="w"> </span>team/service-api<span class="w">           </span><span class="c1"># one repo&#39;s internal code graph</span>
+</code></pre></div>
+
+<p>Seed with one of <code>--node</code> / <code>--name</code> (+<code>--kind</code>) / <code>--search</code> / <code>--repo</code> /
+<code>--overview</code>. Bound the result with <code>--hops</code> (default 2), <code>--max-nodes</code> (500),
+<code>--max-fanout</code> (50, a per-node cap that stops hub nodes from exploding),
+<code>--relation</code>, and <code>--direction {in,out,both}</code>, whatever is dropped is <strong>logged</strong>,
+never silently truncated.</p>
+<p>Output is chosen with <code>--format</code>:</p>
+<ul>
+<li><strong><code>html</code></strong> (default), a single <strong>self-contained, offline</strong> page (cytoscape.js is
+  inlined, so it opens from <code>file://</code> with no network, handy air-gapped / behind a
+  proxy). Nodes are coloured by kind and sized by degree; edges are styled by
+  relation/confidence with their labels hidden until you click a node (so the view
+  stays readable). Pan, zoom, drag, and a <strong>layout switcher</strong> (<code>cose</code>, <code>concentric</code>,
+  <code>breadthfirst</code>, <code>circle</code>, <code>grid</code>) in the page, set the initial one with <code>--layout</code>.
+  <code>--open</code> launches the browser; <code>--cdn</code> produces a small online-only file instead.</li>
+<li><strong><code>dot</code></strong>, Graphviz (<code>contextlake graph … --format dot | dot -Tsvg &gt; g.svg</code>).</li>
+<li><strong><code>mermaid</code></strong>, pastes into Markdown / GitHub.</li>
+<li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for Gephi / cytoscape / custom tooling.</li>
+</ul>
+<p>For interactive exploration of a large graph, <code>contextlake graph --serve</code> runs a
+local web UI where clicking a node <strong>expands</strong> it (fetches its neighbours on
+demand) so you can walk the graph without pre-rendering all of it.</p>
+<h2 id="serve-it-to-your-editor-mcp">Serve it to your editor (MCP)<a class="anchor" href="#serve-it-to-your-editor-mcp" title="Link to this section">#</a></h2>
+<p><code>contextlake serve</code> is an MCP server, so any MCP client can query the graph, and
+<strong>most of it needs no model</strong>: the graph tools (<code>search_code</code>, <code>find_definition</code>,
+<code>find_callers</code>, <code>find_dependents</code>, <code>shortest_path</code>, <code>graph_stats</code>,
+<code>repo_dependencies</code>, <code>repo_flow</code>, <code>repo_event_flow</code>, <code>blast_radius</code>, <code>get_wiki</code>, <code>get_readme</code>,
+<code>get_repo_brief</code>, <code>list_repos</code>, <code>get_repo_links</code>, <code>graph_health</code>) work on their own;
+only <code>semantic_search</code>/<code>hybrid_search</code> need embeddings.</p>
+<p><strong>The quickest way</strong> is to let the tool wire your editors for you. From your
+workspace root:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>steer<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
+</code></pre></div>
+
+<p>This writes workspace-specific <strong><code>AGENTS.md</code></strong> (overview, the knowledge tools, and
+guardrails), a thin <strong><code>CLAUDE.md</code></strong> that imports it, <strong><code>.windsurfrules</code></strong>,
+<strong><code>.kiro/steering/</code></strong>, and merges a <strong><code>.mcp.json</code></strong> entry, so Claude Code, Windsurf,
+Kiro, and other agents pick up the workspace context and the MCP server natively. It
+also installs a generic library of <strong>agent skills/workflows</strong> (<code>.claude/skills/</code>,
+<code>.windsurf/workflows/</code>), investigate-root-cause, plan-before-coding,
+surgical-change, review-before-landing, ship-safely, use-knowledge-graph, so even a
+small-context model has a strong operating playbook. <strong>It never corrupts your
+existing files</strong>: if you already have an <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.windsurfrules</code>,
+or <code>.kiro/steering</code>, your content is preserved and a clearly-delimited managed block
+is appended (and only that block is refreshed on re-runs); <code>.mcp.json</code> is merged so
+your other servers stay; a skill file you wrote with the same name is kept as-is.
+Custom layers like <code>.devin/</code> are left untouched.</p>
+<p>To wire Claude Code by hand instead:</p>
+<div class="codehilite"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
+</code></pre></div>
+
+<p><strong>Windsurf / Devin</strong>, add the same server in its MCP config (Cascade's <em>MCP
+Servers</em> panel, or <code>~/.codeium/windsurf/mcp_config.json</code>):</p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;contextlake-kb&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contextlake&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;serve&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;~/.contextlake/kb.toml&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Once connected, ask the agent things like "where is <code>OrderService</code> defined?", "who
+calls <code>charge</code>?", or "which repos depend on <code>shared-core</code>?" and it calls the graph
+tools directly, you can even have it draft wiki pages from the graph without the
+built-in <code>wiki</code> command.</p>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="usage.html"><span>Usage & config</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="internals.html"><span>Architecture</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#setup">Setup</a></li>
+<li><a href="#indexing">Indexing</a><ul>
+<li><a href="#incremental-time-travel">Incremental &amp; time-travel</a></li>
+<li><a href="#parallelism-noise-pruning">Parallelism &amp; noise-pruning</a></li>
+<li><a href="#health-maintenance">Health &amp; maintenance</a></li>
+</ul>
+</li>
+<li><a href="#one-command-setup">One-command setup</a><ul>
+<li><a href="#keep-it-fresh-on-a-schedule">Keep it fresh on a schedule</a></li>
+</ul>
+</li>
+<li><a href="#code-indexing">Code indexing</a></li>
+<li><a href="#connectors">Connectors</a></li>
+<li><a href="#semantic-search">Semantic search</a></li>
+<li><a href="#measuring-retrieval-quality">Measuring retrieval quality</a></li>
+<li><a href="#curated-wiki">Curated wiki</a></li>
+<li><a href="#model-providers">Model providers</a></li>
+<li><a href="#visualizing-the-graph">Visualizing the graph</a></li>
+<li><a href="#serve-it-to-your-editor-mcp">Serve it to your editor (MCP)</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>

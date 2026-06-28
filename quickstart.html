@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart · contextlake docs</title>
+<meta name="description" content="Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.">
+<link rel="canonical" href="https://sayak.in/contextlake/quickstart.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Quickstart · contextlake docs">
+<meta property="og:description" content="Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.">
+<meta property="og:url" content="https://sayak.in/contextlake/quickstart.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Quickstart · contextlake docs">
+<meta name="twitter:description" content="Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Documentation</h2><nav aria-label="Docs"><a href="index.html">Home</a><a href="docs.html">Overview</a><a href="quickstart.html" class="active">Quickstart</a><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="internals.html">Architecture</a><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></div></div></aside>
+  <main class="prose" id="doc">
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Start here · all three layers</div><h1>Quickstart</h1><p class="doc-sub">Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>From a fresh machine to a fully-wired AI workspace, your GitLab repos mirrored,
+indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro, 
+in a few minutes. Everything beyond the mirror is optional and off by default.</p>
+<h2 id="1-prerequisites">1. Prerequisites<a class="anchor" href="#1-prerequisites" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>Python 3.10+</strong> (the knowledge layer needs 3.10; the core sync works on 3.9+)</li>
+<li><strong><code>git</code></strong> and an authenticated <strong><code>glab</code></strong>, run <code>glab auth login</code></li>
+</ul>
+<h2 id="2-install">2. Install<a class="anchor" href="#2-install" title="Link to this section">#</a></h2>
+<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;git+https://github.com/sayak-sarkar/contextlake[kb]&quot;</span>
+<span class="c1"># or from a clone:  pip install &quot;.[kb]&quot;</span>
+<span class="c1"># optional ANN backend for semantic search:  add the [kb-vec] extra</span>
+</code></pre></div>
+
+<p>This gives you the <code>contextlake</code> command. (<code>python -m contextlake</code> and
+<code>python3 contextlake.py</code> work too.)</p>
+<h2 id="3-configure">3. Configure<a class="anchor" href="#3-configure" title="Link to this section">#</a></h2>
+<p>Two small files. <strong>Mirror config</strong>, <code>~/.contextlake.ini</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[contextlake]</span>
+<span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
+<span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
+</code></pre></div>
+
+<p><strong>Knowledge-layer config</strong>, <code>~/.contextlake/kb.toml</code> (copy
+<a href="examples/kb.toml.example"><code>examples/kb.toml.example</code></a> and keep what you need):</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[kb]</span>
+<span class="n">store_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/.contextlake/kb&quot;</span>
+
+<span class="c1"># Link each repo to its open GitLab merge requests + issues (uses your glab login):</span>
+<span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gitlab&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gitlab&quot;</span>
+<span class="n">group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;your-gitlab-group&quot;</span>
+</code></pre></div>
+
+<p>Semantic search and the curated wiki need a model, enable <code>[embeddings]</code> / <code>[llm]</code>
+in <code>kb.toml</code> pointing at a local Ollama <strong>or any OpenAI-compatible endpoint</strong> (hosted
+key or a local server like LM Studio / Jan). The key is read from an env var, never
+stored in config. Everything here is optional; the graph and search work with no
+model at all.</p>
+<h2 id="4-bootstrap-one-command">4. Bootstrap, one command<a class="anchor" href="#4-bootstrap-one-command" title="Link to this section">#</a></h2>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--config<span class="w"> </span>~/.contextlake.ini<span class="w"> </span>--kb-config<span class="w"> </span>~/.contextlake/kb.toml
+</code></pre></div>
+
+<p>It mirrors your repos, indexes them into the graph, runs your connectors, and writes
+the editor steering. Useful toggles:</p>
+<ul>
+<li>already have the repos cloned? add <code>--no-sync</code></li>
+<li>no model configured yet? add <code>--no-embed --no-wiki</code></li>
+</ul>
+<h2 id="5-wire-your-editor">5. Wire your editor<a class="anchor" href="#5-wire-your-editor" title="Link to this section">#</a></h2>
+<p><code>bootstrap</code> already wrote <code>.mcp.json</code>, <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.windsurfrules</code>,
+<code>.kiro/steering/</code>, and a <code>.claude/skills/</code> + <code>.windsurf/workflows/</code> library into your
+workspace. To register the server with <strong>Claude Code</strong> explicitly:</p>
+<div class="codehilite"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
+</code></pre></div>
+
+<p><strong>Windsurf / Devin</strong> and <strong>Kiro</strong> pick up the generated config and rules
+automatically. Now ask your agent: <em>"where is <code>OrderService</code> defined?"</em>, <em>"who calls
+<code>charge</code>?"</em>, <em>"which repos depend on <code>shared-core</code>?"</em>, it queries the graph and cites
+files instead of guessing. The installed skills give even a small-context model a
+strong operating playbook.</p>
+<h2 id="6-keep-it-fresh">6. Keep it fresh<a class="anchor" href="#6-keep-it-fresh" title="Link to this section">#</a></h2>
+<p><code>bootstrap</code> is <strong>incremental and branch-safe</strong>, it re-indexes only repos whose HEAD
+moved and never touches an in-progress working tree, so it's safe to run on a
+schedule. Use cron:</p>
+<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
+</code></pre></div>
+
+<p>or the systemd user units in <a href="examples/"><code>examples/</code></a>. See the
+<a href="docs.html">README</a> for the full command reference and configuration.</p>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="usage.html"><span>Usage & config</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="knowledge-layer.html"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#1-prerequisites">1. Prerequisites</a></li>
+<li><a href="#2-install">2. Install</a></li>
+<li><a href="#3-configure">3. Configure</a></li>
+<li><a href="#4-bootstrap-one-command">4. Bootstrap, one command</a></li>
+<li><a href="#5-wire-your-editor">5. Wire your editor</a></li>
+<li><a href="#6-keep-it-fresh">6. Keep it fresh</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
