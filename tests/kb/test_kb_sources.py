@@ -83,6 +83,51 @@ def test_web_source_skips_unreachable(monkeypatch):
     assert list(web.WebSource(urls=["https://x", "https://y"]).iter_documents()) == []
 
 
+def test_api_source_maps_records_and_skips_textless(monkeypatch):
+    from contextlake.kb.sources.api import ApiSource, _dig
+    assert _dig({"data": {"items": [1]}}, "data.items") == [1]
+    assert _dig({"a": 1}, "a.b") is None
+
+    payload = {"data": {"items": [
+        {"id": "1", "title": "One", "body": "first"},
+        {"id": "2", "title": "Two", "body": ""},        # no text -> skipped
+        {"id": "3", "title": "Three", "body": "third"},
+    ]}}
+    monkeypatch.setattr(ApiSource, "_fetch", lambda self: payload)
+    docs = list(ApiSource(url="https://api/x", items="data.items",
+                          text_field="body").iter_documents())
+    assert [d.id for d in docs] == ["1", "3"]
+    assert docs[0].title == "One" and docs[0].text == "first"
+
+
+def test_api_source_uses_token_env_for_auth(monkeypatch):
+    import contextlake.kb.sources.api as api
+
+    captured = {}
+
+    class _Resp:
+        headers = type("H", (), {"get_content_charset": lambda self: "utf-8"})()
+
+        def read(self):
+            return b'[{"id":"a","text":"hi"}]'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=None):
+        captured["auth"] = req.headers.get("Authorization")
+        return _Resp()
+
+    monkeypatch.setenv("MY_TOKEN", "sekret")
+    monkeypatch.setattr(api.urllib.request, "urlopen", fake_urlopen)
+    docs = list(api.ApiSource(url="https://api/x", token_env="MY_TOKEN").iter_documents())
+    assert docs and docs[0].id == "a"
+    assert captured["auth"] == "Bearer sekret"   # pulled from the env var, not config
+
+
 def test_plugin_discovery_via_entry_points(monkeypatch):
     class _Plugin:
         def __init__(self, **_):
