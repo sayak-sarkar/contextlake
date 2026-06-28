@@ -320,6 +320,23 @@ never silently truncated.</p>
 <p>For interactive exploration of a large graph, <code>contextlake graph --serve</code> runs a
 local web UI where clicking a node <strong>expands</strong> it (fetches its neighbours on
 demand) so you can walk the graph without pre-rendering all of it.</p>
+<h2 id="the-dashboard">The dashboard<a class="anchor" href="#the-dashboard" title="Link to this section">#</a></h2>
+<p>Where <code>graph</code> shows the graph, <strong><code>contextlake dashboard</code></strong> is the human UI into the whole
+knowledge system, a local, read-only app that travels three <em>altitudes</em> (fleet → repo →
+symbol) with cross-cutting <em>lenses</em> (architecture, health, search):</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w">                 </span><span class="c1"># serve the live dashboard against your store</span>
+contextlake<span class="w"> </span>dashboard<span class="w"> </span>--site<span class="w"> </span>./out<span class="w">    </span><span class="c1"># export a fully static, offline (file://) copy</span>
+contextlake<span class="w"> </span>dashboard<span class="w"> </span>--site<span class="w"> </span>./out<span class="w"> </span>--sample<span class="w">   </span><span class="c1"># a shareable showcase built from the sample fixture</span>
+</code></pre></div>
+
+<p>It surfaces per-repo <strong>anatomy / README / wiki / owners / connector links</strong>, repo→repo
+<strong>dependency / HTTP-flow / event-flow</strong> (each with confidence + provenance, INFERRED data is
+marked, never shown as ground truth), an embedded interactive <strong>architecture graph</strong>, a
+<strong>change-impact</strong> explorer, <strong>health</strong>, and <strong>search</strong>. Every fact carries its receipt.</p>
+<p>It's offline-first and self-contained (no CDN, works from <code>file://</code>). <strong>Privacy note:</strong> a
+real-store <code>--site</code> export inlines repo names, git-author identities, and connector URLs, it
+prints a "do not publish unscrubbed" warning; use <code>--anonymize</code> (hashes authors, drops external
+URLs) or <code>--sample</code> for anything you intend to share. Read-only in v1; sync/MCP controls are planned.</p>
 <h2 id="serve-it-to-your-editor-mcp">Serve it to your editor (MCP)<a class="anchor" href="#serve-it-to-your-editor-mcp" title="Link to this section">#</a></h2>
 <p><code>contextlake serve</code> is an MCP server, so any MCP client can query the graph, and
 <strong>most of it needs no model</strong>: the graph tools (<code>search_code</code>, <code>find_definition</code>,
@@ -390,6 +407,7 @@ built-in <code>wiki</code> command.</p>
 <li><a href="#curated-wiki">Curated wiki</a></li>
 <li><a href="#model-providers">Model providers</a></li>
 <li><a href="#visualizing-the-graph">Visualizing the graph</a></li>
+<li><a href="#the-dashboard">The dashboard</a></li>
 <li><a href="#serve-it-to-your-editor-mcp">Serve it to your editor (MCP)</a></li>
 </ul>
 </nav></aside>
