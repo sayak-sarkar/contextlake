@@ -224,6 +224,23 @@ def guard_store_identity(store, identity: str, dim: int) -> None:
     conn.commit()
 
 
+def get_embedded_head(store, repo_id: str) -> str | None:
+    """The head commit a repo was last embedded at, or None if never embedded."""
+    row = store.conn.execute(
+        "SELECT value FROM vec_meta WHERE key=?", (f"head:{repo_id}",)
+    ).fetchone()
+    return row[0] if row and row[0] else None
+
+
+def set_embedded_head(store, repo_id: str, head: str | None) -> None:
+    """Record the head commit a repo was just embedded at (for incremental embed)."""
+    store.conn.execute(
+        "INSERT OR REPLACE INTO vec_meta(key, value) VALUES(?, ?)",
+        (f"head:{repo_id}", head or ""),
+    )
+    store.conn.commit()
+
+
 def build_vector_store(path: str | Path, *, backend: str = "auto"):
     """Return a vector store. ``backend``: ``auto`` | ``sqlite-vec`` | ``brute``.
 

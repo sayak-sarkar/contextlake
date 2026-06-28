@@ -132,3 +132,58 @@ def test_cmd_embed_disabled_is_noop(tmp_path, monkeypatch):
     args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
     assert cmd_embed(args) == 0
     assert not (store_dir / "embeddings.sqlite").exists()
+
+
+def test_embedded_head_roundtrip(tmp_path):
+    from contextlake.kb.embeddings.store import get_embedded_head, set_embedded_head
+    vs = VectorStore(tmp_path / "e.sqlite")
+    try:
+        assert get_embedded_head(vs, "r") is None
+        set_embedded_head(vs, "r", "abc")
+        assert get_embedded_head(vs, "r") == "abc"
+        set_embedded_head(vs, "r", None)  # empty -> None back
+        assert get_embedded_head(vs, "r") is None
+    finally:
+        vs.close()
+
+
+def _setup_embed_repo(tmp_path, head):
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(parents=True, exist_ok=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_EMBED_CONFIG.format(store=store_dir.as_posix()))
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_repo(Repo(id="r", path=str(tmp_path / "r"), head_commit=head))
+    s.close()
+    write_shard(store_dir, GraphShard(
+        repo="r", head_commit=head,
+        nodes=[Node(id="n1", repo="r", kind="function", name="foo")], edges=[]))
+    return cfg
+
+
+def test_cmd_embed_incremental_skips_force_and_head_move(tmp_path, monkeypatch):
+    import contextlake.kb.embeddings.index as emb_index
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _setup_embed_repo(tmp_path, "h1")
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _FakeEmbedder())
+
+    calls = []
+    real = emb_index.embed_repo
+    monkeypatch.setattr(emb_index, "embed_repo",
+                        lambda *a, **k: (calls.append(a[3]), real(*a, **k))[1])
+
+    base = dict(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
+    assert cmd_embed(Namespace(**base, force=False)) == 0
+    assert calls == ["r"]                       # first embed
+
+    assert cmd_embed(Namespace(**base, force=False)) == 0
+    assert calls == ["r"]                       # head unchanged -> skipped
+
+    assert cmd_embed(Namespace(**base, force=True)) == 0
+    assert calls == ["r", "r"]                  # --force re-embeds
+
+    _setup_embed_repo(tmp_path, "h2")           # re-index moves HEAD
+    assert cmd_embed(Namespace(**base, force=False)) == 0
+    assert calls == ["r", "r", "r"]             # moved HEAD -> re-embeds
