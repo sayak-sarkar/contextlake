@@ -71,6 +71,11 @@ jobs:
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Re-pushing an existing version tag (e.g. to amend a release commit)
+          # re-triggers this workflow; turn a duplicate upload into a no-op
+          # instead of a hard failure so the re-run stays green.
+          skip-existing: true
 
   docker:
     name: publish image (ghcr.io)
