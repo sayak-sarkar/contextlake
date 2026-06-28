@@ -210,8 +210,17 @@ class ConfluenceSource:
         yield Document(id="123", title="Runbook", text="…", uri="https://…")
 ```
 
-`contextlake ingest` then discovers `type = "confluence"` automatically. Built-in sources
-ship today (`files`); web/API/MCP sources are on the roadmap as plugins.
+`contextlake ingest` then discovers `type = "confluence"` automatically. Two sources ship
+built-in — `files` and **`web`** (fetch URLs and ingest their readable text, stdlib-only):
+
+```toml
+[[sources]]
+type = "web"
+name = "changelog"
+urls = ["https://example.com/changelog", "https://example.com/roadmap"]
+```
+
+API and MCP sources are on the roadmap as further plugins on the same seam.
 
 ## Measuring retrieval quality
 

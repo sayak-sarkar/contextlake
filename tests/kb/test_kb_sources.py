@@ -31,9 +31,56 @@ def test_files_source_single_file(tmp_path):
 
 
 def test_registry_builtin_and_build_source():
-    assert "files" in discover_sources()
+    reg = discover_sources()
+    assert {"files", "web"} <= set(reg)
     assert isinstance(build_source("files", path="."), FilesSource)
     assert build_source("nope-xyz") is None
+
+
+def test_html_to_text_extracts_title_and_drops_script_style():
+    from contextlake.kb.sources.web import html_to_text
+    html = ("<html><head><title> Hello </title><style>x{color:red}</style></head>"
+            "<body><h1>Heading</h1><script>bad()</script><p>Body text</p></body></html>")
+    title, text = html_to_text(html)
+    assert title == "Hello"
+    assert "Heading" in text and "Body text" in text
+    assert "bad()" not in text and "color:red" not in text
+
+
+def test_web_source_yields_doc_with_mocked_fetch(monkeypatch):
+    import contextlake.kb.sources.web as web
+
+    class _Headers:
+        def get_content_charset(self):
+            return "utf-8"
+
+    class _Resp:
+        headers = _Headers()
+
+        def read(self):
+            return b"<title>Page</title><body><p>Hello web</p></body>"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(web.urllib.request, "urlopen", lambda *a, **k: _Resp())
+    docs = list(web.WebSource(url="https://example.com/x").iter_documents())
+    assert len(docs) == 1
+    assert docs[0].title == "Page" and "Hello web" in docs[0].text
+    assert docs[0].uri == "https://example.com/x"
+
+
+def test_web_source_skips_unreachable(monkeypatch):
+    import contextlake.kb.sources.web as web
+
+    def boom(*a, **k):
+        raise OSError("no network")
+
+    monkeypatch.setattr(web.urllib.request, "urlopen", boom)
+    assert list(web.WebSource(urls=["https://x", "https://y"]).iter_documents()) == []
 
 
 def test_plugin_discovery_via_entry_points(monkeypatch):
