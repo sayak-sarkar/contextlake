@@ -233,7 +233,21 @@ text_field = "body"            # which key holds the document text
 token_env = "EXAMPLE_API_TOKEN"  # bearer token comes from this env var
 ```
 
-An MCP-resource source is on the roadmap as a further plugin on the same seam.
+An **`mcp`** source ships built-in as well — contextlake connects as an MCP *client*
+(stdio or streamable-HTTP) to another MCP server, lists its resources, and ingests each:
+
+```toml
+[[sources]]
+type = "mcp"
+name = "team-kb"
+command = "uvx"                 # stdio transport: a server to launch…
+args = ["some-mcp-server"]
+# …or an HTTP endpoint instead:
+# url = "https://mcp.example.com/sse"
+```
+
+So contextlake both *serves* a knowledge graph over MCP and *consumes* other MCP servers'
+resources into it — the loop closes on the same seam.
 
 ## Measuring retrieval quality
 

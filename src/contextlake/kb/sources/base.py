@@ -44,9 +44,10 @@ class Source(Protocol):
 def _builtin_sources() -> dict[str, type]:
     from .api import ApiSource
     from .files import FilesSource
+    from .mcp import McpSource
     from .web import WebSource
 
-    return {"files": FilesSource, "web": WebSource, "api": ApiSource}
+    return {"files": FilesSource, "web": WebSource, "api": ApiSource, "mcp": McpSource}
 
 
 def discover_sources() -> dict[str, type]:

@@ -128,6 +128,73 @@ def test_api_source_uses_token_env_for_auth(monkeypatch):
     assert captured["auth"] == "Bearer sekret"   # pulled from the env var, not config
 
 
+def test_registry_has_mcp():
+    assert "mcp" in discover_sources()
+
+
+def test_mcp_texts_extracts_text_skips_blobs():
+    from contextlake.kb.sources.mcp import _texts
+
+    class _C:
+        def __init__(self, text=None):
+            self.text = text
+
+    class _R:
+        contents = [_C("hello"), _C(None), _C("world")]
+
+    assert _texts(_R()) == "hello\nworld"
+
+
+def test_mcp_source_noop_without_target():
+    from contextlake.kb.sources.mcp import McpSource
+    assert list(McpSource().iter_documents()) == []
+
+
+def test_mcp_read_all_maps_resources():
+    import asyncio
+
+    from contextlake.kb.sources.mcp import McpSource
+
+    class _Res:
+        def __init__(self, uri, name):
+            self.uri, self.name, self.mimeType = uri, name, "text/plain"
+
+    class _ListResult:
+        resources = [_Res("res://a", "Doc A"), _Res("res://b", "Doc B")]
+
+    class _Content:
+        def __init__(self, text):
+            self.text = text
+
+    class _ReadResult:
+        def __init__(self, text):
+            self.contents = [_Content(text)]
+
+    class _Session:
+        def __init__(self, read, write):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def initialize(self):
+            pass
+
+        async def list_resources(self):
+            return _ListResult()
+
+        async def read_resource(self, uri):
+            return _ReadResult(f"body of {uri}")
+
+    docs = asyncio.run(McpSource._read_all(_Session, None, None))
+    assert [d.id for d in docs] == ["res://a", "res://b"]
+    assert docs[0].title == "Doc A" and "body of res://a" in docs[0].text
+    assert docs[0].attrs["mimeType"] == "text/plain"
+
+
 def test_plugin_discovery_via_entry_points(monkeypatch):
     class _Plugin:
         def __init__(self, **_):
