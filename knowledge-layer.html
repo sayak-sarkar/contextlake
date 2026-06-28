@@ -126,7 +126,9 @@ TypeScript/TSX, and C#</strong> (the parser registry is pluggable). It also read
 manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>) to build a <strong>cross-repo
 dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
-this"), see <a href="#serve-it-to-your-editor-mcp">the full tool list under Serve</a>.</p>
+this"), see <a href="#serve-it-to-your-editor-mcp">the full tool list under Serve</a>. The same
+change-impact walk is a one-liner from the shell: <code>contextlake impact &lt;symbol&gt; [--hops N]</code>
+lists what calls / depends on a node, no editor needed.</p>
 <h2 id="ownership-smes">Ownership &amp; SMEs<a class="anchor" href="#ownership-smes" title="Link to this section">#</a></h2>
 <p><code>contextlake owners &lt;repo&gt;</code> (or <code>--path SUBDIR</code> for a sub-tree) answers <strong>"who owns
 this / who do I ask?"</strong> straight from git history, no config, no index required. It
