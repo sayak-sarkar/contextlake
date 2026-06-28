@@ -13,7 +13,11 @@
 html{scroll-behavior:smooth}
 @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
 body{margin:0;font-family:var(--ff);color:var(--ink);background:var(--bg);line-height:1.65;
-  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  min-height:100vh;display:flex;flex-direction:column}
+/* sticky footer: keep the footer pinned to the viewport bottom on short pages (e.g. 404) */
+.shell,body>main{flex:1 0 auto}
+body>footer{flex-shrink:0}
 a{color:var(--lake)} a:hover{color:#0f6473}
 :focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--current);border-radius:6px}
 .skip{position:absolute;left:-9999px;top:0;background:var(--deepwater);color:#fff;padding:10px 16px;border-radius:0 0 8px 0;z-index:100}
