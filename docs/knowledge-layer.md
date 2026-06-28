@@ -111,7 +111,9 @@ TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads
 manifests (`pyproject.toml`, `package.json`, `*.csproj`) to build a **cross-repo
 dependency graph** through shared package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo `blast_radius` ("what could break if I change
-this"), see [the full tool list under Serve](#serve-it-to-your-editor-mcp).
+this"), see [the full tool list under Serve](#serve-it-to-your-editor-mcp). The same
+change-impact walk is a one-liner from the shell: `contextlake impact <symbol> [--hops N]`
+lists what calls / depends on a node, no editor needed.
 
 ## Ownership & SMEs
 

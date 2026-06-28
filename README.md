@@ -157,6 +157,7 @@ Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage
 | `wiki` | LLM-synthesized, council-verified wiki pages |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
+| `impact` | Change-impact / blast radius: what depends on a symbol (`--hops`) |
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
 | `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
 | `steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |

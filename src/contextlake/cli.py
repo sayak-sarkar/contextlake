@@ -76,7 +76,7 @@ Examples:
             "bootstrap",
             # knowledge layer (optional [kb] extra)
             "index", "connect", "embed", "lint", "wiki", "steer",
-            "serve", "query", "graph", "doctor", "eval", "owners",
+            "serve", "query", "graph", "doctor", "eval", "owners", "impact",
         ],
         help="Command to execute",
     )
@@ -132,7 +132,8 @@ Examples:
     kb.add_argument("--search", help="graph: seed from a full-text search (+ --kind/--repo)")
     kb.add_argument("--overview", action="store_true",
                     help="graph: repos-as-nodes with aggregated cross-repo edges")
-    kb.add_argument("--hops", type=int, help="graph: expansion radius from the seeds (default 2)")
+    kb.add_argument("--hops", type=int,
+                    help="graph: expansion radius (default 2) · impact: reverse depth (default 3)")
     kb.add_argument("--max-nodes", dest="max_nodes", type=int,
                     help="graph: cap on rendered nodes (default 500)")
     kb.add_argument("--max-fanout", dest="max_fanout", type=int,
@@ -365,7 +366,7 @@ def main(argv=None):
     # need the sync config/preamble. Imported lazily so the core tool runs
     # without the [kb] extra.
     if args.command in ("index", "connect", "embed", "lint", "wiki", "steer",
-                        "serve", "query", "graph", "doctor", "eval", "owners"):
+                        "serve", "query", "graph", "doctor", "eval", "owners", "impact"):
         try:
             from .kb import commands as kb_commands
         except ImportError as e:
