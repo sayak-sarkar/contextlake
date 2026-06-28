@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-06-28
+
+### Added
+
+- **Built-in `api` source for `ingest`.** GET a JSON endpoint and map its records to
+  documents — `items` (dotted path to the record list), `id_field`/`title_field`/`text_field`,
+  and an optional bearer token read from an env var named by `token_env` (the secret never
+  lives in config). Standard library only.
+
 ## [2.16.0] - 2026-06-28
 
 ### Added
