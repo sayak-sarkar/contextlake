@@ -127,6 +127,16 @@ manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.cspro
 dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
 this"), see <a href="#serve-it-to-your-editor-mcp">the full tool list under Serve</a>.</p>
+<h2 id="ownership-smes">Ownership &amp; SMEs<a class="anchor" href="#ownership-smes" title="Link to this section">#</a></h2>
+<p><code>contextlake owners &lt;repo&gt;</code> (or <code>--path SUBDIR</code> for a sub-tree) answers <strong>"who owns
+this / who do I ask?"</strong> straight from git history, no config, no index required. It
+ranks contributors by a <strong>recency-weighted</strong> blend of commit volume and lines changed,
+so someone active in that area lately outranks a long-departed prolific author:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>owners<span class="w"> </span>payments-api<span class="w">                 </span><span class="c1"># top contributors for the whole repo</span>
+contextlake<span class="w"> </span>owners<span class="w"> </span>payments-api<span class="w"> </span>--path<span class="w"> </span>src/auth<span class="w">  </span><span class="c1"># …scoped to the auth module</span>
+</code></pre></div>
+
+<p>The same ranking is available to agents over MCP as <strong><code>who_knows(repo, path?, limit?)</code></strong>.</p>
 <h2 id="connectors">Connectors<a class="anchor" href="#connectors" title="Link to this section">#</a></h2>
 <p><code>connect</code> enriches the graph with external context. The
 <strong>Atlassian</strong> connector links each repo to the Jira issues and Confluence pages it
@@ -248,7 +258,8 @@ demand) so you can walk the graph without pre-rendering all of it.</p>
 <p><code>contextlake serve</code> is an MCP server, so any MCP client can query the graph, and
 <strong>most of it needs no model</strong>: the graph tools (<code>search_code</code>, <code>find_definition</code>,
 <code>find_callers</code>, <code>find_dependents</code>, <code>shortest_path</code>, <code>graph_stats</code>,
-<code>repo_dependencies</code>, <code>repo_flow</code>, <code>repo_event_flow</code>, <code>blast_radius</code>, <code>get_wiki</code>, <code>get_readme</code>,
+<code>repo_dependencies</code>, <code>repo_flow</code>, <code>repo_event_flow</code>, <code>blast_radius</code>, <code>who_knows</code>,
+<code>get_wiki</code>, <code>get_readme</code>,
 <code>get_repo_brief</code>, <code>list_repos</code>, <code>get_repo_links</code>, <code>graph_health</code>) work on their own;
 only <code>semantic_search</code>/<code>hybrid_search</code> need embeddings.</p>
 <p><strong>The quickest way</strong> is to let the tool wire your editors for you. From your
@@ -305,6 +316,7 @@ built-in <code>wiki</code> command.</p>
 </ul>
 </li>
 <li><a href="#code-indexing">Code indexing</a></li>
+<li><a href="#ownership-smes">Ownership &amp; SMEs</a></li>
 <li><a href="#connectors">Connectors</a></li>
 <li><a href="#semantic-search">Semantic search</a></li>
 <li><a href="#measuring-retrieval-quality">Measuring retrieval quality</a></li>
