@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-06-28
+
+### Added
+
+- **Ownership / SME lookup from commit history.** New `contextlake owners <repo>`
+  (optionally `--path SUBDIR`) ranks likely owners / subject-matter experts straight
+  from git history — zero-config, no index needed — using a recency-weighted blend of
+  commit volume and lines changed, so recent active contributors outrank a long-departed
+  prolific author. Exposed to agents over MCP as the `who_knows(repo, path?, limit?)` tool.
+
 ## [2.12.0] - 2026-06-28
 
 ### Added
