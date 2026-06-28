@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Incremental `embed`.** `embed` now re-embeds only repos whose indexed HEAD has moved
+  since they were last embedded (tracked per-repo in the vector store), so a scheduled
+  embed over a large fleet stays cheap, like `index` already is. `--force` re-embeds
+  everything; a partial `--limit` run never updates the gate.
 - **`.contextlakeignore`** — drop one at a repo's root to exclude your own paths from
   indexing (one glob per line; `*.lock` ignores by name anywhere, `vendor/` prunes a
   directory). A small, dependency-free subset of gitignore syntax; ignored files are

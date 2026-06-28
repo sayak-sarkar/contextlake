@@ -147,6 +147,10 @@ match would miss. The vector store uses an exact pure-Python cosine scan by defa
 install the optional ANN backend with `pip install "contextlake[kb-vec]"` (sqlite-vec)
 for larger workspaces.
 
+Like `index`, `embed` is **incremental**: it re-embeds only repos whose indexed HEAD
+moved since they were last embedded, so a scheduled refresh over a large fleet stays
+cheap. Pass `--force` to re-embed everything.
+
 ## Measuring retrieval quality
 
 `contextlake eval` keeps all this falsifiable. Point

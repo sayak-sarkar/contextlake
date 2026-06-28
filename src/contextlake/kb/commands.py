@@ -446,8 +446,18 @@ def cmd_embed(args) -> int:
                 guard_store_identity(vs, identity, len(probe[0]))
             log(f"Embedding {len(targets)} repo(s) with {embedder.name} "
                 f"into the {vs.name} vector store")
-            total = failed = 0
+            # Incremental: skip a repo whose indexed HEAD hasn't moved since it was
+            # last embedded. `--force` re-embeds; `--limit` (partial) never gates.
+            from .embeddings.store import get_embedded_head, set_embedded_head
+            force = getattr(args, "force", False)
+            incremental = limit is None and not force
+            total = failed = skipped = 0
             for repo_id, _ in targets:
+                repo = store.get_repo(repo_id)
+                head = repo.head_commit if repo else None
+                if incremental and head and get_embedded_head(vs, repo_id) == head:
+                    skipped += 1
+                    continue
                 try:
                     n = embed_repo(store_dir, vs, embedder, repo_id,
                                    batch_size=cfg.embeddings.batch_size, limit=limit)
@@ -455,14 +465,19 @@ def cmd_embed(args) -> int:
                     log(f"  {repo_id}: embed failed — {e}")
                     failed += 1
                     continue
+                if limit is None:
+                    set_embedded_head(vs, repo_id, head)
                 total += n
                 if n:
                     log(f"  {repo_id}: embedded {n} node(s)")
-            log(f"Embed complete: {total} vector(s) written ({vs.count()} total in store)")
-            # Honest exit: if every repo in a non-empty work set failed (e.g. the
+            tail = f", {skipped} already up to date" if skipped else ""
+            log(f"Embed complete: {total} vector(s) written ({vs.count()} total in store){tail}")
+            # Honest exit: if every repo we actually tried to embed failed (e.g. the
             # embedder went unreachable mid-run), this is a failure, not success.
-            if failed == len(targets):
-                log(style.warn(f"Embed failed for all {len(targets)} repo(s) — no vectors written"))
+            # Up-to-date repos that were skipped don't count as attempts.
+            attempted = len(targets) - skipped
+            if attempted and failed == attempted:
+                log(style.warn(f"Embed failed for all {attempted} repo(s) — no vectors written"))
                 return 1
             return 0
         finally:
