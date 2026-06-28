@@ -88,6 +88,9 @@ addopts = "-q"
 line-length = 100
 target-version = "py39"
 src = ["src", "tests"]
+# site/ is the website build tooling (page generator + one-off SVG/icon asset
+# scripts), not part of the shipped package; CI lints only `src tests`.
+extend-exclude = ["site"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
