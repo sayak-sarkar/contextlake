@@ -113,7 +113,9 @@ dependency graph** through shared package nodes. Agents traverse all of this ove
 from finding a definition to cross-repo `blast_radius` ("what could break if I change
 this"), see [the full tool list under Serve](#serve-it-to-your-editor-mcp). The same
 change-impact walk is a one-liner from the shell: `contextlake impact <symbol> [--hops N]`
-lists what calls / depends on a node, no editor needed.
+lists what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`,
+`Order`) is defined in more than one repo, `impact` lists the candidates and you narrow it
+with `--repo <repo>` rather than getting a silent best-guess.
 
 ## Ownership & SMEs
 

@@ -834,23 +834,30 @@ def cmd_owners(args) -> int:
 
 def cmd_impact(args) -> int:
     """What could break if a node changes — reverse blast radius over the graph."""
-    from .impact import blast_radius
+    from .impact import blast_radius, resolve_target
 
     target = (getattr(args, "args", []) or [None])[0]
     if not target:
-        log('usage: contextlake impact <node-id-or-symbol> [--hops N] [--limit N]')
+        log('usage: contextlake impact <node-id-or-symbol> [--repo R] [--hops N] [--limit N]')
         return 2
     hops = getattr(args, "hops", None) or 3
     limit = getattr(args, "limit", None) or 100
+    repo = getattr(args, "repo", None)
     store, _ = _open_store(args)
     try:
-        node = store.get_node(target)
-        if node is None:                       # fall back to a name/symbol search
-            matches = store.search(target, limit=1)
-            if not matches:
-                log(f"No node matches {target!r} — index first, or try `query`")
-                return 1
-            node = matches[0]
+        node, candidates = resolve_target(store, target, repo=repo)
+        if node is None and candidates:        # same name in several repos — disambiguate
+            by_repo: dict = {}
+            for c in candidates:
+                by_repo.setdefault(c.repo, c)
+            log(f"{style.cyan(target)} is ambiguous — defined in {len(by_repo)} repos. "
+                f"Narrow it with --repo:")
+            for r, c in list(by_repo.items())[:10]:
+                log(f"  --repo {r}   ({c.kind} {c.name})")
+            return 1
+        if node is None:
+            log(f"No node matches {target!r} — index first, or try `query`")
+            return 1
         hits, truncated = blast_radius(store, node.id, hops=hops, limit=limit)
         head = f"Impact of changing {style.cyan(node.name)} ({node.id})"
         if not hits:
