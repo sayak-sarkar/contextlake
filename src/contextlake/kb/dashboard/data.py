@@ -291,21 +291,24 @@ def repo_relationships(store, repo_id: str) -> dict:
     }
 
 
-def impact(store, node_id: str, hops: int = 3, limit: int = 100) -> dict:
+def impact(store, node_id: str, hops: int = 3, limit: int = 100,
+           repo: str | None = None) -> dict:
     """Reverse blast radius for a node (reuses ``impact.blast_radius``).
 
-    Falls back to a name/symbol search when ``node_id`` is not an exact id (as the
-    ``impact`` CLI verb does), so the explorer accepts a symbol name too.
+    Resolves a node id OR a bare symbol name via the shared ``resolve_target`` (exact
+    id -> exact name -> fuzzy), so the explorer accepts a symbol name too. When the name
+    is defined in several repos it returns ``found=False`` with ``ambiguous=True`` and a
+    ``candidates`` list, rather than silently seeding an unrelated repo's symbol.
     """
-    from ..impact import blast_radius
+    from ..impact import blast_radius, resolve_target
 
-    node = store.get_node(node_id)
+    node, candidates = resolve_target(store, node_id, repo=repo)
     if node is None:
-        matches = store.search(node_id, limit=1)
-        if not matches:
-            return {"seed": sanitize_label(node_id), "found": False, "hops": hops,
-                    "total": 0, "truncated": False, "hits": []}
-        node = matches[0]
+        return {"seed": sanitize_label(node_id), "found": False, "hops": hops,
+                "total": 0, "truncated": False, "hits": [],
+                "ambiguous": bool(candidates),
+                "candidates": [{"repo": sanitize_label(c.repo), "kind": sanitize_label(c.kind),
+                                "name": sanitize_label(c.name)} for c in candidates[:10]]}
     hits, truncated = blast_radius(store, node.id, hops=hops, limit=limit)
     return {
         "seed": sanitize_label(node.id),
