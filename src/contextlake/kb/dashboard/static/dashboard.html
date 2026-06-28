@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-density="comfortable">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>contextlake — knowledge dashboard</title>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+<a class="cl-skip" href="#app">Skip to content</a>
+
+<!-- Inline glyph defs (offline, no namespace decl needed inside HTML). Kind glyphs
+     mirror visualize._KIND_ICON_PATHS so a "class" reads identically here and in the
+     embedded graph. UI glyphs follow. Referenced via <use href="#g-..."> only. -->
+<svg class="cl-defs" aria-hidden="true" focusable="false" width="0" height="0">
+  <defs>
+    <symbol id="g-file" viewBox="0 0 24 24"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></symbol>
+    <symbol id="g-page" viewBox="0 0 24 24"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="8" y1="13" x2="15" y2="13"/><line x1="8" y1="17" x2="15" y2="17"/></symbol>
+    <symbol id="g-module" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></symbol>
+    <symbol id="g-class" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></symbol>
+    <symbol id="g-struct" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></symbol>
+    <symbol id="g-interface" viewBox="0 0 24 24"><path d="M8 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-1"/></symbol>
+    <symbol id="g-enum" viewBox="0 0 24 24"><circle cx="4" cy="6" r="1.3"/><circle cx="4" cy="12" r="1.3"/><circle cx="4" cy="18" r="1.3"/><line x1="9" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/></symbol>
+    <symbol id="g-function" viewBox="0 0 24 24"><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/></symbol>
+    <symbol id="g-method" viewBox="0 0 24 24"><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/></symbol>
+    <symbol id="g-package" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/></symbol>
+    <symbol id="g-repo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><line x1="7" y1="7.5" x2="7.01" y2="7.5"/><line x1="7" y1="16.5" x2="7.01" y2="16.5"/></symbol>
+    <symbol id="g-issue" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+    <symbol id="g-design" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 11l-5.1 1.9L12 18l-1.9-5L5 11l5.1-1.9z"/></symbol>
+    <symbol id="g-endpoint" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/></symbol>
+    <symbol id="g-topic" viewBox="0 0 24 24"><path d="M21 14a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="ui-fleet" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></symbol>
+    <symbol id="ui-arch" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><line x1="7" y1="7" x2="10.5" y2="16.5"/><line x1="17" y1="7" x2="13.5" y2="16.5"/><line x1="7.5" y1="6" x2="16.5" y2="6"/></symbol>
+    <symbol id="ui-blast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></symbol>
+    <symbol id="ui-health" viewBox="0 0 24 24"><path d="M3 12h4l2 6 4-14 2 8h6"/></symbol>
+    <symbol id="ui-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></symbol>
+    <symbol id="ui-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="5" y1="5" x2="7" y2="7"/><line x1="17" y1="17" x2="19" y2="19"/><line x1="5" y1="19" x2="7" y2="17"/><line x1="17" y1="7" x2="19" y2="5"/></symbol>
+    <symbol id="ui-pin" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/></symbol>
+    <symbol id="ui-close" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
+    <symbol id="ui-chevron" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
+    <symbol id="ui-external" viewBox="0 0 24 24"><path d="M14 4h6v6"/><line x1="20" y1="4" x2="11" y2="13"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
+    <symbol id="ui-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="ui-otter" viewBox="0 0 24 24"><circle cx="8" cy="9" r="2"/><circle cx="16" cy="9" r="2"/><path d="M5 6a3 3 0 0 1 5-1M19 6a3 3 0 0 0-5-1"/><circle cx="12" cy="14" r="5.5"/><circle cx="12" cy="13" r="1"/><path d="M10.5 16a2 2 0 0 0 3 0"/></symbol>
+  </defs>
+</svg>
+
+<header class="cl-ctxbar" role="banner">
+  <a class="cl-wordmark" href="#/fleet" aria-label="contextlake — fleet overview">
+    <svg class="cl-glyph" aria-hidden="true"><use href="#ui-fleet"/></svg>
+    <h1 class="cl-wordmark__text">contextlake</h1>
+  </a>
+  <nav class="cl-breadcrumb" aria-label="Breadcrumb"><ol id="cl-crumbs" class="cl-crumbs"></ol></nav>
+  <button type="button" id="cl-pinchip" class="cl-pinchip" hidden></button>
+  <div class="cl-ctxbar__spacer"></div>
+  <button type="button" id="cl-cmdk" class="cl-cmdk" aria-label="Search the lake (Ctrl-K)">
+    <svg class="cl-ic" aria-hidden="true"><use href="#ui-search"/></svg>
+    <span>Ask the lake</span><kbd class="cl-kbd">Ctrl K</kbd>
+  </button>
+  <div class="cl-groundtruth" role="group" aria-label="Confidence filter">
+    <button type="button" class="cl-gt cl-gt--extracted" data-conf="EXTRACTED" aria-pressed="true" title="Extracted — direct from source">Extracted</button>
+    <button type="button" class="cl-gt cl-gt--inferred" data-conf="INFERRED" aria-pressed="true" title="Inferred — heuristic">Inferred</button>
+    <button type="button" class="cl-gt cl-gt--ambiguous" data-conf="AMBIGUOUS" aria-pressed="true" title="Ambiguous — flagged for review">Ambiguous</button>
+  </div>
+  <span id="cl-mode" class="cl-mode" aria-live="polite">Live</span>
+  <span id="cl-fresh" class="cl-fresh" hidden></span>
+  <button type="button" id="cl-density" class="cl-iconbtn" aria-label="Toggle density">Compact</button>
+  <button type="button" id="cl-theme" class="cl-iconbtn" aria-label="Toggle dark mode">
+    <svg class="cl-ic" aria-hidden="true"><use href="#ui-theme"/></svg>
+  </button>
+</header>
+
+<div class="cl-shell">
+  <nav class="cl-rail" id="cl-rail" aria-label="Primary">
+    <a class="cl-rail__item" href="#/fleet" data-lens="fleet"><svg class="cl-ic" aria-hidden="true"><use href="#ui-fleet"/></svg><span class="cl-rail__label">Fleet</span></a>
+    <a class="cl-rail__item" href="#/repo" data-lens="repo"><svg class="cl-ic" aria-hidden="true"><use href="#g-repo"/></svg><span class="cl-rail__label">Repo</span></a>
+    <a class="cl-rail__item" href="#/arch" data-lens="arch"><svg class="cl-ic" aria-hidden="true"><use href="#ui-arch"/></svg><span class="cl-rail__label">Architecture</span></a>
+    <a class="cl-rail__item" href="#/symbol" data-lens="symbol"><svg class="cl-ic" aria-hidden="true"><use href="#ui-blast"/></svg><span class="cl-rail__label">Blast radius</span></a>
+    <a class="cl-rail__item" href="#/health" data-lens="health"><svg class="cl-ic" aria-hidden="true"><use href="#ui-health"/></svg><span class="cl-rail__label">Health</span></a>
+    <a class="cl-rail__item" href="#/search" data-lens="search"><svg class="cl-ic" aria-hidden="true"><use href="#ui-search"/></svg><span class="cl-rail__label">Search</span></a>
+    <button type="button" id="cl-railtoggle" class="cl-rail__item cl-rail__toggle" aria-label="Collapse navigation"><svg class="cl-ic" aria-hidden="true"><use href="#ui-chevron"/></svg><span class="cl-rail__label">Collapse</span></button>
+  </nav>
+
+  <main id="app" class="cl-main" tabindex="-1">
+    <section id="panel-fleet" class="cl-panel" aria-labelledby="h-fleet" hidden>
+      <h2 id="h-fleet" class="cl-panel__title">Fleet overview</h2>
+      <div id="fleet-body" class="cl-panel__body"></div>
+    </section>
+    <section id="panel-repo" class="cl-panel" aria-labelledby="h-repo" hidden>
+      <h2 id="h-repo" class="cl-panel__title">Repository</h2>
+      <div id="repo-body" class="cl-panel__body"></div>
+    </section>
+    <section id="panel-arch" class="cl-panel" aria-labelledby="h-arch" hidden>
+      <h2 id="h-arch" class="cl-panel__title">Architecture &amp; relationships</h2>
+      <div id="arch-body" class="cl-panel__body"></div>
+    </section>
+    <section id="panel-symbol" class="cl-panel" aria-labelledby="h-symbol" hidden>
+      <h2 id="h-symbol" class="cl-panel__title">Blast radius</h2>
+      <div id="symbol-body" class="cl-panel__body"></div>
+    </section>
+    <section id="panel-health" class="cl-panel" aria-labelledby="h-health" hidden>
+      <h2 id="h-health" class="cl-panel__title">Knowledge health</h2>
+      <div id="health-body" class="cl-panel__body"></div>
+    </section>
+    <section id="panel-search" class="cl-panel" aria-labelledby="h-search" hidden>
+      <h2 id="h-search" class="cl-panel__title">Search</h2>
+      <div id="search-body" class="cl-panel__body"></div>
+    </section>
+  </main>
+
+  <aside id="cl-drawer" class="cl-drawer" role="dialog" aria-label="Provenance" aria-modal="false" hidden>
+    <div class="cl-drawer__head">
+      <h2 class="cl-drawer__title">Provenance</h2>
+      <button type="button" id="cl-drawer-close" class="cl-iconbtn" aria-label="Close provenance"><svg class="cl-ic" aria-hidden="true"><use href="#ui-close"/></svg></button>
+    </div>
+    <div id="cl-drawer-body" class="cl-drawer__body"></div>
+  </aside>
+</div>
+
+<div id="cl-palette-wrap" class="cl-palette-wrap" hidden>
+  <div class="cl-palette" role="dialog" aria-label="Command palette" aria-modal="true">
+    <input type="text" id="cl-palette-input" class="cl-palette__input" placeholder="Jump to a repo, symbol, or action…" aria-label="Command palette" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="cl-palette-list" aria-autocomplete="list">
+    <ul id="cl-palette-list" class="cl-palette__list" role="listbox" aria-label="Results"></ul>
+  </div>
+</div>
+
+<footer class="cl-footer" role="contentinfo">
+  <span class="cl-footer__legend" aria-label="Confidence legend">
+    <span class="cl-conf cl-conf--extracted"><span class="cl-conf__glyph" aria-hidden="true"></span>Extracted</span>
+    <span class="cl-conf cl-conf--inferred"><span class="cl-conf__glyph" aria-hidden="true"></span>Inferred</span>
+    <span class="cl-conf cl-conf--ambiguous"><span class="cl-conf__glyph" aria-hidden="true"></span>Ambiguous</span>
+  </span>
+  <span class="cl-footer__note">Every fact wears its receipt — open the provenance drawer for source.</span>
+</footer>
+
+<div id="cl-live" class="cl-visually-hidden" aria-live="polite"></div>
+<script src="dashboard.js"></script>
+</body>
+</html>

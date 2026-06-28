@@ -135,6 +135,21 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   if(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches){
     document.body.dataset.theme = "dark"; cy.style(graphStyle());
   }
+  // Optional dashboard coordination (file://-safe, null-origin tolerant): honor an
+  // explicit ?theme=/#theme= on the initial src, and a postMessage from an embedding
+  // dashboard — both just ride the existing theme path (dataset + graphStyle rebuild).
+  (function(){
+    function applyTheme(t){
+      if(t !== "dark" && t !== "light") return;
+      document.body.dataset.theme = t; cy.style(graphStyle());
+    }
+    var m = /[?#&]theme=(dark|light)/.exec(location.href);
+    if(m){ applyTheme(m[1]); }
+    window.addEventListener("message", function(e){
+      var d = e && e.data;
+      if(d && d.type === "cl-theme"){ applyTheme(d.theme); }
+    });
+  })();
   document.getElementById("navToggle").onclick = function(){
     var c = document.body.dataset.sidebar === "collapsed";
     document.body.dataset.sidebar = c ? "open" : "collapsed"; afterResize();

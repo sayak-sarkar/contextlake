@@ -77,6 +77,7 @@ Examples:
             # knowledge layer (optional [kb] extra)
             "index", "connect", "embed", "lint", "wiki", "steer",
             "serve", "query", "graph", "doctor", "eval", "owners", "impact", "ingest",
+            "dashboard",
         ],
         help="Command to execute",
     )
@@ -160,6 +161,15 @@ Examples:
     kb.add_argument("--repos", metavar="PATTERN",
                     help="graph --site: only build repo pages whose id matches a "
                          "pattern (comma-separated glob/substring, e.g. 'frontend/*,auth-service')")
+    # dashboard: the knowledge-system UI (reuses --serve/--host/--port/--open/--site/--repos)
+    kb.add_argument("--group-depth", dest="group_depth", type=int,
+                    help="dashboard: domain-grouping depth from repo-id path prefixes (default 1)")
+    kb.add_argument("--anonymize", action="store_true",
+                    help="dashboard --site: hash git-author identities + strip external "
+                         "link URLs for a shareable export")
+    kb.add_argument("--sample", action="store_true",
+                    help="dashboard --site: build the public showcase from the committed "
+                         "sample fixture (no real PII)")
 
     parser.add_argument(
         "--dry-run", action="store_true", dest="dry_run",
@@ -368,7 +378,8 @@ def main(argv=None):
     # need the sync config/preamble. Imported lazily so the core tool runs
     # without the [kb] extra.
     if args.command in ("index", "connect", "embed", "lint", "wiki", "steer", "serve",
-                        "query", "graph", "doctor", "eval", "owners", "impact", "ingest"):
+                        "query", "graph", "doctor", "eval", "owners", "impact", "ingest",
+                        "dashboard"):
         try:
             from .kb import commands as kb_commands
         except ImportError as e:

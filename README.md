@@ -160,6 +160,7 @@ Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage
 | `owners` | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
 | `impact` | Change-impact / blast radius: what depends on a symbol (`--hops`) |
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
+| `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--site DIR` for a static offline export) |
 | `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
 | `steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
 | `lint` · `doctor` · `eval` | Graph health · environment check · retrieval-quality scoring |
