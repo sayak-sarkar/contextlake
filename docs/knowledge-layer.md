@@ -220,7 +220,20 @@ name = "changelog"
 urls = ["https://example.com/changelog", "https://example.com/roadmap"]
 ```
 
-API and MCP sources are on the roadmap as further plugins on the same seam.
+An **`api`** source ships built-in too — GET a JSON endpoint and map its records to
+documents, with any bearer token read from an env var (never the config file):
+
+```toml
+[[sources]]
+type = "api"
+name = "tickets"
+url = "https://api.example.com/v1/articles"
+items = "data.articles"        # dotted path to the record list
+text_field = "body"            # which key holds the document text
+token_env = "EXAMPLE_API_TOKEN"  # bearer token comes from this env var
+```
+
+An MCP-resource source is on the roadmap as a further plugin on the same seam.
 
 ## Measuring retrieval quality
 
