@@ -187,3 +187,25 @@ def test_cmd_embed_incremental_skips_force_and_head_move(tmp_path, monkeypatch):
     _setup_embed_repo(tmp_path, "h2")           # re-index moves HEAD
     assert cmd_embed(Namespace(**base, force=False)) == 0
     assert calls == ["r", "r", "r"]             # moved HEAD -> re-embeds
+
+
+def test_cmd_embed_watch_reruns_the_pass(tmp_path, monkeypatch):
+    """`embed --watch` routes the embed pass through _watch_loop and re-runs it."""
+    from contextlake.kb import commands as cmds
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _setup_embed_repo(tmp_path, "h1")
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _FakeEmbedder())
+
+    passes = []
+
+    def fake_watch(run_once, *, interval=60, **kw):
+        passes.append(run_once())               # simulate two scheduler passes
+        passes.append(run_once())
+        return 2
+
+    monkeypatch.setattr(cmds, "_watch_loop", fake_watch)
+    base = dict(config=str(cfg), workspace=None, source=None, repo=None,
+                limit=None, force=False, interval=0)
+    assert cmd_embed(Namespace(**base, watch=True)) == 0
+    assert passes == [0, 0]                      # each pass ran and returned success

@@ -152,8 +152,8 @@ Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage
 | `verify` · `audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
 | `bootstrap` | **Turnkey**: sync + index + connect + embed + wiki + steer |
 | `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
-| `connect` | Link repos to Atlassian / Figma / GitLab items |
-| `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API) |
+| `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
+| `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `wiki` | LLM-synthesized, council-verified wiki pages |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |

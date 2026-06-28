@@ -114,10 +114,12 @@ class SqliteVecStore:
 
     name = "sqlite-vec"
 
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, *, chunk_size: int = 1024):
         import sqlite_vec  # optional dependency; ImportError -> factory fallback
 
         self.path = str(path)
+        # vec0 requires the chunk size to be a positive multiple of 8.
+        self._chunk_size = max(8, (int(chunk_size) // 8) * 8)
         self.conn = sqlite3.connect(self.path)
         self.conn.enable_load_extension(True)
         sqlite_vec.load(self.conn)
@@ -133,7 +135,7 @@ class SqliteVecStore:
         self.conn.execute(
             "CREATE VIRTUAL TABLE IF NOT EXISTS vec_items USING vec0("
             "node_id TEXT PRIMARY KEY, repo_id TEXT, "
-            f"embedding FLOAT[{dim}] distance_metric=cosine)"
+            f"embedding FLOAT[{dim}] distance_metric=cosine, chunk_size={self._chunk_size})"
         )
         self.conn.execute(
             "INSERT OR REPLACE INTO vec_meta(key, value) VALUES('dim', ?)", (str(dim),)
@@ -241,15 +243,16 @@ def set_embedded_head(store, repo_id: str, head: str | None) -> None:
     store.conn.commit()
 
 
-def build_vector_store(path: str | Path, *, backend: str = "auto"):
+def build_vector_store(path: str | Path, *, backend: str = "auto", chunk_size: int = 1024):
     """Return a vector store. ``backend``: ``auto`` | ``sqlite-vec`` | ``brute``.
 
     ``auto`` uses sqlite-vec when it imports and loads, else the pure-Python store.
     ``sqlite-vec`` forces it (raising if unavailable); ``brute`` forces the fallback.
+    ``chunk_size`` tunes the sqlite-vec vec0 KNN chunk size (ignored by the brute store).
     """
     if backend in ("sqlite-vec", "auto"):
         try:
-            return SqliteVecStore(path)
+            return SqliteVecStore(path, chunk_size=chunk_size)
         except Exception as e:  # noqa: BLE001 - any load failure falls back to brute
             if backend == "sqlite-vec":
                 raise

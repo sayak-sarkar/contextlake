@@ -346,47 +346,55 @@ def cmd_connect(args) -> int:
             log("No usable connector sources; nothing to connect")
             return 1
 
-        targets = _connect_targets(args, store)
-        if not targets:
-            log("No repos to enrich (index some first, or pass --workspace/--source)")
-            return 0
-        log(f"Enriching {len(targets)} repo(s) across "
-            f"{len(enrichers)} source(s): {', '.join(names)}")
+        def _connect_once() -> int:
+            targets = _connect_targets(args, store)
+            if not targets:
+                log("No repos to enrich (index some first, or pass --workspace/--source)")
+                return 0
+            log(f"Enriching {len(targets)} repo(s) across "
+                f"{len(enrichers)} source(s): {', '.join(names)}")
 
-        total_edges = 0
-        attempts = src_failed = 0
-        for repo_id, path in targets:
-            keys = extract_issue_keys(path, branch_key) if branch_key else []
-            links = scrape_links(path, link_patterns) if link_patterns else []
-            if not keys and not links and not has_gitlab:
-                continue  # GitLab sources fetch by repo, so don't skip when one exists
-            merged_nodes, merged_edges = {}, {}
-            for name, enrich in zip(names, enrichers):
-                attempts += 1
-                try:
-                    nodes, edges = enrich(repo_id, keys, links)
-                except Exception as e:  # noqa: BLE001 - one source/repo must not abort the run
-                    log(f"  {repo_id}: source {name!r} failed — {e}")
-                    src_failed += 1
-                    continue
-                for n in nodes:
-                    merged_nodes[n.id] = n
-                for ed in edges:
-                    merged_edges[(ed.src, ed.dst, ed.relation)] = ed
-            part = connect_partition(repo_id)
-            store.clear_repo(part)
-            store.upsert_nodes(part, list(merged_nodes.values()))
-            store.upsert_edges(part, list(merged_edges.values()))
-            total_edges += len(merged_edges)
-            if merged_edges:
-                log(f"  {repo_id}: {len(merged_edges)} link(s)")
-        log(f"Connect complete: {total_edges} external link(s) stored")
-        # Honest exit: every source call attempted failed (e.g. an unreachable
-        # connector) -> a failure, even though per-repo errors were logged.
-        if attempts and src_failed == attempts:
-            log(style.warn(f"All {attempts} source call(s) failed — no links stored"))
-            return 1
-        return 0
+            total_edges = 0
+            attempts = src_failed = 0
+            for repo_id, path in targets:
+                keys = extract_issue_keys(path, branch_key) if branch_key else []
+                links = scrape_links(path, link_patterns) if link_patterns else []
+                if not keys and not links and not has_gitlab:
+                    continue  # GitLab sources fetch by repo, so don't skip when one exists
+                merged_nodes, merged_edges = {}, {}
+                for name, enrich in zip(names, enrichers):
+                    attempts += 1
+                    try:
+                        nodes, edges = enrich(repo_id, keys, links)
+                    except Exception as e:  # noqa: BLE001 - one source/repo must not abort the run
+                        log(f"  {repo_id}: source {name!r} failed — {e}")
+                        src_failed += 1
+                        continue
+                    for n in nodes:
+                        merged_nodes[n.id] = n
+                    for ed in edges:
+                        merged_edges[(ed.src, ed.dst, ed.relation)] = ed
+                part = connect_partition(repo_id)
+                store.clear_repo(part)
+                store.upsert_nodes(part, list(merged_nodes.values()))
+                store.upsert_edges(part, list(merged_edges.values()))
+                total_edges += len(merged_edges)
+                if merged_edges:
+                    log(f"  {repo_id}: {len(merged_edges)} link(s)")
+            log(f"Connect complete: {total_edges} external link(s) stored")
+            # Honest exit: every source call attempted failed (e.g. an unreachable
+            # connector) -> a failure, even though per-repo errors were logged.
+            if attempts and src_failed == attempts:
+                log(style.warn(f"All {attempts} source call(s) failed — no links stored"))
+                return 1
+            return 0
+
+        if getattr(args, "watch", False):
+            interval = getattr(args, "interval", None) or 60
+            log(f"{style.cyan('watch')}: re-connecting every {interval}s (Ctrl-C to stop)")
+            _watch_loop(_connect_once, interval=interval)
+            return 0
+        return _connect_once()
     finally:
         store.close()
 
@@ -434,7 +442,8 @@ def cmd_embed(args) -> int:
             return 0
         limit = getattr(args, "limit", None)
         vs = build_vector_store(store_dir / "embeddings.sqlite",
-                                backend=cfg.embeddings.vector_backend)
+                                backend=cfg.embeddings.vector_backend,
+                                chunk_size=cfg.embeddings.vector_chunk_size)
         try:
             # Guard against re-embedding this store with a different model/dim (the
             # brute search silently drops mismatched dims). Probe the dim once; a
@@ -448,42 +457,58 @@ def cmd_embed(args) -> int:
                 identity = getattr(embedder, "identity", None) or getattr(
                     embedder, "name", "embedder")
                 guard_store_identity(vs, identity, len(probe[0]))
-            log(f"Embedding {len(targets)} repo(s) with {embedder.name} "
-                f"into the {vs.name} vector store")
             # Incremental: skip a repo whose indexed HEAD hasn't moved since it was
             # last embedded. `--force` re-embeds; `--limit` (partial) never gates.
             from .embeddings.store import get_embedded_head, set_embedded_head
             force = getattr(args, "force", False)
             incremental = limit is None and not force
-            total = failed = skipped = 0
-            for repo_id, _ in targets:
-                repo = store.get_repo(repo_id)
-                head = repo.head_commit if repo else None
-                if incremental and head and get_embedded_head(vs, repo_id) == head:
-                    skipped += 1
-                    continue
-                try:
-                    n = embed_repo(store_dir, vs, embedder, repo_id,
-                                   batch_size=cfg.embeddings.batch_size, limit=limit)
-                except Exception as e:  # noqa: BLE001 - one repo must not abort the run
-                    log(f"  {repo_id}: embed failed — {e}")
-                    failed += 1
-                    continue
-                if limit is None:
-                    set_embedded_head(vs, repo_id, head)
-                total += n
-                if n:
-                    log(f"  {repo_id}: embedded {n} node(s)")
-            tail = f", {skipped} already up to date" if skipped else ""
-            log(f"Embed complete: {total} vector(s) written ({vs.count()} total in store){tail}")
-            # Honest exit: if every repo we actually tried to embed failed (e.g. the
-            # embedder went unreachable mid-run), this is a failure, not success.
-            # Up-to-date repos that were skipped don't count as attempts.
-            attempted = len(targets) - skipped
-            if attempted and failed == attempted:
-                log(style.warn(f"Embed failed for all {attempted} repo(s) — no vectors written"))
-                return 1
-            return 0
+
+            def _embed_once() -> int:
+                # Re-resolve targets each pass so `--watch` picks up newly indexed repos.
+                pass_targets = _connect_targets(args, store)
+                if not pass_targets:
+                    log("No indexed repos to embed (run index first, or pass --workspace/--source)")
+                    return 0
+                log(f"Embedding {len(pass_targets)} repo(s) with {embedder.name} "
+                    f"into the {vs.name} vector store")
+                total = failed = skipped = 0
+                for repo_id, _ in pass_targets:
+                    repo = store.get_repo(repo_id)
+                    head = repo.head_commit if repo else None
+                    if incremental and head and get_embedded_head(vs, repo_id) == head:
+                        skipped += 1
+                        continue
+                    try:
+                        n = embed_repo(store_dir, vs, embedder, repo_id,
+                                       batch_size=cfg.embeddings.batch_size, limit=limit)
+                    except Exception as e:  # noqa: BLE001 - one repo must not abort the run
+                        log(f"  {repo_id}: embed failed — {e}")
+                        failed += 1
+                        continue
+                    if limit is None:
+                        set_embedded_head(vs, repo_id, head)
+                    total += n
+                    if n:
+                        log(f"  {repo_id}: embedded {n} node(s)")
+                tail = f", {skipped} already up to date" if skipped else ""
+                log(f"Embed complete: {total} vector(s) written "
+                    f"({vs.count()} total in store){tail}")
+                # Honest exit: if every repo we actually tried to embed failed (e.g. the
+                # embedder went unreachable mid-run), this is a failure, not success.
+                # Up-to-date repos that were skipped don't count as attempts.
+                attempted = len(pass_targets) - skipped
+                if attempted and failed == attempted:
+                    log(style.warn(
+                        f"Embed failed for all {attempted} repo(s) — no vectors written"))
+                    return 1
+                return 0
+
+            if getattr(args, "watch", False):
+                interval = getattr(args, "interval", None) or 60
+                log(f"{style.cyan('watch')}: re-embedding every {interval}s (Ctrl-C to stop)")
+                _watch_loop(_embed_once, interval=interval)
+                return 0
+            return _embed_once()
         finally:
             vs.close()
     finally:
