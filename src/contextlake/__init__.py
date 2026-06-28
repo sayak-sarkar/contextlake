@@ -1,3 +1,3 @@
 """contextlake — keep a local workspace mirrored with GitLab repositories."""
 
-__version__ = "2.14.0"
+__version__ = "2.15.0"
