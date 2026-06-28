@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-06-28
+
+### Added
+
+- **Built-in `web` source for `ingest`.** Fetch one or more URLs and ingest their readable
+  text (`[[sources]] type="web"`, `urls = [...]`) into the graph + semantic store. Standard
+  library only (`urllib` + `html.parser`) — no new dependency and no headless browser; the
+  network is touched only when a `web` source is configured.
+
 ## [2.15.0] - 2026-06-28
 
 ### Added
