@@ -174,6 +174,40 @@ store is first created, re-embed from scratch to change an existing store).</p>
 <p>Like <code>index</code>, <code>embed</code> is <strong>incremental</strong>: it re-embeds only repos whose indexed HEAD
 moved since they were last embedded, so a scheduled refresh over a large fleet stays
 cheap. Pass <code>--force</code> to re-embed everything.</p>
+<h2 id="aggregating-documents-rag">Aggregating documents (RAG)<a class="anchor" href="#aggregating-documents-rag" title="Link to this section">#</a></h2>
+<p>Not everything lives in code. <code>contextlake ingest</code> pulls <strong>external documents</strong> into the
+same knowledge layer, they become <code>kind="document"</code> graph nodes and, when embeddings are
+on, their bodies are embedded so semantic search spans code <em>and</em> docs together:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w">        </span><span class="c1"># zero-config: ingest a folder of files</span>
+</code></pre></div>
+
+<p>Sources follow a tiny seam, so common ones are <strong>built-in and config-only</strong> while anything
+heavier is a <strong>loosely-coupled plugin</strong>, bake in the common, plugin the rest:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># kb.toml, built-in &quot;files&quot; source (no code, no extra install)</span>
+<span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;files&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;handbook&quot;</span>
+<span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/notes&quot;</span>
+<span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;*.txt&quot;</span><span class="p">]</span>
+</code></pre></div>
+
+<p><strong>Writing a plugin</strong> is just a class with <code>iter_documents()</code> and one entry point, no fork,
+no core dependency:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># in your plugin package&#39;s pyproject.toml</span>
+<span class="k">[project.entry-points.</span><span class="s2">&quot;contextlake.sources&quot;</span><span class="k">]</span>
+<span class="n">confluence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg.sources:ConfluenceSource&quot;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">contextlake.kb.sources</span><span class="w"> </span><span class="kn">import</span> <span class="n">Document</span>          <span class="c1"># the whole contract</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ConfluenceSource</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">space</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">iter_documents</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">Document</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;123&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Runbook&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">&quot;…&quot;</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://…&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p><code>contextlake ingest</code> then discovers <code>type = "confluence"</code> automatically. Built-in sources
+ship today (<code>files</code>); web/API/MCP sources are on the roadmap as plugins.</p>
 <h2 id="measuring-retrieval-quality">Measuring retrieval quality<a class="anchor" href="#measuring-retrieval-quality" title="Link to this section">#</a></h2>
 <p><code>contextlake eval</code> keeps all this falsifiable. Point
 it at a golden-query JSON file (<code>--golden</code>, e.g. <code>examples/fixtures/golden-queries.json</code>)
@@ -321,6 +355,7 @@ built-in <code>wiki</code> command.</p>
 <li><a href="#ownership-smes">Ownership &amp; SMEs</a></li>
 <li><a href="#connectors">Connectors</a></li>
 <li><a href="#semantic-search">Semantic search</a></li>
+<li><a href="#aggregating-documents-rag">Aggregating documents (RAG)</a></li>
 <li><a href="#measuring-retrieval-quality">Measuring retrieval quality</a></li>
 <li><a href="#curated-wiki">Curated wiki</a></li>
 <li><a href="#model-providers">Model providers</a></li>
