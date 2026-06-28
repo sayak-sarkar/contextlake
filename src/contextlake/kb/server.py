@@ -104,6 +104,19 @@ class BlastRadiusOut(BaseModel):
     truncated: bool
 
 
+class OwnerOut(BaseModel):
+    name: str
+    commits: int
+    lines: int
+    last_active: str   # YYYY-MM-DD of the contributor's most recent commit
+    share: float       # 0..1 fraction of the recency-weighted score
+
+
+class OwnersOut(BaseModel):
+    scope: str         # repo (optionally repo:sub-path) the ranking is for
+    owners: list[OwnerOut]
+
+
 class WikiOut(BaseModel):
     repo: str
     found: bool
@@ -261,6 +274,25 @@ def build_server(
         st = store.stats()
         return StatsOut(repos=st.repos, nodes=st.nodes, edges=st.edges,
                         by_confidence=st.by_confidence)
+
+    @mcp.tool()
+    def who_knows(repo: str, path: str | None = None, limit: int = 10) -> OwnersOut:
+        """Likely owners / subject-matter experts for `repo` (optionally a sub-`path`).
+
+        Ranked from the repo's git commit history by a recency-weighted blend of
+        commit volume and lines changed, so recent active contributors outrank a
+        long-departed prolific author. Names are as committed in the local mirror.
+        """
+        from .ownership import compute_owners
+        r = store.get_repo(repo)
+        scope = sanitize_label(repo + (f":{path}" if path else ""))
+        if not r or not r.path:
+            return OwnersOut(scope=scope, owners=[])
+        owners = compute_owners(r.path, path, limit=max(1, min(limit, 50)))
+        return OwnersOut(scope=scope, owners=[
+            OwnerOut(name=sanitize_label(o.name), commits=o.commits, lines=o.lines,
+                     last_active=o.last_active, share=round(o.share, 4))
+            for o in owners])
 
     @mcp.tool()
     def get_node(node_id: str) -> NodeOut | None:

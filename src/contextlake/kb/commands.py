@@ -25,7 +25,7 @@ from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
 KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
-            "graph", "doctor")
+            "graph", "doctor", "owners")
 
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
@@ -794,6 +794,44 @@ def cmd_query(args) -> int:
         store.close()
 
 
+def cmd_owners(args) -> int:
+    """Likely owners / SMEs for a repo (or sub-path), from git commit history."""
+    from .ownership import compute_owners
+
+    target = (getattr(args, "args", []) or [None])[0]
+    if not target:
+        log('usage: contextlake owners <repo|path> [--path SUBDIR] [--limit N]')
+        return 2
+    subpath = getattr(args, "path", None)
+    limit = getattr(args, "limit", None) or 10
+
+    # Resolve a working dir: a directory on disk, else a repo id looked up in the store.
+    if Path(target).is_dir():
+        repo_path = Path(target).resolve()
+        label = repo_path.name           # resolve first so "." yields the dir name
+    else:
+        store, _ = _open_store(args)
+        try:
+            repo = store.get_repo(target)
+        finally:
+            store.close()
+        if not repo or not repo.path:
+            log(f"Unknown repo {target!r} — index it first, or pass a path on disk")
+            return 1
+        repo_path, label = Path(repo.path), repo.id
+
+    owners = compute_owners(repo_path, subpath, limit=limit)
+    scope = f"{label}:{subpath}" if subpath else label
+    if not owners:
+        log(f"No commit history found for {scope}")
+        return 0
+    log(f"Owners / SMEs for {style.cyan(scope)} (recency-weighted):")
+    for i, o in enumerate(owners, 1):
+        log(f"  {i}. {o.name}  —  {o.commits} commit(s), {o.lines} line(s), "
+            f"last {o.last_active}, {o.share * 100:.0f}%")
+    return 0
+
+
 def cmd_serve(args) -> int:
     from .server import run_server  # imported here so `query`/`index` don't load it
 
@@ -1107,4 +1145,5 @@ def dispatch(command: str, args) -> int:
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
         "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
         "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
+        "owners": cmd_owners,
     }[command](args)

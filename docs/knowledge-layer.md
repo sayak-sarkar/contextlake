@@ -113,6 +113,20 @@ dependency graph** through shared package nodes. Agents traverse all of this ove
 from finding a definition to cross-repo `blast_radius` ("what could break if I change
 this"), see [the full tool list under Serve](#serve-it-to-your-editor-mcp).
 
+## Ownership & SMEs
+
+`contextlake owners <repo>` (or `--path SUBDIR` for a sub-tree) answers **"who owns
+this / who do I ask?"** straight from git history — no config, no index required. It
+ranks contributors by a **recency-weighted** blend of commit volume and lines changed,
+so someone active in that area lately outranks a long-departed prolific author:
+
+```bash
+contextlake owners payments-api                 # top contributors for the whole repo
+contextlake owners payments-api --path src/auth  # …scoped to the auth module
+```
+
+The same ranking is available to agents over MCP as **`who_knows(repo, path?, limit?)`**.
+
 ## Connectors
 
 `connect` enriches the graph with external context. The
@@ -252,7 +266,8 @@ demand) so you can walk the graph without pre-rendering all of it.
 `contextlake serve` is an MCP server, so any MCP client can query the graph, and
 **most of it needs no model**: the graph tools (`search_code`, `find_definition`,
 `find_callers`, `find_dependents`, `shortest_path`, `graph_stats`,
-`repo_dependencies`, `repo_flow`, `repo_event_flow`, `blast_radius`, `get_wiki`, `get_readme`,
+`repo_dependencies`, `repo_flow`, `repo_event_flow`, `blast_radius`, `who_knows`,
+`get_wiki`, `get_readme`,
 `get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`) work on their own;
 only `semantic_search`/`hybrid_search` need embeddings.
 
