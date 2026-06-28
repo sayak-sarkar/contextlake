@@ -170,6 +170,49 @@ Like `index`, `embed` is **incremental**: it re-embeds only repos whose indexed 
 moved since they were last embedded, so a scheduled refresh over a large fleet stays
 cheap. Pass `--force` to re-embed everything.
 
+## Aggregating documents (RAG)
+
+Not everything lives in code. `contextlake ingest` pulls **external documents** into the
+same knowledge layer — they become `kind="document"` graph nodes and, when embeddings are
+on, their bodies are embedded so semantic search spans code *and* docs together:
+
+```bash
+contextlake ingest --path ./docs        # zero-config: ingest a folder of files
+```
+
+Sources follow a tiny seam, so common ones are **built-in and config-only** while anything
+heavier is a **loosely-coupled plugin** — bake in the common, plugin the rest:
+
+```toml
+# kb.toml — built-in "files" source (no code, no extra install)
+[[sources]]
+type = "files"
+name = "handbook"
+path = "~/notes"
+include = ["*.md", "*.txt"]
+```
+
+**Writing a plugin** is just a class with `iter_documents()` and one entry point — no fork,
+no core dependency:
+
+```toml
+# in your plugin package's pyproject.toml
+[project.entry-points."contextlake.sources"]
+confluence = "my_pkg.sources:ConfluenceSource"
+```
+
+```python
+from contextlake.kb.sources import Document          # the whole contract
+
+class ConfluenceSource:
+    def __init__(self, space=None, **_): self.space = space
+    def iter_documents(self):
+        yield Document(id="123", title="Runbook", text="…", uri="https://…")
+```
+
+`contextlake ingest` then discovers `type = "confluence"` automatically. Built-in sources
+ship today (`files`); web/API/MCP sources are on the roadmap as plugins.
+
 ## Measuring retrieval quality
 
 `contextlake eval` keeps all this falsifiable. Point

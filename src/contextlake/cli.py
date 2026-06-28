@@ -76,7 +76,7 @@ Examples:
             "bootstrap",
             # knowledge layer (optional [kb] extra)
             "index", "connect", "embed", "lint", "wiki", "steer",
-            "serve", "query", "graph", "doctor", "eval", "owners", "impact",
+            "serve", "query", "graph", "doctor", "eval", "owners", "impact", "ingest",
         ],
         help="Command to execute",
     )
@@ -118,7 +118,9 @@ Examples:
     kb.add_argument("--kind", help="query: filter by node kind")
     kb.add_argument("--repo", help="query: filter by repo")
     kb.add_argument("--limit", type=int, help="query: max results")
-    kb.add_argument("--path", help="owners: restrict to a sub-path within the repo")
+    kb.add_argument("--path", help="owners: restrict to a sub-path · ingest: the path to ingest")
+    kb.add_argument("--source-type", dest="source_type",
+                    help="ingest: source type for --path (default 'files')")
     kb.add_argument("--golden", help="eval: a golden-query JSON file "
                     "({queries:[{query, expected, kind?, repo?, match?}]})")
     kb.add_argument("--retriever", choices=("fts", "semantic", "hybrid"),
@@ -365,8 +367,8 @@ def main(argv=None):
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs
     # without the [kb] extra.
-    if args.command in ("index", "connect", "embed", "lint", "wiki", "steer",
-                        "serve", "query", "graph", "doctor", "eval", "owners", "impact"):
+    if args.command in ("index", "connect", "embed", "lint", "wiki", "steer", "serve",
+                        "query", "graph", "doctor", "eval", "owners", "impact", "ingest"):
         try:
             from .kb import commands as kb_commands
         except ImportError as e:
