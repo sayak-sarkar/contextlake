@@ -91,3 +91,9 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# visualize.py inlines large base64 assets (the brand glyph, the empty-state image)
+# directly into the generated graph page so it stays fully self-contained and offline;
+# those data-URI lines exceed the line length by design and can't be wrapped.
+"src/contextlake/kb/visualize.py" = ["E501"]
