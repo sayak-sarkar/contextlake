@@ -225,7 +225,19 @@ documents, with any bearer token read from an env var (never the config file):</
 <span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">  </span><span class="c1"># bearer token comes from this env var</span>
 </code></pre></div>
 
-<p>An MCP-resource source is on the roadmap as a further plugin on the same seam.</p>
+<p>An <strong><code>mcp</code></strong> source ships built-in as well, contextlake connects as an MCP <em>client</em>
+(stdio or streamable-HTTP) to another MCP server, lists its resources, and ingests each:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mcp&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;team-kb&quot;</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;uvx&quot;</span><span class="w">                 </span><span class="c1"># stdio transport: a server to launch…</span>
+<span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;some-mcp-server&quot;</span><span class="p">]</span>
+<span class="c1"># …or an HTTP endpoint instead:</span>
+<span class="c1"># url = &quot;https://mcp.example.com/sse&quot;</span>
+</code></pre></div>
+
+<p>So contextlake both <em>serves</em> a knowledge graph over MCP and <em>consumes</em> other MCP servers'
+resources into it, the loop closes on the same seam.</p>
 <h2 id="measuring-retrieval-quality">Measuring retrieval quality<a class="anchor" href="#measuring-retrieval-quality" title="Link to this section">#</a></h2>
 <p><code>contextlake eval</code> keeps all this falsifiable. Point
 it at a golden-query JSON file (<code>--golden</code>, e.g. <code>examples/fixtures/golden-queries.json</code>)
