@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-06-28
+
+### Added
+
+- **`contextlake dashboard` — a local knowledge-system dashboard UI.** A self-contained,
+  offline-first single-page app over your store: fleet overview (domain-grouped), per-repo
+  anatomy / README / wiki / owners / connector links, repo→repo dependency / HTTP-flow /
+  event-flow (each with confidence + provenance, never shown as ground truth), an embedded
+  interactive architecture graph, a change-impact explorer, health, and search. `--serve`
+  runs it live against your store; `--site DIR` exports a static `file://`-safe copy. Privacy:
+  a real-store `--site` warns "review before publishing"; `--anonymize` hashes author
+  identities and drops external URLs + README/wiki prose; `--sample` builds a guaranteed-generic
+  showcase from the bundled fixture. Read-only in v1 (sync/MCP controls planned).
+
 ## [2.18.0] - 2026-06-28
 
 ### Added

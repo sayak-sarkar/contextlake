@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "contextlake"
-version = "2.18.0"
+version = "2.19.0"
 description = "A local context layer for AI tools: mirror your repositories, index them into a knowledge graph, and serve it over MCP."
 readme = "README.md"
 license = "MIT"
@@ -79,6 +79,8 @@ where = ["src"]
 # Vendored cytoscape.js + the extracted app.css/app.js for the offline
 # `contextlake graph` HTML. Without this the wheel silently omits them.
 "contextlake.kb" = ["static/*.js", "static/*.css"]
+# Dashboard SPA shell + assets (html/js/css) for `contextlake dashboard`.
+"contextlake.kb.dashboard" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
