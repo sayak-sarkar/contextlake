@@ -85,6 +85,36 @@ def test_sqlite_vec_search_filter_replace_clear(tmp_path):
 
 
 @requires_vec
+def test_sqlite_vec_chunk_size_clamped_and_usable(tmp_path):
+    # vec0 needs a multiple of 8; a non-conforming value is clamped, not rejected.
+    s = SqliteVecStore(tmp_path / "v.sqlite", chunk_size=20)
+    try:
+        assert s._chunk_size == 16            # 20 -> nearest lower multiple of 8
+        s.upsert([("a", "r", [1.0, 0.0]), ("b", "r", [0.0, 1.0])])
+        assert s.search([1.0, 0.0], k=1)[0][0] == "a"  # custom chunk size still works
+    finally:
+        s.close()
+
+
+@requires_vec
+def test_sqlite_vec_chunk_size_floors_to_eight(tmp_path):
+    s = SqliteVecStore(tmp_path / "v.sqlite", chunk_size=1)
+    try:
+        assert s._chunk_size == 8             # tiny values floor to the vec0 minimum
+    finally:
+        s.close()
+
+
+@requires_vec
+def test_factory_threads_chunk_size(tmp_path):
+    vs = build_vector_store(tmp_path / "e.sqlite", backend="sqlite-vec", chunk_size=2048)
+    try:
+        assert vs._chunk_size == 2048
+    finally:
+        vs.close()
+
+
+@requires_vec
 def test_sqlite_vec_persists(tmp_path):
     p = tmp_path / "v.sqlite"
     s = SqliteVecStore(p)

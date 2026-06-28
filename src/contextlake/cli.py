@@ -109,9 +109,9 @@ Examples:
     kb.add_argument("--no-wiki", dest="no_wiki", action="store_true",
                     help="bootstrap: skip the wiki-generation step")
     kb.add_argument("--watch", action="store_true",
-                    help="index --workspace: keep re-indexing on an interval (Ctrl-C to stop)")
+                    help="index/connect/embed: keep re-running on an interval (Ctrl-C to stop)")
     kb.add_argument("--interval", type=int,
-                    help="index --watch: seconds between passes (default 60)")
+                    help="--watch: seconds between passes (default 60)")
     kb.add_argument("--transport", choices=["stdio", "http"], help="serve: MCP transport")
     kb.add_argument("--host", help="serve: bind host (http transport)")
     kb.add_argument("--port", type=int, help="serve: bind port (http transport)")

@@ -35,7 +35,8 @@ contextlake serve                           # expose the graph over MCP (stdio o
 
 `index --workspace` is **incremental**, it re-indexes only repos whose git HEAD
 moved since their last index, so a scheduled (cron) run stays cheap; pass `--force`
-to rebuild everything, or `--watch [--interval N]` to keep re-indexing in a loop.
+to rebuild everything, or `--watch [--interval N]` to keep re-indexing in a loop
+(the same `--watch`/`--interval` flags also drive `connect` and `embed`).
 Every indexed snapshot is kept, so `query "<text>" --repo R --as-of <commit>` does
 **time-travel**, it searches repo `R` as it was at a previously-indexed commit.
 
@@ -145,7 +146,9 @@ propagates relevance across the graph (HippoRAG-style) to surface structurally
 related nodes, a function's callers, a package's dependents, that a pure semantic
 match would miss. The vector store uses an exact pure-Python cosine scan by default;
 install the optional ANN backend with `pip install "contextlake[kb-vec]"` (sqlite-vec)
-for larger workspaces.
+for larger workspaces. Tune it with `[embeddings] vector_chunk_size` (the sqlite-vec
+`vec0` KNN chunk size, default 1024; clamped to a multiple of 8, applied when the vector
+store is first created — re-embed from scratch to change an existing store).
 
 Like `index`, `embed` is **incremental**: it re-embeds only repos whose indexed HEAD
 moved since they were last embedded, so a scheduled refresh over a large fleet stays
