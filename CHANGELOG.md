@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-06-28
+
+### Added
+
+- **`contextlake impact <symbol>` — change-impact / blast radius from the shell.** Lists
+  what calls or depends on a node (reverse-reachability over the graph, `--hops` deep,
+  `--limit` capped), so "what could break if I change this" no longer needs an editor or
+  MCP client. Resolves a node id or falls back to a name search. The walk is shared with
+  the `blast_radius` MCP tool (one implementation in `kb/impact.py`).
+
 ## [2.13.0] - 2026-06-28
 
 ### Added
