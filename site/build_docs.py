@@ -211,37 +211,94 @@ def shell(meta, body, toc_html) -> str:
 
 
 def make404():
-    return f"""<!doctype html>
+    # Self-contained immersive 404: a full-bleed misty-Pebble scene with the copy
+    # overlaid. Deliberately does NOT use docs.css (own styles) so the page layout
+    # can't be affected by the shared sticky-footer/grid rules.
+    return """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Page not found · contextlake docs</title>
+<title>Lost in the fog · contextlake</title>
 <meta name="robots" content="noindex">
-<meta name="description" content="That page isn't in the lake. Head back home or dive into the contextlake docs.">
+<meta name="description" content="That page drifted off into the mist. Pebble will guide you back to contextlake.">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#137A8B">
+<meta name="theme-color" content="#0E2A33">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="docs.css">
+<style>
+  :root{ --deepwater:#0E2A33; --abyss:#081a20; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:var(--mist);background:var(--abyss);-webkit-font-smoothing:antialiased}
+
+  /* full-bleed misty-Pebble scene */
+  .scene{position:relative;min-height:100svh;display:grid;place-items:center;
+    text-align:center;padding:48px 24px;overflow:hidden;
+    background:#0b2129 url("hero-scene.webp") center 38% / cover no-repeat;}
+  @media (max-width:720px){
+    .scene{background-image:url("hero-scene-mobile.webp");background-position:center 30%}
+  }
+
+  /* underwater depth + a vignette that closes in like fog */
+  .scene::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(125% 85% at 50% 32%, transparent 38%, rgba(14,42,51,.55) 72%, rgba(8,26,32,.94) 100%),
+      linear-gradient(180deg, rgba(8,26,32,.55), rgba(14,42,51,.12) 38%, rgba(8,26,32,.9));}
+
+  /* a slow drifting fog bank */
+  .scene::after{content:"";position:absolute;inset:-25% -25% -25% -25%;pointer-events:none;mix-blend-mode:screen;
+    background:
+      radial-gradient(40% 32% at 30% 42%, rgba(204,224,228,.16), transparent 70%),
+      radial-gradient(48% 30% at 72% 58%, rgba(190,214,219,.12), transparent 72%),
+      radial-gradient(30% 24% at 55% 24%, rgba(231,181,60,.07), transparent 70%);
+    filter:blur(6px);animation:drift 34s ease-in-out infinite alternate;}
+  @keyframes drift{from{transform:translate3d(-3%,1%,0) scale(1.04)}
+                   to{transform:translate3d(4%,-2%,0) scale(1.12)}}
+
+  .content{position:relative;z-index:2;max-width:540px;text-shadow:0 2px 24px rgba(0,0,0,.55)}
+  .eyebrow{font-family:"Space Grotesk",sans-serif;font-weight:700;letter-spacing:.38em;
+    text-transform:uppercase;font-size:13px;color:#bfe0e4;margin:0 0 14px;opacity:.92}
+  h1{font-family:"Space Grotesk",sans-serif;font-weight:700;line-height:1.05;
+    font-size:clamp(38px,8vw,68px);margin:0}
+  .sub{font-size:clamp(16px,2.4vw,19px);color:#d7e9ec;line-height:1.6;margin:18px auto 30px;max-width:34em}
+  .sub b{color:#fff;font-weight:600}
+  .actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 22px;border-radius:11px;
+    font-weight:600;font-size:15px;text-decoration:none;transition:transform .15s,background .15s,border-color .15s}
+  .btn.primary{background:var(--current);color:#06231f;box-shadow:0 10px 30px -10px rgba(43,179,163,.6)}
+  .btn.primary:hover{background:#36c4b3;transform:translateY(-1px)}
+  .btn.ghost{color:var(--mist);border:1px solid rgba(234,244,244,.32);background:rgba(234,244,244,.06)}
+  .btn.ghost:hover{border-color:var(--current);background:rgba(234,244,244,.12);transform:translateY(-1px)}
+  :focus-visible{outline:none;box-shadow:0 0 0 2px var(--abyss),0 0 0 4px var(--current);border-radius:12px}
+
+  .home{position:absolute;top:22px;left:24px;z-index:3;display:inline-flex;align-items:center;gap:9px;
+    color:var(--mist);text-decoration:none;font-family:"Space Grotesk",sans-serif;font-weight:600;
+    font-size:16px;opacity:.92;text-shadow:0 2px 16px rgba(0,0,0,.5)}
+  .home img{height:26px;width:auto;display:block}
+  .home:hover{opacity:1}
+
+  @media (prefers-reduced-motion:reduce){ .scene::after{animation:none} }
+</style>
 </head>
 <body>
-<a class="skip" href="#doc">Skip to content</a>
-<header><div class="nav">
-  <a class="brand" href="index.html" aria-label="contextlake home">{GLYPH}contextlake</a>
-  <span class="spacer"></span>
-  <a class="navlink" href="docs.html">Docs</a>
-  <span class="social-row">{GH_BTN}{PYPI_BTN}</span>
-</div></header>
-<main class="prose" id="doc" style="max-width:620px;margin:0 auto;text-align:center;padding:52px 24px 80px">
-  <img src="hero-scene.webp" width="560" style="max-width:100%;height:auto;border-radius:16px;box-shadow:0 18px 48px -22px rgba(14,42,51,.42)" alt="Pebble, the contextlake otter, surfacing from the misty lake; this page slipped under the surface" loading="eager">
-  <h1 style="margin-top:30px">This page slipped under the surface</h1>
-  <p>That page isn't in the lake. Head back <a href="index.html">home</a> or dive into the <a href="docs.html">docs</a>.</p>
+<main class="scene">
+  <a class="home" href="index.html" aria-label="contextlake home">
+    <img src="icon-64.png" width="26" height="26" alt="">contextlake
+  </a>
+  <div class="content">
+    <p class="eyebrow">404 · off the map</p>
+    <h1>Lost in the fog</h1>
+    <p class="sub">This page drifted off into the mist. <b>Pebble</b> can't find it
+      down here either — but the way back to shore is just a click away.</p>
+    <div class="actions">
+      <a class="btn primary" href="index.html">Back to shore</a>
+      <a class="btn ghost" href="docs.html">Read the docs</a>
+    </div>
+  </div>
 </main>
-<footer><div class="f-in">
-  <span class="tagline">{FOOT_MARK}Deep context. Clear answers.</span>
-</div></footer>
 </body>
 </html>"""
 
