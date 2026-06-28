@@ -214,7 +214,18 @@ built-in, <code>files</code> and <strong><code>web</code></strong> (fetch URLs a
 <span class="n">urls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;https://example.com/changelog&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;https://example.com/roadmap&quot;</span><span class="p">]</span>
 </code></pre></div>
 
-<p>API and MCP sources are on the roadmap as further plugins on the same seam.</p>
+<p>An <strong><code>api</code></strong> source ships built-in too, GET a JSON endpoint and map its records to
+documents, with any bearer token read from an env var (never the config file):</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span>
+<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.example.com/v1/articles&quot;</span>
+<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;data.articles&quot;</span><span class="w">        </span><span class="c1"># dotted path to the record list</span>
+<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span><span class="w">            </span><span class="c1"># which key holds the document text</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">  </span><span class="c1"># bearer token comes from this env var</span>
+</code></pre></div>
+
+<p>An MCP-resource source is on the roadmap as a further plugin on the same seam.</p>
 <h2 id="measuring-retrieval-quality">Measuring retrieval quality<a class="anchor" href="#measuring-retrieval-quality" title="Link to this section">#</a></h2>
 <p><code>contextlake eval</code> keeps all this falsifiable. Point
 it at a golden-query JSON file (<code>--golden</code>, e.g. <code>examples/fixtures/golden-queries.json</code>)

@@ -40,8 +40,16 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
-<h2 id="2160-2026-06-28">[2.16.0] - 2026-06-28<a class="anchor" href="#2160-2026-06-28" title="Link to this section">#</a></h2>
+<h2 id="2170-2026-06-28">[2.17.0] - 2026-06-28<a class="anchor" href="#2170-2026-06-28" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Built-in <code>api</code> source for <code>ingest</code>.</strong> GET a JSON endpoint and map its records to
+  documents, <code>items</code> (dotted path to the record list), <code>id_field</code>/<code>title_field</code>/<code>text_field</code>,
+  and an optional bearer token read from an env var named by <code>token_env</code> (the secret never
+  lives in config). Standard library only.</li>
+</ul>
+<h2 id="2160-2026-06-28">[2.16.0] - 2026-06-28<a class="anchor" href="#2160-2026-06-28" title="Link to this section">#</a></h2>
+<h3 id="added_1">Added<a class="anchor" href="#added_1" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Built-in <code>web</code> source for <code>ingest</code>.</strong> Fetch one or more URLs and ingest their readable
   text (<code>[[sources]] type="web"</code>, <code>urls = [...]</code>) into the graph + semantic store. Standard
@@ -49,7 +57,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   network is touched only when a <code>web</code> source is configured.</li>
 </ul>
 <h2 id="2150-2026-06-28">[2.15.0] - 2026-06-28<a class="anchor" href="#2150-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_1">Added<a class="anchor" href="#added_1" title="Link to this section">#</a></h3>
+<h3 id="added_2">Added<a class="anchor" href="#added_2" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake ingest</code>, aggregate external documents (RAG) into the knowledge layer.</strong>
   Documents become <code>kind="document"</code> graph nodes and, when embeddings are on, their bodies
@@ -62,7 +70,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   common, plugin the rest.</li>
 </ul>
 <h2 id="2140-2026-06-28">[2.14.0] - 2026-06-28<a class="anchor" href="#2140-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_2">Added<a class="anchor" href="#added_2" title="Link to this section">#</a></h3>
+<h3 id="added_3">Added<a class="anchor" href="#added_3" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake impact &lt;symbol&gt;</code>, change-impact / blast radius from the shell.</strong> Lists
   what calls or depends on a node (reverse-reachability over the graph, <code>--hops</code> deep,
@@ -71,7 +79,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   the <code>blast_radius</code> MCP tool (one implementation in <code>kb/impact.py</code>).</li>
 </ul>
 <h2 id="2130-2026-06-28">[2.13.0] - 2026-06-28<a class="anchor" href="#2130-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_3">Added<a class="anchor" href="#added_3" title="Link to this section">#</a></h3>
+<h3 id="added_4">Added<a class="anchor" href="#added_4" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Ownership / SME lookup from commit history.</strong> New <code>contextlake owners &lt;repo&gt;</code>
   (optionally <code>--path SUBDIR</code>) ranks likely owners / subject-matter experts straight
@@ -80,7 +88,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   prolific author. Exposed to agents over MCP as the <code>who_knows(repo, path?, limit?)</code> tool.</li>
 </ul>
 <h2 id="2120-2026-06-28">[2.12.0] - 2026-06-28<a class="anchor" href="#2120-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_4">Added<a class="anchor" href="#added_4" title="Link to this section">#</a></h3>
+<h3 id="added_5">Added<a class="anchor" href="#added_5" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>connect --watch</code> and <code>embed --watch</code>.</strong> The live-refresh loop that <code>index</code> already
   had now covers the connector and embedding passes too, <code>connect --watch</code> re-links and
@@ -99,7 +107,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   <code>--workspace DIR</code> to index elsewhere.</li>
 </ul>
 <h2 id="2100-2026-06-28">[2.10.0] - 2026-06-28<a class="anchor" href="#2100-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_5">Added<a class="anchor" href="#added_5" title="Link to this section">#</a></h3>
+<h3 id="added_6">Added<a class="anchor" href="#added_6" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Incremental <code>embed</code>.</strong> <code>embed</code> now re-embeds only repos whose indexed HEAD has moved
   since they were last embedded (tracked per-repo in the vector store), so a scheduled
@@ -127,7 +135,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   identically on GitHub and PyPI (no SVG-only assets). Removed em-dashes across the prose docs.</li>
 </ul>
 <h2 id="290-2026-06-26">[2.9.0] - 2026-06-26<a class="anchor" href="#290-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="added_6">Added<a class="anchor" href="#added_6" title="Link to this section">#</a></h3>
+<h3 id="added_7">Added<a class="anchor" href="#added_7" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Graph readability overhaul, the dense-graph pain points are fixed.</strong> Three long-standing
   complaints addressed in the shared visualizer (<code>graph --serve</code>, <code>--site</code>, and every embedded graph):</li>
@@ -180,7 +188,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   can't bake them into an image. The published image is unaffected (built from a clean checkout).</li>
 </ul>
 <h2 id="280-2026-06-26">[2.8.0] - 2026-06-26<a class="anchor" href="#280-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="added_7">Added<a class="anchor" href="#added_7" title="Link to this section">#</a></h3>
+<h3 id="added_8">Added<a class="anchor" href="#added_8" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Definitions now capture their docstring + signature</strong> (on node <code>attrs</code>: <code>doc</code>, <code>signature</code>),
   <strong>surfaced through the MCP <code>NodeOut</code></strong> (<code>get_node</code> / <code>find_definition</code> / neighbors etc. now return
@@ -191,7 +199,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   <strong>JSDoc</strong> (<code>/** */</code>), and <strong>C# XML</strong> (<code>///</code>) leading doc-comments (plain comments are ignored).</li>
 </ul>
 <h2 id="270-2026-06-26">[2.7.0] - 2026-06-26<a class="anchor" href="#270-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="added_8">Added<a class="anchor" href="#added_8" title="Link to this section">#</a></h3>
+<h3 id="added_9">Added<a class="anchor" href="#added_9" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>MCP: <code>repo_event_flow(repo, direction, limit)</code></strong>, repo→repo <strong>event</strong> flow (who publishes events
   that whom consumes), from the topic two-hop (<code>publishes_event ⨝ consumes_event</code>). Completes the
@@ -225,7 +233,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   fails, proving contextlake is safe in air-gapped/egress-restricted environments, with enrichment the
   single opt-in online step. Documented in <code>docs/storage.md</code>.</li>
 </ul>
-<h3 id="added_9">Added<a class="anchor" href="#added_9" title="Link to this section">#</a></h3>
+<h3 id="added_10">Added<a class="anchor" href="#added_10" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>eval</code> now scores any retriever and reports a cost dimension.</strong> Retrievers are built by factories
   (<code>make_fts_retriever</code> / <code>make_semantic_retriever</code> / <code>make_hybrid_retriever</code>) that close over their
@@ -250,7 +258,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   tools, and the README command table documents <code>eval</code> (the golden-query retrieval-quality harness).</li>
 </ul>
 <h2 id="250-2026-06-26">[2.5.0] - 2026-06-26<a class="anchor" href="#250-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="added_10">Added<a class="anchor" href="#added_10" title="Link to this section">#</a></h3>
+<h3 id="added_11">Added<a class="anchor" href="#added_11" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>[kb-full]</code> one-step install for local semantic search</strong>, <code>pip install "contextlake[kb-full]"</code>
   pulls the knowledge layer + the built-in CPU embedder (<code>kb-local</code>) + the sqlite-vec ANN backend
@@ -311,7 +319,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   blast-radius isn't undercounted. Names matching more than the cap are too generic to be signal and
   are still skipped. AMBIGUOUS edges render dotted in the visualizer.</li>
 </ul>
-<h3 id="added_11">Added<a class="anchor" href="#added_11" title="Link to this section">#</a></h3>
+<h3 id="added_12">Added<a class="anchor" href="#added_12" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake eval --golden FILE.json</code>, a retrieval-quality harness.</strong> Score a labelled
   <code>query → expected-nodes</code> set against the index and get <strong>precision@k / recall@k / MRR / hit-rate</strong>
@@ -327,7 +335,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   config-variable topics are an honest undercount, never a false link. Re-run <code>index</code> to populate.</li>
 </ul>
 <h2 id="240-2026-06-25">[2.4.0] - 2026-06-25<a class="anchor" href="#240-2026-06-25" title="Link to this section">#</a></h2>
-<h3 id="added_12">Added<a class="anchor" href="#added_12" title="Link to this section">#</a></h3>
+<h3 id="added_13">Added<a class="anchor" href="#added_13" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>MCP: repo-level architecture tools <code>repo_dependencies</code> / <code>repo_flow</code>.</strong> Surface the cross-repo
   wedge to AI agents: <code>repo_dependencies(repo, direction)</code> returns the package two-hop
@@ -364,7 +372,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   the command happened to run. Pass <code>--output</code> / <code>--site DIR</code> to override.</li>
 </ul>
 <h2 id="230-2026-06-24">[2.3.0] - 2026-06-24<a class="anchor" href="#230-2026-06-24" title="Link to this section">#</a></h2>
-<h3 id="added_13">Added<a class="anchor" href="#added_13" title="Link to this section">#</a></h3>
+<h3 id="added_14">Added<a class="anchor" href="#added_14" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Two interlocking overview views, a <code>Namespace</code> mindmap and a <code>Dependencies</code> graph.</strong> The fleet
   overview now has a mode toggle over one graph. <strong>Namespace</strong> (default) collapses the whole repo fleet
@@ -407,7 +415,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   zoom/pan). Dark-mode faded opacity and <code>prefers-reduced-motion</code> gating for JS animations.</li>
 </ul>
 <h2 id="220-2026-06-23">[2.2.0] - 2026-06-23<a class="anchor" href="#220-2026-06-23" title="Link to this section">#</a></h2>
-<h3 id="added_14">Added<a class="anchor" href="#added_14" title="Link to this section">#</a></h3>
+<h3 id="added_15">Added<a class="anchor" href="#added_15" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>Post-sync repo audit (<code>contextlake audit</code>, also auto-runs after <code>sync</code>/<code>bootstrap</code>).</strong> Scans every
@@ -462,7 +470,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   Re-indexing a repo into a 23k-node store dropped from <strong>6.5s to 0.11s (≈59×)</strong> and is now flat
   regardless of store size; the FTS contents are byte-for-byte identical.</li>
 </ul>
-<h3 id="added_15">Added<a class="anchor" href="#added_15" title="Link to this section">#</a></h3>
+<h3 id="added_16">Added<a class="anchor" href="#added_16" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Parallel repository indexing.</strong> <code>contextlake index --workspace</code> (and <code>bootstrap</code>) now parse
   repositories across worker processes (CPU-bound work), persisting to SQLite serially from the
@@ -483,7 +491,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   legacy repo this dropped ~26% of files / 4k generated nodes (22.5s → 16.6s).</li>
 </ul>
 <h2 id="215-2026-06-23">[2.1.5] - 2026-06-23<a class="anchor" href="#215-2026-06-23" title="Link to this section">#</a></h2>
-<h3 id="added_16">Added<a class="anchor" href="#added_16" title="Link to this section">#</a></h3>
+<h3 id="added_17">Added<a class="anchor" href="#added_17" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Built-in, zero-config CPU models for the knowledge base, no Ollama and no API key.</strong>
   The embeddings and wiki tiers now accept <code>provider = "auto"</code> (the new default), which uses a
@@ -519,7 +527,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   "errors" are real and few.</li>
 </ul>
 <h2 id="212-2026-06-22">[2.1.2] - 2026-06-22<a class="anchor" href="#212-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_17">Added<a class="anchor" href="#added_17" title="Link to this section">#</a></h3>
+<h3 id="added_18">Added<a class="anchor" href="#added_18" title="Link to this section">#</a></h3>
 <ul>
 <li>The release workflow now also <strong>publishes a GitHub Release</strong> on each <code>vX.Y.Z</code> tag, with notes
   pulled from this changelog and the built sdist + wheel attached.</li>
@@ -531,7 +539,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   from source now needs <code>setuptools &gt;= 77</code>.</li>
 </ul>
 <h2 id="211-2026-06-22">[2.1.1] - 2026-06-22<a class="anchor" href="#211-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_18">Added<a class="anchor" href="#added_18" title="Link to this section">#</a></h3>
+<h3 id="added_19">Added<a class="anchor" href="#added_19" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Maintainer release runbook</strong> at <code>docs/releasing.md</code> (versioning → tag → build → publish to
   PyPI, with first-token and TLS-proxy troubleshooting) and a <code>release</code> extra
@@ -541,7 +549,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   using PyPI Trusted Publishing (OIDC), no stored API token.</li>
 </ul>
 <h2 id="210-2026-06-22">[2.1.0] - 2026-06-22<a class="anchor" href="#210-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_19">Added<a class="anchor" href="#added_19" title="Link to this section">#</a></h3>
+<h3 id="added_20">Added<a class="anchor" href="#added_20" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Cleaner terminal output: the timestamp moves to the right edge.</strong> On an interactive
   terminal each line now shows the message on the left with a dim <code>HH:MM:SS</code> clock flushed
@@ -597,7 +605,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Confirmed the mascot's name, <strong>Pebble</strong> the otter, in <code>BRANDING.md</code> and the mascot spec.</li>
 </ul>
 <h2 id="1180-2026-06-22">[1.18.0] - 2026-06-22<a class="anchor" href="#1180-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_20">Added<a class="anchor" href="#added_20" title="Link to this section">#</a></h3>
+<h3 id="added_21">Added<a class="anchor" href="#added_21" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Brand identity, <code>contextlake</code>.</strong> A <code>BRANDING.md</code> guide establishes the project's
   name, voice, color palette (cool lake teals + a warm "spark" of fresh context),
@@ -626,7 +634,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   repetitive install/security prose.</li>
 </ul>
 <h2 id="1160-2026-06-22">[1.16.0] - 2026-06-22<a class="anchor" href="#1160-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_21">Added<a class="anchor" href="#added_21" title="Link to this section">#</a></h3>
+<h3 id="added_22">Added<a class="anchor" href="#added_22" title="Link to this section">#</a></h3>
 <ul>
 <li>A <strong>"Commands at a glance"</strong> reference table in the README covering all 17
   commands, and <code>docs/internals.md</code>, a deep-dive on the core-sync internals plus a
@@ -640,7 +648,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   no code or layout changes, which already follow standard src-layout conventions.)</li>
 </ul>
 <h2 id="1150-2026-06-22">[1.15.0] - 2026-06-22<a class="anchor" href="#1150-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_22">Added<a class="anchor" href="#added_22" title="Link to this section">#</a></h3>
+<h3 id="added_23">Added<a class="anchor" href="#added_23" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>QUICKSTART.md</strong>, a short install → <code>bootstrap</code> → wire-your-editor guide.</li>
 </ul>
@@ -653,7 +661,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   custom layers like <code>.devin/</code> are never touched. Nothing the user wrote is deleted.</li>
 </ul>
 <h2 id="1140-2026-06-22">[1.14.0] - 2026-06-22<a class="anchor" href="#1140-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_23">Added<a class="anchor" href="#added_23" title="Link to this section">#</a></h3>
+<h3 id="added_24">Added<a class="anchor" href="#added_24" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>GitLab knowledge connector</strong>: links each repo to its open merge requests and
   issues (read through the authenticated <code>glab</code>), on the same connector seam as
@@ -666,7 +674,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   knowledge layer always-fresh without disturbing in-progress work.</li>
 </ul>
 <h2 id="1130-2026-06-22">[1.13.0] - 2026-06-22<a class="anchor" href="#1130-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_24">Added<a class="anchor" href="#added_24" title="Link to this section">#</a></h3>
+<h3 id="added_25">Added<a class="anchor" href="#added_25" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Agent skills/workflows library</strong>: <code>steer</code> now also installs a built-in, generic
   library of operating skills (investigate-root-cause, plan-before-coding,
@@ -676,7 +684,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   a strong operating playbook. Managed/idempotent like the other steering files.</li>
 </ul>
 <h2 id="1120-2026-06-22">[1.12.0] - 2026-06-22<a class="anchor" href="#1120-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_25">Added<a class="anchor" href="#added_25" title="Link to this section">#</a></h3>
+<h3 id="added_26">Added<a class="anchor" href="#added_26" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>bootstrap</code> command</strong>, one-command turnkey setup that chains mirror →
   index → connect → embed → wiki → steer, skipping unconfigured/disabled stages and
@@ -685,7 +693,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   teammate goes from nothing to a fully-wired workspace in one step.</li>
 </ul>
 <h2 id="1110-2026-06-22">[1.11.0] - 2026-06-22<a class="anchor" href="#1110-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_26">Added<a class="anchor" href="#added_26" title="Link to this section">#</a></h3>
+<h3 id="added_27">Added<a class="anchor" href="#added_27" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Steering-layer generation</strong> (<code>steer</code> command): writes workspace-specific
   steering files so local AI tools pick up the knowledge graph natively, 
@@ -695,7 +703,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   dependencies; it only overwrites files it manages (or with <code>--force</code>).</li>
 </ul>
 <h2 id="1100-2026-06-21">[1.10.0] - 2026-06-21<a class="anchor" href="#1100-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_27">Added<a class="anchor" href="#added_27" title="Link to this section">#</a></h3>
+<h3 id="added_28">Added<a class="anchor" href="#added_28" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>OpenAI-compatible providers</strong> for the embeddings and wiki tiers: set
   <code>provider = "openai"</code> to use any OpenAI-compatible API, a hosted key or a local
@@ -720,7 +728,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Added a <code>ROADMAP.md</code> listing future good-to-haves.</li>
 </ul>
 <h2 id="190-2026-06-21">[1.9.0] - 2026-06-21<a class="anchor" href="#190-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_28">Added<a class="anchor" href="#added_28" title="Link to this section">#</a></h3>
+<h3 id="added_29">Added<a class="anchor" href="#added_29" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Curated wiki tier</strong> (<code>wiki</code> command): a pluggable, local-first LLM client
   (Ollama) synthesizes a provenance-stamped Markdown page per repo, grounded
@@ -734,7 +742,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   indexed commit (time-travel) without a schema overhaul.</li>
 </ul>
 <h2 id="180-2026-06-21">[1.8.0] - 2026-06-21<a class="anchor" href="#180-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_29">Added<a class="anchor" href="#added_29" title="Link to this section">#</a></h3>
+<h3 id="added_30">Added<a class="anchor" href="#added_30" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Incremental workspace indexing</strong>: <code>index --workspace</code> now re-indexes only the
   repos whose git HEAD moved since their last index (skipping unchanged ones), with
@@ -749,7 +757,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   dependencies.</li>
 </ul>
 <h2 id="170-2026-06-21">[1.7.0] - 2026-06-21<a class="anchor" href="#170-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_30">Added<a class="anchor" href="#added_30" title="Link to this section">#</a></h3>
+<h3 id="added_31">Added<a class="anchor" href="#added_31" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Hybrid retrieval</strong> (<code>hybrid_search</code> MCP tool): seeds Personalized PageRank with
   the embedding hits and propagates relevance across the graph (HippoRAG-style), so
@@ -761,7 +769,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   exact pure-Python cosine scan otherwise, same interface either way.</li>
 </ul>
 <h2 id="160-2026-06-21">[1.6.0] - 2026-06-21<a class="anchor" href="#160-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_31">Added<a class="anchor" href="#added_31" title="Link to this section">#</a></h3>
+<h3 id="added_32">Added<a class="anchor" href="#added_32" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Semantic-search tier (optional, local-first)</strong>: a pluggable embeddings
   provider (<code>Embedder</code> interface + config-driven factory; a stdlib-only Ollama
@@ -771,7 +779,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   embeddings status.</li>
 </ul>
 <h2 id="150-2026-06-21">[1.5.0] - 2026-06-21<a class="anchor" href="#150-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_32">Added<a class="anchor" href="#added_32" title="Link to this section">#</a></h3>
+<h3 id="added_33">Added<a class="anchor" href="#added_33" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Figma knowledge connector</strong>: links repos to the design files they reference,
   classifying <code>figma.com</code> URLs (file/design/proto/board) to a stable file key and
@@ -792,7 +800,7 @@ Python ≥ 3.10) that turns the mirrored repositories into a queryable knowledge
 graph served to AI agents over MCP. The core sync tool is unchanged and the extra
 is entirely opt-in. Everything is generic and config-driven, no
 organization-specific data lives in the package.</p>
-<h3 id="added_33">Added<a class="anchor" href="#added_33" title="Link to this section">#</a></h3>
+<h3 id="added_34">Added<a class="anchor" href="#added_34" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Knowledge-graph store and CLI</strong>: <code>index</code>, <code>query</code>, <code>serve</code>, and <code>doctor</code>
   commands backed by a SQLite + FTS5 cross-repo index with per-repo JSON shards.
@@ -859,7 +867,7 @@ critical configuration bug.</p>
 <li>Corrupted (non-git) target directories are detected and re-cloned again
   (honouring <code>--clean-corrupted</code>); cloning prefers <code>glab</code> for authentication.</li>
 </ul>
-<h3 id="added_34">Added<a class="anchor" href="#added_34" title="Link to this section">#</a></h3>
+<h3 id="added_35">Added<a class="anchor" href="#added_35" title="Link to this section">#</a></h3>
 <ul>
 <li>Installable package with a <code>gitlab-sync</code> console entry point, <code>python -m
   gitlab_sync</code>, and the bare <code>python3 gitlab_sync.py</code> script (src layout).</li>
@@ -878,7 +886,7 @@ critical configuration bug.</p>
   <code>config.py</code>, <code>safety.py</code>, <code>logging_setup.py</code>.</li>
 </ul>
 <h2 id="120-2026-06-16">[1.2.0] - 2026-06-16<a class="anchor" href="#120-2026-06-16" title="Link to this section">#</a></h2>
-<h3 id="added_35">Added<a class="anchor" href="#added_35" title="Link to this section">#</a></h3>
+<h3 id="added_36">Added<a class="anchor" href="#added_36" title="Link to this section">#</a></h3>
 <ul>
 <li>Branch safety checks to protect working branches from sync conflicts</li>
 <li>Workspace protection requiring clean workspace before operations</li>
@@ -898,7 +906,7 @@ critical configuration bug.</p>
 <li>Updated README with branch safety section including scenarios and examples</li>
 </ul>
 <h2 id="110-2026-05-24">[1.1.0] - 2026-05-24<a class="anchor" href="#110-2026-05-24" title="Link to this section">#</a></h2>
-<h3 id="added_36">Added<a class="anchor" href="#added_36" title="Link to this section">#</a></h3>
+<h3 id="added_37">Added<a class="anchor" href="#added_37" title="Link to this section">#</a></h3>
 <ul>
 <li>INI-based configuration file support</li>
 <li>Local and global config file support</li>
@@ -916,7 +924,7 @@ critical configuration bug.</p>
 <li>Configuration files can be excluded from version control</li>
 </ul>
 <h2 id="100-2026-05-10">[1.0.0] - 2026-05-10<a class="anchor" href="#100-2026-05-10" title="Link to this section">#</a></h2>
-<h3 id="added_37">Added<a class="anchor" href="#added_37" title="Link to this section">#</a></h3>
+<h3 id="added_38">Added<a class="anchor" href="#added_38" title="Link to this section">#</a></h3>
 <ul>
 <li>Full synchronization pipeline</li>
 <li>Branch management with automatic active branch detection</li>
@@ -930,24 +938,28 @@ critical configuration bug.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#unreleased">[Unreleased]</a></li>
-<li><a href="#2160-2026-06-28">[2.16.0] - 2026-06-28</a><ul>
+<li><a href="#2170-2026-06-28">[2.17.0] - 2026-06-28</a><ul>
 <li><a href="#added">Added</a></li>
 </ul>
 </li>
-<li><a href="#2150-2026-06-28">[2.15.0] - 2026-06-28</a><ul>
+<li><a href="#2160-2026-06-28">[2.16.0] - 2026-06-28</a><ul>
 <li><a href="#added_1">Added</a></li>
 </ul>
 </li>
-<li><a href="#2140-2026-06-28">[2.14.0] - 2026-06-28</a><ul>
+<li><a href="#2150-2026-06-28">[2.15.0] - 2026-06-28</a><ul>
 <li><a href="#added_2">Added</a></li>
 </ul>
 </li>
-<li><a href="#2130-2026-06-28">[2.13.0] - 2026-06-28</a><ul>
+<li><a href="#2140-2026-06-28">[2.14.0] - 2026-06-28</a><ul>
 <li><a href="#added_3">Added</a></li>
 </ul>
 </li>
-<li><a href="#2120-2026-06-28">[2.12.0] - 2026-06-28</a><ul>
+<li><a href="#2130-2026-06-28">[2.13.0] - 2026-06-28</a><ul>
 <li><a href="#added_4">Added</a></li>
+</ul>
+</li>
+<li><a href="#2120-2026-06-28">[2.12.0] - 2026-06-28</a><ul>
+<li><a href="#added_5">Added</a></li>
 </ul>
 </li>
 <li><a href="#2110-2026-06-28">[2.11.0] - 2026-06-28</a><ul>
@@ -955,7 +967,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2100-2026-06-28">[2.10.0] - 2026-06-28</a><ul>
-<li><a href="#added_5">Added</a></li>
+<li><a href="#added_6">Added</a></li>
 <li><a href="#changed_1">Changed</a></li>
 </ul>
 </li>
@@ -964,23 +976,23 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#290-2026-06-26">[2.9.0] - 2026-06-26</a><ul>
-<li><a href="#added_6">Added</a></li>
+<li><a href="#added_7">Added</a></li>
 <li><a href="#changed_3">Changed</a></li>
 <li><a href="#fixed">Fixed</a></li>
 <li><a href="#security">Security</a></li>
 </ul>
 </li>
 <li><a href="#280-2026-06-26">[2.8.0] - 2026-06-26</a><ul>
-<li><a href="#added_7">Added</a></li>
+<li><a href="#added_8">Added</a></li>
 </ul>
 </li>
 <li><a href="#270-2026-06-26">[2.7.0] - 2026-06-26</a><ul>
-<li><a href="#added_8">Added</a></li>
+<li><a href="#added_9">Added</a></li>
 </ul>
 </li>
 <li><a href="#260-2026-06-26">[2.6.0] - 2026-06-26</a><ul>
 <li><a href="#security_1">Security</a></li>
-<li><a href="#added_9">Added</a></li>
+<li><a href="#added_10">Added</a></li>
 </ul>
 </li>
 <li><a href="#251-2026-06-26">[2.5.1] - 2026-06-26</a><ul>
@@ -989,34 +1001,34 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#250-2026-06-26">[2.5.0] - 2026-06-26</a><ul>
-<li><a href="#added_10">Added</a></li>
-<li><a href="#changed_5">Changed</a></li>
 <li><a href="#added_11">Added</a></li>
+<li><a href="#changed_5">Changed</a></li>
+<li><a href="#added_12">Added</a></li>
 </ul>
 </li>
 <li><a href="#240-2026-06-25">[2.4.0] - 2026-06-25</a><ul>
-<li><a href="#added_12">Added</a></li>
+<li><a href="#added_13">Added</a></li>
 <li><a href="#changed_6">Changed</a></li>
 </ul>
 </li>
 <li><a href="#230-2026-06-24">[2.3.0] - 2026-06-24</a><ul>
-<li><a href="#added_13">Added</a></li>
+<li><a href="#added_14">Added</a></li>
 <li><a href="#changed_7">Changed</a></li>
 <li><a href="#fixed_2">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#220-2026-06-23">[2.2.0] - 2026-06-23</a><ul>
-<li><a href="#added_14">Added</a></li>
+<li><a href="#added_15">Added</a></li>
 </ul>
 </li>
 <li><a href="#216-2026-06-23">[2.1.6] - 2026-06-23</a><ul>
 <li><a href="#fixed_3">Fixed</a></li>
-<li><a href="#added_15">Added</a></li>
+<li><a href="#added_16">Added</a></li>
 <li><a href="#changed_8">Changed</a></li>
 </ul>
 </li>
 <li><a href="#215-2026-06-23">[2.1.5] - 2026-06-23</a><ul>
-<li><a href="#added_16">Added</a></li>
+<li><a href="#added_17">Added</a></li>
 </ul>
 </li>
 <li><a href="#214-2026-06-22">[2.1.4] - 2026-06-22</a><ul>
@@ -1028,16 +1040,16 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#212-2026-06-22">[2.1.2] - 2026-06-22</a><ul>
-<li><a href="#added_17">Added</a></li>
+<li><a href="#added_18">Added</a></li>
 <li><a href="#changed_11">Changed</a></li>
 </ul>
 </li>
 <li><a href="#211-2026-06-22">[2.1.1] - 2026-06-22</a><ul>
-<li><a href="#added_18">Added</a></li>
+<li><a href="#added_19">Added</a></li>
 </ul>
 </li>
 <li><a href="#210-2026-06-22">[2.1.0] - 2026-06-22</a><ul>
-<li><a href="#added_19">Added</a></li>
+<li><a href="#added_20">Added</a></li>
 <li><a href="#changed_12">Changed</a></li>
 </ul>
 </li>
@@ -1055,7 +1067,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#1180-2026-06-22">[1.18.0] - 2026-06-22</a><ul>
-<li><a href="#added_20">Added</a></li>
+<li><a href="#added_21">Added</a></li>
 </ul>
 </li>
 <li><a href="#1171-2026-06-22">[1.17.1] - 2026-06-22</a><ul>
@@ -1067,33 +1079,33 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#1160-2026-06-22">[1.16.0] - 2026-06-22</a><ul>
-<li><a href="#added_21">Added</a></li>
+<li><a href="#added_22">Added</a></li>
 <li><a href="#changed_18">Changed</a></li>
 </ul>
 </li>
 <li><a href="#1150-2026-06-22">[1.15.0] - 2026-06-22</a><ul>
-<li><a href="#added_22">Added</a></li>
+<li><a href="#added_23">Added</a></li>
 <li><a href="#changed_19">Changed</a></li>
 </ul>
 </li>
 <li><a href="#1140-2026-06-22">[1.14.0] - 2026-06-22</a><ul>
-<li><a href="#added_23">Added</a></li>
-</ul>
-</li>
-<li><a href="#1130-2026-06-22">[1.13.0] - 2026-06-22</a><ul>
 <li><a href="#added_24">Added</a></li>
 </ul>
 </li>
-<li><a href="#1120-2026-06-22">[1.12.0] - 2026-06-22</a><ul>
+<li><a href="#1130-2026-06-22">[1.13.0] - 2026-06-22</a><ul>
 <li><a href="#added_25">Added</a></li>
 </ul>
 </li>
-<li><a href="#1110-2026-06-22">[1.11.0] - 2026-06-22</a><ul>
+<li><a href="#1120-2026-06-22">[1.12.0] - 2026-06-22</a><ul>
 <li><a href="#added_26">Added</a></li>
 </ul>
 </li>
-<li><a href="#1100-2026-06-21">[1.10.0] - 2026-06-21</a><ul>
+<li><a href="#1110-2026-06-22">[1.11.0] - 2026-06-22</a><ul>
 <li><a href="#added_27">Added</a></li>
+</ul>
+</li>
+<li><a href="#1100-2026-06-21">[1.10.0] - 2026-06-21</a><ul>
+<li><a href="#added_28">Added</a></li>
 </ul>
 </li>
 <li><a href="#191-2026-06-21">[1.9.1] - 2026-06-21</a><ul>
@@ -1102,48 +1114,48 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#190-2026-06-21">[1.9.0] - 2026-06-21</a><ul>
-<li><a href="#added_28">Added</a></li>
-</ul>
-</li>
-<li><a href="#180-2026-06-21">[1.8.0] - 2026-06-21</a><ul>
 <li><a href="#added_29">Added</a></li>
 </ul>
 </li>
-<li><a href="#170-2026-06-21">[1.7.0] - 2026-06-21</a><ul>
+<li><a href="#180-2026-06-21">[1.8.0] - 2026-06-21</a><ul>
 <li><a href="#added_30">Added</a></li>
 </ul>
 </li>
-<li><a href="#160-2026-06-21">[1.6.0] - 2026-06-21</a><ul>
+<li><a href="#170-2026-06-21">[1.7.0] - 2026-06-21</a><ul>
 <li><a href="#added_31">Added</a></li>
 </ul>
 </li>
-<li><a href="#150-2026-06-21">[1.5.0] - 2026-06-21</a><ul>
+<li><a href="#160-2026-06-21">[1.6.0] - 2026-06-21</a><ul>
 <li><a href="#added_32">Added</a></li>
+</ul>
+</li>
+<li><a href="#150-2026-06-21">[1.5.0] - 2026-06-21</a><ul>
+<li><a href="#added_33">Added</a></li>
 <li><a href="#fixed_5">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#140-2026-06-21">[1.4.0] - 2026-06-21</a><ul>
-<li><a href="#added_33">Added</a></li>
+<li><a href="#added_34">Added</a></li>
 </ul>
 </li>
 <li><a href="#130-2026-06-21">[1.3.0] - 2026-06-21</a><ul>
 <li><a href="#fixed_6">Fixed</a></li>
-<li><a href="#added_34">Added</a></li>
+<li><a href="#added_35">Added</a></li>
 <li><a href="#changed_21">Changed</a></li>
 </ul>
 </li>
 <li><a href="#120-2026-06-16">[1.2.0] - 2026-06-16</a><ul>
-<li><a href="#added_35">Added</a></li>
+<li><a href="#added_36">Added</a></li>
 <li><a href="#changed_22">Changed</a></li>
 </ul>
 </li>
 <li><a href="#110-2026-05-24">[1.1.0] - 2026-05-24</a><ul>
-<li><a href="#added_36">Added</a></li>
+<li><a href="#added_37">Added</a></li>
 <li><a href="#changed_23">Changed</a></li>
 </ul>
 </li>
 <li><a href="#100-2026-05-10">[1.0.0] - 2026-05-10</a><ul>
-<li><a href="#added_37">Added</a></li>
+<li><a href="#added_38">Added</a></li>
 </ul>
 </li>
 </ul>
