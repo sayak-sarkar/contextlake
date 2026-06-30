@@ -22,7 +22,7 @@ contextlake index --workspace ~/work        # index every git repo (incremental;
 contextlake connect --workspace ~/work      # link repos to their issues/docs (see below)
 contextlake embed                           # build semantic vectors (optional, see below)
 contextlake lint                            # graph health: stale repos + dangling edges
-contextlake wiki                            # LLM-synthesized, council-verified wiki pages (optional)
+contextlake wiki flx/app --llm builtin      # wiki for one repo; --llm enables the LLM tier inline
 contextlake steer                           # write per-tool steering: AGENTS.md, .mcp.json, …
 contextlake query "OrderService"            # cited search across the index
 contextlake graph --overview --open         # visualize the graph (HTML/dot/mermaid/json; offline)
@@ -265,7 +265,10 @@ judged by whether the numbers move.
 
 The wiki (optional, local-first) turns the graph into prose. Enable
 `[llm]` in the config (generation runs on a local Ollama model by default, prompts
-never leave the machine) and run `contextlake wiki`: for each repo it synthesizes a
+never leave the machine) — or skip the toml entirely and pass `--llm <provider>`
+(`builtin` | `ollama` | `openai`), e.g. `contextlake wiki flx/app --llm builtin`,
+which enables the tier inline and scopes generation to the named repo(s). Run
+`contextlake wiki`: for each repo it synthesizes a
 Markdown page grounded strictly in graph facts (top symbols, dependencies, files)
 with a provenance footer citing the commit and sources, then puts the draft through
 a **verification council**, reviewers score it for accuracy, completeness, and
@@ -350,11 +353,18 @@ Where `graph` shows the graph, **`contextlake dashboard`** is the human UI into 
 knowledge system — a local, read-only app that travels three *altitudes* (fleet → repo →
 symbol) with cross-cutting *lenses* (architecture, health, search):
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
+</p>
+
 ```bash
-contextlake dashboard                 # serve the live dashboard against your store
+contextlake dashboard --serve         # serve the live dashboard against your store
+contextlake dashboard --serve --sample   # explore a generic demo fleet — no data needed
 contextlake dashboard --site ./out    # export a fully static, offline (file://) copy
-contextlake dashboard --site ./out --sample   # a shareable showcase built from the sample fixture
 ```
+
+**[→ Read the guided tour](dashboard.md)** for a step-by-step walkthrough with screenshots
+(fleet layouts, repo anatomy, the architecture graph, blast radius, and generating a wiki).
 
 It surfaces per-repo **anatomy / README / wiki / owners / connector links**, repo→repo
 **dependency / HTTP-flow / event-flow** (each with confidence + provenance — INFERRED data is
