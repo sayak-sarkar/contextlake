@@ -42,6 +42,10 @@
     <symbol id="ui-external" viewBox="0 0 24 24"><path d="M14 4h6v6"/><line x1="20" y1="4" x2="11" y2="13"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
     <symbol id="ui-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
     <symbol id="ui-otter" viewBox="0 0 24 24"><circle cx="8" cy="9" r="2"/><circle cx="16" cy="9" r="2"/><path d="M5 6a3 3 0 0 1 5-1M19 6a3 3 0 0 0-5-1"/><circle cx="12" cy="14" r="5.5"/><circle cx="12" cy="13" r="1"/><path d="M10.5 16a2 2 0 0 0 3 0"/></symbol>
+    <symbol id="ui-cards" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></symbol>
+    <symbol id="ui-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
+    <symbol id="ui-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="14" x2="21" y2="14"/><line x1="11" y1="4" x2="11" y2="20"/></symbol>
+    <symbol id="ui-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6"/></symbol>
   </defs>
 </svg>
 
@@ -57,18 +61,45 @@
     <svg class="cl-ic" aria-hidden="true"><use href="#ui-search"/></svg>
     <span>Ask the lake</span><kbd class="cl-kbd">Ctrl K</kbd>
   </button>
-  <div class="cl-groundtruth" role="group" aria-label="Confidence filter">
-    <button type="button" class="cl-gt cl-gt--extracted" data-conf="EXTRACTED" aria-pressed="true" title="Extracted — direct from source">Extracted</button>
-    <button type="button" class="cl-gt cl-gt--inferred" data-conf="INFERRED" aria-pressed="true" title="Inferred — heuristic">Inferred</button>
-    <button type="button" class="cl-gt cl-gt--ambiguous" data-conf="AMBIGUOUS" aria-pressed="true" title="Ambiguous — flagged for review">Ambiguous</button>
+  <div class="cl-groundtruth" role="group" aria-label="Filter what's shown by confidence">
+    <span class="cl-gt__label" aria-hidden="true">Show</span>
+    <button type="button" class="cl-gt cl-gt--extracted" data-conf="EXTRACTED" aria-pressed="true" title="Extracted — direct from source (AST / manifest). Click to show/hide.">Extracted</button>
+    <button type="button" class="cl-gt cl-gt--inferred" data-conf="INFERRED" aria-pressed="true" title="Inferred — heuristic / pattern-matched. Click to show/hide.">Inferred</button>
+    <button type="button" class="cl-gt cl-gt--ambiguous" data-conf="AMBIGUOUS" aria-pressed="true" title="Ambiguous — flagged for review. Click to show/hide.">Ambiguous</button>
   </div>
-  <span id="cl-mode" class="cl-mode" aria-live="polite">Live</span>
+  <span id="cl-mode" class="cl-mode" aria-live="polite" title="Data source">Live</span>
   <span id="cl-fresh" class="cl-fresh" hidden></span>
+  <button type="button" id="cl-info" class="cl-iconbtn" aria-label="What am I looking at?" aria-expanded="false" title="What am I looking at?">
+    <svg class="cl-ic" aria-hidden="true"><use href="#ui-info"/></svg>
+  </button>
   <button type="button" id="cl-density" class="cl-iconbtn" aria-label="Toggle density">Compact</button>
   <button type="button" id="cl-theme" class="cl-iconbtn" aria-label="Toggle dark mode">
     <svg class="cl-ic" aria-hidden="true"><use href="#ui-theme"/></svg>
   </button>
 </header>
+
+<div id="cl-infopop" class="cl-infopop" role="dialog" aria-label="What am I looking at?" hidden>
+  <div class="cl-infopop__head">
+    <strong>Reading this dashboard</strong>
+    <button type="button" id="cl-info-close" class="cl-iconbtn" aria-label="Close">
+      <svg class="cl-ic" aria-hidden="true"><use href="#ui-close"/></svg>
+    </button>
+  </div>
+  <dl class="cl-infopop__body">
+    <dt><svg class="cl-ic" aria-hidden="true"><use href="#g-class"/></svg> Nodes</dt>
+    <dd>Code entities the graph tracks — repos, files, classes, functions, packages.</dd>
+    <dt><svg class="cl-ic" aria-hidden="true"><use href="#ui-arch"/></svg> Edges</dt>
+    <dd>Relationships between nodes — calls, imports, depends-on, HTTP / event flow.</dd>
+    <dt><span class="cl-conf__glyph cl-conf__glyph--extracted"></span> Confidence</dt>
+    <dd><b>Extracted</b> = read directly from source (AST / manifest). <b>Inferred</b> =
+      heuristic / pattern-matched. <b>Ambiguous</b> = flagged for review. The chips up top
+      toggle each level on or off across the whole view.</dd>
+    <dt><svg class="cl-ic" aria-hidden="true"><use href="#ui-info"/></svg> Data source</dt>
+    <dd><b>Live</b> serves your full store on demand. <b>Static · date</b> is a fixed snapshot
+      export (a representative slice) — run <code>contextlake dashboard --serve</code> for the
+      complete, always-current view.</dd>
+  </dl>
+</div>
 
 <div class="cl-shell">
   <nav class="cl-rail" id="cl-rail" aria-label="Primary">

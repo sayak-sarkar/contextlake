@@ -127,10 +127,11 @@ def test_anonymize_build_drops_prose_and_external_urls(tmp_path):
 
 
 def test_group_depth_flows_into_the_snapshot(tmp_path):
-    # depth=1 buckets demo/app under "demo"; depth=2 has no 2nd-level namespace -> ungrouped
+    # depth=1 buckets repos by top-level namespace (acme, demo); depth=2 has no
+    # 2nd-level namespace beyond the repo itself -> ungrouped
     out1 = build_dashboard_site(tmp_path / "s1", tmp_path / "d1", sample=True, group_depth=1)
     g1 = {g["group"] for g in json.loads((out1 / "data.json").read_text())["overview"]["groups"]}
-    assert g1 == {"demo"}
+    assert g1 == {"acme", "demo"}
     out2 = build_dashboard_site(tmp_path / "s2", tmp_path / "d2", sample=True, group_depth=2)
     g2 = {g["group"] for g in json.loads((out2 / "data.json").read_text())["overview"]["groups"]}
     assert g2 == {"(ungrouped)"}

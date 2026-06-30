@@ -204,7 +204,7 @@
   }
 
   // ---- state blocks -----------------------------------------------------
-  var OTTER = '<svg class="cl-state__otter" aria-hidden="true" viewBox="0 0 24 24"><use href="#ui-otter"></use></svg>';
+  var OTTER = '<span class="cl-state__pebble" role="img" aria-label="Pebble, the contextlake otter"></span>';
   function stateBlock(opts) {
     var mod = opts.kind ? " cl-state--" + opts.kind : "";
     var box = h("div", { class: "cl-state" + mod, role: "status" });
@@ -214,6 +214,19 @@
     if (opts.cmd) box.appendChild(h("code", null, opts.cmd));
     if (opts.action) box.appendChild(opts.action);
     return box;
+  }
+  // A primary action for empty states. The dashboard is read-only, so "generate"
+  // means: copy the exact command to run in the terminal (then refresh). Honest by
+  // design — we only offer it where contextlake can actually produce the thing.
+  function genAction(label, cmd) {
+    var b = h("button", { class: "cl-btn cl-btn--primary", type: "button", title: "Copy: " + cmd },
+      h("span", { html: icon("ui-copy") }), label);
+    b.onclick = function () {
+      try { navigator.clipboard.writeText(cmd); } catch (e) { /* clipboard blocked under file:// */ }
+      live("Copied “" + cmd + "” — run it in your terminal, then refresh");
+      if (b.lastChild) b.lastChild.nodeValue = " Copied — run in terminal";
+    };
+    return b;
   }
   function skeleton(n) {
     var w = h("div", { class: "cl-panel__body", "aria-busy": "true" });
@@ -227,10 +240,17 @@
       try { renderInto(bodyId, render(data)); }
       catch (e) { renderInto(bodyId, stateBlock({ kind: "error", title: "Could not render", msg: String(e) })); }
     }).catch(function (e) {
+      var staticMiss = MODE !== "live";
       renderInto(bodyId, stateBlock({
-        kind: "error", title: "Couldn't load this view",
-        msg: MODE === "live" ? "The data source didn't respond (" + e.message + ")." : "Missing from this snapshot.",
-        action: h("button", { class: "cl-btn", type: "button", onclick: function () { CL.router.render(); } }, "Retry")
+        kind: staticMiss ? "unavailable" : "error",
+        title: staticMiss ? "Not included in this snapshot" : "Couldn't load this view",
+        msg: staticMiss
+          ? "This static export carries detail for a representative slice of repos. Run the live server to browse every repo with no caps."
+          : "The data source didn't respond (" + e.message + ").",
+        cmd: staticMiss ? "contextlake dashboard --serve" : null,
+        action: staticMiss
+          ? genAction("Run live server", "contextlake dashboard --serve")
+          : h("button", { class: "cl-btn", type: "button", onclick: function () { CL.router.render(); } }, "Retry")
       }));
     });
   }
@@ -255,7 +275,7 @@
         title: confLabel(c) + " " + n + " (" + pct + "%)",
         onclick: function () { gt[c] = !gtActive(c); syncGT(); CL.router.render(); }
       }));
-      keys.appendChild(h("span", null, confChip(c), " ", h("strong", null, String(n)), " · " + pct + "%"));
+      keys.appendChild(h("span", null, confChip(c), " ", h("strong", null, num(n)), " · " + pct + "%"));
     });
     return h("div", { class: "cl-trustbar" }, opts.label ? h("strong", null, opts.label) : null, track, keys);
   }
@@ -286,7 +306,7 @@
       var stats = h("div", { class: "cl-statgrid" });
       [["repos", "Repos"], ["nodes", "Nodes"], ["edges", "Edges"]].forEach(function (p) {
         stats.appendChild(h("div", { class: "cl-stat" },
-          h("div", { class: "cl-stat__num" }, String(s[p[0]] != null ? s[p[0]] : "—")),
+          h("div", { class: "cl-stat__num" }, num(s[p[0]])),
           h("div", { class: "cl-stat__cap" }, p[1])));
       });
       body.appendChild(stats);
@@ -304,40 +324,118 @@
       ov.repos.forEach(function (r) { (byGroup[r.group] = byGroup[r.group] || []).push(r); });
       var groups = Object.keys(byGroup).sort();
       var openState = JSON.parse(lsGet("bands", "{}") || "{}");
-      groups.forEach(function (g, gi) {
-        var repos = byGroup[g];
-        var isOpen = openState[g] != null ? openState[g] : (gi === 0);
-        var grid = h("div", { class: "cl-grid", role: "list" });
-        repos.forEach(function (r) { grid.appendChild(repoCard(r)); });
-        var det = h("details", { class: "cl-band" });
-        if (isOpen) det.open = true;
-        det.appendChild(h("summary", null,
-          h("span", { class: "cl-band__name" }, g),
-          h("span", { class: "cl-band__count" }, repos.length + " repos")));
-        det.appendChild(grid);
-        det.addEventListener("toggle", function () {
-          openState[g] = det.open; lsSet("bands", JSON.stringify(openState));
+
+      // Fleet layout: cards (rich) / list (dense rows) / table (full names, sortable look).
+      var MODES = ["cards", "list", "table"];
+      var viewMode = MODES.indexOf(lsGet("fleetview", "cards")) >= 0 ? lsGet("fleetview", "cards") : "cards";
+      var bandsWrap = h("div");
+      function repoCollection(repos) {
+        if (viewMode === "table") return repoTable(repos);
+        var box = h("div", { class: viewMode === "list" ? "cl-repolist" : "cl-grid", role: "list" });
+        repos.forEach(function (r) { box.appendChild(viewMode === "list" ? repoRow(r) : repoCard(r)); });
+        return box;
+      }
+      function renderBands() {
+        bandsWrap.textContent = "";
+        groups.forEach(function (g, gi) {
+          var repos = byGroup[g];
+          var isOpen = openState[g] != null ? openState[g] : (gi === 0);
+          var det = h("details", { class: "cl-band" });
+          if (isOpen) det.open = true;
+          det.appendChild(h("summary", null,
+            h("span", { class: "cl-band__name" }, g),
+            h("span", { class: "cl-band__count" }, repos.length + " repos")));
+          det.appendChild(repoCollection(repos));
+          det.addEventListener("toggle", function () {
+            openState[g] = det.open; lsSet("bands", JSON.stringify(openState));
+          });
+          bandsWrap.appendChild(det);
         });
-        body.appendChild(det);
+      }
+      var seg = h("div", { class: "cl-modeseg", role: "group", "aria-label": "Fleet layout" });
+      [["cards", "Cards", "ui-cards"], ["list", "List", "ui-list"], ["table", "Table", "ui-table"]].forEach(function (m) {
+        seg.appendChild(h("button", {
+          type: "button", "aria-pressed": String(viewMode === m[0]), title: m[1] + " layout",
+          onclick: function () {
+            viewMode = m[0]; lsSet("fleetview", viewMode);
+            seg.querySelectorAll("button").forEach(function (b, i) {
+              b.setAttribute("aria-pressed", String(MODES[i] === viewMode));
+            });
+            renderBands();
+          }
+        }, h("span", { html: icon(m[2]) }), m[1]));
       });
+      body.appendChild(h("div", { class: "cl-row cl-fleettools" },
+        h("span", { class: "cl-fleettools__label" }, "Layout"), seg));
+      body.appendChild(bandsWrap);
+      renderBands();
       return body;
     });
   }
+  // Split a namespaced repo id into its basename (last segment) and parent path so the
+  // name the user reads is never eaten by the long namespace prefix.
+  function splitRepo(id) {
+    var i = String(id).lastIndexOf("/");
+    return i < 0 ? { base: id, parent: "" } : { base: id.slice(i + 1), parent: id.slice(0, i) };
+  }
+  function repoMeta(r) {
+    return (r.node_count || 0) + " nodes · " + (r.default_branch || "—") +
+      (r.head_commit ? " · " + String(r.head_commit).slice(0, 8) : "");
+  }
   function repoCard(r) {
     var health = r.indexed_at ? "fresh" : "stale";
-    var card = h("button", {
+    var nm = splitRepo(r.id);
+    return h("button", {
       type: "button", class: "cl-repocard", role: "listitem",
-      onclick: function () { go("#/repo/" + r.id); }
+      title: r.id, onclick: function () { go("#/repo/" + r.id); }
     },
       h("div", { class: "cl-repocard__top" },
         kindIcon("repo"),
-        h("span", { class: "cl-repocard__name" }, r.id),
+        h("span", { class: "cl-repocard__name" }, nm.base),
+        h("span", { class: "cl-healthchip cl-healthchip--" + health,
+          title: "Index freshness: " + health })),
+      nm.parent ? h("div", { class: "cl-repocard__path", title: r.id }, nm.parent) : null,
+      h("div", { class: "cl-repocard__meta" },
         lettermarks(r.langs),
-        h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health })),
-      h("div", { class: "cl-repocard__hidden" },
-        (r.node_count || 0) + " nodes · " + (r.default_branch || "—") +
-        (r.head_commit ? " · " + String(r.head_commit).slice(0, 8) : "")));
-    return card;
+        h("span", { class: "cl-repocard__stat", title: "Graph nodes in this repo" },
+          (r.node_count || 0) + " nodes"),
+        h("span", { class: "cl-repocard__stat" }, r.default_branch || "—")));
+  }
+  function repoRow(r) {
+    var health = r.indexed_at ? "fresh" : "stale";
+    var nm = splitRepo(r.id);
+    return h("button", {
+      type: "button", class: "cl-reporow", role: "listitem",
+      title: r.id, onclick: function () { go("#/repo/" + r.id); }
+    },
+      kindIcon("repo"),
+      h("span", { class: "cl-reporow__name" }, nm.base),
+      h("span", { class: "cl-reporow__path" }, nm.parent),
+      h("span", { class: "cl-reporow__meta" }, (r.node_count || 0) + " nodes"),
+      h("span", { class: "cl-reporow__meta" }, r.default_branch || "—"),
+      lettermarks(r.langs),
+      h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }));
+  }
+  function repoTable(repos) {
+    var tb = h("tbody");
+    repos.forEach(function (r) {
+      var health = r.indexed_at ? "fresh" : "stale";
+      var nav = function () { go("#/repo/" + r.id); };
+      tb.appendChild(h("tr", {
+        tabindex: "0", title: r.id, onclick: nav,
+        onkeydown: function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); nav(); } }
+      },
+        h("td", { class: "cl-repotable__name" }, r.id),
+        h("td", null, lettermarks(r.langs)),
+        h("td", { class: "cl-num" }, String(r.node_count || 0)),
+        h("td", null, r.default_branch || "—"),
+        h("td", null, h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }))));
+    });
+    return h("table", { class: "cl-repotable" },
+      h("thead", null, h("tr", null,
+        h("th", null, "Repository"), h("th", null, "Lang"),
+        h("th", { class: "cl-num" }, "Nodes"), h("th", null, "Branch"), h("th", null, "Health"))),
+      tb);
   }
 
   // ---- Repo detail ------------------------------------------------------
@@ -406,7 +504,15 @@
       else pane.appendChild(stateBlock({ kind: "empty", title: "No README found in this repo" }));
     } else if (tab === "wiki") {
       var w = d.wiki || {};
-      if (!w.found) { pane.appendChild(stateBlock({ kind: "empty", title: "No wiki generated for this repo", cmd: "contextlake wiki" })); return; }
+      if (!w.found) {
+        pane.appendChild(stateBlock({
+          kind: "empty", title: "No wiki generated for this repo yet",
+          msg: "Generate a curated wiki from this repo's code and history, then refresh.",
+          cmd: "contextlake wiki " + id,
+          action: genAction("Generate wiki", "contextlake wiki " + id)
+        }));
+        return;
+      }
       var revealed = false;
       var holder = h("div", { class: "cl-advisory" },
         h("strong", null, "Curated wiki — advisory" + (w.stale ? ", may be stale" : "")),
@@ -533,11 +639,29 @@
     asyncPanel("symbol-body", function () { return CL.data.impact(seed, 3, blastCfg.limit); }, function (imp) {
       var body = h("div", { class: "cl-panel__body" });
       if (!imp.found) {
-        return stateBlock({
-          kind: imp.static_missing ? "unavailable" : "empty",
-          title: imp.static_missing ? "Not precomputed in this snapshot" : "Symbol not found",
-          msg: imp.static_missing ? "This export ships a representative slice. Run the live server to trace any symbol." : "No node matched \"" + seed + "\"."
-        });
+        if (imp.static_missing) {
+          return stateBlock({
+            kind: "unavailable", title: "Not precomputed in this snapshot",
+            msg: "This static export ships a representative slice. Run the live server to trace any symbol with no caps.",
+            cmd: "contextlake dashboard --serve",
+            action: genAction("Run live server", "contextlake dashboard --serve")
+          });
+        }
+        if (imp.ambiguous && imp.candidates && imp.candidates.length) {
+          var amb = stateBlock({
+            kind: "empty", title: "“" + seed + "” is defined in several repos",
+            msg: "Pick the one you mean:"
+          });
+          imp.candidates.forEach(function (c) {
+            amb.appendChild(h("button", { class: "cl-btn", type: "button",
+              title: c.kind + " " + (c.name || seed) + " in " + c.repo,
+              onclick: function () { go("#/repo/" + c.repo); } },
+              kindIcon(c.kind), c.repo));
+          });
+          return amb;
+        }
+        return stateBlock({ kind: "empty", title: "Symbol not found",
+          msg: "No node matched \"" + seed + "\"." });
       }
       body.appendChild(h("div", { class: "cl-card cl-sectionhead" },
         h("div", { class: "cl-row" }, kindIcon("function"), h("strong", null, imp.name || seed),
@@ -635,7 +759,7 @@
       return body;
     });
   }
-  function statTile(n, cap) { return h("div", { class: "cl-stat" }, h("div", { class: "cl-stat__num" }, String(n != null ? n : "—")), h("div", { class: "cl-stat__cap" }, cap)); }
+  function statTile(n, cap) { return h("div", { class: "cl-stat" }, h("div", { class: "cl-stat__num" }, num(n)), h("div", { class: "cl-stat__cap" }, cap)); }
 
   // ---- Search -----------------------------------------------------------
   var searchState = { mode: "symbols", scope: "all", q: "" };
@@ -685,7 +809,10 @@
   }
 
   // ---- generic table (with pagination) ----------------------------------
-  function num(n) { return n == null ? "—" : String(n); }
+  function num(n) {
+    if (n == null) return "—";
+    try { return Number(n).toLocaleString(); } catch (e) { return String(n); }
+  }
   function table(headers, rows, numCols, ambFlags) {
     var wrap = h("div", { class: "cl-tablewrap" });
     var t = h("table", { class: "cl-table" });
@@ -834,6 +961,17 @@
     var dens = lsGet("density", "comfortable"); document.documentElement.dataset.density = dens;
     $("#cl-density").textContent = dens === "compact" ? "Comfortable" : "Compact";
     $("#cl-density").onclick = function () { var d = document.documentElement.dataset.density === "compact" ? "comfortable" : "compact"; document.documentElement.dataset.density = d; lsSet("density", d); this.textContent = d === "compact" ? "Comfortable" : "Compact"; };
+    // info popover ("What am I looking at?")
+    var infoBtn = $("#cl-info"), infoPop = $("#cl-infopop");
+    function setInfo(open) { infoPop.hidden = !open; infoBtn.setAttribute("aria-expanded", String(open)); }
+    infoBtn.onclick = function (e) { e.stopPropagation(); setInfo(infoPop.hidden); };
+    $("#cl-info-close").onclick = function () { setInfo(false); infoBtn.focus(); };
+    document.addEventListener("click", function (e) {
+      if (!infoPop.hidden && !infoPop.contains(e.target) && !infoBtn.contains(e.target)) setInfo(false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !infoPop.hidden) { setInfo(false); infoBtn.focus(); }
+    });
     // rail collapse
     if (lsGet("rail", "open") === "collapsed") document.documentElement.dataset.rail = "collapsed";
     $("#cl-railtoggle").onclick = function () { var c = document.documentElement.dataset.rail === "collapsed"; document.documentElement.dataset.rail = c ? "open" : "collapsed"; lsSet("rail", c ? "open" : "collapsed"); };
