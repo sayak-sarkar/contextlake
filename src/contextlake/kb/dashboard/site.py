@@ -48,10 +48,11 @@ _PUBLISH_WARNING_ANON = (
     "for a guaranteed-generic public showcase."
 )
 
-# Real-store builds cap the heavy per-repo detail to a representative slice (spec §10):
-# a 480-repo export would otherwise inline a detail+relationship payload per repo. Repos
-# beyond the cap still appear in the fleet overview (overview rows) but have no detail
-# panel in the snapshot. ``--repos`` overrides the cap with an explicit selection.
+# A static export caps the heavy per-repo detail to a representative slice (spec §10):
+# repo_detail computes git-history owners per repo, so a 480-repo export would be both
+# slow to build and huge. Repos beyond the cap appear in the fleet overview but have no
+# detail panel — the dashboard guides those clicks to the live server. ``--repos``
+# overrides the cap with an explicit selection. Prefer repos with content for the slice.
 _DETAIL_CAP = 60
 
 
@@ -61,8 +62,10 @@ def _static(name: str) -> str:
 
 
 def _fixture_path() -> Path:
-    # .../src/contextlake/kb/dashboard/site.py -> repo root is parents[4]
-    return Path(__file__).resolve().parents[4] / "examples" / "fixtures" / "sample-graph.json"
+    # .../src/contextlake/kb/dashboard/site.py -> repo root is parents[4]. A multi-repo
+    # bundle ({"shards": [...]}) so the showcase reads like a real fleet; sample-graph.json
+    # stays a single shard for `index --source` demos.
+    return Path(__file__).resolve().parents[4] / "examples" / "fixtures" / "sample-dashboard.json"
 
 
 def _sample_store(tmp: Path):
@@ -75,13 +78,20 @@ def _sample_store(tmp: Path):
         raise FileNotFoundError(
             f"sample fixture not found at {fixture} — --sample builds from the "
             "committed examples/fixtures/sample-graph.json (run from a source checkout)")
-    shard = GraphShard.model_validate_json(fixture.read_text(encoding="utf-8"))
+    import json
+
+    raw = json.loads(fixture.read_text(encoding="utf-8"))
+    # The fixture is a bundle of shards ({"shards": [...]}) for a multi-repo showcase;
+    # a bare single shard is still accepted for back-compat.
+    shard_dicts = raw["shards"] if isinstance(raw, dict) and "shards" in raw else [raw]
+    shards = [GraphShard.model_validate(s) for s in shard_dicts]
     store = SqliteStore(tmp / "index.sqlite")
-    # path -> the (README-less) tmp dir, so owners/readme resolve to empty, never cwd.
-    store.upsert_repo(Repo(id=shard.repo, path=str(tmp), head_commit=shard.head_commit))
-    write_shard(tmp, shard)
-    reindex_shard(store, tmp, shard.repo)
-    store.mark_indexed(shard.repo, shard.head_commit, "2026-01-01T00:00:00Z")
+    for shard in shards:
+        # path -> the (README-less) tmp dir, so owners/readme resolve to empty, never cwd.
+        store.upsert_repo(Repo(id=shard.repo, path=str(tmp), head_commit=shard.head_commit))
+        write_shard(tmp, shard)
+        reindex_shard(store, tmp, shard.repo)
+        store.mark_indexed(shard.repo, shard.head_commit, "2026-01-01T00:00:00Z")
     return store
 
 
@@ -149,13 +159,21 @@ def _snapshot(store, store_dir: Path, *, repos=None, anonymize: bool = False,
     repo_ids = [r["id"] for r in overview["repos"]]
     if patterns:
         repo_ids = [r for r in repo_ids if _match_repo(r, patterns)]
-    # Cap the heavy per-repo detail to a representative slice (spec §10). An explicit
-    # ``--repos`` selection is honored as-is; otherwise the first ``_DETAIL_CAP`` repos
-    # get full detail and the rest are overview-only rows.
-    detail_ids = repo_ids if patterns else repo_ids[:_DETAIL_CAP]
+    # A static export carries detail for a representative slice — repo_detail computes
+    # git-history owners per repo, so building hundreds is slow; the live server renders
+    # detail per-click instead (the dashboard guides there for repos beyond the slice).
+    # ``--repos`` overrides the cap with an explicit selection; prefer repos with content
+    # so the slice isn't spent on empty repos.
+    if patterns:
+        detail_ids = repo_ids
+    else:
+        node_counts = {r["id"]: (r.get("node_count") or 0) for r in overview["repos"]}
+        with_content = [rid for rid in repo_ids if node_counts.get(rid)] or repo_ids
+        detail_ids = with_content[:_DETAIL_CAP]
     details = {rid: kbdata.repo_detail(store, store_dir, rid, anonymize=anonymize)
                for rid in detail_ids}
-    relationships = {rid: kbdata.repo_relationships(store, rid) for rid in detail_ids}
+    # One bucketed edge scan for all repos, not one full scan per repo (O(repos x edges)).
+    relationships = kbdata.repo_relationships_bulk(store, detail_ids)
     symbols = _symbol_index(store, patterns)
     impact = _impact_index(store, symbols)
     for s in symbols:

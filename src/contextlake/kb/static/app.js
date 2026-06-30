@@ -104,7 +104,21 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   // Keep the cytoscape <canvas> synced to its grid cell through ANY layout change
   // (inspector slide-in, sidebar collapse, window resize) — robust, no timing
   // guess. cy.resize() re-reads the container each frame the cell animates.
-  if(window.ResizeObserver){ new ResizeObserver(function(){ cy.resize(); }).observe(cyEl); }
+  // ALSO re-FIT once the container first gets real size: when embedded in an iframe
+  // (or a panel that's hidden until routed to), cytoscape lays out against a 0-size
+  // viewport and paints nodes off-screen — they only appear after a manual zoom/
+  // resize forces a repaint. A bare cy.resize() keeps the bad pan/zoom (still
+  // clipped), so the first real-size tick must reframe, exactly once.
+  var initialFramed = false;
+  function frameInitial(){
+    if(initialFramed) return;
+    if(cyEl.clientWidth > 0 && cyEl.clientHeight > 0){
+      initialFramed = true; cy.resize(); reframe(); applyLOD(true);
+    }
+  }
+  if(window.ResizeObserver){
+    new ResizeObserver(function(){ cy.resize(); frameInitial(); }).observe(cyEl);
+  }
 
   cy.nodes().forEach(function(n){ n.data("deg", n.degree(false)); });
   document.getElementById("mode").textContent = META.mode || "graph";
@@ -438,6 +452,11 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   } else {
     runLayout(LAYOUT);
   }
+  // Belt-and-braces for the iframe/hidden-panel case: if the container already had
+  // size, the ResizeObserver may not tick — so reframe once after first paint too
+  // (idempotent; the initialFramed guard keeps it to a single re-fit).
+  requestAnimationFrame(frameInitial);
+  setTimeout(frameInitial, 250);
 
   // zoom-driven behaviours: LOD labels (every graph) + semantic cluster zoom
   // (overview only). Separate rAF flags so a burst of zoom events collapses to one

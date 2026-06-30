@@ -1,0 +1,900 @@
+{
+  "shards": [
+    {
+      "repo": "demo/app",
+      "head_commit": "abc123",
+      "nodes": [
+        {
+          "id": "demo_app_orderservice",
+          "repo": "demo/app",
+          "kind": "class",
+          "name": "OrderService",
+          "attrs": {},
+          "lang": "python",
+          "file": "src/order.py"
+        },
+        {
+          "id": "demo_app_charge",
+          "repo": "demo/app",
+          "kind": "function",
+          "name": "charge",
+          "attrs": {},
+          "lang": "python",
+          "file": "src/pay.py"
+        }
+      ],
+      "edges": [
+        {
+          "src": "demo_app_orderservice",
+          "dst": "demo_app_charge",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "repo": "acme/shared-lib",
+      "head_commit": "11aa22",
+      "nodes": [
+        {
+          "id": "acme_shared_lib_repo",
+          "repo": "acme/shared-lib",
+          "kind": "repo",
+          "name": "acme/shared-lib",
+          "attrs": {}
+        },
+        {
+          "id": "acme_shared_lib_manifest",
+          "repo": "acme/shared-lib",
+          "kind": "file",
+          "name": "manifest.ts",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "manifest.ts"
+        },
+        {
+          "id": "acme_shared_lib_result",
+          "repo": "acme/shared-lib",
+          "kind": "class",
+          "name": "Result",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "src/Result.ts"
+        },
+        {
+          "id": "acme_shared_lib_ok",
+          "repo": "acme/shared-lib",
+          "kind": "function",
+          "name": "ok",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "src/ok.ts"
+        },
+        {
+          "id": "acme_shared_lib_err",
+          "repo": "acme/shared-lib",
+          "kind": "function",
+          "name": "err",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "src/err.ts"
+        },
+        {
+          "id": "acme_shared_lib_logger",
+          "repo": "acme/shared-lib",
+          "kind": "interface",
+          "name": "Logger",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "src/Logger.ts"
+        },
+        {
+          "id": "pkg_acme-shared",
+          "repo": "acme/shared-lib",
+          "kind": "package",
+          "name": "acme-shared",
+          "attrs": {}
+        }
+      ],
+      "edges": [
+        {
+          "src": "acme_shared_lib_result",
+          "dst": "acme_shared_lib_ok",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_shared_lib_ok",
+          "dst": "acme_shared_lib_err",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_shared_lib_err",
+          "dst": "acme_shared_lib_logger",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_shared_lib_manifest",
+          "dst": "pkg_acme-shared",
+          "relation": "publishes",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "repo": "acme/auth-service",
+      "head_commit": "33bb44",
+      "nodes": [
+        {
+          "id": "acme_auth_service_repo",
+          "repo": "acme/auth-service",
+          "kind": "repo",
+          "name": "acme/auth-service",
+          "attrs": {}
+        },
+        {
+          "id": "acme_auth_service_manifest",
+          "repo": "acme/auth-service",
+          "kind": "file",
+          "name": "manifest.py",
+          "attrs": {},
+          "lang": "python",
+          "file": "manifest.py"
+        },
+        {
+          "id": "acme_auth_service_authservice",
+          "repo": "acme/auth-service",
+          "kind": "class",
+          "name": "AuthService",
+          "attrs": {},
+          "lang": "python",
+          "file": "src/AuthService.py"
+        },
+        {
+          "id": "acme_auth_service_tokenmanager",
+          "repo": "acme/auth-service",
+          "kind": "class",
+          "name": "TokenManager",
+          "attrs": {},
+          "lang": "python",
+          "file": "src/TokenManager.py"
+        },
+        {
+          "id": "acme_auth_service_verify_token",
+          "repo": "acme/auth-service",
+          "kind": "function",
+          "name": "verify_token",
+          "attrs": {},
+          "lang": "python",
+          "file": "src/verify_token.py"
+        },
+        {
+          "id": "acme_auth_service_hash_password",
+          "repo": "acme/auth-service",
+          "kind": "function",
+          "name": "hash_password",
+          "attrs": {},
+          "lang": "python",
+          "file": "src/hash_password.py"
+        },
+        {
+          "id": "pkg_acme-auth",
+          "repo": "acme/auth-service",
+          "kind": "package",
+          "name": "acme-auth",
+          "attrs": {}
+        }
+      ],
+      "edges": [
+        {
+          "src": "acme_auth_service_authservice",
+          "dst": "acme_auth_service_tokenmanager",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_auth_service_tokenmanager",
+          "dst": "acme_auth_service_verify_token",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_auth_service_verify_token",
+          "dst": "acme_auth_service_hash_password",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_auth_service_manifest",
+          "dst": "pkg_acme-auth",
+          "relation": "publishes",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_auth_service_manifest",
+          "dst": "pkg_acme-shared",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "repo": "acme/orders-api",
+      "head_commit": "55cc66",
+      "nodes": [
+        {
+          "id": "acme_orders_api_repo",
+          "repo": "acme/orders-api",
+          "kind": "repo",
+          "name": "acme/orders-api",
+          "attrs": {}
+        },
+        {
+          "id": "acme_orders_api_manifest",
+          "repo": "acme/orders-api",
+          "kind": "file",
+          "name": "manifest.cs",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "manifest.cs"
+        },
+        {
+          "id": "acme_orders_api_ordercontroller",
+          "repo": "acme/orders-api",
+          "kind": "class",
+          "name": "OrderController",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "src/OrderController.cs"
+        },
+        {
+          "id": "acme_orders_api_orderservice",
+          "repo": "acme/orders-api",
+          "kind": "class",
+          "name": "OrderService",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "src/OrderService.cs"
+        },
+        {
+          "id": "acme_orders_api_orderrepository",
+          "repo": "acme/orders-api",
+          "kind": "class",
+          "name": "OrderRepository",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "src/OrderRepository.cs"
+        },
+        {
+          "id": "acme_orders_api_validateorder",
+          "repo": "acme/orders-api",
+          "kind": "method",
+          "name": "ValidateOrder",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "src/ValidateOrder.cs"
+        },
+        {
+          "id": "pkg_acme-orders",
+          "repo": "acme/orders-api",
+          "kind": "package",
+          "name": "acme-orders",
+          "attrs": {}
+        }
+      ],
+      "edges": [
+        {
+          "src": "acme_orders_api_ordercontroller",
+          "dst": "acme_orders_api_orderservice",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_orders_api_orderservice",
+          "dst": "acme_orders_api_orderrepository",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_orders_api_orderrepository",
+          "dst": "acme_orders_api_validateorder",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_orders_api_manifest",
+          "dst": "pkg_acme-orders",
+          "relation": "publishes",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_orders_api_manifest",
+          "dst": "pkg_acme-shared",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_orders_api_manifest",
+          "dst": "pkg_acme-auth",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_orders_api_manifest",
+          "dst": "pkg_acme-payments",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_orders_api_manifest",
+          "dst": "pkg_acme-notify",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "repo": "acme/payments-api",
+      "head_commit": "77dd88",
+      "nodes": [
+        {
+          "id": "acme_payments_api_repo",
+          "repo": "acme/payments-api",
+          "kind": "repo",
+          "name": "acme/payments-api",
+          "attrs": {}
+        },
+        {
+          "id": "acme_payments_api_manifest",
+          "repo": "acme/payments-api",
+          "kind": "file",
+          "name": "manifest.cs",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "manifest.cs"
+        },
+        {
+          "id": "acme_payments_api_paymentprocessor",
+          "repo": "acme/payments-api",
+          "kind": "class",
+          "name": "PaymentProcessor",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "src/PaymentProcessor.cs"
+        },
+        {
+          "id": "acme_payments_api_cardgateway",
+          "repo": "acme/payments-api",
+          "kind": "class",
+          "name": "CardGateway",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "src/CardGateway.cs"
+        },
+        {
+          "id": "acme_payments_api_charge",
+          "repo": "acme/payments-api",
+          "kind": "method",
+          "name": "Charge",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "src/Charge.cs"
+        },
+        {
+          "id": "acme_payments_api_refund",
+          "repo": "acme/payments-api",
+          "kind": "method",
+          "name": "Refund",
+          "attrs": {},
+          "lang": "csharp",
+          "file": "src/Refund.cs"
+        },
+        {
+          "id": "pkg_acme-payments",
+          "repo": "acme/payments-api",
+          "kind": "package",
+          "name": "acme-payments",
+          "attrs": {}
+        }
+      ],
+      "edges": [
+        {
+          "src": "acme_payments_api_paymentprocessor",
+          "dst": "acme_payments_api_cardgateway",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_payments_api_cardgateway",
+          "dst": "acme_payments_api_charge",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_payments_api_charge",
+          "dst": "acme_payments_api_refund",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_payments_api_manifest",
+          "dst": "pkg_acme-payments",
+          "relation": "publishes",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_payments_api_manifest",
+          "dst": "pkg_acme-auth",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_payments_api_manifest",
+          "dst": "pkg_acme-notify",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "repo": "acme/notifications",
+      "head_commit": "99ee00",
+      "nodes": [
+        {
+          "id": "acme_notifications_repo",
+          "repo": "acme/notifications",
+          "kind": "repo",
+          "name": "acme/notifications",
+          "attrs": {}
+        },
+        {
+          "id": "acme_notifications_manifest",
+          "repo": "acme/notifications",
+          "kind": "file",
+          "name": "manifest.js",
+          "attrs": {},
+          "lang": "javascript",
+          "file": "manifest.js"
+        },
+        {
+          "id": "acme_notifications_notifier",
+          "repo": "acme/notifications",
+          "kind": "class",
+          "name": "Notifier",
+          "attrs": {},
+          "lang": "javascript",
+          "file": "src/Notifier.js"
+        },
+        {
+          "id": "acme_notifications_emailsender",
+          "repo": "acme/notifications",
+          "kind": "class",
+          "name": "EmailSender",
+          "attrs": {},
+          "lang": "javascript",
+          "file": "src/EmailSender.js"
+        },
+        {
+          "id": "acme_notifications_sendemail",
+          "repo": "acme/notifications",
+          "kind": "function",
+          "name": "sendEmail",
+          "attrs": {},
+          "lang": "javascript",
+          "file": "src/sendEmail.js"
+        },
+        {
+          "id": "acme_notifications_queuejob",
+          "repo": "acme/notifications",
+          "kind": "function",
+          "name": "queueJob",
+          "attrs": {},
+          "lang": "javascript",
+          "file": "src/queueJob.js"
+        },
+        {
+          "id": "pkg_acme-notify",
+          "repo": "acme/notifications",
+          "kind": "package",
+          "name": "acme-notify",
+          "attrs": {}
+        }
+      ],
+      "edges": [
+        {
+          "src": "acme_notifications_notifier",
+          "dst": "acme_notifications_emailsender",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_notifications_emailsender",
+          "dst": "acme_notifications_sendemail",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_notifications_sendemail",
+          "dst": "acme_notifications_queuejob",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_notifications_manifest",
+          "dst": "pkg_acme-notify",
+          "relation": "publishes",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_notifications_manifest",
+          "dst": "pkg_acme-shared",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "repo": "acme/web-ui",
+      "head_commit": "aabbcc",
+      "nodes": [
+        {
+          "id": "acme_web_ui_repo",
+          "repo": "acme/web-ui",
+          "kind": "repo",
+          "name": "acme/web-ui",
+          "attrs": {}
+        },
+        {
+          "id": "acme_web_ui_manifest",
+          "repo": "acme/web-ui",
+          "kind": "file",
+          "name": "manifest.tsx",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "manifest.tsx"
+        },
+        {
+          "id": "acme_web_ui_checkoutpage",
+          "repo": "acme/web-ui",
+          "kind": "class",
+          "name": "CheckoutPage",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "src/CheckoutPage.tsx"
+        },
+        {
+          "id": "acme_web_ui_cartview",
+          "repo": "acme/web-ui",
+          "kind": "class",
+          "name": "CartView",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "src/CartView.tsx"
+        },
+        {
+          "id": "acme_web_ui_usecheckout",
+          "repo": "acme/web-ui",
+          "kind": "function",
+          "name": "useCheckout",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "src/useCheckout.tsx"
+        },
+        {
+          "id": "acme_web_ui_apiclient",
+          "repo": "acme/web-ui",
+          "kind": "class",
+          "name": "ApiClient",
+          "attrs": {},
+          "lang": "typescript",
+          "file": "src/ApiClient.tsx"
+        },
+        {
+          "id": "pkg_acme-webui",
+          "repo": "acme/web-ui",
+          "kind": "package",
+          "name": "acme-webui",
+          "attrs": {}
+        }
+      ],
+      "edges": [
+        {
+          "src": "acme_web_ui_checkoutpage",
+          "dst": "acme_web_ui_cartview",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_web_ui_cartview",
+          "dst": "acme_web_ui_usecheckout",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_web_ui_usecheckout",
+          "dst": "acme_web_ui_apiclient",
+          "relation": "calls",
+          "confidence": "EXTRACTED",
+          "context": "call",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_web_ui_manifest",
+          "dst": "pkg_acme-webui",
+          "relation": "publishes",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_web_ui_manifest",
+          "dst": "pkg_acme-shared",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_web_ui_manifest",
+          "dst": "pkg_acme-auth",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        },
+        {
+          "src": "acme_web_ui_manifest",
+          "dst": "pkg_acme-orders",
+          "relation": "depends_on",
+          "confidence": "INFERRED",
+          "context": "manifest",
+          "provenance": {
+            "source_file": "src/x",
+            "source_line": 1,
+            "verified_at": "2026-06-21"
+          },
+          "weight": 1.0
+        }
+      ]
+    }
+  ]
+}

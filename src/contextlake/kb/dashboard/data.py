@@ -291,6 +291,41 @@ def repo_relationships(store, repo_id: str) -> dict:
     }
 
 
+def repo_relationships_bulk(store, repo_ids) -> dict:
+    """``repo_relationships`` for many repos with THREE edge scans total, not three per
+    repo. ``repo_relationships`` rescans every edge each call, so building a snapshot for
+    hundreds of repos one-by-one is O(repos x edges); this buckets a single scan by repo.
+    """
+    from ..arch.resolve import (
+        repo_dependency_edges,
+        repo_event_flow_edges,
+        repo_http_flow_edges,
+    )
+
+    ids = set(repo_ids)
+    out = {rid: {"dependencies": [], "http_flow": [], "event_flow": []} for rid in repo_ids}
+
+    def _bucket(edges, key):
+        for e in edges:
+            src, dst = e["src"], e["dst"]
+            if src not in ids and dst not in ids:
+                continue
+            row = {
+                "src": sanitize_label(src), "dst": sanitize_label(dst),
+                "relation": e["relation"], "confidence": e["confidence"],
+                "weight": e.get("weight"), "context": e.get("context"),
+            }
+            if src in ids:
+                out[src][key].append(row)
+            if dst in ids and dst != src:
+                out[dst][key].append(row)
+
+    _bucket(repo_dependency_edges(store), "dependencies")
+    _bucket(repo_http_flow_edges(store), "http_flow")
+    _bucket(repo_event_flow_edges(store), "event_flow")
+    return out
+
+
 def impact(store, node_id: str, hops: int = 3, limit: int = 100,
            repo: str | None = None) -> dict:
     """Reverse blast radius for a node (reuses ``impact.blast_radius``).

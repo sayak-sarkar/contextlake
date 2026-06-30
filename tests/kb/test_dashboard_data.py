@@ -153,6 +153,18 @@ def test_repo_relationships_dependency_two_hop(store_dir):
     assert rel["http_flow"] == [] and rel["event_flow"] == []
 
 
+def test_repo_relationships_bulk_matches_per_repo(store_dir):
+    # the bulk path (one edge scan, bucketed) must equal calling repo_relationships per repo
+    s, _ = store_dir
+    repo_ids = [r["id"] for r in kbdata.fleet_overview(s)["repos"]]
+    bulk = kbdata.repo_relationships_bulk(s, repo_ids)
+    assert set(bulk) == set(repo_ids)
+    for rid in repo_ids:
+        per = kbdata.repo_relationships(s, rid)
+        for key in ("dependencies", "http_flow", "event_flow"):
+            assert sorted(map(repr, bulk[rid][key])) == sorted(map(repr, per[key]))
+
+
 def test_impact_blast_radius_and_name_fallback(store_dir):
     s, _ = store_dir
     by_id = kbdata.impact(s, "app_orderservice")
