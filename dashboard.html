@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard · contextlake docs</title>
+<meta name="description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
+<link rel="canonical" href="https://sayak.in/contextlake/dashboard.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Dashboard · contextlake docs">
+<meta property="og:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
+<meta property="og:url" content="https://sayak.in/contextlake/dashboard.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dashboard · contextlake docs">
+<meta name="twitter:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="#3775A9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Documentation</h2><nav aria-label="Docs"><a href="index.html">Home</a><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html" class="active">Dashboard</a><a href="internals.html">Architecture</a><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="#3775A9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></div></div></aside>
+  <main class="prose" id="doc">
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Layers 2–3 · the human UI</div><h1>The dashboard</h1><p class="doc-sub">A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>The dashboard is the human window into everything contextlake builds: a <strong>local,
+offline-first, read-only</strong> single-page app over your knowledge store. No accounts, no
+cloud, no build step, one command and it opens in your browser.</p>
+<blockquote>
+<p>New here? Skim <a href="../QUICKSTART.md">QUICKSTART</a> first. For what the graph/wiki/search
+tiers actually do, see <a href="knowledge-layer.html">knowledge-layer.md</a>.</p>
+</blockquote>
+<h2 id="1-get-some-data-in-or-dont">1. Get some data in (or don't)<a class="anchor" href="#1-get-some-data-in-or-dont" title="Link to this section">#</a></h2>
+<p>The dashboard reads your indexed store. If you've already run <code>contextlake index</code> (or
+<code>contextlake bootstrap</code>), you're set. <strong>Just want to look around first?</strong> Every screen
+below works against a bundled, generic demo fleet, no setup, no real data:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--sample<span class="w">      </span><span class="c1"># a fictional &quot;acme&quot; fleet, served live</span>
+</code></pre></div>
+
+<p>To build against your own repos, index a workspace once:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">        </span><span class="c1"># or `contextlake bootstrap` for the full pipeline</span>
+</code></pre></div>
+
+<h2 id="2-launch-it">2. Launch it<a class="anchor" href="#2-launch-it" title="Link to this section">#</a></h2>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--open<span class="w">         </span><span class="c1"># live, against your store; opens your browser</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--serve</code></td>
+<td>Run it <strong>live</strong> against your store (everything on demand, no caps).</td>
+</tr>
+<tr>
+<td><code>--site DIR</code></td>
+<td>Export a <strong>static</strong> <code>file://</code>-safe copy (a representative slice).</td>
+</tr>
+<tr>
+<td><code>--sample</code></td>
+<td>Build from the <strong>bundled demo fleet</strong>, guaranteed generic, safe to share.</td>
+</tr>
+<tr>
+<td><code>--anonymize</code></td>
+<td>For a real-store <code>--site</code>: hash authors, drop URLs + prose (shareable).</td>
+</tr>
+<tr>
+<td><code>--open</code></td>
+<td>Open the result in your browser.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Browsing your whole fleet? Use <code>--serve</code>, it renders each repo on demand with no
+caps. A <code>--site</code> export is a fixed, shareable slice.</p>
+</blockquote>
+<h2 id="3-the-fleet-overview">3. The fleet overview<a class="anchor" href="#3-the-fleet-overview" title="Link to this section">#</a></h2>
+<p>Stat cards, a <strong>knowledge-confidence</strong> bar, and your repos grouped by namespace.</p>
+<p><img alt="Fleet overview, cards layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" /></p>
+<p>Prefer denser views? Switch the layout, <strong>Cards / List / Table</strong> (your choice is
+remembered):</p>
+<p><img alt="Fleet overview, list layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-list.png" /></p>
+<p><img alt="Fleet overview, table layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-table.png" /></p>
+<p>Not sure what a control means? The <strong>ⓘ "What am I looking at?"</strong> button explains nodes,
+edges, the three confidence levels, and the Live vs. Static data source:</p>
+<p><img alt="The info popover explaining nodes, edges, confidence, and data source" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/info-popover.png" /></p>
+<h2 id="4-a-repo-up-close">4. A repo up close<a class="anchor" href="#4-a-repo-up-close" title="Link to this section">#</a></h2>
+<p>Click any repo for its <strong>anatomy</strong>, node kinds and top symbols, plus README, curated
+wiki, owners (ranked from git history), and connector links. Every symbol has a
+one-click <strong>Blast radius</strong>, and every fact carries its provenance.</p>
+<p><img alt="A repo's anatomy: kinds and top symbols" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png" /></p>
+<h2 id="5-architecture-relationships">5. Architecture &amp; relationships<a class="anchor" href="#5-architecture-relationships" title="Link to this section">#</a></h2>
+<p>The cross-repo dependency graph, a <strong>namespace</strong> mindmap and a <strong>dependency</strong> flow,
+one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
+confidence and provenance (never shown as ground truth).</p>
+<p><img alt="The architecture graph: cross-repo dependencies" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png" /></p>
+<h2 id="6-change-impact-blast-radius">6. Change impact (blast radius)<a class="anchor" href="#6-change-impact-blast-radius" title="Link to this section">#</a></h2>
+<p>Pick a symbol, from search or a repo's symbol list, and see what a change would touch,
+hop by hop, with the confidence of each path.</p>
+<p><img alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png" /></p>
+<h2 id="7-generate-a-wiki">7. Generate a wiki<a class="anchor" href="#7-generate-a-wiki" title="Link to this section">#</a></h2>
+<p>No wiki for a repo yet? Its <strong>Wiki</strong> tab hands you the exact command (one click to copy):</p>
+<p><img alt="The wiki tab offering a Generate wiki action" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-generate.png" /></p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/orders-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
+</code></pre></div>
+
+<p><code>--llm</code> enables the LLM tier inline, <code>builtin</code> runs a small CPU model with no Ollama or
+API key (install the <code>llm-local</code> extra first); <code>ollama</code> / <code>openai</code> use those backends.
+The positional repo id scopes generation to just that repo. Refresh the page and the
+wiki appears. See <a href="knowledge-layer.html#curated-wiki">knowledge-layer.md → Curated wiki</a>.</p>
+<hr />
+<p>Everything here is read-only and runs entirely on your machine. Sync and MCP-connection
+controls are planned for a future release.</p>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="knowledge-layer.html"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="usage.html"><span>Usage & config</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#1-get-some-data-in-or-dont">1. Get some data in (or don't)</a></li>
+<li><a href="#2-launch-it">2. Launch it</a></li>
+<li><a href="#3-the-fleet-overview">3. The fleet overview</a></li>
+<li><a href="#4-a-repo-up-close">4. A repo up close</a></li>
+<li><a href="#5-architecture-relationships">5. Architecture &amp; relationships</a></li>
+<li><a href="#6-change-impact-blast-radius">6. Change impact (blast radius)</a></li>
+<li><a href="#7-generate-a-wiki">7. Generate a wiki</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="none" stroke="#3775A9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9"/></svg></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
