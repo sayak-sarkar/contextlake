@@ -3,7 +3,23 @@
 import os
 
 from contextlake.kb import config as kbcfg
-from contextlake.kb.config import KbConfig, load_kb_config
+from contextlake.kb.config import KbConfig, apply_llm_overrides, load_kb_config
+
+
+def test_apply_llm_overrides_enables_and_sets_provider_model():
+    cfg = KbConfig()
+    assert cfg.llm.enabled is False
+    apply_llm_overrides(cfg, provider="builtin", model="qwen")
+    assert cfg.llm.enabled is True
+    assert cfg.llm.provider == "builtin"
+    assert cfg.llm.model == "qwen"
+
+
+def test_apply_llm_overrides_noop_without_provider():
+    cfg = KbConfig()
+    cfg.llm.provider = "ollama"
+    apply_llm_overrides(cfg, provider=None, model=None)
+    assert cfg.llm.enabled is False and cfg.llm.provider == "ollama"
 
 
 def _isolate(monkeypatch, tmp_path):

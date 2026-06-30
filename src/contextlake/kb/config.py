@@ -155,3 +155,18 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         sources=[SourceCfg(**s) for s in merged.get("sources", [])],
         rules=[RuleCfg(**r) for r in merged.get("rules", [])],
     )
+
+
+def apply_llm_overrides(cfg: KbConfig, *, provider: str | None = None,
+                        model: str | None = None) -> KbConfig:
+    """Apply CLI ``--llm`` / ``--llm-model`` onto a loaded config's ``[llm]`` tier.
+
+    Passing ``provider`` also enables the tier, so a two-line toml block collapses to a
+    single flag (``wiki <repo> --llm builtin``). Mutates and returns ``cfg``.
+    """
+    if provider:
+        cfg.llm.enabled = True
+        cfg.llm.provider = provider
+    if model:
+        cfg.llm.model = model
+    return cfg
