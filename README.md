@@ -155,7 +155,7 @@ Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage
 | `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
-| `wiki` | LLM-synthesized, council-verified wiki pages |
+| `wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai` enables the LLM tier inline |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
 | `impact` | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
@@ -186,9 +186,23 @@ contextlake bootstrap --kb-config ~/.contextlake/kb.toml
 
 Full guide: **[docs/knowledge-layer.md](docs/knowledge-layer.md)**.
 
+### The dashboard
+
+`contextlake dashboard --serve` opens a local, offline-first window into everything the
+knowledge layer builds — a fleet overview, per-repo anatomy, the cross-repo architecture
+graph, change-impact (blast radius), health, and search. Try it with zero setup via
+`contextlake dashboard --serve --sample`.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
+</p>
+
+**[→ The dashboard, a guided tour](docs/dashboard.md)** — step by step, with screenshots.
+
 ## Documentation
 
 - **[QUICKSTART.md](QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes
+- **[docs/dashboard.md](docs/dashboard.md)**, the dashboard, a guided tour with screenshots
 - **[docs/usage.md](docs/usage.md)**, every command, configuration, branch safety, scheduling
 - **[docs/knowledge-layer.md](docs/knowledge-layer.md)**, the graph, connectors, search, wiki, steering
 - **[docs/internals.md](docs/internals.md)**, architecture & internals

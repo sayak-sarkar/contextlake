@@ -54,7 +54,13 @@ PAGES = [
      "Layers 2–3 · Knowledge + Serve", "Turn the mirror into a queryable graph with "
      "search, a wiki, and connectors, then serve it to your editor over MCP.",
      "pebble-doc.png",
-     [("usage.html", "Usage & config"), ("internals.html", "Architecture")]),
+     [("dashboard.html", "Dashboard"), ("usage.html", "Usage & config")]),
+    ("dashboard.html", "docs/dashboard.md", "Dashboard", "The dashboard",
+     "Layers 2–3 · the human UI", "A guided tour of the local, offline-first dashboard: "
+     "the fleet overview, per-repo anatomy, the architecture graph, blast radius, and "
+     "generating a wiki.",
+     "pebble-doc.png",
+     [("knowledge-layer.html", "Knowledge layer"), ("usage.html", "Usage & config")]),
     ("internals.html", "docs/internals.md", "Architecture", "Architecture & internals",
      "Under the hood", "How all three layers work inside, the store, concurrency, "
      "branch selection, extraction, and the offline boundary.",
@@ -92,12 +98,25 @@ def de_emdash(text: str) -> str:
     return text.replace(" — ", ", ").replace("—", ", ")
 
 
+# Map each doc source to its built page by BOTH its full path and its bare basename, so
+# cross-links written either way resolve — README uses `docs/foo.md`, sibling docs use a
+# bare `foo.md`. Anchors (`foo.md#sec`) are preserved.
+_LINK_TO_PAGE = {}
+for _out, _src, *_rest in PAGES:
+    _LINK_TO_PAGE[_src] = _out
+    _LINK_TO_PAGE[_src.split("/")[-1]] = _out
+
+
 def rewrite_links(html: str) -> str:
-    for src, page in TO_PAGE.items():
-        html = html.replace(f'href="{src}"', f'href="{page}"')
-    for src in TO_GH:
-        html = html.replace(f'href="{src}"', f'href="{GH}{src}"')
-    return html
+    def repl(m):
+        href = m.group(1)
+        path, sep, anchor = href.partition("#")
+        if path in _LINK_TO_PAGE:
+            return f'href="{_LINK_TO_PAGE[path]}{sep}{anchor}"'
+        if path in TO_GH:
+            return f'href="{GH}{path}{sep}{anchor}"'
+        return m.group(0)
+    return re.sub(r'href="([^"]+)"', repl, html)
 
 
 def strip_first_h1(html: str) -> str:
