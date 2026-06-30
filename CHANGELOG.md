@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-06-30
+
+### Added
+
+- **Dashboard fleet layout switcher — Cards / List / Table.** The fleet overview now
+  offers three densities (rich cards, dense rows, an aligned sortable-look table), each
+  with an icon, persisted in localStorage.
+- **"What am I looking at?" info popover** (ⓘ in the header) explaining nodes, edges, the
+  three confidence levels (and that the chips filter by them), and the Live vs. Static data
+  source — plus a visible "Show" label on the confidence filter.
+- **Actionable empty states.** A repo with no wiki offers a **"Generate wiki"** button (copies
+  `contextlake wiki <repo>`); blast-radius / out-of-snapshot views offer **"Run live server"**.
+- **`--llm <provider>` and `--llm-model <model>` CLI flags** for `wiki` — enable the LLM tier
+  inline (`builtin` | `ollama` | `openai`) without editing `kb.toml`, e.g.
+  `contextlake wiki flx/app --llm builtin`.
+- **A guided dashboard tour** ([docs/dashboard.md](docs/dashboard.md)) — a step-by-step
+  walkthrough with screenshots (fleet layouts, repo anatomy, the architecture graph, blast
+  radius, and generating a wiki), linked from the README and knowledge-layer docs.
+
+### Fixed
+
+- **`wiki` / `embed` / `connect <repo>` now scope to the named repo(s).** The positional repo
+  id was ignored, so these silently ran across the entire indexed fleet; an unknown id now
+  errors cleanly instead of processing everything.
+- **Dashboard: repo names no longer truncate** — card names wrap to two lines (basename + a
+  front-clipped namespace path), and the full id is on hover.
+- **Dashboard: no more page-height jump on hover** — card metadata is always visible instead of
+  expanding on hover.
+- **Dashboard: architecture graph renders fully on first view** — the embedded cytoscape graph
+  re-fits when its iframe gets real size, instead of leaving nodes painted off-screen until a
+  manual zoom/click.
+- **Dashboard: dead-end clicks are graceful** — repos beyond the static slice show a "run the
+  live server" state, not a scary error.
+- Replaced the crude inline otter illustration in empty states with the **Pebble** mascot art.
+
+### Changed
+
+- Dashboard stat / confidence numbers are **thousands-formatted** (`1,013,948`).
+- Static-export per-repo relationships are built from a **single bucketed edge scan**
+  (`repo_relationships_bulk`) instead of rescanning all edges per repo.
+- The **`--sample` showcase is now a multi-repo demo fleet** (a fictional `acme` org) rather
+  than a single repo, so the dashboard's sample mode reads like a real fleet.
+
 ## [2.19.2] - 2026-06-28
 
 ### Fixed
