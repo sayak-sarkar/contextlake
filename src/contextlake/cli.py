@@ -101,6 +101,13 @@ Examples:
     kb.add_argument("--out", help="steer: directory to write steering files into (default: cwd)")
     kb.add_argument("--kb-config", dest="kb_config",
                     help="bootstrap: knowledge-layer config (kb.toml), separate from the sync INI")
+    kb.add_argument("--llm", dest="llm", metavar="PROVIDER",
+                    choices=["auto", "ollama", "openai", "builtin"],
+                    help="wiki: enable the LLM tier with this provider, overriding kb.toml "
+                         "([llm] enabled+provider). builtin = CPU, no setup (needs the "
+                         "llm-local extra); ollama | openai | auto")
+    kb.add_argument("--llm-model", dest="llm_model", metavar="MODEL",
+                    help="wiki: model name for --llm (e.g. llama3.1, gpt-4o-mini)")
     kb.add_argument("--no-sync", dest="no_sync", action="store_true",
                     help="bootstrap: skip the GitLab mirror step (index the workspace as-is)")
     kb.add_argument("--no-connect", dest="no_connect", action="store_true",

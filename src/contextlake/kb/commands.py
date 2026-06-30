@@ -18,7 +18,7 @@ from pydantic import ValidationError
 
 from .. import style
 from ..logging_setup import log
-from .config import load_kb_config
+from .config import apply_llm_overrides, load_kb_config
 from .model import Repo
 from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
@@ -262,7 +262,8 @@ def _rule_patterns(rules) -> tuple[str | None, list[str]]:
 
 
 def _connect_targets(args, store) -> list[tuple[str, str]]:
-    """Repos to enrich: --workspace tree, a single --source dir, or all indexed."""
+    """Repos to enrich: --workspace tree, a single --source dir, else indexed repos —
+    scoped to positional repo id(s) when given (``wiki <repo>`` does just that repo)."""
     workspace = getattr(args, "workspace", None)
     if workspace:
         from .parse import discover_repos  # lazy
@@ -272,7 +273,11 @@ def _connect_targets(args, store) -> list[tuple[str, str]]:
     if source and Path(source).is_dir():
         repo_id = getattr(args, "repo", None) or Path(source).name
         return [(repo_id, str(Path(source).resolve()))]
-    return [(r.id, r.path) for r in store.list_repos() if r.path]
+    targets = [(r.id, r.path) for r in store.list_repos() if r.path]
+    wanted = {a for a in (getattr(args, "args", None) or []) if a}
+    if wanted:
+        targets = [t for t in targets if t[0] in wanted]
+    return targets
 
 
 def _build_enrichers(sources):
@@ -524,12 +529,20 @@ def cmd_wiki(args) -> int:
     store, store_dir = _open_store(args)
     try:
         cfg = load_kb_config(getattr(args, "config", None))
+        apply_llm_overrides(cfg, provider=getattr(args, "llm", None),
+                            model=getattr(args, "llm_model", None))
         llm = build_llm(cfg.llm)
         if llm is None:
-            log("LLM tier disabled (set [llm] enabled = true in kb.toml)")
+            log("LLM tier disabled — pass --llm builtin|ollama|openai "
+                "(or set [llm] enabled = true in kb.toml)")
             return 0
         targets = _connect_targets(args, store)
         if not targets:
+            wanted = [a for a in (getattr(args, "args", None) or []) if a]
+            if wanted:
+                log(f"No indexed repo matches {', '.join(wanted)} — check the exact repo id "
+                    "(see `contextlake status`).")
+                return 1
             log("No indexed repos (run index first, or pass --workspace/--source)")
             return 0
         wiki_dir = store_dir / "wiki"

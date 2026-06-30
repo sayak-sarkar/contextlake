@@ -133,6 +133,28 @@ def test_cmd_wiki_rejects_low_score(tmp_path, monkeypatch):
     assert not (store_dir / "wiki" / "r.md").exists()  # council rejected it
 
 
+def test_cmd_wiki_scopes_to_positional_repo(tmp_path, monkeypatch):
+    # `wiki r` must enrich only repo "r", not the whole fleet
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.upsert_repo(Repo(id="other", path=str(tmp_path / "other")))
+    store.close()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"), args=["r"])) == 0
+    assert (store_dir / "wiki" / "r.md").exists()
+    assert not (store_dir / "wiki" / "other.md").exists()
+
+
+def test_cmd_wiki_unknown_positional_repo_errors(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    # a positional that matches no indexed repo is an error, not a silent whole-fleet run
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"), args=["nope"])) == 1
+
+
 def test_cmd_wiki_returns_nonzero_when_all_repos_fail(tmp_path, monkeypatch):
     """LLM unreachable for every repo (nothing written, nothing council-rejected)
     must be a non-zero exit, not a silent success."""
