@@ -13,7 +13,7 @@ available as its own command:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-sync.png" alt="The contextlake sync pipeline: fetch, then clone, then update, then branches, then verify, then audit." width="760">
 </p>
 
-### `status` - Check Current Synchronization Status
+### `status` — check current synchronization status
 
 Shows the current state of your workspace compared to GitLab.
 
@@ -38,7 +38,7 @@ Extra:                    1        # cloned locally but not on GitLab
 
 A fully synced workspace shows `0` for both.
 
-### `fetch` - Fetch All GitLab Projects
+### `fetch` — fetch all GitLab projects
 
 Retrieves all repositories from the specified GitLab group and caches them locally.
 
@@ -53,7 +53,7 @@ This command:
 - Skips archived repositories
 - Caches results in `/tmp/gitlab_projects.txt` and `/tmp/gitlab_projects.json`
 
-### `clone` - Clone Missing Repositories
+### `clone` — clone missing repositories
 
 Clones any repositories that exist in GitLab but are missing locally.
 
@@ -69,7 +69,7 @@ This command:
 - Clones up to 8 repositories concurrently
 - Handles timeouts gracefully (300s per repository)
 
-### `update` - Update Existing Repositories
+### `update` — update existing repositories
 
 Fetches and pulls the latest changes for all local repositories.
 
@@ -84,7 +84,7 @@ This command:
 - Handles detached HEAD states appropriately
 - Reports repositories that are already up to date
 
-### `branches` - Switch to Most Active Branches
+### `branches` — switch to most active branches
 
 Analyzes all repositories and switches them to their most active development branch.
 
@@ -106,7 +106,7 @@ that is both busy and recently touched wins. Two alternatives exist: `commits` (
 commit count, the legacy behaviour) and `recency` (most recent commit). Archived repos,
 repos without branches, and detached-HEAD states are skipped.
 
-### `verify` - Verify Repository Structure
+### `verify` — verify repository structure
 
 Checks that the local workspace structure matches GitLab exactly.
 
@@ -122,7 +122,7 @@ This command:
 - Lists missing repositories (in GitLab but not local)
 - Reports synchronization status
 
-### `sync` - Full Synchronization
+### `sync` — full synchronization
 
 Runs the complete synchronization pipeline in sequence.
 
@@ -139,7 +139,7 @@ This command executes:
 5. `verify` - Verify structure
 6. `audit` - Report repo health & age (skip with `--no-audit`)
 
-### `audit` - Repo health & age report
+### `audit` — repo health & age report
 
 Scans every local clone and reports which repos are effectively empty and how old/active
 they are. Runs automatically at the end of `sync`/`bootstrap`, or on demand:
@@ -160,7 +160,7 @@ offline from the fetch cache.
 
 ## Configuration
 
-### Using Configuration Files
+### Using configuration files
 
 The tool supports configuration files for persistent settings. Configuration is loaded in the following precedence order:
 
@@ -188,7 +188,7 @@ pull_timeout = 60
 max_workers = 8
 ```
 
-### Custom Work Directory
+### Custom work directory
 
 ```bash
 # Using config file (recommended)
@@ -198,7 +198,7 @@ max_workers = 8
 contextlake --work-dir /path/to/workspace sync
 ```
 
-### Custom GitLab Group
+### Custom GitLab group
 
 ```bash
 # Using config file (recommended)
@@ -208,13 +208,13 @@ contextlake --work-dir /path/to/workspace sync
 contextlake --group my-gitlab-group sync
 ```
 
-### Combined Options
+### Combined options
 
 ```bash
 contextlake --work-dir /home/user/dev --group your-gitlab-group status
 ```
 
-### Custom Config File
+### Custom config file
 
 ```bash
 contextlake --config /path/to/custom.ini sync
@@ -246,7 +246,7 @@ The branch-safety settings (`require_clean_workspace`, `protect_working_branches
 `safe_branches`, `auto_stash`) live in their own section below, see
 [Branch safety](#branch-safety).
 
-## Branch Safety
+## Branch safety
 
 The tool protects your local work without getting in your way. The guiding rule:
 **a clean repo is always safe to act on, the branch name alone never causes a skip.**
@@ -256,7 +256,7 @@ The only thing that blocks an `update` is a *dirty working tree*.
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
 </p>
 
-### Safety Checks
+### Safety checks
 
 1. **Clean Workspace Check** (the main guard): detects a dirty working tree, 
    uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
@@ -291,7 +291,7 @@ The only thing that blocks an `update` is a *dirty working tree*.
 - With `protect_working_branches = true`, a repo on a branch outside `safe_branches`
   is left where it is instead of being switched away.
 
-### Example Scenarios
+### Example scenarios
 
 #### Scenario 1: Working-Branch Protection (branches command)
 
@@ -345,7 +345,7 @@ auto_stash = false
 contextlake --safe-branches main,master,develop,staging --auto-stash update
 ```
 
-### Disabling Safety Checks
+### Disabling safety checks
 
 If you want to disable safety checks (not recommended for production workflows):
 
@@ -358,7 +358,7 @@ contextlake --no-protect-working-branches --no-require-clean-workspace update
 
 ## Scheduling & automation
 
-### Prerequisites for Cron Jobs
+### Prerequisites for cron jobs
 
 Before setting up cron jobs, ensure you have:
 
@@ -383,7 +383,7 @@ Before setting up cron jobs, ensure you have:
    cd /home/user/work && contextlake sync
    ```
 
-### Basic Daily Sync
+### Basic daily sync
 
 Run a full synchronization daily at 2 AM:
 
@@ -397,7 +397,7 @@ crontab -e
 
 **Note**: This uses the configuration from `~/.contextlake.ini`. No need to specify work_dir or gitlab_group in the cron command.
 
-### Hourly Updates (No Branch Switching)
+### Hourly updates (no branch switching)
 
 Update repositories hourly without changing branches (for CI/CD environments):
 
@@ -405,7 +405,7 @@ Update repositories hourly without changing branches (for CI/CD environments):
 0 * * * * cd /home/user/work && /usr/bin/contextlake update >> /tmp/gitlab_hourly.log 2>&1
 ```
 
-### Weekly Full Sync with Branch Management
+### Weekly full sync with branch management
 
 Run full sync including branch switching weekly on Sunday at 3 AM:
 
@@ -413,7 +413,7 @@ Run full sync including branch switching weekly on Sunday at 3 AM:
 0 3 * * 0 cd /home/user/work && /usr/bin/contextlake sync >> /tmp/gitlab_weekly.log 2>&1
 ```
 
-### Multiple Workspaces
+### Multiple workspaces
 
 For multiple workspaces, use separate config files:
 
@@ -440,7 +440,7 @@ EOF
 0 */6 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_secondary.ini update >> /tmp/gitlab_secondary.log 2>&1
 ```
 
-### Monitoring and Alerts
+### Monitoring and alerts
 
 Add email notifications for failures:
 
@@ -462,7 +462,7 @@ chmod +x /home/user/scripts/contextlake_wrapper.sh
 0 2 * * * /home/user/scripts/contextlake_wrapper.sh
 ```
 
-### Log Rotation
+### Log rotation
 
 To prevent log files from growing indefinitely, set up log rotation:
 
@@ -493,7 +493,7 @@ EOF
 | **Cron job not running** | Check `crontab -l`, use absolute paths, and test the exact command in a shell first; inspect cron logs (`grep CRON /var/log/syslog`). See [Scheduling & automation](#scheduling-automation). |
 | **Large log files** | Set up log rotation, see [Scheduling & automation](#scheduling-automation). |
 
-## Best Practices
+## Best practices
 
 1. **Initial Setup**: Run `contextlake sync` once to set up full workspace
 2. **Regular Updates**: Use `contextlake update` for frequent, fast updates
