@@ -91,6 +91,11 @@ below works against a bundled, generic demo fleet, no setup, no real data:</p>
 <blockquote>
 <p>Browsing your whole fleet? Use <code>--serve</code>, it renders each repo on demand with no
 caps. A <code>--site</code> export is a fixed, shareable slice.</p>
+<p><strong>Before you share a <code>--site</code> export:</strong> a real-store export inlines repo names,
+git-author identities, and connector URLs, so it prints a "do not publish unscrubbed"
+warning. For anything you intend to share, build it with <strong><code>--anonymize</code></strong> (hashes author
+identities, drops external URLs + README/wiki prose) or <strong><code>--sample</code></strong> (the bundled,
+guaranteed-generic demo fleet).</p>
 </blockquote>
 <h2 id="3-the-fleet-overview">3. The fleet overview<a class="anchor" href="#3-the-fleet-overview" title="Link to this section">#</a></h2>
 <p>Stat cards, a <strong>knowledge-confidence</strong> bar, and your repos grouped by namespace.</p>

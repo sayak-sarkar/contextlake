@@ -160,23 +160,26 @@ contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-a
 
 <p>The same ranking is available to agents over MCP as <strong><code>who_knows(repo, path?, limit?)</code></strong>.</p>
 <h2 id="connectors">Connectors<a class="anchor" href="#connectors" title="Link to this section">#</a></h2>
-<p><code>connect</code> enriches the graph with external context. The
-<strong>Atlassian</strong> connector links each repo to the Jira issues and Confluence pages it
-references, issue keys harvested from branch/commit names are confirmed against
-the live tracker (a single batched JQL call per site prunes false-positives and
-fetches each issue's summary/status), and Atlassian URLs found in docs are
-classified into issue/page links. It talks to one or more Atlassian sites over
-MCP, each independently authenticated. The <strong>Figma</strong> connector links repos to the
-design files they reference, classifying <code>figma.com</code> URLs to a stable file key. The
-<strong>GitLab</strong> connector links each repo to its open <strong>merge requests and issues</strong> (read
-through your authenticated <code>glab</code>). Connectors share one seam, so adding another is a
-small, self-contained module; output lands in an isolated graph partition, so
-re-indexing a repo's code never disturbs its external links.</p>
-<p>Configure it by copying <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/kb.toml.example"><code>examples/kb.toml.example</code></a> to
-<code>~/.contextlake/kb.toml</code>. Every fact is provenance-stamped (source file + verified
-date) and confidence-tagged (<code>EXTRACTED</code> for AST facts, <code>INFERRED</code> for resolved
-calls/links, <code>AMBIGUOUS</code> for unconfirmed candidates), and all output is sanitized
-before it reaches an agent.</p>
+<p><code>connect</code> enriches the graph with external context. Three connectors ship, sharing one seam:</p>
+<ul>
+<li><strong>Atlassian</strong>, links each repo to the Jira issues and Confluence pages it references. Issue
+  keys harvested from branch/commit names are confirmed against the live tracker (one batched
+  JQL call per site prunes false positives and fetches each issue's summary/status), and
+  Atlassian URLs in docs are classified into issue/page links. It talks to one or more
+  Atlassian sites over MCP, each independently authenticated.</li>
+<li><strong>Figma</strong>, links repos to the design files they reference, classifying <code>figma.com</code> URLs to a
+  stable file key.</li>
+<li><strong>GitLab</strong>, links each repo to its open <strong>merge requests and issues</strong> (read through your
+  authenticated <code>glab</code>).</li>
+</ul>
+<p>Adding another connector is a small, self-contained module, and its output lands in an isolated
+graph partition, so re-indexing a repo's code never disturbs its external links. Configure
+connectors by copying <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/kb.toml.example"><code>examples/kb.toml.example</code></a> to
+<code>~/.contextlake/kb.toml</code>.</p>
+<p><strong>Every fact carries its receipt.</strong> Each is provenance-stamped (source file + verified date)
+and confidence-tagged as one of three tiers, <strong><code>EXTRACTED</code></strong> (read straight from source/AST),
+<strong><code>INFERRED</code></strong> (a resolved call or link), or <strong><code>AMBIGUOUS</code></strong> (an unconfirmed candidate), and
+sanitized before it reaches an agent. The dashboard and the graph legend use these same tiers.</p>
 <h2 id="semantic-search">Semantic search<a class="anchor" href="#semantic-search" title="Link to this section">#</a></h2>
 <p>Semantic search (optional) adds natural-language retrieval on top of the graph.
 Enable <code>[embeddings]</code> in the config (local-first, vectors come from an Ollama model
@@ -266,13 +269,21 @@ documents, with any bearer token read from an env var (never the config file):</
 <p>So contextlake both <em>serves</em> a knowledge graph over MCP and <em>consumes</em> other MCP servers'
 resources into it, the loop closes on the same seam.</p>
 <h2 id="measuring-retrieval-quality">Measuring retrieval quality<a class="anchor" href="#measuring-retrieval-quality" title="Link to this section">#</a></h2>
-<p><code>contextlake eval</code> keeps all this falsifiable. Point
-it at a golden-query JSON file (<code>--golden</code>, e.g. <code>examples/fixtures/golden-queries.json</code>)
-and it reports <strong>precision@k / recall@k / MRR</strong> plus a <strong>cost</strong> dimension, estimated
-tokens per query and <strong>precision per 1k tokens</strong>, so "route to the cheapest sufficient
-source" is a number, not a vibe. Score any retriever with <code>--retriever fts|semantic|hybrid</code>
-(semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then
-judged by whether the numbers move.</p>
+<p><code>contextlake eval</code> keeps retrieval falsifiable. Point it at a <strong>golden-query JSON file</strong> , 
+each entry pairs a query with the node ids it should return:</p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;queries&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;OrderService&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;demo_app_orderservice&quot;</span><span class="p">]},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;charge&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;match&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;name&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function&quot;</span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Then <code>contextlake eval --golden queries.json</code> reports <strong>precision@k / recall@k / MRR</strong> plus a
+<strong>cost</strong> dimension, estimated tokens per query, and precision per 1k tokens, so "route to the
+cheapest sufficient source" becomes a number, not a vibe. Score any retriever with
+<code>--retriever fts|semantic|hybrid</code> (semantic/hybrid need embeddings built); a change like
+embed-bodies or a reranker is then judged by whether the numbers move.</p>
 <h2 id="curated-wiki">Curated wiki<a class="anchor" href="#curated-wiki" title="Link to this section">#</a></h2>
 <p>The wiki (optional, local-first) turns the graph into prose. Enable
 <code>[llm]</code> in the config (generation runs on a local Ollama model by default, prompts
@@ -364,28 +375,22 @@ never silently truncated.</p>
 local web UI where clicking a node <strong>expands</strong> it (fetches its neighbours on
 demand) so you can walk the graph without pre-rendering all of it.</p>
 <h2 id="the-dashboard">The dashboard<a class="anchor" href="#the-dashboard" title="Link to this section">#</a></h2>
-<p>Where <code>graph</code> shows the graph, <strong><code>contextlake dashboard</code></strong> is the human UI into the whole
-knowledge system, a local, read-only app that travels three <em>altitudes</em> (fleet → repo →
-symbol) with cross-cutting <em>lenses</em> (architecture, health, search):</p>
+<p>Where <code>graph</code> shows one graph, <strong><code>contextlake dashboard</code></strong> is the human UI into the whole
+knowledge system, a local, offline-first, read-only app over your store:</p>
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
 </p>
 
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w">         </span><span class="c1"># serve the live dashboard against your store</span>
-contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--sample<span class="w">   </span><span class="c1"># explore a generic demo fleet, no data needed</span>
-contextlake<span class="w"> </span>dashboard<span class="w"> </span>--site<span class="w"> </span>./out<span class="w">    </span><span class="c1"># export a fully static, offline (file://) copy</span>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w">            </span><span class="c1"># live, against your store</span>
+contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--sample<span class="w">   </span><span class="c1"># a generic demo fleet, no data needed</span>
+contextlake<span class="w"> </span>dashboard<span class="w"> </span>--site<span class="w"> </span>./out<span class="w">       </span><span class="c1"># a static, offline (file://) export</span>
 </code></pre></div>
 
-<p><strong><a href="dashboard.html">→ Read the guided tour</a></strong> for a step-by-step walkthrough with screenshots
-(fleet layouts, repo anatomy, the architecture graph, blast radius, and generating a wiki).</p>
-<p>It surfaces per-repo <strong>anatomy / README / wiki / owners / connector links</strong>, repo→repo
-<strong>dependency / HTTP-flow / event-flow</strong> (each with confidence + provenance, INFERRED data is
-marked, never shown as ground truth), an embedded interactive <strong>architecture graph</strong>, a
-<strong>change-impact</strong> explorer, <strong>health</strong>, and <strong>search</strong>. Every fact carries its receipt.</p>
-<p>It's offline-first and self-contained (no CDN, works from <code>file://</code>). <strong>Privacy note:</strong> a
-real-store <code>--site</code> export inlines repo names, git-author identities, and connector URLs, it
-prints a "do not publish unscrubbed" warning; use <code>--anonymize</code> (hashes authors, drops external
-URLs) or <code>--sample</code> for anything you intend to share. Read-only in v1; sync/MCP controls are planned.</p>
+<p>It surfaces per-repo anatomy, README/wiki, owners, and connector links; repo→repo dependency
+and flow (with confidence + provenance); an interactive architecture graph; change-impact;
+health; and search, every fact with its receipt.</p>
+<p><strong><a href="dashboard.html">→ The dashboard, a guided tour</a></strong> walks all of it step by step, with
+screenshots, plus the sharing/privacy guidance.</p>
 <h2 id="serve-it-to-your-editor-mcp">Serve it to your editor (MCP)<a class="anchor" href="#serve-it-to-your-editor-mcp" title="Link to this section">#</a></h2>
 <p>Once the graph is built, <strong><code>contextlake serve</code></strong> exposes it over MCP so agents query it
 directly instead of grepping, and <code>contextlake steer</code> wires your editors for you in one
