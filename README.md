@@ -46,9 +46,9 @@ each layer above it is optional.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
-Each layer has its own guide: the mirror in **[Usage & config](docs/usage.md)**, the knowledge
-layer and serving in **[Knowledge layer](docs/knowledge-layer.md)**, and the whole flow start to
-finish in **[QUICKSTART](QUICKSTART.md)**.
+Each layer has its own guide: the mirror in **[Usage & config](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, the knowledge
+layer and serving in **[Knowledge layer](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, and the whole flow start to
+finish in **[QUICKSTART](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**.
 
 ## Install
 
@@ -109,7 +109,7 @@ Everything lands in a local store (`~/.contextlake/kb`), nothing leaves your mac
 any path with `--source PATH`, or every git repo under a directory with `--workspace DIR`.
 
 > **Want the full path**, mirror a GitLab fleet → graph → wired editor in a few minutes?
-> [**QUICKSTART.md**](QUICKSTART.md) walks the whole flow.
+> [**QUICKSTART.md**](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md) walks the whole flow.
 
 ## Fleet mode: mirror a GitLab group
 
@@ -141,7 +141,7 @@ backoff, and **never stomps on the feature branch you're in the middle of**.
 
 ## Commands at a glance
 
-Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage.md](docs/usage.md)**.
+Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**.
 
 | Command | What it does |
 | --- | --- |
@@ -184,7 +184,7 @@ One command sets it all up:
 contextlake bootstrap --kb-config ~/.contextlake/kb.toml
 ```
 
-Full guide: **[docs/knowledge-layer.md](docs/knowledge-layer.md)**.
+Full guide: **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**.
 
 ### The dashboard
 
@@ -197,18 +197,18 @@ graph, change-impact (blast radius), health, and search. Try it with zero setup 
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
 </p>
 
-**[→ The dashboard, a guided tour](docs/dashboard.md)** — step by step, with screenshots.
+**[→ The dashboard, a guided tour](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)** — step by step, with screenshots.
 
 ## Documentation
 
-- **[QUICKSTART.md](QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes
-- **[docs/dashboard.md](docs/dashboard.md)**, the dashboard, a guided tour with screenshots
-- **[docs/usage.md](docs/usage.md)**, every command, configuration, branch safety, scheduling
-- **[docs/knowledge-layer.md](docs/knowledge-layer.md)**, the graph, connectors, search, wiki, steering
-- **[docs/internals.md](docs/internals.md)**, architecture & internals
-- **[docs/releasing.md](docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
-- **[CHANGELOG.md](CHANGELOG.md)** · **[ROADMAP.md](ROADMAP.md)** · **[CONTRIBUTING.md](CONTRIBUTING.md)** · **[BRANDING.md](BRANDING.md)**
+- **[QUICKSTART.md](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes
+- **[docs/dashboard.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, the dashboard, a guided tour with screenshots
+- **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, every command, configuration, branch safety, scheduling
+- **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the graph, connectors, search, wiki, steering
+- **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture & internals
+- **[docs/releasing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
+- **[CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[ROADMAP.md](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[CONTRIBUTING.md](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Pebble the otter is the project mascot; *deep context, clear answers.*
+MIT, see [LICENSE](https://github.com/sayak-sarkar/contextlake/blob/main/LICENSE). Pebble the otter is the project mascot; *deep context, clear answers.*

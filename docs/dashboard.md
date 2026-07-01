@@ -93,8 +93,13 @@ contextlake wiki acme/orders-api --llm builtin
 
 `--llm` enables the LLM tier inline — `builtin` runs a small CPU model with no Ollama or
 API key (install the `llm-local` extra first); `ollama` / `openai` use those backends.
-The positional repo id scopes generation to just that repo. Refresh the page and the
-wiki appears. See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
+The positional repo id scopes generation to just that repo. Once it's generated, the page
+renders right in the Wiki tab — grounded in the repo's real symbols, with a provenance
+footer citing the exact commit and source files:
+
+![The generated wiki rendered in the dashboard Wiki tab](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-rendered.png)
+
+See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
 ---
 
