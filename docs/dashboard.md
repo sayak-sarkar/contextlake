@@ -40,6 +40,12 @@ contextlake dashboard --serve --open         # live, against your store; opens y
 > Browsing your whole fleet? Use `--serve` — it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
 
+> **Before you share a `--site` export:** a real-store export inlines repo names,
+> git-author identities, and connector URLs, so it prints a "do not publish unscrubbed"
+> warning. For anything you intend to share, build it with **`--anonymize`** (hashes author
+> identities, drops external URLs + README/wiki prose) or **`--sample`** (the bundled,
+> guaranteed-generic demo fleet).
+
 ## 3. The fleet overview
 
 Stat cards, a **knowledge-confidence** bar, and your repos grouped by namespace.
