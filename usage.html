@@ -48,7 +48,7 @@ available as its own command:</p>
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-sync.png" alt="The contextlake sync pipeline: fetch, then clone, then update, then branches, then verify, then audit." width="760">
 </p>
 
-<h3 id="status-check-current-synchronization-status"><code>status</code> - Check Current Synchronization Status<a class="anchor" href="#status-check-current-synchronization-status" title="Link to this section">#</a></h3>
+<h3 id="status-check-current-synchronization-status"><code>status</code>, check current synchronization status<a class="anchor" href="#status-check-current-synchronization-status" title="Link to this section">#</a></h3>
 <p>Shows the current state of your workspace compared to GitLab.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>status
 </code></pre></div>
@@ -68,7 +68,7 @@ Extra:                    1        # cloned locally but not on GitLab
   renamed, archived, or removed there; <code>contextlake</code> leaves it alone for you to review.</li>
 </ul>
 <p>A fully synced workspace shows <code>0</code> for both.</p>
-<h3 id="fetch-fetch-all-gitlab-projects"><code>fetch</code> - Fetch All GitLab Projects<a class="anchor" href="#fetch-fetch-all-gitlab-projects" title="Link to this section">#</a></h3>
+<h3 id="fetch-fetch-all-gitlab-projects"><code>fetch</code>, fetch all GitLab projects<a class="anchor" href="#fetch-fetch-all-gitlab-projects" title="Link to this section">#</a></h3>
 <p>Retrieves all repositories from the specified GitLab group and caches them locally.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>fetch
 </code></pre></div>
@@ -80,7 +80,7 @@ Extra:                    1        # cloned locally but not on GitLab
 <li>Skips archived repositories</li>
 <li>Caches results in <code>/tmp/gitlab_projects.txt</code> and <code>/tmp/gitlab_projects.json</code></li>
 </ul>
-<h3 id="clone-clone-missing-repositories"><code>clone</code> - Clone Missing Repositories<a class="anchor" href="#clone-clone-missing-repositories" title="Link to this section">#</a></h3>
+<h3 id="clone-clone-missing-repositories"><code>clone</code>, clone missing repositories<a class="anchor" href="#clone-clone-missing-repositories" title="Link to this section">#</a></h3>
 <p>Clones any repositories that exist in GitLab but are missing locally.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>clone
 </code></pre></div>
@@ -93,7 +93,7 @@ Extra:                    1        # cloned locally but not on GitLab
 <li>Clones up to 8 repositories concurrently</li>
 <li>Handles timeouts gracefully (300s per repository)</li>
 </ul>
-<h3 id="update-update-existing-repositories"><code>update</code> - Update Existing Repositories<a class="anchor" href="#update-update-existing-repositories" title="Link to this section">#</a></h3>
+<h3 id="update-update-existing-repositories"><code>update</code>, update existing repositories<a class="anchor" href="#update-update-existing-repositories" title="Link to this section">#</a></h3>
 <p>Fetches and pulls the latest changes for all local repositories.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>update
 </code></pre></div>
@@ -105,7 +105,7 @@ Extra:                    1        # cloned locally but not on GitLab
 <li>Handles detached HEAD states appropriately</li>
 <li>Reports repositories that are already up to date</li>
 </ul>
-<h3 id="branches-switch-to-most-active-branches"><code>branches</code> - Switch to Most Active Branches<a class="anchor" href="#branches-switch-to-most-active-branches" title="Link to this section">#</a></h3>
+<h3 id="branches-switch-to-most-active-branches"><code>branches</code>, switch to most active branches<a class="anchor" href="#branches-switch-to-most-active-branches" title="Link to this section">#</a></h3>
 <p>Analyzes all repositories and switches them to their most active development branch.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>branches
 </code></pre></div>
@@ -123,7 +123,7 @@ weighted blend of <strong>60% normalized commit count + 40% normalized recency</
 that is both busy and recently touched wins. Two alternatives exist: <code>commits</code> (highest
 commit count, the legacy behaviour) and <code>recency</code> (most recent commit). Archived repos,
 repos without branches, and detached-HEAD states are skipped.</p>
-<h3 id="verify-verify-repository-structure"><code>verify</code> - Verify Repository Structure<a class="anchor" href="#verify-verify-repository-structure" title="Link to this section">#</a></h3>
+<h3 id="verify-verify-repository-structure"><code>verify</code>, verify repository structure<a class="anchor" href="#verify-verify-repository-structure" title="Link to this section">#</a></h3>
 <p>Checks that the local workspace structure matches GitLab exactly.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>verify
 </code></pre></div>
@@ -136,7 +136,7 @@ repos without branches, and detached-HEAD states are skipped.</p>
 <li>Lists missing repositories (in GitLab but not local)</li>
 <li>Reports synchronization status</li>
 </ul>
-<h3 id="sync-full-synchronization"><code>sync</code> - Full Synchronization<a class="anchor" href="#sync-full-synchronization" title="Link to this section">#</a></h3>
+<h3 id="sync-full-synchronization"><code>sync</code>, full synchronization<a class="anchor" href="#sync-full-synchronization" title="Link to this section">#</a></h3>
 <p>Runs the complete synchronization pipeline in sequence.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>sync
 </code></pre></div>
@@ -150,7 +150,7 @@ repos without branches, and detached-HEAD states are skipped.</p>
 <li><code>verify</code> - Verify structure</li>
 <li><code>audit</code> - Report repo health &amp; age (skip with <code>--no-audit</code>)</li>
 </ol>
-<h3 id="audit-repo-health-age-report"><code>audit</code> - Repo health &amp; age report<a class="anchor" href="#audit-repo-health-age-report" title="Link to this section">#</a></h3>
+<h3 id="audit-repo-health-age-report"><code>audit</code>, repo health &amp; age report<a class="anchor" href="#audit-repo-health-age-report" title="Link to this section">#</a></h3>
 <p>Scans every local clone and reports which repos are effectively empty and how old/active
 they are. Runs automatically at the end of <code>sync</code>/<code>bootstrap</code>, or on demand:</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>audit<span class="w">                       </span><span class="c1"># summary to console + report to &lt;cache_dir&gt;/repo_audit.json</span>
@@ -166,7 +166,7 @@ commit) and <strong>last commit date</strong> (from the local clone), with an ag
 per-repo table is written as JSON <strong>and</strong> CSV. The scan is parallel, read-only, and works
 offline from the fetch cache.</p>
 <h2 id="configuration">Configuration<a class="anchor" href="#configuration" title="Link to this section">#</a></h2>
-<h3 id="using-configuration-files">Using Configuration Files<a class="anchor" href="#using-configuration-files" title="Link to this section">#</a></h3>
+<h3 id="using-configuration-files">Using configuration files<a class="anchor" href="#using-configuration-files" title="Link to this section">#</a></h3>
 <p>The tool supports configuration files for persistent settings. Configuration is loaded in the following precedence order:</p>
 <ol>
 <li><strong>Local config</strong>: <code>.contextlake.ini</code> in the current directory (highest priority)</li>
@@ -192,7 +192,7 @@ and <code>~/.contextlake/</code>; the <code>gitlab-sync</code> command also stil
 <span class="na">max_workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">8</span>
 </code></pre></div>
 
-<h3 id="custom-work-directory">Custom Work Directory<a class="anchor" href="#custom-work-directory" title="Link to this section">#</a></h3>
+<h3 id="custom-work-directory">Custom work directory<a class="anchor" href="#custom-work-directory" title="Link to this section">#</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Using config file (recommended)</span>
 <span class="c1"># Edit .contextlake.ini and set work_dir</span>
 
@@ -200,7 +200,7 @@ and <code>~/.contextlake/</code>; the <code>gitlab-sync</code> command also stil
 contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/path/to/workspace<span class="w"> </span>sync
 </code></pre></div>
 
-<h3 id="custom-gitlab-group">Custom GitLab Group<a class="anchor" href="#custom-gitlab-group" title="Link to this section">#</a></h3>
+<h3 id="custom-gitlab-group">Custom GitLab group<a class="anchor" href="#custom-gitlab-group" title="Link to this section">#</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Using config file (recommended)</span>
 <span class="c1"># Edit .contextlake.ini and set gitlab_group</span>
 
@@ -208,11 +208,11 @@ contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/path/to/wo
 contextlake<span class="w"> </span>--group<span class="w"> </span>my-gitlab-group<span class="w"> </span>sync
 </code></pre></div>
 
-<h3 id="combined-options">Combined Options<a class="anchor" href="#combined-options" title="Link to this section">#</a></h3>
+<h3 id="combined-options">Combined options<a class="anchor" href="#combined-options" title="Link to this section">#</a></h3>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/home/user/dev<span class="w"> </span>--group<span class="w"> </span>your-gitlab-group<span class="w"> </span>status
 </code></pre></div>
 
-<h3 id="custom-config-file">Custom Config File<a class="anchor" href="#custom-config-file" title="Link to this section">#</a></h3>
+<h3 id="custom-config-file">Custom config file<a class="anchor" href="#custom-config-file" title="Link to this section">#</a></h3>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>--config<span class="w"> </span>/path/to/custom.ini<span class="w"> </span>sync
 </code></pre></div>
 
@@ -334,7 +334,7 @@ contextlake<span class="w"> </span>--group<span class="w"> </span>my-gitlab-grou
 <p>The branch-safety settings (<code>require_clean_workspace</code>, <code>protect_working_branches</code>,
 <code>safe_branches</code>, <code>auto_stash</code>) live in their own section below, see
 <a href="#branch-safety">Branch safety</a>.</p>
-<h2 id="branch-safety">Branch Safety<a class="anchor" href="#branch-safety" title="Link to this section">#</a></h2>
+<h2 id="branch-safety">Branch safety<a class="anchor" href="#branch-safety" title="Link to this section">#</a></h2>
 <p>The tool protects your local work without getting in your way. The guiding rule:
 <strong>a clean repo is always safe to act on, the branch name alone never causes a skip.</strong>
 The only thing that blocks an <code>update</code> is a <em>dirty working tree</em>.</p>
@@ -342,7 +342,7 @@ The only thing that blocks an <code>update</code> is a <em>dirty working tree</e
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
 </p>
 
-<h3 id="safety-checks">Safety Checks<a class="anchor" href="#safety-checks" title="Link to this section">#</a></h3>
+<h3 id="safety-checks">Safety checks<a class="anchor" href="#safety-checks" title="Link to this section">#</a></h3>
 <ol>
 <li><strong>Clean Workspace Check</strong> (the main guard): detects a dirty working tree, 
    uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
@@ -403,7 +403,7 @@ The only thing that blocks an <code>update</code> is a <em>dirty working tree</e
 <li>With <code>protect_working_branches = true</code>, a repo on a branch outside <code>safe_branches</code>
   is left where it is instead of being switched away.</li>
 </ul>
-<h3 id="example-scenarios">Example Scenarios<a class="anchor" href="#example-scenarios" title="Link to this section">#</a></h3>
+<h3 id="example-scenarios">Example scenarios<a class="anchor" href="#example-scenarios" title="Link to this section">#</a></h3>
 <h4 id="scenario-1-working-branch-protection-branches-command">Scenario 1: Working-Branch Protection (branches command)<a class="anchor" href="#scenario-1-working-branch-protection-branches-command" title="Link to this section">#</a></h4>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Repository is on feature/my-feature branch (not in safe branches)</span>
 contextlake<span class="w"> </span>branches
@@ -447,7 +447,7 @@ contextlake<span class="w"> </span>--auto-stash<span class="w"> </span>update
 contextlake<span class="w"> </span>--safe-branches<span class="w"> </span>main,master,develop,staging<span class="w"> </span>--auto-stash<span class="w"> </span>update
 </code></pre></div>
 
-<h3 id="disabling-safety-checks">Disabling Safety Checks<a class="anchor" href="#disabling-safety-checks" title="Link to this section">#</a></h3>
+<h3 id="disabling-safety-checks">Disabling safety checks<a class="anchor" href="#disabling-safety-checks" title="Link to this section">#</a></h3>
 <p>If you want to disable safety checks (not recommended for production workflows):</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Disable all safety checks</span>
 contextlake<span class="w"> </span>--no-protect-working-branches<span class="w"> </span>--no-require-clean-workspace<span class="w"> </span>update
@@ -455,7 +455,7 @@ contextlake<span class="w"> </span>--no-protect-working-branches<span class="w">
 
 <p><strong>Warning</strong>: Disabling safety checks can lead to conflicts, lost work, or corruption of your local branches. Only disable if you understand the risks.</p>
 <h2 id="scheduling-automation">Scheduling &amp; automation<a class="anchor" href="#scheduling-automation" title="Link to this section">#</a></h2>
-<h3 id="prerequisites-for-cron-jobs">Prerequisites for Cron Jobs<a class="anchor" href="#prerequisites-for-cron-jobs" title="Link to this section">#</a></h3>
+<h3 id="prerequisites-for-cron-jobs">Prerequisites for cron jobs<a class="anchor" href="#prerequisites-for-cron-jobs" title="Link to this section">#</a></h3>
 <p>Before setting up cron jobs, ensure you have:</p>
 <ol>
 <li><strong>Configuration file set up</strong>: Create <code>~/.contextlake.ini</code> with your settings</li>
@@ -475,7 +475,7 @@ contextlake<span class="w"> </span>--no-protect-working-branches<span class="w">
 </ol>
 <p><code>bash
    cd /home/user/work &amp;&amp; contextlake sync</code></p>
-<h3 id="basic-daily-sync">Basic Daily Sync<a class="anchor" href="#basic-daily-sync" title="Link to this section">#</a></h3>
+<h3 id="basic-daily-sync">Basic daily sync<a class="anchor" href="#basic-daily-sync" title="Link to this section">#</a></h3>
 <p>Run a full synchronization daily at 2 AM:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Edit crontab</span>
 crontab<span class="w"> </span>-e
@@ -485,17 +485,17 @@ crontab<span class="w"> </span>-e
 </code></pre></div>
 
 <p><strong>Note</strong>: This uses the configuration from <code>~/.contextlake.ini</code>. No need to specify work_dir or gitlab_group in the cron command.</p>
-<h3 id="hourly-updates-no-branch-switching">Hourly Updates (No Branch Switching)<a class="anchor" href="#hourly-updates-no-branch-switching" title="Link to this section">#</a></h3>
+<h3 id="hourly-updates-no-branch-switching">Hourly updates (no branch switching)<a class="anchor" href="#hourly-updates-no-branch-switching" title="Link to this section">#</a></h3>
 <p>Update repositories hourly without changing branches (for CI/CD environments):</p>
 <div class="codehilite"><pre><span></span><code><span class="m">0</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>update<span class="w"> </span>&gt;&gt;<span class="w"> </span>/tmp/gitlab_hourly.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
 </code></pre></div>
 
-<h3 id="weekly-full-sync-with-branch-management">Weekly Full Sync with Branch Management<a class="anchor" href="#weekly-full-sync-with-branch-management" title="Link to this section">#</a></h3>
+<h3 id="weekly-full-sync-with-branch-management">Weekly full sync with branch management<a class="anchor" href="#weekly-full-sync-with-branch-management" title="Link to this section">#</a></h3>
 <p>Run full sync including branch switching weekly on Sunday at 3 AM:</p>
 <div class="codehilite"><pre><span></span><code><span class="m">0</span><span class="w"> </span><span class="m">3</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>sync<span class="w"> </span>&gt;&gt;<span class="w"> </span>/tmp/gitlab_weekly.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
 </code></pre></div>
 
-<h3 id="multiple-workspaces">Multiple Workspaces<a class="anchor" href="#multiple-workspaces" title="Link to this section">#</a></h3>
+<h3 id="multiple-workspaces">Multiple workspaces<a class="anchor" href="#multiple-workspaces" title="Link to this section">#</a></h3>
 <p>For multiple workspaces, use separate config files:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Create workspace-specific config files</span>
 cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_primary.ini<span class="w"> </span><span class="s">&lt;&lt; EOF</span>
@@ -519,7 +519,7 @@ cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_secondary.
 <span class="m">0</span><span class="w"> </span>*/6<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>--config<span class="w"> </span>~/.contextlake_secondary.ini<span class="w"> </span>update<span class="w"> </span>&gt;&gt;<span class="w"> </span>/tmp/gitlab_secondary.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
 </code></pre></div>
 
-<h3 id="monitoring-and-alerts">Monitoring and Alerts<a class="anchor" href="#monitoring-and-alerts" title="Link to this section">#</a></h3>
+<h3 id="monitoring-and-alerts">Monitoring and alerts<a class="anchor" href="#monitoring-and-alerts" title="Link to this section">#</a></h3>
 <p>Add email notifications for failures:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Create a wrapper script</span>
 cat<span class="w"> </span>&gt;<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
@@ -538,7 +538,7 @@ chmod<span class="w"> </span>+x<span class="w"> </span>/home/user/scripts/contex
 <span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh
 </code></pre></div>
 
-<h3 id="log-rotation">Log Rotation<a class="anchor" href="#log-rotation" title="Link to this section">#</a></h3>
+<h3 id="log-rotation">Log rotation<a class="anchor" href="#log-rotation" title="Link to this section">#</a></h3>
 <p>To prevent log files from growing indefinitely, set up log rotation:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Create logrotate configuration</span>
 sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </span>/etc/logrotate.d/contextlake<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
@@ -593,7 +593,7 @@ sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </sp
 </tr>
 </tbody>
 </table>
-<h2 id="best-practices">Best Practices<a class="anchor" href="#best-practices" title="Link to this section">#</a></h2>
+<h2 id="best-practices">Best practices<a class="anchor" href="#best-practices" title="Link to this section">#</a></h2>
 <ol>
 <li><strong>Initial Setup</strong>: Run <code>contextlake sync</code> once to set up full workspace</li>
 <li><strong>Regular Updates</strong>: Use <code>contextlake update</code> for frequent, fast updates</li>
@@ -608,46 +608,46 @@ sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </sp
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#command-reference">Command reference</a><ul>
-<li><a href="#status-check-current-synchronization-status">status - Check Current Synchronization Status</a></li>
-<li><a href="#fetch-fetch-all-gitlab-projects">fetch - Fetch All GitLab Projects</a></li>
-<li><a href="#clone-clone-missing-repositories">clone - Clone Missing Repositories</a></li>
-<li><a href="#update-update-existing-repositories">update - Update Existing Repositories</a></li>
-<li><a href="#branches-switch-to-most-active-branches">branches - Switch to Most Active Branches</a></li>
-<li><a href="#verify-verify-repository-structure">verify - Verify Repository Structure</a></li>
-<li><a href="#sync-full-synchronization">sync - Full Synchronization</a></li>
-<li><a href="#audit-repo-health-age-report">audit - Repo health &amp; age report</a></li>
+<li><a href="#status-check-current-synchronization-status">status, check current synchronization status</a></li>
+<li><a href="#fetch-fetch-all-gitlab-projects">fetch, fetch all GitLab projects</a></li>
+<li><a href="#clone-clone-missing-repositories">clone, clone missing repositories</a></li>
+<li><a href="#update-update-existing-repositories">update, update existing repositories</a></li>
+<li><a href="#branches-switch-to-most-active-branches">branches, switch to most active branches</a></li>
+<li><a href="#verify-verify-repository-structure">verify, verify repository structure</a></li>
+<li><a href="#sync-full-synchronization">sync, full synchronization</a></li>
+<li><a href="#audit-repo-health-age-report">audit, repo health &amp; age report</a></li>
 </ul>
 </li>
 <li><a href="#configuration">Configuration</a><ul>
-<li><a href="#using-configuration-files">Using Configuration Files</a></li>
-<li><a href="#custom-work-directory">Custom Work Directory</a></li>
-<li><a href="#custom-gitlab-group">Custom GitLab Group</a></li>
-<li><a href="#combined-options">Combined Options</a></li>
-<li><a href="#custom-config-file">Custom Config File</a></li>
+<li><a href="#using-configuration-files">Using configuration files</a></li>
+<li><a href="#custom-work-directory">Custom work directory</a></li>
+<li><a href="#custom-gitlab-group">Custom GitLab group</a></li>
+<li><a href="#combined-options">Combined options</a></li>
+<li><a href="#custom-config-file">Custom config file</a></li>
 <li><a href="#settings-reference">Settings reference</a></li>
 </ul>
 </li>
-<li><a href="#branch-safety">Branch Safety</a><ul>
-<li><a href="#safety-checks">Safety Checks</a></li>
+<li><a href="#branch-safety">Branch safety</a><ul>
+<li><a href="#safety-checks">Safety checks</a></li>
 <li><a href="#configuration_1">Configuration</a></li>
 <li><a href="#behavior">Behavior</a></li>
-<li><a href="#example-scenarios">Example Scenarios</a></li>
+<li><a href="#example-scenarios">Example scenarios</a></li>
 <li><a href="#customization">Customization</a></li>
-<li><a href="#disabling-safety-checks">Disabling Safety Checks</a></li>
+<li><a href="#disabling-safety-checks">Disabling safety checks</a></li>
 </ul>
 </li>
 <li><a href="#scheduling-automation">Scheduling &amp; automation</a><ul>
-<li><a href="#prerequisites-for-cron-jobs">Prerequisites for Cron Jobs</a></li>
-<li><a href="#basic-daily-sync">Basic Daily Sync</a></li>
-<li><a href="#hourly-updates-no-branch-switching">Hourly Updates (No Branch Switching)</a></li>
-<li><a href="#weekly-full-sync-with-branch-management">Weekly Full Sync with Branch Management</a></li>
-<li><a href="#multiple-workspaces">Multiple Workspaces</a></li>
-<li><a href="#monitoring-and-alerts">Monitoring and Alerts</a></li>
-<li><a href="#log-rotation">Log Rotation</a></li>
+<li><a href="#prerequisites-for-cron-jobs">Prerequisites for cron jobs</a></li>
+<li><a href="#basic-daily-sync">Basic daily sync</a></li>
+<li><a href="#hourly-updates-no-branch-switching">Hourly updates (no branch switching)</a></li>
+<li><a href="#weekly-full-sync-with-branch-management">Weekly full sync with branch management</a></li>
+<li><a href="#multiple-workspaces">Multiple workspaces</a></li>
+<li><a href="#monitoring-and-alerts">Monitoring and alerts</a></li>
+<li><a href="#log-rotation">Log rotation</a></li>
 </ul>
 </li>
 <li><a href="#troubleshooting">Troubleshooting</a></li>
-<li><a href="#best-practices">Best Practices</a></li>
+<li><a href="#best-practices">Best practices</a></li>
 </ul>
 </nav></aside>
 </div>
