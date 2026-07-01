@@ -23,9 +23,11 @@ a{color:var(--lake)} a:hover{color:#0f6473}
 .skip{position:absolute;left:-9999px;top:0;background:var(--deepwater);color:#fff;padding:10px 16px;border-radius:0 0 8px 0;z-index:100}
 .skip:focus{left:0}
 
-/* header */
-header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);
+/* header — the sticky SITE nav only, never the per-page .doc-hero (also a <header>),
+   which would otherwise stick to top:0 and overlap the nav on scroll */
+header:not(.doc-hero){position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);
   backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line)}
+.doc-hero{position:static}
 .nav{display:flex;align-items:center;gap:16px;height:58px;max-width:1180px;margin:0 auto;padding:0 24px}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:17px;color:var(--ink);text-decoration:none}
 .brand .glyph{height:28px;width:auto;display:block}
