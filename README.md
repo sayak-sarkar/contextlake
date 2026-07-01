@@ -42,7 +42,8 @@ each layer above it is optional.
    namespace tree, each on its most active branch, kept fresh with one command. *(The source
    is GitLab today; the design is source-agnostic.)*
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph**, add
-   **semantic search**, a council-verified **wiki**, and **connectors** to Atlassian / Figma / GitLab.
+   **semantic search**, a council-verified **wiki** (each page reviewed and scored before
+   publishing, low-confidence pages dropped), and **connectors** to Atlassian / Figma / GitLab.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
@@ -65,6 +66,20 @@ uv tool install "contextlake[kb]"            # install the CLI on your PATH
 uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without installing
 # pipx install "contextlake[kb]"             # pipx works too
 ```
+
+<details>
+<summary>Install extras (the mirror needs none — add these for the knowledge layer)</summary>
+
+| Extra | Adds | When you need it |
+| --- | --- | --- |
+| `[kb]` | The knowledge layer: parse → graph → wiki → MCP server | Anything beyond mirroring |
+| `[kb-full]` | `[kb]` + the built-in CPU embedder + sqlite-vec ANN | One-step local semantic search, no Ollama or API key |
+| `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python fallback |
+| `[kb-local]` | The built-in CPU embedder (model2vec, ~30 MB) | Semantic search with no Ollama or API key |
+| `[kb-fastembed]` | A higher-quality ONNX embedder (~90 MB) | Better semantic ranking |
+| `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `wiki --llm builtin` with no Ollama or API key |
+
+</details>
 
 <details>
 <summary>From source (for contributors)</summary>
@@ -141,7 +156,11 @@ backoff, and **never stomps on the feature branch you're in the middle of**.
 
 ## Commands at a glance
 
-Run any command as `contextlake <command>`. Full per-command docs: **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**.
+Run any command as `contextlake <command>`. Per-command docs live with their layer: the
+**mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**;
+the **knowledge-layer** commands (`index`, `embed`, `connect`, `wiki`, `query`, `owners`,
+`impact`, `graph`, …) in **[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**,
+and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**.
 
 | Command | What it does |
 | --- | --- |
@@ -204,7 +223,8 @@ graph, change-impact (blast radius), health, and search. Try it with zero setup 
 - **[QUICKSTART.md](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes
 - **[docs/dashboard.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, the dashboard, a guided tour with screenshots
 - **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, every command, configuration, branch safety, scheduling
-- **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the graph, connectors, search, wiki, steering
+- **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the graph, connectors, search, wiki
+- **[docs/serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**, serve the graph over MCP + wire your editor
 - **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture & internals
 - **[docs/releasing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
 - **[CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[ROADMAP.md](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[CONTRIBUTING.md](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**

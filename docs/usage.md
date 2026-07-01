@@ -100,11 +100,11 @@ This command:
 - Switches to the most active branch if different from current
 - Pulls latest changes after switching
 
-**Branch Selection Criteria:**
-
-- Primary: Commit count (more commits = more active development)
-- Secondary: Latest commit date (used as tiebreaker)
-- Skips: Archived repositories, repositories without branches, detached HEAD states
+**Branch selection:** the default `branch_strategy = "hybrid"` scores each branch on a
+weighted blend of **60% normalized commit count + 40% normalized recency**, so a branch
+that is both busy and recently touched wins. Two alternatives exist: `commits` (highest
+commit count, the legacy behaviour) and `recency` (most recent commit). Archived repos,
+repos without branches, and detached-HEAD states are skipped.
 
 ### `verify` - Verify Repository Structure
 
@@ -276,6 +276,7 @@ The only thing that blocks an `update` is a *dirty working tree*.
 | `protect_working_branches` | Keep `branches` from switching a repo off a non-safe branch | `true` |
 | `safe_branches` | Branches the `branches` command may switch away from | `main,master,develop,development` |
 | `auto_stash` | Stash a dirty tree before `update` instead of skipping | `false` |
+| `branch_strategy` | How `branches` picks the most-active branch: `hybrid` (60% commits + 40% recency), `commits`, or `recency` | `hybrid` |
 
 ### Behavior
 
