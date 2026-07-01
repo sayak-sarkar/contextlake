@@ -54,14 +54,28 @@ contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span
 contextlake<span class="w"> </span>connect<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">      </span><span class="c1"># link repos to their issues/docs (see below)</span>
 contextlake<span class="w"> </span>embed<span class="w">                           </span><span class="c1"># build semantic vectors (optional, see below)</span>
 contextlake<span class="w"> </span>lint<span class="w">                            </span><span class="c1"># graph health: stale repos + dangling edges</span>
-contextlake<span class="w"> </span>wiki<span class="w"> </span>flx/app<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span><span class="w">      </span><span class="c1"># wiki for one repo; --llm enables the LLM tier inline</span>
+contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/orders-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span><span class="w">      </span><span class="c1"># wiki for one repo; --llm enables the LLM tier inline</span>
 contextlake<span class="w"> </span>steer<span class="w">                           </span><span class="c1"># write per-tool steering: AGENTS.md, .mcp.json, …</span>
 contextlake<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;OrderService&quot;</span><span class="w">            </span><span class="c1"># cited search across the index</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">         </span><span class="c1"># visualize the graph (HTML/dot/mermaid/json; offline)</span>
 contextlake<span class="w"> </span>serve<span class="w">                           </span><span class="c1"># expose the graph over MCP (stdio or --transport http)</span>
 </code></pre></div>
 
+<p><code>contextlake doctor</code> verifies the whole layer in one pass, FTS5, <code>git</code>/<code>glab</code> on PATH, the
+store's real counts, the built-in CPU embedder, and the ANN index, and exits non-zero if
+anything is wrong, so it doubles as a CI health gate:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-doctor.png" alt="contextlake doctor output: green ticks for SQLite FTS5, git and glab on PATH, config loads, a reachable store with 4 repos / 29 nodes / 28 edges, the built-in embedder, and the sqlite-vec ANN index, ending in OK." width="820">
+</p>
+
 <h2 id="indexing">Indexing<a class="anchor" href="#indexing" title="Link to this section">#</a></h2>
+<p><code>contextlake index --workspace ~/work</code> walks every git repo under a folder and builds the
+graph, files, classes, functions, and an intra-repo call graph across Python, TypeScript,
+and C#. Runs are incremental by default; <code>--force</code> rebuilds from scratch.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
+</p>
+
 <h3 id="incremental-time-travel">Incremental &amp; time-travel<a class="anchor" href="#incremental-time-travel" title="Link to this section">#</a></h3>
 <p><code>index --workspace</code> is <strong>incremental</strong>, it re-indexes only repos whose git HEAD
 moved since their last index, so a scheduled (cron) run stays cheap; pass <code>--force</code>
@@ -131,14 +145,22 @@ change-impact walk is a one-liner from the shell: <code>contextlake impact &lt;s
 lists what calls / depends on a node, no editor needed. When a symbol name (e.g. <code>Node</code>,
 <code>Order</code>) is defined in more than one repo, <code>impact</code> lists the candidates and you narrow it
 with <code>--repo &lt;repo&gt;</code> rather than getting a silent best-guess.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/orders-api affects place_order at hop 1 via a calls edge, tagged inferred, hop distance, relation, and confidence for each affected node." width="820">
+</p>
+
 <h2 id="ownership-smes">Ownership &amp; SMEs<a class="anchor" href="#ownership-smes" title="Link to this section">#</a></h2>
 <p><code>contextlake owners &lt;repo&gt;</code> (or <code>--path SUBDIR</code> for a sub-tree) answers <strong>"who owns
 this / who do I ask?"</strong> straight from git history, no config, no index required. It
 ranks contributors by a <strong>recency-weighted</strong> blend of commit volume and lines changed,
 so someone active in that area lately outranks a long-departed prolific author:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>owners<span class="w"> </span>payments-api<span class="w">                 </span><span class="c1"># top contributors for the whole repo</span>
-contextlake<span class="w"> </span>owners<span class="w"> </span>payments-api<span class="w"> </span>--path<span class="w"> </span>src/auth<span class="w">  </span><span class="c1"># …scoped to the auth module</span>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w">                 </span><span class="c1"># top contributors for the whole repo</span>
+contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w"> </span>--path<span class="w"> </span>src/auth<span class="w">  </span><span class="c1"># …scoped to the auth module</span>
 </code></pre></div>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-owners.png" alt="contextlake owners acme/orders-api output: a recency-weighted SME ranking from git history, Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
+</p>
 
 <p>The same ranking is available to agents over MCP as <strong><code>who_knows(repo, path?, limit?)</code></strong>.</p>
 <h2 id="connectors">Connectors<a class="anchor" href="#connectors" title="Link to this section">#</a></h2>
@@ -176,6 +198,13 @@ store is first created, re-embed from scratch to change an existing store).</p>
 <p>Like <code>index</code>, <code>embed</code> is <strong>incremental</strong>: it re-embeds only repos whose indexed HEAD
 moved since they were last embedded, so a scheduled refresh over a large fleet stays
 cheap. Pass <code>--force</code> to re-embed everything.</p>
+<p>A single query returns cited hits (<code>repo · file:line · kind · name</code>) that span repos <em>and</em>
+languages, here the C# and Python payment paths together. <code>--retriever fts|semantic|hybrid</code>
+picks keyword, vector, or graph-propagation ranking:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake query payment --retriever hybrid output: ten cited hits spanning acme/orders-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
+</p>
+
 <h2 id="aggregating-documents-rag">Aggregating documents (RAG)<a class="anchor" href="#aggregating-documents-rag" title="Link to this section">#</a></h2>
 <p>Not everything lives in code. <code>contextlake ingest</code> pulls <strong>external documents</strong> into the
 same knowledge layer, they become <code>kind="document"</code> graph nodes and, when embeddings are
@@ -252,7 +281,7 @@ judged by whether the numbers move.</p>
 <p>The wiki (optional, local-first) turns the graph into prose. Enable
 <code>[llm]</code> in the config (generation runs on a local Ollama model by default, prompts
 never leave the machine), or skip the toml entirely and pass <code>--llm &lt;provider&gt;</code>
-(<code>builtin</code> | <code>ollama</code> | <code>openai</code>), e.g. <code>contextlake wiki flx/app --llm builtin</code>,
+(<code>builtin</code> | <code>ollama</code> | <code>openai</code>), e.g. <code>contextlake wiki acme/orders-api --llm builtin</code>,
 which enables the tier inline and scopes generation to the named repo(s). Run
 <code>contextlake wiki</code>: for each repo it synthesizes a
 Markdown page grounded strictly in graph facts (top symbols, dependencies, files)
@@ -260,6 +289,12 @@ with a provenance footer citing the commit and sources, then puts the draft thro
 a <strong>verification council</strong>, reviewers score it for accuracy, completeness, and
 clarity and a chairman publishes only pages above a configurable threshold. Nothing
 that fails review is written.</p>
+<p>The result, rendered in the dashboard's Wiki tab, prose grounded strictly in real symbols,
+with a provenance footer citing the exact commit and source files it was built from:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-rendered.png" alt="The curated wiki for acme/orders-api rendered in the dashboard Wiki tab: an advisory banner, then Overview, Key components (OrderService, PaymentClient), How a request flows, and Notes, grounded in the repo's real symbols with a provenance footer." width="820">
+</p>
+
 <h2 id="model-providers">Model providers<a class="anchor" href="#model-providers" title="Link to this section">#</a></h2>
 <p>Both the embeddings and wiki tiers are pluggable and take a
 <code>provider</code>, defaulting to <strong><code>"auto"</code></strong>:</p>
@@ -301,8 +336,15 @@ scoped from a seed and capped:</p>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--name<span class="w"> </span>OrderService<span class="w"> </span>--kind<span class="w"> </span>class<span class="w">  </span><span class="c1"># a symbol&#39;s neighbourhood (default 2 hops)</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--node<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--hops<span class="w"> </span><span class="m">3</span><span class="w">              </span><span class="c1"># expand around an exact node id</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--search<span class="w"> </span><span class="s2">&quot;payment&quot;</span><span class="w"> </span>--open<span class="w">         </span><span class="c1"># seed from a full-text search</span>
-contextlake<span class="w"> </span>graph<span class="w"> </span>--repo<span class="w"> </span>team/service-api<span class="w">           </span><span class="c1"># one repo&#39;s internal code graph</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--repo<span class="w"> </span>acme/orders-api<span class="w">           </span><span class="c1"># one repo&#39;s internal code graph</span>
 </code></pre></div>
+
+<p><code>contextlake graph --repo &lt;repo&gt;</code> renders one repo's internal code graph to a single
+self-contained HTML page, nodes coloured by kind and sized by degree, edges by relation,
+with an in-page layout switcher, search, and a minimap; it opens straight from <code>file://</code>:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/orders-api: file, class, and method nodes (OrderService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
+</p>
 
 <p>Seed with one of <code>--node</code> / <code>--name</code> (+<code>--kind</code>) / <code>--search</code> / <code>--repo</code> /
 <code>--overview</code>. Bound the result with <code>--hops</code> (default 2), <code>--max-nodes</code> (500),
