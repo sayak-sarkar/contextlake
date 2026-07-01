@@ -105,6 +105,9 @@ _LINK_TO_PAGE = {}
 for _out, _src, *_rest in PAGES:
     _LINK_TO_PAGE[_src] = _out
     _LINK_TO_PAGE[_src.split("/")[-1]] = _out
+    # README/PyPI links are absolute GitHub URLs (they must resolve on PyPI); map those
+    # back to the local built page so the on-site nav stays on-site.
+    _LINK_TO_PAGE[GH + _src] = _out
 
 
 def rewrite_links(html: str) -> str:
