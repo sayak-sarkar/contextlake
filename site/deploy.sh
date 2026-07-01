@@ -26,7 +26,7 @@ git -C "$WT" reset --hard origin/gh-pages --quiet
 # the deployable site = the page HTML + stylesheet + manifest/SEO + all assets
 # (build_docs.py / tools/ / .gitignore are source, not shipped)
 cp "$HERE"/*.html "$HERE"/docs.css "$HERE"/manifest.webmanifest "$HERE"/sitemap.xml "$HERE"/llms.txt "$WT"/
-cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$WT"/ 2>/dev/null || true
+cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$HERE"/*.svg "$WT"/ 2>/dev/null || true
 
 git -C "$WT" add -A
 if git -C "$WT" diff --cached --quiet; then

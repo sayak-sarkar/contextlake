@@ -423,7 +423,7 @@ It surfaces per-repo anatomy, README/wiki, owners, and connector links; repo→r
 and flow (with confidence + provenance); an interactive architecture graph; change-impact;
 health; and search — every fact with its receipt.
 
-**[→ The dashboard, a guided tour](dashboard.md)** walks all of it step by step, with
+**[The dashboard — a guided tour](dashboard.md)** walks all of it step by step, with
 screenshots, plus the sharing/privacy guidance.
 
 ## Serve it to your editor (MCP)
@@ -432,5 +432,5 @@ Once the graph is built, **`contextlake serve`** exposes it over MCP so agents q
 directly instead of grepping — and `contextlake steer` wires your editors for you in one
 command.
 
-**[→ Serve it to your editor](serve.md)** covers the full tool list, the one-command steering
+**[Serve it to your editor](serve.md)** covers the full tool list, the one-command steering
 setup, and manual wiring for Claude Code / Windsurf / Kiro.
