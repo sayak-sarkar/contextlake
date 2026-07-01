@@ -65,7 +65,12 @@ PAGES = [
      "Under the hood", "How all three layers work inside, the store, concurrency, "
      "branch selection, extraction, and the offline boundary.",
      "pebble-doc.png",
-     [("usage.html", "Usage & config"), ("knowledge-layer.html", "Knowledge layer")]),
+     [("storage.html", "Storage"), ("knowledge-layer.html", "Knowledge layer")]),
+    ("storage.html", "docs/storage.md", "Storage", "Storage & the no-pollution invariant",
+     "Under the hood", "Where contextlake keeps everything it generates — one store "
+     "directory, never polluting your synced repos.",
+     "pebble-doc.png",
+     [("internals.html", "Architecture"), ("usage.html", "Usage & config")]),
     ("changelog.html", "CHANGELOG.md", "Changelog", "Changelog",
      "Reference", "Release history for contextlake.",
      "pebble-doc.png",
@@ -110,13 +115,23 @@ for _out, _src, *_rest in PAGES:
 
 
 def rewrite_links(html: str) -> str:
+    """Resolve every doc link consistently: a link to a built page (in any form —
+    `foo.md`, `docs/foo.md`, `../foo.md`, or the absolute GitHub URL used in the README)
+    becomes the local `.html`; a relative link to a repo file that has no page (examples/,
+    LICENSE, …) becomes an absolute GitHub URL; external/anchor links are left alone."""
     def repl(m):
         href = m.group(1)
         path, sep, anchor = href.partition("#")
-        if path in _LINK_TO_PAGE:
-            return f'href="{_LINK_TO_PAGE[path]}{sep}{anchor}"'
-        if path in TO_GH:
-            return f'href="{GH}{path}{sep}{anchor}"'
+        norm = path
+        while norm.startswith(("../", "./")):
+            norm = norm.split("/", 1)[1] if "/" in norm else ""
+        for key in (path, norm, norm.split("/")[-1], "docs/" + norm):
+            if key and key in _LINK_TO_PAGE:
+                return f'href="{_LINK_TO_PAGE[key]}{sep}{anchor}"'
+        if href.startswith(("http", "#", "mailto:")):
+            return m.group(0)
+        if norm:  # a repo file with no built page → point at GitHub
+            return f'href="{GH}{norm}{sep}{anchor}"'
         return m.group(0)
     return re.sub(r'href="([^"]+)"', repl, html)
 

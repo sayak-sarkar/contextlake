@@ -116,8 +116,8 @@ in-progress working tree. Run it from cron:
 */30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml >> ~/.contextlake/refresh.log 2>&1
 ```
 
-or as a systemd user timer, see [`examples/contextlake.service`](examples/contextlake.service)
-and [`examples/contextlake.timer`](examples/contextlake.timer).
+or as a systemd user timer, see [`examples/contextlake.service`](../examples/contextlake.service)
+and [`examples/contextlake.timer`](../examples/contextlake.timer).
 
 ## Code indexing
 
@@ -170,7 +170,7 @@ through your authenticated `glab`). Connectors share one seam, so adding another
 small, self-contained module; output lands in an isolated graph partition, so
 re-indexing a repo's code never disturbs its external links.
 
-Configure it by copying [`examples/kb.toml.example`](examples/kb.toml.example) to
+Configure it by copying [`examples/kb.toml.example`](../examples/kb.toml.example) to
 `~/.contextlake/kb.toml`. Every fact is provenance-stamped (source file + verified
 date) and confidence-tagged (`EXTRACTED` for AST facts, `INFERRED` for resolved
 calls/links, `AMBIGUOUS` for unconfirmed candidates), and all output is sanitized
