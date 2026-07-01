@@ -124,8 +124,11 @@ hop by hop, with the confidence of each path.</p>
 
 <p><code>--llm</code> enables the LLM tier inline, <code>builtin</code> runs a small CPU model with no Ollama or
 API key (install the <code>llm-local</code> extra first); <code>ollama</code> / <code>openai</code> use those backends.
-The positional repo id scopes generation to just that repo. Refresh the page and the
-wiki appears. See <a href="knowledge-layer.html#curated-wiki">knowledge-layer.md → Curated wiki</a>.</p>
+The positional repo id scopes generation to just that repo. Once it's generated, the page
+renders right in the Wiki tab, grounded in the repo's real symbols, with a provenance
+footer citing the exact commit and source files:</p>
+<p><img alt="The generated wiki rendered in the dashboard Wiki tab" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-rendered.png" /></p>
+<p>See <a href="knowledge-layer.html#curated-wiki">knowledge-layer.md → Curated wiki</a>.</p>
 <hr />
 <p>Everything here is read-only and runs entirely on your machine. Sync and MCP-connection
 controls are planned for a future release.</p>
