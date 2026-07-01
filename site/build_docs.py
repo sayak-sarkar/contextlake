@@ -168,7 +168,7 @@ def strip_readme_frontmatter(html: str) -> str:
 
 
 def sidebar(active: str) -> str:
-    items = ['<a href="index.html">Home</a>']
+    items = []  # home is reached via the clickable wordmark in the header
     for out, _, title, *_ in PAGES:
         cls = ' class="active"' if out == active else ""
         items.append(f'<a href="{out}"{cls}>{title}</a>')
