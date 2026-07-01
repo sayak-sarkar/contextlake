@@ -154,24 +154,27 @@ The same ranking is available to agents over MCP as **`who_knows(repo, path?, li
 
 ## Connectors
 
-`connect` enriches the graph with external context. The
-**Atlassian** connector links each repo to the Jira issues and Confluence pages it
-references, issue keys harvested from branch/commit names are confirmed against
-the live tracker (a single batched JQL call per site prunes false-positives and
-fetches each issue's summary/status), and Atlassian URLs found in docs are
-classified into issue/page links. It talks to one or more Atlassian sites over
-MCP, each independently authenticated. The **Figma** connector links repos to the
-design files they reference, classifying `figma.com` URLs to a stable file key. The
-**GitLab** connector links each repo to its open **merge requests and issues** (read
-through your authenticated `glab`). Connectors share one seam, so adding another is a
-small, self-contained module; output lands in an isolated graph partition, so
-re-indexing a repo's code never disturbs its external links.
+`connect` enriches the graph with external context. Three connectors ship, sharing one seam:
 
-Configure it by copying [`examples/kb.toml.example`](../examples/kb.toml.example) to
-`~/.contextlake/kb.toml`. Every fact is provenance-stamped (source file + verified
-date) and confidence-tagged (`EXTRACTED` for AST facts, `INFERRED` for resolved
-calls/links, `AMBIGUOUS` for unconfirmed candidates), and all output is sanitized
-before it reaches an agent.
+- **Atlassian** — links each repo to the Jira issues and Confluence pages it references. Issue
+  keys harvested from branch/commit names are confirmed against the live tracker (one batched
+  JQL call per site prunes false positives and fetches each issue's summary/status), and
+  Atlassian URLs in docs are classified into issue/page links. It talks to one or more
+  Atlassian sites over MCP, each independently authenticated.
+- **Figma** — links repos to the design files they reference, classifying `figma.com` URLs to a
+  stable file key.
+- **GitLab** — links each repo to its open **merge requests and issues** (read through your
+  authenticated `glab`).
+
+Adding another connector is a small, self-contained module, and its output lands in an isolated
+graph partition — so re-indexing a repo's code never disturbs its external links. Configure
+connectors by copying [`examples/kb.toml.example`](../examples/kb.toml.example) to
+`~/.contextlake/kb.toml`.
+
+**Every fact carries its receipt.** Each is provenance-stamped (source file + verified date)
+and confidence-tagged as one of three tiers — **`EXTRACTED`** (read straight from source/AST),
+**`INFERRED`** (a resolved call or link), or **`AMBIGUOUS`** (an unconfirmed candidate) — and
+sanitized before it reaches an agent. The dashboard and the graph legend use these same tiers.
 
 ## Semantic search
 
@@ -282,13 +285,23 @@ resources into it — the loop closes on the same seam.
 
 ## Measuring retrieval quality
 
-`contextlake eval` keeps all this falsifiable. Point
-it at a golden-query JSON file (`--golden`, e.g. `examples/fixtures/golden-queries.json`)
-and it reports **precision@k / recall@k / MRR** plus a **cost** dimension, estimated
-tokens per query and **precision per 1k tokens**, so "route to the cheapest sufficient
-source" is a number, not a vibe. Score any retriever with `--retriever fts|semantic|hybrid`
-(semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then
-judged by whether the numbers move.
+`contextlake eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file** —
+each entry pairs a query with the node ids it should return:
+
+```json
+{
+  "queries": [
+    {"query": "OrderService", "expected": ["demo_app_orderservice"]},
+    {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+  ]
+}
+```
+
+Then `contextlake eval --golden queries.json` reports **precision@k / recall@k / MRR** plus a
+**cost** dimension — estimated tokens per query, and precision per 1k tokens — so "route to the
+cheapest sufficient source" becomes a number, not a vibe. Score any retriever with
+`--retriever fts|semantic|hybrid` (semantic/hybrid need embeddings built); a change like
+embed-bodies or a reranker is then judged by whether the numbers move.
 
 ## Curated wiki
 
@@ -393,32 +406,25 @@ demand) so you can walk the graph without pre-rendering all of it.
 
 ## The dashboard
 
-Where `graph` shows the graph, **`contextlake dashboard`** is the human UI into the whole
-knowledge system — a local, read-only app that travels three *altitudes* (fleet → repo →
-symbol) with cross-cutting *lenses* (architecture, health, search):
+Where `graph` shows one graph, **`contextlake dashboard`** is the human UI into the whole
+knowledge system — a local, offline-first, read-only app over your store:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
 </p>
 
 ```bash
-contextlake dashboard --serve         # serve the live dashboard against your store
-contextlake dashboard --serve --sample   # explore a generic demo fleet — no data needed
-contextlake dashboard --site ./out    # export a fully static, offline (file://) copy
+contextlake dashboard --serve            # live, against your store
+contextlake dashboard --serve --sample   # a generic demo fleet — no data needed
+contextlake dashboard --site ./out       # a static, offline (file://) export
 ```
 
-**[→ Read the guided tour](dashboard.md)** for a step-by-step walkthrough with screenshots
-(fleet layouts, repo anatomy, the architecture graph, blast radius, and generating a wiki).
+It surfaces per-repo anatomy, README/wiki, owners, and connector links; repo→repo dependency
+and flow (with confidence + provenance); an interactive architecture graph; change-impact;
+health; and search — every fact with its receipt.
 
-It surfaces per-repo **anatomy / README / wiki / owners / connector links**, repo→repo
-**dependency / HTTP-flow / event-flow** (each with confidence + provenance — INFERRED data is
-marked, never shown as ground truth), an embedded interactive **architecture graph**, a
-**change-impact** explorer, **health**, and **search**. Every fact carries its receipt.
-
-It's offline-first and self-contained (no CDN, works from `file://`). **Privacy note:** a
-real-store `--site` export inlines repo names, git-author identities, and connector URLs — it
-prints a "do not publish unscrubbed" warning; use `--anonymize` (hashes authors, drops external
-URLs) or `--sample` for anything you intend to share. Read-only in v1; sync/MCP controls are planned.
+**[→ The dashboard, a guided tour](dashboard.md)** walks all of it step by step, with
+screenshots, plus the sharing/privacy guidance.
 
 ## Serve it to your editor (MCP)
 
