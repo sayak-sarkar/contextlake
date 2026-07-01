@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.20.1] - 2026-07-01
+
+### Fixed
+
+- **README doc links now resolve on the PyPI project page.** They were relative
+  (`docs/…​.md`), which 404s on PyPI (it renders the README but doesn't host the repo files);
+  they're now absolute GitHub URLs. The docs-site build still rewrites them back to local pages.
+
+### Added
+
+- **CLI and rendered-wiki screenshots** in the docs. The knowledge-layer guide now shows real
+  terminal output for `doctor`, `index`, `query`, `owners`, `impact`, and a single-repo graph,
+  plus a curated wiki rendered in the dashboard — all captured from a generic demo fleet.
+
 ## [2.20.0] - 2026-06-30
 
 ### Added
