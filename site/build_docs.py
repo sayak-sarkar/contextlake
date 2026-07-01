@@ -51,16 +51,21 @@ PAGES = [
      "pebble-doc.png",
      [("knowledge-layer.html", "Knowledge layer"), ("internals.html", "Architecture")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "Knowledge layer", "Knowledge layer",
-     "Layers 2–3 · Knowledge + Serve", "Turn the mirror into a queryable graph with "
-     "search, a wiki, and connectors, then serve it to your editor over MCP.",
+     "Layer 2 · Knowledge", "Turn the mirror into a queryable graph with search, a wiki, "
+     "and connectors.",
      "pebble-doc.png",
-     [("dashboard.html", "Dashboard"), ("usage.html", "Usage & config")]),
+     [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
     ("dashboard.html", "docs/dashboard.md", "Dashboard", "The dashboard",
-     "Layers 2–3 · the human UI", "A guided tour of the local, offline-first dashboard: "
+     "Layer 2 · the human UI", "A guided tour of the local, offline-first dashboard: "
      "the fleet overview, per-repo anatomy, the architecture graph, blast radius, and "
      "generating a wiki.",
      "pebble-doc.png",
-     [("knowledge-layer.html", "Knowledge layer"), ("usage.html", "Usage & config")]),
+     [("knowledge-layer.html", "Knowledge layer"), ("serve.html", "Serve (MCP)")]),
+    ("serve.html", "docs/serve.md", "Serve (MCP)", "Serve it to your editor",
+     "Layer 3 · Serve", "Expose the knowledge layer over MCP and wire your editors "
+     "(Claude Code, Windsurf, Kiro) in one command.",
+     "pebble-doc.png",
+     [("knowledge-layer.html", "Knowledge layer"), ("dashboard.html", "Dashboard")]),
     ("internals.html", "docs/internals.md", "Architecture", "Architecture & internals",
      "Under the hood", "How all three layers work inside, the store, concurrency, "
      "branch selection, extraction, and the offline boundary.",
