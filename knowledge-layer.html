@@ -70,8 +70,7 @@ anything is wrong, so it doubles as a CI health gate:</p>
 
 <h2 id="indexing">Indexing<a class="anchor" href="#indexing" title="Link to this section">#</a></h2>
 <p><code>contextlake index --workspace ~/work</code> walks every git repo under a folder and builds the
-graph, files, classes, functions, and an intra-repo call graph across Python, TypeScript,
-and C#. Runs are incremental by default; <code>--force</code> rebuilds from scratch.</p>
+graph. Runs are incremental by default; <code>--force</code> rebuilds from scratch.</p>
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>
@@ -104,6 +103,22 @@ vendored trees and lockfiles from the graph.</p>
 <code>contextlake lint</code> audits the graph itself, reporting <strong>stale repos</strong> (HEAD moved since they
 were indexed) and <strong>dangling edges</strong> (an edge whose endpoint node is missing). Both exit
 non-zero on problems, so they're CI-friendly.</p>
+<h2 id="code-indexing">Code indexing<a class="anchor" href="#code-indexing" title="Link to this section">#</a></h2>
+<p>Code indexing uses tree-sitter to extract files, classes, functions/methods,
+interfaces, imports, and an intra-repo <strong>call graph</strong> from <strong>Python, JavaScript,
+TypeScript/TSX, and C#</strong> (the parser registry is pluggable). It also reads
+manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>) to build a <strong>cross-repo
+dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP,
+from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
+this"), see <a href="serve.html">the full tool list under Serve</a>. The same
+change-impact walk is a one-liner from the shell: <code>contextlake impact &lt;symbol&gt; [--hops N]</code>
+lists what calls / depends on a node, no editor needed. When a symbol name (e.g. <code>Node</code>,
+<code>Order</code>) is defined in more than one repo, <code>impact</code> lists the candidates and you narrow it
+with <code>--repo &lt;repo&gt;</code> rather than getting a silent best-guess.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/orders-api affects place_order at hop 1 via a calls edge, tagged inferred, hop distance, relation, and confidence for each affected node." width="820">
+</p>
+
 <h2 id="one-command-setup">One-command setup<a class="anchor" href="#one-command-setup" title="Link to this section">#</a></h2>
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then wiki, then steer." width="760">
@@ -129,22 +144,6 @@ in-progress working tree. Run it from cron:</p>
 
 <p>or as a systemd user timer, see <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.service"><code>examples/contextlake.service</code></a>
 and <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.timer"><code>examples/contextlake.timer</code></a>.</p>
-<h2 id="code-indexing">Code indexing<a class="anchor" href="#code-indexing" title="Link to this section">#</a></h2>
-<p>Code indexing uses tree-sitter to extract files, classes, functions/methods,
-interfaces, imports, and an intra-repo <strong>call graph</strong> from <strong>Python, JavaScript,
-TypeScript/TSX, and C#</strong> (the parser registry is pluggable). It also reads
-manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>) to build a <strong>cross-repo
-dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP,
-from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
-this"), see <a href="serve.html">the full tool list under Serve</a>. The same
-change-impact walk is a one-liner from the shell: <code>contextlake impact &lt;symbol&gt; [--hops N]</code>
-lists what calls / depends on a node, no editor needed. When a symbol name (e.g. <code>Node</code>,
-<code>Order</code>) is defined in more than one repo, <code>impact</code> lists the candidates and you narrow it
-with <code>--repo &lt;repo&gt;</code> rather than getting a silent best-guess.</p>
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/orders-api affects place_order at hop 1 via a calls edge, tagged inferred, hop distance, relation, and confidence for each affected node." width="820">
-</p>
-
 <h2 id="ownership-smes">Ownership &amp; SMEs<a class="anchor" href="#ownership-smes" title="Link to this section">#</a></h2>
 <p><code>contextlake owners &lt;repo&gt;</code> (or <code>--path SUBDIR</code> for a sub-tree) answers <strong>"who owns
 this / who do I ask?"</strong> straight from git history, no config, no index required. It
@@ -408,11 +407,11 @@ setup, and manual wiring for Claude Code / Windsurf / Kiro.</p>
 <li><a href="#health-maintenance">Health &amp; maintenance</a></li>
 </ul>
 </li>
+<li><a href="#code-indexing">Code indexing</a></li>
 <li><a href="#one-command-setup">One-command setup</a><ul>
 <li><a href="#keep-it-fresh-on-a-schedule">Keep it fresh on a schedule</a></li>
 </ul>
 </li>
-<li><a href="#code-indexing">Code indexing</a></li>
 <li><a href="#ownership-smes">Ownership &amp; SMEs</a></li>
 <li><a href="#connectors">Connectors</a></li>
 <li><a href="#semantic-search">Semantic search</a></li>

@@ -43,7 +43,7 @@ knowledge layer work under the hood.</p>
 <h2 id="core-sync-internals">Core sync internals<a class="anchor" href="#core-sync-internals" title="Link to this section">#</a></h2>
 <h3 id="architecture">Architecture<a class="anchor" href="#architecture" title="Link to this section">#</a></h3>
 <p>The tool is built as a modular Python CLI application with the following components:</p>
-<h4 id="configuration-system">Configuration System<a class="anchor" href="#configuration-system" title="Link to this section">#</a></h4>
+<h4 id="configuration-system">Configuration system<a class="anchor" href="#configuration-system" title="Link to this section">#</a></h4>
 <p>The tool uses a hierarchical configuration system with the following precedence:</p>
 <ol>
 <li>
@@ -111,7 +111,7 @@ each command in the <a href="usage.html">Usage guide</a> maps onto one group:</p
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/data-flow.png" alt="Sync data flow: a contextlake command is parsed and dispatched, then fetches the accessible projects via glab, caches them, scans the workspace for local .git repos, compares GitLab vs local, runs git operations (clone/fetch/pull/switch), and logs a per-repo report." width="600">
 </p>
 
-<h3 id="concurrency-model">Concurrency Model<a class="anchor" href="#concurrency-model" title="Link to this section">#</a></h3>
+<h3 id="concurrency-model">Concurrency model<a class="anchor" href="#concurrency-model" title="Link to this section">#</a></h3>
 <p>The tool uses Python's <code>ThreadPoolExecutor</code> for concurrent operations:</p>
 <ul>
 <li><strong>Cloning</strong>: 8 parallel workers</li>
@@ -125,7 +125,7 @@ each command in the <a href="usage.html">Usage guide</a> maps onto one group:</p
 <li>Branch operations: 30s timeout</li>
 <li>Pull operations: 60s timeout</li>
 </ul>
-<h3 id="error-handling">Error Handling<a class="anchor" href="#error-handling" title="Link to this section">#</a></h3>
+<h3 id="error-handling">Error handling<a class="anchor" href="#error-handling" title="Link to this section">#</a></h3>
 <p>The tool implements comprehensive error handling:</p>
 <ol>
 <li><strong>Timeout Handling</strong>: All subprocess calls have explicit timeouts</li>
@@ -134,7 +134,7 @@ each command in the <a href="usage.html">Usage guide</a> maps onto one group:</p
 <li><strong>Graceful Degradation</strong>: Failed operations don't stop the entire process</li>
 <li><strong>Detailed Logging</strong>: All errors are logged with context</li>
 </ol>
-<h3 id="cache-management">Cache Management<a class="anchor" href="#cache-management" title="Link to this section">#</a></h3>
+<h3 id="cache-management">Cache management<a class="anchor" href="#cache-management" title="Link to this section">#</a></h3>
 <p>The tool uses two cache files:</p>
 <ol>
 <li><strong><code>/tmp/gitlab_projects.json</code></strong></li>
@@ -153,7 +153,7 @@ each command in the <a href="usage.html">Usage guide</a> maps onto one group:</p
 <li>Primary data source for all operations</li>
 </ul>
 <p>Cache is refreshed by running the <code>fetch</code> command or <code>sync</code> (which includes fetch).</p>
-<h3 id="branch-selection-algorithm">Branch Selection Algorithm<a class="anchor" href="#branch-selection-algorithm" title="Link to this section">#</a></h3>
+<h3 id="branch-selection-algorithm">Branch selection algorithm<a class="anchor" href="#branch-selection-algorithm" title="Link to this section">#</a></h3>
 <p>To identify the most active branch the tool:</p>
 <ol>
 <li><strong>Fetches all branches</strong> with <code>git for-each-ref</code> (collecting each branch's last
@@ -172,7 +172,7 @@ each command in the <a href="usage.html">Usage guide</a> maps onto one group:</p
 </ul>
 <p>Branch switching is skipped entirely for repositories checked out on a working
 branch (see <a href="#branch-safety">Branch Safety</a>).</p>
-<h3 id="directory-structure-mapping">Directory Structure Mapping<a class="anchor" href="#directory-structure-mapping" title="Link to this section">#</a></h3>
+<h3 id="directory-structure-mapping">Directory structure mapping<a class="anchor" href="#directory-structure-mapping" title="Link to this section">#</a></h3>
 <p>The tool maintains GitLab's exact directory structure:</p>
 <div class="codehilite"><pre><span></span><code>GitLab Path: your-gitlab-group/backend/services/api-gateway
 Local Path:  backend/services/api-gateway
@@ -185,7 +185,7 @@ Local Path:  frontend/platform/ui-toolkit
 </code></pre></div>
 
 <p>The <code>your-gitlab-group/</code> prefix is stripped when creating local paths.</p>
-<h3 id="performance-characteristics">Performance Characteristics<a class="anchor" href="#performance-characteristics" title="Link to this section">#</a></h3>
+<h3 id="performance-characteristics">Performance characteristics<a class="anchor" href="#performance-characteristics" title="Link to this section">#</a></h3>
 <p><strong>Typical Performance Metrics</strong> (based on a large workspace of several hundred repositories):</p>
 <ul>
 <li><strong>Fetch</strong>: 30-60 seconds (depends on GitLab API response time)</li>
@@ -202,7 +202,7 @@ Local Path:  frontend/platform/ui-toolkit
 <li>Run <code>branches</code> only when branch management is needed</li>
 <li>Adjust ThreadPoolExecutor worker count based on system resources</li>
 </ol>
-<h3 id="security-considerations">Security Considerations<a class="anchor" href="#security-considerations" title="Link to this section">#</a></h3>
+<h3 id="security-considerations">Security considerations<a class="anchor" href="#security-considerations" title="Link to this section">#</a></h3>
 <ol>
 <li><strong>Authentication</strong>: Uses <code>glab</code> authentication (tokens, SSH keys, etc.)</li>
 <li><strong>HTTPS Cloning</strong>: Default cloning method uses HTTPS for better compatibility</li>
@@ -210,7 +210,7 @@ Local Path:  frontend/platform/ui-toolkit
 <li><strong>Local Operations</strong>: All git operations are local; no external API calls beyond initial fetch</li>
 <li><strong>File Permissions</strong>: Respects existing file permissions; creates directories with default umask</li>
 </ol>
-<h3 id="extension-points">Extension Points<a class="anchor" href="#extension-points" title="Link to this section">#</a></h3>
+<h3 id="extension-points">Extension points<a class="anchor" href="#extension-points" title="Link to this section">#</a></h3>
 <p>The tool can be extended by:</p>
 <ol>
 <li><strong>Adding New Commands</strong>: Add new function and update <code>main()</code> command dispatch</li>
@@ -218,7 +218,6 @@ Local Path:  frontend/platform/ui-toolkit
 <li><strong>Additional Verification</strong>: Add checks in <code>verify_structure()</code></li>
 <li><strong>Custom Output Formats</strong>: Modify logging functions</li>
 <li><strong>Integration Hooks</strong>: Add pre/post operation hooks</li>
-<li><strong>Configuration File</strong>: Add support for <code>.contextlake.yml</code> config</li>
 </ol>
 <h3 id="dependencies">Dependencies<a class="anchor" href="#dependencies" title="Link to this section">#</a></h3>
 <ul>
@@ -233,7 +232,7 @@ Local Path:  frontend/platform/ui-toolkit
 <li><strong>glab</strong>: GitLab CLI tool (external dependency)</li>
 <li><strong>git</strong>: Version control system (external dependency)</li>
 </ul>
-<h3 id="git-integration">Git Integration<a class="anchor" href="#git-integration" title="Link to this section">#</a></h3>
+<h3 id="git-integration">Git integration<a class="anchor" href="#git-integration" title="Link to this section">#</a></h3>
 <p>To avoid committing sensitive configuration to version control, add the configuration file to your <code>.gitignore</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Add to .gitignore</span>
 .contextlake.ini
@@ -308,16 +307,16 @@ Full detail: <a href="storage.html">storage.md</a>.</p>
 <li><a href="#core-sync-internals">Core sync internals</a><ul>
 <li><a href="#architecture">Architecture</a></li>
 <li><a href="#data-flow">Data flow</a></li>
-<li><a href="#concurrency-model">Concurrency Model</a></li>
-<li><a href="#error-handling">Error Handling</a></li>
-<li><a href="#cache-management">Cache Management</a></li>
-<li><a href="#branch-selection-algorithm">Branch Selection Algorithm</a></li>
-<li><a href="#directory-structure-mapping">Directory Structure Mapping</a></li>
-<li><a href="#performance-characteristics">Performance Characteristics</a></li>
-<li><a href="#security-considerations">Security Considerations</a></li>
-<li><a href="#extension-points">Extension Points</a></li>
+<li><a href="#concurrency-model">Concurrency model</a></li>
+<li><a href="#error-handling">Error handling</a></li>
+<li><a href="#cache-management">Cache management</a></li>
+<li><a href="#branch-selection-algorithm">Branch selection algorithm</a></li>
+<li><a href="#directory-structure-mapping">Directory structure mapping</a></li>
+<li><a href="#performance-characteristics">Performance characteristics</a></li>
+<li><a href="#security-considerations">Security considerations</a></li>
+<li><a href="#extension-points">Extension points</a></li>
 <li><a href="#dependencies">Dependencies</a></li>
-<li><a href="#git-integration">Git Integration</a></li>
+<li><a href="#git-integration">Git integration</a></li>
 </ul>
 </li>
 <li><a href="#knowledge-layer-architecture">Knowledge-layer architecture</a></li>
