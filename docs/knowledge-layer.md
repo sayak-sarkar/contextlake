@@ -40,8 +40,7 @@ anything is wrong, so it doubles as a CI health gate:
 ## Indexing
 
 `contextlake index --workspace ~/work` walks every git repo under a folder and builds the
-graph — files, classes, functions, and an intra-repo call graph across Python, TypeScript,
-and C#. Runs are incremental by default; `--force` rebuilds from scratch.
+graph. Runs are incremental by default; `--force` rebuilds from scratch.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
@@ -83,6 +82,24 @@ vendored trees and lockfiles from the graph.
 were indexed) and **dangling edges** (an edge whose endpoint node is missing). Both exit
 non-zero on problems, so they're CI-friendly.
 
+## Code indexing
+
+Code indexing uses tree-sitter to extract files, classes, functions/methods,
+interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
+TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads
+manifests (`pyproject.toml`, `package.json`, `*.csproj`) to build a **cross-repo
+dependency graph** through shared package nodes. Agents traverse all of this over MCP,
+from finding a definition to cross-repo `blast_radius` ("what could break if I change
+this"), see [the full tool list under Serve](serve.md). The same
+change-impact walk is a one-liner from the shell: `contextlake impact <symbol> [--hops N]`
+lists what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`,
+`Order`) is defined in more than one repo, `impact` lists the candidates and you narrow it
+with `--repo <repo>` rather than getting a silent best-guess.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/orders-api affects place_order at hop 1 via a calls edge, tagged inferred — hop distance, relation, and confidence for each affected node." width="820">
+</p>
+
 ## One-command setup
 
 <p align="center">
@@ -115,24 +132,6 @@ in-progress working tree. Run it from cron:
 
 or as a systemd user timer, see [`examples/contextlake.service`](../examples/contextlake.service)
 and [`examples/contextlake.timer`](../examples/contextlake.timer).
-
-## Code indexing
-
-Code indexing uses tree-sitter to extract files, classes, functions/methods,
-interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
-TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads
-manifests (`pyproject.toml`, `package.json`, `*.csproj`) to build a **cross-repo
-dependency graph** through shared package nodes. Agents traverse all of this over MCP,
-from finding a definition to cross-repo `blast_radius` ("what could break if I change
-this"), see [the full tool list under Serve](serve.md). The same
-change-impact walk is a one-liner from the shell: `contextlake impact <symbol> [--hops N]`
-lists what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`,
-`Order`) is defined in more than one repo, `impact` lists the candidates and you narrow it
-with `--repo <repo>` rather than getting a silent best-guess.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/orders-api affects place_order at hop 1 via a calls edge, tagged inferred — hop distance, relation, and confidence for each affected node." width="820">
-</p>
 
 ## Ownership & SMEs
 

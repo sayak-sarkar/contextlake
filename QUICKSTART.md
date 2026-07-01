@@ -12,7 +12,7 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 ## 2. Install
 
 ```bash
-pipx install "git+https://github.com/sayak-sarkar/contextlake[kb]"
+pipx install "contextlake[kb]"
 # or from a clone:  pip install ".[kb]"
 # optional ANN backend for semantic search:  add the [kb-vec] extra
 ```

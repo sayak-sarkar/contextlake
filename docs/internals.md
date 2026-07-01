@@ -9,7 +9,7 @@
 
 The tool is built as a modular Python CLI application with the following components:
 
-#### Configuration System
+#### Configuration system
 
 The tool uses a hierarchical configuration system with the following precedence:
 
@@ -50,7 +50,7 @@ each command in the [Usage guide](usage.md) maps onto one group:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/data-flow.png" alt="Sync data flow: a contextlake command is parsed and dispatched, then fetches the accessible projects via glab, caches them, scans the workspace for local .git repos, compares GitLab vs local, runs git operations (clone/fetch/pull/switch), and logs a per-repo report." width="600">
 </p>
 
-### Concurrency Model
+### Concurrency model
 
 The tool uses Python's `ThreadPoolExecutor` for concurrent operations:
 
@@ -65,7 +65,7 @@ Each worker operates independently with its own timeout:
 - Branch operations: 30s timeout
 - Pull operations: 60s timeout
 
-### Error Handling
+### Error handling
 
 The tool implements comprehensive error handling:
 
@@ -75,7 +75,7 @@ The tool implements comprehensive error handling:
 4. **Graceful Degradation**: Failed operations don't stop the entire process
 5. **Detailed Logging**: All errors are logged with context
 
-### Cache Management
+### Cache management
 
 The tool uses two cache files:
 
@@ -93,7 +93,7 @@ The tool uses two cache files:
 
 Cache is refreshed by running the `fetch` command or `sync` (which includes fetch).
 
-### Branch Selection Algorithm
+### Branch selection algorithm
 
 To identify the most active branch the tool:
 
@@ -114,7 +114,7 @@ The `branch_strategy` setting controls step 3:
 Branch switching is skipped entirely for repositories checked out on a working
 branch (see [Branch Safety](#branch-safety)).
 
-### Directory Structure Mapping
+### Directory structure mapping
 
 The tool maintains GitLab's exact directory structure:
 
@@ -131,7 +131,7 @@ Local Path:  frontend/platform/ui-toolkit
 
 The `your-gitlab-group/` prefix is stripped when creating local paths.
 
-### Performance Characteristics
+### Performance characteristics
 
 **Typical Performance Metrics** (based on a large workspace of several hundred repositories):
 
@@ -149,7 +149,7 @@ The `your-gitlab-group/` prefix is stripped when creating local paths.
 3. Run `branches` only when branch management is needed
 4. Adjust ThreadPoolExecutor worker count based on system resources
 
-### Security Considerations
+### Security considerations
 
 1. **Authentication**: Uses `glab` authentication (tokens, SSH keys, etc.)
 2. **HTTPS Cloning**: Default cloning method uses HTTPS for better compatibility
@@ -157,7 +157,7 @@ The `your-gitlab-group/` prefix is stripped when creating local paths.
 4. **Local Operations**: All git operations are local; no external API calls beyond initial fetch
 5. **File Permissions**: Respects existing file permissions; creates directories with default umask
 
-### Extension Points
+### Extension points
 
 The tool can be extended by:
 
@@ -166,7 +166,6 @@ The tool can be extended by:
 3. **Additional Verification**: Add checks in `verify_structure()`
 4. **Custom Output Formats**: Modify logging functions
 5. **Integration Hooks**: Add pre/post operation hooks
-6. **Configuration File**: Add support for `.contextlake.yml` config
 
 ### Dependencies
 
@@ -181,7 +180,7 @@ The tool can be extended by:
 - **glab**: GitLab CLI tool (external dependency)
 - **git**: Version control system (external dependency)
 
-### Git Integration
+### Git integration
 
 To avoid committing sensitive configuration to version control, add the configuration file to your `.gitignore`:
 
