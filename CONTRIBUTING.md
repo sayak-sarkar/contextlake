@@ -31,7 +31,8 @@ reports, fixes, and well-scoped features are all welcome.
 git clone https://github.com/sayak-sarkar/contextlake.git
 cd contextlake
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"      # installs the CLI plus pytest + ruff
+pip install -e ".[dev,kb]"   # the CLI + pytest/ruff + the knowledge layer the kb tests need
+# core-only (Python 3.9, no kb deps): pip install -e ".[dev]" and run pytest --ignore=tests/kb
 ```
 
 You'll also want `git` and an authenticated [`glab`](https://gitlab.com/gitlab-org/cli)
@@ -46,6 +47,10 @@ pytest                        # run the suite
 pytest --cov=contextlake --cov-report=term-missing   # with coverage
 pytest tests/test_clone.py -k retries -q             # a single test
 ```
+
+Run the suite as `pytest`, not `python -m pytest`: the latter puts the repo root
+first on `sys.path`, where the bare `contextlake.py` shim shadows the installed
+package and every import fails.
 
 CI runs exactly `ruff check` + `pytest` across Python 3.9–3.13, so if those two
 pass locally you're in good shape.

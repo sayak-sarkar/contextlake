@@ -53,8 +53,11 @@ model at all.
 ## 4. Bootstrap, one command
 
 ```bash
-contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml
+contextlake bootstrap
 ```
+
+Both config files are read from the default locations above; pass `--config` /
+`--kb-config` only if you keep them elsewhere.
 
 It mirrors your repos, indexes them into the graph, runs your connectors, and writes
 the editor steering. Useful toggles:
@@ -85,7 +88,7 @@ moved and never touches an in-progress working tree, so it's safe to run on a
 schedule. Use cron:
 
 ```cron
-*/30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml >> ~/.contextlake/refresh.log 2>&1
+*/30 * * * * contextlake bootstrap >> ~/.contextlake/refresh.log 2>&1
 ```
 
 or the systemd user units in [`examples/`](examples/). See the
