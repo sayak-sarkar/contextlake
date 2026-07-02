@@ -18,6 +18,7 @@ import sys
 from . import __version__
 from .config import DEFAULT_CONFIG, expand_path, get_cache_paths, load_config
 from .core import (
+    FetchError,
     clone_missing_repos,
     configure_network_resilience,
     fetch_gitlab_projects,
@@ -296,13 +297,21 @@ def _bootstrap(args, config, work_dir, gitlab_group):
         log("")
         log(style.bold(style.cyan(f"▶ {title}")))
 
+    failures = []
     if not getattr(args, "no_sync", False):
         _stage("Mirror repositories from GitLab")
-        fetch_gitlab_projects(gitlab_group, config)
-        clone_missing_repos(work_dir, config, gitlab_group)
-        update_repositories(work_dir, config)
-        switch_repository_branches(work_dir, config, gitlab_group)
-        verify_structure(work_dir, config, gitlab_group)
+        try:
+            fetch_gitlab_projects(gitlab_group, config)
+            clone_missing_repos(work_dir, config, gitlab_group)
+            update_repositories(work_dir, config)
+            switch_repository_branches(work_dir, config, gitlab_group)
+            verify_structure(work_dir, config, gitlab_group)
+        except FetchError as e:
+            # Enumeration failed; existing clones are untouched, so the knowledge
+            # stages can still run against them — but bootstrap must not end green.
+            log(style.warn(f"Mirror step failed — {e}"))
+            log("  Continuing with the repositories already on disk.")
+            failures.append("Mirror repositories from GitLab")
     else:
         log("Skipping the GitLab mirror step (--no-sync)")
 
@@ -345,7 +354,6 @@ def _bootstrap(args, config, work_dir, gitlab_group):
         stages.append(("Generate the curated wiki", kb.cmd_wiki))
     stages.append(("Write editor steering (.mcp.json, AGENTS.md, …)", kb.cmd_steer))
 
-    failures = []
     for title, fn in stages:
         _stage(title)
         try:

@@ -215,6 +215,11 @@ def _fetch_projects_page_glab(group_enc, per_page, page):
     return json.loads(result.stdout)
 
 
+class FetchError(RuntimeError):
+    """Project enumeration failed. Raised instead of returning partial data so a
+    transient blip can never overwrite a good cache or masquerade as success."""
+
+
 def fetch_gitlab_projects(gitlab_group, config):
     """Fetch all projects in a GitLab group (incl. subgroups).
 
@@ -250,13 +255,19 @@ def fetch_gitlab_projects(gitlab_group, config):
     while True:
         try:
             projects = retry_with_backoff(fetch_page, page)
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            # Raise instead of writing what we have: a partial (or empty) result must
+            # never replace a good cache under a green checkmark.
             log("ERROR: 'glab' not found and no GITLAB_TOKEN set. Set GITLAB_TOKEN "
                 "(a read_api token), or install the GitLab CLI and run 'glab auth login'.")
-            break
-        except Exception as e:  # noqa: BLE001 - report and stop paging on a hard failure
+            raise FetchError(
+                "could not enumerate GitLab projects: 'glab' not found and no "
+                "GITLAB_TOKEN set (existing caches left untouched)") from e
+        except Exception as e:  # noqa: BLE001 - a hard failure must surface, not truncate
             log(f"Error fetching projects (page {page}): {e}")
-            break
+            raise FetchError(
+                f"could not enumerate GitLab projects (failed on page {page}: {e}); "
+                "existing caches left untouched") from e
         if not projects:
             break
         for p in projects:
@@ -278,7 +289,11 @@ def fetch_gitlab_projects(gitlab_group, config):
         page += 1
 
     _write_caches(all_projects, cache_json, cache_file)
-    log(f"{style.ok()} Fetched {style.bold(str(len(all_projects)))} total projects")
+    if not all_projects:
+        log(style.warn("Fetched 0 projects — check the group name and your token's "
+                       "read_api access before trusting this result"))
+    else:
+        log(f"{style.ok()} Fetched {style.bold(str(len(all_projects)))} total projects")
     return all_projects
 
 
