@@ -167,13 +167,75 @@ def configure_network_resilience(config):
         os.environ["RES_OPTIONS"] = f"timeout:{timeout} attempts:{attempts}"
 
 
+# ---------------------------------------------------------------------------
+# Platform seam. Every supported platform's enumerator normalizes its listing
+# to the same project dict (path_with_namespace / clone URLs / default_branch /
+# archived / timestamps), so clone/update/branches/verify/status/audit stay
+# platform-agnostic -- they only ever see the cache.
+# ---------------------------------------------------------------------------
+
+PLATFORM_DEFAULTS = {
+    # api_base: REST root · token_env: where the token is read from ·
+    # clone_user: the basic-auth username git-over-HTTPS expects with a token ·
+    # per_page: the platform's real page-size cap (termination depends on it)
+    "gitlab": {"api_base": "https://gitlab.com", "token_env": "GITLAB_TOKEN",
+               "clone_user": "oauth2", "per_page": 100},
+    "github": {"api_base": "https://api.github.com", "token_env": "GITHUB_TOKEN",
+               "clone_user": "x-access-token", "per_page": 100},
+    "bitbucket": {"api_base": "https://api.bitbucket.org/2.0",
+                  "token_env": "BITBUCKET_TOKEN",
+                  "clone_user": "x-token-auth", "per_page": 100},
+    "gitea": {"api_base": "https://gitea.com", "token_env": "GITEA_TOKEN",
+              "clone_user": "oauth2", "per_page": 50},
+}
+# Hosted flavors that speak an existing platform's API verbatim.
+_PLATFORM_ALIASES = {"codeberg": "gitea", "forgejo": "gitea"}
+# Alias -> its canonical hosted endpoint (used only when no api_base is set).
+_ALIAS_API_BASE = {"codeberg": "https://codeberg.org", "forgejo": "https://gitea.com"}
+
+
+def platform_name(config) -> str:
+    """The canonical platform key from config (default gitlab). Raises on unknown."""
+    raw = (config.get("platform") or "gitlab").strip().lower()
+    name = _PLATFORM_ALIASES.get(raw, raw)
+    if name not in PLATFORM_DEFAULTS:
+        raise FetchError(
+            f"unknown platform {raw!r} -- expected one of "
+            f"{sorted(set(PLATFORM_DEFAULTS) | set(_PLATFORM_ALIASES))}")
+    return name
+
+
+def _platform_token(config):
+    """The API token for the configured platform, from ``token_env`` (config) or
+    the platform's default env var. None when unset; read only here, never logged."""
+    name = platform_name(config)
+    if name == "gitlab":
+        return _gitlab_token(config)
+    env_name = config.get("token_env") or PLATFORM_DEFAULTS[name]["token_env"]
+    return os.environ.get(env_name) or None
+
+
+def _platform_api_base(config):
+    """REST root for the configured platform (config ``api_base`` wins; the
+    codeberg/forgejo aliases resolve to their hosted endpoints)."""
+    name = platform_name(config)
+    if name == "gitlab":
+        return _gitlab_api_base(config)
+    configured = (config.get("api_base") or "").strip().rstrip("/")
+    if configured:
+        return configured if configured.startswith(("http://", "https://")) \
+            else f"https://{configured}"
+    raw = (config.get("platform") or "").strip().lower()
+    return _ALIAS_API_BASE.get(raw, PLATFORM_DEFAULTS[name]["api_base"])
+
+
 def _gitlab_token(config):
     """The GitLab API token from the configured env var (default GITLAB_TOKEN).
 
     Returns None when unset -- callers then fall back to the ``glab`` CLI, which
     carries its own auth. Read only here; never logged.
     """
-    env_name = config.get("gitlab_token_env", "GITLAB_TOKEN")
+    env_name = config.get("gitlab_token_env") or config.get("token_env") or "GITLAB_TOKEN"
     return os.environ.get(env_name) or os.environ.get("GITLAB_TOKEN") or None
 
 
@@ -216,40 +278,141 @@ def _fetch_projects_page_glab(group_enc, per_page, page):
     return json.loads(result.stdout)
 
 
+def _get_json(url, headers, timeout):
+    """GET a JSON document. Raises on HTTP/network error so retry can engage."""
+    req = urllib.request.Request(url, headers={"User-Agent": "contextlake", **headers})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode())
+
+
+def _norm_project(full_name, http, ssh, archived, default_branch, created, activity):
+    """Normalize any platform's repo listing entry to the GitLab-shaped dict the
+    fetch loop (and therefore the whole downstream pipeline) consumes."""
+    return {
+        "path_with_namespace": full_name,
+        "http_url_to_repo": http or "",
+        "ssh_url_to_repo": ssh or "",
+        "archived": bool(archived),
+        "default_branch": default_branch or "main",
+        "created_at": created,
+        "last_activity_at": activity,
+    }
+
+
+def _fetch_projects_page_github(base, owner, token, per_page, timeout, page):
+    """One page of a GitHub org's (or user's) repos, normalized. Tokenless works
+    for public owners (rate-limited); a token unlocks private repos."""
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        rows = _get_json(f"{base}/orgs/{owner}/repos?type=all"
+                         f"&per_page={per_page}&page={page}", headers, timeout)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+        # Not an org -- a user account. Same shape, different endpoint.
+        rows = _get_json(f"{base}/users/{owner}/repos"
+                         f"?per_page={per_page}&page={page}", headers, timeout)
+    return [_norm_project(r.get("full_name"), r.get("clone_url"), r.get("ssh_url"),
+                          r.get("archived", False), r.get("default_branch"),
+                          r.get("created_at"), r.get("pushed_at")) for r in rows]
+
+
+def _fetch_projects_page_bitbucket(base, workspace, token, per_page, timeout, page):
+    """One page of a Bitbucket workspace's repositories, normalized."""
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    try:
+        data = _get_json(f"{base}/repositories/{workspace}"
+                         f"?pagelen={per_page}&page={page}", headers, timeout)
+    except urllib.error.HTTPError as e:
+        if e.code == 404 and page > 1:
+            return []  # Bitbucket 404s past the last page; that IS the empty page
+        raise
+    values = data.get("values", []) if isinstance(data, dict) else []
+    out = []
+    for r in values:
+        clones = {c.get("name"): c.get("href") for c in r.get("links", {}).get("clone", [])}
+        out.append(_norm_project(
+            r.get("full_name"), clones.get("https"), clones.get("ssh"),
+            False,  # Bitbucket Cloud has no archived flag
+            (r.get("mainbranch") or {}).get("name"),
+            r.get("created_on"), r.get("updated_on")))
+    return out
+
+
+def _fetch_projects_page_gitea(base, owner, token, per_page, timeout, page):
+    """One page of a Gitea/Forgejo (incl. Codeberg) org's or user's repos."""
+    headers = {"Authorization": f"token {token}"} if token else {}
+    try:
+        rows = _get_json(f"{base}/api/v1/orgs/{owner}/repos"
+                         f"?limit={per_page}&page={page}", headers, timeout)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+        rows = _get_json(f"{base}/api/v1/users/{owner}/repos"
+                         f"?limit={per_page}&page={page}", headers, timeout)
+    return [_norm_project(r.get("full_name"), r.get("clone_url"), r.get("ssh_url"),
+                          r.get("archived", False), r.get("default_branch"),
+                          r.get("created_at"), r.get("updated_at")) for r in rows]
+
+
+_PLATFORM_FETCHERS = {
+    "github": _fetch_projects_page_github,
+    "bitbucket": _fetch_projects_page_bitbucket,
+    "gitea": _fetch_projects_page_gitea,
+}
+
+
 class FetchError(RuntimeError):
     """Project enumeration failed. Raised instead of returning partial data so a
     transient blip can never overwrite a good cache or masquerade as success."""
 
 
 def fetch_gitlab_projects(gitlab_group, config):
-    """Fetch all projects in a GitLab group (incl. subgroups).
+    """Enumerate every repository of the configured platform's group/org/workspace.
 
-    Prefers contextlake's own HTTP client when ``GITLAB_TOKEN`` is set -- this
-    avoids glab's short dial timeout, which a slow corporate DNS (e.g. Zscaler)
-    would otherwise trip on every call. Falls back to the ``glab`` CLI (its own
-    auth) when no token is configured. Each page is retried with backoff on
-    transient errors.
+    The platform seam: ``platform`` in the config selects the enumerator
+    (gitlab default; github / bitbucket / gitea, with codeberg + forgejo as
+    gitea flavors). Every enumerator normalizes to the same project shape, so
+    the whole pipeline downstream of this cache is platform-agnostic.
+
+    GitLab prefers contextlake's own HTTP client when ``GITLAB_TOKEN`` is set --
+    this avoids glab's short dial timeout, which a slow corporate DNS (e.g.
+    Zscaler) would otherwise trip on every call -- and falls back to the ``glab``
+    CLI (its own auth). Other platforms use the native client, tokenless for
+    public owners or with the platform's token env var. Each page is retried
+    with backoff on transient errors.
 
     Results are written to two caches under ``cache_dir``: a JSON map keyed by
     ``path_with_namespace`` and a pipe-delimited text file
     (``path|ssh|http|default_branch|archived``) for quick human/script use.
     """
     cache_file, cache_json = get_cache_paths(config)
-    log(f"Fetching GitLab projects for group: {style.cyan(gitlab_group)}")
+    platform = platform_name(config)
+    log(f"Fetching {platform} projects for: {style.cyan(gitlab_group)}")
 
-    per_page = 100
-    group_enc = urllib.parse.quote(gitlab_group, safe="")
-    token = _gitlab_token(config)
+    per_page = PLATFORM_DEFAULTS[platform]["per_page"]
     timeout = int(config.get("network_timeout", 30))
 
-    if token:
-        base = _gitlab_api_base(config)
-        log(f"Enumerating via the GitLab REST API at {base} (token auth)")
-        fetch_page = partial(_fetch_projects_page_http,
-                             base, group_enc, token, per_page, timeout)
+    if platform == "gitlab":
+        group_enc = urllib.parse.quote(gitlab_group, safe="")
+        token = _gitlab_token(config)
+        if token:
+            base = _gitlab_api_base(config)
+            log(f"Enumerating via the GitLab REST API at {base} (token auth)")
+            fetch_page = partial(_fetch_projects_page_http,
+                                 base, group_enc, token, per_page, timeout)
+        else:
+            log("No GITLAB_TOKEN set -- enumerating via the 'glab' CLI (its own auth)")
+            fetch_page = partial(_fetch_projects_page_glab, group_enc, per_page)
     else:
-        log("No GITLAB_TOKEN set -- enumerating via the 'glab' CLI (its own auth)")
-        fetch_page = partial(_fetch_projects_page_glab, group_enc, per_page)
+        token = _platform_token(config)
+        base = _platform_api_base(config)
+        auth = "token auth" if token else "no token: public repos only, rate-limited"
+        log(f"Enumerating via the {platform} REST API at {base} ({auth})")
+        fetch_page = partial(_PLATFORM_FETCHERS[platform],
+                             base, gitlab_group, token, per_page, timeout)
 
     all_projects = {}
     page = 1
@@ -285,8 +448,10 @@ def fetch_gitlab_projects(gitlab_group, config):
                     "last_activity_at": p.get("last_activity_at"),
                 }
         log(style.dim(f"Fetched page {page}, total projects: {len(all_projects)}"))
-        if len(projects) < per_page:
-            break
+        # Paginate until an EMPTY page (the `if not projects` above), never on a
+        # short one: some servers cap the page size below what we request (Gitea
+        # instances configure a max limit), and a short-page break would then
+        # silently truncate the fleet. One extra request buys correctness.
         page += 1
 
     _write_caches(all_projects, cache_json, cache_file)
@@ -368,37 +533,42 @@ def is_valid_git_repo(full_path):
 # Clone
 # ---------------------------------------------------------------------------
 
-def _git_token_env(token):
-    """A child env that authenticates git-over-HTTPS with a GitLab token.
+def _git_token_env(token, username="oauth2"):
+    """A child env that authenticates git-over-HTTPS with a platform token.
 
     The credential travels as an ``http.extraHeader`` config entry injected via
     the ``GIT_CONFIG_*`` environment (offset past any entries the user already
     set) — never on the command line (visible in ``ps``), never in the clone
-    URL (git would persist it into ``.git/config``).
+    URL (git would persist it into ``.git/config``). ``username`` is the
+    basic-auth user the platform expects alongside a token (oauth2 for
+    GitLab/Gitea, x-access-token for GitHub, x-token-auth for Bitbucket).
     """
     env = os.environ.copy()
     try:
         count = int(env.get("GIT_CONFIG_COUNT", "0"))
     except ValueError:
         count = 0
-    basic = base64.b64encode(f"oauth2:{token}".encode()).decode()
+    basic = base64.b64encode(f"{username}:{token}".encode()).decode()
     env[f"GIT_CONFIG_KEY_{count}"] = "http.extraHeader"
     env[f"GIT_CONFIG_VALUE_{count}"] = f"Authorization: Basic {basic}"
     env["GIT_CONFIG_COUNT"] = str(count + 1)
     return env
 
 
-def _build_clone_cmd(project_path, http_url, full_path, method, token=None):
+def _build_clone_cmd(project_path, http_url, full_path, method, token=None,
+                     platform="gitlab"):
     """Choose the clone command (and child env) for one repository.
 
-    ``auto`` prefers, in order: native ``git`` with GITLAB_TOKEN auth (no glab
+    ``auto`` prefers, in order: native ``git`` with token auth (no platform CLI
     needed, and git tolerates slow corporate DNS that trips glab's short dial
-    timeout) -> ``glab`` when installed (its own auth) -> plain ``git`` over
-    HTTPS (public repos / an ambient credential helper).
+    timeout) -> ``glab`` when installed (GitLab only; its own auth) -> plain
+    ``git`` over HTTPS (public repos / an ambient credential helper).
     """
     if token and method in ("auto", "git"):
-        return ["git", "clone", http_url, full_path], _git_token_env(token)
-    use_glab = method == "glab" or (method == "auto" and shutil.which("glab") is not None)
+        user = PLATFORM_DEFAULTS.get(platform, PLATFORM_DEFAULTS["gitlab"])["clone_user"]
+        return ["git", "clone", http_url, full_path], _git_token_env(token, user)
+    use_glab = method == "glab" or (
+        method == "auto" and platform == "gitlab" and shutil.which("glab") is not None)
     if use_glab and project_path:
         return ["glab", "repo", "clone", project_path, full_path], None
     return ["git", "clone", http_url, full_path], None
@@ -440,7 +610,8 @@ def clone_repository(local_path, gitlab_path, http, ssh, work_dir, config):
 
     os.makedirs(os.path.dirname(full_path) or ".", exist_ok=True)
     clone_cmd, clone_env = _build_clone_cmd(gitlab_path, http, full_path, method,
-                                            token=_gitlab_token(config))
+                                            token=_platform_token(config),
+                                            platform=platform_name(config))
 
     try:
         retry_with_backoff(

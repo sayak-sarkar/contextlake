@@ -1,7 +1,7 @@
-# GitLab Workspace Synchronization Configuration
+# contextlake mirror configuration
 # This is an example configuration file. Copy this file to .contextlake.ini
 # and customize it with your specific settings.
-# 
+#
 # IMPORTANT: .contextlake.ini should be added to .gitignore to prevent
 # accidentally committing sensitive configuration to version control.
 
@@ -10,18 +10,27 @@
 # Supports ~ for home directory expansion
 work_dir = ~/work
 
-# GitLab group to synchronize
-# Replace with your GitLab group name as it appears in GitLab
-gitlab_group = your-gitlab-group
+# Which platform to mirror from:
+#   gitlab (default) | github | bitbucket | gitea | codeberg | forgejo
+# platform = gitlab
 
-# Authentication for project enumeration.
-#   - If the GITLAB_TOKEN environment variable is set (a read_api token),
-#     contextlake calls the GitLab REST API directly. This is the robust path
-#     behind a slow/TLS-inspecting corporate proxy (e.g. Zscaler), where the
-#     `glab` CLI's short dial timeout would otherwise fail every request.
-#   - Otherwise it falls back to the `glab` CLI (which carries its own auth).
-# Override the env var name or the API host here if needed (defaults shown):
-# gitlab_token_env = GITLAB_TOKEN
+# The group / org / workspace / owner to synchronize (all its repos are
+# mirrored, preserving the namespace tree). `gitlab_group` works as an alias.
+gitlab_group = your-gitlab-group
+# group = your-org
+
+# Authentication for enumeration + cloning: set the platform's token env var
+# (GITLAB_TOKEN / GITHUB_TOKEN / BITBUCKET_TOKEN / GITEA_TOKEN) and contextlake
+# calls the platform's REST API directly and clones with plain git, passing the
+# credential via the child environment (never argv, never the clone URL).
+#   - GitLab without a token falls back to the `glab` CLI (its own auth); the
+#     token path is the robust one behind a slow/TLS-inspecting corporate proxy
+#     (e.g. Zscaler), where glab's short dial timeout fails every request.
+#   - Other platforms work tokenless for PUBLIC owners (rate-limited).
+# Override the env-var name or API endpoint here if needed:
+# token_env = GITHUB_TOKEN
+# api_base = https://github.example.com/api/v3   # self-hosted / enterprise
+# gitlab_token_env = GITLAB_TOKEN                # gitlab-specific alias
 # gitlab_host = gitlab.com
 # HTTP timeout (seconds) for the REST API enumeration:
 # network_timeout = 30
@@ -52,8 +61,9 @@ pull_timeout = 60
 max_workers = 8
 
 # How repositories are cloned:
-#   auto - prefer the `glab` CLI (uses its stored auth), else `git` over HTTPS
-#   glab - always use `glab repo clone`
+#   auto - `git` with the platform token when set; else `glab` (GitLab only,
+#          uses its stored auth); else `git` over HTTPS
+#   glab - always use `glab repo clone` (GitLab)
 #   git  - always use `git clone` over HTTPS
 clone_method = auto
 
