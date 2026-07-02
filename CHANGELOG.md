@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.24.0] - 2026-07-02
+
+### Added
+
+- **Multi-platform mirroring: GitHub, Bitbucket, and Gitea (Codeberg / Forgejo)
+  join GitLab.** Set `platform = github` (or `bitbucket` / `gitea` / `codeberg` /
+  `forgejo`) and `group = your-org` in the config and the whole pipeline — fetch,
+  clone, update, branches, verify, status, audit, bootstrap — runs against that
+  platform: every enumerator normalizes to the same project shape, so everything
+  downstream of the fetch cache is platform-agnostic. Auth is the platform's token
+  env var (`GITHUB_TOKEN`, `BITBUCKET_TOKEN`, `GITEA_TOKEN`; public owners work
+  tokenless, rate-limited), carried in headers and the git child environment with
+  each platform's expected basic-auth username — never in URLs or argv. Self-hosted
+  instances point `api_base` at their endpoint. GitLab behavior is unchanged,
+  including the `glab` fallback.
+
 ## [2.23.0] - 2026-07-02
 
 ### Added

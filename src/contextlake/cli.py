@@ -641,14 +641,19 @@ def main(argv=None):
     work_dir = expand_path(args.work_dir) if args.work_dir else config.get(
         "work_dir", DEFAULT_CONFIG["work_dir"]
     )
-    gitlab_group = args.group or config.get("gitlab_group", DEFAULT_CONFIG["gitlab_group"])
+    gitlab_group = (args.group or config.get("group")
+                    or config.get("gitlab_group", DEFAULT_CONFIG["gitlab_group"]))
 
     # Widen child git/glab DNS budget for slow corporate resolvers (no-op if the
     # user already set RES_OPTIONS); harmless for non-network commands.
     configure_network_resilience(config)
 
     log(f"Working directory: {work_dir}")
-    log(f"GitLab group: {gitlab_group}")
+    try:
+        from .core import platform_name
+        log(f"{platform_name(config).capitalize()} group: {gitlab_group}")
+    except Exception:  # noqa: BLE001 - an unknown platform is reported by fetch itself
+        log(f"Group: {gitlab_group}")
     cache_file, _ = get_cache_paths(config)
     log(f"Cache file: {cache_file}")
     if config.get("dry_run", "false").lower() == "true":

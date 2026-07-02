@@ -235,6 +235,92 @@ def test_fetch_failure_preserves_existing_cache(tmp_path, base_config, fake_subp
     assert (tmp_path / "p.txt").read_text() == "r0|s|h|main|False\n"
 
 
+def _one_page_urlopen(routes, captured):
+    """A fake urlopen serving canned JSON per URL-substring; [] for page>=2.
+
+    The page param is parsed with an anchored regex — a bare substring check
+    would match the "page=1..." inside "per_page=100" on every page and feed
+    the (empty-page-terminated) pagination loop forever.
+    """
+    def fake(req, timeout=None):
+        captured.append(req.full_url)
+        m = re.search(r"[?&]page=(\d+)", req.full_url)
+        if (int(m.group(1)) if m else 1) == 1:
+            for needle, payload in routes.items():
+                if needle in req.full_url:
+                    return _FakeResp(payload)
+        return _FakeResp([])
+    return fake
+
+
+def test_fetch_github_org_normalizes(tmp_path, base_config, monkeypatch):
+    rows = [{"full_name": "acme/api", "clone_url": "https://x/acme/api.git",
+             "ssh_url": "git@x:acme/api.git", "archived": False,
+             "default_branch": "trunk", "created_at": "2026-01-01",
+             "pushed_at": "2026-06-01"}]
+    captured = []
+    monkeypatch.setattr(core.urllib.request, "urlopen",
+                        _one_page_urlopen({"/orgs/acme/repos": rows}, captured))
+    monkeypatch.setenv("GITHUB_TOKEN", "ghp-x")
+    cfg = {**base_config, "platform": "github", "cache_dir": str(tmp_path),
+           "cache_json": "p.json", "cache_file": "p.txt"}
+    result = fetch_gitlab_projects("acme", cfg)
+    assert result["api"]["full_path"] == "acme/api"
+    assert result["api"]["default_branch"] == "trunk"
+    assert "api.github.com/orgs/acme/repos" in captured[0]
+    assert "ghp-x" not in captured[0]  # token in header, never the URL
+
+
+def test_fetch_gitea_falls_back_to_user_endpoint(tmp_path, base_config, monkeypatch):
+    import urllib.error
+    rows = [{"full_name": "ada/tool", "clone_url": "https://cb/ada/tool.git",
+             "ssh_url": "", "archived": False, "default_branch": "main",
+             "created_at": "2026-01-01", "updated_at": "2026-02-01"}]
+    captured = []
+
+    def fake(req, timeout=None):
+        captured.append(req.full_url)
+        if "/orgs/" in req.full_url:
+            raise urllib.error.HTTPError(req.full_url, 404, "nf", {}, None)
+        if "page=1" in req.full_url:
+            return _FakeResp(rows)
+        return _FakeResp([])
+
+    monkeypatch.setattr(core.urllib.request, "urlopen", fake)
+    cfg = {**base_config, "platform": "codeberg", "cache_dir": str(tmp_path),
+           "cache_json": "p.json", "cache_file": "p.txt"}
+    result = fetch_gitlab_projects("ada", cfg)
+    assert result["tool"]["full_path"] == "ada/tool"  # org 404 -> user endpoint
+    assert captured[0].startswith("https://codeberg.org/api/v1/orgs/ada")
+    assert "/users/ada/repos" in captured[1]
+
+
+def test_fetch_bitbucket_workspace_normalizes(tmp_path, base_config, monkeypatch):
+    payload = {"values": [{
+        "full_name": "acme/billing",
+        "links": {"clone": [{"name": "https", "href": "https://bb/acme/billing.git"},
+                            {"name": "ssh", "href": "git@bb:acme/billing.git"}]},
+        "mainbranch": {"name": "develop"},
+        "created_on": "2026-01-01", "updated_on": "2026-03-01"}]}
+    captured = []
+    monkeypatch.setattr(core.urllib.request, "urlopen",
+                        _one_page_urlopen({"/repositories/acme": payload}, captured))
+    cfg = {**base_config, "platform": "bitbucket", "cache_dir": str(tmp_path),
+           "cache_json": "p.json", "cache_file": "p.txt"}
+    result = fetch_gitlab_projects("acme", cfg)
+    assert result["billing"]["http"] == "https://bb/acme/billing.git"
+    assert result["billing"]["default_branch"] == "develop"
+    assert result["billing"]["archived"] is False
+
+
+def test_unknown_platform_raises_cleanly(tmp_path, base_config):
+    cfg = {**base_config, "platform": "sourceforge", "cache_dir": str(tmp_path),
+           "cache_json": "p.json", "cache_file": "p.txt"}
+    with pytest.raises(FetchError, match="unknown platform"):
+        fetch_gitlab_projects("g", cfg)
+    assert not (tmp_path / "p.json").exists()
+
+
 def test_configure_network_resilience_sets_and_respects(monkeypatch):
     # autouse fixture cleared RES_OPTIONS -> we set the widened DNS budget
     configure_network_resilience({})

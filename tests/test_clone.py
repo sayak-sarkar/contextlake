@@ -81,6 +81,30 @@ def test_clone_token_env_offsets_past_existing_git_config_entries(monkeypatch):
     assert env["GIT_CONFIG_COUNT"] == "2"
 
 
+def test_clone_uses_each_platforms_basic_auth_username(monkeypatch):
+    import base64
+    # GitHub wants x-access-token, Bitbucket x-token-auth, GitLab/Gitea oauth2.
+    for platform, user in (("gitlab", "oauth2"), ("github", "x-access-token"),
+                           ("bitbucket", "x-token-auth"), ("gitea", "oauth2")):
+        cmd, env = core._build_clone_cmd("g/p", "http://x/p.git", "/tmp/p", "auto",
+                                         token="tok", platform=platform)
+        assert cmd[:2] == ["git", "clone"]
+        header = env["GIT_CONFIG_VALUE_0"].split("Basic ")[1]
+        assert base64.b64decode(header).decode() == f"{user}:tok", platform
+
+
+def test_clone_glab_fallback_is_gitlab_only(monkeypatch):
+    # Without a token, auto uses glab only for GitLab; other platforms go
+    # straight to plain git (glab cannot clone a GitHub repo).
+    monkeypatch.setattr(core.shutil, "which", lambda _: "/usr/bin/glab")
+    cmd, _ = core._build_clone_cmd("g/p", "http://x/p.git", "/tmp/p", "auto",
+                                   token=None, platform="gitlab")
+    assert cmd[0] == "glab"
+    cmd, _ = core._build_clone_cmd("g/p", "http://x/p.git", "/tmp/p", "auto",
+                                   token=None, platform="github")
+    assert cmd[:2] == ["git", "clone"]
+
+
 def test_corrupted_dir_cleaned_and_recloned(tmp_path, base_config, fake_subprocess):
     corrupt = tmp_path / "g" / "p"
     corrupt.mkdir(parents=True)

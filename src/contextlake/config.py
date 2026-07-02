@@ -31,6 +31,10 @@ def expand_path(value):
 # Default Configuration
 DEFAULT_CONFIG = {
     'work_dir': os.path.expanduser('~/work'),
+    # Which platform `fetch` enumerates: gitlab (default) | github | bitbucket |
+    # gitea (codeberg/forgejo are gitea flavors). `group` is the generic key for
+    # the org/workspace/owner to mirror; gitlab_group remains as its alias.
+    'platform': 'gitlab',
     'gitlab_group': 'your-gitlab-group',
     'cache_dir': '/tmp',
     'cache_file': 'gitlab_projects.txt',
@@ -92,7 +96,8 @@ def load_config(config_path=None):
         if key in config:
             config[key] = expand_path(config[key])
 
-    if config.get('gitlab_group') == DEFAULT_CONFIG['gitlab_group']:
+    if (config.get('gitlab_group') == DEFAULT_CONFIG['gitlab_group']
+            and not config.get('group')):
         # No usable config was found. The local files are resolved against the
         # CURRENT directory, which trips people up when the config lives next to
         # the example in the repo but the command is run from elsewhere — so show

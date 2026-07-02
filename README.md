@@ -38,9 +38,9 @@ each layer above it is optional.
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/architecture.png" width="860" alt="contextlake architecture. On the left, your repos: a GitLab group, plus optional Figma, Jira, and other MCP connectors. In the centre, contextlake indexes and mirrors them into a graph and embeddings, a wiki, and connectors. On the right, it serves the result over MCP to your AI tools: Claude Code, Windsurf, Kiro, Cursor, and Postman.">
 </p>
 
-1. **Mirror**: clone every repo you can reach in a GitLab group into a faithful copy of its
-   namespace tree, each on its most active branch, kept fresh with one command. *(The source
-   is GitLab today; the design is source-agnostic.)*
+1. **Mirror**: clone every repo you can reach in a **GitLab group, GitHub org, Bitbucket
+   workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
+   each on its most active branch, kept fresh with one command.
 2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph**, add
    **semantic search**, a council-verified **wiki** (each page reviewed and scored before
    publishing, low-confidence pages dropped), and **connectors** to Atlassian / Figma / GitLab.
@@ -107,11 +107,12 @@ pip install -e ".[kb]"
 ```
 </details>
 
-**Prerequisites:** `git`, and, only for GitLab mirroring, **either** a `GITLAB_TOKEN`
-env var (a PAT with `read_api` + `read_repository` — no other tool needed) **or** an
-authenticated [`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`). The
-knowledge layer needs neither. Once installed, `contextlake`, `python -m contextlake`,
-and `python3 contextlake.py` are equivalent.
+**Prerequisites:** `git`, and, only for fleet mirroring, the platform's token env var
+(`GITLAB_TOKEN` with `read_api` + `read_repository`, or `GITHUB_TOKEN` /
+`BITBUCKET_TOKEN` / `GITEA_TOKEN`); on GitLab an authenticated
+[`glab`](https://gitlab.com/gitlab-org/cli) works instead. The knowledge layer needs
+neither. Once installed, `contextlake`, `python -m contextlake`, and
+`python3 contextlake.py` are equivalent.
 
 ## Quickstart: one repo, no setup
 
@@ -144,10 +145,11 @@ any path with `--source PATH`, or every git repo under a directory with `--works
 > **Want the full path**, mirror a GitLab fleet → graph → wired editor in a few minutes?
 > [**QUICKSTART.md**](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md) walks the whole flow.
 
-## Fleet mode: mirror a GitLab group
+## Fleet mode: mirror a whole org
 
 Where contextlake goes beyond single-repo tools is mirroring and cross-referencing a *whole
-GitLab fleet*. Copy the example config and set your group + workspace:
+fleet* — a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea/Codeberg/Forgejo
+owner. Copy the example config and set your platform, group and workspace:
 
 ```bash
 cp .contextlake.ini.example ~/.contextlake.ini
@@ -156,6 +158,9 @@ cp .contextlake.ini.example ~/.contextlake.ini
 [contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
+# or any other platform:
+# platform = github
+# group = your-org
 ```
 
 ```bash
@@ -163,10 +168,13 @@ contextlake status      # see where you stand (read-only)
 contextlake sync        # fetch → clone → update → branches → verify → audit
 ```
 
-It carries no credentials of its own (auth rides on your existing `glab` login), so
-`.contextlake.ini` holds only non-secret settings and is gitignored by default. It runs
-across hundreds of repos **concurrently**, with an adaptive worker pool, retries with
-backoff, and **never stomps on the feature branch you're in the middle of**.
+Auth is one env var — the platform's token (`GITLAB_TOKEN` / `GITHUB_TOKEN` /
+`BITBUCKET_TOKEN` / `GITEA_TOKEN`), carried in headers and the child environment, never in
+URLs or argv — so `.contextlake.ini` holds only non-secret settings and is gitignored by
+default. (On GitLab, an authenticated `glab` works too; public orgs on other platforms need
+no token at all.) It runs across hundreds of repos **concurrently**, with an adaptive worker
+pool, retries with backoff, and **never stomps on the feature branch you're in the middle
+of**.
 
 > **Behind a slow / TLS-inspecting corporate proxy** (e.g. Zscaler) where `glab`'s API calls
 > time out? Set `GITLAB_TOKEN` (a `read_api` token) and contextlake enumerates projects via

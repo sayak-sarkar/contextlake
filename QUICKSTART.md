@@ -7,8 +7,10 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 ## 1. Prerequisites
 
 - **Python 3.10+** (the knowledge layer needs 3.10; the core sync works on 3.9+)
-- **`git`**, plus GitLab auth: either set **`GITLAB_TOKEN`** (a PAT with `read_api` +
-  `read_repository`; no other tool needed) or authenticate **`glab`** (`glab auth login`)
+- **`git`**, plus your platform's token: **`GITLAB_TOKEN`** (a PAT with `read_api` +
+  `read_repository`), or `GITHUB_TOKEN` / `BITBUCKET_TOKEN` / `GITEA_TOKEN` with
+  `platform = github|bitbucket|gitea` in the config. On GitLab, an authenticated
+  **`glab`** (`glab auth login`) works instead of a token.
 
 ## 2. Install
 

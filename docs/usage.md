@@ -236,7 +236,11 @@ contextlake --config /path/to/custom.ini sync
 | Setting | Description | Default | Example |
 | --- | --- | --- | --- |
 | `work_dir` | Working directory for repositories | `~/work` | `/home/user/projects` |
+| `platform` | Platform to mirror: `gitlab`, `github`, `bitbucket`, `gitea` (+ `codeberg`/`forgejo` flavors) | `gitlab` | `github` |
+| `group` | The group / org / workspace / owner to mirror (`gitlab_group` is its alias) | — | `your-org` |
 | `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
+| `token_env` | Env var holding the platform token | per platform (`GITHUB_TOKEN`, …) | `MY_TOKEN` |
+| `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
 | `cache_dir` | Directory for cache files | `/tmp` | `~/.cache/contextlake` |
 | `cache_file` | Name of projects cache file | `gitlab_projects.txt` | `projects.txt` |
 | `cache_json` | Name of JSON cache file | `gitlab_projects.json` | `projects.json` |
