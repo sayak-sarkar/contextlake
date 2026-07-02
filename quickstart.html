@@ -77,9 +77,11 @@ key or a local server like LM Studio / Jan). The key is read from an env var, ne
 stored in config. Everything here is optional; the graph and search work with no
 model at all.</p>
 <h2 id="4-bootstrap-one-command">4. Bootstrap, one command<a class="anchor" href="#4-bootstrap-one-command" title="Link to this section">#</a></h2>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--config<span class="w"> </span>~/.contextlake.ini<span class="w"> </span>--kb-config<span class="w"> </span>~/.contextlake/kb.toml
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap
 </code></pre></div>
 
+<p>Both config files are read from the default locations above; pass <code>--config</code> /
+<code>--kb-config</code> only if you keep them elsewhere.</p>
 <p>It mirrors your repos, indexes them into the graph, runs your connectors, and writes
 the editor steering. Useful toggles:</p>
 <ul>
@@ -102,7 +104,7 @@ strong operating playbook.</p>
 <p><code>bootstrap</code> is <strong>incremental and branch-safe</strong>, it re-indexes only repos whose HEAD
 moved and never touches an in-progress working tree, so it's safe to run on a
 schedule. Use cron:</p>
-<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
+<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
 </code></pre></div>
 
 <p>or the systemd user units in <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/"><code>examples/</code></a>. See the
