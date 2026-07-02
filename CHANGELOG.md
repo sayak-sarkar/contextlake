@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-07-02
+
 ### Added
 
 - **Semantic search now embeds real code content.** Each node's vector carries its
@@ -17,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vectors. Existing stores are detected by a new embedded-text version stamp and
   re-embedded once automatically (with a message saying why); incremental behavior
   then resumes.
+
+### Changed
+
+- **Built-in embedder guidance is now measured, not assumed.** A four-model
+  bake-off on the enriched text (potion-8M/32M vs ONNX bge-small and quantized
+  nomic-v1.5) showed the tiny static models winning on both quality and latency;
+  the docs and config example now name `potion-base-32M` as the one-line quality
+  upgrade and keep the 30MB `potion-base-8M` as the zero-config default.
 
 ## [2.22.0] - 2026-07-02
 
