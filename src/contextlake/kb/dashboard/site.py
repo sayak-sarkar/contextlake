@@ -10,9 +10,10 @@ PII GUARDRAIL (binding — see the plan): a snapshot from a **real** store inlin
 repo ids, git-author identities and connector URLs, none of which ``sanitize_label``
 scrubs. Therefore:
 
-* ``sample=True`` builds the snapshot from the committed ``examples/fixtures/
-  sample-graph.json`` so the source-genericity guard applies — this is the only safe
-  public showcase build;
+* ``sample=True`` builds the snapshot from the bundled demo-fleet fixture
+  (``fixtures/sample-dashboard.json``, shipped as package data so pip installs get it
+  too) so the source-genericity guard applies — this is the only safe public
+  showcase build;
 * a real-store build WITHOUT ``--anonymize`` still works locally but prints a loud
   "do not publish unscrubbed" warning;
 * ``anonymize=True`` hashes author identities and strips external link URLs.
@@ -61,23 +62,26 @@ def _static(name: str) -> str:
     return (files("contextlake.kb.dashboard") / "static" / name).read_text(encoding="utf-8")
 
 
-def _fixture_path() -> Path:
-    # .../src/contextlake/kb/dashboard/site.py -> repo root is parents[4]. A multi-repo
-    # bundle ({"shards": [...]}) so the showcase reads like a real fleet; sample-graph.json
-    # stays a single shard for `index --source` demos.
-    return Path(__file__).resolve().parents[4] / "examples" / "fixtures" / "sample-dashboard.json"
+def _fixture_path():
+    # The demo-fleet fixture ships as package data (fixtures/*) so pip/wheel installs
+    # get it, not just source checkouts. A multi-repo bundle ({"shards": [...]}) so the
+    # showcase reads like a real fleet; examples/fixtures/sample-graph.json stays a
+    # single shard for `index --source` demos.
+    from importlib.resources import files
+    return files("contextlake.kb.dashboard") / "fixtures" / "sample-dashboard.json"
 
 
 def _sample_store(tmp: Path):
-    """An ephemeral store loaded from the committed sample fixture (no real PII)."""
+    """An ephemeral store loaded from the bundled demo-fleet fixture (no real PII)."""
     from ..model import Repo
     from ..store.shards import GraphShard, reindex_shard, write_shard
 
     fixture = _fixture_path()
-    if not fixture.exists():
+    if not fixture.is_file():
         raise FileNotFoundError(
-            f"sample fixture not found at {fixture} — --sample builds from the "
-            "committed examples/fixtures/sample-graph.json (run from a source checkout)")
+            f"demo fixture not found at {fixture} — it ships with the package, so a "
+            "missing file means a broken install. Reinstall: pip install --force-reinstall "
+            "'contextlake[kb]'")
     import json
 
     raw = json.loads(fixture.read_text(encoding="utf-8"))
@@ -93,6 +97,14 @@ def _sample_store(tmp: Path):
         reindex_shard(store, tmp, shard.repo)
         store.mark_indexed(shard.repo, shard.head_commit, "2026-01-01T00:00:00Z")
     return store
+
+
+def materialize_sample_store(tmp: Path) -> Path:
+    """Load the bundled demo fleet into ``tmp`` as a regular store directory, so any
+    store consumer (the live ``--serve`` dashboard, tests) can run against it exactly
+    like a real ``store_dir``. The caller owns the directory's lifetime."""
+    _sample_store(tmp).close()
+    return tmp
 
 
 def _patterns(repos) -> list[str] | None:

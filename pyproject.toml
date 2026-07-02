@@ -79,8 +79,9 @@ where = ["src"]
 # Vendored cytoscape.js + the extracted app.css/app.js for the offline
 # `contextlake graph` HTML. Without this the wheel silently omits them.
 "contextlake.kb" = ["static/*.js", "static/*.css"]
-# Dashboard SPA shell + assets (html/js/css) for `contextlake dashboard`.
-"contextlake.kb.dashboard" = ["static/*"]
+# Dashboard SPA shell + assets (html/js/css) for `contextlake dashboard`, plus the
+# bundled demo-fleet fixture behind `--sample` (must reach pip/wheel installs).
+"contextlake.kb.dashboard" = ["static/*", "fixtures/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

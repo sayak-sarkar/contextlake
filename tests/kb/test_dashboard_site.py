@@ -6,6 +6,7 @@ PII) and asserts the offline boundary + a well-formed SPA shell via stdlib parsi
 
 import json
 from html.parser import HTMLParser
+from pathlib import Path
 
 from contextlake.kb.dashboard.site import build_dashboard_site
 from contextlake.kb.ids import make_id
@@ -124,6 +125,31 @@ def test_anonymize_build_drops_prose_and_external_urls(tmp_path):
     data_js = (out / "data.js").read_text(encoding="utf-8").lower()
     assert "http://" not in data_js and "https://" not in data_js
     assert "jane doe" not in data_js
+
+
+def test_demo_fixture_ships_inside_the_package():
+    # The fixture behind --sample must live under the installed package (package-data),
+    # not at the repo root — a repo-root path 404s for every pip/wheel install.
+    from contextlake.kb import dashboard
+    from contextlake.kb.dashboard.site import _fixture_path
+
+    fixture = _fixture_path()
+    assert fixture.is_file()
+    pkg_dir = Path(dashboard.__file__).resolve().parent
+    assert str(fixture).startswith(str(pkg_dir))
+
+
+def test_sample_store_materializes_for_serving(tmp_path):
+    # --serve --sample runs the live dashboard against this ephemeral store; it must
+    # come up non-empty or the advertised zero-setup preview shows a blank dashboard.
+    from contextlake.kb.dashboard.site import materialize_sample_store
+
+    store_dir = materialize_sample_store(tmp_path)
+    s = SqliteStore(store_dir / "index.sqlite")
+    try:
+        assert s.stats().repos >= 1
+    finally:
+        s.close()
 
 
 def test_group_depth_flows_into_the_snapshot(tmp_path):

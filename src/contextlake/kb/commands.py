@@ -1309,14 +1309,14 @@ def cmd_dashboard(args) -> int:
     store_dir = load_kb_config(getattr(args, "config", None)).store_path
     dash_dir = store_dir / "dashboard"
 
+    sample = getattr(args, "sample", False)
     site = getattr(args, "site", None)
     if site is not None:
         out_dir = Path(site) if site else (dash_dir / "site")
-        sample = getattr(args, "sample", False)
         anonymize = getattr(args, "anonymize", False)
         repos = getattr(args, "repos", None)
         group_depth = getattr(args, "group_depth", None) or 1
-        src = "the sample fixture" if sample else "the local store"
+        src = "the bundled demo fleet" if sample else "the local store"
         log(f"Building dashboard site from {src}…")
         build_dashboard_site(store_dir, out_dir, repos=repos, anonymize=anonymize,
                              sample=sample, group_depth=group_depth)
@@ -1325,6 +1325,21 @@ def cmd_dashboard(args) -> int:
 
     host = getattr(args, "host", None) or "127.0.0.1"
     port = getattr(args, "port", None) or 8765
+    if sample:
+        # The advertised zero-setup preview: serve the bundled demo fleet from an
+        # ephemeral store, never the user's real data.
+        import shutil
+        import tempfile
+
+        from .dashboard.site import materialize_sample_store
+        tmp = Path(tempfile.mkdtemp(prefix="contextlake-dash-sample-"))
+        try:
+            log("Serving the bundled demo fleet (fictional data, nothing local is read)…")
+            serve_dashboard(materialize_sample_store(tmp), host=host, port=port,
+                            open_browser=getattr(args, "open", False))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        return 0
     serve_dashboard(store_dir, host=host, port=port,
                     open_browser=getattr(args, "open", False))
     return 0
