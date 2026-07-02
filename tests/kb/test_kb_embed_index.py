@@ -189,6 +189,57 @@ def test_cmd_embed_incremental_skips_force_and_head_move(tmp_path, monkeypatch):
     assert calls == ["r", "r", "r"]             # moved HEAD -> re-embeds
 
 
+def test_node_text_v2_includes_signature_and_capped_doc():
+    n = Node(id="x", repo="r", kind="function", name="proc", file="a.py",
+             attrs={"signature": "(order, cfg)",
+                    "doc": "Charge the saved card for an order. " + "pad " * 200})
+    t = node_text(n)
+    assert "(order, cfg)" in t
+    assert "Charge the saved card" in t
+    # the doc contribution is capped so a verbose docstring can't drown the name
+    assert len(t) < 500
+    # nodes without attrs still embed exactly as before
+    bare = Node(id="y", repo="r", kind="function", name="foo", file="a.py")
+    assert node_text(bare) == "function foo a.py"
+
+
+def test_cmd_embed_content_version_forces_one_full_reembed(tmp_path, monkeypatch):
+    """A node->text mapping bump must re-embed everything once (despite unchanged
+    HEADs), then stamp the store so incremental behavior resumes."""
+    import contextlake.kb.embeddings.index as emb_index
+    from contextlake.kb.embeddings.store import get_content_version, set_content_version
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _setup_embed_repo(tmp_path, "h1")
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _FakeEmbedder())
+    calls = []
+    real = emb_index.embed_repo
+    monkeypatch.setattr(emb_index, "embed_repo",
+                        lambda *a, **k: (calls.append(a[3]), real(*a, **k))[1])
+    base = dict(config=str(cfg), workspace=None, source=None, repo=None,
+                limit=None, force=False)
+
+    assert cmd_embed(Namespace(**base)) == 0
+    assert calls == ["r"]                        # first embed, stamps the version
+    assert cmd_embed(Namespace(**base)) == 0
+    assert calls == ["r"]                        # same HEAD + same version -> skipped
+
+    emb_path = tmp_path / "kbstore" / "embeddings.sqlite"
+    vs = build_vector_store(emb_path, backend="auto")
+    try:
+        set_content_version(vs, 1)               # simulate a name-only-era store
+    finally:
+        vs.close()
+
+    assert cmd_embed(Namespace(**base)) == 0
+    assert calls == ["r", "r"]                   # stale version -> re-embedded
+    vs = build_vector_store(emb_path, backend="auto")
+    try:
+        assert get_content_version(vs) == emb_index.EMBED_CONTENT_VERSION
+    finally:
+        vs.close()
+
+
 def test_cmd_embed_watch_reruns_the_pass(tmp_path, monkeypatch):
     """`embed --watch` routes the embed pass through _watch_loop and re-runs it."""
     from contextlake.kb import commands as cmds

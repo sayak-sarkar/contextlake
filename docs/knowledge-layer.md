@@ -192,9 +192,17 @@ for larger workspaces. Tune it with `[embeddings] vector_chunk_size` (the sqlite
 `vec0` KNN chunk size, default 1024; clamped to a multiple of 8, applied when the vector
 store is first created — re-embed from scratch to change an existing store).
 
+**What gets embedded:** each node's kind, name, qualified name, and file path, plus
+its captured **signature and docstring** — so a natural-language query like *"refund
+a payment to the original card"* finds the right function even when its name says
+nothing of the sort. (Measured on the golden-query harness, adding signature +
+docstring doubled MRR and took hit-rate to 100% on natural-language queries.)
+
 Like `index`, `embed` is **incremental**: it re-embeds only repos whose indexed HEAD
 moved since they were last embedded, so a scheduled refresh over a large fleet stays
-cheap. Pass `--force` to re-embed everything.
+cheap. Pass `--force` to re-embed everything. When an upgrade changes the embedded
+text format itself, `embed` detects the stale store and re-embeds everything once,
+announcing why — then incremental behavior resumes.
 
 A single query returns cited hits (`repo · file:line · kind · name`) that span repos *and*
 languages — here the C# and Python payment paths together. `--retriever fts|semantic|hybrid`

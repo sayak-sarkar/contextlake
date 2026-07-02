@@ -465,9 +465,22 @@ def cmd_embed(args) -> int:
                 guard_store_identity(vs, identity, len(probe[0]))
             # Incremental: skip a repo whose indexed HEAD hasn't moved since it was
             # last embedded. `--force` re-embeds; `--limit` (partial) never gates.
-            from .embeddings.store import get_embedded_head, set_embedded_head
+            from .embeddings.index import EMBED_CONTENT_VERSION
+            from .embeddings.store import (
+                get_content_version,
+                get_embedded_head,
+                set_content_version,
+                set_embedded_head,
+            )
             force = getattr(args, "force", False)
             incremental = limit is None and not force
+            # A node->text mapping change makes every stored vector stale regardless
+            # of HEADs: one intentional full re-embed, then incremental resumes.
+            stored_cv = get_content_version(vs)
+            if incremental and vs.count() and stored_cv != EMBED_CONTENT_VERSION:
+                log(f"Embedding text format changed (v{stored_cv} -> "
+                    f"v{EMBED_CONTENT_VERSION}) — re-embedding everything once")
+                incremental = False
 
             def _embed_once() -> int:
                 # Re-resolve targets each pass so `--watch` picks up newly indexed repos.
@@ -507,6 +520,10 @@ def cmd_embed(args) -> int:
                     log(style.warn(
                         f"Embed failed for all {attempted} repo(s) — no vectors written"))
                     return 1
+                # Only a full, failure-free pass earns the new content-version stamp;
+                # a partial (--limit) or partly-failed pass must stay marked stale.
+                if limit is None and failed == 0:
+                    set_content_version(vs, EMBED_CONTENT_VERSION)
                 return 0
 
             if getattr(args, "watch", False):

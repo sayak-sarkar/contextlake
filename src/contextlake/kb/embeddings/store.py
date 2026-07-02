@@ -243,6 +243,27 @@ def set_embedded_head(store, repo_id: str, head: str | None) -> None:
     store.conn.commit()
 
 
+def get_content_version(store) -> int:
+    """The node->text mapping version the store's vectors were built with.
+
+    0 means the store predates version tracking (name-only vectors)."""
+    row = store.conn.execute(
+        "SELECT value FROM vec_meta WHERE key='content_version'").fetchone()
+    try:
+        return int(row[0]) if row else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def set_content_version(store, version: int) -> None:
+    """Record the node->text mapping version after a full, clean embed pass."""
+    store.conn.execute(
+        "INSERT OR REPLACE INTO vec_meta(key, value) VALUES('content_version', ?)",
+        (str(version),),
+    )
+    store.conn.commit()
+
+
 def build_vector_store(path: str | Path, *, backend: str = "auto", chunk_size: int = 1024):
     """Return a vector store. ``backend``: ``auto`` | ``sqlite-vec`` | ``brute``.
 
