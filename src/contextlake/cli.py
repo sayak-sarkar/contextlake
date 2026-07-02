@@ -96,7 +96,9 @@ Examples:
     # Knowledge-layer options (used by index/serve/query/doctor)
     kb = parser.add_argument_group("knowledge layer")
     kb.add_argument("--source", help="index: a repo directory or a graph shard JSON")
-    kb.add_argument("--workspace", help="index: index every git repo under this directory")
+    kb.add_argument("--workspace",
+                    help="index/bootstrap: index every git repo under this directory "
+                         "(bootstrap default: the mirror's work dir)")
     kb.add_argument("--force", action="store_true",
                     help="index: re-index every repo; steer: overwrite non-managed files")
     kb.add_argument("--out", help="steer: directory to write steering files into (default: cwd)")
@@ -338,12 +340,14 @@ def _bootstrap(args, config, work_dir, gitlab_group):
         return
 
     # kb stages run against the workspace and the *kb* config (kb.toml), which is
-    # distinct from the core sync INI passed as --config.
+    # distinct from the core sync INI passed as --config. An explicit --workspace
+    # wins over the mirror's work_dir (it also receives the steering files).
+    workspace = expand_path(args.workspace) if getattr(args, "workspace", None) else work_dir
     kb_args = copy.copy(args)
     kb_args.config = getattr(args, "kb_config", None)
-    kb_args.workspace = work_dir
+    kb_args.workspace = workspace
     kb_args.source = None
-    kb_args.out = work_dir
+    kb_args.out = workspace
 
     stages = [("Index the code graph", kb.cmd_index)]
     if not getattr(args, "no_connect", False):
@@ -369,6 +373,8 @@ def _bootstrap(args, config, work_dir, gitlab_group):
             if fn is kb.cmd_index:
                 log(style.warn("Bootstrap aborted — the code graph could not be built; "
                                "nothing downstream can run."))
+                log(f"  Indexed workspace: {kb_args.workspace}. If that is not where "
+                    "your repos live, pass --workspace DIR (or set work_dir in the config).")
                 sys.exit(1)
 
     log("")

@@ -88,8 +88,11 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         max_file_bytes = DEFAULT_MAX_FILE_BYTES
     repos = discover_repos(str(workspace))
     if not repos:
-        log(f"No git repositories found under {workspace}")
-        return 0
+        # An empty workspace must fail loudly: an agent cannot cite from an empty
+        # graph, so "success" here would be the hollow kind.
+        log(style.warn(f"No git repositories found under {workspace} — nothing indexed."))
+        log("  Point --workspace at a directory that contains git clones.")
+        return 1
     mode = "full" if force else "incremental"
     failed = skipped = done = 0
 

@@ -56,6 +56,16 @@ def test_index_workspace_indexes_each_repo(tmp_path):
     store.close()
 
 
+def test_index_empty_workspace_fails_honestly(tmp_path, capsys):
+    # 0 repos indexed = an empty graph no agent can cite from; that must be a
+    # loud non-zero exit, not a green checkmark (it also makes bootstrap abort).
+    ws = tmp_path / "empty-ws"
+    ws.mkdir()
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--workspace", str(ws)]) == 1
+    assert "No git repositories found" in capsys.readouterr().out
+
+
 def test_index_without_source_indexes_cwd(tmp_path, monkeypatch):
     cfg = _kb_config(tmp_path)
     proj = tmp_path / "proj"
