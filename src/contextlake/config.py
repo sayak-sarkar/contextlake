@@ -40,7 +40,7 @@ DEFAULT_CONFIG = {
     'branch_timeout': '30',
     'pull_timeout': '60',
     'max_workers': '8',
-    'clone_method': 'auto',  # auto -> prefer glab (uses its auth), else git over HTTPS
+    'clone_method': 'auto',  # auto -> git with GITLAB_TOKEN auth when set, else glab, else git
     'branch_strategy': 'hybrid',  # most-active selection: commits | recency | hybrid
     'clean_corrupted': 'true',
     'max_retries': '3',

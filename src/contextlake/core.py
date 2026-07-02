@@ -2,6 +2,7 @@
 Core git operations for contextlake
 """
 
+import base64
 import json
 import os
 import random
@@ -367,17 +368,46 @@ def is_valid_git_repo(full_path):
 # Clone
 # ---------------------------------------------------------------------------
 
-def _build_clone_cmd(project_path, http_url, full_path, method):
-    """Choose the clone command. Prefer glab (uses its auth) unless told otherwise."""
+def _git_token_env(token):
+    """A child env that authenticates git-over-HTTPS with a GitLab token.
+
+    The credential travels as an ``http.extraHeader`` config entry injected via
+    the ``GIT_CONFIG_*`` environment (offset past any entries the user already
+    set) — never on the command line (visible in ``ps``), never in the clone
+    URL (git would persist it into ``.git/config``).
+    """
+    env = os.environ.copy()
+    try:
+        count = int(env.get("GIT_CONFIG_COUNT", "0"))
+    except ValueError:
+        count = 0
+    basic = base64.b64encode(f"oauth2:{token}".encode()).decode()
+    env[f"GIT_CONFIG_KEY_{count}"] = "http.extraHeader"
+    env[f"GIT_CONFIG_VALUE_{count}"] = f"Authorization: Basic {basic}"
+    env["GIT_CONFIG_COUNT"] = str(count + 1)
+    return env
+
+
+def _build_clone_cmd(project_path, http_url, full_path, method, token=None):
+    """Choose the clone command (and child env) for one repository.
+
+    ``auto`` prefers, in order: native ``git`` with GITLAB_TOKEN auth (no glab
+    needed, and git tolerates slow corporate DNS that trips glab's short dial
+    timeout) -> ``glab`` when installed (its own auth) -> plain ``git`` over
+    HTTPS (public repos / an ambient credential helper).
+    """
+    if token and method in ("auto", "git"):
+        return ["git", "clone", http_url, full_path], _git_token_env(token)
     use_glab = method == "glab" or (method == "auto" and shutil.which("glab") is not None)
     if use_glab and project_path:
-        return ["glab", "repo", "clone", project_path, full_path]
-    return ["git", "clone", http_url, full_path]
+        return ["glab", "repo", "clone", project_path, full_path], None
+    return ["git", "clone", http_url, full_path], None
 
 
-def _clone_once(clone_cmd, timeout):
+def _clone_once(clone_cmd, timeout, env=None):
     """Run a single clone attempt, raising on failure so retry can engage."""
-    result = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=timeout,
+                            env=env)
     if result.returncode != 0:
         raise RuntimeError((result.stderr or "clone failed").strip()[:200])
     return result
@@ -409,11 +439,12 @@ def clone_repository(local_path, gitlab_path, http, ssh, work_dir, config):
         return ("dry-run", local_path, "Would clone")
 
     os.makedirs(os.path.dirname(full_path) or ".", exist_ok=True)
-    clone_cmd = _build_clone_cmd(gitlab_path, http, full_path, method)
+    clone_cmd, clone_env = _build_clone_cmd(gitlab_path, http, full_path, method,
+                                            token=_gitlab_token(config))
 
     try:
         retry_with_backoff(
-            _clone_once, clone_cmd, clone_timeout,
+            _clone_once, clone_cmd, clone_timeout, env=clone_env,
             max_retries=_int(config, "max_retries", "3"),
             backoff_initial=_float(config, "backoff_initial", "1"),
             backoff_max=_float(config, "backoff_max", "30"),
