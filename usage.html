@@ -243,10 +243,34 @@ contextlake<span class="w"> </span>--group<span class="w"> </span>my-gitlab-grou
 <td><code>/home/user/projects</code></td>
 </tr>
 <tr>
+<td><code>platform</code></td>
+<td>Platform to mirror: <code>gitlab</code>, <code>github</code>, <code>bitbucket</code>, <code>gitea</code> (+ <code>codeberg</code>/<code>forgejo</code> flavors)</td>
+<td><code>gitlab</code></td>
+<td><code>github</code></td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td>The group / org / workspace / owner to mirror (<code>gitlab_group</code> is its alias)</td>
+<td>,</td>
+<td><code>your-org</code></td>
+</tr>
+<tr>
 <td><code>gitlab_group</code></td>
 <td>GitLab group to synchronize</td>
 <td><code>your-gitlab-group</code></td>
 <td><code>mycompany-group</code></td>
+</tr>
+<tr>
+<td><code>token_env</code></td>
+<td>Env var holding the platform token</td>
+<td>per platform (<code>GITHUB_TOKEN</code>, …)</td>
+<td><code>MY_TOKEN</code></td>
+</tr>
+<tr>
+<td><code>api_base</code></td>
+<td>REST endpoint for self-hosted / enterprise instances</td>
+<td>per platform</td>
+<td><code>https://github.example.com/api/v3</code></td>
 </tr>
 <tr>
 <td><code>cache_dir</code></td>
