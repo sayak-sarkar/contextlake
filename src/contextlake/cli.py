@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""GitLab Workspace Synchronization CLI Tool.
+"""contextlake — a local context layer for AI tools.
 
-Keeps a local workspace mirrored with the GitLab repositories you can access:
-clones what is missing, updates existing clones, and moves each repo onto its
-most active development branch -- while protecting any local working branches.
+Mirrors the repositories you can access, indexes them into a local knowledge
+graph, and serves it over MCP so agents answer from real source instead of
+guessing. The mirror core keeps a workspace in sync with GitLab (clone what is
+missing, update clones, follow each repo's most active branch) while protecting
+local working branches; the optional [kb] extra adds the knowledge layer.
 
 Entry points (all equivalent):
     contextlake <command>          # installed console script
@@ -53,203 +55,420 @@ _SCALAR_FLAGS = (
 )
 
 
+# CLI verb aliases: the MCP tools call these capabilities who_knows / blast_radius,
+# so the CLI accepts the same vocabulary. Purely additive; the canonical verbs stay.
+_ALIASES = {"who-knows": "owners", "blast-radius": "impact"}
+
+# Verbs handled by the optional knowledge layer (the [kb] extra).
+_KB_COMMANDS = frozenset({
+    "index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
+    "graph", "doctor", "eval", "owners", "impact", "ingest", "dashboard",
+})
+
+# Namespace defaults for every flag. Subparsers use SUPPRESS argument defaults so a
+# flag given before the command survives the subparser pass; these seed the rest.
+_DEFAULTS = {
+    "command": None, "args": [],
+    # global
+    "verbose": False, "quiet": False, "log_file": None, "config": None,
+    # mirror
+    "work_dir": None, "group": None, "report": None, "no_audit": False,
+    "max_retries": None, "backoff_initial": None, "backoff_max": None,
+    "min_workers": None, "error_threshold": None, "safe_branches": None,
+    # bootstrap
+    "kb_config": None, "no_sync": False, "no_connect": False,
+    "no_embed": False, "no_wiki": False,
+    # knowledge layer
+    "source": None, "workspace": None, "force": False, "out": None,
+    "llm": None, "llm_model": None, "watch": False, "interval": None,
+    "transport": None, "host": None, "port": None,
+    "kind": None, "repo": None, "limit": None, "path": None, "source_type": None,
+    "golden": None, "retriever": None, "as_of": None,
+    "node": None, "name": None, "search": None, "overview": False, "hops": None,
+    "max_nodes": None, "max_fanout": None, "relation": None, "direction": None,
+    "format": None, "layout": None, "output": None, "open": False, "cdn": False,
+    "serve": False, "site": None, "repos": None, "group_depth": None,
+    "anonymize": False, "sample": False,
+    # tri-state booleans: unset on the command line -> None -> config wins
+    **{name: None for name in _TRISTATE_FLAGS},
+}
+
+_S = argparse.SUPPRESS
+
+
+def _add_global(p):
+    g = p.add_argument_group("global options")
+    g.add_argument("--config", default=_S,
+                   help="config file (the sync INI for mirror commands, kb.toml for "
+                        "knowledge commands)")
+    g.add_argument("-v", "--verbose", action="store_true", default=_S,
+                   help="verbose (debug) output")
+    g.add_argument("-q", "--quiet", action="store_true", default=_S,
+                   help="only warnings and errors")
+    g.add_argument("--log-file", default=_S,
+                   help="append a full timestamped log to this file")
+
+
+def _add_mirror(p, hidden=False):
+    def add(*names, **kw):
+        if hidden:
+            kw["help"] = _S
+        kw.setdefault("default", _S)
+        p.add_argument(*names, **kw)
+
+    add("--work-dir", help="working directory (overrides config file)")
+    add("--group", help="GitLab group (overrides config file)")
+    add("--dry-run", action="store_true", dest="dry_run",
+        help="show what would happen without cloning, updating, or switching branches")
+    add("--clean-corrupted", action="store_true", dest="clean_corrupted",
+        help="remove corrupted/incomplete directories before cloning (default: true)")
+    add("--no-clean-corrupted", action="store_false", dest="clean_corrupted",
+        help="do not remove corrupted/incomplete directories (fail instead)")
+    add("--max-retries", type=int, help="max retry attempts for failed operations")
+    add("--backoff-initial", type=float, help="initial backoff time in seconds")
+    add("--backoff-max", type=float, help="maximum backoff time in seconds")
+    add("--adaptive-workers", action="store_true", dest="adaptive_workers",
+        help="enable adaptive worker pool (default: true)")
+    add("--no-adaptive-workers", action="store_false", dest="adaptive_workers",
+        help="disable adaptive worker pool (use static max_workers)")
+    add("--min-workers", type=int, help="minimum workers for the adaptive pool")
+    add("--error-threshold", type=float, help="error rate threshold (0.0-1.0)")
+    add("--protect-working-branches", action="store_true", dest="protect_working_branches",
+        help="enable branch protection (default: true)")
+    add("--no-protect-working-branches", action="store_false", dest="protect_working_branches",
+        help="disable branch protection (allow operations on any branch)")
+    add("--safe-branches",
+        help="comma-separated safe branches (default: main,master,develop,development)")
+    add("--require-clean-workspace", action="store_true", dest="require_clean_workspace",
+        help="require clean workspace before operations (default: true)")
+    add("--no-require-clean-workspace", action="store_false", dest="require_clean_workspace",
+        help="allow operations with uncommitted changes")
+    add("--auto-stash", action="store_true", dest="auto_stash",
+        help="automatically stash changes before operations (default: false)")
+    add("--no-auto-stash", action="store_false", dest="auto_stash",
+        help="disable automatic stashing")
+
+
+def _add_report(p, *, no_audit=False):
+    p.add_argument("--report", default=_S,
+                   help="path for the per-repo audit report "
+                        "(JSON + .csv; default <cache_dir>/repo_audit.json)")
+    if no_audit:
+        p.add_argument("--no-audit", dest="no_audit", action="store_true", default=_S,
+                       help="skip the post-sync repo audit")
+
+
+def _add_watch(p, what):
+    p.add_argument("--watch", action="store_true", default=_S,
+                   help=f"keep re-running {what} on an interval (Ctrl-C to stop)")
+    p.add_argument("--interval", type=int, default=_S,
+                   help="--watch: seconds between passes (default 60)")
+
+
+def _add_net(p):
+    p.add_argument("--host", default=_S, help="bind host (default 127.0.0.1)")
+    p.add_argument("--port", type=int, default=_S, help="bind port")
+
+
+def _root_hidden_flags(p):
+    """Accept every per-command flag before the command too (the pre-subparser
+    invocation style, e.g. `contextlake --workspace X index`) without cluttering
+    the root help. Per-command help documents each flag where it belongs."""
+    def add(*names, **kw):
+        kw["help"] = _S
+        kw.setdefault("default", _S)
+        p.add_argument(*names, **kw)
+
+    for flag in ("--report", "--kb-config", "--source", "--workspace", "--out",
+                 "--llm-model", "--host", "--kind", "--repo", "--path",
+                 "--source-type", "--golden", "--as-of", "--node", "--name",
+                 "--search", "--relation", "--output", "--repos"):
+        add(flag)
+    for flag in ("--no-audit", "--no-sync", "--no-connect", "--no-embed", "--no-wiki",
+                 "--force", "--watch", "--overview", "--open", "--cdn", "--serve",
+                 "--anonymize", "--sample"):
+        add(flag, action="store_true")
+    for flag in ("--interval", "--port", "--limit", "--hops", "--max-nodes",
+                 "--max-fanout", "--group-depth"):
+        add(flag, type=int)
+    add("--llm", choices=["auto", "ollama", "openai", "builtin"])
+    add("--transport", choices=["stdio", "http"])
+    add("--retriever", choices=("fts", "semantic", "hybrid"))
+    add("--direction", choices=["in", "out", "both"])
+    add("--format", choices=["html", "dot", "mermaid", "json"])
+    add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"])
+    add("--site", nargs="?", const="")
+
+
 def build_parser():
     """Build the argument parser. Kept separate from main() so it is testable."""
     parser = argparse.ArgumentParser(
         prog="contextlake",
-        description="GitLab Workspace Synchronization CLI Tool",
+        description="A local context layer for AI tools: mirror your repositories, "
+                    "index them into a knowledge graph, and serve it over MCP so agents "
+                    "answer from real source instead of guessing.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  contextlake sync              # Run full synchronization
-  contextlake status            # Show status (read-only)
-  contextlake --dry-run sync    # Show what sync would do, change nothing
+Get started:
+  contextlake bootstrap                     one command: mirror + index + connect + steer
+  contextlake index .                       index the current repo into the local graph
+  contextlake query "OrderService"          search the graph (cited file:line hits)
+  contextlake serve                         expose the graph to your editor over MCP
+  contextlake sync                          mirror/refresh your GitLab workspace
+  contextlake dashboard --serve --sample    explore a demo fleet, zero setup
+
+Run 'contextlake <command> --help' for that command's flags and examples.
         """,
     )
-
-    parser.add_argument(
-        "command",
-        choices=[
-            "fetch", "clone", "update", "branches", "verify", "sync", "status",
-            # post-sync repo health & age report
-            "audit",
-            # one-command turnkey setup (sync + knowledge layer + steering)
-            "bootstrap",
-            # knowledge layer (optional [kb] extra)
-            "index", "connect", "embed", "lint", "wiki", "steer",
-            "serve", "query", "graph", "doctor", "eval", "owners", "impact", "ingest",
-            "dashboard",
-        ],
-        help="Command to execute",
-    )
-    parser.add_argument("args", nargs="*", help="Positional arguments (e.g. query text)")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument("--work-dir", help="Working directory (overrides config file)")
-    parser.add_argument("--group", help="GitLab group (overrides config file)")
-    parser.add_argument("--config", help="Path to config file (overrides default search paths)")
-    parser.add_argument("--report",
-                        help="audit/sync: path for the per-repo audit report "
-                             "(JSON + .csv; default <cache_dir>/repo_audit.json)")
-    parser.add_argument("--no-audit", dest="no_audit", action="store_true",
-                        help="sync/bootstrap: skip the post-sync repo audit")
+    _add_global(parser)
+    _add_mirror(parser, hidden=True)
+    _root_hidden_flags(parser)
 
-    # Knowledge-layer options (used by index/serve/query/doctor)
-    kb = parser.add_argument_group("knowledge layer")
-    kb.add_argument("--source", help="index: a repo directory or a graph shard JSON")
-    kb.add_argument("--workspace",
-                    help="index/bootstrap: index every git repo under this directory "
-                         "(bootstrap default: the mirror's work dir)")
-    kb.add_argument("--force", action="store_true",
-                    help="index: re-index every repo; steer: overwrite non-managed files")
-    kb.add_argument("--out", help="steer: directory to write steering files into (default: cwd)")
-    kb.add_argument("--kb-config", dest="kb_config",
-                    help="bootstrap: knowledge-layer config (kb.toml), separate from the sync INI")
-    kb.add_argument("--llm", dest="llm", metavar="PROVIDER",
-                    choices=["auto", "ollama", "openai", "builtin"],
-                    help="wiki: enable the LLM tier with this provider, overriding kb.toml "
-                         "([llm] enabled+provider). builtin = CPU, no setup (needs the "
-                         "llm-local extra); ollama | openai | auto")
-    kb.add_argument("--llm-model", dest="llm_model", metavar="MODEL",
-                    help="wiki: model name for --llm (e.g. llama3.1, gpt-4o-mini)")
-    kb.add_argument("--no-sync", dest="no_sync", action="store_true",
-                    help="bootstrap: skip the GitLab mirror step (index the workspace as-is)")
-    kb.add_argument("--no-connect", dest="no_connect", action="store_true",
-                    help="bootstrap: skip the connectors step")
-    kb.add_argument("--no-embed", dest="no_embed", action="store_true",
-                    help="bootstrap: skip the embeddings step")
-    kb.add_argument("--no-wiki", dest="no_wiki", action="store_true",
-                    help="bootstrap: skip the wiki-generation step")
-    kb.add_argument("--watch", action="store_true",
-                    help="index/connect/embed: keep re-running on an interval (Ctrl-C to stop)")
-    kb.add_argument("--interval", type=int,
-                    help="--watch: seconds between passes (default 60)")
-    kb.add_argument("--transport", choices=["stdio", "http"], help="serve: MCP transport")
-    kb.add_argument("--host", help="serve: bind host (http transport)")
-    kb.add_argument("--port", type=int, help="serve: bind port (http transport)")
-    kb.add_argument("--kind", help="query: filter by node kind")
-    kb.add_argument("--repo", help="query: filter by repo")
-    kb.add_argument("--limit", type=int, help="query: max results")
-    kb.add_argument("--path", help="owners: restrict to a sub-path · ingest: the path to ingest")
-    kb.add_argument("--source-type", dest="source_type",
-                    help="ingest: source type for --path (default 'files')")
-    kb.add_argument("--golden", help="eval: a golden-query JSON file "
-                    "({queries:[{query, expected, kind?, repo?, match?}]})")
-    kb.add_argument("--retriever", choices=("fts", "semantic", "hybrid"),
-                    help="eval: which retriever to score (default: fts; "
-                    "semantic/hybrid need embeddings)")
-    kb.add_argument("--as-of", dest="as_of",
-                    help="query: search a repo's snapshot at this indexed commit (needs --repo)")
-    # graph: visualize a bounded subgraph (--repo/--kind/--limit/--host/--port reused from above)
-    kb.add_argument("--node", help="graph: seed from this exact node id")
-    kb.add_argument("--name", help="graph: seed from nodes with this exact name (+ --kind)")
-    kb.add_argument("--search", help="graph: seed from a full-text search (+ --kind/--repo)")
-    kb.add_argument("--overview", action="store_true",
-                    help="graph: repos-as-nodes with aggregated cross-repo edges")
-    kb.add_argument("--hops", type=int,
-                    help="graph: expansion radius (default 2) · impact: reverse depth (default 3)")
-    kb.add_argument("--max-nodes", dest="max_nodes", type=int,
-                    help="graph: cap on rendered nodes (default 500)")
-    kb.add_argument("--max-fanout", dest="max_fanout", type=int,
-                    help="graph: per-node neighbour cap, anti-hub (default 50)")
-    kb.add_argument("--relation", help="graph: only follow edges of this relation")
-    kb.add_argument("--direction", choices=["in", "out", "both"],
-                    help="graph: edge direction to follow (default both)")
-    kb.add_argument("--format", choices=["html", "dot", "mermaid", "json"],
-                    help="graph: output format (default html)")
-    kb.add_argument("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
-                    help="graph html: initial layout (default cose; switchable in the page)")
-    kb.add_argument("--output", help="graph: write to this path "
-                    "(default <store>/graphs/graph.html; else stdout for non-html)")
-    kb.add_argument("--open", action="store_true", help="graph: open the written HTML in a browser")
-    kb.add_argument("--cdn", action="store_true",
-                    help="graph: load cytoscape.js from a CDN (smaller file, needs network)")
-    kb.add_argument("--serve", action="store_true",
-                    help="graph: serve a live click-to-expand UI (uses --host/--port)")
-    kb.add_argument("--site", nargs="?", const="", default=None, metavar="DIR",
-                    help="graph: build a cross-linked offline site (overview + per-repo "
-                         "pages + index) into DIR (default <store>/graphs/site)")
-    kb.add_argument("--repos", metavar="PATTERN",
-                    help="graph --site: only build repo pages whose id matches a "
-                         "pattern (comma-separated glob/substring, e.g. 'frontend/*,auth-service')")
-    # dashboard: the knowledge-system UI (reuses --serve/--host/--port/--open/--site/--repos)
-    kb.add_argument("--group-depth", dest="group_depth", type=int,
-                    help="dashboard: domain-grouping depth from repo-id path prefixes (default 1)")
-    kb.add_argument("--anonymize", action="store_true",
-                    help="dashboard --site: hash git-author identities + strip external "
-                         "link URLs for a shareable export")
-    kb.add_argument("--sample", action="store_true",
-                    help="dashboard: use the bundled demo fleet instead of your local "
-                         "store (fictional data; works with --serve and --site)")
+    sub = parser.add_subparsers(dest="command", metavar="<command>",
+                                title="commands", required=False)
 
-    parser.add_argument(
-        "--dry-run", action="store_true", dest="dry_run",
-        help="Show what would happen without cloning, updating, or switching branches",
-    )
+    def command(name, help_, *, aliases=(), epilog=None):
+        p = sub.add_parser(name, help=help_, description=help_, aliases=list(aliases),
+                           epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
+        _add_global(p)
+        return p
 
-    # Logging / verbosity
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose (debug) output")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Only warnings and errors")
-    parser.add_argument("--log-file", help="Append a full timestamped log to this file")
+    # ---- mirror core -------------------------------------------------------
+    for name, help_ in (
+        ("fetch", "enumerate the GitLab projects you can access and cache the list"),
+        ("clone", "clone repositories missing from the local workspace"),
+        ("update", "fetch + fast-forward every existing clone"),
+        ("branches", "switch each repo to its most active development branch"),
+        ("verify", "compare the local workspace against GitLab (read-only)"),
+        ("status", "show sync state without changing anything"),
+    ):
+        _add_mirror(command(name, help_))
 
-    # Clone / corruption handling
-    parser.add_argument(
-        "--clean-corrupted", action="store_true", dest="clean_corrupted",
-        help="Remove corrupted/incomplete directories before cloning (default: true)",
-    )
-    parser.add_argument(
-        "--no-clean-corrupted", action="store_false", dest="clean_corrupted",
-        help="Do not remove corrupted/incomplete directories (fail instead)",
-    )
+    p = command("sync", "full mirror: fetch + clone + update + branches + verify",
+                epilog="""
+Examples:
+  contextlake sync                    full synchronization
+  contextlake sync --dry-run          show what would happen, change nothing
+  contextlake sync --auto-stash       stash dirty trees before updating
+                """)
+    _add_mirror(p)
+    _add_report(p, no_audit=True)
 
-    # Retry / backoff
-    parser.add_argument("--max-retries", type=int, help="Max retry attempts for failed operations")
-    parser.add_argument("--backoff-initial", type=float, help="Initial backoff time in seconds")
-    parser.add_argument("--backoff-max", type=float, help="Maximum backoff time in seconds")
+    p = command("audit", "per-repo health and age report (JSON + CSV)")
+    _add_mirror(p)
+    _add_report(p)
 
-    # Adaptive parallelism
-    parser.add_argument(
-        "--adaptive-workers", action="store_true", dest="adaptive_workers",
-        help="Enable adaptive worker pool (default: true)",
-    )
-    parser.add_argument(
-        "--no-adaptive-workers", action="store_false", dest="adaptive_workers",
-        help="Disable adaptive worker pool (use static max_workers)",
-    )
-    parser.add_argument("--min-workers", type=int, help="Minimum workers for the adaptive pool")
-    parser.add_argument("--error-threshold", type=float, help="Error rate threshold (0.0-1.0)")
+    p = command("bootstrap",
+                "one command from nothing to a wired workspace: mirror, index, "
+                "connect, embed, wiki, steering",
+                epilog="""
+Examples:
+  contextlake bootstrap                          the full turnkey run
+  contextlake bootstrap --no-sync                repos already cloned; skip the mirror
+  contextlake bootstrap --no-embed --no-wiki     no model configured yet
+  contextlake bootstrap --workspace ~/src        index this directory instead of work_dir
+                """)
+    _add_mirror(p)
+    _add_report(p, no_audit=True)
+    p.add_argument("--kb-config", dest="kb_config", default=_S,
+                   help="knowledge-layer config (kb.toml), separate from the sync INI")
+    p.add_argument("--workspace", default=_S,
+                   help="index every git repo under this directory "
+                        "(default: the mirror's work dir)")
+    p.add_argument("--no-sync", dest="no_sync", action="store_true", default=_S,
+                   help="skip the GitLab mirror step (index the workspace as-is)")
+    p.add_argument("--no-connect", dest="no_connect", action="store_true", default=_S,
+                   help="skip the connectors step")
+    p.add_argument("--no-embed", dest="no_embed", action="store_true", default=_S,
+                   help="skip the embeddings step")
+    p.add_argument("--no-wiki", dest="no_wiki", action="store_true", default=_S,
+                   help="skip the wiki-generation step")
 
-    # Branch safety
-    parser.add_argument(
-        "--protect-working-branches", action="store_true", dest="protect_working_branches",
-        help="Enable branch protection (default: true)",
-    )
-    parser.add_argument(
-        "--no-protect-working-branches", action="store_false", dest="protect_working_branches",
-        help="Disable branch protection (allow operations on any branch)",
-    )
-    parser.add_argument(
-        "--safe-branches",
-        help="Comma-separated safe branches (default: main,master,develop,development)",
-    )
-    parser.add_argument(
-        "--require-clean-workspace", action="store_true", dest="require_clean_workspace",
-        help="Require clean workspace before operations (default: true)",
-    )
-    parser.add_argument(
-        "--no-require-clean-workspace", action="store_false", dest="require_clean_workspace",
-        help="Allow operations with uncommitted changes",
-    )
-    parser.add_argument(
-        "--auto-stash", action="store_true", dest="auto_stash",
-        help="Automatically stash changes before operations (default: false)",
-    )
-    parser.add_argument(
-        "--no-auto-stash", action="store_false", dest="auto_stash",
-        help="Disable automatic stashing",
-    )
+    # ---- knowledge layer ---------------------------------------------------
+    p = command("index", "parse repositories into the local knowledge graph",
+                epilog="""
+Examples:
+  contextlake index                   index the current directory
+  contextlake index path/to/repo      index one repo (same as --source)
+  contextlake index --workspace ~/w   index every git repo under a folder
+  contextlake index --force           full re-index (default is incremental)
+                """)
+    p.add_argument("path", nargs="?", default=_S,
+                   help="a repo directory or graph-shard JSON to index (default: cwd)")
+    p.add_argument("--source", default=_S, help="a repo directory or a graph shard JSON")
+    p.add_argument("--workspace", default=_S,
+                   help="index every git repo under this directory")
+    p.add_argument("--repo", default=_S,
+                   help="repo id to index --source under (default: the directory name)")
+    p.add_argument("--force", action="store_true", default=_S,
+                   help="re-index every repo (default: only repos whose HEAD moved)")
+    _add_watch(p, "the index")
 
-    # Tri-state booleans: unset on the command line -> None -> config wins.
-    parser.set_defaults(**{name: None for name in _TRISTATE_FLAGS})
+    p = command("connect", "enrich the graph from configured sources "
+                           "(GitLab MRs/issues, Atlassian, Figma)")
+    p.add_argument("args", nargs="*", metavar="source",
+                   help="only run these named sources (default: all configured)")
+    _add_watch(p, "the connectors")
+
+    p = command("embed", "build semantic vectors for the graph (needs [embeddings] config)")
+    p.add_argument("--force", action="store_true", default=_S,
+                   help="re-embed every repo (default: only changed repos)")
+    p.add_argument("--limit", type=int, default=_S, help="max nodes to embed per repo")
+    _add_watch(p, "the embedder")
+
+    command("lint", "graph-health checks: stale repos and dangling edges")
+
+    p = command("wiki", "generate provenance-stamped wiki pages, gated by a review council")
+    p.add_argument("args", nargs="*", metavar="repo",
+                   help="only these repo ids (default: all indexed)")
+    p.add_argument("--llm", default=_S, metavar="PROVIDER",
+                   choices=["auto", "ollama", "openai", "builtin"],
+                   help="enable the LLM tier with this provider, overriding kb.toml "
+                        "([llm] enabled+provider). builtin = CPU, no setup (needs the "
+                        "llm-local extra); ollama | openai | auto")
+    p.add_argument("--llm-model", dest="llm_model", default=_S, metavar="MODEL",
+                   help="model name for --llm (e.g. llama3.1, gpt-4o-mini)")
+    p.add_argument("--force", action="store_true", default=_S,
+                   help="regenerate pages even when the graph is unchanged")
+
+    p = command("steer", "write editor steering files (.mcp.json, AGENTS.md, skills, …)")
+    p.add_argument("--out", default=_S,
+                   help="directory to write steering files into (default: cwd)")
+    p.add_argument("--force", action="store_true", default=_S,
+                   help="overwrite non-managed files")
+
+    p = command("serve", "serve the knowledge graph to AI tools over MCP",
+                epilog="""
+Examples:
+  contextlake serve                        stdio transport (editor-managed)
+  contextlake serve --transport http       HTTP transport on --host/--port
+                """)
+    p.add_argument("--transport", choices=["stdio", "http"], default=_S,
+                   help="MCP transport (default stdio)")
+    _add_net(p)
+
+    p = command("query", "search the graph from the terminal (cited file:line hits)",
+                epilog="""
+Examples:
+  contextlake query "OrderService"
+  contextlake query charge --kind function --repo billing-service
+  contextlake query charge --repo billing-service --as-of a1b2c3
+                """)
+    p.add_argument("args", nargs="*", metavar="text", help="the search text")
+    p.add_argument("--kind", default=_S, help="filter by node kind")
+    p.add_argument("--repo", default=_S, help="filter by repo")
+    p.add_argument("--limit", type=int, default=_S, help="max results (default 20)")
+    p.add_argument("--as-of", dest="as_of", default=_S,
+                   help="search a repo's snapshot at this indexed commit (needs --repo)")
+
+    p = command("graph", "visualize a bounded subgraph (HTML/dot/mermaid/JSON)",
+                epilog="""
+Examples:
+  contextlake graph --overview                        repos-as-nodes fleet view
+  contextlake graph --name OrderService --hops 2      neighbourhood of a symbol
+  contextlake graph --serve                           live click-to-expand UI
+  contextlake graph --site                            offline cross-linked site
+                """)
+    p.add_argument("args", nargs="*", metavar="query",
+                   help="full-text seed (same as --search)")
+    p.add_argument("--node", default=_S, help="seed from this exact node id")
+    p.add_argument("--name", default=_S, help="seed from nodes with this exact name (+ --kind)")
+    p.add_argument("--search", default=_S, help="seed from a full-text search (+ --kind/--repo)")
+    p.add_argument("--overview", action="store_true", default=_S,
+                   help="repos-as-nodes with aggregated cross-repo edges")
+    p.add_argument("--kind", default=_S, help="filter seeds by node kind")
+    p.add_argument("--repo", default=_S, help="filter seeds by repo")
+    p.add_argument("--limit", type=int, default=_S, help="max seed nodes")
+    p.add_argument("--hops", type=int, default=_S, help="expansion radius (default 2)")
+    p.add_argument("--max-nodes", dest="max_nodes", type=int, default=_S,
+                   help="cap on rendered nodes (default 500)")
+    p.add_argument("--max-fanout", dest="max_fanout", type=int, default=_S,
+                   help="per-node neighbour cap, anti-hub (default 50)")
+    p.add_argument("--relation", default=_S, help="only follow edges of this relation")
+    p.add_argument("--direction", choices=["in", "out", "both"], default=_S,
+                   help="edge direction to follow (default both)")
+    p.add_argument("--format", choices=["html", "dot", "mermaid", "json"], default=_S,
+                   help="output format (default html)")
+    p.add_argument("--layout", default=_S,
+                   choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
+                   help="html: initial layout (default cose; switchable in the page)")
+    p.add_argument("--output", default=_S,
+                   help="write to this path (default <store>/graphs/graph.html; "
+                        "else stdout for non-html)")
+    p.add_argument("--open", action="store_true", default=_S,
+                   help="open the written HTML in a browser")
+    p.add_argument("--cdn", action="store_true", default=_S,
+                   help="load cytoscape.js from a CDN (smaller file, needs network)")
+    p.add_argument("--serve", action="store_true", default=_S,
+                   help="serve a live click-to-expand UI (uses --host/--port)")
+    p.add_argument("--site", nargs="?", const="", default=_S, metavar="DIR",
+                   help="build a cross-linked offline site (overview + per-repo pages "
+                        "+ index) into DIR (default <store>/graphs/site)")
+    p.add_argument("--repos", default=_S, metavar="PATTERN",
+                   help="--site: only build repo pages whose id matches a pattern "
+                        "(comma-separated glob/substring)")
+    _add_net(p)
+
+    command("doctor", "check the knowledge-layer install and configuration (✓/✗)")
+
+    p = command("eval", "score a golden-query set against the index "
+                        "(precision@k / recall@k / MRR)")
+    p.add_argument("--golden", default=_S,
+                   help="a golden-query JSON file "
+                        "({queries:[{query, expected, kind?, repo?, match?}]})")
+    p.add_argument("--retriever", choices=("fts", "semantic", "hybrid"), default=_S,
+                   help="which retriever to score (default: fts; semantic/hybrid "
+                        "need embeddings)")
+    p.add_argument("--limit", type=int, default=_S, help="k for precision@k (default 10)")
+
+    p = command("owners", "likely owners / SMEs for a repo or path, from git history",
+                aliases=("who-knows",))
+    p.add_argument("args", nargs="*", metavar="repo-or-path", help="a repo id or a path")
+    p.add_argument("--path", default=_S, help="restrict to a sub-path")
+    p.add_argument("--limit", type=int, default=_S, help="max owners listed (default 10)")
+
+    p = command("impact", "reverse blast radius: what could break if a node changes",
+                aliases=("blast-radius",))
+    p.add_argument("args", nargs="*", metavar="node-or-symbol",
+                   help="a node id or symbol name")
+    p.add_argument("--repo", default=_S, help="disambiguate the symbol by repo")
+    p.add_argument("--hops", type=int, default=_S, help="reverse depth (default 3)")
+    p.add_argument("--limit", type=int, default=_S, help="max nodes listed (default 100)")
+
+    p = command("ingest", "aggregate external documents (files/web/api/mcp sources) "
+                          "into the graph")
+    p.add_argument("--path", default=_S, help="the path (or URL/endpoint) to ingest")
+    p.add_argument("--source-type", dest="source_type", default=_S,
+                   help="source type for --path (default 'files')")
+
+    p = command("dashboard", "the knowledge-system dashboard: fleet / repo / "
+                             "relationships / impact / health / search",
+                epilog="""
+Examples:
+  contextlake dashboard --serve --sample    explore a demo fleet, zero setup
+  contextlake dashboard --serve             the live dashboard over your store
+  contextlake dashboard --site out/         static offline export (see --anonymize)
+                """)
+    p.add_argument("--serve", action="store_true", default=_S,
+                   help="serve the live dashboard (default; uses --host/--port)")
+    p.add_argument("--open", action="store_true", default=_S,
+                   help="open the dashboard in a browser")
+    p.add_argument("--site", nargs="?", const="", default=_S, metavar="DIR",
+                   help="build a static offline export into DIR")
+    p.add_argument("--repos", default=_S, metavar="PATTERN",
+                   help="--site: only include repos matching a pattern")
+    p.add_argument("--group-depth", dest="group_depth", type=int, default=_S,
+                   help="domain-grouping depth from repo-id path prefixes (default 1)")
+    p.add_argument("--anonymize", action="store_true", default=_S,
+                   help="--site: hash git-author identities + strip external link "
+                        "URLs for a shareable export")
+    p.add_argument("--sample", action="store_true", default=_S,
+                   help="use the bundled demo fleet instead of your local store "
+                        "(fictional data; works with --serve and --site)")
+    _add_net(p)
+
+    parser.set_defaults(**_DEFAULTS)
     return parser
 
 
@@ -392,15 +611,20 @@ def _bootstrap(args, config, work_dir, gitlab_group):
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
+    args.command = _ALIASES.get(args.command, args.command)
+
+    # Bare `contextlake` is a first keystroke, not an error: show the front door
+    # (description, command list, getting-started examples) and exit clean.
+    if args.command is None:
+        parser.print_help()
+        sys.exit(0)
 
     setup_logging(verbose=args.verbose, quiet=args.quiet, log_file=args.log_file)
 
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs
     # without the [kb] extra.
-    if args.command in ("index", "connect", "embed", "lint", "wiki", "steer", "serve",
-                        "query", "graph", "doctor", "eval", "owners", "impact", "ingest",
-                        "dashboard"):
+    if args.command in _KB_COMMANDS:
         try:
             from .kb import commands as kb_commands
         except ImportError as e:

@@ -206,10 +206,11 @@ def cmd_index(args) -> int:
             return _index_workspace(store, store_dir, Path(workspace),
                                     force=force, workers=workers, **parse_opts)
 
-        source = getattr(args, "source", None)
+        # `contextlake index PATH` and `index --source PATH` are the same thing.
+        source = getattr(args, "source", None) or getattr(args, "path", None)
         if not source:
-            # Zero-config: with no --source/--workspace, index the current directory
-            # so `cd my-repo && contextlake index` just works.
+            # Zero-config: with no path/--source/--workspace, index the current
+            # directory so `cd my-repo && contextlake index` just works.
             source = "."
             log(f"No --source/--workspace given; indexing the current directory "
                 f"({Path(source).resolve()}). Pass --source PATH or --workspace DIR "

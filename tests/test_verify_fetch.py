@@ -6,6 +6,7 @@ import re
 import urllib.error
 
 import pytest
+
 from conftest import FakeCompleted
 from contextlake import core
 from contextlake.core import (
