@@ -175,7 +175,8 @@ time out? Set <code>GITLAB_TOKEN</code> (a <code>read_api</code> token) and cont
 its own HTTP client, which tolerates the slow DNS where <code>glab</code>'s short dial timeout fails.</p>
 </blockquote>
 <h2 id="commands-at-a-glance">Commands at a glance<a class="anchor" href="#commands-at-a-glance" title="Link to this section">#</a></h2>
-<p>Run any command as <code>contextlake &lt;command&gt;</code>. Per-command docs live with their layer: the
+<p>Run any command as <code>contextlake &lt;command&gt;</code>; each has scoped help via
+<code>contextlake &lt;command&gt; --help</code>. Per-command docs live with their layer: the
 <strong>mirror</strong> commands in <strong><a href="usage.html">usage.md</a></strong>;
 the <strong>knowledge-layer</strong> commands (<code>index</code>, <code>embed</code>, <code>connect</code>, <code>wiki</code>, <code>query</code>, <code>owners</code>,
 <code>impact</code>, <code>graph</code>, …) in <strong><a href="knowledge-layer.html">knowledge-layer.md</a></strong>,
@@ -237,11 +238,11 @@ and <code>serve</code>/<code>steer</code> in <strong><a href="serve.html">serve.
 <td>Search the index (<code>--kind</code>, <code>--repo</code>, <code>--as-of &lt;commit&gt;</code>)</td>
 </tr>
 <tr>
-<td><code>owners</code></td>
+<td><code>owners</code> (alias <code>who-knows</code>)</td>
 <td>Likely owners / SMEs for a repo (or <code>--path</code>), ranked from git history</td>
 </tr>
 <tr>
-<td><code>impact</code></td>
+<td><code>impact</code> (alias <code>blast-radius</code>)</td>
 <td>Change-impact / blast radius: what depends on a symbol (<code>--hops</code>, <code>--repo</code> to disambiguate)</td>
 </tr>
 <tr>
@@ -250,7 +251,7 @@ and <code>serve</code>/<code>steer</code> in <strong><a href="serve.html">serve.
 </tr>
 <tr>
 <td><code>dashboard</code></td>
-<td>Local knowledge-system dashboard UI (<code>--serve</code>; <code>--site DIR</code> for a static offline export)</td>
+<td>Local knowledge-system dashboard UI (<code>--serve</code>; <code>--sample</code> for the bundled demo fleet; <code>--site DIR</code> for a static offline export)</td>
 </tr>
 <tr>
 <td><code>serve</code></td>

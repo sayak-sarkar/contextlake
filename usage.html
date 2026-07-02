@@ -42,6 +42,9 @@ Start with <a href="quickstart.html">QUICKSTART</a>. For the knowledge layer see
 <a href="knowledge-layer.html">knowledge-layer.md</a>.</p>
 </blockquote>
 <h2 id="command-reference">Command reference<a class="anchor" href="#command-reference" title="Link to this section">#</a></h2>
+<p>Every command carries its own scoped help, <code>contextlake &lt;command&gt; --help</code> shows
+just that command's flags with worked examples, and bare <code>contextlake</code> prints the
+full command list.</p>
 <p><code>contextlake sync</code> runs the whole mirror pipeline end to end; each stage is also
 available as its own command:</p>
 <p align="center">
@@ -91,14 +94,14 @@ Extra:                    1        # cloned locally but not on GitLab
 <li>Creates directory structure matching GitLab's group/subgroup hierarchy</li>
 <li>Uses HTTPS cloning for better authentication</li>
 <li>Clones up to 8 repositories concurrently</li>
+<li>Handles timeouts gracefully (300s per repository)</li>
 </ul>
 <p>How each repo is cloned (<code>clone_method = auto</code>, the default): with <code>GITLAB_TOKEN</code>
 set, contextlake clones with plain <code>git</code>, passing the token as an auth header
 through the child environment, never on the command line and never in the URL, so
 it can't leak into <code>ps</code> output or <code>.git/config</code>. Without a token it uses <code>glab repo
 clone</code> (glab's own auth) when glab is installed, else plain <code>git clone</code> over HTTPS.
-Set <code>clone_method = git</code> or <code>glab</code> to force one path.
-- Handles timeouts gracefully (300s per repository)</p>
+Set <code>clone_method = git</code> or <code>glab</code> to force one path.</p>
 <h3 id="update-update-existing-repositories"><code>update</code>, update existing repositories<a class="anchor" href="#update-update-existing-repositories" title="Link to this section">#</a></h3>
 <p>Fetches and pulls the latest changes for all local repositories.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>update
@@ -460,7 +463,7 @@ contextlake<span class="w"> </span>--no-protect-working-branches<span class="w">
 </code></pre></div>
 
 <p><strong>Warning</strong>: Disabling safety checks can lead to conflicts, lost work, or corruption of your local branches. Only disable if you understand the risks.</p>
-<h2 id="scheduling-automation">Scheduling &amp; automation<a class="anchor" href="#scheduling-automation" title="Link to this section">#</a></h2>
+<h2 id="scheduling-and-automation">Scheduling and automation<a class="anchor" href="#scheduling-and-automation" title="Link to this section">#</a></h2>
 <h3 id="prerequisites-for-cron-jobs">Prerequisites for cron jobs<a class="anchor" href="#prerequisites-for-cron-jobs" title="Link to this section">#</a></h3>
 <p>Before setting up cron jobs, ensure you have:</p>
 <ol>
@@ -591,11 +594,11 @@ sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </sp
 </tr>
 <tr>
 <td><strong>Cron job not running</strong></td>
-<td>Check <code>crontab -l</code>, use absolute paths, and test the exact command in a shell first; inspect cron logs (<code>grep CRON /var/log/syslog</code>). See <a href="#scheduling-automation">Scheduling &amp; automation</a>.</td>
+<td>Check <code>crontab -l</code>, use absolute paths, and test the exact command in a shell first; inspect cron logs (<code>grep CRON /var/log/syslog</code>). See <a href="#scheduling-and-automation">Scheduling and automation</a>.</td>
 </tr>
 <tr>
 <td><strong>Large log files</strong></td>
-<td>Set up log rotation, see <a href="#scheduling-automation">Scheduling &amp; automation</a>.</td>
+<td>Set up log rotation, see <a href="#scheduling-and-automation">Scheduling and automation</a>.</td>
 </tr>
 </tbody>
 </table>
@@ -642,7 +645,7 @@ sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </sp
 <li><a href="#disabling-safety-checks">Disabling safety checks</a></li>
 </ul>
 </li>
-<li><a href="#scheduling-automation">Scheduling &amp; automation</a><ul>
+<li><a href="#scheduling-and-automation">Scheduling and automation</a><ul>
 <li><a href="#prerequisites-for-cron-jobs">Prerequisites for cron jobs</a></li>
 <li><a href="#basic-daily-sync">Basic daily sync</a></li>
 <li><a href="#hourly-updates-no-branch-switching">Hourly updates (no branch switching)</a></li>
