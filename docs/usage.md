@@ -67,6 +67,13 @@ This command:
 - Creates directory structure matching GitLab's group/subgroup hierarchy
 - Uses HTTPS cloning for better authentication
 - Clones up to 8 repositories concurrently
+
+How each repo is cloned (`clone_method = auto`, the default): with `GITLAB_TOKEN`
+set, contextlake clones with plain `git`, passing the token as an auth header
+through the child environment — never on the command line and never in the URL, so
+it can't leak into `ps` output or `.git/config`. Without a token it uses `glab repo
+clone` (glab's own auth) when glab is installed, else plain `git clone` over HTTPS.
+Set `clone_method = git` or `glab` to force one path.
 - Handles timeouts gracefully (300s per repository)
 
 ### `update` — update existing repositories

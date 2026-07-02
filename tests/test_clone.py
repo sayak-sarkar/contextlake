@@ -44,6 +44,43 @@ def test_clone_prefers_glab_when_method_glab(tmp_path, base_config, fake_subproc
     assert fake_subprocess.commands_matching("glab", "repo", "clone", "grp/g/p")
 
 
+def test_clone_with_token_uses_native_git_and_keeps_the_secret_off_argv(
+        tmp_path, base_config, fake_subprocess, monkeypatch):
+    # A GITLAB_TOKEN makes glab unnecessary: auto must clone with plain git,
+    # carrying the credential ONLY via the GIT_CONFIG_* child env — never in
+    # the argv (visible in ps) and never in the URL (persisted to .git/config).
+    monkeypatch.setenv("GITLAB_TOKEN", "glpat-secret")
+    monkeypatch.setattr(core.shutil, "which", lambda _: "/usr/bin/glab")  # glab present, still git
+    seen = {}
+
+    def handler(cmd, **kwargs):
+        seen["cmd"], seen["env"] = cmd, kwargs.get("env")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, _ = clone_repository(
+        "g/p", "grp/g/p", "http://x/g/p.git", "ssh", str(tmp_path), base_config)
+
+    assert status == "ok"
+    assert seen["cmd"][:2] == ["git", "clone"]
+    assert "glpat-secret" not in " ".join(seen["cmd"])
+    env = seen["env"]
+    assert env is not None and env["GIT_CONFIG_KEY_0"] == "http.extraHeader"
+    assert "Authorization: Basic" in env["GIT_CONFIG_VALUE_0"]
+    assert env["GIT_CONFIG_COUNT"] == "1"
+
+
+def test_clone_token_env_offsets_past_existing_git_config_entries(monkeypatch):
+    # A user-set GIT_CONFIG_* entry must survive; ours appends after it.
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "user.name")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "Someone")
+    env = core._git_token_env("tok")
+    assert env["GIT_CONFIG_KEY_0"] == "user.name"          # untouched
+    assert env["GIT_CONFIG_KEY_1"] == "http.extraHeader"   # appended
+    assert env["GIT_CONFIG_COUNT"] == "2"
+
+
 def test_corrupted_dir_cleaned_and_recloned(tmp_path, base_config, fake_subprocess):
     corrupt = tmp_path / "g" / "p"
     corrupt.mkdir(parents=True)

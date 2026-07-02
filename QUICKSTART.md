@@ -7,7 +7,8 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 ## 1. Prerequisites
 
 - **Python 3.10+** (the knowledge layer needs 3.10; the core sync works on 3.9+)
-- **`git`** and an authenticated **`glab`**, run `glab auth login`
+- **`git`**, plus GitLab auth: either set **`GITLAB_TOKEN`** (a PAT with `read_api` +
+  `read_repository`; no other tool needed) or authenticate **`glab`** (`glab auth login`)
 
 ## 2. Install
 

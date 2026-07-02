@@ -107,10 +107,11 @@ pip install -e ".[kb]"
 ```
 </details>
 
-**Prerequisites:** `git`, and, only for GitLab mirroring, an authenticated
-[`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`). The knowledge layer needs
-neither. Once installed, `contextlake`, `python -m contextlake`, and `python3 contextlake.py`
-are equivalent.
+**Prerequisites:** `git`, and, only for GitLab mirroring, **either** a `GITLAB_TOKEN`
+env var (a PAT with `read_api` + `read_repository` — no other tool needed) **or** an
+authenticated [`glab`](https://gitlab.com/gitlab-org/cli) (`glab auth login`). The
+knowledge layer needs neither. Once installed, `contextlake`, `python -m contextlake`,
+and `python3 contextlake.py` are equivalent.
 
 ## Quickstart: one repo, no setup
 
