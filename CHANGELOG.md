@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.0] - 2026-07-02
+
 ### Added
 
 - **`glab` is now fully optional.** With a `GITLAB_TOKEN` (a `read_api` +
@@ -15,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   line and never in the URL, so it cannot leak into `ps` output or `.git/config`.
   Enumeration already used the token-native HTTP client, so the whole mirror now runs
   with just `git` + a token; without a token the glab-then-git behavior is unchanged.
+
+### Changed
+
+- **The share card is built from the approved hero art** (Pebble in the wide misty
+  lake) with real typography — Space Grotesk wordmark, Inter tagline, gold Get
+  started button — instead of AI-generated text; the same card is the GitHub social
+  preview.
+- Docs polish: heading slugs now anchor correctly on both GitHub and the docs site,
+  internals links to the branch-safety guide where it actually lives, and the
+  command reference states the per-command `--help`, the `who-knows`/`blast-radius`
+  aliases, and the dashboard `--sample` demo fleet.
 
 ## [2.21.0] - 2026-07-02
 
