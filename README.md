@@ -174,7 +174,8 @@ backoff, and **never stomps on the feature branch you're in the middle of**.
 
 ## Commands at a glance
 
-Run any command as `contextlake <command>`. Per-command docs live with their layer: the
+Run any command as `contextlake <command>`; each has scoped help via
+`contextlake <command> --help`. Per-command docs live with their layer: the
 **mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**;
 the **knowledge-layer** commands (`index`, `embed`, `connect`, `wiki`, `query`, `owners`,
 `impact`, `graph`, …) in **[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**,
@@ -194,10 +195,10 @@ and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/
 | `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
 | `wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai` enables the LLM tier inline |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
-| `owners` | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
-| `impact` | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
+| `owners` (alias `who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
+| `impact` (alias `blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
-| `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--site DIR` for a static offline export) |
+| `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
 | `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
 | `steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
 | `lint` · `doctor` · `eval` | Graph health · environment check · retrieval-quality scoring |
