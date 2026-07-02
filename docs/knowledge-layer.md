@@ -112,12 +112,13 @@ skipping anything not enabled, so a teammate goes from nothing to a fully-wired
 workspace in one step:
 
 ```bash
-contextlake bootstrap --kb-config ~/.contextlake/kb.toml
+contextlake bootstrap
 ```
 
-Skip stages with `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect`. For an
-isolated CLI, install with `pipx install "git+https://github.com/sayak-sarkar/contextlake"`
-(add the `[kb]` extra for the knowledge layer), or run ad-hoc with `uvx`.
+Both config files are read from their default locations (`~/.contextlake.ini` and
+`~/.contextlake/kb.toml`); pass `--config` / `--kb-config` to point elsewhere. Skip
+stages with `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect`. For an
+isolated CLI, install with `pipx install "contextlake[kb]"`, or run ad-hoc with `uvx`.
 
 ### Keep it fresh on a schedule
 
@@ -127,7 +128,7 @@ refreshes the knowledge layer, and rewrites the steering, without touching an
 in-progress working tree. Run it from cron:
 
 ```cron
-*/30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml >> ~/.contextlake/refresh.log 2>&1
+*/30 * * * * contextlake bootstrap >> ~/.contextlake/refresh.log 2>&1
 ```
 
 or as a systemd user timer, see [`examples/contextlake.service`](../examples/contextlake.service)
@@ -243,8 +244,9 @@ class ConfluenceSource:
         yield Document(id="123", title="Runbook", text="…", uri="https://…")
 ```
 
-`contextlake ingest` then discovers `type = "confluence"` automatically. Two sources ship
-built-in — `files` and **`web`** (fetch URLs and ingest their readable text, stdlib-only):
+`contextlake ingest` then discovers `type = "confluence"` automatically. Four sources ship
+built-in: `files`, `web`, `api`, and `mcp`. **`web`** fetches URLs and ingests their
+readable text (stdlib-only):
 
 ```toml
 [[sources]]

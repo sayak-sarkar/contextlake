@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml"><img src="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/contextlake/"><img src="https://img.shields.io/pypi/v/contextlake?color=137A8B" alt="PyPI"></a>
-  <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+">
+  <img src="https://img.shields.io/badge/python-3.10%2B%20(3.9%2B%20core)-blue" alt="Python 3.10+ for the knowledge layer, 3.9+ for the mirror core">
   <img src="https://img.shields.io/badge/offline-first-2BB3A3" alt="Offline-first">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT">
 </p>
@@ -54,9 +54,12 @@ finish in **[QUICKSTART](https://github.com/sayak-sarkar/contextlake/blob/main/Q
 ## Install
 
 ```bash
-pip install contextlake             # the mirroring CLI
-pip install "contextlake[kb]"       # + the knowledge layer (graph, search, wiki, MCP server)
+pip install "contextlake[kb]"       # the full tool: mirror + graph, search, wiki, MCP server
+pip install contextlake             # mirror-only core (no pip dependencies at all)
 ```
+
+Everything in the quickstart below needs the `[kb]` extra (Python 3.10+); the plain
+install is just the mirroring CLI and runs on Python 3.9+.
 
 Prefer an isolated, zero-setup install? [`uv`](https://docs.astral.sh/uv/) fetches the right
 Python and an isolated environment for you:
@@ -79,6 +82,20 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 | `[kb-fastembed]` | A higher-quality ONNX embedder (~90 MB) | Better semantic ranking |
 | `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `wiki --llm builtin` with no Ollama or API key |
 
+</details>
+
+<details>
+<summary>Docker (turnkey / air-gapped: models baked in)</summary>
+
+The published image bundles the knowledge layer plus the built-in CPU models
+(embedder + a small wiki LLM), so it runs with no Ollama, no API key, and no
+model download at runtime. The PyPI wheel stays the primary install; reach for
+the image on locked-down or offline machines.
+
+```bash
+docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
+docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake index
+```
 </details>
 
 <details>
@@ -111,8 +128,8 @@ contextlake serve                     # …or serve it to your AI IDE over MCP
 `~/.contextlake/kb` store you just built):
 
 ```bash
-claude mcp add contextlake -- contextlake serve      # Claude Code
-# zero-install variant: claude mcp add contextlake -- uvx --from "contextlake[kb]" contextlake serve
+claude mcp add contextlake-kb -- contextlake serve      # Claude Code
+# zero-install variant: claude mcp add contextlake-kb -- uvx --from "contextlake[kb]" contextlake serve
 ```
 
 <p align="center">
@@ -197,10 +214,10 @@ GitLab items, add **semantic search**, write a curated **wiki**, **visualize** t
 generate per-tool **steering files** + a skills library. Most of it needs no model; the rest
 works with a local Ollama or any OpenAI-compatible endpoint.
 
-One command sets it all up:
+One command sets it all up (configs are read from their default locations):
 
 ```bash
-contextlake bootstrap --kb-config ~/.contextlake/kb.toml
+contextlake bootstrap
 ```
 
 Full guide: **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**.

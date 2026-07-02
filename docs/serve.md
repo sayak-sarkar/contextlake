@@ -5,10 +5,15 @@ exposes it as an **MCP server** — so any MCP client (Claude Code, Windsurf, Ki
 Postman, …) can query the graph directly instead of grepping.
 
 **Most of it needs no model.** The graph tools work on their own — `search_code`,
-`find_definition`, `find_callers`, `find_dependents`, `shortest_path`, `graph_stats`,
-`repo_dependencies`, `repo_flow`, `repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`,
-`get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`. Only
-`semantic_search` / `hybrid_search` need embeddings.
+`find_definition`, `find_callers`, `find_dependents`, `get_node`, `get_neighbors`,
+`shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`, `repo_event_flow`,
+`blast_radius`, `who_knows`, `get_wiki`, `get_readme`, `get_repo_brief`, `list_repos`,
+`get_repo_links`, `graph_health` — plus a `kb://stats` resource with the store counts.
+
+`semantic_search` / `hybrid_search` are the two exceptions: they register **only when
+embeddings exist** (an `[embeddings]` section in `kb.toml` and a `contextlake embed`
+run). Without that, the server starts fine and says so — the two tools are simply
+absent from the tool list, and everything above still works.
 
 ## The quick way: let contextlake wire your editors
 
