@@ -79,6 +79,20 @@ def test_bootstrap_aborts_when_index_fails(monkeypatch, tmp_path):
     assert calls == ["cmd_index"]   # nothing downstream ran
 
 
+def test_bootstrap_honors_explicit_workspace(monkeypatch, tmp_path):
+    """--workspace must win over the mirror's work_dir (it used to be silently
+    ignored), and the steering files follow it."""
+    seen = {}
+    for name in _CORE:
+        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    for name in _KB:
+        monkeypatch.setattr(kb, name, lambda a, _n=name: (seen.__setitem__(_n, a), 0)[1])
+    elsewhere = tmp_path / "elsewhere"
+    cli._bootstrap(_args(no_sync=True, workspace=str(elsewhere)), {}, str(tmp_path), "grp")
+    assert seen["cmd_index"].workspace == str(elsewhere)
+    assert seen["cmd_steer"].out == str(elsewhere)
+
+
 def test_bootstrap_passes_kb_config_not_sync_config(monkeypatch, tmp_path):
     seen = {}
     for name in _CORE:
