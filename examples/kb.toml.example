@@ -32,13 +32,19 @@ provider = "auto"
 batch_size = 64
 # Built-in CPU embedder (no Ollama / API key). The model auto-downloads once to
 # `cache_dir` on first `embed`. Two engines:
-#   engine = "model2vec"  -> static potion-base-8M (~30MB, MIT), numpy, very fast.
+#   engine = "model2vec"  -> static potion embeddings (MIT), numpy, ~1ms queries.
 #                            Install: pip install "contextlake[kb-local]"
-#   engine = "fastembed"  -> ONNX bge-small (~90MB, MIT), higher quality, heavier.
+#   engine = "fastembed"  -> ONNX transformers (MIT), heavier, ~10x slower queries.
 #                            Install: pip install "contextlake[kb-fastembed]"
+# Measured on the golden-query harness (with signatures + docstrings embedded),
+# the tiny static models win: the default potion-base-8M (~30MB) already
+# outranks ONNX bge-small, and potion-base-32M (~120MB) scores best of all —
+# the quality knob is the bigger potion, not a heavier engine.
 # engine = "model2vec"
-# model = "minishlab/potion-base-8M"     # override the default model id if you like
+# model = "minishlab/potion-base-32M"    # recommended quality upgrade (~120MB)
 # cache_dir = "~/.contextlake/models"    # where downloaded models live
+# NOTE: changing `model` over an existing vector store trips the identity guard
+# by design — delete embeddings.sqlite (or use a fresh store) and re-run embed.
 #
 # For a local Ollama daemon instead:
 #   provider = "ollama"

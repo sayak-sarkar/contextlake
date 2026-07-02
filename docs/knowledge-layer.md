@@ -198,6 +198,14 @@ a payment to the original card"* finds the right function even when its name say
 nothing of the sort. (Measured on the golden-query harness, adding signature +
 docstring doubled MRR and took hit-rate to 100% on natural-language queries.)
 
+**Which model?** With that content embedded, the tiny static models punch far above
+their weight: on a 24-query natural-language bake-off, the default `potion-base-8M`
+(~30MB, ~1ms per query) outscored the ONNX `bge-small` transformer, and
+`minishlab/potion-base-32M` (~120MB, same engine and extra) scored best of all —
+MRR 0.95 with a perfect hit-rate, at a tenth of the ONNX query latency. If you want
+the quality bump, it's one config line: `model = "minishlab/potion-base-32M"` under
+`[embeddings]` (on a fresh vector store — the identity guard refuses to mix models).
+
 Like `index`, `embed` is **incremental**: it re-embeds only repos whose indexed HEAD
 moved since they were last embedded, so a scheduled refresh over a large fleet stays
 cheap. Pass `--force` to re-embed everything. When an upgrade changes the embedded
