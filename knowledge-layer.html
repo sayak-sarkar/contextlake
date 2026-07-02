@@ -194,9 +194,23 @@ install the optional ANN backend with <code>pip install "contextlake[kb-vec]"</c
 for larger workspaces. Tune it with <code>[embeddings] vector_chunk_size</code> (the sqlite-vec
 <code>vec0</code> KNN chunk size, default 1024; clamped to a multiple of 8, applied when the vector
 store is first created, re-embed from scratch to change an existing store).</p>
+<p><strong>What gets embedded:</strong> each node's kind, name, qualified name, and file path, plus
+its captured <strong>signature and docstring</strong>, so a natural-language query like <em>"refund
+a payment to the original card"</em> finds the right function even when its name says
+nothing of the sort. (Measured on the golden-query harness, adding signature +
+docstring doubled MRR and took hit-rate to 100% on natural-language queries.)</p>
+<p><strong>Which model?</strong> With that content embedded, the tiny static models punch far above
+their weight: on a 24-query natural-language bake-off, the default <code>potion-base-8M</code>
+(~30MB, ~1ms per query) outscored the ONNX <code>bge-small</code> transformer, and
+<code>minishlab/potion-base-32M</code> (~120MB, same engine and extra) scored best of all , 
+MRR 0.95 with a perfect hit-rate, at a tenth of the ONNX query latency. If you want
+the quality bump, it's one config line: <code>model = "minishlab/potion-base-32M"</code> under
+<code>[embeddings]</code> (on a fresh vector store, the identity guard refuses to mix models).</p>
 <p>Like <code>index</code>, <code>embed</code> is <strong>incremental</strong>: it re-embeds only repos whose indexed HEAD
 moved since they were last embedded, so a scheduled refresh over a large fleet stays
-cheap. Pass <code>--force</code> to re-embed everything.</p>
+cheap. Pass <code>--force</code> to re-embed everything. When an upgrade changes the embedded
+text format itself, <code>embed</code> detects the stale store and re-embeds everything once,
+announcing why, then incremental behavior resumes.</p>
 <p>A single query returns cited hits (<code>repo · file:line · kind · name</code>) that span repos <em>and</em>
 languages, here the C# and Python payment paths together. <code>--retriever fts|semantic|hybrid</code>
 picks keyword, vector, or graph-propagation ranking:</p>
