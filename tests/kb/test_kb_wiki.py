@@ -124,6 +124,55 @@ def test_cmd_wiki_writes_accepted_page(tmp_path, monkeypatch):
     assert page.exists() and "OrderService charges orders." in page.read_text()
 
 
+def test_cmd_wiki_builds_advisory_partition(tmp_path, monkeypatch):
+    """An accepted page also lands in the @wiki:<repo> store partition as advisory
+    section nodes, so semantic search can surface (and cite) the prose."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        n = store.get_node("@wiki:r:0")
+        assert n is not None and n.kind == "wiki"
+        assert n.repo == "@wiki:r"
+        assert n.file == "wiki/r.md"          # cites the page on disk
+        assert n.attrs.get("advisory") is True
+    finally:
+        store.close()
+
+
+def test_cmd_wiki_backfills_partition_for_skipped_fresh_pages(tmp_path, monkeypatch):
+    """A page that freshness-skips (written before the partition existed) still
+    gets its @wiki partition built, without a new LLM call."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    # simulate the pre-partition era: drop the partition, keep the fresh page
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.clear_repo("@wiki:r")
+    store.close()
+
+    calls = {"n": 0}
+
+    class _CountingLlm(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            calls["n"] += 1
+            return super().generate(prompt, system=system)
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _CountingLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert calls["n"] == 0                    # freshness-skipped: no LLM call
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        assert store.get_node("@wiki:r:0") is not None   # ...but backfilled
+    finally:
+        store.close()
+
+
 def test_cmd_wiki_rejects_low_score(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = _setup_repo(tmp_path)
