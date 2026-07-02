@@ -5,9 +5,11 @@ import os
 import re
 import urllib.error
 
+import pytest
 from conftest import FakeCompleted
 from contextlake import core
 from contextlake.core import (
+    FetchError,
     _gitlab_api_base,
     _gitlab_token,
     configure_network_resilience,
@@ -189,14 +191,47 @@ def test_fetch_http_retries_transient_dns(tmp_path, base_config, monkeypatch, no
     assert calls["n"] == 2  # the i/o timeout was retried, not fatal
 
 
-def test_fetch_no_token_and_no_glab_fails_clean(tmp_path, base_config, monkeypatch):
-    # No token, and glab is absent -> FileNotFoundError must not crash; empty result.
+def test_fetch_no_token_and_no_glab_raises_and_writes_nothing(tmp_path, base_config, monkeypatch):
+    # No token, and glab is absent -> an honest FetchError, and no cache is created
+    # (an empty dict must never masquerade as a successful enumeration).
     def boom(*a, **k):
         raise FileNotFoundError("[Errno 2] No such file or directory: 'glab'")
 
     monkeypatch.setattr(core.subprocess, "run", boom)
     cfg = {**base_config, "cache_dir": str(tmp_path), "cache_json": "p.json", "cache_file": "p.txt"}
-    assert fetch_gitlab_projects("g", cfg) == {}
+    with pytest.raises(FetchError):
+        fetch_gitlab_projects("g", cfg)
+    assert not (tmp_path / "p.json").exists()
+    assert not (tmp_path / "p.txt").exists()
+
+
+def test_fetch_failure_preserves_existing_cache(tmp_path, base_config, fake_subprocess, no_sleep):
+    # Regression: a transient failure mid-enumeration used to overwrite a good cache
+    # with the partial result and report success. The old cache must survive intact.
+    good = {"r0": {"full_path": "g/r0", "http": "h", "ssh": "s",
+                   "archived": False, "default_branch": "main"}}
+    (tmp_path / "p.json").write_text(json.dumps(good))
+    (tmp_path / "p.txt").write_text("r0|s|h|main|False\n")
+
+    page1 = [{"path_with_namespace": f"g/r{i}", "http_url_to_repo": f"h{i}",
+              "ssh_url_to_repo": f"s{i}", "archived": False, "default_branch": "main"}
+             for i in range(100)]
+
+    def handler(cmd, **kwargs):
+        endpoint = cmd[-1]
+        if "&page=1" in endpoint:
+            return FakeCompleted(stdout=json.dumps(page1))
+        raise RuntimeError("boom: transient API failure")
+
+    fake_subprocess.handler = handler
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path), cache_json="p.json", cache_file="p.txt")
+
+    with pytest.raises(FetchError):
+        fetch_gitlab_projects("g", cfg)
+    # both caches still hold the pre-failure content, byte for byte
+    assert json.loads((tmp_path / "p.json").read_text()) == good
+    assert (tmp_path / "p.txt").read_text() == "r0|s|h|main|False\n"
 
 
 def test_configure_network_resilience_sets_and_respects(monkeypatch):
