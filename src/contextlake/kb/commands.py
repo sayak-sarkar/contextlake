@@ -24,9 +24,6 @@ from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
 
-KB_VERBS = ("index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
-            "graph", "doctor", "owners", "impact", "ingest", "dashboard")
-
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
     cfg = load_kb_config(getattr(args, "config", None))
@@ -1025,6 +1022,13 @@ def cmd_serve(args) -> int:
             vector_store = build_vector_store(vec_path, backend=cfg.embeddings.vector_backend)
             log(f"Semantic search enabled ({vector_store.name} store, "
                 f"{vector_store.count()} vectors)")
+        else:
+            # Say so out loud: these two tools silently vanishing from the MCP tool
+            # list otherwise reads as a broken server, not an unconfigured tier.
+            why = ("no [embeddings] config" if candidate is None
+                   else "no vector store yet — run: contextlake embed")
+            log(style.dim(f"semantic_search / hybrid_search not registered ({why}); "
+                          "graph search and every other tool work without them"))
 
         log(f"Serving knowledge graph over MCP ({transport})")
         run_server(store, transport=transport, host=host, port=port,

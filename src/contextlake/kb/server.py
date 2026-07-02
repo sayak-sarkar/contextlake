@@ -267,6 +267,12 @@ def build_server(
         name, instructions=_INSTRUCTIONS, host=host, port=port,
         stateless_http=True, json_response=True,
     )
+    # FastMCP doesn't expose a version parameter, so serverInfo would report the
+    # MCP SDK's version to every connected editor. Set contextlake's own.
+    inner = getattr(mcp, "_mcp_server", None)
+    if inner is not None and hasattr(inner, "version"):
+        from .. import __version__
+        inner.version = __version__
 
     @mcp.tool()
     def graph_stats() -> StatsOut:
