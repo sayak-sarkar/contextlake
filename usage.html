@@ -91,8 +91,14 @@ Extra:                    1        # cloned locally but not on GitLab
 <li>Creates directory structure matching GitLab's group/subgroup hierarchy</li>
 <li>Uses HTTPS cloning for better authentication</li>
 <li>Clones up to 8 repositories concurrently</li>
-<li>Handles timeouts gracefully (300s per repository)</li>
 </ul>
+<p>How each repo is cloned (<code>clone_method = auto</code>, the default): with <code>GITLAB_TOKEN</code>
+set, contextlake clones with plain <code>git</code>, passing the token as an auth header
+through the child environment, never on the command line and never in the URL, so
+it can't leak into <code>ps</code> output or <code>.git/config</code>. Without a token it uses <code>glab repo
+clone</code> (glab's own auth) when glab is installed, else plain <code>git clone</code> over HTTPS.
+Set <code>clone_method = git</code> or <code>glab</code> to force one path.
+- Handles timeouts gracefully (300s per repository)</p>
 <h3 id="update-update-existing-repositories"><code>update</code>, update existing repositories<a class="anchor" href="#update-update-existing-repositories" title="Link to this section">#</a></h3>
 <p>Fetches and pulls the latest changes for all local repositories.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>update
