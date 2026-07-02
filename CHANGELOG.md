@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-07-02
+
+The product-review hardening release: an end-to-end review as a brand-new
+`pip install` user surfaced the gaps between the advertised experience and the
+real one; this release closes them.
+
+### Fixed
+
+- **`dashboard --sample` works from a pip install and under `--serve`.** The demo-fleet
+  fixture used to live at the repo root (absent from every wheel, so `--sample` crashed
+  with `FileNotFoundError`), and the `--serve` path ignored the flag entirely, serving an
+  empty dashboard from the real store. The fixture now ships as package data and
+  `--serve --sample` serves the fictional fleet from an ephemeral store — the advertised
+  zero-setup preview actually is one.
+- **A failed enumeration can no longer wipe the project cache.** `fetch` used to write
+  the partial (often empty) result over a good cache on any mid-paging failure, print a
+  green checkmark, and exit 0. It now raises, leaves both caches byte-identical, and
+  `fetch`/`sync` exit non-zero; a genuinely empty enumeration warns instead of celebrating.
+- **`bootstrap --workspace` is honored** (it was silently ignored in favor of the
+  mirror's `work_dir`), and the steering files follow it. Indexing a workspace with zero
+  git repositories now exits non-zero with guidance instead of reporting
+  `✓ Bootstrap complete` over an empty knowledge base.
+- **MCP `serverInfo` reports contextlake's version** instead of the MCP SDK's.
+
+### Added
+
+- **Per-command help.** Every verb is a real argparse subcommand: `contextlake sync --help`
+  shows only sync's flags with worked examples, bare `contextlake` prints the front door
+  (description, command list, getting-started) instead of an argparse error, and
+  `contextlake index PATH` works as a positional. Flags may still appear before the
+  command, so existing scripts keep working.
+- **`who-knows` and `blast-radius`** as CLI aliases for `owners` / `impact`, matching the
+  MCP tool vocabulary.
+- **`serve` says when the semantic tools are gated.** When `semantic_search` /
+  `hybrid_search` are not registered (no `[embeddings]` config, or no `contextlake embed`
+  run yet) the server now states it and why, instead of the tools silently vanishing.
+- **A Docker install block** for the published `ghcr.io/sayak-sarkar/contextlake` image,
+  which now carries OCI source labels linking it back to the repository.
+
+### Changed
+
+- **The CLI introduces itself as what it is** — a local context layer that mirrors,
+  indexes, and serves real source over MCP — rather than "GitLab Workspace
+  Synchronization CLI Tool".
+- **One coherent story across the docs**: the install leads with
+  `pip install "contextlake[kb]"` (with the Python 3.10 floor stated at the point of
+  use), one MCP server name (`contextlake-kb`), one bootstrap invocation, one canonical
+  tagline tail everywhere, a complete MCP tool list in the serve guide, and a
+  contributor setup (`[dev,kb]`) that can actually run the suite.
+- **PyPI metadata points back at the product**: Homepage is the site, with
+  Documentation/Issues links; the summary carries the anti-hallucination clause; the
+  classifier and keyword sets state the supported Python range and positioning.
+
 ## [2.20.1] - 2026-07-01
 
 ### Fixed
