@@ -112,7 +112,7 @@ The `branch_strategy` setting controls step 3:
   long-lived branch that has gone stale, or a brand-new branch with few commits
 
 Branch switching is skipped entirely for repositories checked out on a working
-branch (see [Branch Safety](#branch-safety)).
+branch (see [Branch safety](usage.md#branch-safety)).
 
 ### Directory structure mapping
 
