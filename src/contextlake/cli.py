@@ -175,8 +175,8 @@ Examples:
                     help="dashboard --site: hash git-author identities + strip external "
                          "link URLs for a shareable export")
     kb.add_argument("--sample", action="store_true",
-                    help="dashboard --site: build the public showcase from the committed "
-                         "sample fixture (no real PII)")
+                    help="dashboard: use the bundled demo fleet instead of your local "
+                         "store (fictional data; works with --serve and --site)")
 
     parser.add_argument(
         "--dry-run", action="store_true", dest="dry_run",
