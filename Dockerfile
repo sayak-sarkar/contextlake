@@ -10,6 +10,12 @@
 #     ghcr.io/sayak-sarkar/contextlake doctor
 FROM python:3.12-slim
 
+# Link the published package to the repo (GitHub connects ghcr packages to their
+# source repository through this label) and describe it for the registry UI.
+LABEL org.opencontainers.image.source="https://github.com/sayak-sarkar/contextlake" \
+      org.opencontainers.image.description="contextlake with the knowledge layer and built-in CPU models baked in (offline turnkey image)" \
+      org.opencontainers.image.licenses="MIT"
+
 # build-essential + cmake: build llama-cpp-python from source (CPU). git/ca-certs:
 # runtime sync + TLS.
 RUN apt-get update && apt-get install -y --no-install-recommends \
