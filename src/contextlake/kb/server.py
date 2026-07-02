@@ -615,7 +615,9 @@ def build_server(
         @mcp.tool()
         def semantic_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
             """Semantic (embedding) search over indexed nodes — for natural-language
-            queries where exact names are unknown. Results are ranked by similarity."""
+            queries where exact names are unknown. Results are ranked by similarity.
+            Hits of kind 'wiki'/'document' are ADVISORY prose (LLM-generated or
+            ingested), not extracted code facts — verify against the cited file."""
             vec = embedder.embed([query])[0]
             out: list[NodeOut] = []
             for node_id, _score in vector_store.search(vec, k=k, repo=repo):

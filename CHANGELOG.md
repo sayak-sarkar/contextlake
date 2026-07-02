@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The wiki is now searchable prose.** Accepted wiki pages are split into sections
+  and stored in an isolated `@wiki:<repo>` partition (mirroring `@connect`/`@ingest`);
+  with the semantic tier enabled they embed alongside the code vectors, so a
+  natural-language query can land on the wiki's explanation of a subsystem — cited to
+  the page file and labeled advisory (kind `wiki`), never outranking extracted code
+  facts. Pages written before this existed are backfilled on the next `wiki` run with
+  zero LLM calls (freshness-skipped pages included).
+
 ## [2.24.0] - 2026-07-02
 
 ### Added

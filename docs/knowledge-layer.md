@@ -334,6 +334,13 @@ a **verification council**, reviewers score it for accuracy, completeness, and
 clarity and a chairman publishes only pages above a configurable threshold. Nothing
 that fails review is written.
 
+Accepted pages also become **searchable prose**: each page's sections are stored in
+an isolated `@wiki:<repo>` partition and, when the semantic tier is enabled, embedded
+alongside the code vectors — so a natural-language question can land on the wiki's
+explanation of a subsystem, cited back to the page file and labeled advisory (kind
+`wiki`), never outranking extracted code facts. Pages written before this existed are
+backfilled on the next `wiki` run without any LLM calls.
+
 The result, rendered in the dashboard's Wiki tab — prose grounded strictly in real symbols,
 with a provenance footer citing the exact commit and source files it was built from:
 

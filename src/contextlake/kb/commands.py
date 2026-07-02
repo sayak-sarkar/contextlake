@@ -538,6 +538,57 @@ def cmd_embed(args) -> int:
         store.close()
 
 
+def _wiki_partition(repo_id: str) -> str:
+    """Store partition holding a repo's wiki-page sections (advisory prose)."""
+    return f"@wiki:{repo_id}"
+
+
+def _wiki_section_nodes(repo_id: str, page: str, filename: str):
+    """Split a wiki page into ``##`` sections -> (nodes, texts) for the ``@wiki``
+    partition. Sections embed as advisory prose alongside the code vectors
+    (mirroring the ``@connect``/``@ingest`` partition pattern), so a
+    natural-language question can land on the wiki's explanation and still cite
+    the page file. Ids are per-section-index, so a regenerated page cleanly
+    replaces its predecessor."""
+    from .model import Node
+
+    part = _wiki_partition(repo_id)
+    sections, title, buf = [], "Overview", []
+    for line in page.splitlines():
+        if line.startswith("## "):
+            if "\n".join(buf).strip():
+                sections.append((title, "\n".join(buf).strip()))
+            title, buf = (line[3:].strip() or "Section"), []
+        else:
+            buf.append(line)
+    if "\n".join(buf).strip():
+        sections.append((title, "\n".join(buf).strip()))
+    nodes, texts = [], []
+    for i, (t, body) in enumerate(sections):
+        nodes.append(Node(id=f"{part}:{i}", repo=part, kind="wiki",
+                          name=f"{repo_id} wiki: {t}", file=f"wiki/{filename}",
+                          attrs={"advisory": True, "source_repo": repo_id}))
+        texts.append(f"{t}\n{body}")
+    return nodes, texts
+
+
+def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
+                          embedder=None, vs=None, batch_size=64) -> int:
+    """(Re)write a repo's ``@wiki`` partition from its page and embed the sections
+    when the semantic tier is up. Returns the number of sections embedded."""
+    nodes, texts = _wiki_section_nodes(repo_id, page, filename)
+    part = _wiki_partition(repo_id)
+    store.clear_repo(part)
+    if not nodes:
+        return 0
+    store.upsert_nodes(part, nodes)
+    write_shard(store_dir, GraphShard(repo=part, head_commit=head or "wiki",
+                                      nodes=nodes, edges=[]))
+    if embedder is not None and vs is not None:
+        return _embed_documents(vs, embedder, part, nodes, texts, batch_size)
+    return 0
+
+
 def cmd_wiki(args) -> int:
     """Generate provenance-stamped wiki pages from the graph, gated by an LLM council."""
     from .llm import build_llm
@@ -545,6 +596,7 @@ def cmd_wiki(args) -> int:
     from .wiki.generate import generate_page, render_prompt, repo_brief
 
     store, store_dir = _open_store(args)
+    embedder = vs = None
     try:
         cfg = load_kb_config(getattr(args, "config", None))
         apply_llm_overrides(cfg, provider=getattr(args, "llm", None),
@@ -567,6 +619,16 @@ def cmd_wiki(args) -> int:
         wiki_dir.mkdir(parents=True, exist_ok=True)
         log(f"Generating wiki for {len(targets)} repo(s) with {llm.name} "
             f"(council of {len(LENSES)})")
+        # Semantic tier (optional): accepted pages also embed into the @wiki
+        # partition so NL search can land on the prose (labeled advisory).
+        if cfg.embeddings.enabled:
+            from .embeddings import build_embedder
+            from .embeddings.store import build_vector_store
+            embedder = build_embedder(cfg.embeddings)
+            if embedder is not None:
+                vs = build_vector_store(store_dir / "embeddings.sqlite",
+                                        backend=cfg.embeddings.vector_backend,
+                                        chunk_size=cfg.embeddings.vector_chunk_size)
         force = getattr(args, "force", False)
         written = rejected = skipped = failed = 0
         for repo_id, _ in targets:
@@ -580,6 +642,12 @@ def cmd_wiki(args) -> int:
                 prev = wiki_file.read_text(encoding="utf-8", errors="replace")
                 m = re.search(r"at commit `([^`]+)`", prev)
                 if m and m.group(1) == brief["head"]:
+                    # Backfill: a page written before the @wiki partition existed
+                    # gets its sections stored/embedded without a new LLM call.
+                    if store.get_node(f"{_wiki_partition(repo_id)}:0") is None:
+                        _store_wiki_partition(store, store_dir, repo_id, prev,
+                                              wiki_file.name, brief.get("head"),
+                                              embedder, vs, cfg.embeddings.batch_size)
                     skipped += 1
                     continue
             try:
@@ -592,6 +660,9 @@ def cmd_wiki(args) -> int:
                 continue
             if gate["accepted"]:
                 wiki_file.write_text(page, encoding="utf-8")
+                _store_wiki_partition(store, store_dir, repo_id, page,
+                                      wiki_file.name, brief.get("head"),
+                                      embedder, vs, cfg.embeddings.batch_size)
                 written += 1
                 log(f"  {style.ok(repo_id)}: written (score {gate['score']})")
             else:
@@ -608,6 +679,8 @@ def cmd_wiki(args) -> int:
             return 1
         return 0
     finally:
+        if vs is not None:
+            vs.close()
         store.close()
 
 
