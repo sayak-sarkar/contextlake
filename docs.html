@@ -52,9 +52,9 @@ each layer above it is optional.</p>
 </p>
 
 <ol>
-<li><strong>Mirror</strong>: clone every repo you can reach in a GitLab group into a faithful copy of its
-   namespace tree, each on its most active branch, kept fresh with one command. <em>(The source
-   is GitLab today; the design is source-agnostic.)</em></li>
+<li><strong>Mirror</strong>: clone every repo you can reach in a <strong>GitLab group, GitHub org, Bitbucket
+   workspace, or Gitea/Codeberg/Forgejo owner</strong> into a faithful copy of its namespace tree,
+   each on its most active branch, kept fresh with one command.</li>
 <li><strong>Knowledge layer</strong> <em>(optional)</em>: parse the mirror into a code + dependency <strong>graph</strong>, add
    <strong>semantic search</strong>, a council-verified <strong>wiki</strong> (each page reviewed and scored before
    publishing, low-confidence pages dropped), and <strong>connectors</strong> to Atlassian / Figma / GitLab.</li>
@@ -119,11 +119,12 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 
 </details>
 
-<p><strong>Prerequisites:</strong> <code>git</code>, and, only for GitLab mirroring, <strong>either</strong> a <code>GITLAB_TOKEN</code>
-env var (a PAT with <code>read_api</code> + <code>read_repository</code>, no other tool needed) <strong>or</strong> an
-authenticated <a href="https://gitlab.com/gitlab-org/cli"><code>glab</code></a> (<code>glab auth login</code>). The
-knowledge layer needs neither. Once installed, <code>contextlake</code>, <code>python -m contextlake</code>,
-and <code>python3 contextlake.py</code> are equivalent.</p>
+<p><strong>Prerequisites:</strong> <code>git</code>, and, only for fleet mirroring, the platform's token env var
+(<code>GITLAB_TOKEN</code> with <code>read_api</code> + <code>read_repository</code>, or <code>GITHUB_TOKEN</code> /
+<code>BITBUCKET_TOKEN</code> / <code>GITEA_TOKEN</code>); on GitLab an authenticated
+<a href="https://gitlab.com/gitlab-org/cli"><code>glab</code></a> works instead. The knowledge layer needs
+neither. Once installed, <code>contextlake</code>, <code>python -m contextlake</code>, and
+<code>python3 contextlake.py</code> are equivalent.</p>
 <h2 id="quickstart-one-repo-no-setup">Quickstart: one repo, no setup<a class="anchor" href="#quickstart-one-repo-no-setup" title="Link to this section">#</a></h2>
 <p>You don't need GitLab or any config to try contextlake on a repo you already have.
 No install? Run it once with <a href="https://docs.astral.sh/uv/"><code>uvx</code></a>: prefix any command
@@ -150,25 +151,32 @@ any path with <code>--source PATH</code>, or every git repo under a directory wi
 <p><strong>Want the full path</strong>, mirror a GitLab fleet → graph → wired editor in a few minutes?
 <a href="quickstart.html"><strong>QUICKSTART.md</strong></a> walks the whole flow.</p>
 </blockquote>
-<h2 id="fleet-mode-mirror-a-gitlab-group">Fleet mode: mirror a GitLab group<a class="anchor" href="#fleet-mode-mirror-a-gitlab-group" title="Link to this section">#</a></h2>
+<h2 id="fleet-mode-mirror-a-whole-org">Fleet mode: mirror a whole org<a class="anchor" href="#fleet-mode-mirror-a-whole-org" title="Link to this section">#</a></h2>
 <p>Where contextlake goes beyond single-repo tools is mirroring and cross-referencing a <em>whole
-GitLab fleet</em>. Copy the example config and set your group + workspace:</p>
+fleet</em>, a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea/Codeberg/Forgejo
+owner. Copy the example config and set your platform, group and workspace:</p>
 <div class="codehilite"><pre><span></span><code>cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>~/.contextlake.ini
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code><span class="k">[contextlake]</span>
 <span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
 <span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
+<span class="c1"># or any other platform:</span>
+<span class="c1"># platform = github</span>
+<span class="c1"># group = your-org</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>status<span class="w">      </span><span class="c1"># see where you stand (read-only)</span>
 contextlake<span class="w"> </span>sync<span class="w">        </span><span class="c1"># fetch → clone → update → branches → verify → audit</span>
 </code></pre></div>
 
-<p>It carries no credentials of its own (auth rides on your existing <code>glab</code> login), so
-<code>.contextlake.ini</code> holds only non-secret settings and is gitignored by default. It runs
-across hundreds of repos <strong>concurrently</strong>, with an adaptive worker pool, retries with
-backoff, and <strong>never stomps on the feature branch you're in the middle of</strong>.</p>
+<p>Auth is one env var, the platform's token (<code>GITLAB_TOKEN</code> / <code>GITHUB_TOKEN</code> /
+<code>BITBUCKET_TOKEN</code> / <code>GITEA_TOKEN</code>), carried in headers and the child environment, never in
+URLs or argv, so <code>.contextlake.ini</code> holds only non-secret settings and is gitignored by
+default. (On GitLab, an authenticated <code>glab</code> works too; public orgs on other platforms need
+no token at all.) It runs across hundreds of repos <strong>concurrently</strong>, with an adaptive worker
+pool, retries with backoff, and <strong>never stomps on the feature branch you're in the middle
+of</strong>.</p>
 <blockquote>
 <p><strong>Behind a slow / TLS-inspecting corporate proxy</strong> (e.g. Zscaler) where <code>glab</code>'s API calls
 time out? Set <code>GITLAB_TOKEN</code> (a <code>read_api</code> token) and contextlake enumerates projects via
@@ -313,7 +321,7 @@ graph, change-impact (blast radius), health, and search. Try it with zero setup 
 <li><a href="#how-it-works">How it works</a></li>
 <li><a href="#install">Install</a></li>
 <li><a href="#quickstart-one-repo-no-setup">Quickstart: one repo, no setup</a></li>
-<li><a href="#fleet-mode-mirror-a-gitlab-group">Fleet mode: mirror a GitLab group</a></li>
+<li><a href="#fleet-mode-mirror-a-whole-org">Fleet mode: mirror a whole org</a></li>
 <li><a href="#commands-at-a-glance">Commands at a glance</a></li>
 <li><a href="#knowledge-layer">Knowledge layer</a><ul>
 <li><a href="#the-dashboard">The dashboard</a></li>
