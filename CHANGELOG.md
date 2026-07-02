@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Semantic search now embeds real code content.** Each node's vector carries its
+  captured signature and docstring alongside the name/path metadata, so
+  natural-language queries land on the right symbol even when its name is terse.
+  Eval-gated before shipping: on the golden-query harness's natural-language set,
+  MRR doubled (0.50 → 1.00) and hit-rate went from 0.83 to 1.00 versus name-only
+  vectors. Existing stores are detected by a new embedded-text version stamp and
+  re-embedded once automatically (with a message saying why); incremental behavior
+  then resumes.
+
 ## [2.22.0] - 2026-07-02
 
 ### Added

@@ -11,6 +11,17 @@ from __future__ import annotations
 from .._util import chunks
 from ..store.shards import read_shard
 
+# Version of the node -> text mapping below. Bumping it marks every stored vector
+# stale (the next embed re-runs the fleet once, intentionally), so enriching the
+# text can never leave old name-only vectors silently coexisting with new semantics.
+#   1: kind + name + qualified_name + file (metadata only)
+#   2: + captured signature and docstring (real content -> real semantic search)
+EMBED_CONTENT_VERSION = 2
+
+# Docstrings are captured up to 1000 chars; embed a tighter slice so one verbose
+# docstring can't drown the identifying tokens (name/signature) in the vector.
+_DOC_EMBED_CHARS = 400
+
 
 def node_text(node) -> str:
     """The text representation of a node used for embedding."""
@@ -19,6 +30,11 @@ def node_text(node) -> str:
         parts.append(node.qualified_name)
     if node.file:
         parts.append(node.file)
+    attrs = getattr(node, "attrs", None) or {}
+    if attrs.get("signature"):
+        parts.append(str(attrs["signature"]))
+    if attrs.get("doc"):
+        parts.append(str(attrs["doc"])[:_DOC_EMBED_CHARS])
     return " ".join(p for p in parts if p)
 
 
