@@ -119,10 +119,11 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 
 </details>
 
-<p><strong>Prerequisites:</strong> <code>git</code>, and, only for GitLab mirroring, an authenticated
-<a href="https://gitlab.com/gitlab-org/cli"><code>glab</code></a> (<code>glab auth login</code>). The knowledge layer needs
-neither. Once installed, <code>contextlake</code>, <code>python -m contextlake</code>, and <code>python3 contextlake.py</code>
-are equivalent.</p>
+<p><strong>Prerequisites:</strong> <code>git</code>, and, only for GitLab mirroring, <strong>either</strong> a <code>GITLAB_TOKEN</code>
+env var (a PAT with <code>read_api</code> + <code>read_repository</code>, no other tool needed) <strong>or</strong> an
+authenticated <a href="https://gitlab.com/gitlab-org/cli"><code>glab</code></a> (<code>glab auth login</code>). The
+knowledge layer needs neither. Once installed, <code>contextlake</code>, <code>python -m contextlake</code>,
+and <code>python3 contextlake.py</code> are equivalent.</p>
 <h2 id="quickstart-one-repo-no-setup">Quickstart: one repo, no setup<a class="anchor" href="#quickstart-one-repo-no-setup" title="Link to this section">#</a></h2>
 <p>You don't need GitLab or any config to try contextlake on a repo you already have.
 No install? Run it once with <a href="https://docs.astral.sh/uv/"><code>uvx</code></a>: prefix any command

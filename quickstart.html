@@ -42,7 +42,8 @@ in a few minutes. Everything beyond the mirror is optional and off by default.</
 <h2 id="1-prerequisites">1. Prerequisites<a class="anchor" href="#1-prerequisites" title="Link to this section">#</a></h2>
 <ul>
 <li><strong>Python 3.10+</strong> (the knowledge layer needs 3.10; the core sync works on 3.9+)</li>
-<li><strong><code>git</code></strong> and an authenticated <strong><code>glab</code></strong>, run <code>glab auth login</code></li>
+<li><strong><code>git</code></strong>, plus GitLab auth: either set <strong><code>GITLAB_TOKEN</code></strong> (a PAT with <code>read_api</code> +
+  <code>read_repository</code>; no other tool needed) or authenticate <strong><code>glab</code></strong> (<code>glab auth login</code>)</li>
 </ul>
 <h2 id="2-install">2. Install<a class="anchor" href="#2-install" title="Link to this section">#</a></h2>
 <div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span>
