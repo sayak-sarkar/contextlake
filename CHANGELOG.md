@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`glab` is now fully optional.** With a `GITLAB_TOKEN` (a `read_api` +
+  `read_repository` PAT), `clone_method=auto` clones with plain `git`, passing the
+  credential as an auth header through the child environment — never on the command
+  line and never in the URL, so it cannot leak into `ps` output or `.git/config`.
+  Enumeration already used the token-native HTTP client, so the whole mirror now runs
+  with just `git` + a token; without a token the glab-then-git behavior is unchanged.
+
 ## [2.21.0] - 2026-07-02
 
 The product-review hardening release: an end-to-end review as a brand-new
