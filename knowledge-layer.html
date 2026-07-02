@@ -128,18 +128,19 @@ with <code>--repo &lt;repo&gt;</code> rather than getting a silent best-guess.</
 chains them, mirror repos → index → connect → embed → wiki → write editor steering, 
 skipping anything not enabled, so a teammate goes from nothing to a fully-wired
 workspace in one step:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--kb-config<span class="w"> </span>~/.contextlake/kb.toml
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap
 </code></pre></div>
 
-<p>Skip stages with <code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code>. For an
-isolated CLI, install with <code>pipx install "git+https://github.com/sayak-sarkar/contextlake"</code>
-(add the <code>[kb]</code> extra for the knowledge layer), or run ad-hoc with <code>uvx</code>.</p>
+<p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and
+<code>~/.contextlake/kb.toml</code>); pass <code>--config</code> / <code>--kb-config</code> to point elsewhere. Skip
+stages with <code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code>. For an
+isolated CLI, install with <code>pipx install "contextlake[kb]"</code>, or run ad-hoc with <code>uvx</code>.</p>
 <h3 id="keep-it-fresh-on-a-schedule">Keep it fresh on a schedule<a class="anchor" href="#keep-it-fresh-on-a-schedule" title="Link to this section">#</a></h3>
 <p><code>bootstrap</code> is incremental and branch-safe, so it's
 safe to run repeatedly, it re-mirrors, re-indexes only the repos whose HEAD moved,
 refreshes the knowledge layer, and rewrites the steering, without touching an
 in-progress working tree. Run it from cron:</p>
-<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap --config ~/.contextlake.ini --kb-config ~/.contextlake/kb.toml &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
+<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
 </code></pre></div>
 
 <p>or as a systemd user timer, see <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.service"><code>examples/contextlake.service</code></a>
@@ -235,8 +236,9 @@ no core dependency:</p>
         <span class="k">yield</span> <span class="n">Document</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;123&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Runbook&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">&quot;…&quot;</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://…&quot;</span><span class="p">)</span>
 </code></pre></div>
 
-<p><code>contextlake ingest</code> then discovers <code>type = "confluence"</code> automatically. Two sources ship
-built-in, <code>files</code> and <strong><code>web</code></strong> (fetch URLs and ingest their readable text, stdlib-only):</p>
+<p><code>contextlake ingest</code> then discovers <code>type = "confluence"</code> automatically. Four sources ship
+built-in: <code>files</code>, <code>web</code>, <code>api</code>, and <code>mcp</code>. <strong><code>web</code></strong> fetches URLs and ingests their
+readable text (stdlib-only):</p>
 <div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;web&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;changelog&quot;</span>

@@ -65,10 +65,12 @@ each layer above it is optional.</p>
 layer and serving in <strong><a href="knowledge-layer.html">Knowledge layer</a></strong>, and the whole flow start to
 finish in <strong><a href="quickstart.html">QUICKSTART</a></strong>.</p>
 <h2 id="install">Install<a class="anchor" href="#install" title="Link to this section">#</a></h2>
-<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>contextlake<span class="w">             </span><span class="c1"># the mirroring CLI</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">       </span><span class="c1"># + the knowledge layer (graph, search, wiki, MCP server)</span>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">       </span><span class="c1"># the full tool: mirror + graph, search, wiki, MCP server</span>
+pip<span class="w"> </span>install<span class="w"> </span>contextlake<span class="w">             </span><span class="c1"># mirror-only core (no pip dependencies at all)</span>
 </code></pre></div>
 
+<p>Everything in the quickstart below needs the <code>[kb]</code> extra (Python 3.10+); the plain
+install is just the mirroring CLI and runs on Python 3.9+.</p>
 <p>Prefer an isolated, zero-setup install? <a href="https://docs.astral.sh/uv/"><code>uv</code></a> fetches the right
 Python and an isolated environment for you:</p>
 <div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">            </span><span class="c1"># install the CLI on your PATH</span>
@@ -87,6 +89,22 @@ uvx<span class="w"> </span>--from<span class="w"> </span><span class="s2">&quot;
 | `[kb-local]` | The built-in CPU embedder (model2vec, ~30 MB) | Semantic search with no Ollama or API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (~90 MB) | Better semantic ranking |
 | `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `wiki --llm builtin` with no Ollama or API key |
+
+</details>
+
+<details>
+<summary>Docker (turnkey / air-gapped: models baked in)</summary>
+
+The published image bundles the knowledge layer plus the built-in CPU models
+(embedder + a small wiki LLM), so it runs with no Ollama, no API key, and no
+model download at runtime. The PyPI wheel stays the primary install; reach for
+the image on locked-down or offline machines.
+
+
+<div class="codehilite"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>doctor
+docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>index
+</code></pre></div>
+
 
 </details>
 
@@ -116,8 +134,8 @@ contextlake<span class="w"> </span>serve<span class="w">                     </s
 
 <p><strong>Wire it into your editor in one line</strong>, no config file needed (it uses the local
 <code>~/.contextlake/kb</code> store you just built):</p>
-<div class="codehilite"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w">      </span><span class="c1"># Claude Code</span>
-<span class="c1"># zero-install variant: claude mcp add contextlake -- uvx --from &quot;contextlake[kb]&quot; contextlake serve</span>
+<div class="codehilite"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w">      </span><span class="c1"># Claude Code</span>
+<span class="c1"># zero-install variant: claude mcp add contextlake-kb -- uvx --from &quot;contextlake[kb]&quot; contextlake serve</span>
 </code></pre></div>
 
 <p align="center">
@@ -257,8 +275,8 @@ GitLab items, add <strong>semantic search</strong>, write a curated <strong>wiki
 (offline interactive HTML, fleet overview, a symbol's neighbourhood, or a single repo), and
 generate per-tool <strong>steering files</strong> + a skills library. Most of it needs no model; the rest
 works with a local Ollama or any OpenAI-compatible endpoint.</p>
-<p>One command sets it all up:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--kb-config<span class="w"> </span>~/.contextlake/kb.toml
+<p>One command sets it all up (configs are read from their default locations):</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap
 </code></pre></div>
 
 <p>Full guide: <strong><a href="knowledge-layer.html">docs/knowledge-layer.md</a></strong>.</p>

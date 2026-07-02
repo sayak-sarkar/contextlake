@@ -40,10 +40,14 @@
 exposes it as an <strong>MCP server</strong>, so any MCP client (Claude Code, Windsurf, Kiro, Cursor,
 Postman, …) can query the graph directly instead of grepping.</p>
 <p><strong>Most of it needs no model.</strong> The graph tools work on their own, <code>search_code</code>,
-<code>find_definition</code>, <code>find_callers</code>, <code>find_dependents</code>, <code>shortest_path</code>, <code>graph_stats</code>,
-<code>repo_dependencies</code>, <code>repo_flow</code>, <code>repo_event_flow</code>, <code>blast_radius</code>, <code>who_knows</code>, <code>get_wiki</code>,
-<code>get_readme</code>, <code>get_repo_brief</code>, <code>list_repos</code>, <code>get_repo_links</code>, <code>graph_health</code>. Only
-<code>semantic_search</code> / <code>hybrid_search</code> need embeddings.</p>
+<code>find_definition</code>, <code>find_callers</code>, <code>find_dependents</code>, <code>get_node</code>, <code>get_neighbors</code>,
+<code>shortest_path</code>, <code>graph_stats</code>, <code>repo_dependencies</code>, <code>repo_flow</code>, <code>repo_event_flow</code>,
+<code>blast_radius</code>, <code>who_knows</code>, <code>get_wiki</code>, <code>get_readme</code>, <code>get_repo_brief</code>, <code>list_repos</code>,
+<code>get_repo_links</code>, <code>graph_health</code>, plus a <code>kb://stats</code> resource with the store counts.</p>
+<p><code>semantic_search</code> / <code>hybrid_search</code> are the two exceptions: they register <strong>only when
+embeddings exist</strong> (an <code>[embeddings]</code> section in <code>kb.toml</code> and a <code>contextlake embed</code>
+run). Without that, the server starts fine and says so, the two tools are simply
+absent from the tool list, and everything above still works.</p>
 <h2 id="the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors<a class="anchor" href="#the-quick-way-let-contextlake-wire-your-editors" title="Link to this section">#</a></h2>
 <p>From your workspace root:</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>steer<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
