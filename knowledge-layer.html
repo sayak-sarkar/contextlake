@@ -311,6 +311,12 @@ with a provenance footer citing the commit and sources, then puts the draft thro
 a <strong>verification council</strong>, reviewers score it for accuracy, completeness, and
 clarity and a chairman publishes only pages above a configurable threshold. Nothing
 that fails review is written.</p>
+<p>Accepted pages also become <strong>searchable prose</strong>: each page's sections are stored in
+an isolated <code>@wiki:&lt;repo&gt;</code> partition and, when the semantic tier is enabled, embedded
+alongside the code vectors, so a natural-language question can land on the wiki's
+explanation of a subsystem, cited back to the page file and labeled advisory (kind
+<code>wiki</code>), never outranking extracted code facts. Pages written before this existed are
+backfilled on the next <code>wiki</code> run without any LLM calls.</p>
 <p>The result, rendered in the dashboard's Wiki tab, prose grounded strictly in real symbols,
 with a provenance footer citing the exact commit and source files it was built from:</p>
 <p align="center">
