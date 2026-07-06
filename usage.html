@@ -45,6 +45,19 @@ Start with <a href="quickstart.html">QUICKSTART</a>. For the knowledge layer see
 <p>Every command carries its own scoped help, <code>contextlake &lt;command&gt; --help</code> shows
 just that command's flags with worked examples, and bare <code>contextlake</code> prints the
 full command list.</p>
+<p><strong>Mirror a subset with <code>--repos</code>.</strong> Every mirror command (and <code>bootstrap</code> / <code>index
+--workspace</code>) accepts <code>--repos PATTERN</code>, a comma-separated <strong>glob/substring</strong> filter
+over your repo paths, so you can mirror and index just a handful instead of the whole
+group. Ideal for a demo or a try-before-fleet run:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;team/api,billing,frontend/*&quot;</span><span class="w">   </span><span class="c1"># mirror + index just these</span>
+contextlake<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;team/*&quot;</span><span class="w">                             </span><span class="c1"># sync one namespace</span>
+contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;billing/core,team/api&quot;</span>
+</code></pre></div>
+
+<p>Each pattern matches if it's a substring of, or a glob against, the repo's
+group-qualified path or its local path (case-insensitive). It scopes the whole
+pipeline: <code>fetch</code> narrows the cached project list, and <code>clone</code> / <code>update</code> / <code>branches</code>
+/ <code>verify</code> / <code>status</code> / <code>bootstrap</code> all follow from that.</p>
 <p><code>contextlake sync</code> runs the whole mirror pipeline end to end; each stage is also
 available as its own command:</p>
 <p align="center">
