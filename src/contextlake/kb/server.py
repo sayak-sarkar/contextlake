@@ -199,6 +199,21 @@ class GraphHealthOut(BaseModel):
     dangling_sample: list[DanglingOut]   # first 20
 
 
+class AskOut(BaseModel):
+    """One-shot answer envelope: the router picked a substrate and filled the
+    matching field. Read ``route`` to know which field holds the answer, and
+    ``note`` for what it is and how much to trust it."""
+    question: str
+    route: str                       # definition|callers|dependents|impact|owners|explain|search
+    target: str | None = None        # the symbol / repo the question resolved to
+    note: str                        # plain-language: what answered, and the trust label
+    nodes: list[NodeOut] = []         # definition | callers | dependents | search
+    blast: BlastRadiusOut | None = None   # impact
+    owners: OwnersOut | None = None       # owners
+    wiki: WikiOut | None = None            # explain (ADVISORY prose)
+    truncated: bool = False          # more results exist than returned (callers/dependents)
+
+
 # EXTRACTED is ground truth; surface it before inferred/ambiguous so a truncated
 # result keeps the most trustworthy edges.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
@@ -639,6 +654,114 @@ def build_server(
                 if n:
                     out.append(_node_out(n))
             return out
+
+    @mcp.tool()
+    def ask(question: str, k: int = 8, repo: str | None = None) -> AskOut:
+        """One question, auto-routed to the right substrate — for agents that would
+        rather ask in plain language than pick among the graph tools.
+
+        Classifies the question (definition / callers / dependents / impact / owners /
+        explain / search), resolves the symbol or repo it is about, and returns a
+        single labeled answer. Graph routes are cited and confidence-tagged; the
+        'explain' route returns ADVISORY wiki prose. When unsure, prefer the specific
+        tool (find_definition, find_callers, blast_radius, …) — this is the convenience
+        front door over them, not a replacement."""
+        from .router import (
+            CALLERS,
+            DEFINITION,
+            DEPENDENTS,
+            EXPLAIN,
+            IMPACT,
+            OWNERS,
+            SEARCH,
+            classify,
+        )
+
+        route, target = classify(question)
+
+        def _out(note, **kw):
+            return AskOut(question=question, route=route, target=target, note=note, **kw)
+
+        def _resolve_id(name):
+            """A question names a symbol; callers/impact need a node id."""
+            if not name:
+                return None, "no symbol found in the question"
+            if store.get_node(name):
+                return name, None
+            matches = store.nodes_by_name(name, repo=repo)
+            if not matches:
+                return None, f"no indexed symbol named {name!r}"
+            extra = (f" ({len(matches)} matched {name!r}; used the first)"
+                     if len(matches) > 1 else "")
+            return matches[0].id, extra or None
+
+        if route == DEFINITION:
+            hits = find_definition(target, repo=repo) if target else []
+            if hits:
+                return _out(f"Definition(s) of {target!r} — EXTRACTED, cited.", nodes=hits)
+            # fall through to a search when the exact name isn't a definition
+            route = SEARCH
+
+        if route == CALLERS:
+            nid, why = _resolve_id(target)
+            if nid is None:
+                return _out(f"Couldn't resolve a symbol to find callers of — {why}.")
+            res = find_callers(nid, limit=k)
+            return _out(f"Callers of {target!r} — incoming calls, EXTRACTED-first"
+                        + (why or "") + ".", nodes=res.nodes, truncated=res.truncated)
+
+        if route == DEPENDENTS:
+            res = find_dependents(target, limit=k) if target else NodesOut(
+                nodes=[], total=0, truncated=False)
+            return _out(f"Repos/files depending on package {target!r} — INFERRED from "
+                        "manifests, verify against the cited file.",
+                        nodes=res.nodes, truncated=res.truncated)
+
+        if route == IMPACT:
+            nid, why = _resolve_id(target)
+            if nid is None:
+                return _out(f"Couldn't resolve a symbol for blast radius — {why}.")
+            res = blast_radius(nid, hops=3)
+            return _out(f"Blast radius of {target!r}: {res.total} node(s) within 3 hops"
+                        + (why or "") + ". Reverse reach over calls+depends_on+flow; "
+                        "INFERRED/AMBIGUOUS hits may under- or over-count — verify.",
+                        blast=res, truncated=res.truncated)
+
+        if route == OWNERS:
+            if not target:
+                return _out("Couldn't tell which repo to find owners for.")
+            res = who_knows(target, limit=k)
+            return _out(f"Likely owners / SMEs for {target!r}, ranked from git history.",
+                        owners=res)
+
+        if route == EXPLAIN:
+            if target:
+                w = get_wiki(target)
+                if w.found:
+                    stale = " (STALE — the code changed since)" if w.stale else ""
+                    return _out(f"Curated wiki for {target!r}{stale} — ADVISORY prose, "
+                                "grounded in the graph; verify specifics against code.",
+                                wiki=w)
+            # no wiki page: degrade to a semantic/keyword explanation search
+            route = SEARCH
+
+        # SEARCH (fallback for everything else, and for definition/explain misses).
+        # `route` has already been reassigned to SEARCH above where we fell through,
+        # so _out records it correctly.
+        route = SEARCH
+        if embedder is not None and vector_store is not None:
+            vec = embedder.embed([question])[0]
+            out: list[NodeOut] = []
+            for nid, _s in vector_store.search(vec, k=k, repo=repo):
+                n = store.get_node(nid)
+                if n:
+                    out.append(_node_out(n))
+            return _out("Semantic search over the graph (names + signatures + docstrings); "
+                        "'wiki'/'document' hits are ADVISORY. No exact route matched.",
+                        nodes=out)
+        hits = search_code(question, repo=repo, limit=k)
+        return _out("Full-text search over node names (no embeddings configured). "
+                    "No exact route matched.", nodes=hits)
 
     @mcp.resource("kb://stats")
     def stats_resource() -> str:

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ask` — one MCP tool, natural language, auto-routed.** A small-context IDE agent
+  no longer has to pick among twenty graph tools: `ask("who calls charge_order")`,
+  `ask("what breaks if I change OrderService")`, `ask("explain the orders-api")`. A
+  deterministic, offline classifier maps the question to a substrate (definition /
+  callers / dependents / impact / owners / explain / search), resolves the symbol or
+  repo, and returns one labeled answer — graph facts cited and confidence-tagged, the
+  `explain` route clearly marked advisory. The classifier is its own pure module
+  (`kb/router.py`), unit- and eval-tested on a golden question set (23/23 route +
+  target) so misroutes are falsifiable. It's a convenience front door over the
+  specific tools, which remain first-class.
+
 ## [2.26.0] - 2026-07-06
 
 ### Added
