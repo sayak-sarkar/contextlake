@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmarks · contextlake docs</title>
+<meta name="description" content="An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools — new-code grounding first, plus search, maintenance, and the caveats.">
+<link rel="canonical" href="https://sayak.in/contextlake/benchmarks.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Benchmarks · contextlake docs">
+<meta property="og:description" content="An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools — new-code grounding first, plus search, maintenance, and the caveats.">
+<meta property="og:url" content="https://sayak.in/contextlake/benchmarks.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Benchmarks · contextlake docs">
+<meta name="twitter:description" content="An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools — new-code grounding first, plus search, maintenance, and the caveats.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Documentation</h2><nav aria-label="Docs"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="benchmarks.html" class="active">Benchmarks</a><a href="internals.html">Architecture</a><a href="storage.html">Storage</a><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Layer 3 · Serve</div><h1>What it actually saves</h1><p class="doc-sub">An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools — new-code grounding first, plus search, maintenance, and the caveats.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>An honest, measured look at what connecting the contextlake MCP server to an AI
+coding tool (Claude, Devin, Copilot, Cursor, Windsurf …) does to token usage, and,
+just as importantly, where it <em>doesn't</em> help.</p>
+<p>These numbers come from real measurements against a large private multi-repo estate,
+not a synthetic demo. We publish the caveats alongside the wins because a benchmark
+without its assumptions is marketing, not data.</p>
+<h2 id="the-short-version">The short version<a class="anchor" href="#the-short-version" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>Writing new code in an existing estate is where it matters most.</strong> New code in a
+  large codebase is not greenfield invention, it is mostly <em>grounding</em>: which service
+  to call, its real signature, the pattern to follow, whether a utility already exists,
+  where it plugs in. That work is almost entirely retrieval, and it is where hallucinated
+  integrations and duplicated code come from. On our estate, grounding one new-code task
+  cost <strong>~3,700 tokens with contextlake vs ~16,800 without (~4.6× fewer), before a
+  single line is generated</strong>, and with higher confidence, because it matches <em>concepts</em>,
+  not just keywords.</li>
+<li><strong>Search of every kind</strong>, semantic / knowledge search, "who calls X", "what breaks
+  if I change X", "which repo has X", is the other strong case, where brute-force is
+  intractable or hugely wasteful on a large fleet.</li>
+<li><strong>Assessing impact on and maintaining unfamiliar existing code</strong> benefits for the same
+  reason: orientation is retrieval.</li>
+<li><strong>What it does <em>not</em> do:</strong> it does not reduce the tokens spent <em>generating</em> code, and
+  it helps little on true greenfield work in an empty repo (there is nothing to ground
+  against).</li>
+<li><strong>On cost:</strong> real but modest on per-token API billing; the larger lever is <em>rework
+  avoided</em> (a hallucinated integration is a failed build, a re-prompt, and a wasted
+  review), which is time and correctness more than a line item.</li>
+</ul>
+<p>Treat contextlake as a <strong>scale-and-correctness tool first, a token-cost tool second.</strong></p>
+<h2 id="methodology">Methodology<a class="anchor" href="#methodology" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>Substrate:</strong> a real, private software estate of <strong>~680 repositories</strong> , 
+  ~1.0 million graph nodes, ~1.9 million edges, ~900,000 semantic vectors, and ~21 GB
+  of source on disk. (No proprietary names, paths, or symbols are reproduced here.)</li>
+<li><strong>Token counts:</strong> <a href="https://github.com/openai/tiktoken"><code>tiktoken</code></a> <code>cl100k_base</code>, a
+  reasonable cross-model proxy for "tokens". Real source in this estate measured at
+  <strong>~4.8 characters per token</strong>.</li>
+<li><strong>Both sides are measured, not modeled.</strong> The <em>contextlake</em> figure is the actual MCP
+  tool response an agent ingests (the structured JSON). The <em>baseline</em> is what an agent
+  gathers without contextlake, <code>grep</code> over the same source, plus the file reads that
+  follow, measured on the same 21 GB.</li>
+<li><strong>The baseline is realistic, not worst-case.</strong> A well-scoped agent that greps a single
+  known repo is cheaper than one that greps the whole fleet; the figures below sit
+  between those extremes.</li>
+<li>Measured on contextlake <strong>v2.33.2</strong>.</li>
+</ul>
+<h2 id="results-per-query">Results (per query)<a class="anchor" href="#results-per-query" title="Link to this section">#</a></h2>
+<p>One fixed cost applies to any session: the <strong>~22 MCP tool schemas load once, ≈ 3,400
+tokens</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>contextlake</th>
+<th>Without it (grep + reads)</th>
+<th>Ratio / note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Where is X defined?</strong></td>
+<td>~160 tokens, cited</td>
+<td>~6,200 tokens for a common name … down to ~230 for a rare one</td>
+<td><strong>1.4×–~40×</strong>, precise and ranked</td>
+</tr>
+<tr>
+<td><strong>Who calls X?</strong></td>
+<td>~1,400–3,400 tokens (all callers, cited, budgeted)</td>
+<td>~7,000 tokens (100+ raw hits incl. the definition, comments, strings)</td>
+<td><strong>~2–5×</strong>, and <em>complete</em></td>
+</tr>
+<tr>
+<td><strong>What breaks if I change X?</strong></td>
+<td>~9,800 tokens (up to 100 transitive hits, hop-tagged, cross-repo)</td>
+<td>grep cannot do transitive reach; first-level only, ~7,000 tokens and incomplete</td>
+<td><strong>a capability, not just a saving</strong></td>
+</tr>
+<tr>
+<td><strong>Semantic / knowledge search</strong></td>
+<td>~1,100 tokens (8 ranked, cited)</td>
+<td>keyword grep across the fleet returns <strong>10–28 million tokens</strong> (100K–200K hits), intractable to read</td>
+<td><strong>orders of magnitude</strong>, with higher recall</td>
+</tr>
+<tr>
+<td><strong>Who owns / knows repo X?</strong></td>
+<td>~300–500 tokens</td>
+<td><code>git log</code> (cheap)</td>
+<td>modest</td>
+</tr>
+<tr>
+<td><strong>Explain / brief a repo</strong></td>
+<td>~1,300–1,500 tokens</td>
+<td>read the README + several files, ~5,000–20,000 tokens</td>
+<td><strong>~4–10×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>A note on scale: on this estate a single <code>grep</code> pass took <strong>3–5 seconds</strong> and returned
+tens of thousands of hits (millions of tokens) for a common term, before the agent
+reads a single file. contextlake answers the same question from its index in one
+bounded, cited call.</p>
+<h2 id="by-use-case-honestly">By use case, honestly<a class="anchor" href="#by-use-case-honestly" title="Link to this section">#</a></h2>
+<h3 id="new-code-development-the-most-important-case">New code development, the most important case<a class="anchor" href="#new-code-development-the-most-important-case" title="Link to this section">#</a></h3>
+<p>In a real company you rarely write code into a vacuum; you add a feature, endpoint, or
+service to an estate that already has hundreds of repositories. Most of that work is
+<strong>grounding the new code in existing reality</strong>: which service to call and its real
+signature, the established pattern to model on, whether a utility for this already
+exists, and where the new code plugs in. That is retrieval, and it is exactly where an
+ungrounded model hallucinates an integration or reinvents a helper.</p>
+<p>We measured a realistic new-code task, <em>"add a feature that integrates with an existing
+service, following existing conventions"</em>, as the sequence of grounding questions an
+agent asks before it writes anything:</p>
+<table>
+<thead>
+<tr>
+<th>Grounding step</th>
+<th>contextlake</th>
+<th>Baseline (grep + reads)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Find the pattern to follow (semantic)</td>
+<td>~1,100 tok</td>
+<td>~2,700 tok, keyword-only</td>
+</tr>
+<tr>
+<td>Find how to integrate (semantic)</td>
+<td>~780 tok</td>
+<td>~2,100 tok, keyword-only</td>
+</tr>
+<tr>
+<td>The API to call (definition)</td>
+<td>~640 tok</td>
+<td>(part of the file reads below)</td>
+</tr>
+<tr>
+<td>Usage examples to model on (callers)</td>
+<td>included</td>
+<td>included below</td>
+</tr>
+<tr>
+<td>Check a utility isn't reinvented (semantic)</td>
+<td>~1,050 tok</td>
+<td>~2,000 tok, keyword-only</td>
+</tr>
+<tr>
+<td>Read candidate service/pattern files</td>
+<td>,</td>
+<td>~10,000 tok (≈8 files)</td>
+</tr>
+<tr>
+<td><strong>Grounding total</strong></td>
+<td><strong>~3,700 tokens</strong></td>
+<td><strong>~16,800 tokens</strong></td>
+</tr>
+</tbody>
+</table>
+<p>So the grounding phase alone is <strong>~4.6× cheaper</strong>, and finishes with <em>cited, concept-
+matched</em> context instead of keyword hits the model has to guess from, <strong>before a single
+line is generated.</strong> The larger, harder-to-quantify win sits downstream: correct
+grounding prevents the hallucinated integration or the duplicate util that turns into a
+failed build, a re-prompt, and a wasted review.</p>
+<p>What contextlake does <strong>not</strong> change here is the raw generation of the new code itself,
+and it helps little on true greenfield work in an empty repo, there is nothing to
+ground against.</p>
+<h3 id="search-the-other-strong-case">Search, the other strong case<a class="anchor" href="#search-the-other-strong-case" title="Link to this section">#</a></h3>
+<p>On a large estate, brute-force search is either intractable (a concept query
+keyword-grepped fleet-wide produced <em>tens of millions</em> of tokens) or slow and noisy.
+contextlake turns it into an O(1), cited, ranked call, and semantic search finds
+conceptually-related code that keyword search misses entirely.</p>
+<h3 id="modifying-maintaining-existing-code-a-moderate-win">Modifying / maintaining existing code, a moderate win<a class="anchor" href="#modifying-maintaining-existing-code-a-moderate-win" title="Link to this section">#</a></h3>
+<p>Largest when the code is unfamiliar. The value is orientation: <em>where is this, who calls
+it, what breaks if I touch it, who owns it</em>, answered in one cited call instead of many
+grep → read → re-grep round-trips.</p>
+<h2 id="translating-to-acu-dollars-subscription">Translating to ACU / dollars / subscription<a class="anchor" href="#translating-to-acu-dollars-subscription" title="Link to this section">#</a></h2>
+<p>Different tools bill differently, so the honest answer differs per platform.</p>
+<ul>
+<li>
+<p><strong>Claude via MCP (per-token API).</strong> This is the only place token deltas map <em>directly</em>
+  to money. But a per-<em>query</em> ratio is not a per-<em>session</em> saving: most agent tokens are
+  reasoning, generation, and the conversation growing turn over turn, not retrieval.
+  Expect roughly <strong>10–40% fewer input tokens on retrieval-heavy sessions, and ≈0 on
+  generation-heavy ones.</strong> Meaningful across a team and a large estate; not a headline
+  cut on any single session.</p>
+</li>
+<li>
+<p><strong>Devin (ACU).</strong> We did <strong>not</strong> measure this, and anyone quoting you an ACU number is
+  guessing. An ACU is compute-time, not tokens; the plausible lever is <em>exploration
+  steps and rework avoided</em>, which is highly task-dependent. Expect a meaningful
+  reduction on exploration-heavy, unfamiliar-fleet tasks and ≈0 on tightly-scoped
+  generation tasks, a hypothesis to A/B test, not a measured claim.</p>
+</li>
+<li>
+<p><strong>VS Code + Copilot (flat subscription).</strong> There is no per-token bill to save. The
+  value is <strong>accuracy and speed</strong>: fewer wrong suggestions from missing cross-repo
+  context, better-targeted file reads, and staying inside the context window. It shows
+  up as developer time and correctness, not a line item.</p>
+</li>
+</ul>
+<h2 id="caveats-worth-reading">Caveats worth reading<a class="anchor" href="#caveats-worth-reading" title="Link to this section">#</a></h2>
+<ul>
+<li>These are <strong>per-query</strong> figures. Whole-task savings are diluted by all the
+  non-retrieval tokens around them, don't multiply a 40× onto your whole bill.</li>
+<li>The <strong>baseline depends on how the agent searches.</strong> A smart, well-scoped agent spends
+  less than the fleet-grep baseline; a naive one spends more.</li>
+<li>contextlake adds a <strong>fixed ~3,400-token schema cost</strong> per session and can be
+  net-negative if an agent calls it for questions it doesn't help with.</li>
+<li><strong>Semantic recall is good, not perfect</strong>, the built-in CPU embedder is fast, not
+  frontier-grade. Results are cited and advisory; verify against the source.</li>
+<li>Measured on <strong>one large estate</strong>; your mileage varies with fleet size and the mix of
+  questions your team actually asks.</li>
+</ul>
+<h2 id="reproduce-it">Reproduce it<a class="anchor" href="#reproduce-it" title="Link to this section">#</a></h2>
+<p>The measurements above are straightforward to reproduce on your own repositories:</p>
+<ol>
+<li>Index your repos (<code>contextlake bootstrap</code> or <code>contextlake index --workspace …</code>).</li>
+<li>Pick a handful of representative questions your team actually asks.</li>
+<li>For each, measure <strong>both</strong> the contextlake MCP response (the JSON the agent
+   receives) and the baseline your agent would otherwise gather (<code>grep</code> output + the
+   files it would read), and tokenize both with the same tokenizer
+   (<code>tiktoken</code> <code>cl100k_base</code> here).</li>
+</ol>
+<p>The point is not a single magic number, it is to see, on <em>your</em> codebase and <em>your</em>
+question mix, where the retrieval cost actually lives.</p>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="internals.html"><span>Architecture</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="storage.html"><span>Storage</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#the-short-version">The short version</a></li>
+<li><a href="#methodology">Methodology</a></li>
+<li><a href="#results-per-query">Results (per query)</a></li>
+<li><a href="#by-use-case-honestly">By use case, honestly</a><ul>
+<li><a href="#new-code-development-the-most-important-case">New code development, the most important case</a></li>
+<li><a href="#search-the-other-strong-case">Search, the other strong case</a></li>
+<li><a href="#modifying-maintaining-existing-code-a-moderate-win">Modifying / maintaining existing code, a moderate win</a></li>
+</ul>
+</li>
+<li><a href="#translating-to-acu-dollars-subscription">Translating to ACU / dollars / subscription</a></li>
+<li><a href="#caveats-worth-reading">Caveats worth reading</a></li>
+<li><a href="#reproduce-it">Reproduce it</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
