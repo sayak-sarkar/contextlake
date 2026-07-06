@@ -60,6 +60,37 @@ extra downloads or warnings. Plain <strong><code>[kb]</code></strong> is the gra
 <code>[kb-local]</code> for the embedder and <code>[kb-vec]</code> for the ANN backend if you prefer to pick.</p>
 <p>This gives you the <code>contextlake</code> command. (<code>python -m contextlake</code> and
 <code>python3 contextlake.py</code> work too.)</p>
+<h3 id="update-to-a-newer-version">Update to a newer version<a class="anchor" href="#update-to-a-newer-version" title="Link to this section">#</a></h3>
+<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                       </span><span class="c1"># if you installed with pipx</span>
+pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span><span class="w">   </span><span class="c1"># if you installed with pip</span>
+uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># if you installed with uv</span>
+docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">   </span><span class="c1"># if you use the image</span>
+</code></pre></div>
+
+<p>Then confirm with <code>contextlake --version</code> and re-check your environment with
+<code>contextlake doctor</code>. Your existing store and config carry forward, the graph
+re-indexes incrementally on your next <code>index</code>/<code>sync</code>, so there is nothing to migrate by
+hand. See the <a href="https://github.com/sayak-sarkar/contextlake/blob/main/changelog.html">changelog</a> for what changed between versions.</p>
+<h3 id="uninstall">Uninstall<a class="anchor" href="#uninstall" title="Link to this section">#</a></h3>
+<p>Remove the tool:</p>
+<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>uninstall<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># or:  pip uninstall contextlake</span>
+docker<span class="w"> </span>rmi<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">    </span><span class="c1"># if you pulled the image</span>
+</code></pre></div>
+
+<p>That leaves your data in place. contextlake never writes inside your repositories, so
+uninstalling it can't touch your source. To also remove what it created locally , 
+all optional, delete only what you don't want to keep:</p>
+<div class="codehilite"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span>~/.contextlake<span class="w">        </span><span class="c1"># knowledge store, kb.toml config, graph/dashboard exports, wiki</span>
+rm<span class="w"> </span>-f<span class="w">  </span>~/.contextlake.ini<span class="w">    </span><span class="c1"># mirror config</span>
+<span class="c1"># your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:</span>
+<span class="c1"># rm -rf ~/work</span>
+<span class="c1"># the built-in CPU models are cached under ~/.cache/huggingface (shared with other HF</span>
+<span class="c1"># tools), remove just the contextlake ones to reclaim space:</span>
+rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/huggingface/hub/models--minishlab--potion-base-8M
+</code></pre></div>
+
+<p>(If you used project-local config, also remove <code>.contextlake.kb.toml</code> /
+<code>.contextlake.ini</code> from those project directories.)</p>
 <h2 id="3-configure">3. Configure<a class="anchor" href="#3-configure" title="Link to this section">#</a></h2>
 <p>The fast path, <code>contextlake init</code> writes both config files for you (interactive, or
 <code>--yes</code> for defaults):</p>
@@ -129,7 +160,11 @@ schedule. Use cron:</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#1-prerequisites">1. Prerequisites</a></li>
-<li><a href="#2-install">2. Install</a></li>
+<li><a href="#2-install">2. Install</a><ul>
+<li><a href="#update-to-a-newer-version">Update to a newer version</a></li>
+<li><a href="#uninstall">Uninstall</a></li>
+</ul>
+</li>
 <li><a href="#3-configure">3. Configure</a></li>
 <li><a href="#4-bootstrap-one-command">4. Bootstrap, one command</a></li>
 <li><a href="#5-wire-your-editor">5. Wire your editor</a></li>

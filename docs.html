@@ -119,6 +119,37 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 
 </details>
 
+<details>
+<summary>Update &amp; uninstall</summary>
+
+Upgrade in place (whichever installer you used):
+
+
+<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                       </span><span class="c1"># pipx</span>
+pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span><span class="w">   </span><span class="c1"># pip</span>
+uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># uv</span>
+docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">   </span><span class="c1"># image</span>
+</code></pre></div>
+
+
+
+Your store and config carry forward, the graph re-indexes incrementally on the next
+`index`/`sync`, so nothing needs migrating. Confirm with `contextlake --version` and
+`contextlake doctor`.
+
+Uninstall the tool, then optionally remove what it created (it never writes inside your
+repos, so your source is never touched):
+
+
+<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>uninstall<span class="w"> </span>contextlake<span class="w">        </span><span class="c1"># or: pip uninstall contextlake</span>
+rm<span class="w"> </span>-rf<span class="w"> </span>~/.contextlake<span class="w">             </span><span class="c1"># store + kb.toml + graph/dashboard exports (optional)</span>
+rm<span class="w"> </span>-f<span class="w">  </span>~/.contextlake.ini<span class="w">         </span><span class="c1"># mirror config (optional)</span>
+<span class="c1"># mirrored repos live in your work_dir (default ~/work), delete only if unwanted</span>
+</code></pre></div>
+
+
+</details>
+
 <p><strong>Prerequisites:</strong> <code>git</code>, and, only for fleet mirroring, the platform's token env var
 (<code>GITLAB_TOKEN</code> with <code>read_api</code> + <code>read_repository</code>, or <code>GITHUB_TOKEN</code> /
 <code>BITBUCKET_TOKEN</code> / <code>GITEA_TOKEN</code>); on GitLab an authenticated
