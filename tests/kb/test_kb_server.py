@@ -409,3 +409,29 @@ def test_ask_explain_falls_back_to_repo_brief_when_no_wiki(tmp_path):
     assert out["brief"]["repo"] == "acme/orders"
     assert out["wiki"] is None
     s.close()
+
+
+def test_ask_routes_subclasses(tmp_path):
+    # "what extends X" returns the types with an incoming inherits edge to X
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    prov = Provenance(source_file="m.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="base", repo="r", kind="class", name="Embedder"),
+        Node(id="a", repo="r", kind="class", name="OllamaEmbedder"),
+        Node(id="b", repo="r", kind="class", name="BuiltinEmbedder"),
+    ]
+    edges = [
+        Edge(src="a", dst="base", relation="inherits", confidence=Confidence.INFERRED,
+             provenance=prov),
+        Edge(src="b", dst="base", relation="inherits", confidence=Confidence.INFERRED,
+             provenance=prov),
+    ]
+    s.upsert_repo(Repo(id="r", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h1", nodes=nodes, edges=edges))
+    reindex_shard(s, tmp_path, "r")
+    res = asyncio.run(_call(build_server(s), "ask", {"question": "what extends Embedder"}))
+    out = res.structuredContent
+    assert out["route"] == "subclasses"
+    assert set(n["name"] for n in out["nodes"]) == {"OllamaEmbedder", "BuiltinEmbedder"}
+    s.close()

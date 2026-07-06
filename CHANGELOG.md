@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.30.1] - 2026-07-06
+### Added
+
+- **`ask` answers "what extends X?"** A new `subclasses` route makes the inheritance
+  graph queryable in natural language: `ask("what extends BaseController")`,
+  `ask("who implements Store")`, `ask("subclasses of Embedder")` resolve the base type
+  and return the classes/interfaces with an incoming `inherits` edge — cited graph
+  facts, not a fuzzy search. (Surfaced by dogfooding `ask` on a real 800-node codebase,
+  where inheritance questions previously fell through to semantic search.)
 
 ### Fixed
 

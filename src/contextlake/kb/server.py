@@ -676,6 +676,7 @@ def build_server(
             IMPACT,
             OWNERS,
             SEARCH,
+            SUBCLASSES,
             classify,
         )
 
@@ -718,6 +719,22 @@ def build_server(
             return _out(f"Repos/files depending on package {target!r} — INFERRED from "
                         "manifests, verify against the cited file.",
                         nodes=res.nodes, truncated=res.truncated)
+
+        if route == SUBCLASSES:
+            nid, why = _resolve_id(target)
+            if nid is None:
+                return _out(f"Couldn't resolve a type to find subclasses of — {why}.")
+            # incoming `inherits` edges are the types that extend/implement this one
+            subs, seen = [], set()
+            for e in store.neighbors(nid, relation="inherits", direction="in"):
+                if e.src in seen:
+                    continue
+                seen.add(e.src)
+                if (n := store.get_node(e.src)):
+                    subs.append(_node_out(n))
+            return _out(f"Types that extend or implement {target!r}"
+                        + (why or "") + f" — {len(subs)} found via inherits edges.",
+                        nodes=subs[:k], truncated=len(subs) > k)
 
         if route == IMPACT:
             nid, why = _resolve_id(target)
