@@ -260,3 +260,29 @@ def test_cmd_embed_watch_reruns_the_pass(tmp_path, monkeypatch):
                 limit=None, force=False, interval=0)
     assert cmd_embed(Namespace(**base, watch=True)) == 0
     assert passes == [0, 0]                      # each pass ran and returned success
+
+
+def test_embed_repo_skips_non_definition_kinds(tmp_path):
+    # file / module / package / topic nodes carry little semantic signal and (for
+    # the shared ones) repeat ids across repos; embed_repo skips them by default.
+    from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
+    nodes = [
+        Node(id="fn", repo="r", kind="function", name="charge"),
+        Node(id="cls", repo="r", kind="class", name="OrderService"),
+        Node(id="ep", repo="r", kind="endpoint", name="/charge"),
+        Node(id="file", repo="r", kind="file", name="svc.py"),
+        Node(id="mod", repo="(mods)", kind="module", name="os"),
+        Node(id="pkg", repo="(packages)", kind="package", name="requests"),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=[]))
+    vs = VectorStore(tmp_path / "e.sqlite")
+    try:
+        n = embed_repo(tmp_path, vs, _FakeEmbedder(), "r")
+        assert n == 3                       # function, class, endpoint — not file/module/package
+        assert vs.count() == 3
+        assert {"function", "class", "endpoint"} <= EMBEDDABLE_KINDS
+        assert "file" not in EMBEDDABLE_KINDS and "module" not in EMBEDDABLE_KINDS
+        # an explicit kinds override still wins
+        assert embed_repo(tmp_path, vs, _FakeEmbedder(), "r", kinds={"file"}) == 1
+    finally:
+        vs.close()

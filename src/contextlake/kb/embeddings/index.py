@@ -38,13 +38,27 @@ def node_text(node) -> str:
     return " ".join(p for p in parts if p)
 
 
+# Kinds worth a semantic vector: code definitions (unique per repo, carrying real
+# names + signatures + docstrings) plus HTTP endpoints. Deliberately EXCLUDES file
+# nodes (a path is not a semantic query), and the cross-repo *shared* nodes —
+# module / package / topic — whose ids repeat across repos, which otherwise get
+# re-embedded once per referencing repo (wasted compute, an inflated "written"
+# count) and dilute results with low-signal hits. Dependents/flow tools cover those.
+EMBEDDABLE_KINDS = frozenset(
+    {"class", "function", "method", "interface", "struct", "enum", "endpoint"})
+
+
 def embed_repo(store_dir, vector_store, embedder, repo_id, *,
                batch_size: int = 64, limit: int | None = None, kinds=None) -> int:
-    """Embed a repo's nodes into ``vector_store``. Returns the number embedded."""
+    """Embed a repo's semantically-meaningful nodes into ``vector_store``.
+
+    ``kinds`` defaults to :data:`EMBEDDABLE_KINDS` (definitions + endpoints); pass an
+    explicit set to override. Returns the number embedded."""
     shard = read_shard(store_dir, repo_id)
     if shard is None:
         return 0
-    nodes = [n for n in shard.nodes if kinds is None or n.kind in kinds]
+    allowed = EMBEDDABLE_KINDS if kinds is None else kinds
+    nodes = [n for n in shard.nodes if n.kind in allowed]
     if limit is not None:
         nodes = nodes[:limit]
     vector_store.clear_repo(repo_id)

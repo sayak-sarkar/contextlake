@@ -195,11 +195,15 @@ for larger workspaces. Tune it with `[embeddings] vector_chunk_size` (the sqlite
 `vec0` KNN chunk size, default 1024; clamped to a multiple of 8, applied when the vector
 store is first created — re-embed from scratch to change an existing store).
 
-**What gets embedded:** each node's kind, name, qualified name, and file path, plus
-its captured **signature and docstring** — so a natural-language query like *"refund
-a payment to the original card"* finds the right function even when its name says
-nothing of the sort. (Measured on the golden-query harness, adding signature +
-docstring doubled MRR and took hit-rate to 100% on natural-language queries.)
+**What gets embedded:** the code **definitions** (classes, functions, methods,
+interfaces, structs, enums) and HTTP endpoints — each with its name, qualified name,
+file path, and captured **signature and docstring** — so a natural-language query like
+*"refund a payment to the original card"* finds the right function even when its name
+says nothing of the sort. (Measured on the golden-query harness, adding signature +
+docstring doubled MRR and took hit-rate to 100% on natural-language queries.) File,
+module, and package nodes are deliberately not embedded: a path or a shared package
+name is low semantic signal, and skipping them keeps results clean and avoids
+re-embedding cross-repo shared nodes once per referencing repo.
 
 **Which model?** With that content embedded, the tiny static models punch far above
 their weight: on a 24-query natural-language bake-off, the default `potion-base-8M`

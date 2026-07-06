@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.31.0] - 2026-07-06
+## [2.32.0] - 2026-07-06
+
+### Changed
+
+- **`embed` now vectorizes only meaningful nodes** — code definitions (class /
+  function / method / interface / struct / enum) and HTTP endpoints — and skips file,
+  module, package, and topic nodes. A file path or a shared package name carries
+  little semantic signal, and the shared cross-repo nodes were being re-embedded once
+  per referencing repo, inflating the "vectors written" count (it now matches the
+  store total) and diluting search results. Eval-gated: no relevance regression on the
+  golden-query harness; semantic search returns cleaner definition hits. Found while
+  dogfooding a full multi-repo `bootstrap`.
 
 ### Added
 
