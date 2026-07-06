@@ -65,7 +65,13 @@ PAGES = [
      "Layer 3 · Serve", "Expose the knowledge layer over MCP and wire your editors "
      "(Claude Code, Windsurf, Kiro) in one command.",
      "pebble-doc.png",
-     [("knowledge-layer.html", "Knowledge layer"), ("dashboard.html", "Dashboard")]),
+     [("benchmarks.html", "Benchmarks"), ("dashboard.html", "Dashboard")]),
+    ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",
+     "Layer 3 · Serve", "An honest, measured look at the token, cost, and correctness "
+     "impact of connecting the contextlake MCP to your AI coding tools — new-code "
+     "grounding first, plus search, maintenance, and the caveats.",
+     "pebble-doc.png",
+     [("serve.html", "Serve (MCP)"), ("knowledge-layer.html", "Knowledge layer")]),
     ("internals.html", "docs/internals.md", "Architecture", "Architecture & internals",
      "Under the hood", "How all three layers work inside, the store, concurrency, "
      "branch selection, extraction, and the offline boundary.",
@@ -90,7 +96,8 @@ TITLES = {out: nav for out, _, nav, *_ in PAGES}
 _NEXT_LABEL = {
     "docs.html": "Overview", "quickstart.html": "Quickstart", "usage.html": "Usage & config",
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
-    "serve.html": "Serve (MCP)", "internals.html": "Architecture", "storage.html": "Storage",
+    "serve.html": "Serve (MCP)", "benchmarks.html": "Benchmarks",
+    "internals.html": "Architecture", "storage.html": "Storage",
     "changelog.html": "Changelog",
 }
 _ORDER = [p[0] for p in PAGES]

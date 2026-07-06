@@ -280,6 +280,7 @@ graph, change-impact (blast radius), health, and search. Try it with zero setup 
 - **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, every command, configuration, branch safety, scheduling
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the graph, connectors, search, wiki
 - **[docs/serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**, serve the graph over MCP + wire your editor
+- **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, an honest, measured look at the token/cost/correctness impact
 - **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture & internals
 - **[docs/releasing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
 - **[CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[ROADMAP.md](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[CONTRIBUTING.md](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**
