@@ -40,6 +40,17 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
+<h2 id="2301-2026-07-06">[2.30.1] - 2026-07-06<a class="anchor" href="#2301-2026-07-06" title="Link to this section">#</a></h2>
+<h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Text-format graph output is no longer log-polluted.</strong> Streaming a large graph to
+  stdout as <code>--format json</code> / <code>dot</code> / <code>mermaid</code> / <code>classdiagram</code> could prepend a
+  timestamped log line (e.g. the node-truncation warning) to the payload, producing
+  invalid JSON or a Mermaid diagram that starts with a stray line. Logs now switch to
+  stderr up front whenever a text format is streamed to stdout, so the payload on
+  stdout is always clean. Found by generating a class diagram for a real 800+-node
+  package.</li>
+</ul>
 <h2 id="2300-2026-07-06">[2.30.0] - 2026-07-06<a class="anchor" href="#2300-2026-07-06" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
@@ -167,7 +178,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <p>The product-review hardening release: an end-to-end review as a brand-new
 <code>pip install</code> user surfaced the gaps between the advertised experience and the
 real one; this release closes them.</p>
-<h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
+<h3 id="fixed_1">Fixed<a class="anchor" href="#fixed_1" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>dashboard --sample</code> works from a pip install and under <code>--serve</code>.</strong> The demo-fleet
   fixture used to live at the repo root (absent from every wheel, so <code>--sample</code> crashed
@@ -215,7 +226,7 @@ real one; this release closes them.</p>
   classifier and keyword sets state the supported Python range and positioning.</li>
 </ul>
 <h2 id="2201-2026-07-01">[2.20.1] - 2026-07-01<a class="anchor" href="#2201-2026-07-01" title="Link to this section">#</a></h2>
-<h3 id="fixed_1">Fixed<a class="anchor" href="#fixed_1" title="Link to this section">#</a></h3>
+<h3 id="fixed_2">Fixed<a class="anchor" href="#fixed_2" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README doc links now resolve on the PyPI project page.</strong> They were relative
   (<code>docs/…​.md</code>), which 404s on PyPI (it renders the README but doesn't host the repo files);
@@ -245,7 +256,7 @@ real one; this release closes them.</p>
   walkthrough with screenshots (fleet layouts, repo anatomy, the architecture graph, blast
   radius, and generating a wiki), linked from the README and knowledge-layer docs.</li>
 </ul>
-<h3 id="fixed_2">Fixed<a class="anchor" href="#fixed_2" title="Link to this section">#</a></h3>
+<h3 id="fixed_3">Fixed<a class="anchor" href="#fixed_3" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>wiki</code> / <code>embed</code> / <code>connect &lt;repo&gt;</code> now scope to the named repo(s).</strong> The positional repo
   id was ignored, so these silently ran across the entire indexed fleet; an unknown id now
@@ -270,7 +281,7 @@ real one; this release closes them.</p>
   than a single repo, so the dashboard's sample mode reads like a real fleet.</li>
 </ul>
 <h2 id="2192-2026-06-28">[2.19.2] - 2026-06-28<a class="anchor" href="#2192-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_3">Fixed<a class="anchor" href="#fixed_3" title="Link to this section">#</a></h3>
+<h3 id="fixed_4">Fixed<a class="anchor" href="#fixed_4" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>impact &lt;symbol&gt;</code> no longer silently resolves an ambiguous name to the wrong repo.</strong>
   A bare name (e.g. <code>Node</code>, <code>Order</code>) was resolved via a full-text search and the top hit
@@ -283,7 +294,7 @@ real one; this release closes them.</p>
   identically.</li>
 </ul>
 <h2 id="2191-2026-06-28">[2.19.1] - 2026-06-28<a class="anchor" href="#2191-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_4">Fixed<a class="anchor" href="#fixed_4" title="Link to this section">#</a></h3>
+<h3 id="fixed_5">Fixed<a class="anchor" href="#fixed_5" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard: the command palette (and the provenance drawer and pin chip) no longer render
   stuck-open.</strong> Their <code>[hidden]</code> attribute was being overridden by a CSS <code>display:</code> value, so
@@ -439,7 +450,7 @@ real one; this release closes them.</p>
   across the llm/ and embeddings/ providers and the connector, into one stdlib-only <code>kb/_util</code>. No
   behaviour change.</li>
 </ul>
-<h3 id="fixed_5">Fixed<a class="anchor" href="#fixed_5" title="Link to this section">#</a></h3>
+<h3 id="fixed_6">Fixed<a class="anchor" href="#fixed_6" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Safety gate now fails <em>closed</em> on an indeterminate git state.</strong> <code>has_uncommitted_changes</code> and the
   branch/HEAD reads in the sync core swallowed errors and returned a permissive default, so a failed,
@@ -516,7 +527,7 @@ real one; this release closes them.</p>
   <code>examples/fixtures/golden-queries.json</code>.</li>
 </ul>
 <h2 id="251-2026-06-26">[2.5.1] - 2026-06-26<a class="anchor" href="#251-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_6">Fixed<a class="anchor" href="#fixed_6" title="Link to this section">#</a></h3>
+<h3 id="fixed_7">Fixed<a class="anchor" href="#fixed_7" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README logo now renders on PyPI.</strong> The header glyph used a repo-relative <code>src</code>, which PyPI can't
   resolve (it doesn't host the repo files), so it showed as a broken image on the project page. Pointed
@@ -674,7 +685,7 @@ real one; this release closes them.</p>
   like the vendored cytoscape), so the source is lint/<code>node --check</code>-able. Output is still one
   self-contained offline HTML.</li>
 </ul>
-<h3 id="fixed_7">Fixed<a class="anchor" href="#fixed_7" title="Link to this section">#</a></h3>
+<h3 id="fixed_8">Fixed<a class="anchor" href="#fixed_8" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Truncation is now visible in the UI.</strong> A bounded subgraph that was clipped used to read as
   complete; a persistent status-bar banner now says "showing N of M, truncated" (honest counts only).</li>
@@ -732,7 +743,7 @@ real one; this release closes them.</p>
 </li>
 </ul>
 <h2 id="216-2026-06-23">[2.1.6] - 2026-06-23<a class="anchor" href="#216-2026-06-23" title="Link to this section">#</a></h2>
-<h3 id="fixed_8">Fixed<a class="anchor" href="#fixed_8" title="Link to this section">#</a></h3>
+<h3 id="fixed_9">Fixed<a class="anchor" href="#fixed_9" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Quadratic indexing slowdown at scale (the real fix for "indexing got slower the more repos I
   had").</strong> Each node was refreshed in the full-text index with a per-row <code>DELETE FROM node_fts WHERE
@@ -987,7 +998,7 @@ real one; this release closes them.</p>
   model; only semantic search needs embeddings).</li>
 </ul>
 <h2 id="191-2026-06-21">[1.9.1] - 2026-06-21<a class="anchor" href="#191-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="fixed_9">Fixed<a class="anchor" href="#fixed_9" title="Link to this section">#</a></h3>
+<h3 id="fixed_10">Fixed<a class="anchor" href="#fixed_10" title="Link to this section">#</a></h3>
 <ul>
 <li><code>serve</code> over the stdio transport wrote human-facing log lines to stdout, which is
   the MCP JSON-RPC channel, corrupting the protocol stream (clients saw spurious
@@ -1060,7 +1071,7 @@ real one; this release closes them.</p>
   Runs alongside Atlassian sources under <code>connect</code>. Connector-agnostic helpers were
   extracted to a shared module so new connectors stay small.</li>
 </ul>
-<h3 id="fixed_10">Fixed<a class="anchor" href="#fixed_10" title="Link to this section">#</a></h3>
+<h3 id="fixed_11">Fixed<a class="anchor" href="#fixed_11" title="Link to this section">#</a></h3>
 <ul>
 <li><code>link_scrape</code> association rules expressed as a <code>patterns</code> list (as in the example
   config) were silently ignored; both a singular <code>pattern</code> and a <code>patterns</code> list
@@ -1106,7 +1117,7 @@ organization-specific data lives in the package.</p>
 <p>This release stabilizes the core and makes the tool installable. It repairs
 several regressions introduced by the earlier modularization and fixes a
 critical configuration bug.</p>
-<h3 id="fixed_11">Fixed<a class="anchor" href="#fixed_11" title="Link to this section">#</a></h3>
+<h3 id="fixed_12">Fixed<a class="anchor" href="#fixed_12" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Critical:</strong> repositories were keyed by their full <code>&lt;group&gt;/...</code> path while
   local clones mirror the tree <em>below</em> the group, so every repo was misreported
@@ -1210,6 +1221,10 @@ critical configuration bug.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#unreleased">[Unreleased]</a></li>
+<li><a href="#2301-2026-07-06">[2.30.1] - 2026-07-06</a><ul>
+<li><a href="#fixed">Fixed</a></li>
+</ul>
+</li>
 <li><a href="#2300-2026-07-06">[2.30.0] - 2026-07-06</a><ul>
 <li><a href="#added">Added</a></li>
 <li><a href="#added_1">Added</a></li>
@@ -1246,28 +1261,28 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2210-2026-07-02">[2.21.0] - 2026-07-02</a><ul>
-<li><a href="#fixed">Fixed</a></li>
+<li><a href="#fixed_1">Fixed</a></li>
 <li><a href="#added_8">Added</a></li>
 <li><a href="#changed_3">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2201-2026-07-01">[2.20.1] - 2026-07-01</a><ul>
-<li><a href="#fixed_1">Fixed</a></li>
+<li><a href="#fixed_2">Fixed</a></li>
 <li><a href="#added_9">Added</a></li>
 </ul>
 </li>
 <li><a href="#2200-2026-06-30">[2.20.0] - 2026-06-30</a><ul>
 <li><a href="#added_10">Added</a></li>
-<li><a href="#fixed_2">Fixed</a></li>
+<li><a href="#fixed_3">Fixed</a></li>
 <li><a href="#changed_4">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2192-2026-06-28">[2.19.2] - 2026-06-28</a><ul>
-<li><a href="#fixed_3">Fixed</a></li>
+<li><a href="#fixed_4">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2191-2026-06-28">[2.19.1] - 2026-06-28</a><ul>
-<li><a href="#fixed_4">Fixed</a></li>
+<li><a href="#fixed_5">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2190-2026-06-28">[2.19.0] - 2026-06-28</a><ul>
@@ -1318,7 +1333,7 @@ critical configuration bug.</p>
 <li><a href="#290-2026-06-26">[2.9.0] - 2026-06-26</a><ul>
 <li><a href="#added_20">Added</a></li>
 <li><a href="#changed_8">Changed</a></li>
-<li><a href="#fixed_5">Fixed</a></li>
+<li><a href="#fixed_6">Fixed</a></li>
 <li><a href="#security">Security</a></li>
 </ul>
 </li>
@@ -1336,7 +1351,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#251-2026-06-26">[2.5.1] - 2026-06-26</a><ul>
-<li><a href="#fixed_6">Fixed</a></li>
+<li><a href="#fixed_7">Fixed</a></li>
 <li><a href="#changed_9">Changed</a></li>
 </ul>
 </li>
@@ -1354,7 +1369,7 @@ critical configuration bug.</p>
 <li><a href="#230-2026-06-24">[2.3.0] - 2026-06-24</a><ul>
 <li><a href="#added_27">Added</a></li>
 <li><a href="#changed_12">Changed</a></li>
-<li><a href="#fixed_7">Fixed</a></li>
+<li><a href="#fixed_8">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#220-2026-06-23">[2.2.0] - 2026-06-23</a><ul>
@@ -1362,7 +1377,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#216-2026-06-23">[2.1.6] - 2026-06-23</a><ul>
-<li><a href="#fixed_8">Fixed</a></li>
+<li><a href="#fixed_9">Fixed</a></li>
 <li><a href="#added_29">Added</a></li>
 <li><a href="#changed_13">Changed</a></li>
 </ul>
@@ -1449,7 +1464,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#191-2026-06-21">[1.9.1] - 2026-06-21</a><ul>
-<li><a href="#fixed_9">Fixed</a></li>
+<li><a href="#fixed_10">Fixed</a></li>
 <li><a href="#changed_25">Changed</a></li>
 </ul>
 </li>
@@ -1471,7 +1486,7 @@ critical configuration bug.</p>
 </li>
 <li><a href="#150-2026-06-21">[1.5.0] - 2026-06-21</a><ul>
 <li><a href="#added_46">Added</a></li>
-<li><a href="#fixed_10">Fixed</a></li>
+<li><a href="#fixed_11">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#140-2026-06-21">[1.4.0] - 2026-06-21</a><ul>
@@ -1479,7 +1494,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#130-2026-06-21">[1.3.0] - 2026-06-21</a><ul>
-<li><a href="#fixed_11">Fixed</a></li>
+<li><a href="#fixed_12">Fixed</a></li>
 <li><a href="#added_48">Added</a></li>
 <li><a href="#changed_26">Changed</a></li>
 </ul>
