@@ -23,6 +23,7 @@ import re
 DEFINITION = "definition"
 CALLERS = "callers"
 DEPENDENTS = "dependents"
+SUBCLASSES = "subclasses"
 IMPACT = "impact"
 OWNERS = "owners"
 EXPLAIN = "explain"
@@ -40,6 +41,10 @@ _RULES: list[tuple[str, re.Pattern]] = [
     (OWNERS, re.compile(
         r"\b(who\s+(owns|knows|wrote|maintains|should\s+i\s+ask)|owner\s+of|"
         r"maintainer|\bsme\b|subject\s+matter|expert\s+(on|in|for))\b", re.I)),
+    (SUBCLASSES, re.compile(
+        r"\b(subclasses?\s+of|subtypes?\s+of|what\s+(extends|implements|subclasses)|"
+        r"who\s+(extends|implements)|classes?\s+that\s+(extend|implement)|"
+        r"implementations?\s+of|derived\s+(from|classes)|extended\s+by)\b", re.I)),
     (DEPENDENTS, re.compile(
         r"\b(what\s+depends\s+on|who\s+depends\s+on|depends?\s+on|dependents?\s+of|"
         r"which\s+repos?\s+(use|depend)|reverse\s+depend|consumers?\s+of\s+the\s+"
@@ -64,7 +69,8 @@ _STOP = frozenset(
     "know wrote maintainer maintains explain describe about work works breaks "
     "break if i change remove delete rename modify impact blast radius safe "
     "package repo repository function class method module symbol code you me "
-    "please can could would should".split())
+    "please can could would should extends extend implements implement subclass "
+    "subclasses subtype subtypes derived implementations".split())
 
 # A code-ish token: dotted path, snake_case, CamelCase, hyphenated package, or a
 # bare identifier — anything that reads like a symbol/repo rather than prose.
