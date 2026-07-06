@@ -1273,6 +1273,14 @@ def cmd_graph(args) -> int:
             return 0
 
         fmt = getattr(args, "format", None) or "html"
+        # When a text format is streamed to stdout (no --output), every log line
+        # would otherwise land on stdout too and corrupt the payload (e.g. a
+        # truncation warning before `classDiagram`, making the Mermaid/JSON invalid).
+        # Redirect logs to stderr up front, before any payload-building log fires.
+        if (fmt in ("json", "dot", "mermaid", "classdiagram")
+                and not getattr(args, "output", None) and not getattr(args, "serve", False)):
+            from ..logging_setup import use_stderr
+            use_stderr()
         max_fanout = getattr(args, "max_fanout", None) or 50
         hops = getattr(args, "hops", None) or 2
         overview = getattr(args, "overview", False)

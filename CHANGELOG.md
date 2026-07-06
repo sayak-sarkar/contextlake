@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.30.1] - 2026-07-06
+
+### Fixed
+
+- **Text-format graph output is no longer log-polluted.** Streaming a large graph to
+  stdout as `--format json` / `dot` / `mermaid` / `classdiagram` could prepend a
+  timestamped log line (e.g. the node-truncation warning) to the payload, producing
+  invalid JSON or a Mermaid diagram that starts with a stray line. Logs now switch to
+  stderr up front whenever a text format is streamed to stdout, so the payload on
+  stdout is always clean. Found by generating a class diagram for a real 800+-node
+  package.
+
 ## [2.30.0] - 2026-07-06
 
 ### Added
