@@ -102,3 +102,21 @@ def test_init_reports_the_right_token_env(tmp_path, monkeypatch, caplog, platfor
         _run(tmp_path, monkeypatch, platform=platform, group="acme")
     # the auth hint names the platform's token env var
     assert env in caplog.text
+
+
+def test_init_next_hint_matches_semantic_choice(tmp_path, monkeypatch, caplog):
+    # Enabling semantic search must recommend [kb-full] (which ships the embedder),
+    # not [kb] — otherwise the very next `bootstrap` embed step fails for every repo.
+    import logging
+    with caplog.at_level(logging.INFO, logger="contextlake"):
+        _run(tmp_path, monkeypatch, group="acme", embeddings=True)
+    assert 'contextlake[kb-full]' in caplog.text
+    assert 'contextlake[kb]"' not in caplog.text  # the bare-kb hint must not appear
+
+
+def test_init_next_hint_plain_kb_without_semantic(tmp_path, monkeypatch, caplog):
+    import logging
+    with caplog.at_level(logging.INFO, logger="contextlake"):
+        _run(tmp_path, monkeypatch, group="acme", embeddings=False)
+    assert 'contextlake[kb]' in caplog.text
+    assert 'kb-full' not in caplog.text

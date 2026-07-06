@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`init` now recommends the extra that matches your choice.** If you enable
+  semantic search during `contextlake init`, the "Next" hint recommends
+  `contextlake[kb-full]` (which ships the built-in embedder) instead of plain
+  `[kb]` — previously it suggested `[kb]`, so the very next `bootstrap` embed
+  step failed for every repo because no embedder was installed.
+- **`embed` fails fast on an unavailable embedder.** A whole-environment problem
+  (missing `kb-local` extra, unreachable Ollama/API) is now detected once by an
+  up-front readiness probe and reported with a single actionable message, instead
+  of repeating the same error for every repo in the fleet.
+- **Empty repositories no longer count as branch-switch errors.** A freshly-cloned
+  repo with no commits (git: "ambiguous argument 'HEAD'") is now skipped cleanly
+  as "Empty repo (no commits)" rather than reported as an error.
+
 ### Documentation
 
 - **Update & uninstall guides.** The quickstart and README now document how to upgrade
