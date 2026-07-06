@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`contextlake init` — guided first-run setup.** One command writes a valid mirror
+  config (and, opt-in, the knowledge-layer config) instead of hand-authoring TOML/INI:
+  it detects the platform, tells you which token env var it will use, and prints the
+  next step. Interactive when stdin is a TTY, non-interactive with `--yes` (plus
+  `--platform` / `--group` / `--work-dir` / `--no-kb` / `--embeddings`) for scripting.
+  Never writes a token to disk; refuses to overwrite existing config without `--force`.
+
 ## [2.25.0] - 2026-07-02
 
 ### Added
