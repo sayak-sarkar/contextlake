@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Benchmarks page.** An honest, measured look at what connecting the contextlake
+  MCP saves (new-code grounding, search, maintenance) with methodology and caveats.
+
 ### Fixed
 
 - **`find_callers` and `blast_radius` accept a bare symbol name.** Agents call these
