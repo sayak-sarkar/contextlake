@@ -388,3 +388,24 @@ def test_ask_handles_unresolvable_symbol(server):
     out = res.structuredContent
     assert out["route"] == "callers"
     assert out["nodes"] == [] and "resolve" in out["note"].lower()
+
+
+def test_ask_explain_falls_back_to_repo_brief_when_no_wiki(tmp_path):
+    # "explain <repo>" with no generated wiki should return the grounded anatomy
+    # (repo brief), not a blind semantic search.
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    nodes = [Node(id="svc", repo="acme/orders", kind="class", name="OrderService",
+                  file="svc.py")]
+    s.upsert_repo(Repo(id="acme/orders", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="acme/orders", head_commit="h1",
+                                     nodes=nodes, edges=[]))
+    reindex_shard(s, tmp_path, "acme/orders")
+    res = asyncio.run(_call(build_server(s), "ask",
+                            {"question": "explain the acme/orders repo"}))
+    out = res.structuredContent
+    assert out["route"] == "explain"
+    assert out["brief"] is not None and out["brief"]["found"] is True
+    assert out["brief"]["repo"] == "acme/orders"
+    assert out["wiki"] is None
+    s.close()

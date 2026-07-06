@@ -8,7 +8,8 @@ Postman, …) can query the graph directly instead of grepping.
 `ask("what breaks if I change OrderService")` / `ask("explain the orders-api")`. It
 classifies the question, routes it to the right substrate below, resolves the symbol
 or repo, and returns one labeled answer (graph facts cited; `explain` returns advisory
-wiki prose). An agent that would rather not choose among the tools can just `ask`.
+wiki prose, or the repo's grounded anatomy when no wiki has been generated yet). An
+agent that would rather not choose among the tools can just `ask`.
 
 **Most of it needs no model.** The underlying graph tools work on their own —
 `search_code`, `find_definition`, `find_callers`, `find_dependents`, `get_node`,
