@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`find_callers` and `blast_radius` accept a bare symbol name.** Agents call these
+  MCP tools with a name (e.g. `OrderService`), but they only accepted an internal
+  node id, so a name silently returned nothing even when the graph had the answer
+  (only the `ask` router resolved names). Both now resolve a name to its first
+  matching definition. Surfaced while benchmarking MCP token cost on a 1M-node fleet.
+
+## [2.33.2] - 2026-07-06
+
 ## [2.33.1] - 2026-07-06
 
 ### Fixed
