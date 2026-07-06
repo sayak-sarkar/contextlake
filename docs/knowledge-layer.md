@@ -25,7 +25,7 @@ contextlake lint                            # graph health: stale repos + dangli
 contextlake wiki acme/orders-api --llm builtin      # wiki for one repo; --llm enables the LLM tier inline
 contextlake steer                           # write per-tool steering: AGENTS.md, .mcp.json, …
 contextlake query "OrderService"            # cited search across the index
-contextlake graph --overview --open         # visualize the graph (HTML/dot/mermaid/json; offline)
+contextlake graph --overview --open         # visualize the graph (HTML/dot/mermaid/classdiagram/json; offline)
 contextlake serve                           # expose the graph over MCP (stdio or --transport http)
 ```
 
@@ -424,7 +424,11 @@ Output is chosen with `--format`:
   `breadthfirst`, `circle`, `grid`) in the page, set the initial one with `--layout`.
   `--open` launches the browser; `--cdn` produces a small online-only file instead.
 - **`dot`**, Graphviz (`contextlake graph … --format dot | dot -Tsvg > g.svg`).
-- **`mermaid`**, pastes into Markdown / GitHub.
+- **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
+- **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice):
+  classes / interfaces / structs with their methods as members, and `inherits` edges
+  as inheritance arrows (`<|--` extends, `<|..` implements). Great for a PR or design
+  doc: `contextlake graph --repo acme/app --format classdiagram`.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a

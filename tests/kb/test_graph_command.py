@@ -509,3 +509,56 @@ def test_cli_graph_requires_a_seed(tmp_path):
     cfg = _kb_config(tmp_path)
     assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     assert _run(["graph", "--config", str(cfg)]) == 2  # no seed -> usage error
+
+
+# --- class diagram --------------------------------------------------------
+
+def _class_payload():
+    prov = Provenance(source_file="m.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="base", repo="r", kind="class", name="BaseController"),
+        Node(id="sub", repo="r", kind="class", name="OrdersController"),
+        Node(id="iface", repo="r", kind="interface", name="Named"),
+        Node(id="m1", repo="r", kind="method", name="handle",
+             attrs={"signature": "(self, req)"}),
+        Node(id="f", repo="r", kind="file", name="m.py"),
+    ]
+    edges = [
+        Edge(src="base", dst="m1", relation="contains", confidence=Confidence.EXTRACTED,
+             provenance=prov),
+        Edge(src="sub", dst="base", relation="inherits", confidence=Confidence.INFERRED,
+             provenance=prov),
+        Edge(src="sub", dst="iface", relation="inherits", confidence=Confidence.INFERRED,
+             provenance=prov),
+        # a calls edge must NOT appear in a class diagram
+        Edge(src="sub", dst="base", relation="calls", confidence=Confidence.INFERRED,
+             provenance=prov),
+    ]
+    return viz.to_payload(nodes, edges)
+
+
+def test_class_diagram_structure():
+    out = viz.to_class_diagram(_class_payload())
+    assert out.startswith("classDiagram")
+    # each classifier is declared (files excluded)
+    assert out.count("class c") == 3
+    assert '["BaseController"]' in out and '["Named"]' in out
+    assert "m.py" not in out                    # file node dropped
+    # BaseController owns handle(self, req) as a member
+    assert "+handle(self, req)" in out
+    # extends -> solid, implements (interface) -> dotted
+    assert "<|--" in out and "<|.." in out
+    # a calls edge never becomes an association here
+    assert out.count("<|") == 2 and "calls" not in out
+    assert "-->" not in out
+
+
+def test_class_diagram_interface_stereotype():
+    out = viz.to_class_diagram(_class_payload())
+    assert "<<interface>>" in out
+
+
+def test_class_diagram_empty_when_no_classifiers():
+    payload = viz.to_payload([Node(id="f", repo="r", kind="file", name="a.py")], [])
+    out = viz.to_class_diagram(payload)
+    assert out.startswith("classDiagram") and "no classes" in out
