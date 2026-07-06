@@ -562,3 +562,25 @@ def test_class_diagram_empty_when_no_classifiers():
     payload = viz.to_payload([Node(id="f", repo="r", kind="file", name="a.py")], [])
     out = viz.to_class_diagram(payload)
     assert out.startswith("classDiagram") and "no classes" in out
+
+
+def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, capsys):
+    # Regression: the truncation warning (and any payload-building log) used to land
+    # on stdout, corrupting a redirected `--format json|mermaid|classdiagram` payload.
+    # With a repo bigger than --max-nodes, the warning fires; stdout must stay clean.
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    s = SqliteStore(kb / "index.sqlite")
+    s.upsert_nodes("r", [_node(f"C{i}", kind="class") for i in range(5)])
+    s.close()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{kb.as_posix()}"\n')
+
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--repo", "r", "--format", "json", "--max-nodes", "1",
+              "--config", str(cfg)])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    # the payload must be valid JSON with nothing prepended (no timestamped log line)
+    parsed = json.loads(out)
+    assert "nodes" in parsed and out.lstrip().startswith("{")
