@@ -459,8 +459,9 @@ def build_server(
                      limit: int = 100) -> BlastRadiusOut:
         """What could break if you change this node — bounded transitive REVERSE reach.
 
-        Walks INCOMING edges (who calls / depends on the node) breadth-first up to
-        `hops`, capped at `limit`, over `relations` (default calls + depends_on).
+        Walks INCOMING edges (who calls / depends on / subclasses the node) breadth-first
+        up to `hops`, capped at `limit`, over `relations` (default calls + depends_on +
+        inherits).
         Each hit carries its hop distance, the relation, and confidence —
         EXTRACTED-first; verify INFERRED/AMBIGUOUS against the cited source. A
         bounded impact slice, never an exhaustive guarantee (`truncated` says when
@@ -724,7 +725,7 @@ def build_server(
                 return _out(f"Couldn't resolve a symbol for blast radius — {why}.")
             res = blast_radius(nid, hops=3)
             return _out(f"Blast radius of {target!r}: {res.total} node(s) within 3 hops"
-                        + (why or "") + ". Reverse reach over calls+depends_on+flow; "
+                        + (why or "") + ". Reverse reach over calls+depends_on+inherits; "
                         "INFERRED/AMBIGUOUS hits may under- or over-count — verify.",
                         blast=res, truncated=res.truncated)
 

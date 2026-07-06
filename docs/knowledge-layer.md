@@ -85,8 +85,11 @@ non-zero on problems, so they're CI-friendly.
 ## Code indexing
 
 Code indexing uses tree-sitter to extract files, classes, functions/methods,
-interfaces, imports, and an intra-repo **call graph** from **Python, JavaScript,
-TypeScript/TSX, and C#** (the parser registry is pluggable). It also reads
+interfaces, imports, an intra-repo **call graph**, and an **inheritance graph**
+(`inherits` edges for `extends` / `implements` / base classes) from **Python,
+JavaScript, TypeScript/TSX, and C#** (the parser registry is pluggable) — so
+"what extends `BaseController`?" is one hop, and changing a base class shows its
+subclasses in `blast_radius`. It also reads
 manifests (`pyproject.toml`, `package.json`, `*.csproj`) to build a **cross-repo
 dependency graph** through shared package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo `blast_radius` ("what could break if I change

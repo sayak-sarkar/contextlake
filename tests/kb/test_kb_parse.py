@@ -33,7 +33,7 @@ def test_captures_python_docstring_and_signature():
            b'class Order:\n'
            b'    """An order aggregate."""\n'
            b'    pass\n')
-    nodes, _edges, _ = parse_source("r", "pay.py", src, "python", verified_at=date(2026, 6, 21))
+    nodes, _edges, _, _ = parse_source("r", "pay.py", src, "python", verified_at=date(2026, 6, 21))
     by_name = {n.name: n for n in nodes}
     assert by_name["charge"].attrs.get("doc") == "Charge a card and return a receipt."
     assert "amount" in by_name["charge"].attrs.get("signature", "")
@@ -42,7 +42,7 @@ def test_captures_python_docstring_and_signature():
 
 def test_signature_captured_across_languages():
     js = b"function charge(amount, currency) {\n  return 1;\n}\n"
-    nodes, _e, _ = parse_source("r", "pay.js", js, "javascript", verified_at=date(2026, 6, 21))
+    nodes, _e, _, _ = parse_source("r", "pay.js", js, "javascript", verified_at=date(2026, 6, 21))
     by_name = {n.name: n for n in nodes}
     assert "amount" in by_name["charge"].attrs.get("signature", "")   # JS, not just Python
 
@@ -60,7 +60,7 @@ def test_doc_comment_captured_for_js_and_csharp():
 
 
 def test_parse_extracts_defs_and_imports():
-    nodes, edges, _ = parse_source(
+    nodes, edges, _, _ = parse_source(
         "team/api", "svc.py", PY, "python", verified_at=date(2026, 6, 21)
     )
     by_kind: dict[str, list[str]] = {}
@@ -87,7 +87,7 @@ def test_parse_extracts_defs_and_imports():
 
 
 def test_qualified_names_disambiguate_methods():
-    nodes, _, _ = parse_source("r", "m.py", PY, "python")
+    nodes, _, _, _ = parse_source("r", "m.py", PY, "python")
     bar = next(n for n in nodes if n.name == "bar")
     assert bar.qualified_name == "m.py::Foo.bar"
     assert bar.line_start == 6
@@ -301,3 +301,45 @@ def test_contextlakeignore_excludes_dirs_and_files(tmp_path):
     names = {n.name for n in shard.nodes}
     assert "keep" in names
     assert "vendored" not in names and "gen" not in names
+
+
+def _inherits(shard):
+    names = {n.id: n.name for n in shard.nodes}
+    return sorted((names.get(e.src, e.src), names.get(e.dst, e.dst))
+                  for e in shard.edges if e.relation == "inherits")
+
+
+def test_inherits_edges_across_languages(tmp_path):
+    (tmp_path / "a.py").write_text(
+        "class Base:\n    pass\nclass Child(Base):\n    pass\n"
+        "class Multi(Base, object):\n    pass\n")
+    (tmp_path / "b.ts").write_text(
+        "class Animal {}\nclass Dog extends Animal {}\n"
+        "interface Named {}\nclass Cat extends Animal implements Named {}\n")
+    (tmp_path / "c.cs").write_text("class Vehicle { }\nclass Car : Vehicle { }\n")
+    (tmp_path / "d.js").write_text("class Widget {}\nclass Button extends Widget {}\n")
+    inh = _inherits(index_repo_dir(str(tmp_path), "demo"))
+    assert ("Child", "Base") in inh
+    assert ("Dog", "Animal") in inh
+    assert ("Cat", "Animal") in inh and ("Cat", "Named") in inh   # extends + implements
+    assert ("Car", "Vehicle") in inh
+    assert ("Button", "Widget") in inh
+
+
+def test_inherits_unresolved_external_base_is_dropped(tmp_path):
+    # A base class not defined in the repo (external framework) yields no edge —
+    # same policy as unresolved calls, so the graph never points at a phantom node.
+    (tmp_path / "v.py").write_text(
+        "import framework\nclass MyView(framework.View):\n    pass\n")
+    assert _inherits(index_repo_dir(str(tmp_path), "demo")) == []
+
+
+def test_inherits_ambiguous_base_marked(tmp_path):
+    # Two classes named Base in different files -> the subclass inherits both,
+    # emitted AMBIGUOUS (never silently dropped).
+    (tmp_path / "one.py").write_text("class Base:\n    pass\n")
+    (tmp_path / "two.py").write_text("class Base:\n    pass\n")
+    (tmp_path / "sub.py").write_text("from x import Base\nclass Sub(Base):\n    pass\n")
+    shard = index_repo_dir(str(tmp_path), "demo")
+    inh = [e for e in shard.edges if e.relation == "inherits"]
+    assert len(inh) == 2 and all(e.confidence == Confidence.AMBIGUOUS for e in inh)

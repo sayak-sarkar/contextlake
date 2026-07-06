@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Inheritance graph — `inherits` edges.** The code parser now extracts class
+  inheritance and interface implementation across all four languages (Python bases,
+  JS/TS `extends` + `implements`, C# base lists), resolved repo-wide like calls
+  (INFERRED for a unique base, AMBIGUOUS when a base name matches several, external
+  bases dropped). So "what extends `BaseController`?" is a single `get_neighbors`
+  hop, and `blast_radius` now includes `inherits` by default — changing a base class
+  surfaces its subclasses as impacted. This is also the extraction prerequisite for
+  class diagrams.
+
 ## [2.28.0] - 2026-07-06
 
 ### Changed
