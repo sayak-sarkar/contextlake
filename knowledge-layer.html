@@ -105,8 +105,11 @@ were indexed) and <strong>dangling edges</strong> (an edge whose endpoint node i
 non-zero on problems, so they're CI-friendly.</p>
 <h2 id="code-indexing">Code indexing<a class="anchor" href="#code-indexing" title="Link to this section">#</a></h2>
 <p>Code indexing uses tree-sitter to extract files, classes, functions/methods,
-interfaces, imports, and an intra-repo <strong>call graph</strong> from <strong>Python, JavaScript,
-TypeScript/TSX, and C#</strong> (the parser registry is pluggable). It also reads
+interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong>
+(<code>inherits</code> edges for <code>extends</code> / <code>implements</code> / base classes) from <strong>Python,
+JavaScript, TypeScript/TSX, and C#</strong> (the parser registry is pluggable), so
+"what extends <code>BaseController</code>?" is one hop, and changing a base class shows its
+subclasses in <code>blast_radius</code>. It also reads
 manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>) to build a <strong>cross-repo
 dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
