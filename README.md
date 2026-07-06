@@ -191,6 +191,7 @@ and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/
 
 | Command | What it does |
 | --- | --- |
+| `init` | **Guided setup**: write your mirror + knowledge-layer config (`--yes` for non-interactive) |
 | `status` | Show the workspace sync state vs GitLab (read-only) |
 | `sync` | The full pipeline: fetch → clone → update → branches → verify → audit |
 | `fetch` · `clone` · `update` | The sync steps, individually |

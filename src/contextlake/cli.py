@@ -210,11 +210,11 @@ def build_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Get started:
+  contextlake init                          guided setup: write your config (start here)
   contextlake bootstrap                     one command: mirror + index + connect + steer
   contextlake index .                       index the current repo into the local graph
   contextlake query "OrderService"          search the graph (cited file:line hits)
   contextlake serve                         expose the graph to your editor over MCP
-  contextlake sync                          mirror/refresh your GitLab workspace
   contextlake dashboard --serve --sample    explore a demo fleet, zero setup
 
 Run 'contextlake <command> --help' for that command's flags and examples.
@@ -233,6 +233,29 @@ Run 'contextlake <command> --help' for that command's flags and examples.
                            epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
         _add_global(p)
         return p
+
+    # ---- first run ---------------------------------------------------------
+    p = command("init", "guided setup: write your mirror + knowledge-layer config",
+                epilog="""
+Examples:
+  contextlake init                       interactive setup (prompts with defaults)
+  contextlake init --yes                 non-interactive, all defaults
+  contextlake init --platform github --group my-org --yes
+                """)
+    p.add_argument("--platform", default=_S,
+                   help="gitlab (default) | github | bitbucket | gitea | codeberg | forgejo")
+    p.add_argument("--group", default=_S, help="the group / org / workspace to mirror")
+    p.add_argument("--work-dir", default=_S, help="local workspace directory")
+    p.add_argument("--kb", dest="kb", action="store_true", default=_S,
+                   help="set up the knowledge layer (default: yes)")
+    p.add_argument("--no-kb", dest="kb", action="store_false", default=_S,
+                   help="write only the mirror config")
+    p.add_argument("--embeddings", action="store_true", default=_S,
+                   help="enable semantic search in the generated kb config")
+    p.add_argument("--yes", "-y", action="store_true", default=_S,
+                   help="non-interactive: accept defaults / flags, no prompts")
+    p.add_argument("--force", action="store_true", default=_S,
+                   help="overwrite existing config files")
 
     # ---- mirror core -------------------------------------------------------
     for name, help_ in (
@@ -620,6 +643,12 @@ def main(argv=None):
         sys.exit(0)
 
     setup_logging(verbose=args.verbose, quiet=args.quiet, log_file=args.log_file)
+
+    # First-run setup writes the config the rest of the tool reads, so it must run
+    # before load_config's "no config found" preamble. No [kb] extra needed.
+    if args.command == "init":
+        from .init_cmd import cmd_init
+        sys.exit(cmd_init(args))
 
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs

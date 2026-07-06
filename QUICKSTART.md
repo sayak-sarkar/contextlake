@@ -25,11 +25,20 @@ This gives you the `contextlake` command. (`python -m contextlake` and
 
 ## 3. Configure
 
-Two small files. **Mirror config**, `~/.contextlake.ini`:
+The fast path, `contextlake init` writes both config files for you (interactive, or
+`--yes` for defaults):
+
+```bash
+contextlake init                       # prompts for platform, group, workspace
+contextlake init --platform github --group my-org --yes   # non-interactive
+```
+
+Prefer to write them by hand? **Mirror config**, `~/.contextlake.ini`:
 
 ```ini
 [contextlake]
 work_dir = ~/work
+# platform = github          # gitlab (default) | github | bitbucket | gitea | codeberg
 gitlab_group = your-gitlab-group
 ```
 
