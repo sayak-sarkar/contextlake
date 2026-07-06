@@ -55,6 +55,7 @@ def test_lists_expected_tools(server):
         "find_definition", "find_callers", "shortest_path",
         "repo_dependencies", "repo_flow", "repo_event_flow", "blast_radius", "get_wiki",
         "get_readme", "get_repo_brief", "list_repos", "get_repo_links", "graph_health",
+        "ask",
     } <= names
 
 
@@ -347,3 +348,43 @@ def test_get_wiki_serves_prose_with_staleness(tmp_path):
         _call(build_server(s), "get_wiki", {"repo": "team/missing"})).structuredContent)
     assert out3["found"] is False and out3["stale"] is True
     s.close()
+
+
+# --- ask router -----------------------------------------------------------
+
+def test_ask_routes_definition(server):
+    res = asyncio.run(_call(server, "ask", {"question": "where is OrderService defined"}))
+    out = res.structuredContent
+    assert out["route"] == "definition"
+    assert out["target"] == "OrderService"
+    assert [n["name"] for n in out["nodes"]] == ["OrderService"]
+
+
+def test_ask_routes_callers(server):
+    res = asyncio.run(_call(server, "ask", {"question": "who calls charge"}))
+    out = res.structuredContent
+    assert out["route"] == "callers"
+    # OrderService (node a) calls charge (node b)
+    assert "OrderService" in [n["name"] for n in out["nodes"]]
+
+
+def test_ask_routes_impact(server):
+    res = asyncio.run(_call(server, "ask", {"question": "what breaks if I change charge"}))
+    out = res.structuredContent
+    assert out["route"] == "impact"
+    assert out["blast"] is not None and out["blast"]["total"] >= 1
+
+
+def test_ask_falls_back_to_search(server):
+    res = asyncio.run(_call(server, "ask", {"question": "find the checkout flow logic"}))
+    out = res.structuredContent
+    assert out["route"] == "search"           # no exact route matched
+    assert "note" in out and out["note"]
+
+
+def test_ask_handles_unresolvable_symbol(server):
+    # a callers question about a symbol that isn't indexed must not raise
+    res = asyncio.run(_call(server, "ask", {"question": "who calls NotARealSymbol"}))
+    out = res.structuredContent
+    assert out["route"] == "callers"
+    assert out["nodes"] == [] and "resolve" in out["note"].lower()

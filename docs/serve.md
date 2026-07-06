@@ -4,11 +4,18 @@ The third layer. Once the [knowledge layer](knowledge-layer.md) is built, `conte
 exposes it as an **MCP server** — so any MCP client (Claude Code, Windsurf, Kiro, Cursor,
 Postman, …) can query the graph directly instead of grepping.
 
-**Most of it needs no model.** The graph tools work on their own — `search_code`,
-`find_definition`, `find_callers`, `find_dependents`, `get_node`, `get_neighbors`,
-`shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`, `repo_event_flow`,
-`blast_radius`, `who_knows`, `get_wiki`, `get_readme`, `get_repo_brief`, `list_repos`,
-`get_repo_links`, `graph_health` — plus a `kb://stats` resource with the store counts.
+**Start with `ask`.** One tool, natural language: `ask("who calls charge_order")` /
+`ask("what breaks if I change OrderService")` / `ask("explain the orders-api")`. It
+classifies the question, routes it to the right substrate below, resolves the symbol
+or repo, and returns one labeled answer (graph facts cited; `explain` returns advisory
+wiki prose). An agent that would rather not choose among the tools can just `ask`.
+
+**Most of it needs no model.** The underlying graph tools work on their own —
+`search_code`, `find_definition`, `find_callers`, `find_dependents`, `get_node`,
+`get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
+`repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
+`get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health` — plus a `kb://stats`
+resource with the store counts.
 
 `semantic_search` / `hybrid_search` are the two exceptions: they register **only when
 embeddings exist** (an `[embeddings]` section in `kb.toml` and a `contextlake embed`
