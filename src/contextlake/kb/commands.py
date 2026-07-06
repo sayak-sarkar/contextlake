@@ -1323,6 +1323,8 @@ def cmd_graph(args) -> int:
             text = viz.to_dot(payload)
         elif fmt == "mermaid":
             text = viz.to_mermaid(payload)
+        elif fmt == "classdiagram":
+            text = viz.to_class_diagram(payload)
         else:
             text = viz.to_html(payload, cdn=cdn, layout=layout)
 

@@ -5,9 +5,11 @@ across hundreds of repos), so every view here is *scoped*: a seed (a node, a nam
 a search, or a whole repo) expanded a few hops with hard node/fan-out caps. Caps
 are enforced *during* expansion and any truncation is logged — never silent.
 
-Renders to four formats: ``json`` (the canonical payload), ``dot`` (Graphviz),
-``mermaid`` (Markdown-embeddable), and ``html`` (a self-contained, offline-first
-cytoscape.js page). A small live server (``serve_graph``) adds click-to-expand.
+Renders to five formats: ``json`` (the canonical payload), ``dot`` (Graphviz),
+``mermaid`` (Markdown-embeddable relation graph), ``classdiagram`` (a Mermaid UML
+class diagram — classifiers with members + inheritance arrows), and ``html`` (a
+self-contained, offline-first cytoscape.js page). A small live server
+(``serve_graph``) adds click-to-expand.
 
 Pure-Python/stdlib only; no module-level heavy imports.
 """
@@ -163,7 +165,7 @@ def _node_dict(n) -> dict:
         return n
     return {"id": n.id, "repo": n.repo, "kind": n.kind, "name": n.name,
             "qualified_name": n.qualified_name, "file": n.file, "line": n.line_start,
-            "lang": n.lang}
+            "lang": n.lang, "signature": (getattr(n, "attrs", None) or {}).get("signature")}
 
 
 def _edge_dict(e) -> dict:
@@ -423,6 +425,59 @@ def to_mermaid(payload: dict) -> str:
         if not s or not d:
             continue
         lines.append(f'  {s} -->|{_mermaid_escape(e["relation"])}| {d}')
+    return "\n".join(lines)
+
+
+# Node kinds that are "classifiers" in a class diagram.
+_CLASSIFIER_KINDS = {"class", "interface", "struct", "enum"}
+
+
+def to_class_diagram(payload: dict) -> str:
+    """Render a Mermaid ``classDiagram``: classifier nodes (class/interface/struct/enum)
+    with their methods as members, and ``inherits`` edges as inheritance arrows —
+    solid ``<|--`` for extends, dotted ``<|..`` when the base is an interface (implements).
+
+    Non-classifier nodes (files) and non-structural edges (calls/imports) are dropped,
+    so the output is a focused UML class view rather than the flat relation graph.
+    """
+    by_id = {n["id"]: n for n in payload["nodes"]}
+    classifiers = {nid: n for nid, n in by_id.items()
+                   if n.get("kind") in _CLASSIFIER_KINDS}
+    if not classifiers:
+        return "classDiagram\n  %% no classes/interfaces in this view"
+
+    # methods owned by each classifier, via contains edges (classifier -> method)
+    members: dict[str, list[dict]] = {nid: [] for nid in classifiers}
+    for e in payload["edges"]:
+        if e.get("relation") != "contains":
+            continue
+        src, dst = e["src"], e["dst"]
+        if src in classifiers and (m := by_id.get(dst)) and m.get("kind") in ("method", "function"):
+            members[src].append(m)
+
+    alias = {nid: f"c{i}" for i, nid in enumerate(classifiers)}
+    lines = ["classDiagram"]
+    for nid, node in classifiers.items():
+        a = alias[nid]
+        stereo = "  <<interface>>\n" if node.get("kind") == "interface" else ""
+        label = _mermaid_escape(node.get("name") or nid)
+        mem = members[nid]
+        if stereo or mem:
+            body = stereo + "".join(f"    +{_mermaid_escape(m.get('name') or '?')}"
+                                    f"{_mermaid_escape(m.get('signature') or '()')}\n"
+                                    for m in mem)
+            lines.append(f'  class {a}["{label}"] {{\n{body}  }}')
+        else:
+            lines.append(f'  class {a}["{label}"]')
+
+    for e in payload["edges"]:
+        if e.get("relation") != "inherits":
+            continue
+        sub, base = e["src"], e["dst"]
+        if sub in alias and base in alias:
+            # base <|-- sub (extends); base <|.. sub (implements an interface)
+            arrow = "<|.." if by_id[base].get("kind") == "interface" else "<|--"
+            lines.append(f"  {alias[base]} {arrow} {alias[sub]}")
     return "\n".join(lines)
 
 

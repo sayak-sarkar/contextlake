@@ -195,7 +195,7 @@ def _root_hidden_flags(p):
     add("--transport", choices=["stdio", "http"])
     add("--retriever", choices=("fts", "semantic", "hybrid"))
     add("--direction", choices=["in", "out", "both"])
-    add("--format", choices=["html", "dot", "mermaid", "json"])
+    add("--format", choices=["html", "dot", "mermaid", "classdiagram", "json"])
     add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"])
     add("--site", nargs="?", const="")
 
@@ -390,6 +390,7 @@ Examples:
 Examples:
   contextlake graph --overview                        repos-as-nodes fleet view
   contextlake graph --name OrderService --hops 2      neighbourhood of a symbol
+  contextlake graph --repo acme/app --format classdiagram   UML class diagram (Mermaid)
   contextlake graph --serve                           live click-to-expand UI
   contextlake graph --site                            offline cross-linked site
                 """)
@@ -411,8 +412,9 @@ Examples:
     p.add_argument("--relation", default=_S, help="only follow edges of this relation")
     p.add_argument("--direction", choices=["in", "out", "both"], default=_S,
                    help="edge direction to follow (default both)")
-    p.add_argument("--format", choices=["html", "dot", "mermaid", "json"], default=_S,
-                   help="output format (default html)")
+    p.add_argument("--format", default=_S,
+                   choices=["html", "dot", "mermaid", "classdiagram", "json"],
+                   help="output format (default html; classdiagram = UML Mermaid)")
     p.add_argument("--layout", default=_S,
                    choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
                    help="html: initial layout (default cose; switchable in the page)")

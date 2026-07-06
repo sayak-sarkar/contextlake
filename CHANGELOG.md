@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.29.0] - 2026-07-06
+### Added
+
+- **Class diagrams — `graph --format classdiagram`.** Now that the graph carries
+  inheritance, `contextlake graph --repo <r> --format classdiagram` renders a Mermaid
+  **UML class diagram**: classifiers (class / interface / struct / enum) with their
+  methods as members (signatures included), `<|--` for extends and `<|..` for interface
+  implements, and an `<<interface>>` stereotype. Files and call/import edges are
+  dropped so it reads as a class view, not the flat relation graph. Paste it straight
+  into a PR or design doc. (Payloads now also carry each node's `signature`.)
 
 ### Added
 
