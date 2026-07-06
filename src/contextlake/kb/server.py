@@ -210,7 +210,8 @@ class AskOut(BaseModel):
     nodes: list[NodeOut] = []         # definition | callers | dependents | search
     blast: BlastRadiusOut | None = None   # impact
     owners: OwnersOut | None = None       # owners
-    wiki: WikiOut | None = None            # explain (ADVISORY prose)
+    wiki: WikiOut | None = None            # explain (ADVISORY prose, when a wiki exists)
+    brief: RepoBriefOut | None = None      # explain fallback: the repo's grounded anatomy
     truncated: bool = False          # more results exist than returned (callers/dependents)
 
 
@@ -742,7 +743,14 @@ def build_server(
                     return _out(f"Curated wiki for {target!r}{stale} — ADVISORY prose, "
                                 "grounded in the graph; verify specifics against code.",
                                 wiki=w)
-            # no wiki page: degrade to a semantic/keyword explanation search
+                # No wiki page — a structured brief (real anatomy) beats a blind search
+                # for an "explain this repo" question.
+                b = get_repo_brief(target)
+                if b.found:
+                    return _out(f"No wiki for {target!r} yet — here is its grounded "
+                                "anatomy (top symbols, packages, languages) from the "
+                                "graph. Run `contextlake wiki` for prose.", brief=b)
+            # not a repo we know: degrade to a semantic/keyword explanation search
             route = SEARCH
 
         # SEARCH (fallback for everything else, and for definition/explain misses).

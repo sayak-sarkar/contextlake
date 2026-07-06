@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`ask`'s explain route degrades usefully.** When a question like "explain the
+  orders-api" hits a repo with no generated wiki, `ask` now returns that repo's
+  grounded anatomy (top symbols, packages, languages) from the graph instead of a
+  blind semantic search — a structured `brief` beats fuzzy hits for "explain this."
+  (Surfaced by a full end-to-end test sweep of the CLI + MCP server, which otherwise
+  found no defects.)
+
 ## [2.27.0] - 2026-07-06
 
 ### Added
