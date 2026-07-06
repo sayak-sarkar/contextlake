@@ -29,6 +29,46 @@ extra downloads or warnings. Plain **`[kb]`** is the graph + full-text search on
 This gives you the `contextlake` command. (`python -m contextlake` and
 `python3 contextlake.py` work too.)
 
+### Update to a newer version
+
+```bash
+pipx upgrade contextlake                       # if you installed with pipx
+pip install --upgrade "contextlake[kb-full]"   # if you installed with pip
+uv tool upgrade contextlake                     # if you installed with uv
+docker pull ghcr.io/sayak-sarkar/contextlake   # if you use the image
+```
+
+Then confirm with `contextlake --version` and re-check your environment with
+`contextlake doctor`. Your existing store and config carry forward — the graph
+re-indexes incrementally on your next `index`/`sync`, so there is nothing to migrate by
+hand. See the [changelog](changelog.html) for what changed between versions.
+
+### Uninstall
+
+Remove the tool:
+
+```bash
+pipx uninstall contextlake                     # or:  pip uninstall contextlake
+docker rmi ghcr.io/sayak-sarkar/contextlake    # if you pulled the image
+```
+
+That leaves your data in place. contextlake never writes inside your repositories, so
+uninstalling it can't touch your source. To also remove what it created locally —
+all optional, delete only what you don't want to keep:
+
+```bash
+rm -rf ~/.contextlake        # knowledge store, kb.toml config, graph/dashboard exports, wiki
+rm -f  ~/.contextlake.ini    # mirror config
+# your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:
+# rm -rf ~/work
+# the built-in CPU models are cached under ~/.cache/huggingface (shared with other HF
+# tools) — remove just the contextlake ones to reclaim space:
+rm -rf ~/.cache/huggingface/hub/models--minishlab--potion-base-8M
+```
+
+(If you used project-local config, also remove `.contextlake.kb.toml` /
+`.contextlake.ini` from those project directories.)
+
 ## 3. Configure
 
 The fast path, `contextlake init` writes both config files for you (interactive, or

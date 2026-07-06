@@ -107,6 +107,33 @@ pip install -e ".[kb]"
 ```
 </details>
 
+<details>
+<summary>Update &amp; uninstall</summary>
+
+Upgrade in place (whichever installer you used):
+
+```bash
+pipx upgrade contextlake                       # pipx
+pip install --upgrade "contextlake[kb-full]"   # pip
+uv tool upgrade contextlake                     # uv
+docker pull ghcr.io/sayak-sarkar/contextlake   # image
+```
+
+Your store and config carry forward — the graph re-indexes incrementally on the next
+`index`/`sync`, so nothing needs migrating. Confirm with `contextlake --version` and
+`contextlake doctor`.
+
+Uninstall the tool, then optionally remove what it created (it never writes inside your
+repos, so your source is never touched):
+
+```bash
+pipx uninstall contextlake        # or: pip uninstall contextlake
+rm -rf ~/.contextlake             # store + kb.toml + graph/dashboard exports (optional)
+rm -f  ~/.contextlake.ini         # mirror config (optional)
+# mirrored repos live in your work_dir (default ~/work) — delete only if unwanted
+```
+</details>
+
 **Prerequisites:** `git`, and, only for fleet mirroring, the platform's token env var
 (`GITLAB_TOKEN` with `read_api` + `read_repository`, or `GITHUB_TOKEN` /
 `BITBUCKET_TOKEN` / `GITEA_TOKEN`); on GitLab an authenticated
