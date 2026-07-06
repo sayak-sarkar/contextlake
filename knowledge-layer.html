@@ -57,7 +57,7 @@ contextlake<span class="w"> </span>lint<span class="w">                         
 contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/orders-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span><span class="w">      </span><span class="c1"># wiki for one repo; --llm enables the LLM tier inline</span>
 contextlake<span class="w"> </span>steer<span class="w">                           </span><span class="c1"># write per-tool steering: AGENTS.md, .mcp.json, …</span>
 contextlake<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;OrderService&quot;</span><span class="w">            </span><span class="c1"># cited search across the index</span>
-contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">         </span><span class="c1"># visualize the graph (HTML/dot/mermaid/json; offline)</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">         </span><span class="c1"># visualize the graph (HTML/dot/mermaid/classdiagram/json; offline)</span>
 contextlake<span class="w"> </span>serve<span class="w">                           </span><span class="c1"># expose the graph over MCP (stdio or --transport http)</span>
 </code></pre></div>
 
@@ -392,7 +392,11 @@ never silently truncated.</p>
   <code>breadthfirst</code>, <code>circle</code>, <code>grid</code>) in the page, set the initial one with <code>--layout</code>.
   <code>--open</code> launches the browser; <code>--cdn</code> produces a small online-only file instead.</li>
 <li><strong><code>dot</code></strong>, Graphviz (<code>contextlake graph … --format dot | dot -Tsvg &gt; g.svg</code>).</li>
-<li><strong><code>mermaid</code></strong>, pastes into Markdown / GitHub.</li>
+<li><strong><code>mermaid</code></strong>, the relation graph, pastes into Markdown / GitHub.</li>
+<li><strong><code>classdiagram</code></strong>, a <strong>Mermaid UML class diagram</strong> for a repo (or a seeded slice):
+  classes / interfaces / structs with their methods as members, and <code>inherits</code> edges
+  as inheritance arrows (<code>&lt;|--</code> extends, <code>&lt;|..</code> implements). Great for a PR or design
+  doc: <code>contextlake graph --repo acme/app --format classdiagram</code>.</li>
 <li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for Gephi / cytoscape / custom tooling.</li>
 </ul>
 <p>For interactive exploration of a large graph, <code>contextlake graph --serve</code> runs a
