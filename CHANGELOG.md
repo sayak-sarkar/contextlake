@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.32.0] - 2026-07-06
+### Added
+
+- **`--repos` — mirror and index just a subset.** Every mirror command, plus
+  `bootstrap` and `index --workspace`, now accepts `--repos PATTERN`, a comma-separated
+  glob/substring filter over repo paths (e.g. `--repos "team/api,billing,frontend/*"`).
+  `fetch` narrows the cached project list, so `clone` / `update` / `branches` /
+  `verify` / `status` / `bootstrap` all scope to that set; `bootstrap` / `index
+  --workspace` also filter which repos get indexed. Perfect for a demo or a
+  try-before-fleet run — `contextlake bootstrap --repos "…"` goes from nothing to a
+  wired workspace over just the chosen repos.
 
 ### Changed
 

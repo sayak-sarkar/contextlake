@@ -144,3 +144,29 @@ def test_embed_unavailable_hint_is_actionable():
         assert "kb-full" in on_no_engine or "Ollama" in on_no_engine
     else:
         assert "doctor" in on_no_engine                  # engine present -> point at diagnostics
+
+
+def test_index_workspace_repos_filter(tmp_path):
+    # --repos scopes a workspace index to matching repos (glob/substring)
+    ws = tmp_path / "ws"
+    for r in ("team/api", "team/web", "billing/core", "billing/reports"):
+        (ws / r).mkdir(parents=True)
+        (ws / r / "m.py").write_text("class X:\n    pass\n")
+        (ws / r / ".git").mkdir()
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
+                 "--repos", "billing/*,team/api"]) == 0
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    assert {r.id for r in store.list_repos()} == {"billing/core", "billing/reports", "team/api"}
+    store.close()
+
+
+def test_index_workspace_repos_filter_no_match_fails(tmp_path, capsys):
+    ws = tmp_path / "ws"
+    (ws / "team/api").mkdir(parents=True)
+    (ws / "team/api" / "m.py").write_text("class X:\n    pass\n")
+    (ws / "team/api" / ".git").mkdir()
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
+                 "--repos", "zzz-nope"]) == 1
+    assert "matching --repos" in capsys.readouterr().out

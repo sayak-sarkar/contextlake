@@ -364,6 +364,25 @@ _PLATFORM_FETCHERS = {
 }
 
 
+def _repo_filter_patterns(config) -> list[str]:
+    """Comma-separated ``--repos`` / ``repo_filter`` patterns, or [] if unset."""
+    raw = (config.get("repo_filter") or "").strip()
+    return [p.strip() for p in raw.split(",") if p.strip()]
+
+
+def match_repo_filter(full_path: str, local_path: str, patterns: list[str]) -> bool:
+    """A repo matches if any pattern is a glob hit or a plain substring of its
+    group-qualified path or its local (group-stripped) path. Case-insensitive.
+    ``team/*``, ``billing``, and ``acme/orders-api`` all work."""
+    from fnmatch import fnmatch
+    fp, lp = (full_path or "").lower(), (local_path or "").lower()
+    for p in patterns:
+        pl = p.lower()
+        if pl in fp or pl in lp or fnmatch(fp, pl) or fnmatch(lp, pl):
+            return True
+    return False
+
+
 class FetchError(RuntimeError):
     """Project enumeration failed. Raised instead of returning partial data so a
     transient blip can never overwrite a good cache or masquerade as success."""
@@ -454,12 +473,27 @@ def fetch_gitlab_projects(gitlab_group, config):
         # silently truncate the fleet. One extra request buys correctness.
         page += 1
 
+    # Optional subset: --repos / repo_filter narrows the mirror to matching repos, so
+    # `clone`/`update`/`branches`/`verify`/`status` (all keyed off this cache) operate
+    # on just that set. Ideal for a demo or a try-before-fleet run.
+    patterns = _repo_filter_patterns(config)
+    if patterns:
+        before = len(all_projects)
+        all_projects = {k: v for k, v in all_projects.items()
+                        if match_repo_filter(v.get("full_path", k), k, patterns)}
+        log(style.dim(f"Repo filter {patterns} -> {len(all_projects)} of {before} projects"))
+
     _write_caches(all_projects, cache_json, cache_file)
     if not all_projects:
-        log(style.warn("Fetched 0 projects — check the group name and your token's "
-                       "read_api access before trusting this result"))
+        if patterns:
+            log(style.warn(f"No projects matched --repos {patterns} — "
+                           "check the pattern against `contextlake status`"))
+        else:
+            log(style.warn("Fetched 0 projects — check the group name and your token's "
+                           "read_api access before trusting this result"))
     else:
-        log(f"{style.ok()} Fetched {style.bold(str(len(all_projects)))} total projects")
+        label = "matching" if patterns else "total"
+        log(f"{style.ok()} Fetched {style.bold(str(len(all_projects)))} {label} projects")
     return all_projects
 
 

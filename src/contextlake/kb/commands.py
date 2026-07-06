@@ -78,16 +78,26 @@ def _default_index_workers() -> int:
 
 def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                      skip_generated: bool = True, max_file_bytes: int | None = None,
-                     workers: int | None = None) -> int:
+                     workers: int | None = None, repo_filter: str | None = None) -> int:
     from .parse import DEFAULT_MAX_FILE_BYTES, discover_repos, index_repo_dir  # lazy: tree-sitter
 
     if max_file_bytes is None:
         max_file_bytes = DEFAULT_MAX_FILE_BYTES
     repos = discover_repos(str(workspace))
+    # --repos scopes indexing to a subset (so `bootstrap --repos ...` indexes only the
+    # mirrored subset, even when the workspace holds the full fleet).
+    if repo_filter:
+        from ..core import _repo_filter_patterns, match_repo_filter
+        patterns = _repo_filter_patterns({"repo_filter": repo_filter})
+        if patterns:
+            repos = [(rid, path) for rid, path in repos
+                     if match_repo_filter(rid, rid, patterns)]
     if not repos:
         # An empty workspace must fail loudly: an agent cannot cite from an empty
         # graph, so "success" here would be the hollow kind.
-        log(style.warn(f"No git repositories found under {workspace} — nothing indexed."))
+        extra = f" matching --repos {repo_filter!r}" if repo_filter else ""
+        log(style.warn(f"No git repositories found under {workspace}{extra} — "
+                       "nothing indexed."))
         log("  Point --workspace at a directory that contains git clones.")
         return 1
     mode = "full" if force else "incremental"
@@ -190,18 +200,21 @@ def cmd_index(args) -> int:
         workspace = getattr(args, "workspace", None)
         if workspace:
             force = getattr(args, "force", False)
+            repo_filter = getattr(args, "repos", None)
             if getattr(args, "watch", False):
                 interval = getattr(args, "interval", None) or 60
                 log(f"{style.cyan('watch')}: re-indexing {workspace} every "
                     f"{interval}s (Ctrl-C to stop)")
                 _watch_loop(
                     lambda: _index_workspace(store, store_dir, Path(workspace),
-                                             force=force, workers=workers, **parse_opts),
+                                             force=force, workers=workers,
+                                             repo_filter=repo_filter, **parse_opts),
                     interval=interval,
                 )
                 return 0
             return _index_workspace(store, store_dir, Path(workspace),
-                                    force=force, workers=workers, **parse_opts)
+                                    force=force, workers=workers,
+                                    repo_filter=repo_filter, **parse_opts)
 
         # `contextlake index PATH` and `index --source PATH` are the same thing.
         source = getattr(args, "source", None) or getattr(args, "path", None)
