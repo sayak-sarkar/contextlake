@@ -3,10 +3,14 @@
 Dual register: tight-crop (face + orb) for small favicons that must stay
 legible; full-body painterly for the large app icons that can show detail."""
 from PIL import Image, ImageDraw, ImageFilter
-
-MASTER = "/home/sayak.sarkar/Work/pebble_images/pebble-logomark-nowater.png"
-STAGE = "/home/sayak.sarkar/Work/web-redesign-lab/contextlake-ds/icons-out"
 import os
+import pathlib
+
+# The master mascot art lives outside the repo (brand-asset lab); point at it via
+# CONTEXTLAKE_MASTER_MARK. STAGE defaults to the repo's docs/img.
+_ROOT = pathlib.Path(__file__).resolve().parents[2]
+MASTER = os.environ.get("CONTEXTLAKE_MASTER_MARK", str(_ROOT / "docs/img/icon-512.png"))
+STAGE = os.environ.get("CONTEXTLAKE_ICON_STAGE", str(_ROOT / "docs/img/icons-out"))
 os.makedirs(STAGE, exist_ok=True)
 DEEP = (14, 42, 51, 255)   # #0E2A33
 LAKE = (19, 122, 139)

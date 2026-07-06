@@ -2,7 +2,7 @@
 """Decision-cascade SVG diagrams: a start chip, decisions along the bottom
 joined by 'no' arrows, each 'yes' branching up to an outcome chip."""
 import pathlib
-IMG = pathlib.Path("/home/sayak.sarkar/Work/contextlake/docs/img")
+IMG = pathlib.Path(__file__).resolve().parents[2] / "docs/img"  # <repo>/docs/img
 DEEP="#0E2A33"; LAKE="#137A8B"; CUR="#2BB3A3"; MIST="#EAF4F4"; INK="#0E2A33"
 MUTED="#41606a"; LINE="#cfe0e3"; SUN="#E7B53C"; GREEN="#2f8f7f"
 FF="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif"
