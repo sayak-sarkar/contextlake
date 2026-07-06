@@ -10,6 +10,22 @@ Every command carries its own scoped help — `contextlake <command> --help` sho
 just that command's flags with worked examples, and bare `contextlake` prints the
 full command list.
 
+**Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `index
+--workspace`) accepts `--repos PATTERN` — a comma-separated **glob/substring** filter
+over your repo paths, so you can mirror and index just a handful instead of the whole
+group. Ideal for a demo or a try-before-fleet run:
+
+```bash
+contextlake bootstrap --repos "team/api,billing,frontend/*"   # mirror + index just these
+contextlake sync --repos "team/*"                             # sync one namespace
+contextlake index --workspace ~/work --repos "billing/core,team/api"
+```
+
+Each pattern matches if it's a substring of, or a glob against, the repo's
+group-qualified path or its local path (case-insensitive). It scopes the whole
+pipeline: `fetch` narrows the cached project list, and `clone` / `update` / `branches`
+/ `verify` / `status` / `bootstrap` all follow from that.
+
 `contextlake sync` runs the whole mirror pipeline end to end; each stage is also
 available as its own command:
 

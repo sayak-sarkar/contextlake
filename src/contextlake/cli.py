@@ -118,6 +118,9 @@ def _add_mirror(p, hidden=False):
 
     add("--work-dir", help="working directory (overrides config file)")
     add("--group", help="GitLab group (overrides config file)")
+    add("--repos", metavar="PATTERN",
+        help="mirror/index only repos matching this comma-separated glob/substring "
+             "filter (e.g. 'team/api,billing,frontend/*') — great for a demo subset")
     add("--dry-run", action="store_true", dest="dry_run",
         help="show what would happen without cloning, updating, or switching branches")
     add("--clean-corrupted", action="store_true", dest="clean_corrupted",
@@ -179,10 +182,12 @@ def _root_hidden_flags(p):
         kw.setdefault("default", _S)
         p.add_argument(*names, **kw)
 
+    # NB: --repos is supplied on the root parser by _add_mirror(hidden=True), so it
+    # must NOT be repeated here or argparse raises a conflicting-option error.
     for flag in ("--report", "--kb-config", "--source", "--workspace", "--out",
                  "--llm-model", "--host", "--kind", "--repo", "--path",
                  "--source-type", "--golden", "--as-of", "--node", "--name",
-                 "--search", "--relation", "--output", "--repos"):
+                 "--search", "--relation", "--output"):
         add(flag)
     for flag in ("--no-audit", "--no-sync", "--no-connect", "--no-embed", "--no-wiki",
                  "--force", "--watch", "--overview", "--open", "--cdn", "--serve",
@@ -322,6 +327,9 @@ Examples:
     p.add_argument("--source", default=_S, help="a repo directory or a graph shard JSON")
     p.add_argument("--workspace", default=_S,
                    help="index every git repo under this directory")
+    p.add_argument("--repos", default=_S, metavar="PATTERN",
+                   help="--workspace: index only repos matching this comma-separated "
+                        "glob/substring filter (e.g. 'team/api,billing,frontend/*')")
     p.add_argument("--repo", default=_S,
                    help="repo id to index --source under (default: the directory name)")
     p.add_argument("--force", action="store_true", default=_S,
@@ -668,6 +676,10 @@ def main(argv=None):
     # overlay any CLI overrides on top.
     config = load_config(args.config)
     config = apply_cli_overrides(args, config)
+    # --repos scopes the whole mirror pipeline to a subset (fetch narrows the cache;
+    # clone/update/branches/verify/status key off it; bootstrap also filters indexing).
+    if getattr(args, "repos", None):
+        config["repo_filter"] = args.repos
 
     work_dir = expand_path(args.work_dir) if args.work_dir else config.get(
         "work_dir", DEFAULT_CONFIG["work_dir"]

@@ -329,3 +329,31 @@ def test_configure_network_resilience_sets_and_respects(monkeypatch):
     monkeypatch.setenv("RES_OPTIONS", "custom")
     configure_network_resilience({"dns_timeout": "99"})
     assert os.environ["RES_OPTIONS"] == "custom"
+
+
+def test_match_repo_filter_glob_and_substring():
+    from contextlake.core import _repo_filter_patterns, match_repo_filter
+    pats = _repo_filter_patterns({"repo_filter": "billing/*, team/api ,frontend"})
+    assert pats == ["billing/*", "team/api", "frontend"]
+    assert match_repo_filter("acme/billing/core", "billing/core", pats)   # glob on local
+    assert match_repo_filter("acme/team/api", "team/api", pats)           # exact substring
+    assert match_repo_filter("acme/frontend/app", "frontend/app", pats)   # substring
+    assert not match_repo_filter("acme/auth/svc", "auth/svc", pats)
+    assert match_repo_filter("ACME/Billing/Core", "Billing/Core", pats)   # case-insensitive
+
+
+def test_fetch_repo_filter_narrows_the_cache(tmp_path, base_config, fake_subprocess):
+    page1 = [{"path_with_namespace": f"g/{n}", "http_url_to_repo": "h",
+              "ssh_url_to_repo": "s", "archived": False, "default_branch": "main"}
+             for n in ("api", "web", "billing-core", "billing-reports", "auth")]
+    fake_subprocess.handler = lambda cmd, **k: (
+        FakeCompleted(stdout=json.dumps(page1)) if "&page=1" in cmd[-1]
+        else FakeCompleted(stdout="[]"))
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path), cache_json="p.json", cache_file="p.txt",
+               repo_filter="billing,api")
+    result = fetch_gitlab_projects("g", cfg)
+    # only the matching repos survive into the returned map + the cache
+    assert set(result) == {"api", "billing-core", "billing-reports"}
+    cached = json.loads((tmp_path / "p.json").read_text())
+    assert set(cached) == {"api", "billing-core", "billing-reports"}
