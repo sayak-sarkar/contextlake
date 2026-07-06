@@ -56,9 +56,16 @@ in a few minutes. Everything beyond the mirror is optional and off by default.</
 <p>This gives you the <code>contextlake</code> command. (<code>python -m contextlake</code> and
 <code>python3 contextlake.py</code> work too.)</p>
 <h2 id="3-configure">3. Configure<a class="anchor" href="#3-configure" title="Link to this section">#</a></h2>
-<p>Two small files. <strong>Mirror config</strong>, <code>~/.contextlake.ini</code>:</p>
+<p>The fast path, <code>contextlake init</code> writes both config files for you (interactive, or
+<code>--yes</code> for defaults):</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>init<span class="w">                       </span><span class="c1"># prompts for platform, group, workspace</span>
+contextlake<span class="w"> </span>init<span class="w"> </span>--platform<span class="w"> </span>github<span class="w"> </span>--group<span class="w"> </span>my-org<span class="w"> </span>--yes<span class="w">   </span><span class="c1"># non-interactive</span>
+</code></pre></div>
+
+<p>Prefer to write them by hand? <strong>Mirror config</strong>, <code>~/.contextlake.ini</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="k">[contextlake]</span>
 <span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
+<span class="c1"># platform = github          # gitlab (default) | github | bitbucket | gitea | codeberg</span>
 <span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
 </code></pre></div>
 
