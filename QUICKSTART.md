@@ -15,10 +15,16 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 ## 2. Install
 
 ```bash
-pipx install "contextlake[kb]"
-# or from a clone:  pip install ".[kb]"
-# optional ANN backend for semantic search:  add the [kb-vec] extra
+pipx install "contextlake[kb-full]"   # graph + semantic search, zero config (recommended)
+# lighter:  pipx install "contextlake[kb]"   # graph + search, but bring your own embedder
+# or from a clone:  pip install ".[kb-full]"
 ```
+
+**`[kb-full]`** is the batteries-included install: the knowledge layer plus the
+built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend — so
+semantic search and the `ask` tool work the moment you turn embeddings on, with no
+extra downloads or warnings. Plain **`[kb]`** is the graph + full-text search only; add
+`[kb-local]` for the embedder and `[kb-vec]` for the ANN backend if you prefer to pick.
 
 This gives you the `contextlake` command. (`python -m contextlake` and
 `python3 contextlake.py` work too.)
