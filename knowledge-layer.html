@@ -197,11 +197,15 @@ install the optional ANN backend with <code>pip install "contextlake[kb-vec]"</c
 for larger workspaces. Tune it with <code>[embeddings] vector_chunk_size</code> (the sqlite-vec
 <code>vec0</code> KNN chunk size, default 1024; clamped to a multiple of 8, applied when the vector
 store is first created, re-embed from scratch to change an existing store).</p>
-<p><strong>What gets embedded:</strong> each node's kind, name, qualified name, and file path, plus
-its captured <strong>signature and docstring</strong>, so a natural-language query like <em>"refund
-a payment to the original card"</em> finds the right function even when its name says
-nothing of the sort. (Measured on the golden-query harness, adding signature +
-docstring doubled MRR and took hit-rate to 100% on natural-language queries.)</p>
+<p><strong>What gets embedded:</strong> the code <strong>definitions</strong> (classes, functions, methods,
+interfaces, structs, enums) and HTTP endpoints, each with its name, qualified name,
+file path, and captured <strong>signature and docstring</strong>, so a natural-language query like
+<em>"refund a payment to the original card"</em> finds the right function even when its name
+says nothing of the sort. (Measured on the golden-query harness, adding signature +
+docstring doubled MRR and took hit-rate to 100% on natural-language queries.) File,
+module, and package nodes are deliberately not embedded: a path or a shared package
+name is low semantic signal, and skipping them keeps results clean and avoids
+re-embedding cross-repo shared nodes once per referencing repo.</p>
 <p><strong>Which model?</strong> With that content embedded, the tiny static models punch far above
 their weight: on a 24-query natural-language bake-off, the default <code>potion-base-8M</code>
 (~30MB, ~1ms per query) outscored the ONNX <code>bge-small</code> transformer, and
