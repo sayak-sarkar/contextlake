@@ -48,11 +48,16 @@ in a few minutes. Everything beyond the mirror is optional and off by default.</
   <strong><code>glab</code></strong> (<code>glab auth login</code>) works instead of a token.</li>
 </ul>
 <h2 id="2-install">2. Install<a class="anchor" href="#2-install" title="Link to this section">#</a></h2>
-<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span>
-<span class="c1"># or from a clone:  pip install &quot;.[kb]&quot;</span>
-<span class="c1"># optional ANN backend for semantic search:  add the [kb-vec] extra</span>
+<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span><span class="w">   </span><span class="c1"># graph + semantic search, zero config (recommended)</span>
+<span class="c1"># lighter:  pipx install &quot;contextlake[kb]&quot;   # graph + search, but bring your own embedder</span>
+<span class="c1"># or from a clone:  pip install &quot;.[kb-full]&quot;</span>
 </code></pre></div>
 
+<p><strong><code>[kb-full]</code></strong> is the batteries-included install: the knowledge layer plus the
+built-in CPU embedder (no Ollama, no API key) and the fast <code>sqlite-vec</code> backend, so
+semantic search and the <code>ask</code> tool work the moment you turn embeddings on, with no
+extra downloads or warnings. Plain <strong><code>[kb]</code></strong> is the graph + full-text search only; add
+<code>[kb-local]</code> for the embedder and <code>[kb-vec]</code> for the ANN backend if you prefer to pick.</p>
 <p>This gives you the <code>contextlake</code> command. (<code>python -m contextlake</code> and
 <code>python3 contextlake.py</code> work too.)</p>
 <h2 id="3-configure">3. Configure<a class="anchor" href="#3-configure" title="Link to this section">#</a></h2>
