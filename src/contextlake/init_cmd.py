@@ -169,7 +169,12 @@ def cmd_init(args) -> int:
     # --- next steps ---------------------------------------------------------
     log("")
     if want_kb:
-        install = style.cyan('pip install "contextlake[kb]"')
+        # Recommend the extra that matches what they just chose: [kb-full] bundles
+        # the built-in embedder + sqlite-vec so semantic search works with no extra
+        # steps; plain [kb] has no embedder, so enabling semantic search without it
+        # makes every embed fail. See the QUICKSTART install guidance.
+        extra = "kb-full" if enable_embeddings else "kb"
+        install = style.cyan(f'pip install "contextlake[{extra}]"')
         log("Next: install the knowledge layer and bootstrap everything:")
         log(f"  {install}")
         log(f"  {style.cyan('contextlake bootstrap')}")

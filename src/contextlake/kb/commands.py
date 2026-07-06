@@ -501,6 +501,18 @@ def cmd_embed(args) -> int:
                 if not pass_targets:
                     log("No indexed repos to embed (run index first, or pass --workspace/--source)")
                     return 0
+                # Pre-flight: the builtin embedder loads its model lazily, so a
+                # missing extra (or an unreachable Ollama/API endpoint) only surfaces
+                # on first use. Probe once here so a whole-environment problem fails
+                # fast with one actionable message, instead of repeating the same
+                # error for every repo in the fleet.
+                try:
+                    embedder.embed(["contextlake embedder readiness probe"])
+                except Exception as e:  # noqa: BLE001
+                    log(style.warn(f"Embedder unavailable — {e}"))
+                    log(style.dim("  No vectors written. Fix the embedder above, then "
+                                  "re-run: contextlake embed"))
+                    return 1
                 log(f"Embedding {len(pass_targets)} repo(s) with {embedder.name} "
                     f"into the {vs.name} vector store")
                 total = failed = skipped = 0

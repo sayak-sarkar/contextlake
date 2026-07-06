@@ -879,9 +879,15 @@ def switch_repository_branch(local_path, projects, work_dir, config):
         except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
             return ("error", local_path, _first_line(str(e)))
 
-        curr_res = _run_git(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], full_path, branch_timeout
-        )
+        try:
+            curr_res = _run_git(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], full_path, branch_timeout
+            )
+        except Exception:  # noqa: BLE001
+            # A freshly-cloned repo with no commits has no HEAD to resolve
+            # (git: "ambiguous argument 'HEAD'"). There is no branch to switch
+            # to, so skip it cleanly instead of reporting it as an error.
+            return ("skip", local_path, "Empty repo (no commits)")
         current = curr_res.stdout.strip()
 
         if protect and not is_safe_branch(current, config):

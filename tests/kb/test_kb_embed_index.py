@@ -286,3 +286,41 @@ def test_embed_repo_skips_non_definition_kinds(tmp_path):
         assert embed_repo(tmp_path, vs, _FakeEmbedder(), "r", kinds={"file"}) == 1
     finally:
         vs.close()
+
+
+def test_cmd_embed_fails_fast_on_unavailable_embedder(tmp_path, monkeypatch, capsys):
+    """A whole-environment problem (missing kb-local extra, unreachable Ollama)
+    must be reported ONCE via an up-front probe — not repeated for every repo."""
+    import contextlake.kb.embeddings.index as emb_index
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(parents=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_EMBED_CONFIG.format(store=store_dir.as_posix()))
+
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    for rid in ("r1", "r2", "r3"):
+        s.upsert_repo(Repo(id=rid, path=str(tmp_path / rid)))
+        write_shard(store_dir, GraphShard(
+            repo=rid, head_commit="h",
+            nodes=[Node(id=f"{rid}_n", repo=rid, kind="function", name="foo")], edges=[]))
+    s.close()
+
+    class _DeadEmbedder:
+        name = "builtin"
+
+        def embed(self, texts):
+            raise RuntimeError("needs the 'kb-local' extra")
+
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _DeadEmbedder())
+    calls = []
+    monkeypatch.setattr(emb_index, "embed_repo",
+                        lambda *a, **k: calls.append(a[3]))  # must never be reached
+
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
+    assert cmd_embed(args) == 1
+    assert calls == []                                   # never entered the per-repo loop
+    out = capsys.readouterr().out
+    assert out.count("kb-local") <= 2                    # one probe message, not one-per-repo
