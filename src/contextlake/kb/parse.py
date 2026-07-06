@@ -126,6 +126,7 @@ _QUERIES = {
         (import_from_statement module_name: (dotted_name) @import)
         (call function: (identifier) @call)
         (call function: (attribute attribute: (identifier) @call))
+        (class_definition superclasses: (argument_list [(identifier) (attribute)] @base))
     """,
     "javascript": """
         (class_declaration name: (identifier) @def)
@@ -134,6 +135,7 @@ _QUERIES = {
         (import_statement source: (string) @import)
         (call_expression function: (identifier) @call)
         (call_expression function: (member_expression property: (property_identifier) @call))
+        (class_heritage (identifier) @base)
     """,
     "typescript": """
         (class_declaration name: (type_identifier) @def)
@@ -144,6 +146,9 @@ _QUERIES = {
         (import_statement source: (string) @import)
         (call_expression function: (identifier) @call)
         (call_expression function: (member_expression property: (property_identifier) @call))
+        (extends_clause [(identifier) (type_identifier)] @base)
+        (implements_clause [(type_identifier) (identifier)] @base)
+        (extends_type_clause [(type_identifier) (identifier)] @base)
     """,
     "csharp": """
         (class_declaration name: (identifier) @def)
@@ -154,6 +159,7 @@ _QUERIES = {
         (using_directive (qualified_name) @import)
         (invocation_expression function: (identifier) @call)
         (invocation_expression function: (member_access_expression name: (identifier) @call))
+        (base_list [(identifier) (generic_name)] @base)
     """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
@@ -280,11 +286,13 @@ def _enclosing_defs(name_node: ts.Node, def_types: set[str]) -> list[ts.Node]:
 
 def parse_source(
     repo_id: str, rel_path: str, source: bytes, lang: str, verified_at: date | None = None
-) -> tuple[list[Node], list[Edge], list[tuple[str, str, str, int]]]:
-    """Parse one file into (nodes, edges, calls).
+) -> tuple[list[Node], list[Edge], list[tuple[str, str, str, int]],
+           list[tuple[str, str, str, int]]]:
+    """Parse one file into (nodes, edges, calls, inherits).
 
-    ``calls`` are unresolved (caller_id, callee_name, file, line) tuples — call
-    targets are resolved repo-wide by :func:`index_repo_dir`.
+    ``calls`` and ``inherits`` are unresolved (src_id, target_name, file, line)
+    tuples — the target definition (a callee, or a base class/interface) is
+    resolved repo-wide by :func:`index_repo_dir`, since it may live in another file.
     """
     verified_at = verified_at or date.today()
     def_types = set(_DEF_TYPES[lang])
@@ -355,7 +363,23 @@ def parse_source(
             node = node.parent
         calls.append((caller_id, callee, rel_path, call_node.start_point[0] + 1))
 
-    return nodes, edges, calls
+    # Inherits: (subclass_id, base_name, file, line) — the base may be defined in
+    # another file, so resolve repo-wide later (like calls). A dotted/qualified base
+    # (django.views.View) keeps only its last segment, matching how defs are named.
+    inherits: list[tuple[str, str, str, int]] = []
+    for base_node in captures.get("base", []):
+        base = base_node.text.decode("utf-8", "replace").split(".")[-1].strip()
+        sub_id = None
+        node = base_node.parent
+        while node is not None:
+            if node.type in def_types and node.id in def_node_to_id:
+                sub_id = def_node_to_id[node.id]
+                break
+            node = node.parent
+        if sub_id and base:
+            inherits.append((sub_id, base, rel_path, base_node.start_point[0] + 1))
+
+    return nodes, edges, calls, inherits
 
 
 def index_repo_dir(
@@ -376,6 +400,7 @@ def index_repo_dir(
     shard = GraphShard(repo=repo_id, head_commit=head_commit)
     by_id: dict[str, Node] = {}
     all_calls: list[tuple[str, str, str, int]] = []
+    all_inherits: list[tuple[str, str, str, int]] = []
     n_files = n_generated = n_oversize = n_ignored = 0
 
     for dirpath, dirnames, filenames in os.walk(root):
@@ -416,8 +441,10 @@ def index_repo_dir(
                 continue
             try:
                 if is_code:
-                    nodes, edges, calls = parse_source(repo_id, rel, source, LANG_BY_EXT[ext])
+                    nodes, edges, calls, inh = parse_source(repo_id, rel, source,
+                                                            LANG_BY_EXT[ext])
                     all_calls.extend(calls)
+                    all_inherits.extend(inh)
                     # cross-repo flow surfaces: HTTP endpoints + message topics
                     hn, he = extract_http_flow(repo_id, rel, source, LANG_BY_EXT[ext])
                     en, ee = extract_event_flow(repo_id, rel, source, LANG_BY_EXT[ext])
@@ -434,7 +461,10 @@ def index_repo_dir(
             shard.edges.extend(edges)
 
     shard.nodes.extend(by_id.values())
-    shard.edges.extend(_resolve_calls(all_calls, by_id))
+    shard.edges.extend(_resolve_name_refs(
+        all_calls, by_id, relation="calls", target_kinds=_CALLABLE_KINDS))
+    shard.edges.extend(_resolve_name_refs(
+        all_inherits, by_id, relation="inherits", target_kinds=_INHERITABLE_KINDS))
     log(f"  parsed {n_files} file(s); skipped {n_generated} generated, "
         f"{n_oversize} oversized, {n_ignored} ignored", level=logging.DEBUG)
     return shard
@@ -460,38 +490,42 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
     return found
 
 
-# Node kinds that a call can resolve to.
+# Node kinds a call can resolve to, and the (narrower) kinds a base class/interface
+# can resolve to. A method can be called but never inherited from.
 _CALLABLE_KINDS = {"class", "function", "method", "interface", "struct"}
+_INHERITABLE_KINDS = {"class", "interface", "struct"}
 
 
-# A call name that resolves to 2..N definitions is emitted as AMBIGUOUS edges to
-# each candidate (so blast-radius doesn't miss hot symbols); a name matching more
-# than this is too generic (e.g. `get`/`handle`) to be signal and is skipped.
+# A name that resolves to 2..N definitions is emitted as AMBIGUOUS edges to each
+# candidate (so blast-radius doesn't miss hot symbols); a name matching more than
+# this is too generic (e.g. `get`/`handle`) to be signal and is skipped.
 _MAX_AMBIG_FANOUT = 6
 
 
-def _resolve_calls(
-    calls: list[tuple[str, str, str, int]], nodes_by_id: dict[str, Node]
+def _resolve_name_refs(
+    refs: list[tuple[str, str, str, int]], nodes_by_id: dict[str, Node],
+    *, relation: str, target_kinds: set[str],
 ) -> list[Edge]:
-    """Resolve callee names to definitions repo-wide.
+    """Resolve ``(src_id, target_name, file, line)`` references to definitions
+    repo-wide, emitting ``relation`` edges. Shared by calls and inherits.
 
-    Call edges are INFERRED when a name maps to a single definition. When a name
-    maps to 2..``_MAX_AMBIG_FANOUT`` definitions the call is genuinely ambiguous —
-    rather than drop it (which silently loses the hottest symbols and undercounts
-    blast radius), emit an AMBIGUOUS edge to each candidate. Names matching more
-    than the cap are too generic to be signal and are skipped; self-calls and
-    duplicate (caller, callee) pairs are de-duplicated.
+    An edge is INFERRED when a name maps to a single definition. A name mapping to
+    2..``_MAX_AMBIG_FANOUT`` definitions is genuinely ambiguous — rather than drop it
+    (which silently loses the hottest symbols and undercounts blast radius), emit an
+    AMBIGUOUS edge to each candidate. Names matching more than the cap are too generic
+    to be signal and are skipped; self-references and duplicate (src, dst) pairs are
+    de-duplicated.
     """
     name_index: dict[str, set[str]] = {}
     for node in nodes_by_id.values():
-        if node.kind in _CALLABLE_KINDS:
+        if node.kind in target_kinds:
             name_index.setdefault(node.name, set()).add(node.id)
 
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()
     resolved = ambiguous = dropped = 0
-    for caller_id, callee, rel, line in calls:
-        matches = name_index.get(callee)
+    for src_id, name, rel, line in refs:
+        matches = name_index.get(name)
         if not matches:
             continue
         if len(matches) == 1:
@@ -503,18 +537,18 @@ def _resolve_calls(
             dropped += 1  # too many candidates -> noise
             continue
         for target in targets:
-            if target == caller_id or (caller_id, target) in seen:
+            if target == src_id or (src_id, target) in seen:
                 continue
-            seen.add((caller_id, target))
+            seen.add((src_id, target))
             edges.append(Edge(
-                src=caller_id, dst=target, relation="calls", confidence=conf,
+                src=src_id, dst=target, relation=relation, confidence=conf,
                 context="ambiguous" if conf is Confidence.AMBIGUOUS else None,
                 provenance=Provenance(source_file=rel, source_line=line,
                                       verified_at=date.today())))
             if conf is Confidence.INFERRED:
                 resolved += 1
     if edges or dropped:
-        log(f"  resolved {resolved} call edge(s); {ambiguous} ambiguous call(s) "
+        log(f"  resolved {resolved} {relation} edge(s); {ambiguous} ambiguous "
             f"(<= {_MAX_AMBIG_FANOUT} candidates), {dropped} too-generic skipped",
             level=logging.DEBUG)
     return edges

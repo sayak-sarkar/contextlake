@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-DEFAULT_RELATIONS = ("calls", "depends_on")
+# Reverse-reach over calls (a caller breaks), depends_on (a dependent breaks), and
+# inherits (a subclass breaks when its base changes).
+DEFAULT_RELATIONS = ("calls", "depends_on", "inherits")
 # Walk EXTRACTED edges before INFERRED/AMBIGUOUS so the highest-confidence impact
 # surfaces first when the cap is hit.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
@@ -32,8 +34,8 @@ def blast_radius(store, node_id: str, *, hops: int = 3,
     """Breadth-first walk of INCOMING edges (callers / dependents) from ``node_id``.
 
     Goes up to ``hops`` levels, capped at ``limit`` hits, over ``relations``
-    (default ``calls`` + ``depends_on``). Returns ``(hits, truncated)``; ``truncated``
-    is True when the cap was reached (so the slice is bounded, never exhaustive).
+    (default ``calls`` + ``depends_on`` + ``inherits``). Returns ``(hits, truncated)``;
+    ``truncated`` is True when the cap was reached (a bounded slice, never exhaustive).
     """
     rels = set(relations or DEFAULT_RELATIONS)
     seen = {node_id}
