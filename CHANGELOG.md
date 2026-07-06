@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Update & uninstall guides.** The quickstart and README now document how to upgrade
+  contextlake in place (pipx / pip / uv / Docker) and how to uninstall it and, optionally,
+  remove the local store, config, mirror, and cached models — noting that nothing is ever
+  written inside your repositories.
+
 ## [2.33.0] - 2026-07-06
 
 ### Added
