@@ -435,3 +435,35 @@ def test_ask_routes_subclasses(tmp_path):
     assert out["route"] == "subclasses"
     assert set(n["name"] for n in out["nodes"]) == {"OllamaEmbedder", "BuiltinEmbedder"}
     s.close()
+
+
+def test_find_callers_and_blast_radius_resolve_a_bare_name(tmp_path):
+    # Agents pass a symbol NAME, not an internal node id. find_callers / blast_radius
+    # must resolve the name (not silently return empty) — the realistic MCP path.
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    prov = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="svc", repo="r", kind="class", name="OrderService"),
+        Node(id="c1", repo="r", kind="function", name="checkout"),
+        Node(id="c2", repo="r", kind="function", name="refund"),
+    ]
+    edges = [
+        Edge(src="c1", dst="svc", relation="calls", confidence=Confidence.EXTRACTED,
+             provenance=prov),
+        Edge(src="c2", dst="svc", relation="calls", confidence=Confidence.EXTRACTED,
+             provenance=prov),
+    ]
+    s.upsert_repo(Repo(id="r", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h1", nodes=nodes, edges=edges))
+    reindex_shard(s, tmp_path, "r")
+    srv = build_server(s)
+    # by NAME (what an agent passes) — not by the internal id "svc"
+    callers = asyncio.run(_call(srv, "find_callers", {"node_id": "OrderService"}))
+    assert callers.structuredContent["total"] == 2
+    blast = asyncio.run(_call(srv, "blast_radius", {"node_id": "OrderService"}))
+    assert blast.structuredContent["total"] == 2
+    # an unknown name resolves to an empty (not an error) result
+    empty = asyncio.run(_call(srv, "find_callers", {"node_id": "NoSuchSymbol"}))
+    assert empty.structuredContent["total"] == 0
+    s.close()

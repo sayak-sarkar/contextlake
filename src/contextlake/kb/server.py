@@ -352,14 +352,30 @@ def build_server(
         """Find definition(s) with an exact name — 'where is X defined?'."""
         return [_node_out(n) for n in store.nodes_by_name(name, kind=kind, repo=repo)]
 
+    def _as_node_id(node_id_or_name: str) -> str | None:
+        """Accept a node id OR a bare symbol name. Agents (and humans) naturally pass
+        a name like ``OrderService``; resolve it to the first matching node id so
+        callers/impact work without a separate find_definition round-trip. An exact
+        node id is returned as-is; an unknown string yields None."""
+        if not node_id_or_name:
+            return None
+        if store.get_node(node_id_or_name):
+            return node_id_or_name
+        matches = store.nodes_by_name(node_id_or_name)
+        return matches[0].id if matches else None
+
     @mcp.tool()
     def find_callers(node_id: str, limit: int = 50) -> NodesOut:
         """Find the definitions that call a node — 'who calls X?' (incoming calls edges).
 
-        EXTRACTED-first, capped at `limit`; `truncated`/`total` flag hot symbols with
-        more callers than returned.
+        `node_id` accepts a node id **or a bare symbol name** (e.g. ``OrderService``),
+        resolved to its first matching definition. EXTRACTED-first, capped at `limit`;
+        `truncated`/`total` flag hot symbols with more callers than returned.
         """
-        edges = sorted(store.neighbors(node_id, relation="calls", direction="in"),
+        nid = _as_node_id(node_id)
+        if nid is None:
+            return NodesOut(nodes=[], total=0, truncated=False)
+        edges = sorted(store.neighbors(nid, relation="calls", direction="in"),
                        key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
         seen: set[str] = set()
         out: list[NodeOut] = []
@@ -459,18 +475,20 @@ def build_server(
                      limit: int = 100) -> BlastRadiusOut:
         """What could break if you change this node — bounded transitive REVERSE reach.
 
-        Walks INCOMING edges (who calls / depends on / subclasses the node) breadth-first
-        up to `hops`, capped at `limit`, over `relations` (default calls + depends_on +
-        inherits).
+        `node_id` accepts a node id **or a bare symbol name** (e.g. ``OrderService``),
+        resolved to its first matching definition. Walks INCOMING edges (who calls /
+        depends on / subclasses the node) breadth-first up to `hops`, capped at
+        `limit`, over `relations` (default calls + depends_on + inherits).
         Each hit carries its hop distance, the relation, and confidence —
         EXTRACTED-first; verify INFERRED/AMBIGUOUS against the cited source. A
         bounded impact slice, never an exhaustive guarantee (`truncated` says when
         the cap was hit).
         """
         from .impact import blast_radius as _blast
-        hits, truncated = _blast(store, node_id, hops=hops, relations=relations, limit=limit)
+        nid = _as_node_id(node_id) or node_id
+        hits, truncated = _blast(store, nid, hops=hops, relations=relations, limit=limit)
         return BlastRadiusOut(
-            seed=node_id, hops=hops, total=len(hits), truncated=truncated,
+            seed=nid, hops=hops, total=len(hits), truncated=truncated,
             hits=[BlastHit(id=sanitize_label(h.id), repo=sanitize_label(h.repo),
                            kind=sanitize_label(h.kind), name=sanitize_label(h.name),
                            hop=h.hop, via=sanitize_label(h.via), confidence=h.confidence)
