@@ -4,8 +4,13 @@ glowing orb on the deepwater square. Drawn as vector primitives at 16x then
 downsampled, so it stays crisp where the painterly downscale turned to mud."""
 from PIL import Image, ImageDraw, ImageFilter
 import math
+import os
+import pathlib
 
-OUT = "/home/sayak.sarkar/Work/web-redesign-lab/contextlake-ds"
+# Output dir: env override, else the repo's docs/img. (Brand-asset staging lives
+# outside the repo; point CONTEXTLAKE_ASSET_OUT there when regenerating.)
+OUT = os.environ.get("CONTEXTLAKE_ASSET_OUT",
+                     str(pathlib.Path(__file__).resolve().parents[2] / "docs/img"))
 DEEP = (14, 42, 51, 255)
 SIL = (175, 206, 211, 255)   # light mist-teal otter silhouette (reads on deepwater)
 SIL_D = (120, 158, 165, 255)  # shade
