@@ -54,6 +54,7 @@ kb = [
     "tree-sitter>=0.25", "tree-sitter-python>=0.23",
     "tree-sitter-javascript>=0.23", "tree-sitter-typescript>=0.23",
     "tree-sitter-c-sharp>=0.23", "tree-sitter-go>=0.23", "tree-sitter-java>=0.23",
+    "tree-sitter-c>=0.23", "tree-sitter-cpp>=0.23",
 ]
 # Optional ANN backend for the semantic tier. Without it the vector store falls
 # back to an exact pure-Python cosine scan (no native dependency required).

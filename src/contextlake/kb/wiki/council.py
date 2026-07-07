@@ -29,13 +29,16 @@ def _parse_review(text: str) -> dict:
     try:
         obj = json.loads(text[text.index("{"):text.rindex("}") + 1])
     except (ValueError, json.JSONDecodeError):
-        return {"score": 0.0, "issues": ["unparseable review"]}
+        # A review we couldn't parse abstains (parsed=False) rather than scoring 0 —
+        # small local models often return malformed JSON, and one flaky review should
+        # not sink an otherwise well-reviewed page.
+        return {"score": 0.0, "issues": ["unparseable review"], "parsed": False}
     try:
         score = max(0.0, min(1.0, float(obj.get("score", 0.0))))
     except (TypeError, ValueError):
         score = 0.0
     issues = obj.get("issues") or []
-    return {"score": score, "issues": [str(i) for i in issues][:10]}
+    return {"score": score, "issues": [str(i) for i in issues][:10], "parsed": True}
 
 
 def review(llm, draft: str, facts: str, *, lenses=LENSES) -> list[dict]:
@@ -48,12 +51,21 @@ def review(llm, draft: str, facts: str, *, lenses=LENSES) -> list[dict]:
 
 
 def verdict(reviews: list[dict], *, accept_score: float = 0.7) -> dict:
-    """Chairman: average the reviewer scores, collect issues, decide accept/reject."""
-    if not reviews:
-        return {"accepted": False, "score": 0.0, "issues": ["no reviews"]}
-    score = sum(r["score"] for r in reviews) / len(reviews)
+    """Chairman: average the *parseable* reviewer scores and decide accept/reject.
+
+    Reviews that failed to parse (``parsed=False``) abstain — they are excluded from
+    the mean rather than counted as zero, so a single malformed review from a small
+    local model doesn't reject an otherwise well-reviewed page. If *no* review parsed,
+    the page can't be verified and is rejected.
+    """
     issues = [f"{r['lens']}: {i}" for r in reviews for i in r["issues"]]
-    return {"accepted": score >= accept_score, "score": round(score, 3), "issues": issues}
+    scored = [r for r in reviews if r.get("parsed", True)]
+    if not scored:
+        return {"accepted": False, "score": 0.0,
+                "issues": issues or ["no reviews"], "abstained": len(reviews)}
+    score = sum(r["score"] for r in scored) / len(scored)
+    return {"accepted": score >= accept_score, "score": round(score, 3),
+            "issues": issues, "abstained": len(reviews) - len(scored)}
 
 
 def council_gate(llm, draft: str, facts: str, *, accept_score: float = 0.7,

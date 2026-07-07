@@ -173,9 +173,37 @@ def test_parse_java():
     assert "find" in {c[1] for c in calls}
 
 
+def test_parse_c():
+    src = (b'#include <stdio.h>\n#include "mylib.h"\n'
+           b"struct Point { int x; };\nenum Color { RED };\n"
+           b"int add(int a,int b){ return a+b; }\n"
+           b'void run(void){ printf("%d", add(1,2)); }\n')
+    nodes, _e, calls, _i = parse_source("r", "f.c", src, "c")
+    k = _kinds(nodes)
+    assert "Point" in k["struct"] and "Color" in k["enum"]
+    assert "add" in k["function"] and "run" in k["function"]
+    assert {"<stdio.h>", "mylib.h"} <= k["module"]   # quotes stripped like other langs
+    # call attribution reaches the enclosing function (not just the file)
+    named = {n.id: n.name for n in nodes}
+    assert ("run", "add") in {(named.get(c[0]), c[1]) for c in calls}
+
+
+def test_parse_cpp():
+    src = (b"#include <string>\n"
+           b"class Animal { public: void speak(); };\n"
+           b"class Dog : public Animal { public: void speak(){} };\n"
+           b"int compute(int x){ return x*2; }\n")
+    nodes, _e, _c, inh = parse_source("r", "f.cpp", src, "cpp")
+    k = _kinds(nodes)
+    assert "Animal" in k["class"] and "Dog" in k["class"]
+    assert "compute" in k["function"] and "speak" in k["method"]   # in-class method
+    assert "Animal" in {base for _sub, base, _f, _ln in inh}       # Dog : public Animal
+
+
 def test_lang_by_ext_covers_target_languages():
     from contextlake.kb.parse import LANG_BY_EXT
-    for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs", ".go", ".java"):
+    for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs", ".go", ".java",
+                ".c", ".h", ".cpp", ".hpp"):
         assert ext in LANG_BY_EXT
 
 
@@ -348,6 +376,7 @@ def test_inherits_edges_across_languages(tmp_path):
     (tmp_path / "e.java").write_text(
         "class BaseService {}\ninterface Auditable {}\n"
         "class OrderService extends BaseService implements Auditable {}\n")
+    (tmp_path / "f.cpp").write_text("class Base {};\nclass Derived : public Base {};\n")
     inh = _inherits(index_repo_dir(str(tmp_path), "demo"))
     assert ("Child", "Base") in inh
     assert ("Dog", "Animal") in inh
@@ -355,6 +384,7 @@ def test_inherits_edges_across_languages(tmp_path):
     assert ("Car", "Vehicle") in inh
     assert ("Button", "Widget") in inh
     assert ("OrderService", "BaseService") in inh and ("OrderService", "Auditable") in inh
+    assert ("Derived", "Base") in inh
 
 
 def test_inherits_unresolved_external_base_is_dropped(tmp_path):

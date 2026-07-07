@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Go and Java are now indexed.** Two more tree-sitter grammars: Go
-  (functions, methods, struct/interface types, imports, calls) and Java (classes,
-  interfaces, enums, records, methods, constructors, imports, calls, and full
-  inheritance — `extends`/`implements`/interface-`extends`). Brings the parser to
-  Python, JS/TS(X), C#, Go, Java. (`.go`, `.java`.)
+- **Go, Java, C, and C++ are now indexed.** Four more tree-sitter grammars: Go
+  (functions, methods, struct/interface types, imports, calls); Java (classes,
+  interfaces, enums, records, methods, constructors, imports, calls, full inheritance);
+  C (functions, structs, enums, unions, `#include`s, calls); C++ (classes, structs,
+  enums, functions, in-class methods, `#include`s, calls, `: public Base` inheritance).
+  Brings the parser to Python, JS/TS(X), C#, Go, Java, C, C++ — covering .NET (C#),
+  Node/React/Next/Angular (JS/TS), and native code. (`.go .java .c .h .cpp/.cc/.cxx
+  .hpp/.hh/.hxx`.) A shared `_def_node` normalization keeps call-attribution and
+  containment correct where a language nests the name under a declarator (C/C++).
 - **`contextlake hook install` — continuous intelligence.** A git `post-commit` hook
   that re-indexes a repo into the store after each commit, so the graph never drifts
   from HEAD without a manual `index`/`bootstrap`. `install` (single repo or
@@ -42,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Unparseable wiki reviews now abstain instead of scoring zero.** Small local models
+  (e.g. the built-in 0.5B) sometimes return a review in a shape the council can't parse;
+  that lens was counted as 0, dragging an otherwise-good page below the accept threshold
+  and rejecting it (`rejected by council (score 0.657)` — "unparseable review"). A
+  malformed review is now excluded from the mean; a page is rejected only if *no* review
+  parsed. Far fewer good pages lost to a flaky reviewer.
 - **`[llm] council_size` is now applied.** It shipped in the example config and was
   documented as tunable, but `council_gate` always ran all three review lenses. It now
   trims to `council_size` lenses (1–3), so fewer reviews = fewer model calls per page.

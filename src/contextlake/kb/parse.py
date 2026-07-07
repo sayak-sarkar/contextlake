@@ -70,6 +70,9 @@ LANG_BY_EXT = {
     ".cs": "csharp",
     ".go": "go",
     ".java": "java",
+    ".c": "c", ".h": "c",
+    ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp", ".c++": "cpp",
+    ".hpp": "cpp", ".hh": "cpp", ".hxx": "cpp",
 }
 
 # A code file larger than this is skipped (and logged). Hand-written source is
@@ -127,6 +130,18 @@ _DEF_TYPES = {
         "class_declaration": "class", "interface_declaration": "interface",
         "enum_declaration": "enum", "record_declaration": "class",
         "method_declaration": "method", "constructor_declaration": "method",
+    },
+    # C/C++: a function's name sits under a *_declarator, so parse_source normalizes
+    # the def node up to the enclosing function_definition (see _def_node) — that is
+    # the type keyed here, so call attribution and containment resolve correctly.
+    "c": {
+        "function_definition": "function", "struct_specifier": "struct",
+        "enum_specifier": "enum", "union_specifier": "struct",
+    },
+    "cpp": {
+        "function_definition": "function", "class_specifier": "class",
+        "struct_specifier": "struct", "enum_specifier": "enum",
+        "union_specifier": "struct",
     },
 }
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
@@ -196,6 +211,31 @@ _QUERIES = {
         (super_interfaces (type_list (type_identifier) @base))
         (extends_interfaces (type_list (type_identifier) @base))
     """,
+    "c": """
+        (function_definition declarator: (function_declarator declarator: (identifier) @def))
+        (function_definition declarator: (pointer_declarator declarator:
+            (function_declarator declarator: (identifier) @def)))
+        (struct_specifier name: (type_identifier) @def)
+        (enum_specifier name: (type_identifier) @def)
+        (union_specifier name: (type_identifier) @def)
+        (preproc_include path: (string_literal) @import)
+        (preproc_include path: (system_lib_string) @import)
+        (call_expression function: (identifier) @call)
+    """,
+    "cpp": """
+        (class_specifier name: (type_identifier) @def)
+        (struct_specifier name: (type_identifier) @def)
+        (enum_specifier name: (type_identifier) @def)
+        (function_definition declarator: (function_declarator declarator: (identifier) @def))
+        (function_definition declarator: (function_declarator declarator: (field_identifier) @def))
+        (function_definition declarator: (function_declarator declarator:
+            (qualified_identifier name: (identifier) @def)))
+        (preproc_include path: (string_literal) @import)
+        (preproc_include path: (system_lib_string) @import)
+        (call_expression function: (identifier) @call)
+        (call_expression function: (field_expression field: (field_identifier) @call))
+        (base_class_clause (type_identifier) @base)
+    """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
@@ -226,6 +266,12 @@ def _language(lang: str) -> ts.Language:
             fn = g.language
         elif lang == "java":
             import tree_sitter_java as g
+            fn = g.language
+        elif lang == "c":
+            import tree_sitter_c as g
+            fn = g.language
+        elif lang == "cpp":
+            import tree_sitter_cpp as g
             fn = g.language
         else:
             raise ValueError(f"unsupported language: {lang}")
@@ -314,10 +360,27 @@ def _doc_sig(def_ts: ts.Node, lang: str) -> dict:
     return out
 
 
+def _def_node(name_node: ts.Node, def_types: set[str]) -> ts.Node | None:
+    """The definition node a captured ``@def`` name belongs to.
+
+    Usually ``name_node.parent`` (the name is a direct child of the def node). In
+    C/C++ the name sits under one or more ``*_declarator`` wrappers, so climb to the
+    enclosing def-typed node (the ``function_definition``) — that is what encloses the
+    body, so call attribution and containment resolve to it.
+    """
+    node = name_node.parent
+    while node is not None and node.type not in def_types:
+        node = node.parent
+    return node
+
+
 def _enclosing_defs(name_node: ts.Node, def_types: set[str]) -> list[ts.Node]:
-    """Definition nodes enclosing this name's definition, innermost first."""
+    """Definition nodes enclosing this name's definition, innermost first (the name's
+    own definition node is excluded)."""
+    own = _def_node(name_node, def_types)
     out = []
-    node = name_node.parent.parent if name_node.parent else None
+    node = own.parent if own is not None else (
+        name_node.parent.parent if name_node.parent else None)
     while node is not None:
         if node.type in def_types:
             out.append(node)
@@ -350,7 +413,9 @@ def parse_source(
     def_node_to_id: dict[int, str] = {}
     pending: list[tuple[ts.Node, str, int]] = []  # (def_ts_node, qualified_name, line)
     for name_node in captures.get("def", []):
-        def_ts = name_node.parent
+        def_ts = _def_node(name_node, def_types)
+        if def_ts is None:
+            continue   # a declarator with no enclosing def node (defensive)
         name = name_node.text.decode("utf-8", "replace")
         enclosing = _enclosing_defs(name_node, def_types)
         scope = [n.child_by_field_name("name").text.decode("utf-8", "replace")
@@ -369,10 +434,13 @@ def parse_source(
         ))
         pending.append((def_ts, qualified, line))
 
-    # Second pass: containment edges (parent definition, else the file).
+    # Second pass: containment edges (parent definition, else the file). The parent is
+    # the nearest enclosing def-typed node above this one — computed from def_ts itself
+    # (a C/C++ function_definition has no "name" field to walk from).
     for def_ts, _qualified, line in pending:
-        parent = next((p for p in _enclosing_defs(def_ts.child_by_field_name("name"), def_types)),
-                      None)
+        parent = def_ts.parent
+        while parent is not None and parent.type not in def_types:
+            parent = parent.parent
         parent_id = def_node_to_id.get(parent.id) if parent else file_id
         edges.append(Edge(
             src=parent_id, dst=def_node_to_id[def_ts.id], relation="contains",
