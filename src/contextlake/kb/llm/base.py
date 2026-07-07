@@ -35,6 +35,7 @@ def build_llm(cfg) -> LlmClient | None:
         return OllamaLlm(
             model=cfg.model or "llama3.1",
             base_url=getattr(cfg, "base_url", "http://127.0.0.1:11434"),
+            timeout=getattr(cfg, "timeout", 300),
         )
     if provider == "openai":
         from .openai import OpenAILlm
@@ -43,6 +44,7 @@ def build_llm(cfg) -> LlmClient | None:
             model=cfg.model or "gpt-4o-mini",
             base_url=getattr(cfg, "base_url", "https://api.openai.com/v1"),
             api_key_env=getattr(cfg, "api_key_env", "OPENAI_API_KEY"),
+            timeout=getattr(cfg, "timeout", 300),
         )
     if provider == "builtin":
         return _build_builtin_llm(cfg)
@@ -73,7 +75,8 @@ def _resolve_auto_llm(cfg) -> LlmClient | None:
     if ollama_reachable(base_url):
         from .ollama import OllamaLlm
 
-        return OllamaLlm(model=getattr(cfg, "model", None) or "llama3.1", base_url=base_url)
+        return OllamaLlm(model=getattr(cfg, "model", None) or "llama3.1", base_url=base_url,
+                         timeout=getattr(cfg, "timeout", 300))
     if importlib.util.find_spec("llama_cpp") is not None:
         return _build_builtin_llm(cfg)
     return None

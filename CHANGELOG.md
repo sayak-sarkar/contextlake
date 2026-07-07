@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Configurable wiki-LLM `timeout`.** `[llm] timeout` (seconds, default 300) is now
+  honored by the `ollama` and `openai` providers, so a slow CPU box can raise it instead
+  of every page failing silently at the hardcoded 5-minute per-call limit. Surfaced
+  while measuring wiki quality: a 1.5B–3B Ollama model on a **CPU-only** host (~0.85–1.7
+  tok/s, no GPU) exceeds 300s per page.
+
+### Fixed
+
+- **`[llm] council_size` is now applied.** It shipped in the example config and was
+  documented as tunable, but `council_gate` always ran all three review lenses. It now
+  trims to `council_size` lenses (1–3), so fewer reviews = fewer model calls per page.
+
+### Documentation
+
+- **Detailed wiki + LLM-provider docs.** knowledge-layer.md now covers: per-provider
+  `[llm]` config with a model-id table; **why the built-in LLM needs a prebuilt wheel or
+  a compiler** (native `llama.cpp` bindings; PEP 508 can't pin an index; PyPI lags new
+  Pythons); **using Ollama for the wiki**, including the WSL↔Windows-host networking
+  gotcha (mirrored networking or `OLLAMA_HOST=0.0.0.0` + the default-route gateway IP);
+  and a measured **model-vs-hardware** quality note (built-in 0.5B vs Ollama on CPU vs
+  GPU vs API).
+
 ## [2.34.0] - 2026-07-07
 
 ### Added

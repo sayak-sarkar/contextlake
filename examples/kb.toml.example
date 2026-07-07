@@ -74,8 +74,9 @@ vector_backend = "auto"
 #   builtin -> in-process small GGUF via llama-cpp-python.
 enabled = false
 provider = "auto"
-council_size = 3        # reviewer lenses (accuracy / completeness / clarity)
+council_size = 3        # review lenses that run (1-3): accuracy / completeness / clarity
 accept_score = 0.7      # mean council score required to publish a page
+# timeout    = 300      # seconds per model call (ollama/openai); raise for a slow CPU
 # Built-in CPU LLM (no Ollama / API key): a small Qwen2.5-0.5B-Instruct GGUF
 # (Apache-2.0), auto-downloaded once to cache_dir. CPU generation is SLOW and the
 # wiki makes ~4 calls/repo, so this suits small workspaces — prefer Ollama / an API

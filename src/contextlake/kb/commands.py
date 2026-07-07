@@ -678,7 +678,8 @@ def cmd_wiki(args) -> int:
             try:
                 page = generate_page(llm, store_dir, repo_id)
                 gate = council_gate(llm, page, render_prompt(brief),
-                                    accept_score=cfg.llm.accept_score)
+                                    accept_score=cfg.llm.accept_score,
+                                    council_size=getattr(cfg.llm, "council_size", None))
             except Exception as e:  # noqa: BLE001 - one repo must not abort the run
                 log(f"  {style.fail(repo_id)}: {e}")
                 failed += 1
