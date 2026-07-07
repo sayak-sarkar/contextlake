@@ -146,9 +146,36 @@ def test_parse_csharp():
     assert {"System", "System.Collections"} <= k["module"]
 
 
+def test_parse_go():
+    src = (b'package main\nimport "net/http"\n'
+           b'type Server struct { Addr string }\ntype Handler interface { Serve() }\n'
+           b'func New(a string) *Server { return &Server{Addr: a} }\n'
+           b'func (s *Server) Start() error { return http.ListenAndServe(s.Addr, nil) }\n')
+    nodes, _e, calls, _i = parse_source("r", "f.go", src, "go")
+    k = _kinds(nodes)
+    assert "Server" in k["struct"] and "Handler" in k["struct"]   # Go types index as struct-kind
+    assert "New" in k["function"] and "Start" in k["method"]
+    assert "net/http" in k["module"]
+    assert "ListenAndServe" in {c[1] for c in calls}
+
+
+def test_parse_java():
+    src = (b"package com.acme;\nimport java.util.List;\n"
+           b"public class OrderService extends BaseService implements Auditable {\n"
+           b"  public OrderService() {}\n"
+           b"  public Order get(String id) { return repo.find(id); }\n}\n"
+           b"interface Auditable { void audit(); }\nenum Status { OPEN, CLOSED }\n")
+    nodes, _e, calls, _i = parse_source("r", "f.java", src, "java")
+    k = _kinds(nodes)
+    assert "OrderService" in k["class"] and "Auditable" in k["interface"] and "Status" in k["enum"]
+    assert "get" in k["method"] and "OrderService" in k["method"]   # constructor indexes as method
+    assert "java.util.List" in k["module"]
+    assert "find" in {c[1] for c in calls}
+
+
 def test_lang_by_ext_covers_target_languages():
     from contextlake.kb.parse import LANG_BY_EXT
-    for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs"):
+    for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs", ".go", ".java"):
         assert ext in LANG_BY_EXT
 
 
@@ -318,12 +345,16 @@ def test_inherits_edges_across_languages(tmp_path):
         "interface Named {}\nclass Cat extends Animal implements Named {}\n")
     (tmp_path / "c.cs").write_text("class Vehicle { }\nclass Car : Vehicle { }\n")
     (tmp_path / "d.js").write_text("class Widget {}\nclass Button extends Widget {}\n")
+    (tmp_path / "e.java").write_text(
+        "class BaseService {}\ninterface Auditable {}\n"
+        "class OrderService extends BaseService implements Auditable {}\n")
     inh = _inherits(index_repo_dir(str(tmp_path), "demo"))
     assert ("Child", "Base") in inh
     assert ("Dog", "Animal") in inh
     assert ("Cat", "Animal") in inh and ("Cat", "Named") in inh   # extends + implements
     assert ("Car", "Vehicle") in inh
     assert ("Button", "Widget") in inh
+    assert ("OrderService", "BaseService") in inh and ("OrderService", "Auditable") in inh
 
 
 def test_inherits_unresolved_external_base_is_dropped(tmp_path):

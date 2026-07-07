@@ -9,11 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Go and Java are now indexed.** Two more tree-sitter grammars: Go
+  (functions, methods, struct/interface types, imports, calls) and Java (classes,
+  interfaces, enums, records, methods, constructors, imports, calls, and full
+  inheritance — `extends`/`implements`/interface-`extends`). Brings the parser to
+  Python, JS/TS(X), C#, Go, Java. (`.go`, `.java`.)
+- **`contextlake hook install` — continuous intelligence.** A git `post-commit` hook
+  that re-indexes a repo into the store after each commit, so the graph never drifts
+  from HEAD without a manual `index`/`bootstrap`. `install` (single repo or
+  `--workspace` across a whole mirror) / `uninstall` (restores any pre-existing hook) /
+  `status`. Re-uses the repo's stored id so it updates the same node, never a duplicate;
+  runs detached so commits don't block.
+- **Store single-writer lock.** Two contextlake writers on one store race on SQLite and
+  can interleave shard writes. `index` / `embed` / `wiki` now take an advisory lock
+  (`<store>/.contextlake.lock`) and refuse to run when a *live* peer holds it, with a
+  clear message naming the holder — while transparently reclaiming a lock left by a
+  crashed process. Override (rarely correct) with `CONTEXTLAKE_ALLOW_CONCURRENT=1`.
 - **Configurable wiki-LLM `timeout`.** `[llm] timeout` (seconds, default 300) is now
   honored by the `ollama` and `openai` providers, so a slow CPU box can raise it instead
   of every page failing silently at the hardcoded 5-minute per-call limit. Surfaced
   while measuring wiki quality: a 1.5B–3B Ollama model on a **CPU-only** host (~0.85–1.7
   tok/s, no GPU) exceeds 300s per page.
+
+### Changed
+
+- **More patient, resumable mirror on a network drop.** The GitLab enumeration now
+  retries up to 6 times (≈1+2+4+8+16s of backoff) so it rides out a brief VPN/proxy
+  reconnect. If it still can't reach GitLab, `bootstrap` prints a clear
+  network-drop notice, builds the knowledge layer from the repos already on disk, and
+  tells you the exact idempotent command to re-run once the connection is back — nothing
+  is lost, the mirror just resumes.
 
 ### Fixed
 
