@@ -84,6 +84,9 @@ def test_parse_review_tolerant():
     assert _parse_review("noise {\"score\": 2, \"issues\": []} tail")["score"] == 1.0  # clamped
     unparseable = _parse_review("not json")
     assert unparseable["score"] == 0.0 and unparseable["parsed"] is False
+    # valid JSON but the wrong shape (no usable "score") also abstains, not a zero
+    noscore = _parse_review('{"issue": "1", "description": "x", "flags": {}}')
+    assert noscore["parsed"] is False
 
 
 def test_unparseable_review_abstains_not_zero():
