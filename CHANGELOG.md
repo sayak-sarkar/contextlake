@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`bootstrap --llm PROVIDER` (and `--llm-model`).** `bootstrap` already ran the
+  wiki stage, but it had no way to turn on the LLM tier, so on a fresh setup the wiki
+  step silently no-op'd unless you had pre-enabled `[llm]` in `kb.toml`. Now
+  `contextlake bootstrap --llm builtin` builds the whole knowledge layer — graph,
+  vectors, **and** wiki — in one command (`builtin` = zero-setup CPU model;
+  `ollama` | `openai` | `auto` also accepted). Point `store_dir` at a workspace folder
+  and everything lands in one place. The pre-command form (`--llm builtin bootstrap`)
+  kept working throughout; this adds the natural post-command form.
+
 ### Documentation
 
 - **Benchmarks page.** An honest, measured look at what connecting the contextlake

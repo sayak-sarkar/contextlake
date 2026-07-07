@@ -115,8 +115,16 @@ skipping anything not enabled, so a teammate goes from nothing to a fully-wired
 workspace in one step:
 
 ```bash
-contextlake bootstrap
+contextlake bootstrap --llm builtin
 ```
+
+`--llm builtin` powers the wiki stage with a zero-setup CPU model, so this single
+command builds the **whole** knowledge layer — graph, vectors, and wiki — for every
+repo. (`--llm ollama` | `openai` | `auto` for higher-quality prose; the pre-command
+form `contextlake --llm builtin bootstrap` also works.) Without any `--llm`, and with
+`[llm]` disabled in `kb.toml`, the wiki stage no-ops and the rest still runs. Because
+everything generated lives under one `store_dir`, setting it to a folder in your
+workspace keeps the entire knowledge base in a single, easy-to-access location.
 
 Both config files are read from their default locations (`~/.contextlake.ini` and
 `~/.contextlake/kb.toml`); pass `--config` / `--kb-config` to point elsewhere. Skip
