@@ -56,5 +56,9 @@ def verdict(reviews: list[dict], *, accept_score: float = 0.7) -> dict:
     return {"accepted": score >= accept_score, "score": round(score, 3), "issues": issues}
 
 
-def council_gate(llm, draft: str, facts: str, *, accept_score: float = 0.7, lenses=LENSES) -> dict:
+def council_gate(llm, draft: str, facts: str, *, accept_score: float = 0.7,
+                 council_size: int | None = None, lenses=LENSES) -> dict:
+    # council_size (from [llm]) trims how many review lenses run; None/0 = all of them.
+    if council_size:
+        lenses = lenses[:max(1, council_size)]
     return verdict(review(llm, draft, facts, lenses=lenses), accept_score=accept_score)
