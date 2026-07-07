@@ -383,8 +383,11 @@ Both the embeddings and wiki tiers are pluggable and take a
     "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small` (~90MB,
     MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
   - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via
-    `llama-cpp-python`, `pip install "contextlake[llm-local]"`. CPU generation is
-    **slow** and the wiki makes ~4 calls per repo, so prefer Ollama / an API / the
+    `llama-cpp-python`, `pip install "contextlake[llm-local]"`. If that extra fails to
+    build a wheel (no compiler, or a Python with no prebuilt wheel yet — e.g. 3.14),
+    install the CPU wheel directly, no compiler needed: `pip install llama-cpp-python
+    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu`. CPU generation
+    is **slow** and the wiki makes ~4 calls per repo, so prefer Ollama / an API / the
     Docker image for large workspaces.
 - **`ollama`**, a local Ollama daemon (`base_url`).
 - **`openai`**, **any OpenAI-compatible API** (a hosted key, or a local server like

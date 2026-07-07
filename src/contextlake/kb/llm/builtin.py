@@ -46,8 +46,15 @@ class BuiltinLlm(LlmClient):
             from llama_cpp import Llama
         except ImportError as e:
             raise ImportError(
-                "The built-in LLM needs the 'llm-local' extra. "
-                "Install it with: pip install 'contextlake[llm-local]'"
+                "The built-in LLM needs the 'llm-local' extra "
+                "(llama-cpp-python). Install it with:\n"
+                "  pip install 'contextlake[llm-local]'\n"
+                "If that fails to build a wheel (no compiler, or a Python with no "
+                "prebuilt wheel yet, e.g. 3.14), install the CPU wheel directly — no "
+                "compiler needed:\n"
+                "  pip install llama-cpp-python "
+                "--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu\n"
+                "Or use a hosted model instead: --llm ollama | openai."
             ) from e
         self._llm = Llama.from_pretrained(
             repo_id=self.repo_id, filename=self.filename,

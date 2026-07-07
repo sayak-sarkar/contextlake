@@ -23,9 +23,11 @@ without its assumptions is marketing, not data.
   intractable or hugely wasteful on a large fleet.
 - **Assessing impact on and maintaining unfamiliar existing code** benefits for the same
   reason: orientation is retrieval.
-- **What it does *not* do:** it does not reduce the tokens spent *generating* code, and
-  it helps little on true greenfield work in an empty repo (there is nothing to ground
-  against).
+- **What it does *not* do (with nuance):** it does not make a *single correct
+  generation* shorter — the code you need is the code you need. But across a whole task
+  it does cut *total* generation, by reducing failed attempts and reinvented code (see
+  [Does it cut generation tokens?](#does-it-cut-generation-tokens)). It also helps little
+  on true greenfield work in an empty repo — there is nothing to ground against.
 - **On cost:** real but modest on per-token API billing; the larger lever is *rework
   avoided* (a hallucinated integration is a failed build, a re-prompt, and a wasted
   review), which is time and correctness more than a line item.
@@ -99,9 +101,39 @@ line is generated.** The larger, harder-to-quantify win sits downstream: correct
 grounding prevents the hallucinated integration or the duplicate util that turns into a
 failed build, a re-prompt, and a wasted review.
 
-What contextlake does **not** change here is the raw generation of the new code itself,
-and it helps little on true greenfield work in an empty repo — there is nothing to
-ground against.
+What contextlake does **not** shorten is a single *correct* generation — the code you
+need is the code you need — and it helps little on true greenfield work in an empty repo,
+where there is nothing to ground against.
+
+### Does it cut generation tokens?
+
+Short answer: not the way "measured" implies, but yes at the level of a whole task. A
+single correct generation is irreducible. What contextlake reduces is the *number* of
+generations and the *amount of new code* generated, ranked by impact:
+
+1. **It cuts the hallucinate → fail → regenerate loop (biggest lever).** The expensive
+   thing isn't the first draft; it's the second, third, and fourth. An ungrounded model
+   invents an import, calls the wrong service, or guesses a signature; the build fails;
+   the agent regenerates. Every retry is generation tokens spent again. Grounding in the
+   *real* API/signature/pattern collapses N attempts toward 1 — the failure mode that
+   dominates new-code work in a large estate.
+2. **Reuse instead of reinvent.** When semantic search surfaces an existing
+   client/util/validator, the agent emits a *call* (a few tokens) instead of a
+   reimplementation (tens–hundreds) — and doesn't add a duplicate to the codebase.
+3. **Surgical edits instead of full rewrites.** With a precise definition + blast radius,
+   the agent emits a small diff rather than regenerating a whole file "to be safe."
+4. **Less defensive/exploratory/hedged output.** Precise context yields one confident
+   implementation instead of multiple candidate approaches and just-in-case scaffolding.
+
+**The honest boundary:** the irreducible core (typing out the correct code) can't shrink;
+if the first generation would already be correct without contextlake, the saving is ~0;
+and it can't rescue a model that ignores the context it was handed.
+
+> **This is a mechanism argument, not a measured number.** Everything labeled "measured"
+> on this page is retrieval/grounding tokens. Quantifying the generation saving honestly
+> means counting *total* output tokens across a real multi-attempt task, with and without
+> contextlake — which we have **not** run. Treat the mechanisms above as *why* total
+> generation drops, not as a benchmarked figure.
 
 ### Search — the other strong case
 
@@ -123,9 +155,11 @@ Different tools bill differently, so the honest answer differs per platform.
 - **Claude via MCP (per-token API).** This is the only place token deltas map *directly*
   to money. But a per-*query* ratio is not a per-*session* saving: most agent tokens are
   reasoning, generation, and the conversation growing turn over turn — not retrieval.
-  Expect roughly **10–40% fewer input tokens on retrieval-heavy sessions, and ≈0 on
-  generation-heavy ones.** Meaningful across a team and a large estate; not a headline
-  cut on any single session.
+  Expect roughly **10–40% fewer *input* tokens on retrieval-heavy sessions, and ≈0 on
+  generation-heavy ones.** (Separately, *output* tokens can drop too — via fewer failed
+  regenerations and less reinvented code — but that is a mechanism, not a measured figure;
+  see [Does it cut generation tokens?](#does-it-cut-generation-tokens).) Meaningful across
+  a team and a large estate; not a headline cut on any single session.
 
 - **Devin (ACU).** We did **not** measure this, and anyone quoting you an ACU number is
   guessing. An ACU is compute-time, not tokens; the plausible lever is *exploration
