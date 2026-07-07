@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Quieter, less alarming model downloads.** Downloading the built-in model (LLM or
+  embedder) used to print two Hugging Face notices — a `local_dir_use_symlinks`
+  deprecation and "You are sending unauthenticated requests to the HF Hub…" — that can
+  read, on a local-first tool, like outbound data transfer. They are not: the model is
+  downloaded *to* your cache, nothing is uploaded. Both are now silenced (the real
+  download progress still shows).
 - **More patient, resumable mirror on a network drop.** The GitLab enumeration now
   retries up to 6 times (≈1+2+4+8+16s of backoff) so it rides out a brief VPN/proxy
   reconnect. If it still can't reach GitLab, `bootstrap` prints a clear
@@ -46,12 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Unparseable wiki reviews now abstain instead of scoring zero.** Small local models
-  (e.g. the built-in 0.5B) sometimes return a review in a shape the council can't parse;
-  that lens was counted as 0, dragging an otherwise-good page below the accept threshold
-  and rejecting it (`rejected by council (score 0.657)` — "unparseable review"). A
-  malformed review is now excluded from the mean; a page is rejected only if *no* review
-  parsed. Far fewer good pages lost to a flaky reviewer.
+- **Wiki reviews without a usable score now abstain instead of scoring zero.** Small
+  local models (e.g. the built-in 0.5B) sometimes return a review the council can't score
+  — either malformed JSON *or* valid JSON in the wrong shape (no `score` field). That
+  lens was counted as 0, dragging an otherwise-good page below the accept threshold and
+  rejecting it (`rejected by council (score 0.657)` — "unparseable review"). Any review
+  we can't extract a numeric score from is now excluded from the mean; a page is rejected
+  only if *no* review scored. Far fewer good pages lost to a flaky reviewer.
 - **`[llm] council_size` is now applied.** It shipped in the example config and was
   documented as tunable, but `council_gate` always ran all three review lenses. It now
   trims to `council_size` lenses (1–3), so fewer reviews = fewer model calls per page.

@@ -68,6 +68,8 @@ class BuiltinEmbedder(Embedder):
         # Route HuggingFace downloads to our cache dir, but defer to an existing
         # HF_HOME (e.g. the prebuilt Docker image bakes models into one).
         os.environ.setdefault("HF_HOME", str(self.cache_dir))
+        from .._util import hush_hf_hub
+        hush_hf_hub()   # the model is downloaded, not uploaded — quiet HF's noisy notices
         if self.engine == "model2vec":
             try:
                 from model2vec import StaticModel

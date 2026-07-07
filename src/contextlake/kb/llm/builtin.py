@@ -42,6 +42,8 @@ class BuiltinLlm(LlmClient):
         if self._llm is not None:
             return self._llm
         os.environ.setdefault("HF_HOME", str(self.cache_dir))
+        from .._util import hush_hf_hub
+        hush_hf_hub()   # the GGUF is downloaded, not uploaded — quiet HF's noisy notices
         try:
             from llama_cpp import Llama
         except ImportError as e:

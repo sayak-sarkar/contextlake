@@ -26,19 +26,23 @@ REVIEW_SYSTEM = (
 
 
 def _parse_review(text: str) -> dict:
+    # A review abstains (parsed=False) — rather than scoring 0 — whenever we can't
+    # extract a usable numeric score, whether the JSON was malformed OR valid-but-in
+    # the wrong shape (small local models do both). One flaky review must not sink an
+    # otherwise well-reviewed page; its issues are still surfaced.
     try:
         obj = json.loads(text[text.index("{"):text.rindex("}") + 1])
     except (ValueError, json.JSONDecodeError):
-        # A review we couldn't parse abstains (parsed=False) rather than scoring 0 —
-        # small local models often return malformed JSON, and one flaky review should
-        # not sink an otherwise well-reviewed page.
         return {"score": 0.0, "issues": ["unparseable review"], "parsed": False}
+    raw = obj.get("score")
     try:
-        score = max(0.0, min(1.0, float(obj.get("score", 0.0))))
+        score, scored = max(0.0, min(1.0, float(raw))), True
     except (TypeError, ValueError):
-        score = 0.0
-    issues = obj.get("issues") or []
-    return {"score": score, "issues": [str(i) for i in issues][:10], "parsed": True}
+        score, scored = 0.0, False   # valid JSON, but no usable "score" -> abstain
+    issues = [str(i) for i in (obj.get("issues") or [])][:10]
+    if not scored and not issues:
+        issues = ["review had no parseable score"]
+    return {"score": score, "issues": issues, "parsed": scored}
 
 
 def review(llm, draft: str, facts: str, *, lenses=LENSES) -> list[dict]:
