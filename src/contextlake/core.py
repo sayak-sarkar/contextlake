@@ -437,7 +437,10 @@ def fetch_gitlab_projects(gitlab_group, config):
     page = 1
     while True:
         try:
-            projects = retry_with_backoff(fetch_page, page)
+            # Enumeration is a one-shot bulk step, so it can afford to be patient:
+            # more retries (≈1+2+4+8+16s of backoff) ride out a brief VPN/proxy
+            # reconnect. A sustained outage still fails fast enough to degrade.
+            projects = retry_with_backoff(fetch_page, page, max_retries=6)
         except FileNotFoundError as e:
             # Raise instead of writing what we have: a partial (or empty) result must
             # never replace a good cache under a green checkmark.

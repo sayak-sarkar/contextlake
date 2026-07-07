@@ -62,7 +62,7 @@ _ALIASES = {"who-knows": "owners", "blast-radius": "impact"}
 # Verbs handled by the optional knowledge layer (the [kb] extra).
 _KB_COMMANDS = frozenset({
     "index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
-    "graph", "doctor", "eval", "owners", "impact", "ingest", "dashboard",
+    "graph", "doctor", "eval", "owners", "impact", "ingest", "dashboard", "hook",
 })
 
 # Namespace defaults for every flag. Subparsers use SUPPRESS argument defaults so a
@@ -83,6 +83,7 @@ _DEFAULTS = {
     "llm": None, "llm_model": None, "watch": False, "interval": None,
     "transport": None, "host": None, "port": None,
     "kind": None, "repo": None, "limit": None, "path": None, "source_type": None,
+    "action": None,
     "golden": None, "retriever": None, "as_of": None,
     "node": None, "name": None, "search": None, "overview": False, "hops": None,
     "max_nodes": None, "max_fanout": None, "relation": None, "direction": None,
@@ -376,6 +377,28 @@ Examples:
     p.add_argument("--force", action="store_true", default=_S,
                    help="overwrite non-managed files")
 
+    p = command("hook", "install a git post-commit hook that re-indexes a repo on commit",
+                epilog="""
+Examples:
+  contextlake hook install                    wire the repo in the current directory
+  contextlake hook install --workspace ~/src  wire every git repo under a mirror
+  contextlake hook status --workspace ~/src   show which repos are wired
+  contextlake hook uninstall                  remove the hook (restores any prior one)
+
+The hook runs `contextlake index <repo>` detached after each commit, so the graph
+stays current without a manual re-index. It re-uses the repo's stored id (or the
+directory name) so it updates the same node, never a duplicate.
+                """)
+    p.add_argument("action", nargs="?", default=_S,
+                   choices=["install", "uninstall", "status"],
+                   help="install (default) | uninstall | status")
+    p.add_argument("path", nargs="?", default=_S,
+                   help="repo directory to wire (default: the current directory)")
+    p.add_argument("--workspace", default=_S,
+                   help="wire every git repo under this directory (a whole mirror)")
+    p.add_argument("--repo", default=_S,
+                   help="repo id the hook re-indexes under (default: stored id, else dir name)")
+
     p = command("serve", "serve the knowledge graph to AI tools over MCP",
                 epilog="""
 Examples:
@@ -568,11 +591,22 @@ def _bootstrap(args, config, work_dir, gitlab_group):
             switch_repository_branches(work_dir, config, gitlab_group)
             verify_structure(work_dir, config, gitlab_group)
         except FetchError as e:
-            # Enumeration failed; existing clones are untouched, so the knowledge
-            # stages can still run against them — but bootstrap must not end green.
-            log(style.warn(f"Mirror step failed — {e}"))
-            log("  Continuing with the repositories already on disk.")
-            failures.append("Mirror repositories from GitLab")
+            # Enumeration failed (often a VPN/proxy drop) after its own retries.
+            # Existing clones are untouched, so the knowledge stages still run against
+            # them — this is a *resumable* state, not a corrupt one. Make the fix +
+            # resume unmistakable, since this notice is what the user returns to.
+            resume = "contextlake bootstrap" + (
+                f" --llm {args.llm}" if getattr(args, "llm", None) else "")
+            log("")
+            log(style.warn("⚠ Could not reach GitLab to mirror — likely a VPN/network drop."))
+            log(f"    {e}")
+            log("    → Continuing: building the knowledge layer from the repositories "
+                "already on disk.")
+            log(style.bold("    → When your connection is back, re-run to finish the mirror:"))
+            log(style.bold(f"        {resume}"))
+            log("      It is incremental and idempotent — it fetches/clones only what is "
+                "still missing and re-indexes only what changed.")
+            failures.append("Mirror repositories from GitLab (network)")
     else:
         log("Skipping the GitLab mirror step (--no-sync)")
 

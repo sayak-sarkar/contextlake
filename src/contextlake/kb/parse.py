@@ -68,6 +68,8 @@ LANG_BY_EXT = {
     ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript", ".cjs": "javascript",
     ".ts": "typescript", ".tsx": "tsx",
     ".cs": "csharp",
+    ".go": "go",
+    ".java": "java",
 }
 
 # A code file larger than this is skipped (and logged). Hand-written source is
@@ -113,6 +115,18 @@ _DEF_TYPES = {
     "csharp": {
         "class_declaration": "class", "interface_declaration": "interface",
         "struct_declaration": "struct", "method_declaration": "method",
+    },
+    # Go has no classes; a `type_spec` names a struct/interface/alias — all indexed
+    # as a "struct"-kind type node (the field that distinguishes them is not the node
+    # type the kind is keyed on). Methods are top-level with a receiver.
+    "go": {
+        "function_declaration": "function", "method_declaration": "method",
+        "type_spec": "struct",
+    },
+    "java": {
+        "class_declaration": "class", "interface_declaration": "interface",
+        "enum_declaration": "enum", "record_declaration": "class",
+        "method_declaration": "method", "constructor_declaration": "method",
     },
 }
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
@@ -161,6 +175,27 @@ _QUERIES = {
         (invocation_expression function: (member_access_expression name: (identifier) @call))
         (base_list [(identifier) (generic_name)] @base)
     """,
+    "go": """
+        (function_declaration name: (identifier) @def)
+        (method_declaration name: (field_identifier) @def)
+        (type_spec name: (type_identifier) @def)
+        (import_spec path: (interpreted_string_literal) @import)
+        (call_expression function: (identifier) @call)
+        (call_expression function: (selector_expression field: (field_identifier) @call))
+    """,
+    "java": """
+        (class_declaration name: (identifier) @def)
+        (interface_declaration name: (identifier) @def)
+        (enum_declaration name: (identifier) @def)
+        (record_declaration name: (identifier) @def)
+        (method_declaration name: (identifier) @def)
+        (constructor_declaration name: (identifier) @def)
+        (import_declaration (scoped_identifier) @import)
+        (method_invocation name: (identifier) @call)
+        (superclass (type_identifier) @base)
+        (super_interfaces (type_list (type_identifier) @base))
+        (extends_interfaces (type_list (type_identifier) @base))
+    """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
@@ -185,6 +220,12 @@ def _language(lang: str) -> ts.Language:
             fn = g.language_tsx
         elif lang == "csharp":
             import tree_sitter_c_sharp as g
+            fn = g.language
+        elif lang == "go":
+            import tree_sitter_go as g
+            fn = g.language
+        elif lang == "java":
+            import tree_sitter_java as g
             fn = g.language
         else:
             raise ValueError(f"unsupported language: {lang}")

@@ -191,8 +191,35 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     return 0 if failed == 0 else 1
 
 
+def _guard_store(store_dir, command: str) -> bool:
+    """Take the store's single-writer lock. Returns False (with a clear message)
+    if a live peer already holds it — so two writers never interleave on one store.
+    Released automatically at process exit; a crashed holder's lock is reclaimed."""
+    import atexit
+
+    from .lock import OVERRIDE_ENV, StoreBusy, StoreLock
+
+    lock = StoreLock(store_dir, command)
+    try:
+        lock.acquire()
+    except StoreBusy as e:
+        h = e.holder
+        age = max(0, int(time.time()) - int(h.get("started", 0)))
+        log(style.warn("Another contextlake process is writing this store — refusing to "
+                       "run concurrently (avoids interleaved, corrupting writes)."))
+        log(f"  holder: pid {h.get('pid')} · {h.get('command')} · ~{age}s ago · {h.get('host')}")
+        log(f"  store:  {store_dir}")
+        log(f"  Wait for it to finish, then re-run. To override (rarely correct): "
+            f"set {OVERRIDE_ENV}=1.")
+        return False
+    atexit.register(lock.release)
+    return True
+
+
 def cmd_index(args) -> int:
     store, store_dir = _open_store(args)
+    if not _guard_store(store_dir, "index"):
+        return 1
     cfg = load_kb_config(getattr(args, "config", None))
     parse_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes)
     workers = cfg.index_workers
@@ -449,6 +476,8 @@ def cmd_embed(args) -> int:
     from .embeddings.store import build_vector_store
 
     store, store_dir = _open_store(args)
+    if not _guard_store(store_dir, "embed"):
+        return 1
     try:
         cfg = load_kb_config(getattr(args, "config", None))
         embedder = build_embedder(cfg.embeddings)
@@ -621,6 +650,8 @@ def cmd_wiki(args) -> int:
     from .wiki.generate import generate_page, render_prompt, repo_brief
 
     store, store_dir = _open_store(args)
+    if not _guard_store(store_dir, "wiki"):
+        return 1
     embedder = vs = None
     try:
         cfg = load_kb_config(getattr(args, "config", None))
@@ -1479,11 +1510,93 @@ def cmd_dashboard(args) -> int:
     return 0
 
 
+def _git_root(path: Path) -> Path | None:
+    """Nearest ancestor of ``path`` (inclusive) that is a git repository."""
+    from .git_hook import git_dir
+
+    p = path.resolve()
+    for cand in (p, *p.parents):
+        if git_dir(cand) is not None:
+            return cand
+    return None
+
+
+def _canonical_repo_id(root: Path, args) -> str:
+    """The id the store already uses for this path, else the directory name.
+
+    Matching the stored id keeps the hook's re-index updating the SAME node rather
+    than creating a duplicate under a bare basename.
+    """
+    try:
+        store, _ = _open_store(args)
+        rp = root.resolve()
+        for repo in store.list_repos():
+            if repo.path and Path(repo.path).resolve() == rp:
+                return repo.id
+    except Exception:  # noqa: BLE001 - store is optional here; fall back to the dir name
+        pass
+    return root.name
+
+
+def cmd_hook(args) -> int:
+    """Install / uninstall / inspect the post-commit re-index hook (see git_hook.py)."""
+    from . import git_hook
+    from .parse import discover_repos
+
+    action = getattr(args, "action", None) or "install"
+    if action not in ("install", "uninstall", "status"):
+        log(style.warn(f"Unknown hook action {action!r} — use install | uninstall | status."))
+        return 1
+    config = getattr(args, "config", None)
+    workspace = getattr(args, "workspace", None)
+
+    # Resolve targets as (repo_id, repo_path) pairs.
+    if workspace:
+        ws = Path(os.path.expanduser(workspace))
+        targets = discover_repos(str(ws))
+        if not targets:
+            log(style.warn(f"No git repositories found under {ws}."))
+            return 1
+    else:
+        start = Path(os.path.expanduser(getattr(args, "path", None) or "."))
+        root = _git_root(start)
+        if root is None:
+            log(style.warn(f"{start} is not inside a git repository. Pass a repo path, "
+                           "or --workspace DIR to wire a whole mirror."))
+            return 1
+        repo_id = getattr(args, "repo", None) or _canonical_repo_id(root, args)
+        targets = [(repo_id, str(root))]
+
+    if action == "status":
+        marks = [(rid, git_hook.is_installed(rp)) for rid, rp in targets]
+        on = sum(1 for _, ok in marks if ok)
+        for rid, ok in marks:
+            if not workspace or ok:   # single repo: always show; fleet: list only the wired ones
+                log(f"  {'✓' if ok else '·'} {rid}")
+        log(style.ok(f"post-commit hook present on {on}/{len(targets)} repo(s)."))
+        return 0
+
+    counts: dict[str, int] = {}
+    for rid, rp in targets:
+        st = (git_hook.uninstall(rp) if action == "uninstall"
+              else git_hook.install(rp, rid, config))
+        counts[st] = counts.get(st, 0) + 1
+    summary = ", ".join(f"{n} {k}" for k, n in sorted(counts.items()))
+    if action == "uninstall":
+        log(style.ok(f"post-commit hook: {summary} across {len(targets)} repo(s)."))
+    else:
+        log(style.ok(f"post-commit hook: {summary} across {len(targets)} repo(s). "
+                     "Each commit now re-indexes that repo into the knowledge store."))
+        if not config:
+            log("  (uses the default kb.toml; pass --config to pin a specific one.)")
+    return 0
+
+
 def dispatch(command: str, args) -> int:
     return {
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
         "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
         "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
         "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
-        "dashboard": cmd_dashboard,
+        "dashboard": cmd_dashboard, "hook": cmd_hook,
     }[command](args)
