@@ -79,9 +79,27 @@ def test_generate_page_none_without_shard(tmp_path):
 # --- council --------------------------------------------------------------
 
 def test_parse_review_tolerant():
-    assert _parse_review('{"score": 0.8, "issues": ["x"]}') == {"score": 0.8, "issues": ["x"]}
+    assert _parse_review('{"score": 0.8, "issues": ["x"]}') == {
+        "score": 0.8, "issues": ["x"], "parsed": True}
     assert _parse_review("noise {\"score\": 2, \"issues\": []} tail")["score"] == 1.0  # clamped
-    assert _parse_review("not json")["score"] == 0.0
+    unparseable = _parse_review("not json")
+    assert unparseable["score"] == 0.0 and unparseable["parsed"] is False
+
+
+def test_unparseable_review_abstains_not_zero():
+    # Two good reviews + one the model malformed: the page passes on the parseable
+    # scores (mean 0.85), not dragged to 0.57 by counting the bad one as zero.
+    reviews = [
+        {"lens": "accuracy", "score": 0.9, "issues": [], "parsed": True},
+        {"lens": "clarity", "score": 0.8, "issues": [], "parsed": True},
+        {"lens": "completeness", "score": 0.0, "issues": ["unparseable review"], "parsed": False},
+    ]
+    v = verdict(reviews, accept_score=0.7)
+    assert v["accepted"] is True and v["score"] == 0.85 and v["abstained"] == 1
+    # But if EVERY review is unparseable, the page can't be verified -> rejected.
+    allbad = [{"lens": "accuracy", "score": 0.0, "issues": ["unparseable review"],
+               "parsed": False}]
+    assert verdict(allbad, accept_score=0.7)["accepted"] is False
 
 
 def test_verdict_threshold():
