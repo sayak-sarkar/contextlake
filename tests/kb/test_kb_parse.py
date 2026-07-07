@@ -200,10 +200,53 @@ def test_parse_cpp():
     assert "Animal" in {base for _sub, base, _f, _ln in inh}       # Dog : public Animal
 
 
+def test_parse_rust():
+    src = (b"use std::io::Read;\nstruct Server { addr: String }\ntrait Handler { fn go(&self); }\n"
+           b"enum State { On }\nfn mk() -> Server { work(); Server { addr: String::new() } }\n")
+    nodes, _e, calls, _i = parse_source("r", "f.rs", src, "rust")
+    k = _kinds(nodes)
+    assert "Server" in k["struct"] and "Handler" in k["interface"] and "State" in k["enum"]
+    assert "mk" in k["function"] and "std::io::Read" in k["module"]
+    assert "work" in {c[1] for c in calls}
+
+
+def test_parse_ruby():
+    src = (b"module Acme\n class Animal\n  def speak; end\n end\n"
+           b" class Dog < Animal\n  def bark; end\n end\nend\n")
+    nodes, _e, _c, inh = parse_source("r", "f.rb", src, "ruby")
+    k = _kinds(nodes)
+    assert "Animal" in k["class"] and "Dog" in k["class"]   # module also indexes as class-kind
+    assert "speak" in k["method"] and "bark" in k["method"]
+    assert "Animal" in {base for _s, base, _f, _l in inh}   # Dog < Animal
+
+
+def test_parse_php():
+    src = (b"<?php\nnamespace App;\nuse App\\Base;\n"
+           b"interface Auditable { public function audit(); }\n"
+           b"class OrderService extends Base implements Auditable {\n"
+           b"  public function get($id) { return $this->repo->find($id); }\n}\n")
+    nodes, _e, calls, inh = parse_source("r", "f.php", src, "php")
+    k = _kinds(nodes)
+    assert "OrderService" in k["class"] and "Auditable" in k["interface"] and "get" in k["method"]
+    assert "App\\Base" in k["module"] and "find" in {c[1] for c in calls}
+    assert {"Base", "Auditable"} <= {base for _s, base, _f, _l in inh}
+
+
+def test_parse_scala():
+    src = (b"trait Handler { def serve(): Unit }\n"
+           b"class Server(a: String) extends Handler { def serve(): Unit = { help() } }\n"
+           b"object App { def main(): Unit = () }\n")
+    nodes, _e, calls, inh = parse_source("r", "f.scala", src, "scala")
+    k = _kinds(nodes)
+    assert "Handler" in k["interface"] and "Server" in k["class"] and "App" in k["class"]
+    assert "serve" in k["method"] and "help" in {c[1] for c in calls}
+    assert "Handler" in {base for _s, base, _f, _l in inh}   # extends Handler
+
+
 def test_lang_by_ext_covers_target_languages():
     from contextlake.kb.parse import LANG_BY_EXT
     for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs", ".go", ".java",
-                ".c", ".h", ".cpp", ".hpp"):
+                ".c", ".h", ".cpp", ".hpp", ".rs", ".rb", ".php", ".scala"):
         assert ext in LANG_BY_EXT
 
 

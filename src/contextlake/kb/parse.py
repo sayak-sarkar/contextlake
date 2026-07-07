@@ -73,6 +73,10 @@ LANG_BY_EXT = {
     ".c": "c", ".h": "c",
     ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp", ".c++": "cpp",
     ".hpp": "cpp", ".hh": "cpp", ".hxx": "cpp",
+    ".rs": "rust",
+    ".rb": "ruby",
+    ".php": "php",
+    ".scala": "scala", ".sc": "scala",
 }
 
 # A code file larger than this is skipped (and logged). Hand-written source is
@@ -142,6 +146,23 @@ _DEF_TYPES = {
         "function_definition": "function", "class_specifier": "class",
         "struct_specifier": "struct", "enum_specifier": "enum",
         "union_specifier": "struct",
+    },
+    "rust": {
+        "function_item": "function", "struct_item": "struct",
+        "enum_item": "enum", "trait_item": "interface",
+    },
+    "ruby": {   # Ruby has no free functions — every `def` is a method
+        "class": "class", "module": "class",
+        "method": "method", "singleton_method": "method",
+    },
+    "php": {
+        "class_declaration": "class", "interface_declaration": "interface",
+        "trait_declaration": "class", "enum_declaration": "enum",
+        "function_definition": "function", "method_declaration": "method",
+    },
+    "scala": {
+        "class_definition": "class", "object_definition": "class",
+        "trait_definition": "interface", "function_definition": "function",
     },
 }
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
@@ -236,6 +257,47 @@ _QUERIES = {
         (call_expression function: (field_expression field: (field_identifier) @call))
         (base_class_clause (type_identifier) @base)
     """,
+    "rust": """
+        (function_item name: (identifier) @def)
+        (struct_item name: (type_identifier) @def)
+        (enum_item name: (type_identifier) @def)
+        (trait_item name: (type_identifier) @def)
+        (use_declaration argument: (scoped_identifier) @import)
+        (use_declaration argument: (identifier) @import)
+        (call_expression function: (identifier) @call)
+        (call_expression function: (field_expression field: (field_identifier) @call))
+        (call_expression function: (scoped_identifier name: (identifier) @call))
+    """,
+    "ruby": """
+        (class name: (constant) @def)
+        (module name: (constant) @def)
+        (method name: (identifier) @def)
+        (singleton_method name: (identifier) @def)
+        (call method: (identifier) @call)
+        (superclass (constant) @base)
+    """,
+    "php": """
+        (class_declaration name: (name) @def)
+        (interface_declaration name: (name) @def)
+        (trait_declaration name: (name) @def)
+        (enum_declaration name: (name) @def)
+        (function_definition name: (name) @def)
+        (method_declaration name: (name) @def)
+        (namespace_use_clause (qualified_name) @import)
+        (function_call_expression function: (name) @call)
+        (member_call_expression name: (name) @call)
+        (scoped_call_expression name: (name) @call)
+        (base_clause (name) @base)
+        (class_interface_clause (name) @base)
+    """,
+    "scala": """
+        (class_definition name: (identifier) @def)
+        (object_definition name: (identifier) @def)
+        (trait_definition name: (identifier) @def)
+        (function_definition name: (identifier) @def)
+        (call_expression (identifier) @call)
+        (extends_clause (type_identifier) @base)
+    """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
@@ -272,6 +334,18 @@ def _language(lang: str) -> ts.Language:
             fn = g.language
         elif lang == "cpp":
             import tree_sitter_cpp as g
+            fn = g.language
+        elif lang == "rust":
+            import tree_sitter_rust as g
+            fn = g.language
+        elif lang == "ruby":
+            import tree_sitter_ruby as g
+            fn = g.language
+        elif lang == "php":
+            import tree_sitter_php as g
+            fn = g.language_php
+        elif lang == "scala":
+            import tree_sitter_scala as g
             fn = g.language
         else:
             raise ValueError(f"unsupported language: {lang}")
