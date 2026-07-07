@@ -87,9 +87,10 @@ non-zero on problems, so they're CI-friendly.
 Code indexing uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, an intra-repo **call graph**, and an **inheritance graph**
 (`inherits` edges for `extends` / `implements` / base classes) from **Python,
-JavaScript, TypeScript/TSX, C#, Go, Java, C, and C++** (the parser registry is
-pluggable) — so "what extends `BaseController`?" is one hop, and changing a base
-class shows its subclasses in `blast_radius`. Frameworks are indexed through their
+JavaScript, TypeScript/TSX, C#, Go, Java, C, C++, Rust, Ruby, PHP, and Scala**
+(the parser registry is pluggable) — so "what extends `BaseController`?" is one hop,
+and changing a base class shows its subclasses in `blast_radius`. Frameworks are indexed
+through their
 base language: **React / Next.js / Node.js** are JS/TS(X), **Angular** is TS (its
 templates are HTML), and **.NET** is C#. It also reads manifests (`pyproject.toml`,
 `package.json`, `*.csproj`) to build a **cross-repo dependency graph** through shared
