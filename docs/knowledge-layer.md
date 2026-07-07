@@ -87,11 +87,13 @@ non-zero on problems, so they're CI-friendly.
 Code indexing uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, an intra-repo **call graph**, and an **inheritance graph**
 (`inherits` edges for `extends` / `implements` / base classes) from **Python,
-JavaScript, TypeScript/TSX, and C#** (the parser registry is pluggable) — so
-"what extends `BaseController`?" is one hop, and changing a base class shows its
-subclasses in `blast_radius`. It also reads
-manifests (`pyproject.toml`, `package.json`, `*.csproj`) to build a **cross-repo
-dependency graph** through shared package nodes. Agents traverse all of this over MCP,
+JavaScript, TypeScript/TSX, C#, Go, Java, C, and C++** (the parser registry is
+pluggable) — so "what extends `BaseController`?" is one hop, and changing a base
+class shows its subclasses in `blast_radius`. Frameworks are indexed through their
+base language: **React / Next.js / Node.js** are JS/TS(X), **Angular** is TS (its
+templates are HTML), and **.NET** is C#. It also reads manifests (`pyproject.toml`,
+`package.json`, `*.csproj`) to build a **cross-repo dependency graph** through shared
+package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo `blast_radius` ("what could break if I change
 this"), see [the full tool list under Serve](serve.md). The same
 change-impact walk is a one-liner from the shell: `contextlake impact <symbol> [--hops N]`
@@ -144,6 +146,29 @@ in-progress working tree. Run it from cron:
 
 or as a systemd user timer, see [`examples/contextlake.service`](../examples/contextlake.service)
 and [`examples/contextlake.timer`](../examples/contextlake.timer).
+
+### Re-index on commit (git hook)
+
+For continuous freshness without a schedule, install a git `post-commit` hook that
+re-indexes a repo the moment you commit to it:
+
+```bash
+contextlake hook install                     # the repo in the current directory
+contextlake hook install --workspace ~/src   # every git repo under a mirror
+contextlake hook status  --workspace ~/src   # which repos are wired
+contextlake hook uninstall                   # remove it (any pre-existing hook is kept)
+```
+
+The hook runs `contextlake index <repo>` detached (so the commit returns immediately)
+and re-uses the repo's stored id, so it updates the same graph node rather than a
+duplicate. Mirror-wide syncing (fetch new clones, prune) still belongs to `bootstrap`
+on a schedule; the hook keeps *local edits* current between syncs.
+
+If two contextlake processes ever target one store at once (say a `bootstrap` and a
+hook-triggered `index`), the second takes an advisory single-writer lock
+(`<store_dir>/.contextlake.lock`) and refuses rather than interleaving SQLite writes —
+naming the process that holds it. A lock left by a crashed run is reclaimed
+automatically; override (rarely correct) with `CONTEXTLAKE_ALLOW_CONCURRENT=1`.
 
 ## Ownership & SMEs
 
