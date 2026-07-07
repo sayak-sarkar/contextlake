@@ -111,17 +111,25 @@ model at all.
 ## 4. Bootstrap, one command
 
 ```bash
-contextlake bootstrap
+contextlake bootstrap --llm builtin
 ```
 
 Both config files are read from the default locations above; pass `--config` /
 `--kb-config` only if you keep them elsewhere.
 
-It mirrors your repos, indexes them into the graph, runs your connectors, and writes
-the editor steering. Useful toggles:
+This mirrors your repos and builds the **entire** knowledge layer in one command:
+graph → connectors → semantic vectors → **curated wiki** → editor steering. Everything
+generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`, so
+pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
+knowledge base in one easy-to-find place.
+
+`--llm builtin` powers the wiki with a zero-setup CPU model (Qwen2.5-0.5B, downloaded
+once). Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any
+`--llm` (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful
+toggles:
 
 - already have the repos cloned? add `--no-sync`
-- no model configured yet? add `--no-embed --no-wiki`
+- no model configured yet? drop `--llm` and add `--no-embed` (graph + search still build)
 
 ## 5. Wire your editor
 

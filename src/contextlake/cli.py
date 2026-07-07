@@ -312,6 +312,13 @@ Examples:
                    help="skip the embeddings step")
     p.add_argument("--no-wiki", dest="no_wiki", action="store_true", default=_S,
                    help="skip the wiki-generation step")
+    p.add_argument("--llm", default=_S, metavar="PROVIDER",
+                   choices=["auto", "ollama", "openai", "builtin"],
+                   help="power the wiki stage with this LLM provider; without it (and "
+                        "without [llm] enabled in kb.toml) the wiki stage no-ops. "
+                        "builtin = zero-setup CPU model, ollama | openai | auto")
+    p.add_argument("--llm-model", dest="llm_model", default=_S, metavar="MODEL",
+                   help="model name for --llm (e.g. llama3.1, gpt-4o-mini)")
 
     # ---- knowledge layer ---------------------------------------------------
     p = command("index", "parse repositories into the local knowledge graph",
