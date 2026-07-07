@@ -7,21 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.34.0] - 2026-07-07
+
 ### Added
 
 - **`bootstrap --llm PROVIDER` (and `--llm-model`).** `bootstrap` already ran the
   wiki stage, but it had no way to turn on the LLM tier, so on a fresh setup the wiki
   step silently no-op'd unless you had pre-enabled `[llm]` in `kb.toml`. Now
   `contextlake bootstrap --llm builtin` builds the whole knowledge layer — graph,
-  vectors, **and** wiki — in one command (`builtin` = zero-setup CPU model;
+  vectors, **and** wiki — in one command (`builtin` = local CPU model;
   `ollama` | `openai` | `auto` also accepted). Point `store_dir` at a workspace folder
   and everything lands in one place. The pre-command form (`--llm builtin bootstrap`)
   kept working throughout; this adds the natural post-command form.
 
-### Documentation
+### Changed
 
-- **Benchmarks page.** An honest, measured look at what connecting the contextlake
-  MCP saves (new-code grounding, search, maintenance) with methodology and caveats.
+- **Clearer built-in-LLM install error.** When the `llm-local` extra is missing, the
+  error now also gives the prebuilt-CPU-wheel fallback (`pip install llama-cpp-python
+  --extra-index-url .../whl/cpu`) for Pythons without a wheel or a compiler (e.g. 3.14),
+  instead of only re-suggesting the `pip install 'contextlake[llm-local]'` that just
+  failed. Same fallback documented in QUICKSTART + the knowledge-layer model-providers
+  section.
 
 ### Fixed
 
@@ -30,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   node id, so a name silently returned nothing even when the graph had the answer
   (only the `ask` router resolved names). Both now resolve a name to its first
   matching definition. Surfaced while benchmarking MCP token cost on a 1M-node fleet.
+
+### Documentation
+
+- **Benchmarks page.** An honest, measured look at what connecting the contextlake
+  MCP saves (new-code grounding, search, maintenance) with methodology and caveats.
+- **Benchmarks: generation-token nuance.** Refined the "does not reduce generation
+  tokens" claim — a single *correct* generation is irreducible, but across a whole task
+  contextlake cuts *total* generation by avoiding failed regenerations and reinvented
+  code. Added a ranked "Does it cut generation tokens?" section, explicitly marked a
+  mechanism argument, not a measured figure.
 
 ## [2.33.2] - 2026-07-06
 

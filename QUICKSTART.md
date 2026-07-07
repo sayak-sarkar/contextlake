@@ -123,10 +123,17 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a zero-setup CPU model (Qwen2.5-0.5B, downloaded
-once). Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any
-`--llm` (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful
-toggles:
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once)
+via the `llm-local` extra — `pip install "contextlake[llm-local]"`. If that extra fails
+to build (`llama-cpp-python` has no prebuilt wheel for your Python, e.g. 3.14, and no
+compiler is installed), install the CPU wheel directly, no compiler needed:
+
+```bash
+pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+```
+
+Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
+(and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:
 
 - already have the repos cloned? add `--no-sync`
 - no model configured yet? drop `--llm` and add `--no-embed` (graph + search still build)
