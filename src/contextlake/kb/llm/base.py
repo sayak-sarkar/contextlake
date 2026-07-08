@@ -20,6 +20,17 @@ class LlmClient(ABC):
         """Return the model's completion for ``prompt``."""
 
 
+def default_api_key_env(provider: str) -> str:
+    """The env var holding the API key when the config left ``api_key_env`` unset.
+
+    Resolved at read time (here and in ``cmd_doctor``), not at ``LlmCfg``
+    construction: ``apply_llm_overrides`` (the ``--llm PROVIDER`` CLI flag) sets
+    ``cfg.llm.provider`` by plain attribute assignment on an already-built
+    ``LlmCfg``, and pydantic v2 does not re-run validators on assignment.
+    """
+    return "ANTHROPIC_API_KEY" if provider == "anthropic" else "OPENAI_API_KEY"
+
+
 def build_llm(cfg) -> LlmClient | None:
     """Construct an LlmClient from an LlmCfg, or None when disabled.
 
@@ -43,7 +54,7 @@ def build_llm(cfg) -> LlmClient | None:
         return OpenAILlm(
             model=cfg.model or "gpt-4o-mini",
             base_url=getattr(cfg, "base_url", "https://api.openai.com/v1"),
-            api_key_env=getattr(cfg, "api_key_env", "OPENAI_API_KEY"),
+            api_key_env=getattr(cfg, "api_key_env", None) or default_api_key_env("openai"),
             timeout=getattr(cfg, "timeout", 300),
         )
     if provider == "anthropic":
@@ -52,7 +63,7 @@ def build_llm(cfg) -> LlmClient | None:
         return AnthropicLlm(
             model=cfg.model or "claude-opus-4-8",
             base_url=getattr(cfg, "base_url", "https://api.anthropic.com"),
-            api_key_env=getattr(cfg, "api_key_env", "ANTHROPIC_API_KEY"),
+            api_key_env=getattr(cfg, "api_key_env", None) or default_api_key_env("anthropic"),
             max_tokens=getattr(cfg, "max_tokens", 4096),
             timeout=getattr(cfg, "timeout", 300),
         )

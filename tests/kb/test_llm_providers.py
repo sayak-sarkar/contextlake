@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from contextlake.cli import main
-from contextlake.kb.config import LlmCfg
+from contextlake.kb.config import KbConfig, LlmCfg, apply_llm_overrides
 from contextlake.kb.llm import anthropic as anth_mod
 from contextlake.kb.llm import cli as cli_mod
 from contextlake.kb.llm.anthropic import AnthropicLlm
@@ -143,11 +143,26 @@ def test_llmcfg_new_fields_defaults_and_parse():
     assert cfg2.command == "gemini" and cfg2.args == ["-p"] and cfg2.max_tokens == 1024
 
 
-def test_llmcfg_anthropic_provider_defaults_key_env():
-    # api_key_env's plain default is OPENAI_API_KEY (shared with openai); for
-    # provider="anthropic" it must resolve to ANTHROPIC_API_KEY unless overridden.
-    assert LlmCfg(provider="anthropic").api_key_env == "ANTHROPIC_API_KEY"
+def test_llmcfg_api_key_env_defaults_to_none_until_resolved():
+    # api_key_env is unset (None) at construction time — pydantic v2 doesn't
+    # re-run validators on plain attribute assignment (e.g. `--llm anthropic`
+    # via apply_llm_overrides), so per-provider defaulting can't safely live in a
+    # model_validator. It's resolved at read-time instead, in build_llm().
+    assert LlmCfg(provider="anthropic").api_key_env is None
     assert LlmCfg(provider="anthropic", api_key_env="CUSTOM_KEY").api_key_env == "CUSTOM_KEY"
+
+
+def test_apply_llm_overrides_anthropic_resolves_key_env():
+    # Regression test: `contextlake wiki --llm anthropic` goes through
+    # apply_llm_overrides(), which sets cfg.llm.provider by plain attribute
+    # assignment on an already-constructed LlmCfg. A model_validator would not
+    # re-run on that assignment, so api_key_env must be resolved at build_llm()
+    # read-time, not at LlmCfg construction time.
+    cfg = KbConfig()
+    apply_llm_overrides(cfg, provider="anthropic", model=None)
+    llm = build_llm(cfg.llm)
+    assert isinstance(llm, AnthropicLlm)
+    assert llm.api_key_env == "ANTHROPIC_API_KEY"
 
 
 def test_doctor_reports_anthropic_key_status(tmp_path, monkeypatch, capsys):

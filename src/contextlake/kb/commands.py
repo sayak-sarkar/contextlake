@@ -1293,7 +1293,11 @@ def cmd_doctor(args) -> int:
                    f"{llm.provider} · {bl.repo_id} · "
                    f"{'downloaded' if present else 'not downloaded (run wiki to fetch)'}")
         elif llm.provider == "anthropic":
-            env = llm.api_key_env  # LlmCfg defaults this to ANTHROPIC_API_KEY for this provider
+            from .llm.base import default_api_key_env
+
+            # api_key_env is None unless the user set it explicitly (resolved at
+            # read time, not at LlmCfg construction — see llm.base.default_api_key_env).
+            env = getattr(llm, "api_key_env", None) or default_api_key_env("anthropic")
             key = os.environ.get(env)
             _check("wiki LLM", bool(key),
                    f"anthropic · {llm.model or 'claude-opus-4-8'} · "
