@@ -56,6 +56,7 @@ class SourceCfg(BaseModel):
     type: str
     name: str
     mcp: str | None = None
+    enabled: bool = True
 
 
 class RuleCfg(BaseModel):

@@ -48,7 +48,7 @@ release = ["build>=1.0", "twine>=5.0"]
 # Optional knowledge-layer subsystem (contextlake.kb). Note: `mcp` requires
 # Python >= 3.10, so this extra's floor is 3.10 while the core tool stays 3.9+.
 kb = [
-    "mcp>=1.28", "pydantic>=2", "tomli; python_version<'3.11'",
+    "mcp>=1.28", "pydantic>=2", "tomli; python_version<'3.11'", "tomlkit>=0.13",
     # Code parsing: the tree-sitter runtime plus per-language grammar packages
     # (added incrementally as languages are supported).
     "tree-sitter>=0.25", "tree-sitter-python>=0.23",

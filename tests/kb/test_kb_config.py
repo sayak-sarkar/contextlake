@@ -59,6 +59,14 @@ def test_explicit_config_overrides(tmp_path, monkeypatch):
     assert c.rules[0].pattern == "^[A-Z]+-[0-9]+"
 
 
+def test_source_disabled_flag_loads_false(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text('[[sources]]\ntype = "gitlab"\nname = "gl"\nenabled = false\n')
+    c = load_kb_config(str(cfg))
+    assert c.sources[0].enabled is False
+
+
 def test_legacy_global_kb_config_is_discovered(tmp_path, monkeypatch):
     # Back-compat: an existing ~/.gitlab-sync/kb.toml (legacy global) is still
     # read without passing --config.
