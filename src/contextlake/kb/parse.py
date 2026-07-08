@@ -692,8 +692,13 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
 _CALLABLE_KINDS = {"class", "function", "method", "interface", "struct"}
 _INHERITABLE_KINDS = {"class", "interface", "struct"}
 
-# HCL block kinds a depends_on reference can resolve to (disjoint from code
-# symbol kinds, so their name index never collides with calls/inherits).
+# HCL block kinds a depends_on reference can resolve to. Note `module` is also
+# emitted for code imports, so kinds are not disjoint; safety comes from address
+# namespacing instead: HCL addresses are prefixed (`var.`/`module.`/`data.`/
+# `local.`) or resource-typed (`type.name`), while code module nodes carry raw
+# import paths (`os`, `requests`), so the name indices never overlap. A
+# pathological collision would surface as an AMBIGUOUS edge, never a wrong
+# INFERRED one.
 _HCL_KINDS = {"resource", "data", "variable", "output", "module", "local"}
 
 
