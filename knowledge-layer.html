@@ -454,6 +454,17 @@ have yet, so pointing pip at it skips compilation entirely, no compiler needed:<
 <div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>llama-cpp-python<span class="w"> </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
 </code></pre></div>
 
+<p><strong>Belt-and-suspenders: <code>--only-binary :all:</code>.</strong> On a compiler-less machine, add this flag
+so pip <em>refuses</em> to fall back to a source build for <strong>any</strong> package, you get a clean "no
+matching distribution" message instead of a wall of <code>cmake</code>/compiler errors. <code>:all:</code> is the
+all-packages token (its opposite is <code>--no-binary</code>). Combined with the CPU-wheel index, this
+installs the built-in LLM on a brand-new Python with no toolchain:</p>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
+</code></pre></div>
+
+<p>The trade-off is deliberate: if a wheel genuinely doesn't exist for your platform, the
+command stops with an actionable error rather than attempting a build that can't succeed.</p>
 <p>On a mainstream Python (3.10–3.13) none of this applies, <code>pip install
 "contextlake[llm-local]"</code> finds a PyPI wheel and Just Works. It is specifically the
 bleeding-edge-interpreter case that needs the extra index. The cleanest way to avoid the
