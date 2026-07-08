@@ -222,7 +222,7 @@ over the mirrored repos. Its pieces:
   tree-sitter builds the code graph (defs/imports/containment + an inferred call graph)
   across 13 languages (Python, JS/TS(X), C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala);
   Terraform/HCL (`kb/hcl.py`) yields an infrastructure `depends_on` graph
-  (resource/data/variable/output/module blocks with `var.`/`module.`/resource
+  (resource/data/variable/output/module/local blocks with `var.`/`module.`/`data.`/resource
   references resolved within a repo); manifests yield the cross-repo dependency graph;
   references capture issue keys and doc links.
 - **Connectors** (`kb/connectors/`): Atlassian, Figma, and GitLab sources on one
