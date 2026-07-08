@@ -24,6 +24,7 @@ import tree_sitter as ts
 from ..logging_setup import log
 from .flow.events import extract_event_flow
 from .flow.http import extract_http_flow
+from .hcl import parse_hcl
 from .ids import make_id
 from .manifest import is_manifest, parse_manifest
 from .model import Confidence, Edge, Node, Provenance
@@ -78,6 +79,10 @@ LANG_BY_EXT = {
     ".php": "php",
     ".scala": "scala", ".sc": "scala",
 }
+
+# HCL/Terraform files use a bespoke extraction path (kb/hcl.py), not the OO
+# capture model, so they are matched separately from LANG_BY_EXT.
+HCL_EXTS = {".tf"}
 
 # A code file larger than this is skipped (and logged). Hand-written source is
 # essentially never this big — anything that large is a data blob or vendored
@@ -579,11 +584,13 @@ def index_repo_dir(
     root = Path(repo_path)
     allowed_exts = {ext for ext, lang in LANG_BY_EXT.items()
                     if not languages or lang in languages}
+    index_hcl = not languages or "hcl" in languages
     ignore = load_ignore_patterns(root)
     shard = GraphShard(repo=repo_id, head_commit=head_commit)
     by_id: dict[str, Node] = {}
     all_calls: list[tuple[str, str, str, int]] = []
     all_inherits: list[tuple[str, str, str, int]] = []
+    all_hcl_refs: list[tuple[str, str, str, int]] = []
     n_files = n_generated = n_oversize = n_ignored = 0
 
     for dirpath, dirnames, filenames in os.walk(root):
@@ -594,8 +601,9 @@ def index_repo_dir(
         for fn in filenames:
             ext = os.path.splitext(fn)[1]
             is_code = ext in allowed_exts
+            is_hcl = index_hcl and ext in HCL_EXTS
             is_man = is_manifest(fn)
-            if not is_code and not is_man:
+            if not is_code and not is_hcl and not is_man:
                 continue
             fpath = Path(dirpath) / fn
             rel = str(fpath.relative_to(root))
@@ -607,7 +615,7 @@ def index_repo_dir(
             if is_code and skip_generated and _is_generated_name(fn):
                 n_generated += 1
                 continue
-            if is_code:
+            if is_code or is_hcl:
                 try:
                     if fpath.stat().st_size > max_file_bytes:
                         n_oversize += 1
@@ -623,7 +631,11 @@ def index_repo_dir(
                 n_generated += 1
                 continue
             try:
-                if is_code:
+                if is_hcl:
+                    nodes, hcl_refs = parse_hcl(repo_id, rel, source)
+                    edges = []
+                    all_hcl_refs.extend(hcl_refs)
+                elif is_code:
                     nodes, edges, calls, inh = parse_source(repo_id, rel, source,
                                                             LANG_BY_EXT[ext])
                     all_calls.extend(calls)
@@ -648,6 +660,8 @@ def index_repo_dir(
         all_calls, by_id, relation="calls", target_kinds=_CALLABLE_KINDS))
     shard.edges.extend(_resolve_name_refs(
         all_inherits, by_id, relation="inherits", target_kinds=_INHERITABLE_KINDS))
+    shard.edges.extend(_resolve_name_refs(
+        all_hcl_refs, by_id, relation="depends_on", target_kinds=_HCL_KINDS))
     log(f"  parsed {n_files} file(s); skipped {n_generated} generated, "
         f"{n_oversize} oversized, {n_ignored} ignored", level=logging.DEBUG)
     return shard
@@ -677,6 +691,10 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
 # can resolve to. A method can be called but never inherited from.
 _CALLABLE_KINDS = {"class", "function", "method", "interface", "struct"}
 _INHERITABLE_KINDS = {"class", "interface", "struct"}
+
+# HCL block kinds a depends_on reference can resolve to (disjoint from code
+# symbol kinds, so their name index never collides with calls/inherits).
+_HCL_KINDS = {"resource", "data", "variable", "output", "module", "local"}
 
 
 # A name that resolves to 2..N definitions is emitted as AMBIGUOUS edges to each

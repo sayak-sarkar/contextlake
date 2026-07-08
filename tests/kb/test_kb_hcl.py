@@ -3,6 +3,7 @@
 from datetime import date
 
 from contextlake.kb.hcl import parse_hcl
+from contextlake.kb.parse import index_repo_dir
 
 MAIN_TF = b"""
 variable "region" {
@@ -94,3 +95,42 @@ def test_parse_hcl_reconstructs_references():
     assert ("output.bucket_arn", "aws_s3_bucket.logs") in pairs
     # meta roots (each/count/path/self/terraform) never produce a ref address
     assert not any(t.startswith(("each.", "count.", "path.", "self.")) for _s, t, _f, _l in refs)
+
+
+def test_index_repo_dir_resolves_hcl_depends_on(tmp_path):
+    # two files in the same module dir: vars split from resources (cross-file)
+    (tmp_path / "variables.tf").write_text(
+        'variable "region" {\n  type = string\n}\n'
+        'variable "bucket_name" {\n  type = string\n}\n'
+    )
+    (tmp_path / "main.tf").write_text(
+        'resource "aws_s3_bucket" "logs" {\n'
+        '  bucket = var.bucket_name\n'
+        '  region = var.region\n'
+        '}\n\n'
+        'resource "aws_s3_bucket_policy" "p" {\n'
+        '  bucket     = aws_s3_bucket.logs.id\n'
+        '  depends_on = [aws_s3_bucket.logs]\n'
+        '}\n'
+    )
+    shard = index_repo_dir(str(tmp_path), "infra/net")
+    name = {n.id: n.name for n in shard.nodes}
+    dep = {(name[e.src], name[e.dst]) for e in shard.edges if e.relation == "depends_on"}
+
+    # cross-file var reference resolves
+    assert ("aws_s3_bucket.logs", "var.bucket_name") in dep
+    assert ("aws_s3_bucket.logs", "var.region") in dep
+    # resource-to-resource dependency resolves (implicit + explicit, deduped)
+    assert ("aws_s3_bucket_policy.p", "aws_s3_bucket.logs") in dep
+    # HCL nodes exist with the right kinds
+    kinds = {n.kind for n in shard.nodes}
+    assert {"resource", "variable"} <= kinds
+
+
+def test_index_repo_dir_languages_filter_excludes_hcl(tmp_path):
+    (tmp_path / "main.tf").write_text('resource "aws_s3_bucket" "b" {}\n')
+    (tmp_path / "app.py").write_text("def f():\n    pass\n")
+    shard = index_repo_dir(str(tmp_path), "r", languages=["python"])
+    kinds = {n.kind for n in shard.nodes}
+    assert "resource" not in kinds  # hcl gated out
+    assert "function" in kinds
