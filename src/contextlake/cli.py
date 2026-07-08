@@ -317,7 +317,7 @@ Examples:
                    choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
                    help="power the wiki stage with this LLM provider; without it (and "
                         "without [llm] enabled in kb.toml) the wiki stage no-ops. "
-                        "builtin = zero-setup CPU model, ollama | openai | auto")
+                        "builtin = zero-setup CPU model, ollama | openai | anthropic | cli | auto")
     p.add_argument("--llm-model", dest="llm_model", default=_S, metavar="MODEL",
                    help="model name for --llm (e.g. llama3.1, gpt-4o-mini)")
 
@@ -365,7 +365,7 @@ Examples:
                    choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
                    help="enable the LLM tier with this provider, overriding kb.toml "
                         "([llm] enabled+provider). builtin = CPU, no setup (needs the "
-                        "llm-local extra); ollama | openai | auto")
+                        "llm-local extra); ollama | openai | anthropic | cli | auto")
     p.add_argument("--llm-model", dest="llm_model", default=_S, metavar="MODEL",
                    help="model name for --llm (e.g. llama3.1, gpt-4o-mini)")
     p.add_argument("--force", action="store_true", default=_S,
