@@ -377,7 +377,8 @@ def cmd_connect(args) -> int:
     store, _ = _open_store(args)
     try:
         cfg = load_kb_config(getattr(args, "config", None))
-        sources = [s for s in cfg.sources if s.type in ("atlassian", "figma", "gitlab")]
+        sources = [s for s in cfg.sources
+                   if s.type in ("atlassian", "figma", "gitlab") and s.enabled]
         if not sources:
             log('No connector sources configured '
                 '(add [[sources]] type="atlassian"/"figma"/"gitlab")')
@@ -1074,7 +1075,7 @@ def cmd_ingest(args) -> int:
                          {"path": cli_path}))
         else:
             for s in cfg.sources:
-                if s.type in registry:
+                if s.type in registry and s.enabled:
                     jobs.append((s.name or s.type, s.type,
                                  getattr(s, "model_extra", None) or {}))
         if not jobs:

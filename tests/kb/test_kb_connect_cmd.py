@@ -65,6 +65,29 @@ def test_connect_persists_confirmed_links(tmp_path, monkeypatch):
         store.close()
 
 
+def test_connect_skips_disabled_sources(tmp_path, monkeypatch):
+    """A source with `enabled = false` must be skipped entirely -- no connector
+    is even built for it -- so `disable` is a real no-op guarantee, not just a
+    cosmetic flag in `source list`."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_CONFIG.replace(
+        'name = "site-a"', 'name = "site-a"\nenabled = false',
+    ).format(store=store_dir.as_posix()))
+    repo = tmp_path / "app"
+    repo.mkdir()
+
+    built = []
+    monkeypatch.setattr(orch, "build_atlassian", lambda src: built.append(src) or _Stub())
+    monkeypatch.setattr(refs, "extract_issue_keys", lambda path, pattern, **k: ["PROJ-1"])
+    monkeypatch.setattr(refs, "scrape_links", lambda path, patterns, **k: [])
+
+    args = Namespace(config=str(cfg), workspace=None, source=str(repo), repo="group/app")
+    assert cmd_connect(args) == 0
+    assert built == []  # the disabled source's connector is never constructed
+
+
 def test_connect_returns_nonzero_when_all_sources_fail(tmp_path, monkeypatch):
     """Every source call failing (e.g. an unreachable connector) is a non-zero
     exit, not a silent 'Connect complete: 0 links'."""
