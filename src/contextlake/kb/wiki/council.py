@@ -30,7 +30,11 @@ REVIEW_SYSTEM = (
 _ALT_SCORE_KEYS = ("rating", "overall", "overall_score", "quality")
 
 # A score explicitly labeled "score"/"rating" in prose, e.g. "Score: 0.7 - thin.".
-_LABELED_SCORE_RE = re.compile(r"(?i)\b(?:score|rating)\b\D{0,6}([01](?:\.\d+)?)\b")
+# Requires an explicit separator (":", "=", "is", "of") between the keyword and the
+# number so an unrelated small integer near the word -- e.g. an issue-list ordinal
+# like "rating 1 - the intro lacks context" -- is never mistaken for a labeled score.
+_LABELED_SCORE_RE = re.compile(
+    r"(?i)\b(?:score|rating)\b\s*(?:[:=]|\bis\b|\bof\b)\s*([01](?:\.\d+)?)\b")
 
 # An "N/10" or "N out of 10" style rating, e.g. "I'd rate this 8/10.".
 _FRACTION_10_RE = re.compile(r"(?i)\b([0-9](?:\.\d+)?)\s*(?:/|out of)\s*10\b")
@@ -42,6 +46,13 @@ def _extract_score(obj, text: str) -> float | None:
     # bare, unlabeled number from prose (e.g. one inside an issue description) --
     # only a value under a plausible alternate key, or a number explicitly labeled
     # as a score/rating, or the common "N/10" shorthand.
+    #
+    # If the JSON object parsed successfully, ITS score lives in a key -- try the
+    # alternate keys only. Scanning the raw text (which includes the issue/description
+    # strings the model itself wrote) is what causes fabrication: a keyword like
+    # "rating" inside an issue string can sit near an unrelated small integer (e.g.
+    # an ordinal, "rating 1 - ..."). Only fall back to scanning prose when the JSON
+    # was totally unparseable, i.e. the score (if any) can only live in free text.
     if isinstance(obj, dict):
         for key in _ALT_SCORE_KEYS:
             val = obj.get(key)
@@ -49,6 +60,7 @@ def _extract_score(obj, text: str) -> float | None:
                 val = float(val)
                 if 0.0 <= val <= 1.0:
                     return val
+        return None
     match = _LABELED_SCORE_RE.search(text)
     if match:
         val = float(match.group(1))
