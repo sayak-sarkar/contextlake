@@ -5,7 +5,8 @@ package published by one repository and consumed by another reference the *same*
 node. That shared node is the cross-repo dependency link: "who depends on repo A"
 is "who depends_on a package A publishes".
 
-Supported: ``pyproject.toml`` (PyPI), ``package.json`` (npm), ``*.csproj`` (NuGet).
+Supported: ``pyproject.toml`` (PyPI), ``package.json`` (npm), ``*.csproj`` (NuGet),
+``pom.xml`` (Maven).
 """
 
 from __future__ import annotations
@@ -26,14 +27,63 @@ _DEP_NAME = re.compile(r"[A-Za-z0-9._-]+")
 _PKG_REF = re.compile(r'<PackageReference\s+Include="([^"]+)"', re.IGNORECASE)
 _MANIFEST_FILES = {"pyproject.toml", "package.json"}
 
+# Maven: pull coordinates from the XML text with regex (dependency-free, same
+# spirit as _PKG_REF for .csproj) rather than an XML AST — robust to namespaces.
+_MVN_GROUP = re.compile(r"<groupId>\s*([^<\s][^<]*?)\s*</groupId>", re.IGNORECASE)
+_MVN_ARTIFACT = re.compile(r"<artifactId>\s*([^<\s][^<]*?)\s*</artifactId>", re.IGNORECASE)
+_MVN_DEP_BLOCK = re.compile(r"<dependency\b[^>]*>(.*?)</dependency>", re.DOTALL | re.IGNORECASE)
+_MVN_PARENT_BLOCK = re.compile(r"<parent\b[^>]*>(.*?)</parent>", re.DOTALL | re.IGNORECASE)
+# Sections whose groupId/artifactId are NOT the project's own coordinate.
+_MVN_NON_PROJECT = re.compile(
+    r"<(dependencies|dependencyManagement|build|profiles|reporting|parent|pluginManagement|plugins)\b"
+    r"[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
+
 
 def is_manifest(filename: str) -> bool:
-    return filename in _MANIFEST_FILES or filename.endswith(".csproj")
+    return (filename in _MANIFEST_FILES or filename == "pom.xml"
+            or filename.endswith(".csproj"))
 
 
 def _dep_name(spec: str) -> str | None:
     m = _DEP_NAME.match(spec.strip())
     return m.group(0) if m else None
+
+
+def _mvn_coord(block: str) -> str | None:
+    g = _MVN_GROUP.search(block)
+    a = _MVN_ARTIFACT.search(block)
+    if a is None:
+        return None
+    artifact = a.group(1).strip()
+    group = g.group(1).strip() if g else ""
+    return f"{group}:{artifact}" if group else artifact
+
+
+def _maven_deps(text: str) -> list[str]:
+    out = []
+    for m in _MVN_DEP_BLOCK.finditer(text):
+        coord = _mvn_coord(m.group(1))
+        if coord:
+            out.append(coord)
+    return out
+
+
+def _maven_project_coord(text: str) -> str | None:
+    # The project's own coordinate is the first groupId/artifactId that is NOT
+    # inside a dependency/parent/build/etc. section.
+    stripped = _MVN_NON_PROJECT.sub("", text)
+    a = _MVN_ARTIFACT.search(stripped)
+    if a is None:
+        return None
+    artifact = a.group(1).strip()
+    g = _MVN_GROUP.search(stripped)
+    group = g.group(1).strip() if g else ""
+    if not group:  # groupId inherited from <parent>
+        pm = _MVN_PARENT_BLOCK.search(text)
+        if pm:
+            pg = _MVN_GROUP.search(pm.group(1))
+            group = pg.group(1).strip() if pg else ""
+    return f"{group}:{artifact}" if group else artifact
 
 
 def _package_node(name: str, ecosystem: str) -> Node:
@@ -79,6 +129,11 @@ def parse_manifest(
         ecosystem = "nuget"
         published = fname[: -len(".csproj")]
         deps = _PKG_REF.findall(content.decode("utf-8", "replace"))
+    elif fname == "pom.xml":
+        ecosystem = "maven"
+        text = content.decode("utf-8", "replace")
+        published = _maven_project_coord(text)
+        deps = _maven_deps(text)
     else:
         return [], []
 
