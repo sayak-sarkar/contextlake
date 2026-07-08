@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.37.0] - 2026-07-08
+
 ### Added
 
 - **`pom.xml` is now indexed** into the cross-repo dependency graph (Maven ecosystem):
@@ -29,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   call graph are extracted; inheritance edges are captured via `delegation_specifier`
   (extending and implementing base classes). The grammar (`tree-sitter-kotlin`) ships
   in the `[kb]` extra.
+
+### Fixed
+
+- **Tolerant wiki review-score parsing.** The council reviewer now recovers a numeric
+  score from prose or alternate-JSON review responses before abstaining, so capable
+  models whose review text is not strict JSON no longer trigger spurious "unparseable
+  review" rejections. The fallback is scoped to unparseable-JSON responses only;
+  genuinely score-less prose still abstains.
 
 ## [2.36.0] - 2026-07-08
 
