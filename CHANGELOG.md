@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   narrative docs (so they reach the website): `[embeddings] vector_backend` + `batch_size`,
   `[[sources]] auth_dir`/`mcp_command`/`group`/`per_page`, the `dashboard --group-depth` flag,
   and `clone_method`/`branch_strategy` rows in the usage settings table.
+- **"Reading the console output" guide.** A knowledge-layer section decoding the runtime
+  lines users puzzle over: the `▶` phase headers, `0 nodes, 0 edges` (config/doc-only repos),
+  the incremental `already up to date` embed counts, the `Fetching 10 files … 0.00B` cached
+  model-load bar, and the `✓ written` / `⚠ rejected by council` / `unparseable review` wiki lines.
 
 ## [2.35.0] - 2026-07-08
 

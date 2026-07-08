@@ -171,6 +171,39 @@ hook-triggered `index`), the second takes an advisory single-writer lock
 naming the process that holds it. A lock left by a crashed run is reclaimed
 automatically; override (rarely correct) with `CONTEXTLAKE_ALLOW_CONCURRENT=1`.
 
+## Reading the console output
+
+A `bootstrap` (or a standalone `index` / `embed` / `wiki`) prints progress as it goes.
+Most lines are self-explanatory; a few are worth decoding.
+
+- **`▶ <Phase>` headers** (`▶ Mirror repositories`, `▶ Index the code graph`,
+  `▶ Build semantic vectors`, `▶ Generate the curated wiki`, …) mark each pipeline stage.
+  A stage that has nothing to do (no connector sources, no LLM enabled) says so and moves on.
+- **`[███░░] N/M <repo>: X nodes, Y edges`** is the incremental indexer. **`0 nodes, 0
+  edges`** is normal and not an error — that repo has no code in a supported language
+  (config-only, docs-only, IaC/scripts, or empty). Only repos whose HEAD moved are
+  re-indexed; the rest are reported as *unchanged*.
+- **`Embed complete: 0 vector(s) written (N total in store), M already up to date`** —
+  embedding is incremental too. `0 written` with a large `already up to date` count means
+  nothing changed since the last run; the `N total` is the whole store, not this run.
+- **`Fetching 10 files: 100% … Download complete: 0.00B`** appears once when the wiki
+  (or built-in embedder) model loads. It is Hugging Face resolving the model repo's files
+  (several GGUF quantizations + tokenizer/config) in your local cache — **`0.00B` means
+  nothing was downloaded, everything was already cached**. It fires once per run at model
+  load, not per repo.
+- **`✓ <repo>: written (score 0.98)`** — a wiki page passed the review council and was
+  saved. **`⚠ <repo>: rejected by council (score 0.31)`** — it did not clear the accept
+  threshold; the indented `- accuracy/completeness/clarity: …` lines are the per-lens
+  reasons. **`unparseable review`** means the model returned a review the council couldn't
+  score (common with the tiny built-in 0.5B model); those lenses are excluded from the
+  mean rather than counted as zero. A capable backend (`--llm ollama`/`anthropic`/`openai`)
+  produces far fewer rejections — see [Model providers](#model-providers).
+- **A single-writer lock message** naming another process means two runs targeted one
+  store at once (see the git-hook note above).
+
+Warnings from the model download itself (Hugging Face symlink/auth notices) are silenced;
+the real progress still shows.
+
 ## Ownership & SMEs
 
 `contextlake owners <repo>` (or `--path SUBDIR` for a sub-tree) answers **"who owns
