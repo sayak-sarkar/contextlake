@@ -96,8 +96,13 @@ and changing a base class shows its subclasses in `blast_radius`. **Terraform/HC
 nodes are semantically searchable. Resolution is repo-wide, so a block address
 defined identically in separate root-module directories (for example
 `environments/prod` and `environments/staging`) surfaces as an `AMBIGUOUS`
-edge; directory-scoped resolution is a future refinement. Frameworks are indexed
-through their
+edge; directory-scoped resolution is a future refinement. **SQL DDL** (`.sql`) is
+indexed into a referential graph: `table`/`view`/`procedure` definitions with
+`references` edges from foreign-key `REFERENCES` clauses, resolved across files
+in a repo; `table` and `view` nodes are semantically searchable. It uses a regex
+DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets
+the high-value defs and FK references and is a deliberate undercount. Frameworks
+are indexed through their
 base language: **React / Next.js / Node.js** are JS/TS(X), **Angular** is TS (its
 templates are HTML), and **.NET** is C#. It also reads manifests (`pyproject.toml`,
 `package.json`, `*.csproj`, `pom.xml`) to build a **cross-repo dependency graph** through shared
