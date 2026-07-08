@@ -289,9 +289,9 @@ preserving your comments, and work alongside hand-editing if you mix approaches.
 - **`contextlake source list`**: show all configured connectors (the effective merged config from
   `~/.contextlake/kb.toml`, `.contextlake/kb.toml` if present, and the built-in defaults), with
   reachability status.
-- **`contextlake source test [SOURCE]`**: verify that a specific connector works (or test all if
-  no name given). Reaches its API, reads credentials from the configured env var, lists available
-  items. Shows you exactly what each source will ingest without running a full `connect`.
+- **`contextlake source test SOURCE`**: verify that a specific connector works. Reaches its API,
+  reads credentials from the configured env var, lists available items. Shows you exactly what
+  each source will ingest without running a full `connect`.
 - **`contextlake source enable|disable SOURCE`**: toggle a connector on/off in the config by
   name, so you can pause one without deleting it.
 - **`contextlake source remove SOURCE`**: delete a connector entry by name.
