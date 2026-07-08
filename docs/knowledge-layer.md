@@ -91,7 +91,7 @@ JavaScript, TypeScript/TSX, C#, Go, Java, C, C++, Rust, Ruby, PHP, and Scala**
 (the parser registry is pluggable) — so "what extends `BaseController`?" is one hop,
 and changing a base class shows its subclasses in `blast_radius`. **Terraform/HCL**
 (`.tf`) is indexed into an infrastructure dependency graph: `resource`/`data`/
-`variable`/`output`/`module` definitions with `depends_on` edges resolving
+`variable`/`output`/`module`/`local` definitions with `depends_on` edges resolving
 `var.`/`module.`/`data.`/resource references across files in a repo; `resource`
 nodes are semantically searchable. Frameworks are indexed
 through their
