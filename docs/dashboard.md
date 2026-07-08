@@ -36,6 +36,7 @@ contextlake dashboard --serve --open         # live, against your store; opens y
 | `--sample` | Build from the **bundled demo fleet** — guaranteed generic, safe to share. |
 | `--anonymize` | For a real-store `--site`: hash authors, drop URLs + prose (shareable). |
 | `--open` | Open the result in your browser. |
+| `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 
 > Browsing your whole fleet? Use `--serve` — it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
