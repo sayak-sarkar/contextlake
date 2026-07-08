@@ -8,6 +8,7 @@ separate from ``kb/config.py`` so the read path stays dependency-light.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from ..config import expand_path
@@ -34,8 +35,13 @@ def _load_document(path: Path):
 
 
 def _write_document(path: Path, doc) -> None:
+    """Write ``doc`` to ``path`` atomically: a temp sibling file then
+    ``os.replace`` (atomic rename on POSIX), so a crash mid-write never leaves
+    ``path`` truncated or half-written."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(tomlkit.dumps(doc))
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(tomlkit.dumps(doc))
+    os.replace(tmp, path)
 
 
 def _sources_aot(doc):
