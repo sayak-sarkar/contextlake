@@ -9,6 +9,7 @@ chairman in code makes the verdict reproducible and testable.
 from __future__ import annotations
 
 import json
+import re
 
 LENSES = [
     ("accuracy", "Does every statement follow from the provided source facts? "
@@ -25,6 +26,42 @@ REVIEW_SYSTEM = (
 )
 
 
+# Fallback keys a small model might use instead of the requested "score".
+_ALT_SCORE_KEYS = ("rating", "overall", "overall_score", "quality")
+
+# A score explicitly labeled "score"/"rating" in prose, e.g. "Score: 0.7 - thin.".
+_LABELED_SCORE_RE = re.compile(r"(?i)\b(?:score|rating)\b\D{0,6}([01](?:\.\d+)?)\b")
+
+# An "N/10" or "N out of 10" style rating, e.g. "I'd rate this 8/10.".
+_FRACTION_10_RE = re.compile(r"(?i)\b([0-9](?:\.\d+)?)\s*(?:/|out of)\s*10\b")
+
+
+def _extract_score(obj, text: str) -> float | None:
+    # Recovery ladder for when the requested "score" key is missing, tried in order
+    # and stopping at the first hit. Deliberately conservative: it never picks up a
+    # bare, unlabeled number from prose (e.g. one inside an issue description) --
+    # only a value under a plausible alternate key, or a number explicitly labeled
+    # as a score/rating, or the common "N/10" shorthand.
+    if isinstance(obj, dict):
+        for key in _ALT_SCORE_KEYS:
+            val = obj.get(key)
+            if isinstance(val, (int, float)) and not isinstance(val, bool):
+                val = float(val)
+                if 0.0 <= val <= 1.0:
+                    return val
+    match = _LABELED_SCORE_RE.search(text)
+    if match:
+        val = float(match.group(1))
+        if 0.0 <= val <= 1.0:
+            return val
+    match = _FRACTION_10_RE.search(text)
+    if match:
+        val = float(match.group(1)) / 10.0
+        if 0.0 <= val <= 1.0:
+            return val
+    return None
+
+
 def _parse_review(text: str) -> dict:
     # A review abstains (parsed=False) — rather than scoring 0 — whenever we can't
     # extract a usable numeric score, whether the JSON was malformed OR valid-but-in
@@ -33,16 +70,25 @@ def _parse_review(text: str) -> dict:
     try:
         obj = json.loads(text[text.index("{"):text.rindex("}") + 1])
     except (ValueError, json.JSONDecodeError):
-        return {"score": 0.0, "issues": ["unparseable review"], "parsed": False}
-    raw = obj.get("score")
+        obj = None
+
+    raw = obj.get("score") if isinstance(obj, dict) else None
     try:
         score, scored = max(0.0, min(1.0, float(raw))), True
     except (TypeError, ValueError):
-        score, scored = 0.0, False   # valid JSON, but no usable "score" -> abstain
-    issues = [str(i) for i in (obj.get("issues") or [])][:10]
-    if not scored and not issues:
-        issues = ["review had no parseable score"]
-    return {"score": score, "issues": issues, "parsed": scored}
+        score, scored = 0.0, False   # no usable "score" yet -> try the recovery ladder
+
+    if not scored:
+        fallback = _extract_score(obj, text)
+        if fallback is not None:
+            score, scored = max(0.0, min(1.0, fallback)), True
+
+    issues = [str(i) for i in (obj.get("issues") or [])][:10] if isinstance(obj, dict) else []
+    if scored:
+        return {"score": score, "issues": issues, "parsed": True}
+    if not issues:
+        issues = ["unparseable review"] if obj is None else ["review had no parseable score"]
+    return {"score": 0.0, "issues": issues, "parsed": False}
 
 
 def review(llm, draft: str, facts: str, *, lenses=LENSES) -> list[dict]:
