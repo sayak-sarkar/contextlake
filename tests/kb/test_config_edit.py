@@ -35,6 +35,24 @@ def test_add_source_upserts_by_name(tmp_path):
     assert len(srcs) == 1 and srcs[0]["mcp"] == "b"
 
 
+def test_add_source_upsert_preserves_other_keys_and_comments(tmp_path):
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text("[kb]\n")
+    add_source(str(cfg), {"type": "atlassian", "name": "jira", "token_env": "JIRA_TOKEN"})
+
+    text = cfg.read_text()
+    text = text.replace('token_env = "JIRA_TOKEN"', 'token_env = "JIRA_TOKEN"  # keep me')
+    cfg.write_text(text)
+
+    add_source(str(cfg), {"type": "atlassian", "name": "jira", "mcp": "https://x"})
+
+    text = cfg.read_text()
+    assert "# keep me" in text                                    # comment survived
+    src = _toml(cfg)["sources"][0]
+    assert src["token_env"] == "JIRA_TOKEN"                        # prior key survived
+    assert src["mcp"] == "https://x"                                # new key added
+
+
 def test_remove_source(tmp_path):
     cfg = tmp_path / "kb.toml"
     cfg.write_text("[kb]\n")

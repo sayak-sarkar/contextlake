@@ -59,20 +59,27 @@ def _find_source_index(aot, name: str) -> int | None:
 
 
 def add_source(config_path: str | None, source: dict) -> None:
-    """Upsert a ``[[sources]]`` block keyed by ``source["name"]``."""
+    """Upsert a ``[[sources]]`` block keyed by ``source["name"]``.
+
+    When a source with that name already exists, its keys are updated in
+    place on the existing table rather than the table being replaced -- so
+    other previously-set keys (e.g. ``token_env``, ``file_key``) and any
+    inline comments survive a re-add that only touches a subset of keys.
+    """
     path = resolve_write_target(config_path)
     doc = _load_document(path)
     aot = _sources_aot(doc)
 
-    block = tomlkit.table()
-    for key, value in source.items():
-        block[key] = value
-
     existing = _find_source_index(aot, source["name"])
     if existing is None:
+        block = tomlkit.table()
+        for key, value in source.items():
+            block[key] = value
         aot.append(block)
     else:
-        aot[existing] = block
+        table = aot[existing]
+        for key, value in source.items():
+            table[key] = value
 
     _write_document(path, doc)
 
