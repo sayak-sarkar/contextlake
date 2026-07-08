@@ -220,7 +220,7 @@ over the mirrored repos. Its pieces:
   Each shard is also snapshotted by commit under `history/` for bi-temporal queries.
 - **Extraction** (`kb/parse.py`, `kb/manifest.py`, `kb/references.py`, `kb/hcl.py`, `kb/sql.py`):
   tree-sitter builds the code graph (defs/imports/containment + an inferred call graph)
-  across 13 languages (Python, JS/TS(X), C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala);
+  across 14 languages (Python, JS/TS(X), C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala, Kotlin);
   Terraform/HCL (`kb/hcl.py`) yields an infrastructure `depends_on` graph
   (resource/data/variable/output/module/local blocks with `var.`/`module.`/`data.`/resource
   references resolved within a repo); SQL DDL (`kb/sql.py`) yields a referential graph
