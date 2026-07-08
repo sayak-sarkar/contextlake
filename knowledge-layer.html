@@ -107,11 +107,14 @@ non-zero on problems, so they're CI-friendly.</p>
 <p>Code indexing uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong>
 (<code>inherits</code> edges for <code>extends</code> / <code>implements</code> / base classes) from <strong>Python,
-JavaScript, TypeScript/TSX, and C#</strong> (the parser registry is pluggable), so
-"what extends <code>BaseController</code>?" is one hop, and changing a base class shows its
-subclasses in <code>blast_radius</code>. It also reads
-manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>) to build a <strong>cross-repo
-dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP,
+JavaScript, TypeScript/TSX, C#, Go, Java, C, C++, Rust, Ruby, PHP, and Scala</strong>
+(the parser registry is pluggable), so "what extends <code>BaseController</code>?" is one hop,
+and changing a base class shows its subclasses in <code>blast_radius</code>. Frameworks are indexed
+through their
+base language: <strong>React / Next.js / Node.js</strong> are JS/TS(X), <strong>Angular</strong> is TS (its
+templates are HTML), and <strong>.NET</strong> is C#. It also reads manifests (<code>pyproject.toml</code>,
+<code>package.json</code>, <code>*.csproj</code>) to build a <strong>cross-repo dependency graph</strong> through shared
+package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
 this"), see <a href="serve.html">the full tool list under Serve</a>. The same
 change-impact walk is a one-liner from the shell: <code>contextlake impact &lt;symbol&gt; [--hops N]</code>
@@ -131,9 +134,16 @@ with <code>--repo &lt;repo&gt;</code> rather than getting a silent best-guess.</
 chains them, mirror repos → index → connect → embed → wiki → write editor steering, 
 skipping anything not enabled, so a teammate goes from nothing to a fully-wired
 workspace in one step:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
 
+<p><code>--llm builtin</code> powers the wiki stage with a zero-setup CPU model, so this single
+command builds the <strong>whole</strong> knowledge layer, graph, vectors, and wiki, for every
+repo. (<code>--llm ollama</code> | <code>openai</code> | <code>auto</code> for higher-quality prose; the pre-command
+form <code>contextlake --llm builtin bootstrap</code> also works.) Without any <code>--llm</code>, and with
+<code>[llm]</code> disabled in <code>kb.toml</code>, the wiki stage no-ops and the rest still runs. Because
+everything generated lives under one <code>store_dir</code>, setting it to a folder in your
+workspace keeps the entire knowledge base in a single, easy-to-access location.</p>
 <p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and
 <code>~/.contextlake/kb.toml</code>); pass <code>--config</code> / <code>--kb-config</code> to point elsewhere. Skip
 stages with <code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code>. For an
@@ -148,6 +158,24 @@ in-progress working tree. Run it from cron:</p>
 
 <p>or as a systemd user timer, see <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.service"><code>examples/contextlake.service</code></a>
 and <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.timer"><code>examples/contextlake.timer</code></a>.</p>
+<h3 id="re-index-on-commit-git-hook">Re-index on commit (git hook)<a class="anchor" href="#re-index-on-commit-git-hook" title="Link to this section">#</a></h3>
+<p>For continuous freshness without a schedule, install a git <code>post-commit</code> hook that
+re-indexes a repo the moment you commit to it:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w">                     </span><span class="c1"># the repo in the current directory</span>
+contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># every git repo under a mirror</span>
+contextlake<span class="w"> </span>hook<span class="w"> </span>status<span class="w">  </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># which repos are wired</span>
+contextlake<span class="w"> </span>hook<span class="w"> </span>uninstall<span class="w">                   </span><span class="c1"># remove it (any pre-existing hook is kept)</span>
+</code></pre></div>
+
+<p>The hook runs <code>contextlake index &lt;repo&gt;</code> detached (so the commit returns immediately)
+and re-uses the repo's stored id, so it updates the same graph node rather than a
+duplicate. Mirror-wide syncing (fetch new clones, prune) still belongs to <code>bootstrap</code>
+on a schedule; the hook keeps <em>local edits</em> current between syncs.</p>
+<p>If two contextlake processes ever target one store at once (say a <code>bootstrap</code> and a
+hook-triggered <code>index</code>), the second takes an advisory single-writer lock
+(<code>&lt;store_dir&gt;/.contextlake.lock</code>) and refuses rather than interleaving SQLite writes , 
+naming the process that holds it. A lock left by a crashed run is reclaimed
+automatically; override (rarely correct) with <code>CONTEXTLAKE_ALLOW_CONCURRENT=1</code>.</p>
 <h2 id="ownership-smes">Ownership &amp; SMEs<a class="anchor" href="#ownership-smes" title="Link to this section">#</a></h2>
 <p><code>contextlake owners &lt;repo&gt;</code> (or <code>--path SUBDIR</code> for a sub-tree) answers <strong>"who owns
 this / who do I ask?"</strong> straight from git history, no config, no index required. It
@@ -342,21 +370,182 @@ with a provenance footer citing the exact commit and source files it was built f
   <strong>built-in</strong> CPU model if its extra is installed, else it skips that tier. So the
   semantic/wiki tiers Just Work the moment you set <code>enabled = true</code>, with no daemon
   and no API key.</li>
-<li><strong><code>builtin</code></strong>, a small model that runs <strong>in-process on CPU</strong> and auto-downloads
-  once to <code>cache_dir</code> (default <code>~/.contextlake/models</code>):</li>
+<li><strong><code>builtin</code></strong>, a small model that runs <strong>in-process on CPU</strong>, auto-downloaded once to
+  <code>cache_dir</code> (default <code>~/.contextlake/models</code>). Zero daemon, zero API key.</li>
 <li><em>Embeddings</em>, <code>engine = "model2vec"</code> (default): static <code>potion-base-8M</code>
     (~30MB, MIT), numpy inference, very fast at scale, <code>pip install
     "contextlake[kb-local]"</code>. Or <code>engine = "fastembed"</code>: ONNX <code>bge-small</code> (~90MB,
     MIT, higher quality), <code>pip install "contextlake[kb-fastembed]"</code>.</li>
-<li><em>Wiki LLM</em>, a <code>Qwen2.5-0.5B-Instruct</code> GGUF (Apache-2.0) via
-    <code>llama-cpp-python</code>, <code>pip install "contextlake[llm-local]"</code>. CPU generation is
-    <strong>slow</strong> and the wiki makes ~4 calls per repo, so prefer Ollama / an API / the
-    Docker image for large workspaces.</li>
-<li><strong><code>ollama</code></strong>, a local Ollama daemon (<code>base_url</code>).</li>
-<li><strong><code>openai</code></strong>, <strong>any OpenAI-compatible API</strong> (a hosted key, or a local server like
-  LM Studio, Jan, llama.cpp, vLLM). The key is read from the env var named by
-  <code>api_key_env</code> (default <code>OPENAI_API_KEY</code>), never stored in config.</li>
+<li><em>Wiki LLM</em>, a <code>Qwen2.5-0.5B-Instruct</code> GGUF (Apache-2.0) via <code>llama-cpp-python</code>,
+    <code>pip install "contextlake[llm-local]"</code>. Fast to set up, but <strong>0.5B is a modest
+    writer</strong>, good for coverage, not polished prose, and CPU generation is <strong>slow</strong>
+    (~4 calls/repo). Prefer Ollama at any real scale. See
+    <a href="#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt wheel</a>
+    and <a href="#how-much-does-the-model-matter">How much does the model matter?</a>.</li>
+<li><strong><code>ollama</code></strong>, a local <a href="https://ollama.com">Ollama</a> daemon (<code>base_url</code>, default
+  <code>http://127.0.0.1:11434</code>), the <strong>recommended</strong> wiki backend: no Python native build,
+  and a 3B–8B model writes markedly better pages than the built-in 0.5B. See
+  <a href="#using-ollama-for-the-wiki">Using Ollama for the wiki</a>.</li>
+<li><strong><code>openai</code></strong>, <strong>any OpenAI-compatible chat API</strong> (a hosted key, or a local server like
+  LM Studio, Jan, llama.cpp, vLLM). Best prose, per-token cost. The key is read from the
+  env var named by <code>api_key_env</code> (default <code>OPENAI_API_KEY</code>), never stored in config.</li>
 </ul>
+<h3 id="configuring-the-wiki-llm">Configuring the wiki LLM<a class="anchor" href="#configuring-the-wiki-llm" title="Link to this section">#</a></h3>
+<p>Two lines is enough, passing <code>--llm</code> on the CLI implies <code>enabled = true</code>, or set both in
+<code>~/.contextlake/kb.toml</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[llm]</span>
+<span class="n">enabled</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span><span class="w">        </span><span class="c1"># auto | builtin | ollama | openai</span>
+<span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span><span class="w">    </span><span class="c1"># provider-specific model id (table below)</span>
+<span class="c1"># base_url    = &quot;http://127.0.0.1:11434&quot;   # ollama, or a local openai-compatible server</span>
+<span class="c1"># api_key_env = &quot;OPENAI_API_KEY&quot;           # openai: env var holding the key (never the key)</span>
+<span class="c1"># timeout    = 300          # seconds per model call; raise it for a slow CPU (ollama/openai)</span>
+<span class="n">council_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="w">           </span><span class="c1"># review lenses that run (1-3); fewer = fewer calls per page</span>
+<span class="n">accept_score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.7</span><span class="w">         </span><span class="c1"># mean council score a page must clear to be written</span>
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>provider</th>
+<th>example <code>model</code></th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>builtin</code></td>
+<td><code>Qwen/Qwen2.5-0.5B-Instruct-GGUF</code></td>
+<td>a HF GGUF repo id; <code>model_file</code> picks the quant</td>
+</tr>
+<tr>
+<td><code>ollama</code></td>
+<td><code>qwen2.5:3b</code>, <code>llama3.1</code>, <code>llama3.2:3b</code></td>
+<td>must be <code>ollama pull</code>ed first</td>
+</tr>
+<tr>
+<td><code>openai</code></td>
+<td><code>gpt-4o-mini</code>, or your server's model id</td>
+<td><code>base_url</code> = the API's <code>/v1</code></td>
+</tr>
+</tbody>
+</table>
+<p>CLI flags override the toml and now work on <strong><code>bootstrap</code></strong> too:
+<code>contextlake bootstrap --llm ollama --llm-model qwen2.5:3b</code>.</p>
+<h3 id="why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt wheel (or a compiler)<a class="anchor" href="#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler" title="Link to this section">#</a></h3>
+<p>The <code>builtin</code> wiki model runs a <strong>GGUF</strong> model through
+<a href="https://github.com/abetlen/llama-cpp-python"><code>llama-cpp-python</code></a>, Python bindings around
+<code>llama.cpp</code>, a <strong>C++</strong> inference engine. Native (C/C++) packages ship as <strong>prebuilt binary
+wheels</strong>, one per (OS, CPU, Python version). Two consequences explain why an extra step is
+sometimes needed and why contextlake can't do it for you:</p>
+<ol>
+<li><strong>A dependency can't carry an index URL.</strong> <code>contextlake[llm-local]</code> can only <em>name</em>
+   <code>llama-cpp-python</code>; Python packaging (PEP 508) deliberately forbids pinning an
+   <code>--extra-index-url</code> in a package's metadata (for reproducibility and supply-chain
+   safety). So contextlake cannot make <code>pip</code> look anywhere but your configured indexes
+   (PyPI by default), only <em>your</em> <code>pip</code> command can add one.</li>
+<li><strong>PyPI lags brand-new Pythons.</strong> Wheels are uploaded per interpreter version; a
+   just-released Python (e.g. <strong>3.14</strong>) often has <strong>no wheel on PyPI yet</strong>, so <code>pip</code> falls
+   back to the source tarball and tries to <strong>compile</strong>, which needs <code>cmake</code> + a C/C++
+   compiler you may not have installed. That is the build failure you saw.</li>
+</ol>
+<p>The maintainer also publishes a <strong>prebuilt CPU wheel index</strong> carrying wheels PyPI doesn't
+have yet, so pointing pip at it skips compilation entirely, no compiler needed:</p>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>llama-cpp-python<span class="w"> </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
+</code></pre></div>
+
+<p>On a mainstream Python (3.10–3.13) none of this applies, <code>pip install
+"contextlake[llm-local]"</code> finds a PyPI wheel and Just Works. It is specifically the
+bleeding-edge-interpreter case that needs the extra index. The cleanest way to avoid the
+native build altogether is to <strong>use Ollama</strong> (below), a standalone binary with no Python
+compile step.</p>
+<h3 id="using-ollama-for-the-wiki">Using Ollama for the wiki<a class="anchor" href="#using-ollama-for-the-wiki" title="Link to this section">#</a></h3>
+<p><a href="https://ollama.com">Ollama</a> is a standalone local model server. It sidesteps the native
+Python build, and a 3B–8B model writes much better wiki pages than the 0.5B built-in.</p>
+<p><strong>A) Ollama inside WSL / Linux (simplest, <code>localhost</code> just works):</strong></p>
+<div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://ollama.com/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh<span class="w">   </span><span class="c1"># installs + starts the daemon</span>
+ollama<span class="w"> </span>pull<span class="w"> </span>qwen2.5:3b<span class="w">                            </span><span class="c1"># ~1.9GB, one-time</span>
+contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span>ollama<span class="w"> </span>--llm-model<span class="w"> </span>qwen2.5:3b<span class="w">   </span><span class="c1"># whole layer in one command</span>
+<span class="c1"># or per repo:  contextlake wiki &lt;repo&gt; --llm ollama --llm-model qwen2.5:3b</span>
+</code></pre></div>
+
+<p>contextlake defaults <code>base_url</code> to <code>http://127.0.0.1:11434</code>, so usually nothing else to set.</p>
+<p><strong>B) Ollama on Windows, contextlake in WSL (the cross-boundary case).</strong> WSL2 is a separate
+network namespace, so a Windows Ollama bound to <code>127.0.0.1</code> is <strong>not reachable from WSL</strong>
+(<code>localhost:11434</code> → connection refused). Two fixes:</p>
+<ul>
+<li><em>Easiest, mirrored networking.</em> In <code>%UserProfile%\.wslconfig</code> add:
+  <code>ini
+  [wsl2]
+  networkingMode=mirrored</code>
+  then <code>wsl --shutdown</code> and reopen. Now <code>localhost</code> is shared, so the default
+  <code>base_url = "http://127.0.0.1:11434"</code> works from WSL unchanged.</li>
+<li><em>Or expose Ollama and use the host IP.</em> On Windows set <code>OLLAMA_HOST=0.0.0.0</code> (System
+  Environment Variables) and restart Ollama so it listens on all interfaces; allow it
+  through the Windows firewall. From WSL, the Windows host is your <strong>default-route
+  gateway</strong>, <em>not</em> the <code>nameserver</code> in <code>/etc/resolv.conf</code> (that is a DNS stub):
+  <code>bash
+  ip route show default | awk '{print $3}'   # e.g. 172.24.224.1  (NOT 10.255.255.254)
+  curl http://172.24.224.1:11434/api/tags    # confirm reachability</code>
+  Set <code>base_url = "http://172.24.224.1:11434"</code> in <code>[llm]</code> (your IP will differ).</li>
+</ul>
+<p>Pull the model on whichever side runs Ollama: <code>ollama pull qwen2.5:3b</code>.</p>
+<h3 id="how-much-does-the-model-matter">How much does the model matter?<a class="anchor" href="#how-much-does-the-model-matter" title="Link to this section">#</a></h3>
+<p>The wiki's quality is bounded by the model behind it. The graph facts fed in are identical;
+the difference is how well the model turns them into prose (and the verification council
+rejects weak pages regardless, so a smaller model mostly means <em>more rejections</em> and
+blander accepted pages).</p>
+<p>A measured A/B on one repo (<code>contextlake</code>, 1810 graph nodes, identical facts + 3-lens
+council) on a <strong>CPU-only</strong> host (no GPU, e.g. WSL2 without GPU passthrough):</p>
+<table>
+<thead>
+<tr>
+<th>model</th>
+<th>where</th>
+<th>speed</th>
+<th>result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>built-in <code>Qwen2.5-0.5B</code> (GGUF)</td>
+<td>in-process CPU</td>
+<td>fast enough</td>
+<td>page written (~119 words), accurate but <strong>thin and generic</strong></td>
+</tr>
+<tr>
+<td>Ollama <code>qwen2.5:1.5b</code></td>
+<td>CPU (no GPU)</td>
+<td>~1.7 tok/s</td>
+<td><strong>timed out</strong>, a full page + reviews needs ~10 min/repo</td>
+</tr>
+<tr>
+<td>Ollama <code>qwen2.5:3b</code></td>
+<td>CPU (no GPU)</td>
+<td>~0.85 tok/s</td>
+<td><strong>timed out</strong>, ~20 min/repo</td>
+</tr>
+</tbody>
+</table>
+<p>The lesson is about <strong>hardware, not model quality</strong>: a 1.5B–3B model writes better prose
+than the 0.5B, but on a CPU-only box it is too slow to finish a page in reasonable time
+(and, at fleet scale, wholly impractical). Those models shine when Ollama has a <strong>GPU</strong> , 
+e.g. Ollama on a Windows host with a discrete GPU generates in <em>seconds</em>, not minutes. So:</p>
+<ul>
+<li><strong>CPU-only, offline, quick:</strong> the <strong>built-in 0.5B</strong>, fast to set up, basic prose. Or a
+  <strong>hosted API</strong> if quality matters and you accept per-token cost.</li>
+<li><strong>GPU available (incl. Ollama on your Windows host):</strong> <strong>Ollama 3B–8B</strong>, the sweet spot
+  for readable pages at fleet scale.</li>
+<li><strong>Best prose regardless of local hardware:</strong> an <strong>API model</strong> (<code>openai</code> provider).</li>
+</ul>
+<p>If your local model is slow, raise the per-call timeout instead of letting every page fail
+silently, <code>timeout</code> in <code>[llm]</code> (seconds, default 300):</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[llm]</span>
+<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span>
+<span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span>
+<span class="n">timeout</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mi">1200</span><span class="w">        </span><span class="c1"># give a slow CPU room; default is 300s (5 min)</span>
+</code></pre></div>
+
 <p>Notes: behind a TLS-inspecting corporate proxy the first built-in download needs
 your OS CA bundle (<code>export REQUESTS_CA_BUNDLE</code> / <code>SSL_CERT_FILE</code>; see
 <code>docs/releasing.md</code>). Don't switch the embedder model/dimension against an existing
@@ -443,6 +632,7 @@ setup, and manual wiring for Claude Code / Windsurf / Kiro.</p>
 <li><a href="#code-indexing">Code indexing</a></li>
 <li><a href="#one-command-setup">One-command setup</a><ul>
 <li><a href="#keep-it-fresh-on-a-schedule">Keep it fresh on a schedule</a></li>
+<li><a href="#re-index-on-commit-git-hook">Re-index on commit (git hook)</a></li>
 </ul>
 </li>
 <li><a href="#ownership-smes">Ownership &amp; SMEs</a></li>
@@ -451,7 +641,13 @@ setup, and manual wiring for Claude Code / Windsurf / Kiro.</p>
 <li><a href="#aggregating-documents-rag">Aggregating documents (RAG)</a></li>
 <li><a href="#measuring-retrieval-quality">Measuring retrieval quality</a></li>
 <li><a href="#curated-wiki">Curated wiki</a></li>
-<li><a href="#model-providers">Model providers</a></li>
+<li><a href="#model-providers">Model providers</a><ul>
+<li><a href="#configuring-the-wiki-llm">Configuring the wiki LLM</a></li>
+<li><a href="#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt wheel (or a compiler)</a></li>
+<li><a href="#using-ollama-for-the-wiki">Using Ollama for the wiki</a></li>
+<li><a href="#how-much-does-the-model-matter">How much does the model matter?</a></li>
+</ul>
+</li>
 <li><a href="#visualizing-the-graph">Visualizing the graph</a></li>
 <li><a href="#the-dashboard">The dashboard</a></li>
 <li><a href="#serve-it-to-your-editor-mcp">Serve it to your editor (MCP)</a></li>

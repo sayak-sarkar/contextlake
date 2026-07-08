@@ -57,9 +57,11 @@ without its assumptions is marketing, not data.</p>
   intractable or hugely wasteful on a large fleet.</li>
 <li><strong>Assessing impact on and maintaining unfamiliar existing code</strong> benefits for the same
   reason: orientation is retrieval.</li>
-<li><strong>What it does <em>not</em> do:</strong> it does not reduce the tokens spent <em>generating</em> code, and
-  it helps little on true greenfield work in an empty repo (there is nothing to ground
-  against).</li>
+<li><strong>What it does <em>not</em> do (with nuance):</strong> it does not make a <em>single correct
+  generation</em> shorter, the code you need is the code you need. But across a whole task
+  it does cut <em>total</em> generation, by reducing failed attempts and reinvented code (see
+  <a href="#does-it-cut-generation-tokens">Does it cut generation tokens?</a>). It also helps little
+  on true greenfield work in an empty repo, there is nothing to ground against.</li>
 <li><strong>On cost:</strong> real but modest on per-token API billing; the larger lever is <em>rework
   avoided</em> (a hallucinated integration is a failed build, a re-prompt, and a wasted
   review), which is time and correctness more than a line item.</li>
@@ -199,9 +201,38 @@ matched</em> context instead of keyword hits the model has to guess from, <stron
 line is generated.</strong> The larger, harder-to-quantify win sits downstream: correct
 grounding prevents the hallucinated integration or the duplicate util that turns into a
 failed build, a re-prompt, and a wasted review.</p>
-<p>What contextlake does <strong>not</strong> change here is the raw generation of the new code itself,
-and it helps little on true greenfield work in an empty repo, there is nothing to
-ground against.</p>
+<p>What contextlake does <strong>not</strong> shorten is a single <em>correct</em> generation, the code you
+need is the code you need, and it helps little on true greenfield work in an empty repo,
+where there is nothing to ground against.</p>
+<h3 id="does-it-cut-generation-tokens">Does it cut generation tokens?<a class="anchor" href="#does-it-cut-generation-tokens" title="Link to this section">#</a></h3>
+<p>Short answer: not the way "measured" implies, but yes at the level of a whole task. A
+single correct generation is irreducible. What contextlake reduces is the <em>number</em> of
+generations and the <em>amount of new code</em> generated, ranked by impact:</p>
+<ol>
+<li><strong>It cuts the hallucinate → fail → regenerate loop (biggest lever).</strong> The expensive
+   thing isn't the first draft; it's the second, third, and fourth. An ungrounded model
+   invents an import, calls the wrong service, or guesses a signature; the build fails;
+   the agent regenerates. Every retry is generation tokens spent again. Grounding in the
+   <em>real</em> API/signature/pattern collapses N attempts toward 1, the failure mode that
+   dominates new-code work in a large estate.</li>
+<li><strong>Reuse instead of reinvent.</strong> When semantic search surfaces an existing
+   client/util/validator, the agent emits a <em>call</em> (a few tokens) instead of a
+   reimplementation (tens–hundreds), and doesn't add a duplicate to the codebase.</li>
+<li><strong>Surgical edits instead of full rewrites.</strong> With a precise definition + blast radius,
+   the agent emits a small diff rather than regenerating a whole file "to be safe."</li>
+<li><strong>Less defensive/exploratory/hedged output.</strong> Precise context yields one confident
+   implementation instead of multiple candidate approaches and just-in-case scaffolding.</li>
+</ol>
+<p><strong>The honest boundary:</strong> the irreducible core (typing out the correct code) can't shrink;
+if the first generation would already be correct without contextlake, the saving is ~0;
+and it can't rescue a model that ignores the context it was handed.</p>
+<blockquote>
+<p><strong>This is a mechanism argument, not a measured number.</strong> Everything labeled "measured"
+on this page is retrieval/grounding tokens. Quantifying the generation saving honestly
+means counting <em>total</em> output tokens across a real multi-attempt task, with and without
+contextlake, which we have <strong>not</strong> run. Treat the mechanisms above as <em>why</em> total
+generation drops, not as a benchmarked figure.</p>
+</blockquote>
 <h3 id="search-the-other-strong-case">Search, the other strong case<a class="anchor" href="#search-the-other-strong-case" title="Link to this section">#</a></h3>
 <p>On a large estate, brute-force search is either intractable (a concept query
 keyword-grepped fleet-wide produced <em>tens of millions</em> of tokens) or slow and noisy.
@@ -218,9 +249,11 @@ grep → read → re-grep round-trips.</p>
 <p><strong>Claude via MCP (per-token API).</strong> This is the only place token deltas map <em>directly</em>
   to money. But a per-<em>query</em> ratio is not a per-<em>session</em> saving: most agent tokens are
   reasoning, generation, and the conversation growing turn over turn, not retrieval.
-  Expect roughly <strong>10–40% fewer input tokens on retrieval-heavy sessions, and ≈0 on
-  generation-heavy ones.</strong> Meaningful across a team and a large estate; not a headline
-  cut on any single session.</p>
+  Expect roughly <strong>10–40% fewer <em>input</em> tokens on retrieval-heavy sessions, and ≈0 on
+  generation-heavy ones.</strong> (Separately, <em>output</em> tokens can drop too, via fewer failed
+  regenerations and less reinvented code, but that is a mechanism, not a measured figure;
+  see <a href="#does-it-cut-generation-tokens">Does it cut generation tokens?</a>.) Meaningful across
+  a team and a large estate; not a headline cut on any single session.</p>
 </li>
 <li>
 <p><strong>Devin (ACU).</strong> We did <strong>not</strong> measure this, and anyone quoting you an ACU number is
@@ -270,6 +303,7 @@ question mix, where the retrieval cost actually lives.</p>
 <li><a href="#results-per-query">Results (per query)</a></li>
 <li><a href="#by-use-case-honestly">By use case, honestly</a><ul>
 <li><a href="#new-code-development-the-most-important-case">New code development, the most important case</a></li>
+<li><a href="#does-it-cut-generation-tokens">Does it cut generation tokens?</a></li>
 <li><a href="#search-the-other-strong-case">Search, the other strong case</a></li>
 <li><a href="#modifying-maintaining-existing-code-a-moderate-win">Modifying / maintaining existing code, a moderate win</a></li>
 </ul>
