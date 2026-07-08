@@ -257,3 +257,30 @@ def test_cmd_ingest_writes_document_nodes(tmp_path, capsys, monkeypatch):
     finally:
         store.close()
     assert "2 document(s)" in capsys.readouterr().out
+
+
+def test_cmd_ingest_skips_disabled_sources(tmp_path, capsys, monkeypatch):
+    """A configured `[[sources]]` entry with `enabled = false` must not be
+    turned into an ingest job at all -- `disable` has to be a real no-op
+    guarantee across both connect and ingest."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "guide.md").write_text("# Guide\nstep one\n")
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+        '[[sources]]\ntype = "files"\nname = "docs"\n'
+        f'path = "{docs_dir}"\nenabled = false\n'
+    )
+
+    with pytest.raises(SystemExit) as e:
+        main(["ingest", "--config", str(cfg)])
+    assert e.value.code == 0
+    assert "No document sources" in capsys.readouterr().out
+
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    try:
+        assert store.get_node("@ingest:docs:guide.md") is None
+    finally:
+        store.close()
