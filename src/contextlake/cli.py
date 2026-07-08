@@ -63,6 +63,7 @@ _ALIASES = {"who-knows": "owners", "blast-radius": "impact"}
 _KB_COMMANDS = frozenset({
     "index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
     "graph", "doctor", "eval", "owners", "impact", "ingest", "dashboard", "hook",
+    "source",
 })
 
 # Namespace defaults for every flag. Subparsers use SUPPRESS argument defaults so a
@@ -343,6 +344,32 @@ Examples:
     p.add_argument("--force", action="store_true", default=_S,
                    help="re-index every repo (default: only repos whose HEAD moved)")
     _add_watch(p, "the index")
+
+    p = command("source",
+                "manage knowledge-source connectors "
+                "(Atlassian / Jira / Figma / GitLab / MCP)",
+                epilog="""
+Examples:
+  contextlake source add jira --type atlassian --mcp https://mcp.atlassian.com/v1/mcp/authv2
+  contextlake source list
+  contextlake source test jira
+  contextlake source disable jira
+
+`list` and `test` show the effective (merged) config -- the same precedence
+chain `connect`/`ingest`/`wiki` use -- so a source defined in a local
+.contextlake.kb.toml is visible even if it is not in the file `add`/`remove`
+write to. `remove`/`enable`/`disable` mutate a single target file (the
+--config path, else the global kb.toml); if the named source isn't found
+there, the message names that file. Note the asymmetric exit codes for a
+missing name: `remove` is a no-op (exit 0), `enable`/`disable` fail (exit 1).
+                """)
+    p.add_argument("action", choices=["add", "list", "remove", "test", "enable", "disable"])
+    p.add_argument("name", nargs="?", help="source name (required for all actions except list)")
+    p.add_argument("--type", default=_S,
+                   help="atlassian | figma | gitlab | mcp | files | web | api")
+    p.add_argument("--mcp", default=_S, help="MCP server URL (atlassian/figma/mcp)")
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                   help="extra connector option (repeatable)")
 
     p = command("connect", "enrich the graph from configured sources "
                            "(GitLab MRs/issues, Atlassian, Figma)")

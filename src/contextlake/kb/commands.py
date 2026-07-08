@@ -20,6 +20,7 @@ from .. import style
 from ..logging_setup import log
 from .config import apply_llm_overrides, load_kb_config
 from .model import Repo
+from .source_cmd import cmd_source
 from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
@@ -1613,5 +1614,5 @@ def dispatch(command: str, args) -> int:
         "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
         "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
         "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
-        "dashboard": cmd_dashboard, "hook": cmd_hook,
+        "dashboard": cmd_dashboard, "hook": cmd_hook, "source": cmd_source,
     }[command](args)
