@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`contextlake source` command family for managing connectors.** `source add|list|remove|test|enable|disable`
+  let you manage knowledge-source connectors (Atlassian, Figma, GitLab) without hand-editing `kb.toml`.
+  The CLI is guided by default (interactive prompts) and fully flagged for scripting. `list` and `test`
+  show the effective merged config and per-source reachability; `add`/`remove`/`enable`/`disable` mutate
+  the config while preserving comments via tomlkit, a new `[kb]` extra dependency. `init` can prompt to
+  connect a source during first-run setup, and `doctor` reports per-source reachability as part of its
+  environment check. Hand-editing `kb.toml` still works for power users.
+
 ## [2.37.0] - 2026-07-08
 
 ### Added

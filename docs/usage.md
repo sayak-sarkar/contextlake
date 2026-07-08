@@ -4,6 +4,11 @@
 > Start with [QUICKSTART](../QUICKSTART.md). For the knowledge layer see
 > [knowledge-layer.md](knowledge-layer.md).
 
+> **Knowledge-layer commands** (`source`, `index`, `connect`, `embed`, `ingest`,
+> `wiki`, `query`, `owners`, `impact`, `graph`, `dashboard`, etc.) are documented
+> in [knowledge-layer.md](knowledge-layer.md) with their own command reference table.
+> This guide covers mirror/sync commands only.
+
 ## Command reference
 
 Every command carries its own scoped help — `contextlake <command> --help` shows
