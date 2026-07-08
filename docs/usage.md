@@ -272,6 +272,8 @@ contextlake --config /path/to/custom.ini sync
 | `adaptive_workers` | Enable adaptive worker pool | `true` | `false` |
 | `min_workers` | Minimum workers for adaptive pool | `2` | `4` |
 | `error_threshold` | Error rate threshold for adaptive workers | `0.5` | `0.3` |
+| `clone_method` | How repos are cloned: `auto` (git+token, else glab, else git), `git`, or `glab` | `auto` | `git` |
+| `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
 
 The branch-safety settings (`require_clean_workspace`, `protect_working_branches`,
 `safe_branches`, `auto_stash`) live in their own section below, see

@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--extra-index-url`, with a "your situation → exact command" table (mirror-only, zero-config
   kb-full, upgrade, no-compiler Python 3.14, Docker-no-toolchain). The built-in-LLM wheel
   section gains the `--only-binary :all:` guard alongside the existing CPU-wheel index.
+- **Config & flag reference completeness.** Documented previously example-only keys in the
+  narrative docs (so they reach the website): `[embeddings] vector_backend` + `batch_size`,
+  `[[sources]] auth_dir`/`mcp_command`/`group`/`per_page`, the `dashboard --group-depth` flag,
+  and `clone_method`/`branch_strategy` rows in the usage settings table.
 
 ## [2.35.0] - 2026-07-08
 

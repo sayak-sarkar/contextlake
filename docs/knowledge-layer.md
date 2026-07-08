@@ -228,6 +228,10 @@ install the optional ANN backend with `pip install "contextlake[kb-vec]"` (sqlit
 for larger workspaces. Tune it with `[embeddings] vector_chunk_size` (the sqlite-vec
 `vec0` KNN chunk size, default 1024; clamped to a multiple of 8, applied when the vector
 store is first created — re-embed from scratch to change an existing store).
+`[embeddings] vector_backend` (default `auto`) picks `sqlite-vec` when that extra is
+installed and falls back to the pure-Python `brute` scan otherwise; force one with
+`vector_backend = "sqlite-vec"` or `"brute"`. `[embeddings] batch_size` (default `64`) sets
+how many nodes are embedded per batch.
 
 **What gets embedded:** the code **definitions** (classes, functions, methods,
 interfaces, structs, enums) and HTTP endpoints — each with its name, qualified name,
@@ -340,6 +344,13 @@ args = ["some-mcp-server"]
 
 So contextlake both *serves* a knowledge graph over MCP and *consumes* other MCP servers'
 resources into it — the loop closes on the same seam.
+
+**Additional `[[sources]]` keys.** Beyond the per-type keys above, connector and ingest
+sources also accept: `auth_dir` — an isolated OAuth-cache directory; set a distinct one per
+Atlassian org so their `mcp-remote` caches never collide. `mcp_command` — a local stdio MCP
+command to launch instead of a remote endpoint (e.g. `"figma-mcp --stdio"`). `group` — a
+GitLab group prefixed to each repo's path to form the project id. `per_page` — API page size
+(default `50`).
 
 ## Measuring retrieval quality
 
