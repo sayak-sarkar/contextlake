@@ -495,7 +495,7 @@ Two lines is enough — passing `--llm` on the CLI implies `enabled = true`, or 
 ```toml
 [llm]
 enabled  = true
-provider = "ollama"        # auto | builtin | ollama | openai
+provider = "ollama"        # auto | builtin | ollama | openai | anthropic | cli
 model    = "qwen2.5:3b"    # provider-specific model id (table below)
 # base_url    = "http://127.0.0.1:11434"   # ollama, or a local openai-compatible server
 # api_key_env = "OPENAI_API_KEY"           # openai: env var holding the key (never the key)

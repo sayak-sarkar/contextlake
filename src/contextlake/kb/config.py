@@ -95,7 +95,7 @@ class LlmCfg(BaseModel):
 
     model_config = ConfigDict(extra="allow")
     enabled: bool = False
-    # auto | ollama | openai | builtin. "auto" resolves to a reachable local
+    # auto | ollama | openai | builtin | anthropic | cli. "auto" resolves to a reachable local
     # Ollama, else the built-in CPU LLM (needs the `llm-local` extra), else skips.
     provider: str = "auto"
     model: str | None = None
