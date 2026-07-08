@@ -104,6 +104,19 @@ def test_cli_generate_custom_args_override_preset(monkeypatch):
     assert seen["argv"] == ["mycli", "--flag"]
 
 
+def test_cli_args_override_populated_preset(monkeypatch):
+    seen = {}
+
+    def fake_run(argv, **k):
+        seen["argv"] = argv
+        return _FakeCompleted(stdout="x")
+
+    monkeypatch.setattr(cli_mod.subprocess, "run", fake_run)
+    # `claude` HAS a preset (["-p"]); explicit args must win over it
+    CliLlm(command="claude", args=["--model", "opus"]).generate("hi")
+    assert seen["argv"] == ["claude", "--model", "opus"]
+
+
 def test_cli_generate_nonzero_exit_returns_blank(monkeypatch):
     monkeypatch.setattr(cli_mod.subprocess, "run",
                         lambda argv, **k: _FakeCompleted(returncode=1, stderr="boom"))
