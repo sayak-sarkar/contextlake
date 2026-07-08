@@ -35,8 +35,9 @@ def blast_radius(store, node_id: str, *, hops: int = 3,
     """Breadth-first walk of INCOMING edges (callers / dependents) from ``node_id``.
 
     Goes up to ``hops`` levels, capped at ``limit`` hits, over ``relations``
-    (default ``calls`` + ``depends_on`` + ``inherits``). Returns ``(hits, truncated)``;
-    ``truncated`` is True when the cap was reached (a bounded slice, never exhaustive).
+    (default ``calls`` + ``depends_on`` + ``inherits`` + ``references``).
+    Returns ``(hits, truncated)``; ``truncated`` is True when the cap was
+    reached (a bounded slice, never exhaustive).
     """
     rels = set(relations or DEFAULT_RELATIONS)
     seen = {node_id}
