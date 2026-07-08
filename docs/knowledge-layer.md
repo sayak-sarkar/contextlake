@@ -8,6 +8,28 @@ indexes *any* repositories and connects to *any* configured knowledge sources; n
 organization-specific data lives in the package (your sites, keys, and rules go in
 a private config file).
 
+## Command reference
+
+Each command has scoped help via `contextlake <command> --help`. The knowledge-layer
+commands are:
+
+| Command | What it does |
+| --- | --- |
+| `source` | add / list / remove / test / enable / disable knowledge-source connectors |
+| `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
+| `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
+| `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
+| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
+| `wiki` | LLM-synthesized, council-verified wiki pages; `--llm builtin|ollama|openai|anthropic|cli` enables the LLM tier inline |
+| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
+| `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`) |
+| `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`) |
+| `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
+| `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
+| `eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
+| `lint` | Graph health audit: stale repos, dangling edges |
+| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability |
+
 ## Setup
 
 Install the extra (requires Python ≥ 3.10):
@@ -252,6 +274,40 @@ Adding another connector is a small, self-contained module, and its output lands
 graph partition — so re-indexing a repo's code never disturbs its external links. Configure
 connectors by copying [`examples/kb.toml.example`](../examples/kb.toml.example) to
 `~/.contextlake/kb.toml`.
+
+### Managing sources: the `source` command family
+
+Editing `kb.toml` by hand works, but for everyday use `contextlake source` commands let you add,
+test, and manage connectors without touching the config file. They rewrite `kb.toml` while
+preserving your comments, and work alongside hand-editing if you mix approaches.
+
+**The commands:**
+
+- **`contextlake source add [--name NAME]`**: guided prompt to add a new connector. Asks for the
+  connector type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to
+  `kb.toml`. Pass `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all).
+- **`contextlake source list`**: show all configured connectors (the effective merged config from
+  `~/.contextlake/kb.toml`, `.contextlake/kb.toml` if present, and the built-in defaults), with
+  reachability status.
+- **`contextlake source test [SOURCE]`**: verify that a specific connector works (or test all if
+  no name given). Reaches its API, reads credentials from the configured env var, lists available
+  items. Shows you exactly what each source will ingest without running a full `connect`.
+- **`contextlake source enable|disable SOURCE`**: toggle a connector on/off in the config by
+  name, so you can pause one without deleting it.
+- **`contextlake source remove SOURCE`**: delete a connector entry by name.
+
+**Example workflow:**
+
+```bash
+contextlake source add                # interactive: what type? which workspace?
+contextlake source list               # show what you've configured + status
+contextlake source test my-atlassian  # does it work? what's in scope?
+contextlake connect                   # now link repos to their items
+```
+
+`init` can also prompt you to connect a source during first-run setup, and `doctor` reports
+per-source reachability as part of its environment check, so hand-editing is optional; the CLI
+guides you through the whole flow.
 
 **Every fact carries its receipt.** Each is provenance-stamped (source file + verified date)
 and confidence-tagged as one of three tiers — **`EXTRACTED`** (read straight from source/AST),
