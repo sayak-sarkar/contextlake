@@ -17,7 +17,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 from contextlake.kb import config as kbcfg
 from contextlake.kb import source_cmd
