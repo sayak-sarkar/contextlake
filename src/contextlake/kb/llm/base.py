@@ -46,6 +46,16 @@ def build_llm(cfg) -> LlmClient | None:
             api_key_env=getattr(cfg, "api_key_env", "OPENAI_API_KEY"),
             timeout=getattr(cfg, "timeout", 300),
         )
+    if provider == "anthropic":
+        from .anthropic import AnthropicLlm
+
+        return AnthropicLlm(
+            model=cfg.model or "claude-opus-4-8",
+            base_url=getattr(cfg, "base_url", "https://api.anthropic.com"),
+            api_key_env=getattr(cfg, "api_key_env", "ANTHROPIC_API_KEY"),
+            max_tokens=getattr(cfg, "max_tokens", 4096),
+            timeout=getattr(cfg, "timeout", 300),
+        )
     if provider == "builtin":
         return _build_builtin_llm(cfg)
     if provider == "auto":
