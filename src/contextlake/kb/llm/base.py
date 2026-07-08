@@ -56,6 +56,14 @@ def build_llm(cfg) -> LlmClient | None:
             max_tokens=getattr(cfg, "max_tokens", 4096),
             timeout=getattr(cfg, "timeout", 300),
         )
+    if provider == "cli":
+        from .cli import CliLlm
+
+        return CliLlm(
+            command=getattr(cfg, "command", None) or "claude",
+            args=getattr(cfg, "args", None),
+            timeout=getattr(cfg, "timeout", 300),
+        )
     if provider == "builtin":
         return _build_builtin_llm(cfg)
     if provider == "auto":
