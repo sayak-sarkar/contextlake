@@ -127,3 +127,8 @@ def test_cmd_impact_ambiguous_name_lists_repos(tmp_path, capsys):
     assert e.value.code == 1
     out = capsys.readouterr().out
     assert "ambiguous" in out and "--repo a" in out and "--repo b" in out
+
+
+def test_default_relations_includes_references():
+    from contextlake.kb.impact import DEFAULT_RELATIONS
+    assert "references" in DEFAULT_RELATIONS
