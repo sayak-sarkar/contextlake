@@ -41,7 +41,7 @@ _CASES = [
     ("impact of modifying the billing module", IMPACT, "billing"),
     ("who owns the orders-api", OWNERS, "orders-api"),
     ("who knows about payment-gateway", OWNERS, "payment-gateway"),
-    ("who is the SME for flx-sp-ai", OWNERS, "flx-sp-ai"),
+    ("who is the SME for billing-api", OWNERS, "billing-api"),
     ("explain the order-service architecture", EXPLAIN, "order-service"),
     ("how does OrderService work", EXPLAIN, "OrderService"),
     ("what is the billing-service", EXPLAIN, "billing-service"),
