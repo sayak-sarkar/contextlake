@@ -81,14 +81,70 @@ def _top_level_blocks(root: ts.Node) -> list[ts.Node]:
     return out
 
 
+def _reference_segments(var_expr: ts.Node) -> tuple[str, list[str]]:
+    """From a ``variable_expr`` node, return (root_identifier, [segment, ...]).
+
+    Segments are the consecutive following ``get_attr`` siblings' identifiers,
+    stopping at the first non-``get_attr`` sibling (index/splat/operator), so
+    ``aws_x.y[0].id`` and ``aws_x.y[*].id`` both yield root ``aws_x``, segs ``[y]``.
+    """
+    root = _text(var_expr)
+    segs: list[str] = []
+    sib = var_expr.next_sibling
+    while sib is not None and sib.type == "get_attr":
+        ident = next((c for c in sib.children if c.type == "identifier"), None)
+        if ident is None:
+            break
+        segs.append(_text(ident))
+        sib = sib.next_sibling
+    return root, segs
+
+
+def _reference_address(root: str, segs: list[str]) -> str | None:
+    """Map (root, segments) to a target Terraform address (None if not a ref)."""
+    if root in _META_ROOTS:
+        return None
+    if root == "var":
+        return f"var.{segs[0]}" if segs else None
+    if root == "local":
+        return f"local.{segs[0]}" if segs else None
+    if root == "module":
+        return f"module.{segs[0]}" if segs else None
+    if root == "data":
+        return f"data.{segs[0]}.{segs[1]}" if len(segs) >= 2 else None
+    # a resource-type reference: <type>.<name>
+    return f"{root}.{segs[0]}" if segs else None
+
+
+def _walk(node: ts.Node):
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        yield n
+        stack.extend(n.children)
+
+
+def _enclosing_local_attr(node: ts.Node) -> ts.Node | None:
+    """The ``attribute`` node directly under a ``locals`` block body, if any."""
+    n = node
+    while n is not None:
+        if n.type == "attribute" and n.parent is not None and n.parent.type == "body" \
+                and n.parent.parent is not None and n.parent.parent.type == "block":
+            block = n.parent.parent
+            kids = block.children
+            if kids and kids[0].type == "identifier" and _text(kids[0]) == "locals":
+                return n
+        n = n.parent
+    return None
+
+
 def parse_hcl(
     repo_id: str, rel_path: str, source: bytes, verified_at: date | None = None
 ) -> tuple[list[Node], list[tuple[str, str, str, int]]]:
     """Parse one ``.tf`` file into (definition nodes, unresolved depends_on refs).
 
     Refs are ``(src_node_id, target_address, rel_path, line)`` - resolved
-    repo-wide by :func:`.parse.index_repo_dir`. This task returns refs empty;
-    Task 2 fills them.
+    repo-wide by :func:`.parse.index_repo_dir`.
     """
     verified_at = verified_at or date.today()
     tree = _parser().parse(source)
@@ -135,5 +191,43 @@ def parse_hcl(
                 ))
         # provider / terraform / backend / moved / import / ... : not a def
 
-    refs: list[tuple[str, str, str, int]] = []  # Task 2 fills this
+    refs: list[tuple[str, str, str, int]] = []
+
+    def _src_id_for(node: ts.Node) -> str | None:
+        # A ref inside a locals block belongs to its specific local.<attr> node.
+        top_block: ts.Node | None = None
+        n = node
+        while n is not None:
+            if n.type == "block":
+                top_block = n
+            n = n.parent
+        if top_block is None:
+            return None
+        kids = top_block.children
+        if kids and kids[0].type == "identifier" and _text(kids[0]) == "locals":
+            attr = _enclosing_local_attr(node)
+            if attr is None:
+                return None
+            name_node = attr.child_by_field_name("name") or (
+                attr.named_child(0) if attr.named_child_count else None)
+            if name_node is None:
+                return None
+            return make_id(repo_id, rel_path, f"local.{_text(name_node)}")
+        return block_to_id.get(top_block.id)
+
+    seen: set[tuple[str, str]] = set()
+    for var_expr in (n for n in _walk(tree.root_node) if n.type == "variable_expr"):
+        root, segs = _reference_segments(var_expr)
+        address = _reference_address(root, segs)
+        if address is None:
+            continue
+        src_id = _src_id_for(var_expr)
+        if src_id is None:
+            continue
+        key = (src_id, address)
+        if key in seen:
+            continue  # dedup implicit + explicit (depends_on) references
+        seen.add(key)
+        refs.append((src_id, address, rel_path, var_expr.start_point[0] + 1))
+
     return nodes, refs
