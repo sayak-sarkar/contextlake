@@ -131,6 +131,13 @@ def test_parse_review_does_not_fabricate_score_from_null_score_json():
     assert r["parsed"] is False
 
 
+def test_parse_review_abstains_on_count_noun_phrasing():
+    # "score of 0 issues" / "rating of 1 reviewer" are count nouns, not scores;
+    # the labeled-score separator set must not treat "of" as a score separator.
+    assert _parse_review("a score of 0 issues were found")["parsed"] is False
+    assert _parse_review("the rating of 1 reviewer was negative")["parsed"] is False
+
+
 def test_parse_review_abstains_on_unseparated_prose_index():
     # Even in genuinely unparseable text, a bare "rating 1" (no separator) reads as
     # an index/ordinal, not a labeled score -- must not match.
