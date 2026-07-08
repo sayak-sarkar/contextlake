@@ -332,3 +332,10 @@ def test_resource_kind_is_embeddable():
     # non-meaningful HCL kinds stay out of semantic search
     for k in ("variable", "output", "data", "module", "local"):
         assert k not in EMBEDDABLE_KINDS
+
+
+def test_sql_table_and_view_are_embeddable():
+    from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
+    assert "table" in EMBEDDABLE_KINDS
+    assert "view" in EMBEDDABLE_KINDS
+    assert "procedure" not in EMBEDDABLE_KINDS  # low signal without a signature

@@ -39,15 +39,16 @@ def node_text(node) -> str:
 
 
 # Kinds worth a semantic vector: code definitions (unique per repo, carrying real
-# names + signatures + docstrings) plus HTTP endpoints and infrastructure resources.
-# Deliberately EXCLUDES file nodes (a path is not a semantic query), and the cross-repo
-# *shared* nodes — module / package / topic — whose ids repeat across repos, which
-# otherwise get re-embedded once per referencing repo (wasted compute, an inflated
-# "written" count) and dilute results with low-signal hits. Dependents/flow tools
-# cover those. Low-signal HCL kinds (variable, output, data, module, local) stay out.
+# names + signatures + docstrings), data objects (tables and views), plus HTTP endpoints
+# and infrastructure resources. Deliberately EXCLUDES file nodes (a path is not a semantic
+# query), and the cross-repo *shared* nodes — module / package / topic — whose ids repeat
+# across repos, which otherwise get re-embedded once per referencing repo (wasted compute,
+# an inflated "written" count) and dilute results with low-signal hits. Dependents/flow
+# tools cover those. Low-signal HCL kinds (variable, output, data, module, local) and
+# SQL procedures (low signal without a signature) stay out.
 EMBEDDABLE_KINDS = frozenset(
     {"class", "function", "method", "interface", "struct", "enum", "endpoint",
-     "resource"})
+     "resource", "table", "view"})
 
 
 def embed_repo(store_dir, vector_store, embedder, repo_id, *,
