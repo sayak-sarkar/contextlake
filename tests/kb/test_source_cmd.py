@@ -238,6 +238,21 @@ def test_test_reports_unreachable_and_never_raises(tmp_path, gls_logs, monkeypat
     assert "connection refused" in gls_logs.text
 
 
+def test_test_no_probe_for_type_is_neutral_not_a_failure(tmp_path, gls_logs):
+    """A type with no reachability check (e.g. gitlab) is a perfectly valid,
+    configured source -- `source test` must report it neutrally and exit 0,
+    not paint it red as a failed test."""
+    cfg = tmp_path / "kb.toml"
+    source_cmd.cmd_source(_args("add", str(cfg), type="gitlab", name="gl"))
+    gls_logs.clear()
+    rc = source_cmd.cmd_source(_args("test", str(cfg), name="gl"))
+    assert rc == 0
+    out = gls_logs.text
+    assert "gl" in out
+    assert "no reachability check" in out
+    assert "source is configured" in out
+
+
 def test_test_unknown_source_name_fails_cleanly(tmp_path, gls_logs):
     cfg = tmp_path / "kb.toml"
     rc = source_cmd.cmd_source(_args("test", str(cfg), name="ghost"))

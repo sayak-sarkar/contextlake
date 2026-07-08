@@ -245,6 +245,13 @@ def verify_source(src, timeout: float | None = None) -> tuple[bool, str]:
         return False, str(e)
 
 
+# Types with an actual reachability probe in verify_source() above -- used to
+# tell "probed and unreachable" (a real test failure) apart from "no probe
+# available for this type" (the source may be perfectly valid; there's simply
+# nothing here to dial).
+_PROBED_TYPES = {"atlassian", "figma", "mcp"}
+
+
 def cmd_source_test(args) -> int:
     name = _require_name(args)
     if name is None:
@@ -258,6 +265,11 @@ def cmd_source_test(args) -> int:
 
     ok, detail = verify_source(src)
     label = f"{name} ({src.type})"
+    if not ok and src.type not in _PROBED_TYPES:
+        # A neutral result, not a failure: this source type just has nothing
+        # to dial, e.g. `gitlab` -- the source is otherwise perfectly valid.
+        log(f"{label}: {detail} (source is configured)")
+        return 0
     log(f"{style.ok(label) if ok else style.fail(label)}: {detail}")
     return 0 if ok else 1
 
