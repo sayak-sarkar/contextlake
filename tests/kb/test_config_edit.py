@@ -86,3 +86,15 @@ def test_resolve_write_target_honors_explicit_path(tmp_path):
 
     explicit = tmp_path / "explicit.toml"
     assert resolve_write_target(str(explicit)) == explicit
+
+
+def test_write_is_atomic_no_partial_file_left_and_content_intact(tmp_path):
+    """`_write_document` writes via a temp sibling + os.replace, so a normal
+    write leaves no stray temp file behind and the target has full content."""
+    cfg = tmp_path / "kb.toml"
+    add_source(str(cfg), {"type": "gitlab", "name": "gl"})
+    add_source(str(cfg), {"type": "figma", "name": "designs", "mcp": "https://f"})
+
+    assert not list(tmp_path.glob("*.tmp"))
+    srcs = _toml(cfg)["sources"]
+    assert [s["name"] for s in srcs] == ["gl", "designs"]
