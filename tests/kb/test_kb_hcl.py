@@ -72,3 +72,25 @@ def test_parse_hcl_extracts_top_level_block_defs():
     assert res.file == "main.tf" and res.lang == "hcl"
     assert res.qualified_name == "main.tf::aws_s3_bucket.logs"
     assert res.line_start and res.line_end and res.line_end >= res.line_start
+
+
+def _addr_of(nodes, node_id):
+    return next(n.name for n in nodes if n.id == node_id)
+
+
+def test_parse_hcl_reconstructs_references():
+    nodes, refs = parse_hcl("infra/net", "main.tf", MAIN_TF,
+                            verified_at=date(2026, 7, 8))
+    # translate (src_id, address) -> (src_address, target_address)
+    pairs = {(_addr_of(nodes, src), tgt) for src, tgt, _f, _ln in refs}
+
+    assert ("aws_s3_bucket.logs", "var.bucket_name") in pairs
+    assert ("aws_s3_bucket.logs", "var.region") in pairs
+    # implicit (.id) AND explicit (depends_on=[...]) both reference the bucket
+    assert ("aws_s3_bucket_policy.logs_policy", "aws_s3_bucket.logs") in pairs
+    assert ("aws_s3_bucket_policy.logs_policy", "data.aws_caller_identity.current") in pairs
+    assert ("module.network", "var.region") in pairs
+    assert ("local.full_name", "var.bucket_name") in pairs
+    assert ("output.bucket_arn", "aws_s3_bucket.logs") in pairs
+    # meta roots (each/count/path/self/terraform) never produce a ref address
+    assert not any(t.startswith(("each.", "count.", "path.", "self.")) for _s, t, _f, _l in refs)
