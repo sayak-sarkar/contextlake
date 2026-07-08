@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Install-flag guidance + scenario cheatsheet.** QUICKSTART now documents `-U`,
+  `--only-binary :all:` (wheels-only, for compiler-less / brand-new-Python machines), and
+  `--extra-index-url`, with a "your situation → exact command" table (mirror-only, zero-config
+  kb-full, upgrade, no-compiler Python 3.14, Docker-no-toolchain). The built-in-LLM wheel
+  section gains the `--only-binary :all:` guard alongside the existing CPU-wheel index.
+
 ## [2.35.0] - 2026-07-08
 
 ### Added
