@@ -56,7 +56,7 @@ kb = [
     "tree-sitter-c-sharp>=0.23", "tree-sitter-go>=0.23", "tree-sitter-java>=0.23",
     "tree-sitter-c>=0.23", "tree-sitter-cpp>=0.23", "tree-sitter-rust>=0.23",
     "tree-sitter-ruby>=0.23", "tree-sitter-php>=0.23", "tree-sitter-scala>=0.23",
-    "tree-sitter-hcl>=1.2",
+    "tree-sitter-hcl>=1.2", "tree-sitter-kotlin>=1.1",
 ]
 # Optional ANN backend for the semantic tier. Without it the vector store falls
 # back to an exact pure-Python cosine scan (no native dependency required).

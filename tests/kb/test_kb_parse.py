@@ -243,10 +243,55 @@ def test_parse_scala():
     assert "Handler" in {base for _s, base, _f, _l in inh}   # extends Handler
 
 
+def test_parse_kotlin():
+    src = (
+        b"package com.example.demo\n"
+        b"import kotlinx.coroutines.launch\n"
+        b"import com.example.Base\n\n"
+        b"interface Repository {\n"
+        b"    fun findById(id: String): Order?\n"
+        b"}\n\n"
+        b"sealed class Result {\n"
+        b"    data class Success(val order: Order) : Result()\n"
+        b"    object Empty : Result()\n"
+        b"}\n\n"
+        b"enum class Status { ACTIVE, CANCELLED }\n\n"
+        b"class OrderService(private val repo: Repository) : Base(), Repository {\n"
+        b"    companion object {\n"
+        b"        fun create(): OrderService = OrderService(InMemoryRepo())\n"
+        b"    }\n"
+        b"    fun process(id: String): Result {\n"
+        b"        return helper(id)\n"
+        b"    }\n"
+        b"}\n\n"
+        b"fun freeFunction() {\n"
+        b"    doThing()\n"
+        b"}\n"
+    )
+    nodes, edges, calls, inherits = parse_source("team/kt", "Svc.kt", src, "kotlin")
+    by_kind: dict[str, set] = {}
+    for n in nodes:
+        by_kind.setdefault(n.kind, set()).add(n.name)
+    # interface/enum/data/sealed/class ALL map to kind "class" (intentional collapse)
+    assert {"Repository", "Result", "Success", "Status", "OrderService"} <= by_kind["class"]
+    # a top-level fun is a function; a fun inside a class is a method
+    assert "freeFunction" in by_kind["function"]
+    assert "process" in by_kind.get("method", set())
+    # imports -> module nodes
+    modules = {n.name for n in nodes if n.kind == "module"}
+    assert "kotlinx.coroutines.launch" in modules or "com.example.Base" in modules
+    # unresolved calls captured (callee names)
+    callee_names = {c[1] for c in calls}
+    assert "doThing" in callee_names or "helper" in callee_names
+    # inheritance captured (subclass -> base name); Base and Repository are bases
+    base_names = {i[1] for i in inherits}
+    assert "Base" in base_names or "Repository" in base_names
+
+
 def test_lang_by_ext_covers_target_languages():
     from contextlake.kb.parse import LANG_BY_EXT
     for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs", ".go", ".java",
-                ".c", ".h", ".cpp", ".hpp", ".rs", ".rb", ".php", ".scala"):
+                ".c", ".h", ".cpp", ".hpp", ".rs", ".rb", ".php", ".scala", ".kt"):
         assert ext in LANG_BY_EXT
 
 
