@@ -41,9 +41,11 @@ each layer above it is optional.
 1. **Mirror**: clone every repo you can reach in a **GitLab group, GitHub org, Bitbucket
    workspace, or Gitea/Codeberg/Forgejo owner** into a faithful copy of its namespace tree,
    each on its most active branch, kept fresh with one command.
-2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph**, add
-   **semantic search**, a council-verified **wiki** (each page reviewed and scored before
-   publishing, low-confidence pages dropped), and **connectors** to Atlassian / Figma / GitLab.
+2. **Knowledge layer** *(optional)*: parse the mirror into a code + dependency **graph** across
+   **14 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
+   (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
+   reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
+   Atlassian / Figma / GitLab.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
