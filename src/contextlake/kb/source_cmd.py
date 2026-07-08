@@ -173,10 +173,12 @@ def cmd_source_disable(args) -> int:
 
 # --- test (reachability) ----------------------------------------------------
 
-def _verify_atlassian(src) -> tuple[bool, str]:
+def _verify_atlassian(src, timeout: float | None = None) -> tuple[bool, str]:
     from .connectors.orchestrate import build_atlassian
 
     conn = build_atlassian(src)
+    if timeout is not None:
+        conn.timeout = timeout
     sites = conn.discover_sites()
     if not sites:
         return False, "MCP reachable, but no Atlassian sites accessible to this token"
@@ -200,15 +202,16 @@ def _verify_figma(src) -> tuple[bool, str]:
     return False, f"MCP configured, but design file {file_key!r} was not reachable"
 
 
-def _verify_mcp(src) -> tuple[bool, str]:
+def _verify_mcp(src, timeout: float | None = None) -> tuple[bool, str]:
     import asyncio
 
     from .sources.mcp import McpSource
 
     extra = getattr(src, "model_extra", None) or {}
+    effective_timeout = timeout if timeout is not None else extra.get("timeout", 60)
     source = McpSource(
         command=extra.get("command"), args=extra.get("args"), url=extra.get("url"),
-        env=extra.get("env"), timeout=extra.get("timeout", 60),
+        env=extra.get("env"), timeout=effective_timeout,
     )
     if not source.command and not source.url:
         return False, "no `command` or `url` configured for this mcp source"
@@ -218,19 +221,25 @@ def _verify_mcp(src) -> tuple[bool, str]:
     return True, f"{len(docs)} resource(s) listed"
 
 
-def verify_source(src) -> tuple[bool, str]:
+def verify_source(src, timeout: float | None = None) -> tuple[bool, str]:
     """Best-effort reachability check for a configured source. Never raises.
 
     Dispatches to each connector's own verify/discovery path -- no connectivity
     logic is reimplemented here. Reused by ``contextlake doctor``.
+
+    ``timeout``, when given, bounds the connector's own reachability call (the
+    atlassian and mcp connectors default to a 120s/60s timeout, which would
+    otherwise let ``doctor``'s per-source loop hang on an unreachable source).
+    Standalone ``source test`` leaves it unset, keeping each connector's
+    default.
     """
     try:
         if src.type == "atlassian":
-            return _verify_atlassian(src)
+            return _verify_atlassian(src, timeout=timeout)
         if src.type == "figma":
             return _verify_figma(src)
         if src.type == "mcp":
-            return _verify_mcp(src)
+            return _verify_mcp(src, timeout=timeout)
         return False, f"no reachability check for type {src.type!r}"
     except Exception as e:  # noqa: BLE001 - test must report, never raise
         return False, str(e)
