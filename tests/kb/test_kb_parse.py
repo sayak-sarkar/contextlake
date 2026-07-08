@@ -264,8 +264,13 @@ def test_parse_kotlin():
         b"        return helper(id)\n"
         b"    }\n"
         b"}\n\n"
+        b"class Repo2 : com.example.Base(), Comparable<Order> {\n"
+        b"}\n\n"
         b"fun freeFunction() {\n"
         b"    doThing()\n"
+        b"}\n\n"
+        b"fun Order.validate() {\n"
+        b"    check()\n"
         b"}\n"
     )
     nodes, edges, calls, inherits = parse_source("team/kt", "Svc.kt", src, "kotlin")
@@ -273,10 +278,15 @@ def test_parse_kotlin():
     for n in nodes:
         by_kind.setdefault(n.kind, set()).add(n.name)
     # interface/enum/data/sealed/class ALL map to kind "class" (intentional collapse)
-    assert {"Repository", "Result", "Success", "Status", "OrderService"} <= by_kind["class"]
+    assert {"Repository", "Result", "Success", "Status", "OrderService", "Repo2"} \
+        <= by_kind["class"]
     # a top-level fun is a function; a fun inside a class is a method
     assert "freeFunction" in by_kind["function"]
     assert "process" in by_kind.get("method", set())
+    # an extension function (fun Order.validate()) is a top-level function named after
+    # the function itself, not the receiver type
+    assert "validate" in by_kind["function"]
+    assert "Order" not in by_kind["function"]
     # imports -> module nodes
     modules = {n.name for n in nodes if n.kind == "module"}
     assert "kotlinx.coroutines.launch" in modules
@@ -289,13 +299,21 @@ def test_parse_kotlin():
     base_names = {i[1] for i in inherits}
     assert "Base" in base_names
     assert "Repository" in base_names
+    # dotted supertype (com.example.Base) resolves to its last segment only; the
+    # intermediate package segments must NOT leak in as spurious bases
+    assert "com" not in base_names and "example" not in base_names
+    # generic supertype (Comparable<Order>) resolves to the bare type name; the type
+    # argument (Order) must NOT leak in as a spurious base
+    assert "Comparable" in base_names
+    assert "Order" not in base_names
 
 
 def test_lang_by_ext_covers_target_languages():
     from contextlake.kb.parse import LANG_BY_EXT
     for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs", ".go", ".java",
-                ".c", ".h", ".cpp", ".hpp", ".rs", ".rb", ".php", ".scala", ".kt"):
+                ".c", ".h", ".cpp", ".hpp", ".rs", ".rb", ".php", ".scala", ".kt", ".kts"):
         assert ext in LANG_BY_EXT
+    assert LANG_BY_EXT[".kts"] == "kotlin"
 
 
 def test_cross_repo_dependency_via_shared_package(tmp_path):

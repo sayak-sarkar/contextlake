@@ -66,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `extends`/`implements`); Scala (classes, objects, traits, methods, calls, `extends`).
   The parser now covers **13 languages**. (`.rs .rb .php .scala/.sc`.) Kotlin was
   evaluated but deferred — the available tree-sitter grammar is too inconsistent to index
-  reliably.
+  reliably (superseded, see the Unreleased section).
 - **Go, Java, C, and C++ are now indexed.** Four more tree-sitter grammars: Go
   (functions, methods, struct/interface types, imports, calls); Java (classes,
   interfaces, enums, records, methods, constructors, imports, calls, full inheritance);

@@ -318,8 +318,8 @@ _QUERIES = {
         (function_declaration name: (identifier) @def)
         (import (qualified_identifier) @import)
         (call_expression (identifier) @call)
-        (delegation_specifier (constructor_invocation (user_type (identifier) @base)))
-        (delegation_specifier (user_type (identifier) @base))
+        (delegation_specifier (constructor_invocation (user_type) @base))
+        (delegation_specifier (user_type) @base)
     """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
@@ -575,9 +575,13 @@ def parse_source(
     # Inherits: (subclass_id, base_name, file, line) — the base may be defined in
     # another file, so resolve repo-wide later (like calls). A dotted/qualified base
     # (django.views.View) keeps only its last segment, matching how defs are named.
+    # A generic base (Comparable<Order> in Kotlin, IComparable<Order> in C#'s
+    # generic_name capture) drops the type-argument suffix first, so only the bare
+    # base name remains; both strips are no-ops for the other languages, whose @base
+    # capture never contains "<" or ".".
     inherits: list[tuple[str, str, str, int]] = []
     for base_node in captures.get("base", []):
-        base = base_node.text.decode("utf-8", "replace").split(".")[-1].strip()
+        base = base_node.text.decode("utf-8", "replace").split("<")[0].split(".")[-1].strip()
         sub_id = None
         node = base_node.parent
         while node is not None:
