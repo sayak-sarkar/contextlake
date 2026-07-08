@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.35.0] - 2026-07-08
+
 ### Added
 
 - **Rust, Ruby, PHP, and Scala are now indexed** too. Rust (functions, structs, enums,
