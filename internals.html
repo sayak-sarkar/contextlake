@@ -262,8 +262,9 @@ over the mirrored repos. Its pieces:</p>
   built from per-repo JSON <strong>shards</strong> (<code>shards.py</code>), the durable source of truth.
   Each shard is also snapshotted by commit under <code>history/</code> for bi-temporal queries.</li>
 <li><strong>Extraction</strong> (<code>kb/parse.py</code>, <code>kb/manifest.py</code>, <code>kb/references.py</code>): tree-sitter
-  builds the code graph (defs/imports/containment + an inferred call graph) for
-  Python/JS/TS/C#; manifests yield the cross-repo dependency graph; references capture
+  builds the code graph (defs/imports/containment + an inferred call graph) across 13
+  languages (Python, JS/TS(X), C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala); manifests
+  yield the cross-repo dependency graph; references capture
   issue keys and doc links.</li>
 <li><strong>Connectors</strong> (<code>kb/connectors/</code>): Atlassian, Figma, and GitLab sources on one
   generic seam (fetched over MCP / <code>glab</code>), written into an isolated graph partition

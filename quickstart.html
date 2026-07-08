@@ -123,16 +123,28 @@ key or a local server like LM Studio / Jan). The key is read from an env var, ne
 stored in config. Everything here is optional; the graph and search work with no
 model at all.</p>
 <h2 id="4-bootstrap-one-command">4. Bootstrap, one command<a class="anchor" href="#4-bootstrap-one-command" title="Link to this section">#</a></h2>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
 
 <p>Both config files are read from the default locations above; pass <code>--config</code> /
 <code>--kb-config</code> only if you keep them elsewhere.</p>
-<p>It mirrors your repos, indexes them into the graph, runs your connectors, and writes
-the editor steering. Useful toggles:</p>
+<p>This mirrors your repos and builds the <strong>entire</strong> knowledge layer in one command:
+graph → connectors → semantic vectors → <strong>curated wiki</strong> → editor steering. Everything
+generated (graph, vectors, wiki pages, exports) lands under a single <code>store_dir</code>, so
+pointing that at a workspace folder (e.g. <code>store_dir = "~/work/my-kb"</code>) keeps the whole
+knowledge base in one easy-to-find place.</p>
+<p><code>--llm builtin</code> powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once)
+via the <code>llm-local</code> extra, <code>pip install "contextlake[llm-local]"</code>. If that extra fails
+to build (<code>llama-cpp-python</code> has no prebuilt wheel for your Python, e.g. 3.14, and no
+compiler is installed), install the CPU wheel directly, no compiler needed:</p>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>llama-cpp-python<span class="w"> </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
+</code></pre></div>
+
+<p>Prefer <code>--llm ollama</code> or <code>--llm openai</code> for higher-quality prose; without any <code>--llm</code>
+(and without <code>[llm]</code> enabled in <code>kb.toml</code>) the wiki stage is skipped. Useful toggles:</p>
 <ul>
 <li>already have the repos cloned? add <code>--no-sync</code></li>
-<li>no model configured yet? add <code>--no-embed --no-wiki</code></li>
+<li>no model configured yet? drop <code>--llm</code> and add <code>--no-embed</code> (graph + search still build)</li>
 </ul>
 <h2 id="5-wire-your-editor">5. Wire your editor<a class="anchor" href="#5-wire-your-editor" title="Link to this section">#</a></h2>
 <p><code>bootstrap</code> already wrote <code>.mcp.json</code>, <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.windsurfrules</code>,
