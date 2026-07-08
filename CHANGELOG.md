@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the project's `groupId:artifactId` becomes a `publishes` edge and each `<dependency>`
   a `depends_on` edge, linking Java/Maven repos through shared package nodes, the same
   way `pyproject.toml`/`package.json`/`.csproj` already do.
+- **Terraform/HCL is now indexed** into an infrastructure dependency graph: `.tf` files
+  index `resource`/`data`/`variable`/`output`/`module`/`local` definitions and resolve
+  `var.`/`module.`/`data.`/resource references into `depends_on` edges (cross-file
+  within a repo). `resource` nodes are semantically searchable. The grammar
+  (`tree-sitter-hcl`) ships in the `[kb]` extra.
 
 ## [2.36.0] - 2026-07-08
 
