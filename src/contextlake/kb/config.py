@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..config import expand_path
 
@@ -103,6 +103,19 @@ class LlmCfg(BaseModel):
     council_size: int = 3
     accept_score: float = 0.7
     api_key_env: str = "OPENAI_API_KEY"  # env var holding the key (never the key itself)
+    max_tokens: int = 4096  # anthropic/openai response cap; wiki pages are short
+    command: str | None = None  # provider="cli": the agent CLI to invoke
+    args: list[str] | None = None  # provider="cli": override the per-CLI preset args
+
+    @model_validator(mode="after")
+    def _default_api_key_env_for_provider(self) -> LlmCfg:
+        # api_key_env always has a value (default "OPENAI_API_KEY"), so a plain
+        # getattr(cfg, "api_key_env", "ANTHROPIC_API_KEY") in build_llm/doctor
+        # never falls through to the anthropic-specific default. Fix it here,
+        # once, so both callers stay honest without duplicating this rule.
+        if self.provider == "anthropic" and self.api_key_env == "OPENAI_API_KEY":
+            self.api_key_env = "ANTHROPIC_API_KEY"
+        return self
 
 
 class KbConfig(BaseModel):
