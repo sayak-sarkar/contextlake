@@ -143,6 +143,7 @@ def test_init_connector_prompt_declined_writes_no_sources(tmp_path, monkeypatch)
 
 
 def test_init_connector_prompt_accepted_adds_source(tmp_path, monkeypatch):
+    pytest.importorskip("tomlkit")
     monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(tmp_path / ".contextlake.ini"))
     monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(tmp_path / ".contextlake/kb.toml"))
     monkeypatch.setattr(init_cmd, "_interactive", lambda: True)
@@ -171,6 +172,7 @@ def test_init_connector_prompt_accepted_adds_source(tmp_path, monkeypatch):
 
 
 def test_init_connector_prompt_never_asks_for_a_secret_value(tmp_path, monkeypatch):
+    pytest.importorskip("tomlkit")
     monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(tmp_path / ".contextlake.ini"))
     monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(tmp_path / ".contextlake/kb.toml"))
     monkeypatch.setattr(init_cmd, "_interactive", lambda: True)

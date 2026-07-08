@@ -170,15 +170,20 @@ def cmd_init(args) -> int:
                 mcp_url = _ask("MCP server URL (blank to configure later)", "")
                 if mcp_url:
                     src["mcp"] = mcp_url
-            from .kb import config_edit  # lazy: needs tomlkit ([kb] extra)
-
-            config_edit.add_source(_KB_CONFIG, src)
-            log("")
-            log(f"{style.ok('source')} Added {style.cyan(src_name)} "
-                f"(type={src_type}) to {_KB_CONFIG}")
-            log(f"  Run {style.cyan('contextlake source list')} to review, or "
-                f"{style.cyan('contextlake source test ' + src_name)} "
-                "to check reachability.")
+            try:
+                from .kb import config_edit  # lazy: needs tomlkit ([kb] extra)
+            except ImportError:
+                log("")
+                log(f"{style.warn('source')} Install contextlake[kb] to connect "
+                    "a data source; skipping.")
+            else:
+                config_edit.add_source(_KB_CONFIG, src)
+                log("")
+                log(f"{style.ok('source')} Added {style.cyan(src_name)} "
+                    f"(type={src_type}) to {_KB_CONFIG}")
+                log(f"  Run {style.cyan('contextlake source list')} to review, or "
+                    f"{style.cyan('contextlake source test ' + src_name)} "
+                    "to check reachability.")
 
     # --- auth guidance ------------------------------------------------------
     env, is_set = _token_status(platform)
