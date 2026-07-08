@@ -118,6 +118,36 @@ def test_parse_review_still_abstains_on_scoreless_json_with_no_labeled_number():
     assert r["parsed"] is False
 
 
+def test_parse_review_does_not_fabricate_score_from_issue_prose():
+    # Regression: valid JSON with an unusable "score" ("n/a") must NOT have its
+    # score recovered from prose *inside* the parsed issues -- "rating 1" here is
+    # an issue index, not a labeled score, and the JSON already parsed cleanly.
+    r = _parse_review('{"score": "n/a", "issues": ["rating 1 - the intro lacks context"]}')
+    assert r["parsed"] is False
+
+
+def test_parse_review_does_not_fabricate_score_from_null_score_json():
+    r = _parse_review('{"score": null, "issues": ["see rating 2 below"]}')
+    assert r["parsed"] is False
+
+
+def test_parse_review_abstains_on_unseparated_prose_index():
+    # Even in genuinely unparseable text, a bare "rating 1" (no separator) reads as
+    # an index/ordinal, not a labeled score -- must not match.
+    r = _parse_review("rating 1 - intro is thin")
+    assert r["parsed"] is False
+
+
+def test_parse_review_still_recovers_genuine_labeled_prose_scores():
+    # These use an explicit separator (":", "=", "is", "/N") and must still recover.
+    r = _parse_review("Score: 0.7. Overview thin.")
+    assert r["score"] == 0.7 and r["parsed"] is True
+    r = _parse_review("I'd rate this 8/10.")
+    assert r["score"] == 0.8 and r["parsed"] is True
+    r = _parse_review("rating is 0.9")
+    assert r["score"] == 0.9 and r["parsed"] is True
+
+
 def test_parse_review_still_abstains_on_garbage():
     assert _parse_review("")["parsed"] is False
     assert _parse_review("asdf1234 !!!")["parsed"] is False
