@@ -1,11 +1,21 @@
 import subprocess
 from types import SimpleNamespace
 
+import pytest
+
+from contextlake.cli import main
+from contextlake.kb.config import LlmCfg
 from contextlake.kb.llm import anthropic as anth_mod
 from contextlake.kb.llm import cli as cli_mod
 from contextlake.kb.llm.anthropic import AnthropicLlm
 from contextlake.kb.llm.base import build_llm
 from contextlake.kb.llm.cli import CliLlm
+
+
+def _run(argv):
+    with pytest.raises(SystemExit) as e:
+        main(argv)
+    return e.value.code
 
 
 def test_anthropic_generate_builds_request_and_parses_text(monkeypatch):
@@ -122,3 +132,46 @@ def test_build_llm_returns_cli():
     assert isinstance(llm, CliLlm)
     assert llm.command == "gemini"
     assert llm.args == ["-p"]
+
+
+def test_llmcfg_new_fields_defaults_and_parse():
+    cfg = LlmCfg()
+    assert cfg.max_tokens == 4096
+    assert cfg.command is None
+    assert cfg.args is None
+    cfg2 = LlmCfg(provider="cli", command="gemini", args=["-p"], max_tokens=1024)
+    assert cfg2.command == "gemini" and cfg2.args == ["-p"] and cfg2.max_tokens == 1024
+
+
+def test_llmcfg_anthropic_provider_defaults_key_env():
+    # api_key_env's plain default is OPENAI_API_KEY (shared with openai); for
+    # provider="anthropic" it must resolve to ANTHROPIC_API_KEY unless overridden.
+    assert LlmCfg(provider="anthropic").api_key_env == "ANTHROPIC_API_KEY"
+    assert LlmCfg(provider="anthropic", api_key_env="CUSTOM_KEY").api_key_env == "CUSTOM_KEY"
+
+
+def test_doctor_reports_anthropic_key_status(tmp_path, monkeypatch, capsys):
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+        '[llm]\nenabled = true\nprovider = "anthropic"\n'
+    )
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    _run(["doctor", "--config", str(cfg)])
+    out = capsys.readouterr().out
+    assert "wiki LLM" in out
+    assert "anthropic" in out
+    assert "ANTHROPIC_API_KEY" in out  # names the env var the user must set
+
+
+def test_doctor_reports_cli_provider_path_status(tmp_path, monkeypatch, capsys):
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+        '[llm]\nenabled = true\nprovider = "cli"\ncommand = "definitely-not-a-real-binary-xyz"\n'
+    )
+    _run(["doctor", "--config", str(cfg)])
+    out = capsys.readouterr().out
+    assert "wiki LLM" in out
+    assert "cli" in out
+    assert "not on PATH" in out

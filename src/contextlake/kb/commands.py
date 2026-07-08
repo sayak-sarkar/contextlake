@@ -1292,6 +1292,17 @@ def cmd_doctor(args) -> int:
             _check("wiki LLM", True,
                    f"{llm.provider} · {bl.repo_id} · "
                    f"{'downloaded' if present else 'not downloaded (run wiki to fetch)'}")
+        elif llm.provider == "anthropic":
+            env = llm.api_key_env  # LlmCfg defaults this to ANTHROPIC_API_KEY for this provider
+            key = os.environ.get(env)
+            _check("wiki LLM", bool(key),
+                   f"anthropic · {llm.model or 'claude-opus-4-8'} · "
+                   + (f"{env} set" if key else f"set {env}"))
+        elif llm.provider == "cli":
+            cmd = getattr(llm, "command", None) or "claude"
+            found = shutil.which(cmd)
+            _check("wiki LLM", bool(found),
+                   f"cli · {cmd} · " + (f"found at {found}" if found else "not on PATH"))
         else:
             _check("wiki LLM", True, f"{llm.provider} · {llm.model or 'default model'}")
     except Exception as e:  # noqa: BLE001 - doctor reports, never crashes
