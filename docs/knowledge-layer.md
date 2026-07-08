@@ -410,7 +410,7 @@ embed-bodies or a reranker is then judged by whether the numbers move.
 The wiki (optional, local-first) turns the graph into prose. Enable
 `[llm]` in the config (generation runs on a local Ollama model by default, prompts
 never leave the machine) — or skip the toml entirely and pass `--llm <provider>`
-(`builtin` | `ollama` | `openai`), e.g. `contextlake wiki acme/orders-api --llm builtin`,
+(`builtin` | `ollama` | `openai` | `anthropic` | `cli`), e.g. `contextlake wiki acme/orders-api --llm builtin`,
 which enables the tier inline and scopes generation to the named repo(s). Run
 `contextlake wiki`: for each repo it synthesizes a
 Markdown page grounded strictly in graph facts (top symbols, dependencies, files)
