@@ -45,6 +45,31 @@ def _toml(p):
     return tomllib.loads(Path(p).read_text())
 
 
+# --- CLI wiring ----------------------------------------------------------------
+
+def test_cli_parses_source_add_type_name():
+    from contextlake.cli import build_parser
+
+    args = build_parser().parse_args(["source", "add", "jira", "--type", "atlassian"])
+    assert args.command == "source"
+    assert args.action == "add"
+    assert args.name == "jira"
+    assert args.type == "atlassian"
+
+
+def test_cli_dispatches_source_list_through_kb_commands(tmp_path, gls_logs):
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    cfg = tmp_path / "kb.toml"
+    args = build_parser().parse_args(["source", "list", "--config", str(cfg)])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    assert kb.dispatch("source", args) == 0
+    assert "no sources" in gls_logs.text.lower()
+
+
 # --- add ---------------------------------------------------------------------
 
 def test_add_writes_source_from_flags(tmp_path, gls_logs):
@@ -110,6 +135,23 @@ def test_list_empty_reports_none_configured(tmp_path, gls_logs):
     assert "no sources" in gls_logs.text.lower()
 
 
+def test_list_shows_effective_merged_config_not_just_the_write_target(
+        tmp_path, monkeypatch, gls_logs):
+    """A source defined in another file in the load_kb_config precedence chain
+    (e.g. a cwd-local .contextlake.kb.toml) must still show up in `list`, even
+    though `list`'s write-target file (--config) has no sources of its own --
+    `list` reports the same merged view `connect`/`ingest`/`test` see."""
+    local_cfg = tmp_path / "local.toml"
+    local_cfg.write_text('[[sources]]\ntype = "gitlab"\nname = "gl"\n')
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(local_cfg))
+
+    write_target = tmp_path / "kb.toml"  # deliberately has no sources of its own
+    rc = source_cmd.cmd_source(_args("list", str(write_target)))
+    assert rc == 0
+    out = gls_logs.text
+    assert "gl" in out and "gitlab" in out
+
+
 # --- remove ----------------------------------------------------------------------
 
 def test_remove_deletes_source(tmp_path):
@@ -125,6 +167,23 @@ def test_remove_missing_name_is_a_no_op(tmp_path, gls_logs):
     rc = source_cmd.cmd_source(_args("remove", str(cfg), name="ghost"))
     assert rc == 0
     assert "ghost" in gls_logs.text
+
+
+def test_remove_not_found_names_the_write_target_file(tmp_path, monkeypatch, gls_logs):
+    """The source is visible via the merged config (list/test) but lives in a
+    different file than the one `remove` mutates -- the not-found message must
+    name that write-target file so the divergence is visible, not silent."""
+    local_cfg = tmp_path / "local.toml"
+    local_cfg.write_text('[[sources]]\ntype = "gitlab"\nname = "gl"\n')
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(local_cfg))
+
+    write_target = tmp_path / "kb.toml"
+    rc = source_cmd.cmd_source(_args("remove", str(write_target), name="gl"))
+    assert rc == 0  # remove stays a no-op on not-found
+    out = gls_logs.text
+    assert "gl" in out
+    assert str(write_target) in out
+    assert "source list" in out
 
 
 # --- enable / disable --------------------------------------------------------

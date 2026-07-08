@@ -1,12 +1,17 @@
 """``contextlake source`` -- manage ``[[sources]]`` blocks in ``kb.toml``.
 
 A thin CLI verb (add/list/remove/test/enable/disable) over ``config_edit``'s
-comment-preserving tomlkit mutation. This module never writes toml directly --
-every mutation goes through ``config_edit``, and every read of "what's
-configured, as a name-keyed lookup for a single file" goes through
-``config_edit.read_sources``. ``test`` is the exception: it resolves the source
-through ``load_kb_config`` (the same precedence chain ``connect``/``ingest``
-use), so it reports against what the running system would actually see.
+comment-preserving tomlkit mutation. Mutations (add/remove/enable/disable)
+always write a single target file -- an explicit ``--config`` path, else the
+global ``kb.toml`` (see ``config_edit.resolve_write_target``). Reads
+(list/test) instead resolve through ``load_kb_config``, the same merged
+precedence chain (legacy-global -> global -> legacy-local -> local ->
+--config) that ``connect``/``ingest``/``wiki`` consume -- so `list` reports
+exactly what the running system would actually see, even when a source is
+defined in a config file other than the mutation target. When a
+remove/enable/disable can't find the name in its single write-target file,
+the message names that file, so a global-vs-local mismatch is visible rather
+than silently confusing.
 
 Secret *values* are never echoed or stored here -- a token is referenced by
 env-var *name* only (``--set token_env=MY_TOKEN``), matching ``init_cmd``.
@@ -97,19 +102,19 @@ def cmd_source_add(args) -> int:
 # --- list ------------------------------------------------------------------
 
 def cmd_source_list(args) -> int:
-    sources = config_edit.read_sources(getattr(args, "config", None))
-    if not sources:
+    """List the EFFECTIVE (merged) config -- what ``connect``/``ingest``/``wiki``
+    and ``source test`` actually consume -- not just the single write-target
+    file. Keeps `list` and `test` agreeing (see module docstring)."""
+    cfg = load_kb_config(getattr(args, "config", None))
+    if not cfg.sources:
         log("No sources configured (add one with `contextlake source add`)")
         return 0
 
     log(style.bold(f"{'NAME':<20}{'TYPE':<14}{'PIPELINE':<10}ENABLED"))
-    for raw in sources:
-        name = raw.get("name", "?")
-        stype = raw.get("type", "?")
-        enabled = raw.get("enabled", True)
-        pipeline = _pipeline_for(stype)
-        status = style.green("yes") if enabled else style.dim("no")
-        log(f"{name:<20}{stype:<14}{pipeline:<10}{status}")
+    for src in cfg.sources:
+        pipeline = _pipeline_for(src.type)
+        status = style.green("yes") if src.enabled else style.dim("no")
+        log(f"{src.name:<20}{src.type:<14}{pipeline:<10}{status}")
     return 0
 
 
@@ -123,6 +128,17 @@ def _require_name(args) -> str | None:
     return name
 
 
+def _not_found_message(args, name: str) -> str:
+    """Name the single file a mutation looked in, so a source that only exists
+    in another config file in the precedence chain (e.g. a local
+    .contextlake.kb.toml while this looked at the global kb.toml) is a visible
+    mismatch, not a silent "not found"."""
+    target = config_edit.resolve_write_target(getattr(args, "config", None))
+    return (f"No source named {style.cyan(name)} in {target} "
+            "(run `contextlake source list` to see the effective config; "
+            "it may live in another config file)")
+
+
 def cmd_source_remove(args) -> int:
     name = _require_name(args)
     if name is None:
@@ -130,7 +146,7 @@ def cmd_source_remove(args) -> int:
     if config_edit.remove_source(getattr(args, "config", None), name):
         log(style.ok(f"Removed source {style.cyan(name)}"))
     else:
-        log(f"No source named {style.cyan(name)} (nothing to remove)")
+        log(f"{_not_found_message(args, name)} -- nothing to remove")
     return 0
 
 
@@ -140,7 +156,7 @@ def _cmd_source_set_enabled(args, enabled: bool) -> int:
         return 2
     found = config_edit.set_source_enabled(getattr(args, "config", None), name, enabled)
     if not found:
-        log(style.fail(f"No source named {style.cyan(name)}"))
+        log(style.fail(_not_found_message(args, name)))
         return 1
     verb = "Enabled" if enabled else "Disabled"
     log(style.ok(f"{verb} source {style.cyan(name)}"))
