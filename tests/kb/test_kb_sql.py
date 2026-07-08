@@ -1,5 +1,6 @@
 """Tests for SQL DDL extraction (kb/sql.py)."""
 
+from contextlake.kb.parse import index_repo_dir
 from contextlake.kb.sql import parse_sql
 
 SCHEMA_SQL = b"""
@@ -55,3 +56,28 @@ def test_parse_sql_captures_fk_references():
     assert ("orders", "region") in pairs
     # bracketed + schema-qualified targets normalized to bare casefolded name
     assert all("." not in t and "[" not in t for _s, t in pairs)
+
+
+def test_index_repo_dir_resolves_sql_references(tmp_path):
+    # tables split across files in the same repo (cross-file FK)
+    (tmp_path / "customer.sql").write_text("CREATE TABLE Customer (Id INT PRIMARY KEY);\n")
+    (tmp_path / "orders.sql").write_text(
+        "CREATE TABLE Orders (\n"
+        "  Id INT PRIMARY KEY,\n"
+        "  CustomerId INT REFERENCES Customer(Id)\n"
+        ");\n"
+    )
+    shard = index_repo_dir(str(tmp_path), "data/schema")
+    name = {n.id: n.name for n in shard.nodes}
+    refs = {(name[e.src], name[e.dst]) for e in shard.edges if e.relation == "references"}
+    assert ("orders", "customer") in refs           # cross-file FK resolves
+    assert {"table"} <= {n.kind for n in shard.nodes}
+
+
+def test_index_repo_dir_languages_filter_excludes_sql(tmp_path):
+    (tmp_path / "s.sql").write_text("CREATE TABLE T (Id INT);\n")
+    (tmp_path / "app.py").write_text("def f():\n    pass\n")
+    shard = index_repo_dir(str(tmp_path), "r", languages=["python"])
+    kinds = {n.kind for n in shard.nodes}
+    assert "table" not in kinds
+    assert "function" in kinds
