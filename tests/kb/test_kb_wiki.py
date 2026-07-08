@@ -89,6 +89,40 @@ def test_parse_review_tolerant():
     assert noscore["parsed"] is False
 
 
+def test_parse_review_recovers_alternate_json_keys():
+    # Small local models often use a different key for the same concept -- recover
+    # it rather than abstain, as long as the value is already a plausible 0..1 score.
+    assert _parse_review('{"rating": 0.8}') == {"score": 0.8, "issues": [], "parsed": True}
+    assert _parse_review('{"overall_score": 0.65}') == {
+        "score": 0.65, "issues": [], "parsed": True}
+
+
+def test_parse_review_recovers_labeled_prose_score():
+    r = _parse_review("Score: 0.7. The overview is thin.")
+    assert r["score"] == 0.7 and r["parsed"] is True
+
+
+def test_parse_review_recovers_n_out_of_10_form():
+    r = _parse_review("I'd rate this 8/10.")
+    assert r["score"] == 0.8 and r["parsed"] is True
+
+
+def test_parse_review_still_abstains_on_unlabeled_prose():
+    # Prose criticism with no labeled number must NOT invent a score.
+    r = _parse_review("The claim is not supported by the facts.")
+    assert r["score"] == 0.0 and r["parsed"] is False
+
+
+def test_parse_review_still_abstains_on_scoreless_json_with_no_labeled_number():
+    r = _parse_review('{"issue": "1", "description": "the number 5 appears here"}')
+    assert r["parsed"] is False
+
+
+def test_parse_review_still_abstains_on_garbage():
+    assert _parse_review("")["parsed"] is False
+    assert _parse_review("asdf1234 !!!")["parsed"] is False
+
+
 def test_unparseable_review_abstains_not_zero():
     # Two good reviews + one the model malformed: the page passes on the parseable
     # scores (mean 0.85), not dragged to 0.57 by counting the bad one as zero.
