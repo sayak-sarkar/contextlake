@@ -324,3 +324,11 @@ def test_cmd_embed_fails_fast_on_unavailable_embedder(tmp_path, monkeypatch, cap
     assert calls == []                                   # never entered the per-repo loop
     out = capsys.readouterr().out
     assert out.count("kb-local") <= 2                    # one probe message, not one-per-repo
+
+
+def test_resource_kind_is_embeddable():
+    from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
+    assert "resource" in EMBEDDABLE_KINDS
+    # non-meaningful HCL kinds stay out of semantic search
+    for k in ("variable", "output", "data", "module", "local"):
+        assert k not in EMBEDDABLE_KINDS
