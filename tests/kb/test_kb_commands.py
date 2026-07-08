@@ -138,7 +138,10 @@ def test_doctor_reports_per_source_reachability(tmp_path, capsys, monkeypatch):
     )
     from contextlake.kb import commands as kb_commands
 
-    def fake_verify_source(src):
+    calls = []
+
+    def fake_verify_source(src, timeout=None):
+        calls.append(timeout)
         if src.name == "jira":
             return True, "2 site(s) reachable"
         return False, "MCP configured, but design file 'X' was not reachable"
@@ -150,6 +153,9 @@ def test_doctor_reports_per_source_reachability(tmp_path, capsys, monkeypatch):
     assert "designs" in out and "figma" in out and "not reachable" in out
     # a source being unreachable is advisory -- it never fails doctor's verdict
     assert code == 0
+    # doctor bounds every per-source reachability call so an unreachable
+    # connector can't stall it at the connector's own default timeout
+    assert calls == [8, 8]
 
 
 def test_doctor_source_with_no_reachability_check_is_advisory_not_fatal(

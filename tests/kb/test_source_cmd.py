@@ -269,3 +269,40 @@ def test_verify_source_unknown_type(tmp_path):
     ok, detail = source_cmd.verify_source(SourceCfg(type="files", name="handbook"))
     assert ok is False
     assert "files" in detail
+
+
+def test_verify_source_atlassian_timeout_bounds_the_connector(monkeypatch):
+    """A timeout passed to verify_source (e.g. doctor's 8s bound) must override
+    the connector's own default (120s), not just be ignored."""
+    import contextlake.kb.connectors.orchestrate as orch
+    from contextlake.kb.config import SourceCfg
+
+    class _Stub:
+        def __init__(self):
+            self.timeout = 120
+
+        def discover_sites(self):
+            return {"https://x": "cloud-1"}
+
+    stub = _Stub()
+    monkeypatch.setattr(orch, "build_atlassian", lambda src: stub)
+    ok, detail = source_cmd.verify_source(SourceCfg(type="atlassian", name="jira"), timeout=8)
+    assert ok is True
+    assert stub.timeout == 8
+
+
+def test_verify_source_without_timeout_leaves_connector_default(monkeypatch):
+    import contextlake.kb.connectors.orchestrate as orch
+    from contextlake.kb.config import SourceCfg
+
+    class _Stub:
+        def __init__(self):
+            self.timeout = 120
+
+        def discover_sites(self):
+            return {"https://x": "cloud-1"}
+
+    stub = _Stub()
+    monkeypatch.setattr(orch, "build_atlassian", lambda src: stub)
+    source_cmd.verify_source(SourceCfg(type="atlassian", name="jira"))
+    assert stub.timeout == 120

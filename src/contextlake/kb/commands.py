@@ -1225,9 +1225,10 @@ def cmd_doctor(args) -> int:
         # `source test` uses (DRY). Advisory only -- a source being unreachable
         # (or of a type with no reachability check) never fails doctor's overall
         # verdict, since that reflects live external connectivity, not the local
-        # environment.
+        # environment. Bounded to 8s per source so an unreachable connector
+        # (atlassian/mcp default to 120s/60s) can't stall doctor for minutes.
         for src in cfg.sources:
-            reachable, detail = verify_source(src)
+            reachable, detail = verify_source(src, timeout=8)
             _check(f"  {src.name} ({src.type})", reachable, detail)
         store_dir = cfg.store_path
         store_dir.mkdir(parents=True, exist_ok=True)
