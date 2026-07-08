@@ -197,7 +197,7 @@ def _root_hidden_flags(p):
     for flag in ("--interval", "--port", "--limit", "--hops", "--max-nodes",
                  "--max-fanout", "--group-depth"):
         add(flag, type=int)
-    add("--llm", choices=["auto", "ollama", "openai", "builtin"])
+    add("--llm", choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"])
     add("--transport", choices=["stdio", "http"])
     add("--retriever", choices=("fts", "semantic", "hybrid"))
     add("--direction", choices=["in", "out", "both"])
@@ -314,7 +314,7 @@ Examples:
     p.add_argument("--no-wiki", dest="no_wiki", action="store_true", default=_S,
                    help="skip the wiki-generation step")
     p.add_argument("--llm", default=_S, metavar="PROVIDER",
-                   choices=["auto", "ollama", "openai", "builtin"],
+                   choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
                    help="power the wiki stage with this LLM provider; without it (and "
                         "without [llm] enabled in kb.toml) the wiki stage no-ops. "
                         "builtin = zero-setup CPU model, ollama | openai | auto")
@@ -362,7 +362,7 @@ Examples:
     p.add_argument("args", nargs="*", metavar="repo",
                    help="only these repo ids (default: all indexed)")
     p.add_argument("--llm", default=_S, metavar="PROVIDER",
-                   choices=["auto", "ollama", "openai", "builtin"],
+                   choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"],
                    help="enable the LLM tier with this provider, overriding kb.toml "
                         "([llm] enabled+provider). builtin = CPU, no setup (needs the "
                         "llm-local extra); ollama | openai | auto")
