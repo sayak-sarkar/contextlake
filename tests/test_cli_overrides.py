@@ -72,3 +72,17 @@ def test_scalar_not_passed_leaves_config_untouched():
     config = {"max_retries": "9"}
     result = apply_cli_overrides(args, config)
     assert result["max_retries"] == "9"
+
+
+@pytest.mark.parametrize("provider", ["anthropic", "cli"])
+@pytest.mark.parametrize("argv", [
+    ["wiki", "--llm", "{provider}"],
+    ["bootstrap", "--llm", "{provider}"],
+    # root hidden flag, pre-subparser style: `contextlake --llm X wiki`
+    ["--llm", "{provider}", "wiki"],
+])
+def test_llm_flag_accepts_anthropic_and_cli_providers(argv, provider):
+    """--llm anthropic / --llm cli must not be rejected by argparse `choices`."""
+    full_argv = [a.format(provider=provider) for a in argv]
+    args = build_parser().parse_args(full_argv)
+    assert args.llm == provider
