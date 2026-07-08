@@ -219,8 +219,9 @@ over the mirrored repos. Its pieces:
   built from per-repo JSON **shards** (`shards.py`), the durable source of truth.
   Each shard is also snapshotted by commit under `history/` for bi-temporal queries.
 - **Extraction** (`kb/parse.py`, `kb/manifest.py`, `kb/references.py`): tree-sitter
-  builds the code graph (defs/imports/containment + an inferred call graph) for
-  Python/JS/TS/C#; manifests yield the cross-repo dependency graph; references capture
+  builds the code graph (defs/imports/containment + an inferred call graph) across 13
+  languages (Python, JS/TS(X), C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala); manifests
+  yield the cross-repo dependency graph; references capture
   issue keys and doc links.
 - **Connectors** (`kb/connectors/`): Atlassian, Figma, and GitLab sources on one
   generic seam (fetched over MCP / `glab`), written into an isolated graph partition
