@@ -71,6 +71,53 @@ docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/sayak-sarkar/c
 <code>contextlake doctor</code>. Your existing store and config carry forward, the graph
 re-indexes incrementally on your next <code>index</code>/<code>sync</code>, so there is nothing to migrate by
 hand. See the <a href="https://github.com/sayak-sarkar/contextlake/blob/main/changelog.html">changelog</a> for what changed between versions.</p>
+<h3 id="install-scenarios-flag-cheatsheet">Install scenarios &amp; flag cheatsheet<a class="anchor" href="#install-scenarios-flag-cheatsheet" title="Link to this section">#</a></h3>
+<p>Real setups and the exact command for each. What the flags mean:</p>
+<ul>
+<li><strong><code>-U</code> / <code>--upgrade</code></strong>, move an already-installed contextlake to the newest version
+  (without it, pip sees it installed and does nothing).</li>
+<li><strong><code>--only-binary :all:</code></strong>, install from prebuilt <strong>wheels only, never build from
+  source</strong> (<code>:all:</code> = every package; opposite is <code>--no-binary</code>). On a machine with no
+  C/C++ compiler this turns a confusing build failure into a clean "no wheel available"
+  message. It errors if a wheel truly doesn't exist, which is the point: a clear signal
+  beats a doomed compile.</li>
+<li><strong><code>--extra-index-url URL</code></strong>, also look for wheels at <code>URL</code> (e.g. the <code>llama-cpp-python</code>
+  CPU-wheel index that PyPI doesn't mirror). See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/knowledge-layer.html#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt
+  wheel</a>.</li>
+<li><strong><code>[extra]</code></strong>, an optional feature bundle: <code>[kb-full]</code> (recommended: graph + search +
+  built-in embedder + <code>sqlite-vec</code> ANN), <code>[kb]</code> (graph + full-text only), <code>[kb-local]</code> /
+  <code>[kb-vec]</code> (pick embedder / ANN yourself), <code>[llm-local]</code> (the built-in wiki model).</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Your situation</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Just mirror my repos, nothing else."</td>
+<td><code>pipx install contextlake</code></td>
+</tr>
+<tr>
+<td>"Full knowledge layer, zero config."</td>
+<td><code>pipx install "contextlake[kb-full]"</code> (or <code>uvx --from "contextlake[kb-full]" contextlake</code>)</td>
+</tr>
+<tr>
+<td>"Upgrade to the latest."</td>
+<td><code>pip install -U "contextlake[kb-full]"</code> (or <code>pipx upgrade contextlake</code>)</td>
+</tr>
+<tr>
+<td>"Brand-new Python (e.g. 3.14), no compiler, a source build just failed."</td>
+<td><code>pip install -U --only-binary :all: "contextlake[kb-full]"</code>, for the built-in wiki LLM (<code>[llm-local]</code>) also add <code>--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu</code></td>
+</tr>
+<tr>
+<td>"I don't want any local toolchain at all."</td>
+<td>Use the image: <code>docker pull ghcr.io/sayak-sarkar/contextlake</code> (bundles every dep + the model, no compiler, no wheels to chase)</td>
+</tr>
+</tbody>
+</table>
 <h3 id="uninstall">Uninstall<a class="anchor" href="#uninstall" title="Link to this section">#</a></h3>
 <p>Remove the tool:</p>
 <div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>uninstall<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># or:  pip uninstall contextlake</span>
@@ -136,8 +183,11 @@ knowledge base in one easy-to-find place.</p>
 <p><code>--llm builtin</code> powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once)
 via the <code>llm-local</code> extra, <code>pip install "contextlake[llm-local]"</code>. If that extra fails
 to build (<code>llama-cpp-python</code> has no prebuilt wheel for your Python, e.g. 3.14, and no
-compiler is installed), install the CPU wheel directly, no compiler needed:</p>
-<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>llama-cpp-python<span class="w"> </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
+compiler is installed), install the CPU wheel directly, no compiler needed. The
+<code>--only-binary :all:</code> flag makes pip refuse a source build, so you get a clean error
+instead of a compiler-error wall:</p>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
 </code></pre></div>
 
 <p>Prefer <code>--llm ollama</code> or <code>--llm openai</code> for higher-quality prose; without any <code>--llm</code>
@@ -174,6 +224,7 @@ schedule. Use cron:</p>
 <li><a href="#1-prerequisites">1. Prerequisites</a></li>
 <li><a href="#2-install">2. Install</a><ul>
 <li><a href="#update-to-a-newer-version">Update to a newer version</a></li>
+<li><a href="#install-scenarios-flag-cheatsheet">Install scenarios &amp; flag cheatsheet</a></li>
 <li><a href="#uninstall">Uninstall</a></li>
 </ul>
 </li>

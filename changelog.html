@@ -40,6 +40,14 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
+<h3 id="documentation">Documentation<a class="anchor" href="#documentation" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Install-flag guidance + scenario cheatsheet.</strong> QUICKSTART now documents <code>-U</code>,
+  <code>--only-binary :all:</code> (wheels-only, for compiler-less / brand-new-Python machines), and
+  <code>--extra-index-url</code>, with a "your situation → exact command" table (mirror-only, zero-config
+  kb-full, upgrade, no-compiler Python 3.14, Docker-no-toolchain). The built-in-LLM wheel
+  section gains the <code>--only-binary :all:</code> guard alongside the existing CPU-wheel index.</li>
+</ul>
 <h2 id="2350-2026-07-08">[2.35.0] - 2026-07-08<a class="anchor" href="#2350-2026-07-08" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
@@ -104,7 +112,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   documented as tunable, but <code>council_gate</code> always ran all three review lenses. It now
   trims to <code>council_size</code> lenses (1–3), so fewer reviews = fewer model calls per page.</li>
 </ul>
-<h3 id="documentation">Documentation<a class="anchor" href="#documentation" title="Link to this section">#</a></h3>
+<h3 id="documentation_1">Documentation<a class="anchor" href="#documentation_1" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Detailed wiki + LLM-provider docs.</strong> knowledge-layer.md now covers: per-provider
   <code>[llm]</code> config with a model-id table; <strong>why the built-in LLM needs a prebuilt wheel or
@@ -143,7 +151,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   (only the <code>ask</code> router resolved names). Both now resolve a name to its first
   matching definition. Surfaced while benchmarking MCP token cost on a 1M-node fleet.</li>
 </ul>
-<h3 id="documentation_1">Documentation<a class="anchor" href="#documentation_1" title="Link to this section">#</a></h3>
+<h3 id="documentation_2">Documentation<a class="anchor" href="#documentation_2" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Benchmarks page.</strong> An honest, measured look at what connecting the contextlake
   MCP saves (new-code grounding, search, maintenance) with methodology and caveats.</li>
@@ -170,7 +178,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   repo with no commits (git: "ambiguous argument 'HEAD'") is now skipped cleanly
   as "Empty repo (no commits)" rather than reported as an error.</li>
 </ul>
-<h3 id="documentation_2">Documentation<a class="anchor" href="#documentation_2" title="Link to this section">#</a></h3>
+<h3 id="documentation_3">Documentation<a class="anchor" href="#documentation_3" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Update &amp; uninstall guides.</strong> The quickstart and README now document how to upgrade
   contextlake in place (pipx / pip / uv / Docker) and how to uninstall it and, optionally,
@@ -1388,25 +1396,28 @@ critical configuration bug.</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#unreleased">[Unreleased]</a></li>
+<li><a href="#unreleased">[Unreleased]</a><ul>
+<li><a href="#documentation">Documentation</a></li>
+</ul>
+</li>
 <li><a href="#2350-2026-07-08">[2.35.0] - 2026-07-08</a><ul>
 <li><a href="#added">Added</a></li>
 <li><a href="#changed">Changed</a></li>
 <li><a href="#fixed">Fixed</a></li>
-<li><a href="#documentation">Documentation</a></li>
+<li><a href="#documentation_1">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2340-2026-07-07">[2.34.0] - 2026-07-07</a><ul>
 <li><a href="#added_1">Added</a></li>
 <li><a href="#changed_1">Changed</a></li>
 <li><a href="#fixed_1">Fixed</a></li>
-<li><a href="#documentation_1">Documentation</a></li>
+<li><a href="#documentation_2">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2332-2026-07-06">[2.33.2] - 2026-07-06</a></li>
 <li><a href="#2331-2026-07-06">[2.33.1] - 2026-07-06</a><ul>
 <li><a href="#fixed_2">Fixed</a></li>
-<li><a href="#documentation_2">Documentation</a></li>
+<li><a href="#documentation_3">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2330-2026-07-06">[2.33.0] - 2026-07-06</a><ul>
