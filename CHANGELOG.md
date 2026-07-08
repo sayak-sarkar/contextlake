@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`pom.xml` is now indexed** into the cross-repo dependency graph (Maven ecosystem):
+  the project's `groupId:artifactId` becomes a `publishes` edge and each `<dependency>`
+  a `depends_on` edge, linking Java/Maven repos through shared package nodes — the same
+  way `pyproject.toml`/`package.json`/`.csproj` already do.
+
 ## [2.36.0] - 2026-07-08
 
 ### Added

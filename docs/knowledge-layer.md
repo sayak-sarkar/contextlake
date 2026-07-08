@@ -93,7 +93,7 @@ and changing a base class shows its subclasses in `blast_radius`. Frameworks are
 through their
 base language: **React / Next.js / Node.js** are JS/TS(X), **Angular** is TS (its
 templates are HTML), and **.NET** is C#. It also reads manifests (`pyproject.toml`,
-`package.json`, `*.csproj`) to build a **cross-repo dependency graph** through shared
+`package.json`, `*.csproj`, `pom.xml`) to build a **cross-repo dependency graph** through shared
 package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo `blast_radius` ("what could break if I change
 this"), see [the full tool list under Serve](serve.md). The same
