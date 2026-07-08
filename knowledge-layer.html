@@ -224,7 +224,11 @@ match would miss. The vector store uses an exact pure-Python cosine scan by defa
 install the optional ANN backend with <code>pip install "contextlake[kb-vec]"</code> (sqlite-vec)
 for larger workspaces. Tune it with <code>[embeddings] vector_chunk_size</code> (the sqlite-vec
 <code>vec0</code> KNN chunk size, default 1024; clamped to a multiple of 8, applied when the vector
-store is first created, re-embed from scratch to change an existing store).</p>
+store is first created, re-embed from scratch to change an existing store).
+<code>[embeddings] vector_backend</code> (default <code>auto</code>) picks <code>sqlite-vec</code> when that extra is
+installed and falls back to the pure-Python <code>brute</code> scan otherwise; force one with
+<code>vector_backend = "sqlite-vec"</code> or <code>"brute"</code>. <code>[embeddings] batch_size</code> (default <code>64</code>) sets
+how many nodes are embedded per batch.</p>
 <p><strong>What gets embedded:</strong> the code <strong>definitions</strong> (classes, functions, methods,
 interfaces, structs, enums) and HTTP endpoints, each with its name, qualified name,
 file path, and captured <strong>signature and docstring</strong>, so a natural-language query like
@@ -318,6 +322,12 @@ documents, with any bearer token read from an env var (never the config file):</
 
 <p>So contextlake both <em>serves</em> a knowledge graph over MCP and <em>consumes</em> other MCP servers'
 resources into it, the loop closes on the same seam.</p>
+<p><strong>Additional <code>[[sources]]</code> keys.</strong> Beyond the per-type keys above, connector and ingest
+sources also accept: <code>auth_dir</code>, an isolated OAuth-cache directory; set a distinct one per
+Atlassian org so their <code>mcp-remote</code> caches never collide. <code>mcp_command</code>, a local stdio MCP
+command to launch instead of a remote endpoint (e.g. <code>"figma-mcp --stdio"</code>). <code>group</code>, a
+GitLab group prefixed to each repo's path to form the project id. <code>per_page</code>, API page size
+(default <code>50</code>).</p>
 <h2 id="measuring-retrieval-quality">Measuring retrieval quality<a class="anchor" href="#measuring-retrieval-quality" title="Link to this section">#</a></h2>
 <p><code>contextlake eval</code> keeps retrieval falsifiable. Point it at a <strong>golden-query JSON file</strong> , 
 each entry pairs a query with the node ids it should return:</p>
