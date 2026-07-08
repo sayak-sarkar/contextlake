@@ -136,7 +136,10 @@ def test_doctor_reports_per_source_reachability(tmp_path, capsys, monkeypatch):
         '[[sources]]\ntype = "atlassian"\nname = "jira"\nmcp = "https://x"\n'
         '[[sources]]\ntype = "figma"\nname = "designs"\nmcp = "https://y"\n'
     )
-    from contextlake.kb import commands as kb_commands
+    # cmd_doctor imports verify_source lazily from source_cmd at call time (it
+    # stays off commands.py's own import graph, see the tomlkit-eagerness
+    # test below), so the patch target is source_cmd, not commands.
+    from contextlake.kb import source_cmd
 
     calls = []
 
@@ -146,7 +149,7 @@ def test_doctor_reports_per_source_reachability(tmp_path, capsys, monkeypatch):
             return True, "2 site(s) reachable"
         return False, "MCP configured, but design file 'X' was not reachable"
 
-    monkeypatch.setattr(kb_commands, "verify_source", fake_verify_source)
+    monkeypatch.setattr(source_cmd, "verify_source", fake_verify_source)
     code = _run(["doctor", "--config", str(cfg)])
     out = capsys.readouterr().out
     assert "jira" in out and "atlassian" in out and "2 site(s) reachable" in out
@@ -171,6 +174,45 @@ def test_doctor_source_with_no_reachability_check_is_advisory_not_fatal(
     assert "gl" in out and "gitlab" in out
     assert "no reachability check" in out
     assert code == 0
+
+
+def test_read_only_commands_do_not_import_tomlkit_eagerly(tmp_path):
+    """commands.py must not pull in tomlkit merely by being imported, or by
+    running a read-only command (query/index) -- config_edit's "read path
+    stays dependency-light" contract only holds if commands.py's own imports
+    of source_cmd/config_edit are lazy. Run in a subprocess: other tests in
+    this session may already have imported tomlkit, which would make an
+    in-process sys.modules check unreliable. The subprocess cwd is pinned to
+    tmp_path (not the repo root), since a repo-root contextlake.py shadows
+    the installed package for plain `python` invocations."""
+    import subprocess
+    import sys
+
+    fixture = str(FIXTURE)
+    code = (
+        "import sys\n"
+        "assert 'tomlkit' not in sys.modules\n"
+        "import contextlake.kb.commands\n"
+        "assert 'tomlkit' not in sys.modules, 'tomlkit imported by module import'\n"
+        "from contextlake.cli import main\n"
+        "import tempfile, os\n"
+        "d = tempfile.mkdtemp()\n"
+        "cfg = os.path.join(d, 'kb.toml')\n"
+        "open(cfg, 'w').write('[kb]\\nstore_dir = \"' + d + '/kb\"\\n')\n"
+        "try:\n"
+        "    main(['index', '--config', cfg, '--source', " + repr(fixture) + "])\n"
+        "except SystemExit as e:\n"
+        "    assert e.code == 0\n"
+        "try:\n"
+        "    main(['query', 'OrderService', '--config', cfg])\n"
+        "except SystemExit as e:\n"
+        "    assert e.code == 0\n"
+        "assert 'tomlkit' not in sys.modules, 'tomlkit imported by index/query'\n"
+        "print('OK')\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                            cwd=str(tmp_path))
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_embed_unavailable_hint_is_actionable():

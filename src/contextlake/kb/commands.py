@@ -20,7 +20,6 @@ from .. import style
 from ..logging_setup import log
 from .config import apply_llm_overrides, load_kb_config
 from .model import Repo
-from .source_cmd import cmd_source, verify_source
 from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
@@ -1222,6 +1221,9 @@ def cmd_doctor(args) -> int:
     try:
         cfg = load_kb_config(getattr(args, "config", None))
         _check("config loads", True, f"{len(cfg.sources)} source(s), {len(cfg.rules)} rule(s)")
+        # Lazy: source_cmd -> config_edit -> tomlkit, kept off every other kb
+        # command's import path (see config_edit's module docstring).
+        from .source_cmd import verify_source
         # Per-source reachability, dispatched through the same verify_source()
         # `source test` uses (DRY). Advisory only -- a source being unreachable
         # (or of a type with no reachability check) never fails doctor's overall
@@ -1619,10 +1621,16 @@ def cmd_hook(args) -> int:
 
 
 def dispatch(command: str, args) -> int:
+    if command == "source":
+        # Lazy: source_cmd -> config_edit -> tomlkit, kept off every other kb
+        # command's import path (see config_edit's module docstring).
+        from .source_cmd import cmd_source
+
+        return cmd_source(args)
     return {
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
         "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
         "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
         "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
-        "dashboard": cmd_dashboard, "hook": cmd_hook, "source": cmd_source,
+        "dashboard": cmd_dashboard, "hook": cmd_hook,
     }[command](args)
