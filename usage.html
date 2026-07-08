@@ -375,6 +375,18 @@ contextlake<span class="w"> </span>--group<span class="w"> </span>my-gitlab-grou
 <td><code>0.5</code></td>
 <td><code>0.3</code></td>
 </tr>
+<tr>
+<td><code>clone_method</code></td>
+<td>How repos are cloned: <code>auto</code> (git+token, else glab, else git), <code>git</code>, or <code>glab</code></td>
+<td><code>auto</code></td>
+<td><code>git</code></td>
+</tr>
+<tr>
+<td><code>branch_strategy</code></td>
+<td>Most-active branch selection: <code>commits</code>, <code>recency</code>, or <code>hybrid</code></td>
+<td><code>hybrid</code></td>
+<td><code>recency</code></td>
+</tr>
 </tbody>
 </table>
 <p>The branch-safety settings (<code>require_clean_workspace</code>, <code>protect_working_branches</code>,
