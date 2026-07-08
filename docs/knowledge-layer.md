@@ -93,7 +93,10 @@ and changing a base class shows its subclasses in `blast_radius`. **Terraform/HC
 (`.tf`) is indexed into an infrastructure dependency graph: `resource`/`data`/
 `variable`/`output`/`module`/`local` definitions with `depends_on` edges resolving
 `var.`/`module.`/`data.`/resource references across files in a repo; `resource`
-nodes are semantically searchable. Frameworks are indexed
+nodes are semantically searchable. Resolution is repo-wide, so a block address
+defined identically in separate root-module directories (for example
+`environments/prod` and `environments/staging`) surfaces as an `AMBIGUOUS`
+edge; directory-scoped resolution is a future refinement. Frameworks are indexed
 through their
 base language: **React / Next.js / Node.js** are JS/TS(X), **Angular** is TS (its
 templates are HTML), and **.NET** is C#. It also reads manifests (`pyproject.toml`,

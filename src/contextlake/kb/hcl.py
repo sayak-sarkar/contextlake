@@ -145,8 +145,11 @@ def parse_hcl(
 
     Refs are ``(src_node_id, target_address, rel_path, line)`` - resolved
     repo-wide by :func:`.parse.index_repo_dir`.
+
+    ``verified_at`` is accepted for signature parity with :func:`.parse.parse_source`;
+    HCL nodes carry structural provenance (file/line) and resolved edges are
+    stamped at resolution time, so the value is unused here.
     """
-    verified_at = verified_at or date.today()
     tree = _parser().parse(source)
     nodes: list[Node] = []
     # block ts-node id -> the def node id it maps to (for ref attribution, Task 2)
