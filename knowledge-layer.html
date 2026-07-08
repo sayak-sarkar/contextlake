@@ -107,13 +107,25 @@ non-zero on problems, so they're CI-friendly.</p>
 <p>Code indexing uses tree-sitter to extract files, classes, functions/methods,
 interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong>
 (<code>inherits</code> edges for <code>extends</code> / <code>implements</code> / base classes) from <strong>Python,
-JavaScript, TypeScript/TSX, C#, Go, Java, C, C++, Rust, Ruby, PHP, and Scala</strong>
+JavaScript, TypeScript/TSX, C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala, and Kotlin</strong>
 (the parser registry is pluggable), so "what extends <code>BaseController</code>?" is one hop,
-and changing a base class shows its subclasses in <code>blast_radius</code>. Frameworks are indexed
-through their
+and changing a base class shows its subclasses in <code>blast_radius</code>. <strong>Terraform/HCL</strong>
+(<code>.tf</code>) is indexed into an infrastructure dependency graph: <code>resource</code>/<code>data</code>/
+<code>variable</code>/<code>output</code>/<code>module</code>/<code>local</code> definitions with <code>depends_on</code> edges resolving
+<code>var.</code>/<code>module.</code>/<code>data.</code>/resource references across files in a repo; <code>resource</code>
+nodes are semantically searchable. Resolution is repo-wide, so a block address
+defined identically in separate root-module directories (for example
+<code>environments/prod</code> and <code>environments/staging</code>) surfaces as an <code>AMBIGUOUS</code>
+edge; directory-scoped resolution is a future refinement. <strong>SQL DDL</strong> (<code>.sql</code>) is
+indexed into a referential graph: <code>table</code>/<code>view</code>/<code>procedure</code> definitions with
+<code>references</code> edges from foreign-key <code>REFERENCES</code> clauses, resolved across files
+in a repo; <code>table</code> and <code>view</code> nodes are semantically searchable. It uses a regex
+DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets
+the high-value defs and FK references and is a deliberate undercount. Frameworks
+are indexed through their
 base language: <strong>React / Next.js / Node.js</strong> are JS/TS(X), <strong>Angular</strong> is TS (its
 templates are HTML), and <strong>.NET</strong> is C#. It also reads manifests (<code>pyproject.toml</code>,
-<code>package.json</code>, <code>*.csproj</code>) to build a <strong>cross-repo dependency graph</strong> through shared
+<code>package.json</code>, <code>*.csproj</code>, <code>pom.xml</code>) to build a <strong>cross-repo dependency graph</strong> through shared
 package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
 this"), see <a href="serve.html">the full tool list under Serve</a>. The same
