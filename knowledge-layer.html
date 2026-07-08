@@ -430,13 +430,57 @@ with a provenance footer citing the exact commit and source files it was built f
 <li><strong><code>openai</code></strong>, <strong>any OpenAI-compatible chat API</strong> (a hosted key, or a local server like
   LM Studio, Jan, llama.cpp, vLLM). Best prose, per-token cost. The key is read from the
   env var named by <code>api_key_env</code> (default <code>OPENAI_API_KEY</code>), never stored in config.</li>
+<li><strong><code>anthropic</code></strong>, the Anthropic <strong>Messages API</strong> (a hosted key). Best-in-class wiki
+  prose and reliable structured council reviews. The key is read from the env var named
+  by <code>api_key_env</code> (default <code>ANTHROPIC_API_KEY</code>), never stored in config. <code>model</code> selects
+  the tier: default <code>claude-opus-4-8</code>; set <code>model = "claude-haiku-4-5"</code> or
+  <code>"claude-sonnet-5"</code> for a much cheaper high-volume fleet run (the council makes many
+  calls). <code>max_tokens</code> (default 4096) caps each response.</li>
+<li><strong><code>cli</code></strong>, a locally-installed <strong>agent CLI</strong> you already pay for: <code>claude</code>, <code>gemini</code>,
+  or <code>codex</code>. contextlake shells out to it (<code>command</code>, default <code>claude</code>; <code>args</code> overrides
+  the per-CLI preset) and feeds the prompt on stdin. No API key touches contextlake;
+  data goes to whatever provider that CLI uses. Reuses your subscription, offline-adjacent
+  (still a network call by that tool), and mirrors how contextlake already shells out to
+  <code>git</code> and <code>glab</code>.</li>
 </ul>
+<p><strong>Data-sharing posture per backend.</strong> Pick by what may leave your machine:</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Data leaves the machine?</th>
+<th>Auth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>builtin</code> / <code>auto</code>→builtin</td>
+<td>No: fully local CPU model</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>ollama</code></td>
+<td>No: local daemon</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>cli</code></td>
+<td>Yes: to whatever provider that CLI uses</td>
+<td>reuses the CLI's own login</td>
+</tr>
+<tr>
+<td><code>anthropic</code> / <code>openai</code></td>
+<td>Yes: to the API endpoint</td>
+<td>env-var key (never stored)</td>
+</tr>
+</tbody>
+</table>
 <h3 id="configuring-the-wiki-llm">Configuring the wiki LLM<a class="anchor" href="#configuring-the-wiki-llm" title="Link to this section">#</a></h3>
 <p>Two lines is enough, passing <code>--llm</code> on the CLI implies <code>enabled = true</code>, or set both in
 <code>~/.contextlake/kb.toml</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="k">[llm]</span>
 <span class="n">enabled</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span><span class="w">        </span><span class="c1"># auto | builtin | ollama | openai</span>
+<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span><span class="w">        </span><span class="c1"># auto | builtin | ollama | openai | anthropic | cli</span>
 <span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span><span class="w">    </span><span class="c1"># provider-specific model id (table below)</span>
 <span class="c1"># base_url    = &quot;http://127.0.0.1:11434&quot;   # ollama, or a local openai-compatible server</span>
 <span class="c1"># api_key_env = &quot;OPENAI_API_KEY&quot;           # openai: env var holding the key (never the key)</span>
