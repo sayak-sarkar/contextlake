@@ -20,7 +20,7 @@ from .. import style
 from ..logging_setup import log
 from .config import apply_llm_overrides, load_kb_config
 from .model import Repo
-from .source_cmd import cmd_source
+from .source_cmd import cmd_source, verify_source
 from .state import check_schema, mark_repo_indexed, needs_reindex
 from .store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from .store.sqlite_store import SqliteStore
@@ -1221,6 +1221,14 @@ def cmd_doctor(args) -> int:
     try:
         cfg = load_kb_config(getattr(args, "config", None))
         _check("config loads", True, f"{len(cfg.sources)} source(s), {len(cfg.rules)} rule(s)")
+        # Per-source reachability, dispatched through the same verify_source()
+        # `source test` uses (DRY). Advisory only -- a source being unreachable
+        # (or of a type with no reachability check) never fails doctor's overall
+        # verdict, since that reflects live external connectivity, not the local
+        # environment.
+        for src in cfg.sources:
+            reachable, detail = verify_source(src)
+            _check(f"  {src.name} ({src.type})", reachable, detail)
         store_dir = cfg.store_path
         store_dir.mkdir(parents=True, exist_ok=True)
         store = SqliteStore(store_dir / "index.sqlite")

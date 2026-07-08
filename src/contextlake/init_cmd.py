@@ -154,6 +154,32 @@ def cmd_init(args) -> int:
     if want_kb:
         wrote_any |= _write(_KB_CONFIG, _kb_toml(enable_embeddings), force=force)
 
+    # --- optional data source ------------------------------------------------
+    # Purely optional and skippable: default is "no", and --yes (non-interactive)
+    # never reaches this prompt. Only a source *type*, *name*, and MCP server
+    # *URL* are collected here -- never a secret value (auth stays an env var,
+    # set later via `contextlake source add --set token_env=...`).
+    if want_kb and interactive:
+        connect = _ask_yn(
+            "Connect a data source now (Confluence/Jira/Figma/GitLab/MCP)?", False)
+        if connect:
+            src_type = _ask("Source type (atlassian/figma/gitlab/mcp)", "atlassian")
+            src_name = _ask("Source name", src_type)
+            src = {"type": src_type, "name": src_name}
+            if src_type in ("atlassian", "figma"):
+                mcp_url = _ask("MCP server URL (blank to configure later)", "")
+                if mcp_url:
+                    src["mcp"] = mcp_url
+            from .kb import config_edit  # lazy: needs tomlkit ([kb] extra)
+
+            config_edit.add_source(_KB_CONFIG, src)
+            log("")
+            log(f"{style.ok('source')} Added {style.cyan(src_name)} "
+                f"(type={src_type}) to {_KB_CONFIG}")
+            log(f"  Run {style.cyan('contextlake source list')} to review, or "
+                f"{style.cyan('contextlake source test ' + src_name)} "
+                "to check reachability.")
+
     # --- auth guidance ------------------------------------------------------
     env, is_set = _token_status(platform)
     log("")

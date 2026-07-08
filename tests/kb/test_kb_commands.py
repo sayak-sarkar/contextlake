@@ -128,6 +128,45 @@ def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
     assert "not downloaded" in out
 
 
+def test_doctor_reports_per_source_reachability(tmp_path, capsys, monkeypatch):
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{store_dir}"\n'
+        '[[sources]]\ntype = "atlassian"\nname = "jira"\nmcp = "https://x"\n'
+        '[[sources]]\ntype = "figma"\nname = "designs"\nmcp = "https://y"\n'
+    )
+    from contextlake.kb import commands as kb_commands
+
+    def fake_verify_source(src):
+        if src.name == "jira":
+            return True, "2 site(s) reachable"
+        return False, "MCP configured, but design file 'X' was not reachable"
+
+    monkeypatch.setattr(kb_commands, "verify_source", fake_verify_source)
+    code = _run(["doctor", "--config", str(cfg)])
+    out = capsys.readouterr().out
+    assert "jira" in out and "atlassian" in out and "2 site(s) reachable" in out
+    assert "designs" in out and "figma" in out and "not reachable" in out
+    # a source being unreachable is advisory -- it never fails doctor's verdict
+    assert code == 0
+
+
+def test_doctor_source_with_no_reachability_check_is_advisory_not_fatal(
+        tmp_path, capsys):
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{store_dir}"\n'
+        '[[sources]]\ntype = "gitlab"\nname = "gl"\n'
+    )
+    code = _run(["doctor", "--config", str(cfg)])
+    out = capsys.readouterr().out
+    assert "gl" in out and "gitlab" in out
+    assert "no reachability check" in out
+    assert code == 0
+
+
 def test_embed_unavailable_hint_is_actionable():
     """The embed no-op must tell the user how to turn semantic search on."""
     import importlib.util
