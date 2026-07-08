@@ -473,6 +473,20 @@ have yet, so pointing pip at it skips compilation entirely — no compiler neede
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
+**Belt-and-suspenders: `--only-binary :all:`.** On a compiler-less machine, add this flag
+so pip *refuses* to fall back to a source build for **any** package — you get a clean "no
+matching distribution" message instead of a wall of `cmake`/compiler errors. `:all:` is the
+all-packages token (its opposite is `--no-binary`). Combined with the CPU-wheel index, this
+installs the built-in LLM on a brand-new Python with no toolchain:
+
+```bash
+pip install --only-binary :all: llama-cpp-python \
+  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+```
+
+The trade-off is deliberate: if a wheel genuinely doesn't exist for your platform, the
+command stops with an actionable error rather than attempting a build that can't succeed.
+
 On a mainstream Python (3.10–3.13) none of this applies — `pip install
 "contextlake[llm-local]"` finds a PyPI wheel and Just Works. It is specifically the
 bleeding-edge-interpreter case that needs the extra index. The cleanest way to avoid the

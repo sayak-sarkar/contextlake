@@ -43,6 +43,32 @@ Then confirm with `contextlake --version` and re-check your environment with
 re-indexes incrementally on your next `index`/`sync`, so there is nothing to migrate by
 hand. See the [changelog](changelog.html) for what changed between versions.
 
+### Install scenarios & flag cheatsheet
+
+Real setups and the exact command for each. What the flags mean:
+
+- **`-U` / `--upgrade`** — move an already-installed contextlake to the newest version
+  (without it, pip sees it installed and does nothing).
+- **`--only-binary :all:`** — install from prebuilt **wheels only, never build from
+  source** (`:all:` = every package; opposite is `--no-binary`). On a machine with no
+  C/C++ compiler this turns a confusing build failure into a clean "no wheel available"
+  message. It errors if a wheel truly doesn't exist — which is the point: a clear signal
+  beats a doomed compile.
+- **`--extra-index-url URL`** — also look for wheels at `URL` (e.g. the `llama-cpp-python`
+  CPU-wheel index that PyPI doesn't mirror). See [Why the built-in LLM needs a prebuilt
+  wheel](knowledge-layer.html#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler).
+- **`[extra]`** — an optional feature bundle: `[kb-full]` (recommended: graph + search +
+  built-in embedder + `sqlite-vec` ANN), `[kb]` (graph + full-text only), `[kb-local]` /
+  `[kb-vec]` (pick embedder / ANN yourself), `[llm-local]` (the built-in wiki model).
+
+| Your situation | Command |
+| --- | --- |
+| "Just mirror my repos, nothing else." | `pipx install contextlake` |
+| "Full knowledge layer, zero config." | `pipx install "contextlake[kb-full]"` (or `uvx --from "contextlake[kb-full]" contextlake`) |
+| "Upgrade to the latest." | `pip install -U "contextlake[kb-full]"` (or `pipx upgrade contextlake`) |
+| "Brand-new Python (e.g. 3.14), no compiler, a source build just failed." | `pip install -U --only-binary :all: "contextlake[kb-full]"` — for the built-in wiki LLM (`[llm-local]`) also add `--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` |
+| "I don't want any local toolchain at all." | Use the image: `docker pull ghcr.io/sayak-sarkar/contextlake` (bundles every dep + the model — no compiler, no wheels to chase) |
+
 ### Uninstall
 
 Remove the tool:
@@ -126,10 +152,13 @@ knowledge base in one easy-to-find place.
 `--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once)
 via the `llm-local` extra — `pip install "contextlake[llm-local]"`. If that extra fails
 to build (`llama-cpp-python` has no prebuilt wheel for your Python, e.g. 3.14, and no
-compiler is installed), install the CPU wheel directly, no compiler needed:
+compiler is installed), install the CPU wheel directly, no compiler needed. The
+`--only-binary :all:` flag makes pip refuse a source build, so you get a clean error
+instead of a compiler-error wall:
 
 ```bash
-pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+pip install --only-binary :all: llama-cpp-python \
+  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
 Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
