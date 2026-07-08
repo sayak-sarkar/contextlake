@@ -176,6 +176,37 @@ hook-triggered <code>index</code>), the second takes an advisory single-writer l
 (<code>&lt;store_dir&gt;/.contextlake.lock</code>) and refuses rather than interleaving SQLite writes , 
 naming the process that holds it. A lock left by a crashed run is reclaimed
 automatically; override (rarely correct) with <code>CONTEXTLAKE_ALLOW_CONCURRENT=1</code>.</p>
+<h2 id="reading-the-console-output">Reading the console output<a class="anchor" href="#reading-the-console-output" title="Link to this section">#</a></h2>
+<p>A <code>bootstrap</code> (or a standalone <code>index</code> / <code>embed</code> / <code>wiki</code>) prints progress as it goes.
+Most lines are self-explanatory; a few are worth decoding.</p>
+<ul>
+<li><strong><code>▶ &lt;Phase&gt;</code> headers</strong> (<code>▶ Mirror repositories</code>, <code>▶ Index the code graph</code>,
+  <code>▶ Build semantic vectors</code>, <code>▶ Generate the curated wiki</code>, …) mark each pipeline stage.
+  A stage that has nothing to do (no connector sources, no LLM enabled) says so and moves on.</li>
+<li><strong><code>[███░░] N/M &lt;repo&gt;: X nodes, Y edges</code></strong> is the incremental indexer. <strong><code>0 nodes, 0
+  edges</code></strong> is normal and not an error, that repo has no code in a supported language
+  (config-only, docs-only, IaC/scripts, or empty). Only repos whose HEAD moved are
+  re-indexed; the rest are reported as <em>unchanged</em>.</li>
+<li><strong><code>Embed complete: 0 vector(s) written (N total in store), M already up to date</code></strong> , 
+  embedding is incremental too. <code>0 written</code> with a large <code>already up to date</code> count means
+  nothing changed since the last run; the <code>N total</code> is the whole store, not this run.</li>
+<li><strong><code>Fetching 10 files: 100% … Download complete: 0.00B</code></strong> appears once when the wiki
+  (or built-in embedder) model loads. It is Hugging Face resolving the model repo's files
+  (several GGUF quantizations + tokenizer/config) in your local cache, <strong><code>0.00B</code> means
+  nothing was downloaded, everything was already cached</strong>. It fires once per run at model
+  load, not per repo.</li>
+<li><strong><code>✓ &lt;repo&gt;: written (score 0.98)</code></strong>, a wiki page passed the review council and was
+  saved. <strong><code>⚠ &lt;repo&gt;: rejected by council (score 0.31)</code></strong>, it did not clear the accept
+  threshold; the indented <code>- accuracy/completeness/clarity: …</code> lines are the per-lens
+  reasons. <strong><code>unparseable review</code></strong> means the model returned a review the council couldn't
+  score (common with the tiny built-in 0.5B model); those lenses are excluded from the
+  mean rather than counted as zero. A capable backend (<code>--llm ollama</code>/<code>anthropic</code>/<code>openai</code>)
+  produces far fewer rejections, see <a href="#model-providers">Model providers</a>.</li>
+<li><strong>A single-writer lock message</strong> naming another process means two runs targeted one
+  store at once (see the git-hook note above).</li>
+</ul>
+<p>Warnings from the model download itself (Hugging Face symlink/auth notices) are silenced;
+the real progress still shows.</p>
 <h2 id="ownership-smes">Ownership &amp; SMEs<a class="anchor" href="#ownership-smes" title="Link to this section">#</a></h2>
 <p><code>contextlake owners &lt;repo&gt;</code> (or <code>--path SUBDIR</code> for a sub-tree) answers <strong>"who owns
 this / who do I ask?"</strong> straight from git history, no config, no index required. It
@@ -656,6 +687,7 @@ setup, and manual wiring for Claude Code / Windsurf / Kiro.</p>
 <li><a href="#re-index-on-commit-git-hook">Re-index on commit (git hook)</a></li>
 </ul>
 </li>
+<li><a href="#reading-the-console-output">Reading the console output</a></li>
 <li><a href="#ownership-smes">Ownership &amp; SMEs</a></li>
 <li><a href="#connectors">Connectors</a></li>
 <li><a href="#semantic-search">Semantic search</a></li>
