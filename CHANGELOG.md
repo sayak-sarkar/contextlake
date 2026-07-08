@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `var.`/`module.`/`data.`/resource references into `depends_on` edges (cross-file
   within a repo). `resource` nodes are semantically searchable. The grammar
   (`tree-sitter-hcl`) ships in the `[kb]` extra.
+- **SQL DDL is now indexed** into a referential graph: `.sql` files index `CREATE TABLE`/
+  `VIEW`/`PROCEDURE` as `table`/`view`/`procedure` nodes and resolve foreign-key
+  `REFERENCES` clauses into `references` edges (cross-file within a repo). `table` and
+  `view` nodes are semantically searchable, and FK dependents surface in `blast_radius`.
+  It is regex-based (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so no new
+  dependency is needed.
 
 ## [2.36.0] - 2026-07-08
 

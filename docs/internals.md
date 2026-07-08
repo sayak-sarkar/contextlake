@@ -218,13 +218,15 @@ over the mirrored repos. Its pieces:
   provenance + confidence; a SQLite + FTS5 cross-repo index (`sqlite_store.py`) is
   built from per-repo JSON **shards** (`shards.py`), the durable source of truth.
   Each shard is also snapshotted by commit under `history/` for bi-temporal queries.
-- **Extraction** (`kb/parse.py`, `kb/manifest.py`, `kb/references.py`, `kb/hcl.py`):
+- **Extraction** (`kb/parse.py`, `kb/manifest.py`, `kb/references.py`, `kb/hcl.py`, `kb/sql.py`):
   tree-sitter builds the code graph (defs/imports/containment + an inferred call graph)
   across 13 languages (Python, JS/TS(X), C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala);
   Terraform/HCL (`kb/hcl.py`) yields an infrastructure `depends_on` graph
   (resource/data/variable/output/module/local blocks with `var.`/`module.`/`data.`/resource
-  references resolved within a repo); manifests yield the cross-repo dependency graph;
-  references capture issue keys and doc links.
+  references resolved within a repo); SQL DDL (`kb/sql.py`) yields a referential graph
+  (table/view/procedure defs with `references` edges from foreign keys, resolved within
+  a repo); manifests yield the cross-repo dependency graph; references capture issue
+  keys and doc links.
 - **Connectors** (`kb/connectors/`): Atlassian, Figma, and GitLab sources on one
   generic seam (fetched over MCP / `glab`), written into an isolated graph partition
   so code re-indexing never disturbs them.
