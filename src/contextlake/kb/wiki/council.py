@@ -34,7 +34,7 @@ _ALT_SCORE_KEYS = ("rating", "overall", "overall_score", "quality")
 # number so an unrelated small integer near the word -- e.g. an issue-list ordinal
 # like "rating 1 - the intro lacks context" -- is never mistaken for a labeled score.
 _LABELED_SCORE_RE = re.compile(
-    r"(?i)\b(?:score|rating)\b\s*(?:[:=]|\bis\b|\bof\b)\s*([01](?:\.\d+)?)\b")
+    r"(?i)\b(?:score|rating)\b\s*(?:[:=]|\bis\b)\s*([01](?:\.\d+)?)\b")
 
 # An "N/10" or "N out of 10" style rating, e.g. "I'd rate this 8/10.".
 _FRACTION_10_RE = re.compile(r"(?i)\b([0-9](?:\.\d+)?)\s*(?:/|out of)\s*10\b")
