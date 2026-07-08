@@ -95,28 +95,22 @@ def test_generated_config_loads_and_drives_the_tool(tmp_path, monkeypatch):
     ("gitlab", "GITLAB_TOKEN"), ("github", "GITHUB_TOKEN"),
     ("bitbucket", "BITBUCKET_TOKEN"), ("codeberg", "GITEA_TOKEN"),
 ])
-def test_init_reports_the_right_token_env(tmp_path, monkeypatch, caplog, platform, env):
-    import logging
+def test_init_reports_the_right_token_env(tmp_path, monkeypatch, gls_logs, platform, env):
     monkeypatch.delenv(env, raising=False)
-    with caplog.at_level(logging.INFO, logger="contextlake"):
-        _run(tmp_path, monkeypatch, platform=platform, group="acme")
+    _run(tmp_path, monkeypatch, platform=platform, group="acme")
     # the auth hint names the platform's token env var
-    assert env in caplog.text
+    assert env in gls_logs.text
 
 
-def test_init_next_hint_matches_semantic_choice(tmp_path, monkeypatch, caplog):
+def test_init_next_hint_matches_semantic_choice(tmp_path, monkeypatch, gls_logs):
     # Enabling semantic search must recommend [kb-full] (which ships the embedder),
     # not [kb] — otherwise the very next `bootstrap` embed step fails for every repo.
-    import logging
-    with caplog.at_level(logging.INFO, logger="contextlake"):
-        _run(tmp_path, monkeypatch, group="acme", embeddings=True)
-    assert 'contextlake[kb-full]' in caplog.text
-    assert 'contextlake[kb]"' not in caplog.text  # the bare-kb hint must not appear
+    _run(tmp_path, monkeypatch, group="acme", embeddings=True)
+    assert 'contextlake[kb-full]' in gls_logs.text
+    assert 'contextlake[kb]"' not in gls_logs.text  # the bare-kb hint must not appear
 
 
-def test_init_next_hint_plain_kb_without_semantic(tmp_path, monkeypatch, caplog):
-    import logging
-    with caplog.at_level(logging.INFO, logger="contextlake"):
-        _run(tmp_path, monkeypatch, group="acme", embeddings=False)
-    assert 'contextlake[kb]' in caplog.text
-    assert 'kb-full' not in caplog.text
+def test_init_next_hint_plain_kb_without_semantic(tmp_path, monkeypatch, gls_logs):
+    _run(tmp_path, monkeypatch, group="acme", embeddings=False)
+    assert 'contextlake[kb]' in gls_logs.text
+    assert 'kb-full' not in gls_logs.text
