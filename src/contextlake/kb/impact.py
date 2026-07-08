@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Reverse-reach over calls (a caller breaks), depends_on (a dependent breaks), and
-# inherits (a subclass breaks when its base changes).
-DEFAULT_RELATIONS = ("calls", "depends_on", "inherits")
+# Reverse-reach over calls (a caller breaks), depends_on (a dependent breaks),
+# inherits (a subclass breaks when its base changes), and references (an FK
+# dependent breaks when its referenced table changes).
+DEFAULT_RELATIONS = ("calls", "depends_on", "inherits", "references")
 # Walk EXTRACTED edges before INFERRED/AMBIGUOUS so the highest-confidence impact
 # surfaces first when the cap is hit.
 _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
