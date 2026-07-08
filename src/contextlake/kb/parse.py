@@ -79,6 +79,7 @@ LANG_BY_EXT = {
     ".rb": "ruby",
     ".php": "php",
     ".scala": "scala", ".sc": "scala",
+    ".kt": "kotlin", ".kts": "kotlin",
 }
 
 # HCL/Terraform files use a bespoke extraction path (kb/hcl.py), not the OO
@@ -172,6 +173,10 @@ _DEF_TYPES = {
     "scala": {
         "class_definition": "class", "object_definition": "class",
         "trait_definition": "interface", "function_definition": "function",
+    },
+    "kotlin": {
+        "class_declaration": "class", "object_declaration": "class",
+        "function_declaration": "function",
     },
 }
 _DEF_TYPES["tsx"] = _DEF_TYPES["typescript"]
@@ -307,6 +312,15 @@ _QUERIES = {
         (call_expression (identifier) @call)
         (extends_clause (type_identifier) @base)
     """,
+    "kotlin": """
+        (class_declaration name: (identifier) @def)
+        (object_declaration name: (identifier) @def)
+        (function_declaration name: (identifier) @def)
+        (import (qualified_identifier) @import)
+        (call_expression (identifier) @call)
+        (delegation_specifier (constructor_invocation (user_type (identifier) @base)))
+        (delegation_specifier (user_type (identifier) @base))
+    """,
 }
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
@@ -355,6 +369,9 @@ def _language(lang: str) -> ts.Language:
             fn = g.language_php
         elif lang == "scala":
             import tree_sitter_scala as g
+            fn = g.language
+        elif lang == "kotlin":
+            import tree_sitter_kotlin as g
             fn = g.language
         else:
             raise ValueError(f"unsupported language: {lang}")
