@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `view` nodes are semantically searchable, and FK dependents surface in `blast_radius`.
   It is regex-based (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so no new
   dependency is needed.
+- **Kotlin is now indexed** as a tree-sitter code language (`.kt` and `.kts` files):
+  classes, objects, interfaces, enums, functions, methods, imports, and the inferred
+  call graph are extracted; inheritance edges are captured via `delegation_specifier`
+  (extending and implementing base classes). The grammar (`tree-sitter-kotlin`) ships
+  in the `[kb]` extra.
 
 ## [2.36.0] - 2026-07-08
 

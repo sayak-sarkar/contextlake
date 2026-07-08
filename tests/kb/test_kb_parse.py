@@ -279,13 +279,16 @@ def test_parse_kotlin():
     assert "process" in by_kind.get("method", set())
     # imports -> module nodes
     modules = {n.name for n in nodes if n.kind == "module"}
-    assert "kotlinx.coroutines.launch" in modules or "com.example.Base" in modules
+    assert "kotlinx.coroutines.launch" in modules
+    assert "com.example.Base" in modules
     # unresolved calls captured (callee names)
     callee_names = {c[1] for c in calls}
-    assert "doThing" in callee_names or "helper" in callee_names
+    assert "doThing" in callee_names
+    assert "helper" in callee_names
     # inheritance captured (subclass -> base name); Base and Repository are bases
     base_names = {i[1] for i in inherits}
-    assert "Base" in base_names or "Repository" in base_names
+    assert "Base" in base_names
+    assert "Repository" in base_names
 
 
 def test_lang_by_ext_covers_target_languages():
