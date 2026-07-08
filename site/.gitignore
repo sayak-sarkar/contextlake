@@ -8,6 +8,7 @@ serve.html
 internals.html
 storage.html
 changelog.html
+benchmarks.html
 404.html
 
 # Shared brand assets are single-sourced in ../docs and synced in at build time
