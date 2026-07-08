@@ -26,7 +26,7 @@ _CREATE_PROC = re.compile(r"\bCREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+" + _N
 _REFERENCES = re.compile(r"\bREFERENCES\s+" + _NAME, re.I)
 # Any top-level statement boundary that ends a CREATE TABLE scope.
 _SCOPE_END = re.compile(
-    r"\bCREATE\s+(?:OR\s+ALTER\s+)?(?:TABLE|VIEW|PROC|PROCEDURE|FUNCTION)\b|^\s*GO\s*$",
+    r"\bCREATE\s+(?:OR\s+ALTER\s+)?(?:TABLE|VIEW|PROC|PROCEDURE|FUNCTION)\b|\bALTER\s+TABLE\b|^\s*GO\s*$",
     re.I | re.M)
 
 

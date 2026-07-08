@@ -58,6 +58,21 @@ def test_parse_sql_captures_fk_references():
     assert all("." not in t and "[" not in t for _s, t in pairs)
 
 
+def test_alter_table_fk_not_misattributed():
+    sql = (
+        b"CREATE TABLE a (id INT PRIMARY KEY);\n"
+        b"ALTER TABLE b ADD CONSTRAINT fk FOREIGN KEY (x) REFERENCES c(id);\n"
+        b"CREATE TABLE c (id INT PRIMARY KEY);\n"
+    )
+    nodes, refs = parse_sql("r", "s.sql", sql)
+    name = {n.id: n.name for n in nodes}
+    pairs = {(name[src], tgt) for src, tgt, _f, _l in refs}
+    # the ALTER-added FK belongs to table b (not defined here); it must NOT be
+    # attributed to table a (the preceding CREATE TABLE). Dropped is correct.
+    assert ("a", "c") not in pairs
+    assert not refs  # no FK is attributable in this GO-less ALTER-only case
+
+
 def test_index_repo_dir_resolves_sql_references(tmp_path):
     # tables split across files in the same repo (cross-file FK)
     (tmp_path / "customer.sql").write_text("CREATE TABLE Customer (Id INT PRIMARY KEY);\n")
