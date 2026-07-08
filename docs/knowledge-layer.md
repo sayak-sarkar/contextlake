@@ -465,6 +465,27 @@ Both the embeddings and wiki tiers are pluggable and take a
 - **`openai`**, **any OpenAI-compatible chat API** (a hosted key, or a local server like
   LM Studio, Jan, llama.cpp, vLLM). Best prose, per-token cost. The key is read from the
   env var named by `api_key_env` (default `OPENAI_API_KEY`), never stored in config.
+- **`anthropic`**, the Anthropic **Messages API** (a hosted key). Best-in-class wiki
+  prose and reliable structured council reviews. The key is read from the env var named
+  by `api_key_env` (default `ANTHROPIC_API_KEY`), never stored in config. `model` selects
+  the tier: default `claude-opus-4-8`; set `model = "claude-haiku-4-5"` or
+  `"claude-sonnet-5"` for a much cheaper high-volume fleet run (the council makes many
+  calls). `max_tokens` (default 4096) caps each response.
+- **`cli`**, a locally-installed **agent CLI** you already pay for: `claude`, `gemini`,
+  or `codex`. contextlake shells out to it (`command`, default `claude`; `args` overrides
+  the per-CLI preset) and feeds the prompt on stdin. No API key touches contextlake;
+  data goes to whatever provider that CLI uses. Reuses your subscription, offline-adjacent
+  (still a network call by that tool), and mirrors how contextlake already shells out to
+  `git` and `glab`.
+
+**Data-sharing posture per backend.** Pick by what may leave your machine:
+
+| Backend | Data leaves the machine? | Auth |
+|---|---|---|
+| `builtin` / `auto`→builtin | No: fully local CPU model | none |
+| `ollama` | No: local daemon | none |
+| `cli` | Yes: to whatever provider that CLI uses | reuses the CLI's own login |
+| `anthropic` / `openai` | Yes: to the API endpoint | env-var key (never stored) |
 
 ### Configuring the wiki LLM
 

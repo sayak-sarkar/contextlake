@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Selectable LLM backends for the wiki and council tier.** `provider = "anthropic"`
+  (native Messages API, stdlib-only) and `provider = "cli"` (shell out to a local
+  `claude`/`gemini`/`codex` you already pay for, no API key held by contextlake). Gemini
+  works today via the existing OpenAI-compatible client (`provider = "openai"`,
+  `base_url = ".../v1beta/openai/"`). `doctor` reports each backend's key/PATH readiness.
+
 ### Documentation
 
 - **Install-flag guidance + scenario cheatsheet.** QUICKSTART now documents `-U`,
