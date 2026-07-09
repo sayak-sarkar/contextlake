@@ -446,6 +446,26 @@ args = ["some-mcp-server"]
 So contextlake both *serves* a knowledge graph over MCP and *consumes* other MCP servers'
 resources into it — the loop closes on the same seam.
 
+An `mcp` source may also declare a search *tool* (not just read its resources) and
+template codebase-derived terms into the tool's arguments. This groundwork enables
+query-driven wiki enrichment in the `enrich` stage. Declare the tool name and an
+argument template with substitution placeholders:
+
+```toml
+[[sources]]
+type = "mcp"
+name = "team-search"
+command = "uvx"
+args = ["some-mcp-server"]
+# Optional: call a search tool on the server, templating repo/symbol terms
+tool = "search"                 # the tool name on the server
+arg_template = { query = "{terms}" }  # {terms} substituted with codebase-derived terms
+```
+
+Both transports work with tool calling: `command` and `args` for stdio, or `url` for
+streamable-HTTP. The tool is called with the templated arguments during enrichment,
+returning documents grounded to the codebase's query context.
+
 **Additional `[[sources]]` keys.** Beyond the per-type keys above, connector and ingest
 sources also accept: `auth_dir` — an isolated OAuth-cache directory; set a distinct one per
 Atlassian org so their `mcp-remote` caches never collide. `mcp_command` — a local stdio MCP
