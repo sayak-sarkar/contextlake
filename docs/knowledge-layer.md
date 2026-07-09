@@ -148,7 +148,7 @@ with `--repo <repo>` rather than getting a silent best-guess.
 </p>
 
 Rather than running the steps by hand, `bootstrap`
-chains them, mirror repos → index → connect → embed → wiki → write editor steering, 
+chains them, mirror repos → index → connect → embed → enrich → wiki → write editor steering, 
 skipping anything not enabled, so a teammate goes from nothing to a fully-wired
 workspace in one step:
 
@@ -166,8 +166,23 @@ workspace keeps the entire knowledge base in a single, easy-to-access location.
 
 Both config files are read from their default locations (`~/.contextlake.ini` and
 `~/.contextlake/kb.toml`); pass `--config` / `--kb-config` to point elsewhere. Skip
-stages with `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect`. For an
+stages with `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect` / `--no-enrich`. For an
 isolated CLI, install with `pipx install "contextlake[kb]"`, or run ad-hoc with `uvx`.
+
+### Command composition
+
+Every stage is standalone, idempotent, and composable. Use these flows to build exactly what you need:
+
+| Use case | Command(s) |
+|---|---|
+| Blank to fully enriched workspace | `contextlake init` then `contextlake bootstrap` |
+| Add a connector, re-enrich the wiki | `contextlake source add jira ...` then `contextlake enrich` then `contextlake wiki` |
+| Single repo, enriched | `contextlake index .` then `contextlake source add ...` then `contextlake enrich` then `contextlake serve` |
+| Refresh enrichment only | `contextlake enrich` then `contextlake wiki --force` |
+| Manage or inspect sources | `contextlake source list` or `contextlake source test <name>` or `contextlake doctor` |
+| Disable a noisy source | `contextlake source disable <name>` then re-run `contextlake enrich` |
+
+`contextlake bootstrap` runs the full pipeline (mirror, index, connect, embed, enrich, wiki, steer) end to end, so `init` plus `bootstrap` takes a blank workspace to a mirrored, indexed, embedded, connector-enriched, wiki'd, editor-wired workspace in one command (skip enrich with `--no-enrich`).
 
 ### Keep it fresh on a schedule
 
