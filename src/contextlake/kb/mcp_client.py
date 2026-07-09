@@ -1,10 +1,11 @@
 """Minimal MCP client for querying external MCP servers.
 
-Used by knowledge-source connectors to talk to a hosted MCP server (e.g. the
-Atlassian Rovo MCP, reached via the ``mcp-remote`` stdio bridge). Each call spawns
-the server command, performs the MCP handshake, invokes one tool, and returns the
-parsed result. Authentication is the spawned command's concern (``mcp-remote``
-handles OAuth and token caching), so no credentials live here.
+Used by knowledge-source connectors to talk to an MCP server, either spawned over
+stdio (e.g. the Atlassian Rovo MCP, reached via the ``mcp-remote`` stdio bridge) or
+reached directly over streamable-HTTP (``url``). Each call performs the MCP
+handshake, invokes one tool, and returns the parsed result. Authentication is the
+transport's concern (the spawned command, or the HTTP endpoint itself), so no
+credentials live here.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from typing import Any
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamablehttp_client
 
 
 def _parse_result(res: Any) -> Any:
@@ -30,13 +32,23 @@ def _parse_result(res: Any) -> Any:
         return text
 
 
-async def _acall(command, args, tool, arguments, timeout, env):
-    params = StdioServerParameters(command=command, args=list(args), env=env)
+async def _call_in_session(session, tool, arguments, timeout) -> Any:
+    """Shared session body: handshake, invoke the tool, and parse the result."""
+    await asyncio.wait_for(session.initialize(), timeout)
+    res = await asyncio.wait_for(session.call_tool(tool, arguments or {}), timeout)
+    return _parse_result(res)
+
+
+async def _acall(command, args, tool, arguments, timeout, env, url=None):
+    if url:
+        async with streamablehttp_client(url) as streams:
+            async with ClientSession(streams[0], streams[1]) as session:
+                return await _call_in_session(session, tool, arguments, timeout)
+
+    params = StdioServerParameters(command=command, args=list(args or ()), env=env)
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
-            await asyncio.wait_for(session.initialize(), timeout)
-            res = await asyncio.wait_for(session.call_tool(tool, arguments or {}), timeout)
-            return _parse_result(res)
+            return await _call_in_session(session, tool, arguments, timeout)
 
 
 async def _alist(command, args, timeout, env) -> list[str]:
@@ -49,11 +61,16 @@ async def _alist(command, args, timeout, env) -> list[str]:
 
 
 def call_tool(
-    command: str, args: Sequence[str], tool: str,
+    command: str | None = None, args: Sequence[str] = (), tool: str = "",
     arguments: dict | None = None, timeout: float = 90, env: dict | None = None,
+    url: str | None = None,
 ) -> Any:
-    """Spawn an MCP server, call one tool, and return its parsed result."""
-    return asyncio.run(_acall(command, args, tool, arguments or {}, timeout, env))
+    """Call one tool on an MCP server and return its parsed result.
+
+    Connects via stdio (spawning ``command``/``args``) unless ``url`` is given, in
+    which case it connects to a hosted MCP server over streamable-HTTP instead.
+    """
+    return asyncio.run(_acall(command, args, tool, arguments or {}, timeout, env, url))
 
 
 def list_tools(
