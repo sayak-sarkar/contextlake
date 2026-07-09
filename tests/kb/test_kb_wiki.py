@@ -5,12 +5,13 @@ from datetime import date
 
 import contextlake.kb.llm as llm_pkg
 from contextlake.kb.commands import cmd_wiki
+from contextlake.kb.connectors.enrich import enrich_partition
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.state import check_schema
 from contextlake.kb.store.shards import GraphShard, write_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
 from contextlake.kb.wiki.council import _parse_review, council_gate, verdict
-from contextlake.kb.wiki.generate import generate_page, render_prompt, repo_brief
+from contextlake.kb.wiki.generate import external_context, generate_page, render_prompt, repo_brief
 
 
 def _shard(store_dir):
@@ -62,6 +63,85 @@ def test_repo_brief_carries_docstrings_into_the_wiki_prompt(tmp_path):
     assert top["OrderService"]["doc"] == "Handles orders end to end."
     assert top["OrderService"]["signature"] == "(self)"
     assert "Handles orders end to end." in render_prompt(brief)   # docstring reaches the wiki
+
+
+def _enrich_shard(store_dir, repo_id, docs):
+    """Write an @enrich:<repo_id> partition with the given (source, title, uri,
+    snippet) document tuples, mirroring what run_enrich_repo persists."""
+    nodes = [
+        Node(id=f"doc{i}", repo=enrich_partition(repo_id), kind="document", name=title,
+             file=uri, attrs={"source": source, "snippet": snippet})
+        for i, (source, title, uri, snippet) in enumerate(docs)
+    ]
+    write_shard(store_dir, GraphShard(repo=enrich_partition(repo_id), head_commit="enrich",
+                                       nodes=nodes, edges=[]))
+
+
+def test_external_context_reads_enrich_partition(tmp_path):
+    _enrich_shard(tmp_path, "r", [
+        ("atlassian", "Runbook", "https://x/1", "how to page the on-call engineer"),
+        ("atlassian", "Design doc", "https://x/2", "architecture notes for OrderService"),
+    ])
+    items = external_context(tmp_path, "r")
+    assert len(items) == 2
+    assert {"source": "atlassian", "title": "Runbook", "uri": "https://x/1",
+            "snippet": "how to page the on-call engineer"} in items
+
+
+def test_external_context_bounded_by_max_items(tmp_path):
+    _enrich_shard(tmp_path, "r", [
+        ("atlassian", f"Doc {i}", f"https://x/{i}", f"snippet {i}") for i in range(5)
+    ])
+    assert len(external_context(tmp_path, "r", max_items=2)) == 2
+
+
+def test_external_context_truncates_snippet_to_max_chars(tmp_path):
+    _enrich_shard(tmp_path, "r", [("atlassian", "Doc", "https://x/1", "x" * 500)])
+    items = external_context(tmp_path, "r", max_chars=50)
+    assert len(items[0]["snippet"]) == 50
+
+
+def test_external_context_empty_without_enrich_partition(tmp_path):
+    _shard(tmp_path)  # code shard only, no @enrich partition
+    assert external_context(tmp_path, "r") == []
+
+
+def test_repo_brief_includes_external_when_enrich_exists(tmp_path):
+    _shard(tmp_path)
+    _enrich_shard(tmp_path, "r", [("atlassian", "Runbook", "https://x/1", "how to page")])
+    brief = repo_brief(tmp_path, "r")
+    assert brief["external"] == [
+        {"source": "atlassian", "title": "Runbook", "uri": "https://x/1", "snippet": "how to page"}]
+
+
+def test_repo_brief_external_empty_without_enrich_partition(tmp_path):
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    assert brief["external"] == []
+
+
+def test_render_prompt_with_external_context_is_cited_and_attributed(tmp_path):
+    _shard(tmp_path)
+    _enrich_shard(tmp_path, "r", [("atlassian", "Runbook", "https://x/1", "how to page")])
+    brief = repo_brief(tmp_path, "r")
+    prompt = render_prompt(brief)
+    assert "External context" in prompt
+    assert '[source: atlassian] Runbook (https://x/1): "how to page"' in prompt
+    assert "attribute" in prompt.lower()
+    assert "source" in prompt.lower()
+
+
+def test_render_prompt_without_external_context_is_unchanged(tmp_path):
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    assert brief["external"] == []
+    prompt = render_prompt(brief)
+    assert "External context" not in prompt
+    # baseline code-facts content is still present, byte-for-byte behavior preserved
+    assert "OrderService" in prompt and "svc.py" in prompt and "requests" in prompt
+    assert prompt.strip().endswith(
+        "Write a wiki page in Markdown with sections: Overview, Key components, "
+        "Dependencies. Ground every statement in the facts above; do not speculate.")
 
 
 def test_generate_page_has_title_body_provenance(tmp_path):

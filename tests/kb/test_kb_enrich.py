@@ -161,6 +161,7 @@ def test_enrich_repo_stores_documents_with_provenance(tmp_path, monkeypatch):
         stored = store.get_node(f"{part}:d1")
         assert stored is not None
         assert stored.attrs.get("source") == "atlassian"
+        assert stored.attrs.get("snippet") == "how to page"  # doc body persisted for wiki grounding
     finally:
         store.close()
 
