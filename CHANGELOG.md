@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   embedded `@enrich:<repo>` partition. Idempotent and re-runnable across the whole fleet. Results are
   embedded and surface in semantic search (as `document` nodes tagged with their source), groundwork for connector-
   enriched wiki pages in the next stage.
+- **The curated wiki now incorporates connector enrichment.** After `contextlake enrich` completes,
+  each repo's wiki page gains an "External context" section drawn from its `@enrich:<repo>` enrichment
+  documents (Confluence pages, Jira issues, MCP search results). Each external claim is directly quoted
+  and attributed to its source, never presented as a free assertion or undisclosed code fact; the enriched
+  page still passes through the verification council before being written.
 
 ## [2.37.0] - 2026-07-08
 
