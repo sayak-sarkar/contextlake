@@ -150,3 +150,30 @@ def test_mcp_tool_query_accepts_source_cfg(monkeypatch):
                      arg_template={"query": "{terms}"})
     docs = mcp_tool_query(cfg, ["Order"])
     assert len(docs) == 1
+
+
+def test_mcp_tool_query_single_dict_result(monkeypatch):
+    def fake_call_tool(**kwargs):
+        return {"title": "X", "url": "u", "text": "body"}
+
+    monkeypatch.setattr(mcp_query, "call_tool", fake_call_tool)
+    cfg = {"command": "srv", "tool": "search", "arg_template": {"query": "{terms}"}}
+    docs = mcp_tool_query(cfg, ["Order"])
+    assert len(docs) == 1
+    d = docs[0]
+    assert d.title == "X"
+    assert d.uri == "u"
+    assert d.text == "body"
+    assert d.attrs["source"] == "mcp"
+    assert d.attrs["tool"] == "search"
+
+
+def test_mcp_tool_query_single_dict_no_content_keys_returns_empty(monkeypatch):
+    def fake_call_tool(**kwargs):
+        return {"foo": "bar"}
+
+    monkeypatch.setattr(mcp_query, "call_tool", fake_call_tool)
+    cfg = {"command": "srv", "tool": "search", "arg_template": {}}
+    docs = mcp_tool_query(cfg, ["Order"])
+    # Dict with no recognized content keys is discarded per Fix 1 spec
+    assert docs == []
