@@ -333,8 +333,7 @@ term-searchable source must be configured: either an `mcp` source with `tool` an
 keys, or an `atlassian` source. Sources without these capabilities (e.g. a plain `files` or `web`
 source) are skipped gracefully. Each repo's enrichment documents are stored in their own partition
 so they can be re-fetched without clobbering prior results, and are embedded (when the semantic
-tier is enabled) so they surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). This is groundwork for the curated wiki: Step 4 will join
-enrichment docs into synthesized wiki prose.
+tier is enabled) so they surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). After `contextlake wiki` runs, enrichment docs are incorporated into the curated wiki as an attributed "External context" section, grounded to the code graph's terms.
 
 ## Semantic search
 
@@ -535,6 +534,15 @@ alongside the code vectors — so a natural-language question can land on the wi
 explanation of a subsystem, cited back to the page file and labeled advisory (kind
 `wiki`), never outranking extracted code facts. Pages written before this existed are
 backfilled on the next `wiki` run without any LLM calls.
+
+**Incorporating connector enrichment.** When `contextlake enrich` has populated a repo's
+`@enrich:<repo>` enrichment documents (via Atlassian, Figma, GitLab, or MCP sources), the
+wiki synthesizer draws on them and incorporates an "External context" section into each repo's
+curated page. Each external fact is directly quoted from its source (Confluence page, Jira issue,
+or MCP search result) and attributed by source URL or name, never presented as a free assertion
+or as an undisclosed code fact. The council still gates the enriched page before it is written,
+ensuring external context supplements rather than displaces code-backed facts and that attribution
+is clear and verifiable.
 
 The result, rendered in the dashboard's Wiki tab — prose grounded strictly in real symbols,
 with a provenance footer citing the exact commit and source files it was built from:
