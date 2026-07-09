@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documents (Confluence pages, Jira issues, MCP search results). Each external claim is directly quoted
   and attributed to its source, never presented as a free assertion or undisclosed code fact; the enriched
   page still passes through the verification council before being written.
+- **`contextlake bootstrap` now runs the `enrich` stage**, so `init` plus `bootstrap` takes a blank
+  workspace to a mirrored, indexed, embedded, connector-enriched, wiki'd, editor-wired workspace in one
+  command (skip enrichment with `--no-enrich`). A documented command-composition matrix shows every
+  supported flow (blank-to-enriched, single-repo, add-a-connector-refresh, etc.), so users build exactly
+  what they need by chaining the right stages.
 
 ## [2.37.0] - 2026-07-08
 
