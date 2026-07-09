@@ -62,7 +62,7 @@ _ALIASES = {"who-knows": "owners", "blast-radius": "impact"}
 # Verbs handled by the optional knowledge layer (the [kb] extra).
 _KB_COMMANDS = frozenset({
     "index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
-    "graph", "doctor", "eval", "owners", "impact", "ingest", "dashboard", "hook",
+    "graph", "doctor", "eval", "owners", "impact", "ingest", "enrich", "dashboard", "hook",
     "source",
 })
 
@@ -531,6 +531,24 @@ Examples:
     p.add_argument("--path", default=_S, help="the path (or URL/endpoint) to ingest")
     p.add_argument("--source-type", dest="source_type", default=_S,
                    help="source type for --path (default 'files')")
+
+    p = command("enrich", "query connected sources with codebase terms and store "
+                          "enrichment docs",
+                epilog="""
+Examples:
+  contextlake enrich                        enrich every indexed repo
+  contextlake enrich --repo group/app       enrich just this repo
+  contextlake enrich --workspace ~/src      enrich every repo under a mirror
+
+Unlike `connect` (which reconciles issue keys/links found *in* a repo), enrich
+never inspects the repo's text -- it turns the repo's own name and top symbols
+into search terms and asks each configured `mcp` (with a `tool`) or `atlassian`
+source what it has. Results land in an isolated `@enrich:<repo>` partition.
+                """)
+    p.add_argument("--repo", default=_S, help="only enrich this repo id (default: all indexed)")
+    p.add_argument("--workspace", default=_S,
+                   help="enrich every git repo under this directory instead of the "
+                        "store's indexed repos")
 
     p = command("dashboard", "the knowledge-system dashboard: fleet / repo / "
                              "relationships / impact / health / search",
