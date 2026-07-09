@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the config while preserving comments via tomlkit, a new `[kb]` extra dependency. `init` can prompt to
   connect a source during first-run setup, and `doctor` reports per-source reachability as part of its
   environment check. Hand-editing `kb.toml` still works for power users.
+- **MCP tool-calling connector for external search.** An `mcp` source can now declare a search *tool*
+  (not just read resources) and template codebase-derived terms (repo name, key symbols) into the tool's
+  arguments via `tool` and `arg_template` keys. Supports both stdio (`command`/`args`) and streamable-HTTP
+  (`url`) transports. Groundwork for query-driven wiki enrichment in the upcoming `enrich` stage.
 
 ## [2.37.0] - 2026-07-08
 
