@@ -1,8 +1,8 @@
 """Query-driven enrichment: turn a repo's own codebase into search terms, fan
 those terms out to connected sources, and store whatever comes back.
 
-Unlike ``connect`` (which reconciles explicit reference signals — issue keys,
-doc links — found in a repo), ``enrich`` never inspects the repo's text for
+Unlike ``connect`` (which reconciles explicit reference signals - issue keys,
+doc links - found in a repo), ``enrich`` never inspects the repo's text for
 references. It asks the graph "what is this repo actually about" (its name
 plus its highest-degree, most-meaningful symbols) and lets each connected
 source answer with whatever it has: Jira/Confluence pages, a wiki search tool
@@ -31,7 +31,7 @@ def build_terms(store_dir, repo_id: str, *, max_terms: int = 10) -> list[str]:
 
     The repo name (last ``/``-segment of ``repo_id``) always leads, followed by
     up to ``max_terms - 1`` of :func:`repo_brief`'s ``top_symbols`` (ranked by
-    graph degree) whose kind is in :data:`EMBEDDABLE_KINDS` — definitions worth
+    graph degree) whose kind is in :data:`EMBEDDABLE_KINDS` - definitions worth
     searching for, not files/packages/modules. Empty if the repo has no shard.
     """
     brief = repo_brief(store_dir, repo_id)
@@ -47,14 +47,14 @@ def build_terms(store_dir, repo_id: str, *, max_terms: int = 10) -> list[str]:
     return terms
 
 
-def _atlassian_search(cfg, terms: list[str]) -> list[Document]:
+def _atlassian_search(cfg, terms: list[str], *, timeout: float | None = None) -> list[Document]:
     from .atlassian import DEFAULT_MCP_URL, AtlassianConnector
 
     connector = AtlassianConnector(
         _cfg_get(cfg, "name", "enrich"),
         mcp_url=_cfg_get(cfg, "mcp") or DEFAULT_MCP_URL,
         auth_dir=_cfg_get(cfg, "auth_dir"),
-        timeout=_cfg_get(cfg, "timeout", 120),
+        timeout=timeout if timeout is not None else _cfg_get(cfg, "timeout", 120),
     )
     result = connector.search(" ".join(terms))
     docs = _normalize(result, "atlassian")
@@ -78,7 +78,7 @@ def search_source(cfg, terms: list[str], *, timeout: float | None = None) -> lis
         if _cfg_get(cfg, "tool"):
             return mcp_tool_query(cfg, terms, timeout=timeout)
         if _cfg_get(cfg, "type") == "atlassian":
-            return _atlassian_search(cfg, terms)
+            return _atlassian_search(cfg, terms, timeout=timeout)
         return []
     except Exception:  # an unreachable/misbehaving source yields nothing
         return []
@@ -89,7 +89,9 @@ def _document_node(part: str, doc: Document, source_type: str | None) -> Node:
                 file=(doc.uri or None), attrs={**doc.attrs, "source": source_type})
 
 
-def enrich_repo(store, store_dir, cfg, repo_id: str, *, embedder=None, vector_store=None) -> int:
+def run_enrich_repo(
+    store, store_dir, cfg, repo_id: str, *, embedder=None, vector_store=None
+) -> int:
     """Build query terms from ``repo_id``'s codebase, search every enabled source
     in ``cfg.sources``, and store the results in its ``@enrich:<repo_id>``
     partition (clear-then-write, so re-running never accumulates duplicates).
