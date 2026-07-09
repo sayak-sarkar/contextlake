@@ -9,7 +9,7 @@ from contextlake.kb.config import KbConfig, SourceCfg
 from contextlake.kb.connectors.enrich import (
     build_terms,
     enrich_partition,
-    enrich_repo,
+    run_enrich_repo,
     search_source,
 )
 from contextlake.kb.model import Confidence, Edge, Node, Provenance
@@ -147,7 +147,7 @@ def test_enrich_repo_stores_documents_with_provenance(tmp_path, monkeypatch):
         monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
 
-        n = enrich_repo(store, store_dir, cfg, REPO)
+        n = run_enrich_repo(store, store_dir, cfg, REPO)
         assert n == 2
 
         part = enrich_partition(REPO)
@@ -177,8 +177,8 @@ def test_enrich_repo_rerun_is_idempotent_not_cumulative(tmp_path, monkeypatch):
         monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
 
-        assert enrich_repo(store, store_dir, cfg, REPO) == 2
-        assert enrich_repo(store, store_dir, cfg, REPO) == 2
+        assert run_enrich_repo(store, store_dir, cfg, REPO) == 2
+        assert run_enrich_repo(store, store_dir, cfg, REPO) == 2
 
         part = enrich_partition(REPO)
         shard = read_shard(store_dir, part)
@@ -199,7 +199,7 @@ def test_enrich_repo_dedupes_documents_across_sources(tmp_path, monkeypatch):
             SourceCfg(type="atlassian", name="site-b"),
         ])
 
-        n = enrich_repo(store, store_dir, cfg, REPO)
+        n = run_enrich_repo(store, store_dir, cfg, REPO)
         assert n == 1
     finally:
         store.close()
@@ -219,7 +219,7 @@ def test_enrich_repo_skips_disabled_sources(tmp_path, monkeypatch):
         monkeypatch.setattr(enrich, "search_source", fake_search)
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a", enabled=False)])
 
-        assert enrich_repo(store, store_dir, cfg, REPO) == 0
+        assert run_enrich_repo(store, store_dir, cfg, REPO) == 0
         assert called == []
     finally:
         store.close()
@@ -231,7 +231,7 @@ def test_enrich_repo_no_sources_clears_partition_returns_zero(tmp_path):
     store = _store(store_dir)
     try:
         cfg = KbConfig(sources=[])
-        assert enrich_repo(store, store_dir, cfg, REPO) == 0
+        assert run_enrich_repo(store, store_dir, cfg, REPO) == 0
         shard = read_shard(store_dir, enrich_partition(REPO))
         assert shard is not None
         assert shard.nodes == []
@@ -244,7 +244,7 @@ def test_enrich_repo_no_terms_returns_zero_without_touching_store(tmp_path):
     store = _store(store_dir)
     try:
         cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
-        assert enrich_repo(store, store_dir, cfg, "group/missing") == 0
+        assert run_enrich_repo(store, store_dir, cfg, "group/missing") == 0
         assert read_shard(store_dir, enrich_partition("group/missing")) is None
     finally:
         store.close()
