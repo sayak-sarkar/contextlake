@@ -67,6 +67,18 @@ def test_source_disabled_flag_loads_false(tmp_path, monkeypatch):
     assert c.sources[0].enabled is False
 
 
+def test_source_tool_and_arg_template_load(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        '[[sources]]\ntype = "mcp"\nname = "m"\ntool = "search"\n'
+        'arg_template = { query = "{terms}" }\n'
+    )
+    c = load_kb_config(str(cfg))
+    assert c.sources[0].tool == "search"
+    assert c.sources[0].arg_template == {"query": "{terms}"}
+
+
 def test_legacy_global_kb_config_is_discovered(tmp_path, monkeypatch):
     # Back-compat: an existing ~/.gitlab-sync/kb.toml (legacy global) is still
     # read without passing --config.

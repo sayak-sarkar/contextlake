@@ -57,6 +57,11 @@ class SourceCfg(BaseModel):
     name: str
     mcp: str | None = None
     enabled: bool = True
+    # Generic MCP tool-calling (see kb/connectors/mcp_query.py): the search tool
+    # name on the configured MCP server, and a dict of arguments to call it with
+    # ({terms}/{query} placeholders get the caller's search terms templated in).
+    tool: str | None = None
+    arg_template: dict | None = None
 
 
 class RuleCfg(BaseModel):
