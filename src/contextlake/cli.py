@@ -78,7 +78,7 @@ _DEFAULTS = {
     "min_workers": None, "error_threshold": None, "safe_branches": None,
     # bootstrap
     "kb_config": None, "no_sync": False, "no_connect": False,
-    "no_embed": False, "no_wiki": False,
+    "no_embed": False, "no_enrich": False, "no_wiki": False,
     # knowledge layer
     "source": None, "workspace": None, "force": False, "out": None,
     "llm": None, "llm_model": None, "watch": False, "interval": None,
@@ -191,9 +191,9 @@ def _root_hidden_flags(p):
                  "--source-type", "--golden", "--as-of", "--node", "--name",
                  "--search", "--relation", "--output"):
         add(flag)
-    for flag in ("--no-audit", "--no-sync", "--no-connect", "--no-embed", "--no-wiki",
-                 "--force", "--watch", "--overview", "--open", "--cdn", "--serve",
-                 "--anonymize", "--sample"):
+    for flag in ("--no-audit", "--no-sync", "--no-connect", "--no-embed", "--no-enrich",
+                 "--no-wiki", "--force", "--watch", "--overview", "--open", "--cdn",
+                 "--serve", "--anonymize", "--sample"):
         add(flag, action="store_true")
     for flag in ("--interval", "--port", "--limit", "--hops", "--max-nodes",
                  "--max-fanout", "--group-depth"):
@@ -291,7 +291,7 @@ Examples:
 
     p = command("bootstrap",
                 "one command from nothing to a wired workspace: mirror, index, "
-                "connect, embed, wiki, steering",
+                "connect, embed, enrich, wiki, steering",
                 epilog="""
 Examples:
   contextlake bootstrap                          the full turnkey run
@@ -312,6 +312,8 @@ Examples:
                    help="skip the connectors step")
     p.add_argument("--no-embed", dest="no_embed", action="store_true", default=_S,
                    help="skip the embeddings step")
+    p.add_argument("--no-enrich", dest="no_enrich", action="store_true", default=_S,
+                   help="skip the connector-enrichment step")
     p.add_argument("--no-wiki", dest="no_wiki", action="store_true", default=_S,
                    help="skip the wiki-generation step")
     p.add_argument("--llm", default=_S, metavar="PROVIDER",
@@ -686,6 +688,7 @@ def _bootstrap(args, config, work_dir, gitlab_group):
     kb_args.config = getattr(args, "kb_config", None)
     kb_args.workspace = workspace
     kb_args.source = None
+    kb_args.args = []
     kb_args.out = workspace
 
     stages = [("Index the code graph", kb.cmd_index)]
@@ -693,6 +696,8 @@ def _bootstrap(args, config, work_dir, gitlab_group):
         stages.append(("Connect knowledge sources", kb.cmd_connect))
     if not getattr(args, "no_embed", False):
         stages.append(("Build semantic vectors", kb.cmd_embed))
+    if not getattr(args, "no_enrich", False):
+        stages.append(("Enrich from connected sources", kb.cmd_enrich))
     if not getattr(args, "no_wiki", False):
         stages.append(("Generate the curated wiki", kb.cmd_wiki))
     stages.append(("Write editor steering (.mcp.json, AGENTS.md, …)", kb.cmd_steer))

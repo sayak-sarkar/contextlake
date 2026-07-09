@@ -9,7 +9,7 @@ import contextlake.kb.commands as kb
 
 _CORE = ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
          "switch_repository_branches", "verify_structure"]
-_KB = ["cmd_index", "cmd_connect", "cmd_embed", "cmd_wiki", "cmd_steer"]
+_KB = ["cmd_index", "cmd_connect", "cmd_embed", "cmd_enrich", "cmd_wiki", "cmd_steer"]
 
 
 def _record(monkeypatch):
@@ -22,8 +22,9 @@ def _record(monkeypatch):
 
 
 def _args(**over):
-    base = dict(no_sync=False, no_connect=False, no_embed=False, no_wiki=False,
-                kb_config=None, config=None, workspace=None, source=None, out=None)
+    base = dict(no_sync=False, no_connect=False, no_embed=False, no_enrich=False,
+                no_wiki=False, kb_config=None, config=None, workspace=None,
+                source=None, out=None)
     base.update(over)
     return Namespace(**base)
 
@@ -36,10 +37,35 @@ def test_bootstrap_runs_every_stage_in_order(monkeypatch, tmp_path):
 
 def test_bootstrap_skip_flags(monkeypatch, tmp_path):
     calls = _record(monkeypatch)
-    cli._bootstrap(_args(no_sync=True, no_connect=True, no_embed=True, no_wiki=True),
-                   {}, str(tmp_path), "grp")
+    cli._bootstrap(_args(no_sync=True, no_connect=True, no_embed=True, no_enrich=True,
+                         no_wiki=True), {}, str(tmp_path), "grp")
     # no sync; only the always-on kb stages: index + steer
     assert calls == ["cmd_index", "cmd_steer"]
+
+
+def test_bootstrap_no_enrich_flag_omits_only_enrich(monkeypatch, tmp_path):
+    calls = _record(monkeypatch)
+    cli._bootstrap(_args(no_enrich=True), {}, str(tmp_path), "grp")
+    assert calls == _CORE + ["cmd_index", "cmd_connect", "cmd_embed", "cmd_wiki",
+                              "cmd_steer"]
+
+
+def test_bootstrap_enrich_runs_between_embed_and_wiki(monkeypatch, tmp_path):
+    calls = _record(monkeypatch)
+    cli._bootstrap(_args(), {}, str(tmp_path), "grp")
+    assert calls.index("cmd_embed") < calls.index("cmd_enrich") < calls.index("cmd_wiki")
+
+
+def test_bootstrap_enrich_targets_all_workspace_repos(monkeypatch, tmp_path):
+    """kb_args.args must be reset to [] for enrich, so _connect_targets is not
+    scoped to a stray positional repo filter left over on the parsed args."""
+    seen = {}
+    for name in _CORE:
+        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    for name in _KB:
+        monkeypatch.setattr(kb, name, lambda a, _n=name: (seen.__setitem__(_n, a), 0)[1])
+    cli._bootstrap(_args(args=["stray-repo-filter"]), {}, str(tmp_path), "grp")
+    assert seen["cmd_enrich"].args == []
 
 
 def test_bootstrap_continues_past_a_failing_stage_then_exits_nonzero(monkeypatch, tmp_path):
@@ -52,7 +78,8 @@ def test_bootstrap_continues_past_a_failing_stage_then_exits_nonzero(monkeypatch
     # a non-foundational stage failing must not abort the run -- index + steer still
     # run -- but bootstrap must NOT report a hollow success: it exits non-zero.
     with pytest.raises(SystemExit) as exc:
-        cli._bootstrap(_args(no_sync=True, no_embed=True, no_wiki=True), {}, str(tmp_path), "grp")
+        cli._bootstrap(_args(no_sync=True, no_embed=True, no_enrich=True, no_wiki=True),
+                       {}, str(tmp_path), "grp")
     assert exc.value.code == 1
     assert calls == ["cmd_index", "cmd_steer"]
 
@@ -61,7 +88,7 @@ def test_bootstrap_exits_nonzero_when_a_stage_returns_failure(monkeypatch, tmp_p
     """A stage that returns a non-zero code (not just raising) is a failure too."""
     calls = _record(monkeypatch)
     monkeypatch.setattr(kb, "cmd_wiki", lambda a: (calls.append("cmd_wiki"), 1)[1])
-    args = _args(no_sync=True, no_connect=True, no_embed=True)
+    args = _args(no_sync=True, no_connect=True, no_embed=True, no_enrich=True)
     with pytest.raises(SystemExit) as exc:
         cli._bootstrap(args, {}, str(tmp_path), "grp")
     assert exc.value.code == 1
