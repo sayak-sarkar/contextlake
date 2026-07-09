@@ -20,11 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (not just read resources) and template codebase-derived terms (repo name, key symbols) into the tool's
   arguments via `tool` and `arg_template` keys. Supports both stdio (`command`/`args`) and streamable-HTTP
   (`url`) transports. Groundwork for query-driven wiki enrichment in the upcoming `enrich` stage.
-- **`contextlake enrich` — query connected sources with codebase-derived terms.** Derives search terms
+- **`contextlake enrich`: query connected sources with codebase-derived terms.** Derives search terms
   from each repo's code graph (repo name and top symbols) and queries connected sources (Atlassian Rovo
   search, or any `mcp` source with a `tool` and `arg_template`), storing the results in a searchable,
   embedded `@enrich:<repo>` partition. Idempotent and re-runnable across the whole fleet. Results are
-  embedded and surface in semantic search (kind `enrich`, marked advisory), groundwork for connector-
+  embedded and surface in semantic search (as `document` nodes tagged with their source), groundwork for connector-
   enriched wiki pages in the next stage.
 
 ## [2.37.0] - 2026-07-08
