@@ -536,7 +536,7 @@ explanation of a subsystem, cited back to the page file and labeled advisory (ki
 backfilled on the next `wiki` run without any LLM calls.
 
 **Incorporating connector enrichment.** When `contextlake enrich` has populated a repo's
-`@enrich:<repo>` enrichment documents (via Atlassian, Figma, GitLab, or MCP sources), the
+`@enrich:<repo>` enrichment documents (via Atlassian or MCP search sources), the
 wiki synthesizer draws on them and incorporates an "External context" section into each repo's
 curated page. Each external fact is directly quoted from its source (Confluence page, Jira issue,
 or MCP search result) and attributed by source URL or name, never presented as a free assertion

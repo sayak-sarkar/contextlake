@@ -40,13 +40,15 @@ def external_context(
     for n in shard.nodes:
         if n.kind != "document":
             continue
-        snippet = (n.attrs or {}).get("snippet", "")[:max_chars]
-        if not snippet and not n.name:
+        snippet = " ".join(((n.attrs or {}).get("snippet") or "").split())[:max_chars]
+        title = (n.name or "").strip()
+        uri = (n.file or "").strip()
+        if not snippet and not title:
             continue
         items.append({
             "source": (n.attrs or {}).get("source"),
-            "title": n.name,
-            "uri": n.file,
+            "title": title,
+            "uri": uri,
             "snippet": snippet,
         })
         if len(items) >= max_items:
