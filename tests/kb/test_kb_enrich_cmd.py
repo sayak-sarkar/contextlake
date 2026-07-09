@@ -76,7 +76,7 @@ def test_enrich_persists_documents_from_configured_source(tmp_path, monkeypatch)
     ]
     monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
 
-    args = Namespace(config=str(cfg), workspace=None, repo=REPO)
+    args = Namespace(config=str(cfg), workspace=None, args=[REPO])
     assert cmd_enrich(args) == 0
 
     part = enrich_partition(REPO)
@@ -97,11 +97,33 @@ def test_enrich_no_term_searchable_sources_is_a_noop(tmp_path, monkeypatch):
     check_schema(store)
     store.close()
 
-    args = Namespace(config=str(cfg), workspace=None, repo=None)
+    args = Namespace(config=str(cfg), workspace=None, args=[])
     assert cmd_enrich(args) == 0
 
 
-def test_parser_registers_enrich_repo_flag():
-    args = build_parser().parse_args(["enrich", "--repo", "x/y"])
+def test_parser_registers_enrich_positional_repo():
+    args = build_parser().parse_args(["enrich", "x/y"])
     assert args.command == "enrich"
-    assert args.repo == "x/y"
+    assert args.args == ["x/y"]
+
+
+def test_enrich_positional_repo_filters_to_that_repo(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_CONFIG.format(store=store_dir.as_posix()))
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    _seed_indexed_repo(store, store_dir, REPO, str(tmp_path / "app"))
+    _seed_indexed_repo(store, store_dir, "group/other", str(tmp_path / "other"))
+    store.close()
+
+    docs = [Document(id="d1", title="Runbook", text="how to page", uri="https://x/1")]
+    monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+
+    args = Namespace(config=str(cfg), workspace=None, args=[REPO])
+    assert cmd_enrich(args) == 0
+
+    assert read_shard(store_dir, enrich_partition(REPO)) is not None
+    assert read_shard(store_dir, enrich_partition("group/other")) is None

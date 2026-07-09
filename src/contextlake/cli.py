@@ -537,7 +537,7 @@ Examples:
                 epilog="""
 Examples:
   contextlake enrich                        enrich every indexed repo
-  contextlake enrich --repo group/app       enrich just this repo
+  contextlake enrich group/app              enrich just this repo
   contextlake enrich --workspace ~/src      enrich every repo under a mirror
 
 Unlike `connect` (which reconciles issue keys/links found *in* a repo), enrich
@@ -545,7 +545,8 @@ never inspects the repo's text -- it turns the repo's own name and top symbols
 into search terms and asks each configured `mcp` (with a `tool`) or `atlassian`
 source what it has. Results land in an isolated `@enrich:<repo>` partition.
                 """)
-    p.add_argument("--repo", default=_S, help="only enrich this repo id (default: all indexed)")
+    p.add_argument("args", nargs="*", metavar="repo",
+                   help="only enrich these repos (default: all indexed)")
     p.add_argument("--workspace", default=_S,
                    help="enrich every git repo under this directory instead of the "
                         "store's indexed repos")

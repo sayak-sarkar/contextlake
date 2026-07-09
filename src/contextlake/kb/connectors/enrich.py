@@ -120,6 +120,11 @@ def run_enrich_repo(
     store.upsert_nodes(part, nodes)
     write_shard(store_dir, GraphShard(repo=part, head_commit="enrich", nodes=nodes, edges=[]))
 
+    # Clear this partition's stale vectors unconditionally (mirroring the graph
+    # store.clear_repo above) -- a source that stops returning a doc a prior run
+    # embedded, or returns none at all, would otherwise leave orphaned vectors.
+    if vector_store is not None:
+        vector_store.clear_repo(part)
     if embedder and vector_store and nodes:
         from ..commands import _embed_documents
         batch = getattr(cfg.embeddings, "batch_size", 64)
