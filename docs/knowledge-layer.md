@@ -18,6 +18,7 @@ commands are:
 | `source` | add / list / remove / test / enable / disable knowledge-source connectors |
 | `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
 | `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
+| `enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
 | `wiki` | LLM-synthesized, council-verified wiki pages; `--llm builtin|ollama|openai|anthropic|cli` enables the LLM tier inline |
@@ -313,6 +314,28 @@ guides you through the whole flow.
 and confidence-tagged as one of three tiers — **`EXTRACTED`** (read straight from source/AST),
 **`INFERRED`** (a resolved call or link), or **`AMBIGUOUS`** (an unconfirmed candidate) — and
 sanitized before it reaches an agent. The dashboard and the graph legend use these same tiers.
+
+## Query-driven enrichment
+
+`contextlake enrich` performs **query-driven enrichment**: it derives search terms from each repo's
+code graph (the repo's name and its top symbols by graph degree) and queries your connected sources
+(Atlassian Rovo search, or any `mcp` source with a `tool` and `arg_template` configured) with those
+terms, then stores the returned documents in a searchable, embedded `@enrich:<repo>` partition,
+idempotent and re-runnable across the whole fleet or a single repo:
+
+```bash
+contextlake enrich --workspace ~/work     # all indexed repos
+contextlake enrich acme/orders-api         # one repo
+```
+
+Prerequisites: the code graph must be **indexed first** (`contextlake index`), and at least one
+term-searchable source must be configured — either an `mcp` source with `tool` and `arg_template`
+keys, or an `atlassian` source. Sources without these capabilities (e.g. a plain `files` or `web`
+source) are skipped gracefully. Each repo's enrichment documents are stored in their own partition
+so they can be re-fetched without clobbering prior results, and are embedded (when the semantic
+tier is enabled) so they surface in semantic search results, labeled with `kind="enrich"` and
+(like `wiki` pages) marked advisory. This is groundwork for the curated wiki: Step 4 will join
+enrichment docs into synthesized wiki prose.
 
 ## Semantic search
 
