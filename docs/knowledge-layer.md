@@ -329,12 +329,11 @@ contextlake enrich acme/orders-api         # one repo
 ```
 
 Prerequisites: the code graph must be **indexed first** (`contextlake index`), and at least one
-term-searchable source must be configured — either an `mcp` source with `tool` and `arg_template`
+term-searchable source must be configured: either an `mcp` source with `tool` and `arg_template`
 keys, or an `atlassian` source. Sources without these capabilities (e.g. a plain `files` or `web`
 source) are skipped gracefully. Each repo's enrichment documents are stored in their own partition
 so they can be re-fetched without clobbering prior results, and are embedded (when the semantic
-tier is enabled) so they surface in semantic search results, labeled with `kind="enrich"` and
-(like `wiki` pages) marked advisory. This is groundwork for the curated wiki: Step 4 will join
+tier is enabled) so they surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). This is groundwork for the curated wiki: Step 4 will join
 enrichment docs into synthesized wiki prose.
 
 ## Semantic search
