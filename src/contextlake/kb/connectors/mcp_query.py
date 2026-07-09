@@ -93,6 +93,12 @@ def _normalize(result: Any, tool: str) -> list[Document]:
             nested = result.get(key)
             if isinstance(nested, list):
                 return _documents_from_list(nested, tool)
+        # Check if the dict itself has recognized content keys; if so, treat it as a single hit
+        has_content = any(result.get(k) for k in _TITLE_KEYS) or \
+                     any(result.get(k) for k in _TEXT_KEYS) or \
+                     any(result.get(k) for k in _URI_KEYS)
+        if has_content:
+            return _documents_from_list([result], tool)
         return []
     if isinstance(result, str):
         return _documents_from_string(result, tool)
@@ -107,10 +113,10 @@ def mcp_tool_query(cfg: Any, terms: list[str], *, timeout: float | None = None) 
     Never raises: any failure (missing tool, unreachable server, malformed
     result) yields an empty list.
     """
-    tool = _cfg_get(cfg, "tool")
-    if not tool:
-        return []
     try:
+        tool = _cfg_get(cfg, "tool")
+        if not tool:
+            return []
         args = _render_args(_cfg_get(cfg, "arg_template") or {}, terms)
         result = call_tool(
             command=_cfg_get(cfg, "command"),
