@@ -86,7 +86,8 @@ def search_source(cfg, terms: list[str], *, timeout: float | None = None) -> lis
 
 def _document_node(part: str, doc: Document, source_type: str | None) -> Node:
     return Node(id=f"{part}:{doc.id}", repo=part, kind="document", name=doc.title,
-                file=(doc.uri or None), attrs={**doc.attrs, "source": source_type})
+                file=(doc.uri or None),
+                attrs={**doc.attrs, "source": source_type, "snippet": (doc.text or "")[:300]})
 
 
 def run_enrich_repo(

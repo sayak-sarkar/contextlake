@@ -15,8 +15,43 @@ from ..store.shards import read_shard
 SYSTEM = (
     "You are a precise staff engineer writing a short wiki page about a code "
     "repository for other engineers. Use ONLY the facts provided. Do not invent "
-    "APIs, files, or behavior; if a fact is not given, omit it. Be concise."
+    "APIs, files, or behavior; if a fact is not given, omit it. Be concise. "
+    "External context from connected sources must always be attributed to its "
+    "source when used; never present it as a fact about the code."
 )
+
+
+def external_context(
+    store_dir, repo_id: str, *, max_items: int = 8, max_chars: int = 300
+) -> list[dict]:
+    """Cited snippets from ``repo_id``'s connector-enrichment documents (the
+    ``@enrich:<repo_id>`` partition), or ``[]`` if it hasn't been enriched.
+
+    Each item carries its source (issue tracker, docs, design tool, …), title,
+    and uri so the wiki prompt can attribute it rather than presenting it as a
+    fact about the code.
+    """
+    from ..connectors.enrich import enrich_partition
+
+    shard = read_shard(store_dir, enrich_partition(repo_id))
+    if shard is None:
+        return []
+    items = []
+    for n in shard.nodes:
+        if n.kind != "document":
+            continue
+        snippet = (n.attrs or {}).get("snippet", "")[:max_chars]
+        if not snippet and not n.name:
+            continue
+        items.append({
+            "source": (n.attrs or {}).get("source"),
+            "title": n.name,
+            "uri": n.file,
+            "snippet": snippet,
+        })
+        if len(items) >= max_items:
+            break
+    return items
 
 
 def repo_brief(store_dir, repo_id: str) -> dict | None:
@@ -43,6 +78,7 @@ def repo_brief(store_dir, repo_id: str) -> dict | None:
                          "signature": (n.attrs or {}).get("signature")} for n in top],
         "packages": [n.name for n in nodes if n.kind == "package"][:20],
         "files": sorted({n.file for n in nodes if n.file})[:20],
+        "external": external_context(store_dir, repo_id),
     }
 
 
@@ -65,6 +101,20 @@ def render_prompt(brief: dict) -> str:
         lines.append("Depends on packages: " + ", ".join(brief["packages"]))
     if brief["files"]:
         lines.append("Notable files: " + ", ".join(brief["files"]))
+    if brief.get("external"):
+        lines.append("")
+        lines.append("External context (from connected sources):")
+        for item in brief["external"]:
+            lines.append(
+                f"  - [source: {item.get('source')}] {item.get('title')} "
+                f"({item.get('uri')}): \"{item.get('snippet')}\""
+            )
+        lines.append(
+            "The External context items come from connected sources (issue trackers, "
+            "docs, design tools). You MAY use them to enrich the page, but you MUST "
+            "attribute each such statement to its source (name the source/link). "
+            "Never present external claims as facts about the code without attribution."
+        )
     lines += [
         "",
         "Write a wiki page in Markdown with sections: Overview, Key components, "
