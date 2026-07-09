@@ -1157,11 +1157,9 @@ def cmd_enrich(args) -> int:
             return 0
 
         targets = _connect_targets(args, store)
-        repo = getattr(args, "repo", None)
-        if repo and not getattr(args, "workspace", None):
-            targets = [t for t in targets if t[0] == repo]
         if not targets:
-            log("No repos to enrich (index some first, or pass --workspace/--repo)")
+            log("No repos to enrich (index some first, or pass --workspace, or "
+                "name a repo)")
             return 0
 
         embedder = vector_store = None
