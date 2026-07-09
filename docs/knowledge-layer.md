@@ -177,7 +177,7 @@ Every stage is standalone, idempotent, and composable. Use these flows to build 
 |---|---|
 | Blank to fully enriched workspace | `contextlake init` then `contextlake bootstrap` |
 | Add a connector, re-enrich the wiki | `contextlake source add jira ...` then `contextlake enrich` then `contextlake wiki` |
-| Single repo, enriched | `contextlake index .` then `contextlake source add ...` then `contextlake enrich` then `contextlake serve` |
+| Single repo, enriched | `contextlake index .` then `contextlake source add ...` then `contextlake enrich` then `contextlake wiki` then `contextlake serve` |
 | Refresh enrichment only | `contextlake enrich` then `contextlake wiki --force` |
 | Manage or inspect sources | `contextlake source list` or `contextlake source test <name>` or `contextlake doctor` |
 | Disable a noisy source | `contextlake source disable <name>` then re-run `contextlake enrich` |

@@ -688,7 +688,8 @@ def _bootstrap(args, config, work_dir, gitlab_group):
     kb_args.config = getattr(args, "kb_config", None)
     kb_args.workspace = workspace
     kb_args.source = None
-    kb_args.args = []
+    kb_args.args = []  # defensive: bootstrap has no positional args; _connect_targets
+                       # short-circuits on workspace before consulting this
     kb_args.out = workspace
 
     stages = [("Index the code graph", kb.cmd_index)]

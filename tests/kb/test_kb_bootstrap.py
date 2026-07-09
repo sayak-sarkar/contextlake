@@ -57,8 +57,9 @@ def test_bootstrap_enrich_runs_between_embed_and_wiki(monkeypatch, tmp_path):
 
 
 def test_bootstrap_enrich_targets_all_workspace_repos(monkeypatch, tmp_path):
-    """kb_args.args must be reset to [] for enrich, so _connect_targets is not
-    scoped to a stray positional repo filter left over on the parsed args."""
+    """Defensive: reset kb_args.args to [] for enrich, even though bootstrap has
+    no positional args and _connect_targets short-circuits on workspace before
+    consulting args - belt-and-suspenders, not a currently reachable bug."""
     seen = {}
     for name in _CORE:
         monkeypatch.setattr(cli, name, lambda *a, **k: None)
