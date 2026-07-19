@@ -226,10 +226,12 @@ and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/
 | `fetch` · `clone` · `update` | The sync steps, individually |
 | `branches` | Switch each repo to its most active branch |
 | `verify` · `audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
-| `bootstrap` | **Turnkey**: sync + index + connect + embed + wiki + steer |
+| `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + steer (`--no-enrich` to skip) |
 | `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
+| `source` | **Manage connectors**: `add`/`list`/`remove`/`test`/`enable`/`disable` knowledge sources; edits `kb.toml` for you, comments preserved |
 | `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
+| `enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
 | `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
 | `wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
