@@ -48,7 +48,7 @@ def node_text(node) -> str:
 # SQL procedures (low signal without a signature) stay out.
 EMBEDDABLE_KINDS = frozenset(
     {"class", "function", "method", "interface", "struct", "enum", "endpoint",
-     "resource", "table", "view"})
+     "route", "resource", "table", "view"})
 
 
 def embed_repo(store_dir, vector_store, embedder, repo_id, *,

@@ -24,6 +24,7 @@ import tree_sitter as ts
 from ..logging_setup import log
 from .flow.events import extract_event_flow
 from .flow.http import extract_http_flow
+from .flow.web import extract_web_flow
 from .hcl import parse_hcl
 from .ids import make_id
 from .manifest import is_manifest, parse_manifest
@@ -672,11 +673,13 @@ def index_repo_dir(
                                                             LANG_BY_EXT[ext])
                     all_calls.extend(calls)
                     all_inherits.extend(inh)
-                    # cross-repo flow surfaces: HTTP endpoints + message topics
+                    # cross-repo flow surfaces: HTTP endpoints + message topics;
+                    # plus repo-local frontend routes (web-topology)
                     hn, he = extract_http_flow(repo_id, rel, source, LANG_BY_EXT[ext])
                     en, ee = extract_event_flow(repo_id, rel, source, LANG_BY_EXT[ext])
-                    nodes += hn + en
-                    edges += he + ee
+                    wn, we = extract_web_flow(repo_id, rel, source, LANG_BY_EXT[ext])
+                    nodes += hn + en + wn
+                    edges += he + ee + we
                 else:
                     nodes, edges = parse_manifest(repo_id, rel, source)
             except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
