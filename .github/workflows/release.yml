@@ -31,10 +31,12 @@ jobs:
       - name: Tag must match the package version
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          pkg="$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
-          echo "tag=$tag  pyproject=$pkg"
+          # Version lives only in src/contextlake/__init__.py (pyproject reads it
+          # dynamically via setuptools attr:), so read it from there.
+          pkg="$(python -c "import re,pathlib; print(re.search(r'__version__\s*=\s*[\"\x27]([^\"\x27]+)', pathlib.Path('src/contextlake/__init__.py').read_text()).group(1))")"
+          echo "tag=$tag  package=$pkg"
           if [ "$tag" != "$pkg" ]; then
-            echo "::error::tag v$tag does not match pyproject version $pkg — bump the version before tagging"
+            echo "::error::tag v$tag does not match package version $pkg — bump src/contextlake/__init__.py before tagging"
             exit 1
           fi
 

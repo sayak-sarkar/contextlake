@@ -42,9 +42,11 @@ pip install -e ".[release]"        # build + twine
    pytest
    ```
 
-2. **Bump the version** in both places (they must match):
-   - `pyproject.toml` → `version = "X.Y.Z"`
-   - `src/contextlake/__init__.py` → `__version__ = "X.Y.Z"`
+2. **Bump the version** in one place: `src/contextlake/__init__.py` →
+   `__version__ = "X.Y.Z"`. This is the single source of truth; `pyproject.toml`
+   reads it dynamically (`[tool.setuptools.dynamic] version = { attr = ... }`),
+   and the CLI `--version` and MCP serverInfo read the same string, so they can
+   never drift apart.
 
 3. **Update `CHANGELOG.md`:** move the items under `## [Unreleased]` into a new
    `## [X.Y.Z] - YYYY-MM-DD` section.
@@ -52,7 +54,7 @@ pip install -e ".[release]"        # build + twine
 4. **Commit + tag** (annotated) and push:
 
    ```bash
-   git add pyproject.toml src/contextlake/__init__.py CHANGELOG.md
+   git add src/contextlake/__init__.py CHANGELOG.md
    git commit -m "chore(release): X.Y.Z"
    git tag -a vX.Y.Z -m "contextlake X.Y.Z"
    git push origin main
