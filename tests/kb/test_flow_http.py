@@ -138,3 +138,9 @@ def test_nextjs_page_file_is_not_an_api_route():
     # an exported GET in a page.tsx is not a Next.js route handler
     n, _ = extract_http_flow("r", "src/app/x/page.tsx", b"export function GET(){}", "typescript")
     assert not [nn for nn in n if nn.kind == "endpoint"]
+
+
+def test_nextjs_api_route_app_root_anchoring():
+    # a real /api/app path must not collapse to / via last-app anchoring
+    n, _ = extract_http_flow("r", "app/api/app/route.ts", b"export function GET(){}", "typescript")
+    assert "/api/app" in {nn.name for nn in n if nn.kind == "endpoint"}

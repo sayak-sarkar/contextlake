@@ -36,9 +36,10 @@ from .store.shards import GraphShard
 _SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "node_modules", "dist", "build",
               ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", ".idea",
               # frontend build output: never source of truth, and (e.g. .next)
-              # mirrors app routes as built bundles that pollute the graph
-              ".next", ".nuxt", ".svelte-kit", ".angular", ".turbo", ".output",
-              "out", "coverage"}
+              # mirrors app routes as built bundles that pollute the graph. Only
+              # the dotted, unambiguous dirs — an undotted "out"/"coverage" could
+              # be a legitimate source directory in a non-frontend repo.
+              ".next", ".nuxt", ".svelte-kit", ".angular", ".turbo", ".output"}
 
 # Optional per-repo ignore file (gitignore-flavoured *subset*): one glob per line,
 # blank lines and `#` comments skipped. Matched with fnmatch against the POSIX path
