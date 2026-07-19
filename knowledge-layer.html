@@ -43,6 +43,79 @@ depend on package <code>Z</code>?" instead of grepping hundreds of repos. It's g
 indexes <em>any</em> repositories and connects to <em>any</em> configured knowledge sources; no
 organization-specific data lives in the package (your sites, keys, and rules go in
 a private config file).</p>
+<h2 id="command-reference">Command reference<a class="anchor" href="#command-reference" title="Link to this section">#</a></h2>
+<p>Each command has scoped help via <code>contextlake &lt;command&gt; --help</code>. The knowledge-layer
+commands are:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source</code></td>
+<td>add / list / remove / test / enable / disable knowledge-source connectors</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td>Build the code/dependency graph (<code>--workspace</code>, incremental, <code>--watch</code>)</td>
+</tr>
+<tr>
+<td><code>connect</code></td>
+<td>Link repos to Atlassian / Figma / GitLab items (<code>--watch</code> to keep refreshing)</td>
+</tr>
+<tr>
+<td><code>enrich</code></td>
+<td>Query connected sources with codebase-derived terms and store enrichment docs (<code>--workspace</code>, incremental)</td>
+</tr>
+<tr>
+<td><code>embed</code></td>
+<td>Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, <code>--watch</code>)</td>
+</tr>
+<tr>
+<td><code>ingest</code></td>
+<td>Aggregate external docs into the graph + semantic store (built-in <code>files</code>/<code>web</code>/<code>api</code>/<code>mcp</code> sources, or plugins)</td>
+</tr>
+<tr>
+<td><code>wiki</code></td>
+<td>LLM-synthesized, council-verified wiki pages; <code>--llm builtin|ollama|openai|anthropic|cli</code> enables the LLM tier inline</td>
+</tr>
+<tr>
+<td><code>query</code></td>
+<td>Search the index (<code>--kind</code>, <code>--repo</code>, <code>--as-of &lt;commit&gt;</code>)</td>
+</tr>
+<tr>
+<td><code>owners</code></td>
+<td>Likely owners / SMEs for a repo or path, ranked from git history (alias <code>who-knows</code>)</td>
+</tr>
+<tr>
+<td><code>impact</code></td>
+<td>Change-impact / blast radius: what depends on a symbol (alias <code>blast-radius</code>)</td>
+</tr>
+<tr>
+<td><code>graph</code></td>
+<td>Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON</td>
+</tr>
+<tr>
+<td><code>dashboard</code></td>
+<td>Local knowledge-system dashboard UI (<code>--serve</code>; <code>--sample</code> for a bundled demo)</td>
+</tr>
+<tr>
+<td><code>eval</code></td>
+<td>Measure retrieval quality: precision / recall / MRR against a golden-query set</td>
+</tr>
+<tr>
+<td><code>lint</code></td>
+<td>Graph health audit: stale repos, dangling edges</td>
+</tr>
+<tr>
+<td><code>doctor</code></td>
+<td>Environment check: FTS5, git, glab, the store, embeddings, per-source reachability</td>
+</tr>
+</tbody>
+</table>
 <h2 id="setup">Setup<a class="anchor" href="#setup" title="Link to this section">#</a></h2>
 <p>Install the extra (requires Python ≥ 3.10):</p>
 <div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">               </span><span class="c1"># knowledge layer (parse + graph + serve)</span>
@@ -143,7 +216,7 @@ with <code>--repo &lt;repo&gt;</code> rather than getting a silent best-guess.</
 </p>
 
 <p>Rather than running the steps by hand, <code>bootstrap</code>
-chains them, mirror repos → index → connect → embed → wiki → write editor steering, 
+chains them, mirror repos → index → connect → embed → enrich → wiki → write editor steering, 
 skipping anything not enabled, so a teammate goes from nothing to a fully-wired
 workspace in one step:</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
@@ -158,8 +231,45 @@ everything generated lives under one <code>store_dir</code>, setting it to a fol
 workspace keeps the entire knowledge base in a single, easy-to-access location.</p>
 <p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and
 <code>~/.contextlake/kb.toml</code>); pass <code>--config</code> / <code>--kb-config</code> to point elsewhere. Skip
-stages with <code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code>. For an
+stages with <code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code> / <code>--no-enrich</code>. For an
 isolated CLI, install with <code>pipx install "contextlake[kb]"</code>, or run ad-hoc with <code>uvx</code>.</p>
+<h3 id="command-composition">Command composition<a class="anchor" href="#command-composition" title="Link to this section">#</a></h3>
+<p>Every stage is standalone, idempotent, and composable. Use these flows to build exactly what you need:</p>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Command(s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blank to fully enriched workspace</td>
+<td><code>contextlake init</code> then <code>contextlake bootstrap</code></td>
+</tr>
+<tr>
+<td>Add a connector, re-enrich the wiki</td>
+<td><code>contextlake source add jira ...</code> then <code>contextlake enrich</code> then <code>contextlake wiki</code></td>
+</tr>
+<tr>
+<td>Single repo, enriched</td>
+<td><code>contextlake index .</code> then <code>contextlake source add ...</code> then <code>contextlake enrich</code> then <code>contextlake wiki</code> then <code>contextlake serve</code></td>
+</tr>
+<tr>
+<td>Refresh enrichment only</td>
+<td><code>contextlake enrich</code> then <code>contextlake wiki --force</code></td>
+</tr>
+<tr>
+<td>Manage or inspect sources</td>
+<td><code>contextlake source list</code> or <code>contextlake source test &lt;name&gt;</code> or <code>contextlake doctor</code></td>
+</tr>
+<tr>
+<td>Disable a noisy source</td>
+<td><code>contextlake source disable &lt;name&gt;</code> then re-run <code>contextlake enrich</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>contextlake bootstrap</code> runs the full pipeline (mirror, index, connect, embed, enrich, wiki, steer) end to end, so <code>init</code> plus <code>bootstrap</code> takes a blank workspace to a mirrored, indexed, embedded, connector-enriched, wiki'd, editor-wired workspace in one command (skip enrich with <code>--no-enrich</code>).</p>
 <h3 id="keep-it-fresh-on-a-schedule">Keep it fresh on a schedule<a class="anchor" href="#keep-it-fresh-on-a-schedule" title="Link to this section">#</a></h3>
 <p><code>bootstrap</code> is incremental and branch-safe, so it's
 safe to run repeatedly, it re-mirrors, re-indexes only the repos whose HEAD moved,
@@ -250,10 +360,55 @@ contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-a
 graph partition, so re-indexing a repo's code never disturbs its external links. Configure
 connectors by copying <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/kb.toml.example"><code>examples/kb.toml.example</code></a> to
 <code>~/.contextlake/kb.toml</code>.</p>
+<h3 id="managing-sources-the-source-command-family">Managing sources: the <code>source</code> command family<a class="anchor" href="#managing-sources-the-source-command-family" title="Link to this section">#</a></h3>
+<p>Editing <code>kb.toml</code> by hand works, but for everyday use <code>contextlake source</code> commands let you add,
+test, and manage connectors without touching the config file. They rewrite <code>kb.toml</code> while
+preserving your comments, and work alongside hand-editing if you mix approaches.</p>
+<p><strong>The commands:</strong></p>
+<ul>
+<li><strong><code>contextlake source add [--name NAME]</code></strong>: guided prompt to add a new connector. Asks for the
+  connector type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to
+  <code>kb.toml</code>. Pass <code>--type</code>, <code>--name</code>, and other flags to bypass the prompt (<code>--help</code> shows all).</li>
+<li><strong><code>contextlake source list</code></strong>: show all configured connectors (the effective merged config from
+  <code>~/.contextlake/kb.toml</code>, <code>.contextlake/kb.toml</code> if present, and the built-in defaults), with
+  reachability status.</li>
+<li><strong><code>contextlake source test SOURCE</code></strong>: verify that a specific connector works. Reaches its API,
+  reads credentials from the configured env var, lists available items. Shows you exactly what
+  each source will ingest without running a full <code>connect</code>.</li>
+<li><strong><code>contextlake source enable|disable SOURCE</code></strong>: toggle a connector on/off in the config by
+  name, so you can pause one without deleting it.</li>
+<li><strong><code>contextlake source remove SOURCE</code></strong>: delete a connector entry by name.</li>
+</ul>
+<p><strong>Example workflow:</strong></p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w">                </span><span class="c1"># interactive: what type? which workspace?</span>
+contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span>list<span class="w">               </span><span class="c1"># show what you&#39;ve configured + status</span>
+contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span><span class="nb">test</span><span class="w"> </span>my-atlassian<span class="w">  </span><span class="c1"># does it work? what&#39;s in scope?</span>
+contextlake<span class="w"> </span>connect<span class="w">                   </span><span class="c1"># now link repos to their items</span>
+</code></pre></div>
+
+<p><code>init</code> can also prompt you to connect a source during first-run setup, and <code>doctor</code> reports
+per-source reachability as part of its environment check, so hand-editing is optional; the CLI
+guides you through the whole flow.</p>
 <p><strong>Every fact carries its receipt.</strong> Each is provenance-stamped (source file + verified date)
 and confidence-tagged as one of three tiers, <strong><code>EXTRACTED</code></strong> (read straight from source/AST),
 <strong><code>INFERRED</code></strong> (a resolved call or link), or <strong><code>AMBIGUOUS</code></strong> (an unconfirmed candidate), and
 sanitized before it reaches an agent. The dashboard and the graph legend use these same tiers.</p>
+<h2 id="query-driven-enrichment">Query-driven enrichment<a class="anchor" href="#query-driven-enrichment" title="Link to this section">#</a></h2>
+<p><code>contextlake enrich</code> performs <strong>query-driven enrichment</strong>: it derives search terms from each repo's
+code graph (the repo's name and its top symbols by graph degree) and queries your connected sources
+(Atlassian Rovo search, or any <code>mcp</code> source with a <code>tool</code> and <code>arg_template</code> configured) with those
+terms, then stores the returned documents in a searchable, embedded <code>@enrich:&lt;repo&gt;</code> partition,
+idempotent and re-runnable across the whole fleet or a single repo:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
+contextlake<span class="w"> </span>enrich<span class="w"> </span>acme/orders-api<span class="w">         </span><span class="c1"># one repo</span>
+</code></pre></div>
+
+<p>Prerequisites: the code graph must be <strong>indexed first</strong> (<code>contextlake index</code>), and at least one
+term-searchable source must be configured: either an <code>mcp</code> source with <code>tool</code> and <code>arg_template</code>
+keys, or an <code>atlassian</code> source. Sources without these capabilities (e.g. a plain <code>files</code> or <code>web</code>
+source) are skipped gracefully. Each repo's enrichment documents are stored in their own partition
+so they can be re-fetched without clobbering prior results, and are embedded (when the semantic
+tier is enabled) so they surface in semantic search results as <code>document</code> nodes tagged with their source (<code>attrs.source</code>). After <code>contextlake wiki</code> runs, enrichment docs are incorporated into the curated wiki as an attributed "External context" section, grounded to the code graph's terms.</p>
 <h2 id="semantic-search">Semantic search<a class="anchor" href="#semantic-search" title="Link to this section">#</a></h2>
 <p>Semantic search (optional) adds natural-language retrieval on top of the graph.
 Enable <code>[embeddings]</code> in the config (local-first, vectors come from an Ollama model
@@ -365,6 +520,23 @@ documents, with any bearer token read from an env var (never the config file):</
 
 <p>So contextlake both <em>serves</em> a knowledge graph over MCP and <em>consumes</em> other MCP servers'
 resources into it, the loop closes on the same seam.</p>
+<p>An <code>mcp</code> source may also declare a search <em>tool</em> (not just read its resources) and
+template codebase-derived terms into the tool's arguments. This groundwork enables
+query-driven wiki enrichment in the <code>enrich</code> stage. Declare the tool name and an
+argument template with substitution placeholders:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mcp&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;team-search&quot;</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;uvx&quot;</span>
+<span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;some-mcp-server&quot;</span><span class="p">]</span>
+<span class="c1"># Optional: call a search tool on the server, templating repo/symbol terms</span>
+<span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;search&quot;</span><span class="w">                 </span><span class="c1"># the tool name on the server</span>
+<span class="n">arg_template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">query</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;{terms}&quot;</span><span class="w"> </span><span class="p">}</span><span class="w">  </span><span class="c1"># {terms} substituted with codebase-derived terms</span>
+</code></pre></div>
+
+<p>Both transports work with tool calling: <code>command</code> and <code>args</code> for stdio, or <code>url</code> for
+streamable-HTTP. The tool is called with the templated arguments during enrichment,
+returning documents grounded to the codebase's query context.</p>
 <p><strong>Additional <code>[[sources]]</code> keys.</strong> Beyond the per-type keys above, connector and ingest
 sources also accept: <code>auth_dir</code>, an isolated OAuth-cache directory; set a distinct one per
 Atlassian org so their <code>mcp-remote</code> caches never collide. <code>mcp_command</code>, a local stdio MCP
@@ -405,6 +577,14 @@ alongside the code vectors, so a natural-language question can land on the wiki'
 explanation of a subsystem, cited back to the page file and labeled advisory (kind
 <code>wiki</code>), never outranking extracted code facts. Pages written before this existed are
 backfilled on the next <code>wiki</code> run without any LLM calls.</p>
+<p><strong>Incorporating connector enrichment.</strong> When <code>contextlake enrich</code> has populated a repo's
+<code>@enrich:&lt;repo&gt;</code> enrichment documents (via Atlassian or MCP search sources), the
+wiki synthesizer draws on them and incorporates an "External context" section into each repo's
+curated page. Each external fact is directly quoted from its source (Confluence page, Jira issue,
+or MCP search result) and attributed by source URL or name, never presented as a free assertion
+or as an undisclosed code fact. The council still gates the enriched page before it is written,
+ensuring external context supplements rather than displaces code-backed facts and that attribution
+is clear and verifiable.</p>
 <p>The result, rendered in the dashboard's Wiki tab, prose grounded strictly in real symbols,
 with a provenance footer citing the exact commit and source files it was built from:</p>
 <p align="center">
@@ -730,6 +910,7 @@ setup, and manual wiring for Claude Code / Windsurf / Kiro.</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
+<li><a href="#command-reference">Command reference</a></li>
 <li><a href="#setup">Setup</a></li>
 <li><a href="#indexing">Indexing</a><ul>
 <li><a href="#incremental-time-travel">Incremental &amp; time-travel</a></li>
@@ -739,13 +920,18 @@ setup, and manual wiring for Claude Code / Windsurf / Kiro.</p>
 </li>
 <li><a href="#code-indexing">Code indexing</a></li>
 <li><a href="#one-command-setup">One-command setup</a><ul>
+<li><a href="#command-composition">Command composition</a></li>
 <li><a href="#keep-it-fresh-on-a-schedule">Keep it fresh on a schedule</a></li>
 <li><a href="#re-index-on-commit-git-hook">Re-index on commit (git hook)</a></li>
 </ul>
 </li>
 <li><a href="#reading-the-console-output">Reading the console output</a></li>
 <li><a href="#ownership-smes">Ownership &amp; SMEs</a></li>
-<li><a href="#connectors">Connectors</a></li>
+<li><a href="#connectors">Connectors</a><ul>
+<li><a href="#managing-sources-the-source-command-family">Managing sources: the source command family</a></li>
+</ul>
+</li>
+<li><a href="#query-driven-enrichment">Query-driven enrichment</a></li>
 <li><a href="#semantic-search">Semantic search</a></li>
 <li><a href="#aggregating-documents-rag">Aggregating documents (RAG)</a></li>
 <li><a href="#measuring-retrieval-quality">Measuring retrieval quality</a></li>

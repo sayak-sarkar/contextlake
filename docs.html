@@ -256,11 +256,15 @@ and <code>serve</code>/<code>steer</code> in <strong><a href="serve.html">serve.
 </tr>
 <tr>
 <td><code>bootstrap</code></td>
-<td><strong>Turnkey</strong>: sync + index + connect + embed + wiki + steer</td>
+<td><strong>Turnkey</strong>: sync + index + connect + embed + enrich + wiki + steer (<code>--no-enrich</code> to skip)</td>
 </tr>
 <tr>
 <td><code>index</code></td>
 <td>Build the code/dependency graph (<code>--workspace</code>, incremental, <code>--watch</code>)</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><strong>Manage connectors</strong>: <code>add</code>/<code>list</code>/<code>remove</code>/<code>test</code>/<code>enable</code>/<code>disable</code> knowledge sources; edits <code>kb.toml</code> for you, comments preserved</td>
 </tr>
 <tr>
 <td><code>connect</code></td>
@@ -269,6 +273,10 @@ and <code>serve</code>/<code>steer</code> in <strong><a href="serve.html">serve.
 <tr>
 <td><code>embed</code></td>
 <td>Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, <code>--watch</code>)</td>
+</tr>
+<tr>
+<td><code>enrich</code></td>
+<td>Query connected sources with codebase-derived terms and store the results in a searchable <code>@enrich</code> partition that feeds the wiki</td>
 </tr>
 <tr>
 <td><code>ingest</code></td>
