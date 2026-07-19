@@ -32,6 +32,15 @@ _DYN_SEG = re.compile(r"^(?::.+|\{.*\}|\[.*\]|\$.+)$")
 
 _NEXT_PAGE = re.compile(r"(?:^|/)page\.[jt]sx?$")
 
+# React Router v6 flat JSX: <Route ... path="..." ...> (self-closing or open tag).
+_ROUTE_JSX = re.compile(r"<Route\b[^>]*?\bpath\s*=\s*([\"'])(?P<path>[^\"']+)\1[^>]*?>", re.DOTALL)
+# a single simple element={<Name ...}; None when the element is a ternary/wrapper.
+_ELEMENT = re.compile(r"\belement\s*=\s*\{\s*<\s*([A-Z][A-Za-z0-9_]*)[\s/>]")
+
+
+def _vendored(rel_path: str) -> bool:
+    return "node_modules" in rel_path or "module-federation" in rel_path
+
 
 def _is_route_param(seg: str) -> bool:
     return seg == "{}" or bool(_DYN_SEG.match(seg))
@@ -44,11 +53,20 @@ def normalize_route(raw: str) -> str:
     return "/" + "/".join(segs)
 
 
-def _useful(norm: str) -> bool:
-    # require at least one real (>=2 char, non-param) segment so '/{}' etc.
-    # — which would match almost anything — never become routes. The app root
-    # '/' is allowed by the caller as an explicit, meaningful page.
-    return any(len(s) >= 2 and s != "{}" for s in norm.split("/"))
+def _text(source) -> str:
+    return source.decode("utf-8", "replace") if isinstance(source, (bytes, bytearray)) else source
+
+
+def _route_id(repo_id: str, route: str) -> str:
+    """Repo-scoped id that preserves path structure.
+
+    ``make_id`` collapses every non-word run to ``_``, so passing the whole path
+    ("/orders/{}") would merge distinct routes ("/orders" and "/orders/{}") into
+    one id. Feeding each segment as its own word part (with ``{}`` -> ``param``)
+    keeps depth and param positions distinct.
+    """
+    segs = ["param" if s == "{}" else s for s in route.split("/") if s]
+    return make_id(repo_id, "route", *segs)
 
 
 def _nextjs_route(rel_path: str) -> str | None:
@@ -58,7 +76,7 @@ def _nextjs_route(rel_path: str) -> str | None:
     ``(name)`` contribute no segment, dynamic ``[x]``/``[...x]`` collapse to
     ``{}``. ``route.*`` API handlers are not pages and are skipped this phase.
     """
-    if "node_modules" in rel_path or "module-federation" in rel_path:
+    if _vendored(rel_path):
         return None
     if not _NEXT_PAGE.search(rel_path):
         return None
@@ -86,7 +104,7 @@ def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
     seen: set[tuple[str, str]] = set()
 
     def emit(route: str, line: int, context: str | None = None) -> None:
-        rid = make_id(repo_id, "route", route)
+        rid = _route_id(repo_id, route)
         if (_ROUTE_REL, rid) in seen:
             return
         seen.add((_ROUTE_REL, rid))
@@ -98,9 +116,20 @@ def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
             provenance=Provenance(source_file=rel_path, source_line=line,
                                   verified_at=verified_at)))
 
-    # Next.js App Router: derived from the file path, no source needed.
+    # Next.js App Router: derived from the file path, no source needed. Routes
+    # are repo-scoped (no cross-repo join), so every explicitly-declared route
+    # is kept — the endpoint-style genericity guard does not apply here.
     rp = _nextjs_route(rel_path)
-    if rp is not None and (rp == "/" or _useful(rp)):
+    if rp is not None:
         emit(rp, 1)
+
+    # React Router v6 flat JSX: <Route path=...> in the source.
+    if not _vendored(rel_path):
+        text = _text(source)
+        for m in _ROUTE_JSX.finditer(text):
+            route = normalize_route(m.group("path"))
+            comp = _ELEMENT.search(m.group(0))
+            line = text.count("\n", 0, m.start()) + 1
+            emit(route, line, comp.group(1) if comp else None)
 
     return nodes, edges
