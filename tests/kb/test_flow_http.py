@@ -118,3 +118,23 @@ def test_http_flow_ignores_same_repo(store):
              confidence=Confidence.INFERRED, provenance=prov)])
     # a repo calling its own endpoint is not cross-repo flow
     assert repo_http_flow_edges(store) == []
+
+
+# --- Next.js App Router API route handlers (route.ts) -----------------------
+
+def test_nextjs_api_route_handler_exposes_endpoints():
+    src = b"""
+    export async function GET(req) { return Response.json({}) }
+    export async function POST(req) { return Response.json({}) }
+    """
+    path = "src/app/api/orders/[orderId]/bags/route.ts"
+    n, e = extract_http_flow("repoA", path, src, "typescript")
+    assert "/api/orders/{}/bags" in {nn.name for nn in n if nn.kind == "endpoint"}
+    rels = {(ed.relation, ed.context) for ed in e}
+    assert ("exposes", "GET") in rels and ("exposes", "POST") in rels
+
+
+def test_nextjs_page_file_is_not_an_api_route():
+    # an exported GET in a page.tsx is not a Next.js route handler
+    n, _ = extract_http_flow("r", "src/app/x/page.tsx", b"export function GET(){}", "typescript")
+    assert not [nn for nn in n if nn.kind == "endpoint"]
