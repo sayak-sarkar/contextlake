@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Web-topology: frontend route extraction.** Indexing now surfaces frontend
+  **routes** as embeddable, repo-scoped `route` nodes from **Next.js App Router**
+  page files (the `app/**/page.*` path convention, with route groups `(name)`
+  dropped and dynamic `[id]`/`[...slug]` collapsed) and **React Router v6** flat
+  JSX `<Route path=...>`, so "what routes does this app define" and "where is
+  `/dashboard`" are queryable. Angular route tables, the `createBrowserRouter`
+  object form, and Luigi navigation configs need AST parsing and are skipped for
+  now rather than mis-captured (a later release adds them).
+- **Next.js API route handlers as endpoints.** `app/**/route.ts` files that export
+  `GET`/`POST`/etc. are now recognized as HTTP `endpoint` nodes (path from the file
+  convention, verbs from the exports) and join the existing cross-repo HTTP flow;
+  previously the HTTP extractor only knew Express/FastAPI/ASP.NET and missed them.
+
 ## [2.38.0] - 2026-07-20
 
 ### Added
