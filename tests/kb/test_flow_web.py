@@ -102,3 +102,16 @@ def test_index_repo_dir_emits_route_nodes(tmp_path):
     routes = {n.name for n in shard.nodes if n.kind == "route"}
     assert routes == {"/dashboard", "/orders"}
     assert "route" in EMBEDDABLE_KINDS
+
+
+def test_index_skips_next_build_output(tmp_path):
+    # real source route is kept; the .next/ build-output mirror is skipped
+    src_app = tmp_path / "src" / "app" / "dashboard"
+    src_app.mkdir(parents=True)
+    (src_app / "page.js").write_text("export default function P(){}\n")
+    built = tmp_path / ".next" / "server" / "app" / "phantom"
+    built.mkdir(parents=True)
+    (built / "page.js").write_text("export default function P(){}\n")
+    shard = index_repo_dir(str(tmp_path), "repoA")
+    routes = {n.name for n in shard.nodes if n.kind == "route"}
+    assert routes == {"/dashboard"}
