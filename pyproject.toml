@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "contextlake"
-version = "2.38.0"
+dynamic = ["version"]
 description = "A local context layer for AI tools: mirror your repositories, index them into a knowledge graph, and serve it over MCP so agents answer from real source instead of guessing."
 readme = "README.md"
 license = "MIT"
@@ -85,6 +85,12 @@ gitlab-sync = "contextlake.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
+
+# Single source of truth for the version: src/contextlake/__init__.py's
+# __version__. setuptools statically parses that literal, so pyproject, the
+# CLI --version, and the MCP serverInfo can never drift apart again.
+[tool.setuptools.dynamic]
+version = { attr = "contextlake.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
