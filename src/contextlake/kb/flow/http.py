@@ -19,6 +19,7 @@ from datetime import date
 
 from ..ids import make_id
 from ..model import Confidence, Edge, Node, Provenance
+from .web import nextjs_url
 
 # language (from LANG_BY_EXT) -> framework family
 _FAMILY = {"python": "py", "javascript": "js", "typescript": "js",
@@ -50,30 +51,12 @@ def _is_param(seg: str) -> bool:
 
 
 # Next.js App Router API route handlers: app/**/route.ts with exported HTTP-verb
-# functions. The endpoint path comes from the file convention (route groups
-# (name) drop out, dynamic [id]/[...slug] -> {}); the verbs from the exports.
-# (The sibling page-route convention lives in flow/web.py.)
+# functions. The endpoint path comes from the file convention (shared with the
+# page-route extractor via flow.web.nextjs_url); the verbs from the exports.
 _NEXT_API_FILE = re.compile(r"(?:^|/)route\.[jt]sx?$")
 _NEXT_METHOD = re.compile(
     r"\bexport\s+(?:async\s+)?(?:function\s+|const\s+|let\s+|var\s+)"
     r"(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b")
-
-
-def _nextjs_api_path(rel_path: str) -> str | None:
-    if "node_modules" in rel_path or "module-federation" in rel_path:
-        return None
-    if not _NEXT_API_FILE.search(rel_path):
-        return None
-    parts = rel_path.split("/")
-    if "app" not in parts:
-        return None
-    app_i = len(parts) - 1 - parts[::-1].index("app")
-    out: list[str] = []
-    for s in parts[app_i + 1:-1]:  # segments under app/, excluding the route.* file
-        if s.startswith("(") and s.endswith(")"):
-            continue  # route group: no URL segment
-        out.append("{}" if s.startswith("[") and s.endswith("]") else s)
-    return "/" + "/".join(out)
 
 
 def normalize_path(raw: str) -> str:
@@ -131,7 +114,7 @@ def extract_http_flow(repo_id: str, rel_path: str, source, lang: str,
 
     # Next.js API route handlers: path from the file, verbs from the exports.
     if fam == "js":
-        api = _nextjs_api_path(rel_path)
+        api = nextjs_url(rel_path, _NEXT_API_FILE)
         if api and _useful(api):
             ep_id = make_id("endpoint", api)
             hits = [(m.group(1), m.start()) for m in _NEXT_METHOD.finditer(text)]

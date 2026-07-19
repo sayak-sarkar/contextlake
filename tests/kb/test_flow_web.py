@@ -115,3 +115,22 @@ def test_index_skips_next_build_output(tmp_path):
     shard = index_repo_dir(str(tmp_path), "repoA")
     routes = {n.name for n in shard.nodes if n.kind == "route"}
     assert routes == {"/dashboard"}
+
+
+def test_nextjs_app_root_not_last_occurrence():
+    # a real /app or /settings/app route must not collapse to / (Important #1)
+    assert _routes(extract_web_flow("r", "app/app/page.tsx", b"", "tsx")[0]) == {"/app"}
+    seg = "app/settings/app/page.js"
+    assert _routes(extract_web_flow("r", seg, b"", "javascript")[0]) == {"/settings/app"}
+    # a monorepo package literally named app is not the router root
+    mono = "packages/app/src/app/orders/page.tsx"
+    assert _routes(extract_web_flow("r", mono, b"", "tsx")[0]) == {"/orders"}
+    # a page.js not under an app-router root is not a route
+    assert _routes(extract_web_flow("r", "components/app/x/page.js", b"", "javascript")[0]) == set()
+
+
+def test_root_and_catchall_get_distinct_ids():
+    src = b'<Route path="/" element={<Home/>} /><Route path="*" element={<NF/>} />'
+    n = extract_web_flow("r", "src/App.js", src, "javascript")[0]
+    assert {nn.name for nn in n} == {"/", "/*"}
+    assert len({nn.id for nn in n}) == 2  # not collapsed to one id

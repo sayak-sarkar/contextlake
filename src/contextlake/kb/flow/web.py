@@ -62,34 +62,59 @@ def _route_id(repo_id: str, route: str) -> str:
 
     ``make_id`` collapses every non-word run to ``_``, so passing the whole path
     ("/orders/{}") would merge distinct routes ("/orders" and "/orders/{}") into
-    one id. Feeding each segment as its own word part (with ``{}`` -> ``param``)
-    keeps depth and param positions distinct.
+    one id. Feeding each segment as its own word part keeps depth and param
+    positions distinct; the dynamic ``{}`` and catch-all ``*`` map to separate
+    reserved tokens so "/" vs "/*" vs "/{}" stay distinct. (Two routes whose
+    literal segments differ only by slash-vs-underscore, or that literally use a
+    reserved word, can still share an id; that is rare and always repo-local.)
     """
-    segs = ["param" if s == "{}" else s for s in route.split("/") if s]
+    tokens = {"{}": "param", "*": "splat"}
+    segs = [tokens.get(s, s) for s in route.split("/") if s]
     return make_id(repo_id, "route", *segs)
 
 
-def _nextjs_route(rel_path: str) -> str | None:
-    """Route path for a Next.js App Router ``page.*`` file, else None.
+def _nextjs_app_root(parts: list[str]) -> int | None:
+    """Index of the App Router root: the first ``app`` segment at the repo root
+    or directly under ``src`` (``app/`` or ``src/app/``).
 
-    Segments after the ``app/`` router root become the URL: route groups
+    Anchoring on the first such segment (not the last) keeps real routes like
+    ``/app`` or ``/settings/app`` from collapsing to ``/``; the ``src`` rule keeps
+    a monorepo package literally named ``app`` (``packages/app/src/app/...``) from
+    being mistaken for the router root.
+    """
+    for i, seg in enumerate(parts):
+        if seg == "app" and (i == 0 or parts[i - 1] == "src"):
+            return i
+    return None
+
+
+def nextjs_url(rel_path: str, file_re: re.Pattern) -> str | None:
+    """URL path for a Next.js App Router file matching ``file_re``, else None.
+
+    Segments under the ``app/`` router root become the URL: route groups
     ``(name)`` contribute no segment, dynamic ``[x]``/``[...x]`` collapse to
-    ``{}``. ``route.*`` API handlers are not pages and are skipped this phase.
+    ``{}``. Shared by the page-route extractor here and the API-route-handler
+    endpoint detection in :mod:`.http`.
     """
     if _vendored(rel_path):
         return None
-    if not _NEXT_PAGE.search(rel_path):
+    if not file_re.search(rel_path):
         return None
     parts = rel_path.split("/")
-    if "app" not in parts:
+    root = _nextjs_app_root(parts)
+    if root is None:
         return None
-    app_i = len(parts) - 1 - parts[::-1].index("app")
     out: list[str] = []
-    for s in parts[app_i + 1:-1]:  # segments under app/, excluding the page.* file
+    for s in parts[root + 1:-1]:  # segments under app/, excluding the terminal file
         if s.startswith("(") and s.endswith(")"):
             continue  # route group: no URL segment
         out.append("{}" if _is_route_param(s) else s)
     return "/" + "/".join(out)
+
+
+def _nextjs_route(rel_path: str) -> str | None:
+    """Route path for a Next.js App Router ``page.*`` file, else None."""
+    return nextjs_url(rel_path, _NEXT_PAGE)
 
 
 def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
