@@ -49,6 +49,33 @@ def _is_param(seg: str) -> bool:
             or bool(re.fullmatch(r"[0-9a-fA-F]{8,}|[0-9a-fA-F-]{16,}", seg)))
 
 
+# Next.js App Router API route handlers: app/**/route.ts with exported HTTP-verb
+# functions. The endpoint path comes from the file convention (route groups
+# (name) drop out, dynamic [id]/[...slug] -> {}); the verbs from the exports.
+# (The sibling page-route convention lives in flow/web.py.)
+_NEXT_API_FILE = re.compile(r"(?:^|/)route\.[jt]sx?$")
+_NEXT_METHOD = re.compile(
+    r"\bexport\s+(?:async\s+)?(?:function\s+|const\s+|let\s+|var\s+)"
+    r"(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b")
+
+
+def _nextjs_api_path(rel_path: str) -> str | None:
+    if "node_modules" in rel_path or "module-federation" in rel_path:
+        return None
+    if not _NEXT_API_FILE.search(rel_path):
+        return None
+    parts = rel_path.split("/")
+    if "app" not in parts:
+        return None
+    app_i = len(parts) - 1 - parts[::-1].index("app")
+    out: list[str] = []
+    for s in parts[app_i + 1:-1]:  # segments under app/, excluding the route.* file
+        if s.startswith("(") and s.endswith(")"):
+            continue  # route group: no URL segment
+        out.append("{}" if s.startswith("[") and s.endswith("]") else s)
+    return "/" + "/".join(out)
+
+
 def normalize_path(raw: str) -> str:
     """Strip scheme/host/query and collapse path params to ``{}`` for matching."""
     p = re.sub(r"^https?://[^/]+", "", raw.strip().strip("'\"`"))
@@ -101,4 +128,23 @@ def extract_http_flow(repo_id: str, rel_path: str, source, lang: str,
 
     scan(_EXPOSE[fam], "exposes")
     scan(_CALL[fam], "calls_http")
+
+    # Next.js API route handlers: path from the file, verbs from the exports.
+    if fam == "js":
+        api = _nextjs_api_path(rel_path)
+        if api and _useful(api):
+            ep_id = make_id("endpoint", api)
+            hits = [(m.group(1), m.start()) for m in _NEXT_METHOD.finditer(text)]
+            fresh = [(mm, pos) for mm, pos in hits if (ep_id, mm) not in seen]
+            if fresh:
+                nodes.append(Node(id=ep_id, repo=repo_id, kind="endpoint",
+                                  name=api, qualified_name=api))
+                for mm, pos in fresh:
+                    seen.add((ep_id, mm))
+                    edges.append(Edge(
+                        src=file_id, dst=ep_id, relation="exposes",
+                        confidence=Confidence.INFERRED, context=mm,
+                        provenance=Provenance(source_file=rel_path,
+                                              source_line=text.count("\n", 0, pos) + 1,
+                                              verified_at=verified_at)))
     return nodes, edges
