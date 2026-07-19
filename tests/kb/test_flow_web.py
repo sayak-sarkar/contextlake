@@ -1,5 +1,7 @@
+from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
 from contextlake.kb.flow.web import extract_web_flow, normalize_route
 from contextlake.kb.model import Confidence
+from contextlake.kb.parse import index_repo_dir
 
 
 def _routes(nodes):
@@ -86,3 +88,17 @@ def test_web_skips_vendored_paths():
     src = b'<Route path="/demo" element={<Demo/>} />'
     p = "module-federation/apps/x/src/App.js"
     assert extract_web_flow("r", p, src, "javascript") == ([], [])
+
+
+# --- indexer integration ---------------------------------------------------
+
+def test_index_repo_dir_emits_route_nodes(tmp_path):
+    app = tmp_path / "src" / "app" / "dashboard"
+    app.mkdir(parents=True)
+    (app / "page.js").write_text("export default function P(){ return null }\n")
+    (tmp_path / "src").joinpath("App.js").write_text(
+        '<Routes><Route path="/orders" element={<Orders/>} /></Routes>\n')
+    shard = index_repo_dir(str(tmp_path), "repoA")
+    routes = {n.name for n in shard.nodes if n.kind == "route"}
+    assert routes == {"/dashboard", "/orders"}
+    assert "route" in EMBEDDABLE_KINDS
