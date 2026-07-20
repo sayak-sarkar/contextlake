@@ -61,6 +61,7 @@ pipeline(
 # the bootstrap pipeline (knowledge layer / quickstart)
 pipeline(
     [("sync", "mirror"), ("index", "graph"), ("connect", "links"),
-     ("embed", "vectors"), ("wiki", "prose"), ("steer", "editors")],
+     ("embed", "vectors"), ("enrich", "context"), ("wiki", "prose"),
+     ("steer", "editors")],
     "pipeline-bootstrap.svg", "contextlake bootstrap pipeline",
     sub="contextlake bootstrap")

@@ -155,7 +155,7 @@ with `--repo <repo>` rather than getting a silent best-guess.
 ## One-command setup
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then wiki, then steer." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then enrich, then wiki, then steer." width="760">
 </p>
 
 Rather than running the steps by hand, `bootstrap`
