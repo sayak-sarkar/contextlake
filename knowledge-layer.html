@@ -197,7 +197,18 @@ DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it target
 the high-value defs and FK references and is a deliberate undercount. Frameworks
 are indexed through their
 base language: <strong>React / Next.js / Node.js</strong> are JS/TS(X), <strong>Angular</strong> is TS (its
-templates are HTML), and <strong>.NET</strong> is C#. It also reads manifests (<code>pyproject.toml</code>,
+templates are HTML), and <strong>.NET</strong> is C#. Beyond definitions it surfaces two
+web-topology layers. <strong>HTTP endpoints</strong> a repo exposes or calls (Express/Fastify/
+Nest, FastAPI/Flask, ASP.NET minimal-API, and Next.js App Router <code>route.ts</code>
+handlers) become shared <code>endpoint</code> nodes that join across repos into <code>flow</code> edges
+(from the caller repo to the exposer repo). <strong>Frontend routes</strong> become repo-scoped,
+embeddable <code>route</code> nodes: <strong>Next.js App Router</strong> pages (from the <code>app/**/page.*</code>
+file convention, with route groups <code>(name)</code> dropped and dynamic <code>[id]</code>/<code>[...slug]</code>
+collapsed to <code>{}</code>) and <strong>React Router v6</strong> flat JSX <code>&lt;Route path=...&gt;</code>. Not yet
+extracted, and skipped rather than guessed (a naive regex would mis-read them):
+Angular <code>Routes</code> arrays, the <code>createBrowserRouter</code> object form, Luigi navigation
+configs, realtime/WebSocket channels, templates, and stylesheets. It also reads
+manifests (<code>pyproject.toml</code>,
 <code>package.json</code>, <code>*.csproj</code>, <code>pom.xml</code>) to build a <strong>cross-repo dependency graph</strong> through shared
 package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
