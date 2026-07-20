@@ -7,13 +7,15 @@ cross-repo caller/exposer pair, so route node ids are **repo-scoped**
 (``make_id(repo_id, "route", norm)``): two apps that both define ``/orders`` are
 distinct nodes, not one shared node. There is deliberately no two-hop join.
 
-Regex/convention-based and framework-targeted, so every edge is ``INFERRED`` — a
-likely undercount, never asserted as ground truth. This phase covers the two
-shapes a real-fleet survey found need no AST: **Next.js App Router** page files
-(``app/.../page.*`` path convention) and **React Router v6 flat JSX**
-(``<Route path=...>``). Angular ``Routes`` arrays, the ``createBrowserRouter``
-object form, and Luigi navigation configs need brace-aware/AST parsing and are
-handled in a later phase; here they are skipped, never mis-captured.
+Framework-targeted, so every edge is ``INFERRED``, a likely undercount never
+asserted as ground truth. Covered: **Next.js App Router** page files
+(``app/.../page.*`` path convention), **React Router v6 flat JSX**
+(``<Route path=...>``), and **Angular** ``Routes`` tables (a tree-sitter AST
+walk anchored on the route-table container, so bare ``{path:...}`` config objects
+are never mis-read as routes). Still deferred: the React ``createBrowserRouter``
+object form, Luigi navigation configs, Angular lazy ``loadChildren`` sub-trees
+(the mount path is captured, the child module is not), realtime channels, and
+templates/stylesheets. All are skipped, never mis-captured.
 """
 
 from __future__ import annotations

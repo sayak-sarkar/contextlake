@@ -132,13 +132,16 @@ web-topology layers. **HTTP endpoints** a repo exposes or calls (Express/Fastify
 Nest, FastAPI/Flask, ASP.NET minimal-API, and Next.js App Router `route.ts`
 handlers) become shared `endpoint` nodes that join across repos into `flow` edges
 (from the caller repo to the exposer repo). **Frontend routes** become repo-scoped,
-embeddable `route` nodes: **Next.js App Router** pages (from the `app/**/page.*`
-file convention, with route groups `(name)` dropped and dynamic `[id]`/`[...slug]`
-collapsed to `{}`) and **React Router v6** flat JSX `<Route path=...>`. Not yet
-extracted, and skipped rather than guessed (a naive regex would mis-read them):
-Angular `Routes` arrays, the `createBrowserRouter` object form, Luigi navigation
-configs, realtime/WebSocket channels, templates, and stylesheets. It also reads
-manifests (`pyproject.toml`,
+embeddable `route` nodes from three frameworks: **Next.js App Router** pages (from
+the `app/**/page.*` file convention, with route groups `(name)` dropped and dynamic
+`[id]`/`[...slug]` collapsed to `{}`), **React Router v6** flat JSX `<Route
+path=...>`, and **Angular** `Routes` tables (a tree-sitter AST walk anchored on the
+route-table container, so nested `children` compose into full paths and bare
+`{path:...}` config objects are never mis-read as routes; `redirectTo` routes are
+skipped and lazy `loadChildren` captures the mount path). Not yet extracted, and
+skipped rather than guessed: the React `createBrowserRouter` object form, Luigi
+navigation configs, Angular lazy `loadChildren` sub-trees, realtime/WebSocket
+channels, templates, and stylesheets. It also reads manifests (`pyproject.toml`,
 `package.json`, `*.csproj`, `pom.xml`) to build a **cross-repo dependency graph** through shared
 package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo `blast_radius` ("what could break if I change
