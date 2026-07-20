@@ -37,6 +37,9 @@ _ROUTE_JSX = re.compile(r"<Route\b[^>]*?\bpath\s*=\s*([\"'])(?P<path>[^\"']+)\1[
 # a single simple element={<Name ...}; None when the element is a ternary/wrapper.
 _ELEMENT = re.compile(r"\belement\s*=\s*\{\s*<\s*([A-Z][A-Za-z0-9_]*)[\s/>]")
 
+# cheap performance gate: only re-parse TS files that mention Angular routing.
+_NG_PREFILTER = re.compile(r"\bRoutes\b|\bRouterModule\b|\bprovideRouter\b")
+
 
 def _vendored(rel_path: str) -> bool:
     return "node_modules" in rel_path or "module-federation" in rel_path
@@ -117,6 +120,89 @@ def _nextjs_route(rel_path: str) -> str | None:
     return nextjs_url(rel_path, _NEXT_PAGE)
 
 
+# --- Angular route tables (tree-sitter AST) --------------------------------
+# The correctness anchor is the route-table *container*, never the object shape:
+# a bare ``{path: ...}`` object (build config, HTTP options) is not a route. A
+# route array is only the value of a ``Routes``-typed declarator, or an inline
+# array argument to forRoot/forChild/provideRouter.
+
+def _node_text(node) -> str:
+    return node.text.decode("utf-8", "replace")
+
+
+def _ng_route_arrays(root) -> list:
+    """Every AST ``array`` node that is an Angular route table (both anchors)."""
+    arrays = []
+
+    def walk(node):
+        if node.type == "variable_declarator":
+            ta = node.child_by_field_name("type")
+            val = node.child_by_field_name("value")
+            if (ta is not None and val is not None and val.type == "array"
+                    and any(c.type == "type_identifier" and _node_text(c) == "Routes"
+                            for c in ta.named_children)):
+                arrays.append(val)
+        elif node.type == "call_expression":
+            fn = node.child_by_field_name("function")
+            args = node.child_by_field_name("arguments")
+            if fn is not None and args is not None:
+                ft = _node_text(fn)
+                if (ft == "provideRouter" or ft.endswith(".forRoot")
+                        or ft.endswith(".forChild")) and args.named_child_count \
+                        and args.named_children[0].type == "array":
+                    arrays.append(args.named_children[0])
+        for c in node.children:
+            walk(c)
+
+    walk(root)
+    return arrays
+
+
+def _ng_pairs(obj) -> dict:
+    """``{key: value_node}`` for an object literal's ``pair`` children."""
+    out = {}
+    for p in obj.named_children:
+        if p.type == "pair":
+            k = p.child_by_field_name("key")
+            if k is not None:
+                out[_node_text(k)] = p.child_by_field_name("value")
+    return out
+
+
+def _walk_ng_routes(array_node, prefix: str, out: list) -> None:
+    """Recurse an Angular route array, composing child paths onto ``prefix``."""
+    for obj in array_node.named_children:
+        if obj.type != "object":
+            continue
+        pairs = _ng_pairs(obj)
+        if "redirectTo" in pairs:
+            continue  # a redirect renders no component: not a navigable route
+        path_node = pairs.get("path")
+        seg = ""
+        if path_node is not None and path_node.type == "string":
+            seg = _node_text(path_node).strip("\"'`")
+            if seg == "**":
+                seg = "*"  # catch-all -> the splat token, never collides with "/"
+        raw = f"{prefix}/{seg}" if seg else prefix
+        comp = pairs.get("component")
+        ctx = _node_text(comp) if comp is not None and comp.type == "identifier" else None
+        out.append((normalize_route(raw), obj.start_point[0] + 1, ctx))
+        children = pairs.get("children")
+        if children is not None and children.type == "array":
+            _walk_ng_routes(children, raw, out)  # lazy loadChildren is never an array
+
+
+def _angular_routes(source) -> list:
+    """``(route, line, context)`` for every Angular route in a TS file."""
+    from .. import parse  # lazy: parse.py imports this module, avoid a cycle
+    src_bytes = source if isinstance(source, (bytes, bytearray)) else source.encode("utf-8")
+    tree = parse._parser("typescript").parse(src_bytes)
+    out: list = []
+    for arr in _ng_route_arrays(tree.root_node):
+        _walk_ng_routes(arr, "", out)
+    return out
+
+
 def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
                      verified_at: date | None = None) -> tuple[list[Node], list[Edge]]:
     """``route`` nodes + ``defines_route`` edges for one file."""
@@ -148,13 +234,17 @@ def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
     if rp is not None:
         emit(rp, 1)
 
-    # React Router v6 flat JSX: <Route path=...> in the source.
     if not _vendored(rel_path):
         text = _text(source)
+        # React Router v6 flat JSX: <Route path=...> in the source.
         for m in _ROUTE_JSX.finditer(text):
             route = normalize_route(m.group("path"))
             comp = _ELEMENT.search(m.group(0))
             line = text.count("\n", 0, m.start()) + 1
             emit(route, line, comp.group(1) if comp else None)
+        # Angular route tables: re-parse (only prefiltered TS files) and walk the AST.
+        if lang == "typescript" and _NG_PREFILTER.search(text):
+            for route, line, ctx in _angular_routes(source):
+                emit(route, line, ctx)
 
     return nodes, edges
