@@ -132,31 +132,43 @@ def _node_text(node) -> str:
     return node.text.decode("utf-8", "replace")
 
 
-def _ng_route_arrays(root) -> list:
-    """Every AST ``array`` node that is an Angular route table (both anchors)."""
-    arrays = []
+def _ta_is_routes(ta) -> bool:
+    """True if a ``type_annotation`` is ``Routes`` or ``Route[]``."""
+    for c in ta.named_children:
+        if c.type == "type_identifier" and _node_text(c) == "Routes":
+            return True
+        if c.type == "array_type" and any(
+                cc.type == "type_identifier" and _node_text(cc) == "Route"
+                for cc in c.named_children):
+            return True
+    return False
 
-    def walk(node):
+
+def _ng_route_arrays(root) -> list:
+    """Every AST ``array`` node that is an Angular route table (both anchors).
+
+    Iterative (not recursive) so a deeply nested literal cannot ``RecursionError``
+    and drop the whole file's indexing.
+    """
+    arrays = []
+    stack = [root]
+    while stack:
+        node = stack.pop()
         if node.type == "variable_declarator":
             ta = node.child_by_field_name("type")
             val = node.child_by_field_name("value")
-            if (ta is not None and val is not None and val.type == "array"
-                    and any(c.type == "type_identifier" and _node_text(c) == "Routes"
-                            for c in ta.named_children)):
+            if ta is not None and val is not None and val.type == "array" and _ta_is_routes(ta):
                 arrays.append(val)
         elif node.type == "call_expression":
             fn = node.child_by_field_name("function")
             args = node.child_by_field_name("arguments")
-            if fn is not None and args is not None:
-                ft = _node_text(fn)
-                if (ft == "provideRouter" or ft.endswith(".forRoot")
-                        or ft.endswith(".forChild")) and args.named_child_count \
-                        and args.named_children[0].type == "array":
-                    arrays.append(args.named_children[0])
-        for c in node.children:
-            walk(c)
-
-    walk(root)
+            # anchor on the router API specifically (RouterModule.forRoot/forChild,
+            # provideRouter) so a StoreModule.forRoot([...]) or similar never matches
+            if fn is not None and args is not None and _node_text(fn) in (
+                    "provideRouter", "RouterModule.forRoot", "RouterModule.forChild") \
+                    and args.named_child_count and args.named_children[0].type == "array":
+                arrays.append(args.named_children[0])
+        stack.extend(node.children)
     return arrays
 
 
@@ -180,29 +192,41 @@ def _walk_ng_routes(array_node, prefix: str, out: list) -> None:
         if "redirectTo" in pairs:
             continue  # a redirect renders no component: not a navigable route
         path_node = pairs.get("path")
+        # only a static string path is a real route segment; a pathless layout
+        # route or a template-literal path adds no segment and must not emit a
+        # phantom "/" (but its children still compose onto the parent prefix).
+        has_path = path_node is not None and path_node.type == "string"
         seg = ""
-        if path_node is not None and path_node.type == "string":
+        if has_path:
             seg = _node_text(path_node).strip("\"'`")
             if seg == "**":
                 seg = "*"  # catch-all -> the splat token, never collides with "/"
         raw = f"{prefix}/{seg}" if seg else prefix
-        comp = pairs.get("component")
-        ctx = _node_text(comp) if comp is not None and comp.type == "identifier" else None
-        out.append((normalize_route(raw), obj.start_point[0] + 1, ctx))
+        if has_path:
+            comp = pairs.get("component")
+            ctx = _node_text(comp) if comp is not None and comp.type == "identifier" else None
+            out.append((normalize_route(raw), obj.start_point[0] + 1, ctx))
         children = pairs.get("children")
         if children is not None and children.type == "array":
             _walk_ng_routes(children, raw, out)  # lazy loadChildren is never an array
 
 
 def _angular_routes(source) -> list:
-    """``(route, line, context)`` for every Angular route in a TS file."""
+    """``(route, line, context)`` for every Angular route in a TS file.
+
+    Best-effort: route extraction must never abort the file's indexing, so any
+    parse/walk failure yields no routes rather than propagating.
+    """
     from .. import parse  # lazy: parse.py imports this module, avoid a cycle
     src_bytes = source if isinstance(source, (bytes, bytearray)) else source.encode("utf-8")
-    tree = parse._parser("typescript").parse(src_bytes)
-    out: list = []
-    for arr in _ng_route_arrays(tree.root_node):
-        _walk_ng_routes(arr, "", out)
-    return out
+    try:
+        tree = parse._parser("typescript").parse(src_bytes)
+        out: list = []
+        for arr in _ng_route_arrays(tree.root_node):
+            _walk_ng_routes(arr, "", out)
+        return out
+    except Exception:  # noqa: BLE001 - never let a bad parse drop the file's nodes
+        return []
 
 
 def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
