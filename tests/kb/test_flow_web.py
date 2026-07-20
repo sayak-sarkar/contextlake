@@ -192,3 +192,43 @@ def test_angular_no_phantom_from_non_route_path_objects():
 def test_angular_prefilter_skips_unrelated_ts():
     src = b'export const x = [{path:"a"}]'
     assert extract_web_flow("r", "util.ts", src, "typescript") == ([], [])
+
+
+def test_angular_pathless_layout_no_phantom_root():
+    # a pathless layout route with children must NOT emit a phantom "/"
+    src = b'''
+      const routes: Routes = [
+        { component: LayoutComponent, children: [
+          { path: "a", component: A },
+          { path: "b", component: B },
+        ]},
+      ];
+    '''
+    got = _routes(extract_web_flow("r", "app-routing.module.ts", src, "typescript")[0])
+    assert got == {"/a", "/b"}
+
+
+def test_angular_template_literal_path_skipped():
+    # a template-literal path can't be resolved statically: skip, no phantom "/"
+    src = b'const routes: Routes = [{ path: `admin/${x}`, component: C }];'
+    assert extract_web_flow("r", "app-routing.module.ts", src, "typescript") == ([], [])
+
+
+def test_angular_route_bracket_array_type():
+    # `const routes: Route[] = [...]` (registered via RouterModule.forChild) is a table
+    src = b'''
+      const routes: Route[] = [{ path: "x", component: X }, { path: "y", component: Y }];
+      RouterModule.forChild(routes);
+    '''
+    got = _routes(extract_web_flow("r", "feature-routing.module.ts", src, "typescript")[0])
+    assert got == {"/x", "/y"}
+
+
+def test_angular_forroot_only_router_module():
+    # StoreModule.forRoot([{path:...}]) is NOT a route table (file mentions RouterModule
+    # to pass the prefilter); only RouterModule.forRoot/forChild + provideRouter anchor
+    src = b'''
+      // RouterModule
+      StoreModule.forRoot([{ path: "reducerKey", value: 1 }]);
+    '''
+    assert extract_web_flow("r", "app.module.ts", src, "typescript") == ([], [])
