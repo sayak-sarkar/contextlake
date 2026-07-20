@@ -134,3 +134,61 @@ def test_root_and_catchall_get_distinct_ids():
     n = extract_web_flow("r", "src/App.js", src, "javascript")[0]
     assert {nn.name for nn in n} == {"/", "/*"}
     assert len({nn.id for nn in n}) == 2  # not collapsed to one id
+
+
+# --- Angular route tables (tree-sitter AST) --------------------------------
+
+def test_angular_flat_routes():
+    src = b'''
+      const routes: Routes = [
+        { path: "", component: WelcomeComponent },
+        { path: "login", component: LoginComponent },
+        { path: "personal", component: ProfileComponent, canActivate: [AuthGuard] },
+      ];
+    '''
+    n, e = extract_web_flow("r", "src/app/app-routing.module.ts", src, "typescript")
+    assert _routes(n) == {"/", "/login", "/personal"}
+    assert all(nn.kind == "route" and nn.repo == "r" for nn in n)
+
+
+def test_angular_nested_children_compose():
+    src = b'''
+      const routes: Routes = [
+        { path: "hotels", children: [
+          { path: "", component: HotelsComponent },
+          { path: "hotel-details/:id", component: HotelDetailsComponent },
+        ]},
+      ];
+    '''
+    got = _routes(extract_web_flow("r", "app-routing.module.ts", src, "typescript")[0])
+    assert got == {"/hotels", "/hotels/hotel-details/{}"}
+
+
+def test_angular_redirect_wildcard_loadchildren():
+    src = b'''
+      const routes: Routes = [
+        { path: "", redirectTo: "/dashboard", pathMatch: "full" },
+        { path: "dashboard", component: Landing },
+        { path: "tenant", loadChildren: () => import("./tenant.module").then(m => m.TenantModule) },
+        { path: "legacy", loadChildren: "app/legacy/legacy.module" },
+        { path: "**", component: NotFound },
+      ];
+    '''
+    # redirectTo skipped; loadChildren emits mount path (no recursion); ** -> /*
+    got = _routes(extract_web_flow("r", "app-routing.module.ts", src, "typescript")[0])
+    assert got == {"/dashboard", "/tenant", "/legacy", "/*"}
+
+
+def test_angular_forroot_inline_array():
+    src = b'RouterModule.forRoot([{ path: "x", component: X }])'
+    assert _routes(extract_web_flow("r", "app.module.ts", src, "typescript")[0]) == {"/x"}
+
+
+def test_angular_no_phantom_from_non_route_path_objects():
+    src = b'const config = { path: "/tmp/build", output: "dist" }; const opts = { path: "x" };'
+    assert extract_web_flow("r", "webpack.config.ts", src, "typescript") == ([], [])
+
+
+def test_angular_prefilter_skips_unrelated_ts():
+    src = b'export const x = [{path:"a"}]'
+    assert extract_web_flow("r", "util.ts", src, "typescript") == ([], [])
