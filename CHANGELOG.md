@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Angular route extraction (tree-sitter AST).** Angular `Routes` tables now
+  surface as `route` nodes, joining the Next.js and React Router extraction from
+  2.39.0. It walks the TypeScript AST (not regex) anchored on the route-table
+  container (a `Routes`-typed declaration, or an inline `forRoot`/`forChild`/
+  `provideRouter` array), so nested `children` compose into full paths and a bare
+  `{path:...}` config object is never mis-read as a route. `path: ''` index routes
+  fold into the parent, `redirectTo` routes are skipped, `**` maps to the catch-all
+  token, and lazy `loadChildren` captures the mount path (the child module is a
+  future release). Only TypeScript files that mention Angular routing are re-parsed.
+
 ## [2.39.0] - 2026-07-20
 
 ### Added
