@@ -14,11 +14,13 @@ working after the rename.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import expand_path
+from ..logging_setup import log
 
 try:  # Python 3.11+
     import tomllib
@@ -163,14 +165,34 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         merged.update(_read_toml(src))
 
     kb = merged.get("kb", {})
+    _warn_unknown_config(kb, merged)
     return KbConfig(
         store_dir=kb.get("store_dir", default_store_dir()),
         languages=kb.get("languages", list(DEFAULT_LANGUAGES)),
+        skip_generated=kb.get("skip_generated", True),
+        max_file_bytes=kb.get("max_file_bytes", 5_000_000),
+        index_workers=kb.get("index_workers", None),
         embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
         llm=LlmCfg(**merged.get("llm", {})),
         sources=[SourceCfg(**s) for s in merged.get("sources", [])],
         rules=[RuleCfg(**r) for r in merged.get("rules", [])],
     )
+
+
+# The keys that live under [kb]; the other KbConfig fields come from their own
+# top-level tables. A key/table outside these is warned (a silent-ignore, like a
+# `store` typo for `store_dir`, is how a whole run lands in the wrong place).
+_KB_KEYS = {"store_dir", "languages", "skip_generated", "max_file_bytes", "index_workers"}
+_TABLES = {"kb", "embeddings", "llm", "sources", "rules"}
+
+
+def _warn_unknown_config(kb: dict, merged: dict) -> None:
+    for k in kb:
+        if k not in _KB_KEYS:
+            log(f"config: unknown [kb] key {k!r} (ignored)", level=logging.WARNING)
+    for t in merged:
+        if t not in _TABLES:
+            log(f"config: unknown config table {t!r} (ignored)", level=logging.WARNING)
 
 
 def apply_llm_overrides(cfg: KbConfig, *, provider: str | None = None,

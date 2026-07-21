@@ -120,3 +120,63 @@ def test_shipped_example_parses(tmp_path, monkeypatch):
     assert len(c.sources) == 4  # two atlassian + gitlab + figma
     assert any(s.type == "figma" for s in c.sources)
     assert any(s.type == "gitlab" for s in c.sources)
+
+
+def test_kb_config_wires_indexing_keys(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    p = tmp_path / "kb.toml"
+    p.write_text("[kb]\nskip_generated = false\nmax_file_bytes = 123\nindex_workers = 2\n")
+    cfg = load_kb_config(str(p))
+    assert cfg.skip_generated is False
+    assert cfg.max_file_bytes == 123
+    assert cfg.index_workers == 2
+
+
+def _load_capturing(config_path):
+    """Load config while capturing the package logger's messages.
+
+    The package logger has propagate=False + a stdout-bound handler that
+    setup_logging() may reset, so capsys/caplog are order-dependent here. A
+    private handler attached to the logger captures its records deterministically.
+    """
+    import logging
+    msgs = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record):
+            msgs.append(record.getMessage())
+
+    logger = logging.getLogger("contextlake")
+    h = _Capture()
+    h.setLevel(logging.WARNING)
+    logger.addHandler(h)
+    old_level = logger.level
+    logger.setLevel(logging.WARNING)
+    try:
+        load_kb_config(str(config_path))
+    finally:
+        logger.removeHandler(h)
+        logger.setLevel(old_level)
+    return msgs
+
+
+def test_kb_config_warns_unknown_kb_key(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    p = tmp_path / "kb.toml"
+    p.write_text('[kb]\nstore = "/x"\n')  # typo for store_dir
+    msgs = _load_capturing(p)
+    assert any("store" in m and "unknown" in m.lower() for m in msgs)
+
+
+def test_kb_config_warns_unknown_table(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    p = tmp_path / "kb.toml"
+    p.write_text("[kbb]\nx = 1\n")
+    assert any("kbb" in m for m in _load_capturing(p))
+
+
+def test_kb_config_no_warn_on_known(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    p = tmp_path / "kb.toml"
+    p.write_text('[kb]\nstore_dir = "/x"\nindex_workers = 1\n[embeddings]\ntier = "builtin"\n')
+    assert not [m for m in _load_capturing(p) if "unknown" in m.lower()]
