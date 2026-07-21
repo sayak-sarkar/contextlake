@@ -257,3 +257,25 @@ def test_index_workspace_repos_filter_no_match_fails(tmp_path, capsys):
     assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
                  "--repos", "zzz-nope"]) == 1
     assert "matching --repos" in capsys.readouterr().out
+
+
+def test_owners_unknown_repo_suggests_close_id(tmp_path, capsys):
+    cfg = _kb_config(tmp_path)
+    # indexing the fixture creates repo id 'demo/app'
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+    # a prefix-stripped id ('app') should point at the stored 'demo/app'
+    rc = _run(["owners", "app", "--config", str(cfg)])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "demo/app" in out and "Did you mean" in out
+
+
+def test_graph_unknown_repo_suggests_close_id(tmp_path, capsys):
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+    rc = _run(["graph", "--repo", "demo/ap", "--format", "json", "--config", str(cfg)])
+    captured = capsys.readouterr()  # json format redirects logs to stderr
+    assert rc == 1
+    assert "demo/app" in (captured.out + captured.err)
