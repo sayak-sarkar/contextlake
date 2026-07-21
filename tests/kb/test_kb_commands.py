@@ -279,3 +279,25 @@ def test_graph_unknown_repo_suggests_close_id(tmp_path, capsys):
     captured = capsys.readouterr()  # json format redirects logs to stderr
     assert rc == 1
     assert "demo/app" in (captured.out + captured.err)
+
+
+def test_query_no_match_multiword_hints_semantic_search(tmp_path, capsys):
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+    # a multi-word natural-language query with no keyword hit gets a semantic hint
+    assert _run(["query", "how does the loyalty flow work", "--config", str(cfg)]) == 0
+    out = capsys.readouterr().out
+    assert "No matches" in out
+    assert "embed" in out and "semantic" in out.lower()
+
+
+def test_query_no_match_singleword_no_hint(tmp_path, capsys):
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+    # a single-token lookup (a symbol) stays quiet: no semantic-hint noise
+    assert _run(["query", "NoSuchSymbol", "--config", str(cfg)]) == 0
+    out = capsys.readouterr().out
+    assert "No matches" in out
+    assert "semantic" not in out.lower()

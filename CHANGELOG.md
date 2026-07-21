@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`query` now points at semantic search when a natural-language phrase finds no
+  keyword matches.** A multi-word query with no FTS hit gets a one-line hint (run
+  `contextlake embed`, then use serve's `semantic_search` / `ask` tools) instead of
+  a bare "No matches"; a single-token symbol lookup stays quiet.
+
 ## [2.42.0] - 2026-07-21
 
 ### Fixed
