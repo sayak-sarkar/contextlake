@@ -584,3 +584,22 @@ def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, ca
     # the payload must be valid JSON with nothing prepended (no timestamped log line)
     parsed = json.loads(out)
     assert "nodes" in parsed and out.lstrip().startswith("{")
+
+
+def test_config_warning_does_not_corrupt_json_stdout(tmp_path, capsys):
+    # Regression: an unknown-config-key WARNING logged while opening the store used
+    # to land on stdout before use_stderr(), corrupting a --format json payload.
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    s = SqliteStore(kb / "index.sqlite")
+    s.upsert_nodes("r", [_node("C", kind="class")])
+    s.close()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{kb.as_posix()}"\nbadkey = 1\n')  # triggers a warning
+
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--repo", "r", "--format", "json", "--config", str(cfg)])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    parsed = json.loads(out)  # must parse: no warning prepended
+    assert "nodes" in parsed and out.lstrip().startswith("{")

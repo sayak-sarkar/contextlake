@@ -91,8 +91,9 @@ The parser also **skips machine-generated and derived files** — `*.designer.cs
 `[kb] max_file_bytes` (5 MB). That's derived noise, not real source, and every skip is reported
 (no silent gaps). Set `[kb] skip_generated = false` or raise `max_file_bytes` to index them anyway.
 Discovery also skips **vendored nested repos**: an upstream clone carried inside the mirror with
-its own `.git` (a path segment of `node_modules` or `module-federation`), which is not your source
-and would flood the global graph with upstream-demo nodes. Each skip is logged.
+its own `.git` under a `module-federation` path segment, which is not your source and would flood
+the global graph with upstream-demo nodes. Each such skip is logged. (`node_modules` trees are
+already pruned before discovery descends into them.)
 
 To exclude your own paths, drop a **`.contextlakeignore`** at a repo's root: one
 glob per line (`#` comments and blank lines ignored), matched against each file's
