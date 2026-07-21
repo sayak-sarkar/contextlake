@@ -41,6 +41,13 @@ _SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "node_modules", "dist", "b
               # be a legitimate source directory in a non-frontend repo.
               ".next", ".nuxt", ".svelte-kit", ".angular", ".turbo", ".output"}
 
+# Path segments that mark a VENDORED nested repo (an upstream clone carried inside
+# the mirror, e.g. the webpack Module Federation examples). A repo whose path
+# contains one of these is skipped in discovery: it is not the org's source, and
+# it floods the global graph with thousands of upstream-demo nodes. Kept to exact,
+# unambiguous segments so a real product dir is never caught.
+_VENDORED_REPO_MARKERS = {"node_modules", "module-federation"}
+
 # Optional per-repo ignore file (gitignore-flavoured *subset*): one glob per line,
 # blank lines and `#` comments skipped. Matched with fnmatch against the POSIX path
 # relative to the repo root and against the basename, so `*.lock` ignores by name and
@@ -722,8 +729,11 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
         here = Path(dirpath)
         if (here / ".git").exists():
             rel = here.relative_to(base).as_posix()
+            dirnames[:] = []  # a repo: never descend past it
+            if _VENDORED_REPO_MARKERS & set(here.relative_to(base).parts):
+                log(f"  skip vendored repo {rel}")
+                continue
             found.append((rel if rel != "." else here.name, str(here)))
-            dirnames[:] = []  # don't descend into a repository
             continue
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
     return found
