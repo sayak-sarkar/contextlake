@@ -349,6 +349,18 @@ def test_discover_repos_finds_and_prunes(tmp_path):
     assert set(repos) == {"team/a", "b"}  # nested repo not descended into
 
 
+def test_discover_repos_skips_vendored_nested(tmp_path):
+    from contextlake.kb.parse import discover_repos
+
+    # a normal repo, plus a nested vendored upstream repo (module-federation) found
+    # because its parent (app-host) is not itself a repo. The vendored one is skipped.
+    (tmp_path / "app" / ".git").mkdir(parents=True)
+    (tmp_path / "app-host" / "module-federation" / "demo" / ".git").mkdir(parents=True)
+    ids = {rid for rid, _ in discover_repos(str(tmp_path))}
+    assert "app" in ids
+    assert not any("module-federation" in rid for rid in ids)
+
+
 def test_resolves_call_edges(tmp_path):
     (tmp_path / "a.py").write_text("def helper():\n    pass\n\n\ndef main():\n    helper()\n")
     shard = index_repo_dir(str(tmp_path), "r")
