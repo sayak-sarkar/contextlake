@@ -956,6 +956,32 @@ def cmd_query(args) -> int:
         store.close()
 
 
+def _repo_id_suggestions(store, target: str, n: int = 3) -> list[str]:
+    """Stored repo ids closest to an unknown ``target``.
+
+    Covers typos (fuzzy match) and the workspace-relative-prefix case: a repo
+    indexed from a sub-workspace gets a prefix-stripped id, so ``offer/loyalty/pal``
+    should still point at the stored ``offer-order/offer/loyalty/pal``.
+    """
+    import difflib
+
+    ids = [r.id for r in store.list_repos()]
+    tail = [i for i in ids if i == target or i.endswith("/" + target)]
+    close = difflib.get_close_matches(target, ids, n=n, cutoff=0.5)
+    out: list[str] = []
+    for i in tail + close:
+        if i not in out:
+            out.append(i)
+    return out[:n]
+
+
+def _unknown_repo_msg(store, target: str) -> str:
+    sugg = _repo_id_suggestions(store, target)
+    if sugg:
+        return f"Unknown repo {target!r}. Did you mean: {', '.join(sugg)}?"
+    return f"Unknown repo {target!r}: index it first, or pass a path on disk"
+
+
 def cmd_owners(args) -> int:
     """Likely owners / SMEs for a repo (or sub-path), from git commit history."""
     from .ownership import compute_owners
@@ -975,11 +1001,11 @@ def cmd_owners(args) -> int:
         store, _ = _open_store(args)
         try:
             repo = store.get_repo(target)
+            if not repo or not repo.path:
+                log(_unknown_repo_msg(store, target))
+                return 1
         finally:
             store.close()
-        if not repo or not repo.path:
-            log(f"Unknown repo {target!r} — index it first, or pass a path on disk")
-            return 1
         repo_path, label = Path(repo.path), repo.id
 
     owners = compute_owners(repo_path, subpath, limit=limit)
@@ -1431,6 +1457,9 @@ def cmd_graph(args) -> int:
             nodes, edges = viz.overview_subgraph(store, max_nodes=max_nodes, meta=meta)
             meta["mode"] = "overview"
         elif getattr(args, "repo", None) and not _has_seed(args):
+            if store.get_repo(args.repo) is None:
+                log(_unknown_repo_msg(store, args.repo))
+                return 1
             nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes, meta=meta)
             meta.update(mode="repo", repo=args.repo)
         else:
