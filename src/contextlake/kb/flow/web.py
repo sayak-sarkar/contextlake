@@ -39,8 +39,9 @@ _ROUTE_JSX = re.compile(r"<Route\b[^>]*?\bpath\s*=\s*([\"'])(?P<path>[^\"']+)\1[
 # a single simple element={<Name ...}; None when the element is a ternary/wrapper.
 _ELEMENT = re.compile(r"\belement\s*=\s*\{\s*<\s*([A-Z][A-Za-z0-9_]*)[\s/>]")
 
-# cheap performance gate: only re-parse TS files that mention Angular routing.
+# cheap performance gates: only re-parse files that mention the routing API.
 _NG_PREFILTER = re.compile(r"\bRoutes\b|\bRouterModule\b|\bprovideRouter\b")
+_REACT_OBJ_PREFILTER = re.compile(r"\bcreate(?:Browser|Hash|Memory)Router\b")
 
 
 def _vendored(rel_path: str) -> bool:
@@ -172,7 +173,7 @@ def _ng_route_arrays(root) -> list:
     return arrays
 
 
-def _ng_pairs(obj) -> dict:
+def _obj_pairs(obj) -> dict:
     """``{key: value_node}`` for an object literal's ``pair`` children."""
     out = {}
     for p in obj.named_children:
@@ -183,36 +184,78 @@ def _ng_pairs(obj) -> dict:
     return out
 
 
-def _walk_ng_routes(array_node, prefix: str, out: list) -> None:
-    """Recurse an Angular route array, composing child paths onto ``prefix``."""
+def _component_ctx(pairs, *keys) -> str | None:
+    """The route's component name, only when a plain ``identifier`` (not JSX)."""
+    for k in keys:
+        v = pairs.get(k)
+        if v is not None and v.type == "identifier":
+            return _node_text(v)
+    return None
+
+
+def _ng_segment(pairs):
+    """``(emit, seg, ctx)`` for an Angular route object."""
+    if "redirectTo" in pairs:
+        return False, "", None  # a redirect renders no component: not a route
+    path_node = pairs.get("path")
+    if path_node is not None and path_node.type == "string":
+        seg = _node_text(path_node).strip("\"'`")
+        seg = "*" if seg == "**" else seg  # catch-all -> splat, never collides with "/"
+        return True, seg, _component_ctx(pairs, "component")
+    return False, "", None  # pathless layout / template path: skip but recurse
+
+
+def _react_segment(pairs):
+    """``(emit, seg, ctx)`` for a React data-router object."""
+    path_node = pairs.get("path")
+    if path_node is not None and path_node.type == "string":
+        seg = _node_text(path_node).strip("\"'`")
+        return True, seg, _component_ctx(pairs, "Component", "element")
+    index_node = pairs.get("index")
+    if index_node is not None and index_node.type == "true":
+        # index route: resolves to the PARENT path (no segment). Emit, do not vanish.
+        return True, "", _component_ctx(pairs, "Component", "element")
+    return False, "", None  # pathless/indexless layout: skip but recurse
+
+
+def _walk_route_objects(array_node, prefix: str, out: list, segment_of) -> None:
+    """Recurse a route array, composing child paths onto ``prefix``.
+
+    ``segment_of(pairs) -> (emit, seg, ctx)`` is the per-framework decision; the
+    recursion, prefix composition, and normalize are shared.
+    """
     for obj in array_node.named_children:
         if obj.type != "object":
             continue
-        pairs = _ng_pairs(obj)
-        if "redirectTo" in pairs:
-            continue  # a redirect renders no component: not a navigable route
-        path_node = pairs.get("path")
-        # only a static string path is a real route segment; a pathless layout
-        # route or a template-literal path adds no segment and must not emit a
-        # phantom "/" (but its children still compose onto the parent prefix).
-        has_path = path_node is not None and path_node.type == "string"
-        seg = ""
-        if has_path:
-            seg = _node_text(path_node).strip("\"'`")
-            if seg == "**":
-                seg = "*"  # catch-all -> the splat token, never collides with "/"
+        pairs = _obj_pairs(obj)
+        emit, seg, ctx = segment_of(pairs)
         raw = f"{prefix}/{seg}" if seg else prefix
-        if has_path:
-            comp = pairs.get("component")
-            ctx = _node_text(comp) if comp is not None and comp.type == "identifier" else None
+        if emit:
             out.append((normalize_route(raw), obj.start_point[0] + 1, ctx))
         children = pairs.get("children")
         if children is not None and children.type == "array":
-            _walk_ng_routes(children, raw, out)  # lazy loadChildren is never an array
+            _walk_route_objects(children, raw, out, segment_of)
 
 
-def _angular_routes(source) -> list:
-    """``(route, line, context)`` for every Angular route in a TS file.
+def _react_object_arrays(root) -> list:
+    """Every ``array`` argument to a ``create{Browser,Hash,Memory}Router`` call."""
+    arrays = []
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if node.type == "call_expression":
+            fn = node.child_by_field_name("function")
+            args = node.child_by_field_name("arguments")
+            if fn is not None and args is not None and _node_text(fn) in (
+                    "createBrowserRouter", "createHashRouter", "createMemoryRouter") \
+                    and args.named_child_count and args.named_children[0].type == "array":
+                arrays.append(args.named_children[0])
+        stack.extend(node.children)
+    return arrays
+
+
+def _ast_routes(source, lang, arrays_of, segment_of) -> list:
+    """``(route, line, context)`` via a tree-sitter walk of ``source``.
 
     Best-effort: route extraction must never abort the file's indexing, so any
     parse/walk failure yields no routes rather than propagating.
@@ -220,13 +263,23 @@ def _angular_routes(source) -> list:
     from .. import parse  # lazy: parse.py imports this module, avoid a cycle
     src_bytes = source if isinstance(source, (bytes, bytearray)) else source.encode("utf-8")
     try:
-        tree = parse._parser("typescript").parse(src_bytes)
+        tree = parse._parser(lang).parse(src_bytes)
         out: list = []
-        for arr in _ng_route_arrays(tree.root_node):
-            _walk_ng_routes(arr, "", out)
+        for arr in arrays_of(tree.root_node):
+            _walk_route_objects(arr, "", out, segment_of)
         return out
     except Exception:  # noqa: BLE001 - never let a bad parse drop the file's nodes
         return []
+
+
+def _angular_routes(source) -> list:
+    """``(route, line, context)`` for every Angular route in a TS file."""
+    return _ast_routes(source, "typescript", _ng_route_arrays, _ng_segment)
+
+
+def _react_object_routes(source, lang) -> list:
+    """``(route, line, context)`` for every React data-router route in a file."""
+    return _ast_routes(source, lang, _react_object_arrays, _react_segment)
 
 
 def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
@@ -271,6 +324,10 @@ def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
         # Angular route tables: re-parse (only prefiltered TS files) and walk the AST.
         if lang == "typescript" and _NG_PREFILTER.search(text):
             for route, line, ctx in _angular_routes(source):
+                emit(route, line, ctx)
+        # React data-router object form: createBrowserRouter([...]) in any web lang.
+        if _REACT_OBJ_PREFILTER.search(text):
+            for route, line, ctx in _react_object_routes(source, lang):
                 emit(route, line, ctx)
 
     return nodes, edges
