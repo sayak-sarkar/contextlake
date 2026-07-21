@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.42.0] - 2026-07-21
+
 ### Fixed
 
 - **Indexing config keys are now honored.** `[kb] skip_generated`, `max_file_bytes`,
