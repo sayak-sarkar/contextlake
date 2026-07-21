@@ -134,14 +134,18 @@ handlers) become shared `endpoint` nodes that join across repos into `flow` edge
 (from the caller repo to the exposer repo). **Frontend routes** become repo-scoped,
 embeddable `route` nodes from three frameworks: **Next.js App Router** pages (from
 the `app/**/page.*` file convention, with route groups `(name)` dropped and dynamic
-`[id]`/`[...slug]` collapsed to `{}`), **React Router v6** flat JSX `<Route
-path=...>`, and **Angular** `Routes` tables (a tree-sitter AST walk anchored on the
-route-table container, so nested `children` compose into full paths and bare
-`{path:...}` config objects are never mis-read as routes; `redirectTo` routes are
-skipped and lazy `loadChildren` captures the mount path). Not yet extracted, and
-skipped rather than guessed: the React `createBrowserRouter` object form, Luigi
-navigation configs, Angular lazy `loadChildren` sub-trees, realtime/WebSocket
-channels, templates, and stylesheets. It also reads manifests (`pyproject.toml`,
+`[id]`/`[...slug]` collapsed to `{}`), **React Router** (both the flat JSX `<Route
+path=...>` and the data-router object form `createBrowserRouter([{ path, Component,
+children, index }])`, where `index: true` resolves to the parent path), and
+**Angular** `Routes` tables (with `redirectTo` skipped and lazy `loadChildren`
+captured as the mount path). The object-literal forms use a tree-sitter AST walk
+anchored on the route-table container (a `Routes`-typed declarator, or the array
+argument to `forRoot`/`provideRouter`/`create*Router`), so nested `children`
+compose into full paths and bare `{path:...}` config objects are never mis-read as
+routes. Not yet extracted, and skipped rather than guessed: Luigi navigation
+configs, Angular lazy `loadChildren` sub-trees, React `loader`/`lazy`, realtime/
+WebSocket channels, templates, and stylesheets. It also reads manifests
+(`pyproject.toml`,
 `package.json`, `*.csproj`, `pom.xml`) to build a **cross-repo dependency graph** through shared
 package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo `blast_radius` ("what could break if I change
