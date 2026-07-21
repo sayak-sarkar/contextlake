@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Indexing config keys are now honored.** `[kb] skip_generated`, `max_file_bytes`,
+  and `index_workers` were documented but silently ignored (the loader read only
+  `store_dir` and `languages`), so they always used defaults. They are now loaded from
+  `kb.toml`.
+- **Vendored nested repos are skipped in discovery.** An upstream clone carried inside
+  the mirror with its own `.git` (a `node_modules` or `module-federation` path segment)
+  was indexed as a full repo, flooding the global graph with upstream-demo nodes. Such
+  repos are now skipped, and each skip is logged.
+
+### Added
+
+- **Unknown config keys are warned, not silently ignored.** An unrecognized `[kb]` key
+  or config table (e.g. `store` for `store_dir`) now logs a warning instead of being
+  dropped without a trace.
+- **`owners` and `graph` suggest close repo ids** when given an id that is not in the
+  store, including the workspace-relative-prefix case (a sub-workspace-indexed
+  `offer/loyalty/pal` points at the stored `offer-order/offer/loyalty/pal`), instead of
+  a bare error or a silently empty view.
+
 ## [2.41.0] - 2026-07-21
 
 ### Added
