@@ -1457,10 +1457,12 @@ def cmd_graph(args) -> int:
             nodes, edges = viz.overview_subgraph(store, max_nodes=max_nodes, meta=meta)
             meta["mode"] = "overview"
         elif getattr(args, "repo", None) and not _has_seed(args):
-            if store.get_repo(args.repo) is None:
+            nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes, meta=meta)
+            # empty AND not a known repo -> the id is wrong; suggest close ones
+            # (a real repo with nodes renders even without a repos-table row).
+            if not nodes and store.get_repo(args.repo) is None:
                 log(_unknown_repo_msg(store, args.repo))
                 return 1
-            nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes, meta=meta)
             meta.update(mode="repo", repo=args.repo)
         else:
             seeds = viz.seed_ids_from_args(store, args)
