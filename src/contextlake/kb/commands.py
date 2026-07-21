@@ -948,6 +948,12 @@ def cmd_query(args) -> int:
         )
         if not results:
             log(f"No matches for {text!r}")
+            # A multi-word phrase reads as a natural-language question; query is
+            # keyword (FTS) search, so point at the semantic path instead of a
+            # bare dead-end. A single-token lookup (a symbol) stays quiet.
+            if len(text.split()) > 1:
+                log("  (query is keyword search; for natural-language search run "
+                    "`contextlake embed`, then use serve's semantic_search / ask tools)")
             return 0
         for n in results:
             _print_hit(n)
