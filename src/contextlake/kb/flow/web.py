@@ -9,13 +9,16 @@ distinct nodes, not one shared node. There is deliberately no two-hop join.
 
 Framework-targeted, so every edge is ``INFERRED``, a likely undercount never
 asserted as ground truth. Covered: **Next.js App Router** page files
-(``app/.../page.*`` path convention), **React Router v6 flat JSX**
-(``<Route path=...>``), and **Angular** ``Routes`` tables (a tree-sitter AST
-walk anchored on the route-table container, so bare ``{path:...}`` config objects
-are never mis-read as routes). Still deferred: the React ``createBrowserRouter``
-object form, Luigi navigation configs, Angular lazy ``loadChildren`` sub-trees
-(the mount path is captured, the child module is not), realtime channels, and
-templates/stylesheets. All are skipped, never mis-captured.
+(``app/.../page.*`` path convention), **React Router** both the v6 flat JSX
+(``<Route path=...>``) and the data-router object form
+(``createBrowserRouter([{ path, Component, children, index }])``), and **Angular**
+``Routes`` tables. The object-literal forms use a tree-sitter AST walk anchored on
+the route-table container (a ``Routes``-typed declarator, or the array argument to
+``forRoot``/``provideRouter``/``create*Router``), so bare ``{path:...}`` config
+objects are never mis-read as routes. Still deferred: Luigi navigation configs,
+Angular lazy ``loadChildren`` sub-trees (the mount path is captured, the child
+module is not), React ``loader``/``lazy``/``createRoutesFromElements``, realtime
+channels, and templates/stylesheets. All are skipped, never mis-captured.
 """
 
 from __future__ import annotations

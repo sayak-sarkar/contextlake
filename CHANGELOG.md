@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **React Router data-router (object form) extraction.** `createBrowserRouter`,
+  `createHashRouter`, and `createMemoryRouter` route arrays now surface as `route`
+  nodes, joining the flat JSX `<Route>` form from 2.39.0. It reuses the tree-sitter
+  AST walk built for Angular, anchored on the `create*Router` call's array argument
+  so bare `{path:...}` objects are never mis-read as routes. Nested `children`
+  compose into full paths, `index: true` resolves to the parent path, and a
+  `Component`/`element` is captured when it names a plain component. Deferred:
+  `loader`/`lazy` and `createRoutesFromElements`.
+
 ## [2.40.0] - 2026-07-20
 
 ### Added
