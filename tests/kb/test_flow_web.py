@@ -78,10 +78,10 @@ def test_react_router_jsx_flat():
     assert None in ctx  # the ternary element has no clean component name
 
 
-def test_react_router_ignores_object_form():
-    # createBrowserRouter object form is DEFERRED (v2.40.0) -> no capture
+def test_react_router_object_form_extracted():
+    # createBrowserRouter object form is now extracted (v2.41.0)
     src = b'createBrowserRouter([{ path: "/x", Component: X, children: [] }])'
-    assert extract_web_flow("r", "src/routes.ts", src, "typescript") == ([], [])
+    assert _routes(extract_web_flow("r", "src/routes.ts", src, "typescript")[0]) == {"/x"}
 
 
 def test_web_skips_vendored_paths():
@@ -232,3 +232,51 @@ def test_angular_forroot_only_router_module():
       StoreModule.forRoot([{ path: "reducerKey", value: 1 }]);
     '''
     assert extract_web_flow("r", "app.module.ts", src, "typescript") == ([], [])
+
+
+# --- React Router object form (createBrowserRouter) ------------------------
+
+def test_react_object_router_real_shape():
+    src = b'''
+      export const router = createBrowserRouter([
+        { path: "/", Component: RootLayout, children: [
+          { index: true, Component: Dashboard },
+          { path: "disruption/:id/rebooking", Component: Rebooking },
+          { path: "disruption/:id/compensation", Component: Compensation },
+        ]},
+      ]);
+    '''
+    got = _routes(extract_web_flow("r", "src/app/routes.ts", src, "typescript")[0])
+    assert got == {"/", "/disruption/{}/rebooking", "/disruption/{}/compensation"}
+
+
+def test_react_object_router_index_is_parent_path():
+    # index:true resolves to the parent path, not a vanished route
+    src = b'createBrowserRouter([{ path: "admin", children: [{ index: true, Component: Home }] }])'
+    assert _routes(extract_web_flow("r", "routes.tsx", src, "tsx")[0]) == {"/admin"}
+
+
+def test_react_object_router_element_and_hash_memory():
+    # element: identifier captured as context; createHashRouter anchors too
+    src = b'createHashRouter([{ path: "x", element: XPage }])'
+    n, e = extract_web_flow("r", "routes.jsx", src, "javascript")
+    assert _routes(n) == {"/x"}
+    assert any(ed.context == "XPage" for ed in e)
+
+
+def test_react_object_router_jsx_element_no_context():
+    src = b'createBrowserRouter([{ path: "y", element: <Y/> }])'
+    n, e = extract_web_flow("r", "routes.tsx", src, "tsx")
+    assert _routes(n) == {"/y"}
+    assert all(ed.context is None for ed in e)
+
+
+def test_react_object_router_pathless_layout_no_phantom():
+    # a pathless, indexless layout adds no segment but its children compose
+    src = b'createBrowserRouter([{ Component: Layout, children: [{ path: "a", Component: A }] }])'
+    assert _routes(extract_web_flow("r", "routes.ts", src, "typescript")[0]) == {"/a"}
+
+
+def test_react_object_router_prefilter_skips():
+    src = b'const x = [{path:"a"}]'
+    assert extract_web_flow("r", "util.ts", src, "typescript") == ([], [])
