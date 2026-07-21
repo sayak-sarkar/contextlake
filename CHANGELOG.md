@@ -14,9 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `store_dir` and `languages`), so they always used defaults. They are now loaded from
   `kb.toml`.
 - **Vendored nested repos are skipped in discovery.** An upstream clone carried inside
-  the mirror with its own `.git` (a `node_modules` or `module-federation` path segment)
-  was indexed as a full repo, flooding the global graph with upstream-demo nodes. Such
-  repos are now skipped, and each skip is logged.
+  the mirror with its own `.git` under a `module-federation` path segment was indexed as
+  a full repo, flooding the global graph with upstream-demo nodes. Such repos are now
+  skipped, and each skip is logged.
 
 ### Added
 

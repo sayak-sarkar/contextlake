@@ -1417,6 +1417,16 @@ def _has_seed(args) -> bool:
 def cmd_graph(args) -> int:
     from . import visualize as viz
 
+    # When a text format is streamed to stdout (no --output), every log line would
+    # otherwise land on stdout and corrupt the payload (a truncation note, or a
+    # config warning). Redirect logs to stderr BEFORE opening the store, since
+    # _open_store loads config and may warn on an unknown key.
+    fmt = getattr(args, "format", None) or "html"
+    if (fmt in ("json", "dot", "mermaid", "classdiagram")
+            and not getattr(args, "output", None) and not getattr(args, "serve", False)):
+        from ..logging_setup import use_stderr
+        use_stderr()
+
     store, store_dir = _open_store(args)
     # Generated artifacts live in a dedicated dir next to the store, never the cwd
     # or the user's home — keep generated content close to the knowledge base.
@@ -1436,15 +1446,6 @@ def cmd_graph(args) -> int:
             log(style.ok(f"Wrote site -> {out_dir}  (open {out_dir / 'index.html'})"))
             return 0
 
-        fmt = getattr(args, "format", None) or "html"
-        # When a text format is streamed to stdout (no --output), every log line
-        # would otherwise land on stdout too and corrupt the payload (e.g. a
-        # truncation warning before `classDiagram`, making the Mermaid/JSON invalid).
-        # Redirect logs to stderr up front, before any payload-building log fires.
-        if (fmt in ("json", "dot", "mermaid", "classdiagram")
-                and not getattr(args, "output", None) and not getattr(args, "serve", False)):
-            from ..logging_setup import use_stderr
-            use_stderr()
         max_fanout = getattr(args, "max_fanout", None) or 50
         hops = getattr(args, "hops", None) or 2
         overview = getattr(args, "overview", False)

@@ -45,8 +45,10 @@ _SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "node_modules", "dist", "b
 # the mirror, e.g. the webpack Module Federation examples). A repo whose path
 # contains one of these is skipped in discovery: it is not the org's source, and
 # it floods the global graph with thousands of upstream-demo nodes. Kept to exact,
-# unambiguous segments so a real product dir is never caught.
-_VENDORED_REPO_MARKERS = {"node_modules", "module-federation"}
+# unambiguous segments so a real product dir is never caught. (node_modules is
+# already in _SKIP_DIRS, so os.walk never reaches a repo nested under it; this set
+# is for markers that are NOT dir-pruned, like module-federation.)
+_VENDORED_REPO_MARKERS = {"module-federation"}
 
 # Optional per-repo ignore file (gitignore-flavoured *subset*): one glob per line,
 # blank lines and `#` comments skipped. Matched with fnmatch against the POSIX path
