@@ -204,14 +204,18 @@ handlers) become shared <code>endpoint</code> nodes that join across repos into 
 (from the caller repo to the exposer repo). <strong>Frontend routes</strong> become repo-scoped,
 embeddable <code>route</code> nodes from three frameworks: <strong>Next.js App Router</strong> pages (from
 the <code>app/**/page.*</code> file convention, with route groups <code>(name)</code> dropped and dynamic
-<code>[id]</code>/<code>[...slug]</code> collapsed to <code>{}</code>), <strong>React Router v6</strong> flat JSX <code>&lt;Route
-path=...&gt;</code>, and <strong>Angular</strong> <code>Routes</code> tables (a tree-sitter AST walk anchored on the
-route-table container, so nested <code>children</code> compose into full paths and bare
-<code>{path:...}</code> config objects are never mis-read as routes; <code>redirectTo</code> routes are
-skipped and lazy <code>loadChildren</code> captures the mount path). Not yet extracted, and
-skipped rather than guessed: the React <code>createBrowserRouter</code> object form, Luigi
-navigation configs, Angular lazy <code>loadChildren</code> sub-trees, realtime/WebSocket
-channels, templates, and stylesheets. It also reads manifests (<code>pyproject.toml</code>,
+<code>[id]</code>/<code>[...slug]</code> collapsed to <code>{}</code>), <strong>React Router</strong> (both the flat JSX <code>&lt;Route
+path=...&gt;</code> and the data-router object form <code>createBrowserRouter([{ path, Component,
+children, index }])</code>, where <code>index: true</code> resolves to the parent path), and
+<strong>Angular</strong> <code>Routes</code> tables (with <code>redirectTo</code> skipped and lazy <code>loadChildren</code>
+captured as the mount path). The object-literal forms use a tree-sitter AST walk
+anchored on the route-table container (a <code>Routes</code>-typed declarator, or the array
+argument to <code>forRoot</code>/<code>provideRouter</code>/<code>create*Router</code>), so nested <code>children</code>
+compose into full paths and bare <code>{path:...}</code> config objects are never mis-read as
+routes. Not yet extracted, and skipped rather than guessed: Luigi navigation
+configs, Angular lazy <code>loadChildren</code> sub-trees, React <code>loader</code>/<code>lazy</code>, realtime/
+WebSocket channels, templates, and stylesheets. It also reads manifests
+(<code>pyproject.toml</code>,
 <code>package.json</code>, <code>*.csproj</code>, <code>pom.xml</code>) to build a <strong>cross-repo dependency graph</strong> through shared
 package nodes. Agents traverse all of this over MCP,
 from finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change
