@@ -101,7 +101,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         log("  Point --workspace at a directory that contains git clones.")
         return 1
     mode = "full" if force else "incremental"
-    failed = skipped = done = 0
+    failed = skipped = 0
 
     # Incremental filter first (cheap serial DB reads): only repos whose HEAD moved.
     todo = []
@@ -112,6 +112,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         else:
             todo.append((repo_id, path, head))
     total = len(todo)
+    progress = style.Progress(total=total, label="index")
     if workers is None or workers <= 0:
         workers = _default_index_workers()
     log(f"Found {len(repos)} repositories under {workspace} ({mode}); "
@@ -125,10 +126,8 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         mark_repo_indexed(store, repo_id, head)
 
     def _report(repo_id, shard):
-        nonlocal done
-        done += 1
-        log(f"  {style.bar(done, total, 14)} {style.cyan(repo_id)}: "
-            f"{len(shard.nodes)} nodes, {len(shard.edges)} edges")
+        progress.advance(repo_id)
+        log(f"  {style.ok(repo_id)}: {len(shard.nodes)} nodes, {len(shard.edges)} edges")
 
     def _run_serial(items):
         nonlocal failed
@@ -182,8 +181,12 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
             # idempotent, so repos already written simply update in place.
             log(f"{style.warn()} Parallel indexing unavailable ({e}); "
                 f"falling back to serial.")
-            done = 0
+            # Fresh Progress: some repos may already have advanced the old one
+            # via _report before the pool broke, so re-running the full work-list
+            # serially (see comment above) must not double-advance those counts.
+            progress = style.Progress(total=total, label="index")
             _run_serial(todo)
+    progress.done()
     st = store.stats()
     glyph = style.ok() if failed == 0 else style.warn()
     log(f"{glyph} Workspace indexed: {st.repos} repos, {st.nodes} nodes, "
