@@ -647,6 +647,14 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
 def cmd_wiki(args) -> int:
     """Generate provenance-stamped wiki pages from the graph, gated by an LLM council."""
     from .llm import build_llm
+    from .wiki.cluster import (
+        cluster_fingerprint,
+        cluster_page_name,
+        generate_cluster_page,
+        namespace_brief,
+        namespaces_at_depth,
+        render_cluster_prompt,
+    )
     from .wiki.council import LENSES, council_gate
     from .wiki.generate import generate_page, render_prompt, repo_brief
 
@@ -687,6 +695,59 @@ def cmd_wiki(args) -> int:
                                         backend=cfg.embeddings.vector_backend,
                                         chunk_size=cfg.embeddings.vector_chunk_size)
         force = getattr(args, "force", False)
+
+        # Cluster (namespace) wiki: --namespace <prefix> or --namespaces --depth N.
+        namespace = getattr(args, "namespace", None)
+        if namespace or getattr(args, "namespaces", False):
+            if namespace:
+                ns_list = [namespace]
+            else:
+                depth = getattr(args, "depth", None) or 2
+                ns_list = namespaces_at_depth([r.id for r in store.list_repos()], depth)
+            if not ns_list:
+                log("No namespaces to generate cluster wiki for (index some repos first)")
+                return 0
+            log(f"Generating cluster wiki for {len(ns_list)} namespace(s) with {llm.name} "
+                f"(council of {len(LENSES)})")
+            written = rejected = skipped = failed = 0
+            for ns in ns_list:
+                brief = namespace_brief(store, store_dir, ns)
+                if brief is None:
+                    log(f"  {ns}: no indexed repos under this namespace, skipping")
+                    continue
+                page_file = wiki_dir / cluster_page_name(ns)
+                # freshness: skip when the member commit fingerprint is unchanged.
+                if not force and page_file.exists():
+                    prev = page_file.read_text(encoding="utf-8", errors="replace")
+                    m = re.search(r"cluster-commits: ([0-9a-f]+)", prev)
+                    if m and m.group(1) == cluster_fingerprint(brief):
+                        skipped += 1
+                        continue
+                try:
+                    page = generate_cluster_page(llm, brief)
+                    gate = council_gate(llm, page, render_cluster_prompt(brief),
+                                        accept_score=cfg.llm.accept_score,
+                                        council_size=getattr(cfg.llm, "council_size", None))
+                except Exception as e:  # noqa: BLE001 - one cluster must not abort the run
+                    log(f"  {style.fail(ns)}: {e}")
+                    failed += 1
+                    continue
+                if gate["accepted"]:
+                    page_file.write_text(page, encoding="utf-8")
+                    # embed cluster prose into @wiki:<namespace> (labeled advisory).
+                    _store_wiki_partition(store, store_dir, ns, page, page_file.name, None,
+                                          embedder, vs, cfg.embeddings.batch_size)
+                    written += 1
+                    log(f"  {style.ok(ns)}: written (score {gate['score']})")
+                else:
+                    rejected += 1
+                    log(f"  {style.warn(ns)}: rejected by council (score {gate['score']})")
+            log(f"{style.ok()} Cluster wiki: {written} written, {rejected} rejected, "
+                f"{skipped} unchanged (skipped) → {wiki_dir}  (--force to regenerate)")
+            if failed and not written and not rejected:
+                return 1
+            return 0
+
         written = rejected = skipped = failed = 0
         for repo_id, _ in targets:
             brief = repo_brief(store_dir, repo_id)

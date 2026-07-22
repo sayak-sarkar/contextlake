@@ -23,6 +23,22 @@ def members(store, namespace: str) -> list[str]:
                   if r.id == ns or r.id.startswith(ns + "/"))
 
 
+def namespaces_at_depth(repo_ids, depth: int = 2) -> list[str]:
+    """Distinct raw namespace prefixes at ``depth`` (``a/b/c`` -> ``a/b`` at 2).
+
+    Mirrors the bucketing in ``dashboard.data.derive_groups`` / ``visualize.
+    _site_index`` but returns the RAW prefixes (no sanitizing) for generation; a
+    repo with no namespace beyond ``depth`` segments is skipped (the derive_groups
+    ``(ungrouped)`` bucket is not a cluster)."""
+    depth = max(1, int(depth))
+    out = set()
+    for r in repo_ids:
+        parts = r.split("/")
+        if len(parts) > depth:
+            out.add("/".join(parts[:depth]))
+    return sorted(out)
+
+
 def cross_repo_edges(store) -> list[dict]:
     """Every repo->repo edge (dependency / HTTP flow / event flow), each tagged
     with a ``flavor`` so the narrative can phrase it correctly."""
