@@ -12,9 +12,11 @@ CLI wiring that consume ``C4Model`` are separate, later pieces of work.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from .dashboard.data import derive_groups
+from .visualize import _CONF_DOT, _dot_escape
 from .wiki.cluster import cross_repo_edges
 
 
@@ -98,3 +100,57 @@ def c4_model(store, *, group_depth: int = 1, repos: list[str] | None = None) -> 
         "edge_count": len(edges),
     }
     return C4Model(boundaries=boundaries, edges=edges, meta=meta)
+
+
+# ---------------------------------------------------------------------------
+# DOT rendering
+# ---------------------------------------------------------------------------
+_DOT_UNSAFE = re.compile(r"[^0-9A-Za-z_]")
+
+
+def _dot_id(raw: str) -> str:
+    """Turn a repo id or namespace (e.g. ``acme/pay/api``) into a DOT-safe node
+    or subgraph name.
+
+    Every character outside ``[0-9A-Za-z_]`` (``/``, ``.``, ``-``, etc.) becomes
+    ``_``. This is not collision-proof in the abstract (``acme/pay`` and
+    ``acme.pay`` would both sanitize to ``acme_pay``), but real repo ids in this
+    fleet are GitLab namespace paths where ``/`` is the only separator actually
+    used between path segments, so collisions do not occur in practice. The
+    full (unsanitized) path is kept as the DOT ``label``, so even in a
+    hypothetical collision the rendered text stays readable; only the internal
+    node identity would be shared.
+    """
+    return _DOT_UNSAFE.sub("_", raw)
+
+
+def to_c4_dot(model: C4Model) -> str:
+    """Render ``model`` as a Graphviz ``digraph`` with one cluster subgraph per
+    namespace boundary.
+
+    Output is fully deterministic: boundaries are sorted by namespace,
+    containers within a boundary by repo_id, and edges by (src, dst, flavor) --
+    so calling this twice on the same model always yields identical text.
+    """
+    lines = ["digraph c4 {", "  rankdir=LR;",
+             '  node [shape=box, fontname="sans-serif"];']
+
+    for boundary in sorted(model.boundaries, key=lambda b: b.namespace):
+        cluster_id = f"cluster_{_dot_id(boundary.namespace)}"
+        lines.append(f"  subgraph {cluster_id} {{")
+        lines.append(f'    label="{_dot_escape(boundary.label)}";')
+        for container in sorted(boundary.containers, key=lambda c: c.repo_id):
+            node_id = _dot_id(container.repo_id)
+            label = _dot_escape(container.label)
+            lines.append(f'    {node_id} [label="{label}"];')
+        lines.append("  }")
+
+    for edge in sorted(model.edges, key=lambda e: (e.src, e.dst, e.flavor)):
+        src_id = _dot_id(edge.src)
+        dst_id = _dot_id(edge.dst)
+        edge_label = _dot_escape(f"{edge.flavor} x{edge.weight}")
+        style = _CONF_DOT.get(edge.confidence, "solid")
+        lines.append(f'  {src_id} -> {dst_id} [label="{edge_label}", style={style}];')
+
+    lines.append("}")
+    return "\n".join(lines)
