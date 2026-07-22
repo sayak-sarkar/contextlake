@@ -124,6 +124,7 @@ class WikiOut(BaseModel):
     wiki_commit: str | None      # commit the wiki was generated from
     current_commit: str | None   # the repo's current indexed head
     markdown: str
+    kind: str = "repo"           # "repo" | "cluster" (a namespace-level page)
 
 
 class ReadmeOut(BaseModel):
@@ -496,18 +497,30 @@ def build_server(
 
     @mcp.tool()
     def get_wiki(repo: str) -> WikiOut:
-        """The generated LLM-wiki page for a repo (Markdown prose).
+        """The generated LLM-wiki page for a repo, or a namespace's cluster page.
+
+        Pass a repo id for its page, or a namespace prefix (e.g. ``delivery/dcs``)
+        for the cluster page narrating that group's cross-repo coupling.
 
         **Advisory, not ground truth** — synthesized text to verify against the
         cited sources/graph; it never outranks EXTRACTED facts. ``stale`` is true
-        when the wiki was generated from a different commit than the repo's current
-        indexed head (or either is unknown), so an agent never cites prose that
-        describes code which has since changed.
+        when a repo wiki was generated from a different commit than the repo's
+        current indexed head (or either is unknown), so an agent never cites prose
+        that describes code which has since changed. Cluster pages carry their own
+        member-commit fingerprint and are not single-commit stale-checked.
         """
         sp = getattr(store, "path", None)
-        wiki_file = (Path(sp).parent / "wiki" / (repo.replace("/", "__") + ".md")
-                     if sp else None)
+        wiki_dir = Path(sp).parent / "wiki" if sp else None
+        slug = repo.replace("/", "__")
+        wiki_file = wiki_dir / (slug + ".md") if wiki_dir else None
         if not wiki_file or not wiki_file.exists():
+            # fall back to a cluster (namespace) page for this prefix
+            cluster_file = wiki_dir / ("_ns__" + slug + ".md") if wiki_dir else None
+            if cluster_file and cluster_file.exists():
+                craw = cluster_file.read_text(encoding="utf-8", errors="replace")
+                return WikiOut(repo=sanitize_label(repo), found=True, stale=False,
+                               wiki_commit=None, current_commit=None, kind="cluster",
+                               markdown=sanitize_label(craw, max_len=200_000))
             return WikiOut(repo=sanitize_label(repo), found=False, stale=True,
                            wiki_commit=None, current_commit=None, markdown="")
         raw = wiki_file.read_text(encoding="utf-8", errors="replace")
