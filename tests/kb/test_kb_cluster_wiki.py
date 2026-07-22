@@ -99,8 +99,8 @@ def test_namespace_brief_composes_members_and_edges(tmp_path):
 
 
 def test_cluster_page_name_and_fingerprint(tmp_path):
-    assert cluster_page_name("acme/pay") == "_ns__acme__pay.md"
-    assert cluster_page_name("delivery/dcs/") == "_ns__delivery__dcs.md"
+    assert cluster_page_name("acme/pay") == "_clusters/acme__pay.md"
+    assert cluster_page_name("delivery/dcs/") == "_clusters/delivery__dcs.md"
     fp1 = cluster_fingerprint({"heads": {"a": "1", "b": "2"}})
     fp2 = cluster_fingerprint({"heads": {"b": "2", "a": "1"}})  # order-independent
     assert fp1 == fp2 and len(fp1) == 12
@@ -187,7 +187,7 @@ def test_cmd_wiki_namespace_writes_and_skips(tmp_path, monkeypatch):
     from contextlake.kb.commands import cmd_wiki
     store_dir = _setup_cluster_store(tmp_path, monkeypatch)
     assert cmd_wiki(_ns_args(tmp_path, namespace="acme/pay")) == 0
-    page = store_dir / "wiki" / "_ns__acme__pay.md"
+    page = store_dir / "wiki" / "_clusters" / "acme__pay.md"
     assert page.exists()
     txt = page.read_text()
     assert "# acme/pay (cluster)" in txt and "cluster-commits:" in txt
@@ -202,8 +202,8 @@ def test_cmd_wiki_namespaces_depth_generates_per_namespace(tmp_path, monkeypatch
     store_dir = _setup_cluster_store(tmp_path, monkeypatch)
     assert cmd_wiki(_ns_args(tmp_path, namespaces=True, depth=2)) == 0
     wiki = store_dir / "wiki"
-    assert (wiki / "_ns__acme__pay.md").exists()
-    assert (wiki / "_ns__acme__ship.md").exists()
+    assert (wiki / "_clusters" / "acme__pay.md").exists()
+    assert (wiki / "_clusters" / "acme__ship.md").exists()
 
 
 # --- dashboard data layer -------------------------------------------------
@@ -217,8 +217,8 @@ def test_dashboard_cluster_detail_and_index(tmp_path):
         assert d is not None and d["member_count"] == 3 and d["found"] is False
         assert d["internal"] >= 1  # web->api
         # write a cluster page -> found + rendered html
-        (tmp_path / "wiki").mkdir()
-        (tmp_path / "wiki" / "_ns__acme__pay.md").write_text(
+        (tmp_path / "wiki" / "_clusters").mkdir(parents=True)
+        (tmp_path / "wiki" / "_clusters" / "acme__pay.md").write_text(
             "# acme/pay (cluster)\n\nThe pay cluster.\n", encoding="utf-8")
         d2 = kbdata.cluster_detail(s, tmp_path, "acme/pay")
         assert d2["found"] is True and "pay cluster" in (d2["html"] or "")
