@@ -467,3 +467,24 @@ def test_find_callers_and_blast_radius_resolve_a_bare_name(tmp_path):
     empty = asyncio.run(_call(srv, "find_callers", {"node_id": "NoSuchSymbol"}))
     assert empty.structuredContent["total"] == 0
     s.close()
+
+
+def test_get_wiki_serves_cluster_page_by_namespace(tmp_path):
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    _seed(s)
+    wiki = tmp_path / "wiki"
+    wiki.mkdir()
+    (wiki / "_ns__acme__pay.md").write_text(
+        "# acme/pay (cluster)\n\nThe pay cluster talks over HTTP.\n\n---\n"
+        "*cluster-commits: abc123def456.*\n", encoding="utf-8")
+    server = build_server(s)
+    try:
+        res = asyncio.run(_call(server, "get_wiki", {"repo": "acme/pay"}))
+        out = res.structuredContent
+        assert out["found"] is True and out["kind"] == "cluster"
+        assert "pay cluster talks over HTTP" in out["markdown"]
+        # an unknown target (no repo page, no cluster page) is not found
+        miss = asyncio.run(_call(server, "get_wiki", {"repo": "no/such"}))
+        assert miss.structuredContent["found"] is False
+    finally:
+        s.close()
