@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new extraction; output as `html` (default, interactive, `<store>/graphs/c4.html`),
   `dot` (Graphviz clustered), or `json`. Mermaid/classdiagram output and `--serve`
   are not supported for `--c4`.
+- **Consistent CLI progress line.** `wiki`, `index`, `embed`, and the mirror-tier
+  `clone`/`update`/`branches` now share one progress renderer: a live bar (done/total,
+  percent, elapsed, ETA, rate) on stderr, degrading to periodic summaries when not a
+  TTY, so stdout redirects (e.g. `>> run.log`) stay clean of bar/`\r` artifacts.
 
 ## [2.43.0] - 2026-07-22
 

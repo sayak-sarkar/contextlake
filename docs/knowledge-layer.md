@@ -262,16 +262,27 @@ automatically; override (rarely correct) with `CONTEXTLAKE_ALLOW_CONCURRENT=1`.
 
 ## Reading the console output
 
-A `bootstrap` (or a standalone `index` / `embed` / `wiki`) prints progress as it goes.
-Most lines are self-explanatory; a few are worth decoding.
+A `bootstrap` (or a standalone `index` / `embed` / `wiki`, and the mirror-tier `clone` /
+`update` / `branches`) prints progress as it goes. Most lines are self-explanatory; a few
+are worth decoding.
 
-- **`▶ <Phase>` headers** (`▶ Mirror repositories`, `▶ Index the code graph`,
-  `▶ Build semantic vectors`, `▶ Generate the curated wiki`, …) mark each pipeline stage.
-  A stage that has nothing to do (no connector sources, no LLM enabled) says so and moves on.
-- **`[███░░] N/M <repo>: X nodes, Y edges`** is the incremental indexer. **`0 nodes, 0
-  edges`** is normal and not an error — that repo has no code in a supported language
-  (config-only, docs-only, IaC/scripts, or empty). Only repos whose HEAD moved are
-  re-indexed; the rest are reported as *unchanged*.
+- **The live progress bar** is one shared renderer used by every long-running command, so
+  it looks the same everywhere: `[████████░░░░] 42/678 (6%) · 12:30 elapsed · ~2:58:14
+  left · 3.4/min` (bar, done/total, percent, elapsed time, estimated time remaining, and
+  rate in items/min). The ETA is a moving-average estimate over recent items (that's what
+  the `~` marks), and it's count-based, each item counts equally rather than being weighted
+  by size. When a run's total isn't known up front, the bar drops the percent/ETA and shows
+  `done · elapsed · rate` instead, rather than guessing.
+- **The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like)
+  stay on stdout.** That split means `contextlake wiki >> run.log` (or any stdout redirect)
+  captures clean detail lines with no bar artifacts or `\r` clutter, since the bar never
+  touches stdout. When output isn't a TTY (piped, cron, a redirected stderr), the bar itself
+  auto-downgrades to periodic plain summary lines instead of repainting in place.
+- **`✓ <repo>: X nodes, Y edges`** is the incremental indexer's per-repo detail line
+  (stdout; the `index` progress bar above it lives on stderr). **`0 nodes, 0 edges`** is
+  normal and not an error: that repo has no code in a supported language (config-only,
+  docs-only, IaC/scripts, or empty). Only repos whose HEAD moved are re-indexed; the rest
+  are reported as *unchanged*.
 - **`Embed complete: 0 vector(s) written (N total in store), M already up to date`** —
   embedding is incremental too. `0 written` with a large `already up to date` count means
   nothing changed since the last run; the `N total` is the whole store, not this run.
