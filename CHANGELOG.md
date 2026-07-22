@@ -29,9 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `▶ <Phase>` section headers; every long-running command ends with a glyph-prefixed
   summary line. `contextlake serve --transport http` now logs its bind URL, and
   `graph --overview` on an empty store warns with a "run `contextlake index` first"
-  hint instead of silently reporting a written artifact. Per-item detail lines
-  (mirror-tier `clone`/`update`/`branches`, `index`, `embed`, `wiki`) no longer flicker
-  a right-aligned clock (the live progress bar already shows elapsed time).
+  hint instead of silently reporting a written artifact. Per-item detail lines across
+  every long-running command (mirror-tier `clone`/`update`/`branches`, `index`, `embed`,
+  `wiki`, `connect`, `ingest`, `enrich`) no longer flicker a right-aligned clock.
 
 ## [2.43.0] - 2026-07-22
 

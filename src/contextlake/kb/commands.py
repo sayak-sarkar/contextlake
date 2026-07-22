@@ -417,7 +417,7 @@ def cmd_connect(args) -> int:
                     try:
                         nodes, edges = enrich(repo_id, keys, links)
                     except Exception as e:  # noqa: BLE001 - one source/repo must not abort the run
-                        log(f"  {repo_id}: source {name!r} failed — {e}")
+                        log(f"  {repo_id}: source {name!r} failed ({e})", inline=True)
                         src_failed += 1
                         continue
                     for n in nodes:
@@ -430,7 +430,7 @@ def cmd_connect(args) -> int:
                 store.upsert_edges(part, list(merged_edges.values()))
                 total_edges += len(merged_edges)
                 if merged_edges:
-                    log(f"  {repo_id}: {len(merged_edges)} link(s)")
+                    log(f"  {repo_id}: {len(merged_edges)} link(s)", inline=True)
             log(style.summary_line("ok", f"Connect complete: {total_edges} external link(s) stored"))
             # Honest exit: every source call attempted failed (e.g. an unreachable
             # connector) -> a failure, even though per-repo errors were logged.
@@ -1217,7 +1217,7 @@ def cmd_ingest(args) -> int:
             for name, stype, options in jobs:
                 src = build_source(stype, **options)
                 if src is None:
-                    log(f"  {name}: unknown source type {stype!r} — skipping")
+                    log(f"  {name}: unknown source type {stype!r}, skipping", inline=True)
                     failed += 1
                     continue
                 repo_id = f"@ingest:{name}"
@@ -1230,11 +1230,11 @@ def cmd_ingest(args) -> int:
                                           attrs={**doc.attrs, "source": stype}))
                         texts.append(doc.text)
                 except Exception as e:  # noqa: BLE001 - one source must not abort the run
-                    log(f"  {name}: source failed — {e}")
+                    log(f"  {name}: source failed ({e})", inline=True)
                     failed += 1
                     continue
                 if not nodes:
-                    log(f"  {name}: no documents")
+                    log(f"  {name}: no documents", inline=True)
                     continue
                 store.clear_repo(repo_id)
                 store.upsert_nodes(repo_id, nodes)
@@ -1247,7 +1247,7 @@ def cmd_ingest(args) -> int:
                                          cfg.embeddings.batch_size)
                     embedded += n
                     msg += f", {n} embedded"
-                log(msg)
+                log(msg, inline=True)
             tail = f", {embedded} embedded into the semantic store" if embedded else ""
             log(style.summary_line("ok", f"Ingest complete: {total} document(s) aggregated{tail}"))
             return 1 if (failed and total == 0) else 0
@@ -1301,7 +1301,7 @@ def cmd_enrich(args) -> int:
                 n = run_enrich_repo(store, store_dir, cfg, repo_id,
                                     embedder=embedder, vector_store=vector_store)
                 total += n
-                log(f"  {repo_id}: {n} document(s)")
+                log(f"  {repo_id}: {n} document(s)", inline=True)
             log(style.summary_line("ok", f"Enrich complete: {total} document(s) stored"))
             return 0
         finally:
