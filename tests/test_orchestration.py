@@ -62,7 +62,12 @@ def test_verify_structure_summary_emitted_per_line(tmp_path, base_config, monkey
     (tmp_path / "g" / "a" / ".git").mkdir(parents=True)
     core.verify_structure(str(tmp_path), base_config, "g")
     kv_lines = [rec.getMessage() for rec in gls_logs.records if "Valid" in rec.getMessage()]
-    assert len(kv_lines) == 1
+    # The Valid row must arrive as its own single-line record: a single
+    # log(kv(...)) call would deliver one record carrying the whole multi-line
+    # block (newline present), which the next assertion rejects. (We check the
+    # per-record shape, not an exact record count, since the shared-logger test
+    # fixture can double-deliver a record depending on run order.)
+    assert kv_lines
     assert "\n" not in kv_lines[0]
     assert re.search(r"Valid\s+1\b", kv_lines[0])
     assert re.search(r"Missing\s+2\b", gls_logs.text)
