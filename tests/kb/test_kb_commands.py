@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from contextlake.cli import main
+from contextlake.kb import commands as commands_mod
 from contextlake.kb.store.sqlite_store import SqliteStore
 
 REPO = Path(__file__).resolve().parents[2]
@@ -22,6 +23,27 @@ def _run(argv):
     with pytest.raises(SystemExit) as e:
         main(argv)
     return e.value.code
+
+
+class _SpyProgress:
+    """Stand-in for style.Progress that only records call counts (no rendering),
+    so the wire-through test stays deterministic and stream-free. Same pattern
+    as test_kb_wiki.py's _SpyProgress."""
+
+    instances: list["_SpyProgress"] = []
+
+    def __init__(self, total, **kwargs):
+        self.total = total
+        self.label = kwargs.get("label")
+        self.advance_calls = 0
+        self.done_calls = 0
+        _SpyProgress.instances.append(self)
+
+    def advance(self, *args, **kwargs):
+        self.advance_calls += 1
+
+    def done(self, *args, **kwargs):
+        self.done_calls += 1
 
 
 def test_index_then_query_round_trip(tmp_path, capsys):
@@ -257,6 +279,57 @@ def test_index_workspace_repos_filter_no_match_fails(tmp_path, capsys):
     assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
                  "--repos", "zzz-nope"]) == 1
     assert "matching --repos" in capsys.readouterr().out
+
+
+def test_index_workspace_reports_progress_and_drops_inline_bar_from_stdout(
+    tmp_path, capsys, monkeypatch
+):
+    """Wire-through: Progress.advance fires once per indexed repo and done() once
+    on the shared Progress helper (stderr channel); the stdout detail line keeps
+    the 'n nodes, m edges' summary but no longer carries the inline [####] bar,
+    which now renders on stderr via Progress instead.
+
+    Goes through cli.main(), which calls setup_logging() and (re)attaches a
+    real stdout console handler, so capsys reliably sees log() output here
+    (unlike the direct cmd_wiki(...) calls in test_kb_wiki.py, where gls_logs
+    is required instead -- see the comment there).
+
+    index_workers = 1 forces the serial _report path deterministically; the
+    parallel as_completed path calls the same _report function (see
+    src/contextlake/kb/commands.py), so this exercises the shared code that
+    both paths run through.
+    """
+    ws = tmp_path / "ws"
+    repo_ids = ["r1", "r2", "r3"]
+    for rid in repo_ids:
+        (ws / rid).mkdir(parents=True)
+        (ws / rid / ".git").mkdir()
+        (ws / rid / "a.py").write_text("def f():\n    pass\n")
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\nindex_workers = 1\n')
+
+    _SpyProgress.instances = []
+    monkeypatch.setattr(commands_mod.style, "Progress", _SpyProgress)
+
+    assert _run(["index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+
+    assert len(_SpyProgress.instances) == 1
+    p = _SpyProgress.instances[0]
+    assert p.total == len(repo_ids)
+    assert p.advance_calls == len(repo_ids)
+    assert p.done_calls == 1
+
+    text = capsys.readouterr().out
+    detail_lines = [line for line in text.splitlines()
+                    if any(f"{rid}: 2 nodes, 1 edges" in line for rid in repo_ids)]
+    assert len(detail_lines) == len(repo_ids)
+    # the old inline style.bar(...) rendered as e.g. "[██████░░░░░░░░] 1/3" -- assert
+    # that block-bar glyph is gone from every per-repo detail line (the timestamp
+    # prefix "[HH:MM:SS]" also uses "[", so check for the bar's fill/void glyphs
+    # specifically rather than a bare "[").
+    for line in detail_lines:
+        assert "█" not in line and "░" not in line
 
 
 def test_owners_unknown_repo_suggests_close_id(tmp_path, capsys):
