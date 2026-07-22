@@ -712,10 +712,12 @@ def cmd_wiki(args) -> int:
                 f"(council of {len(LENSES)})")
             all_edges = cross_repo_edges(store)   # scan the store once, not per namespace
             written = rejected = skipped = failed = 0
+            progress = style.Progress(len(ns_list), label="wiki-cluster")
             for ns in ns_list:
                 brief = namespace_brief(store, store_dir, ns, edges=all_edges)
                 if brief is None:
                     log(f"  {ns}: no indexed repos under this namespace, skipping")
+                    progress.advance(ns)
                     continue
                 page_file = wiki_dir / cluster_page_name(ns)
                 # freshness: skip when the member commit fingerprint is unchanged.
@@ -724,6 +726,7 @@ def cmd_wiki(args) -> int:
                     m = re.search(r"cluster-commits: ([0-9a-f]+)", prev)
                     if m and m.group(1) == cluster_fingerprint(brief):
                         skipped += 1
+                        progress.advance(ns)
                         continue
                 try:
                     page = generate_cluster_page(llm, brief)
@@ -733,6 +736,7 @@ def cmd_wiki(args) -> int:
                 except Exception as e:  # noqa: BLE001 - one cluster must not abort the run
                     log(f"  {style.fail(ns)}: {e}")
                     failed += 1
+                    progress.advance(ns)
                     continue
                 if gate["accepted"]:
                     page_file.parent.mkdir(parents=True, exist_ok=True)   # wiki/_clusters/
@@ -745,6 +749,8 @@ def cmd_wiki(args) -> int:
                 else:
                     rejected += 1
                     log(f"  {style.warn(ns)}: rejected by council (score {gate['score']})")
+                progress.advance(ns)
+            progress.done()
             log(f"{style.ok()} Cluster wiki: {written} written, {rejected} rejected, "
                 f"{skipped} unchanged (skipped) → {wiki_dir}  (--force to regenerate)")
             # An explicit --namespace that matched no repos is a user error, not success.
@@ -755,9 +761,11 @@ def cmd_wiki(args) -> int:
             return 0
 
         written = rejected = skipped = failed = 0
+        progress = style.Progress(len(targets), label="wiki")
         for repo_id, _ in targets:
             brief = repo_brief(store_dir, repo_id)
             if brief is None:
+                progress.advance(repo_id)
                 continue
             wiki_file = wiki_dir / (repo_id.replace("/", "__") + ".md")
             # freshness: skip the (expensive) LLM call when an existing page was
@@ -773,6 +781,7 @@ def cmd_wiki(args) -> int:
                                               wiki_file.name, brief.get("head"),
                                               embedder, vs, cfg.embeddings.batch_size)
                     skipped += 1
+                    progress.advance(repo_id)
                     continue
             try:
                 page = generate_page(llm, store_dir, repo_id)
@@ -782,6 +791,7 @@ def cmd_wiki(args) -> int:
             except Exception as e:  # noqa: BLE001 - one repo must not abort the run
                 log(f"  {style.fail(repo_id)}: {e}")
                 failed += 1
+                progress.advance(repo_id)
                 continue
             if gate["accepted"]:
                 wiki_file.write_text(page, encoding="utf-8")
@@ -795,6 +805,8 @@ def cmd_wiki(args) -> int:
                 log(f"  {style.warn(repo_id)}: rejected by council (score {gate['score']})")
                 for issue in gate["issues"][:5]:
                     log(f"      - {issue}")
+            progress.advance(repo_id)
+        progress.done()
         log(f"{style.ok()} Wiki: {written} written, {rejected} rejected, "
             f"{skipped} unchanged (skipped) → {wiki_dir}  (--force to regenerate)")
         # Honest exit: failures with nothing written and nothing council-rejected

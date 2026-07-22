@@ -4,6 +4,7 @@ from argparse import Namespace
 from datetime import date
 
 import contextlake.kb.llm as llm_pkg
+from contextlake.kb import commands as commands_mod
 from contextlake.kb.commands import cmd_wiki
 from contextlake.kb.connectors.enrich import enrich_partition
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
@@ -315,6 +316,42 @@ def _setup_repo(tmp_path):
     return store_dir
 
 
+def _setup_multi_repo(tmp_path, repo_ids):
+    """Like _setup_repo but seeds N independent repos, for progress wire-through tests."""
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir(parents=True)
+    (tmp_path / "kb.toml").write_text(_CFG.format(store=store_dir.as_posix()))
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    for rid in repo_ids:
+        store.upsert_repo(Repo(id=rid, path=str(tmp_path / rid)))
+        node = Node(id=f"{rid}:svc", repo=rid, kind="class", name="OrderService", file="svc.py")
+        write_shard(store_dir, GraphShard(repo=rid, head_commit=f"head-{rid}",
+                                          nodes=[node], edges=[]))
+    store.close()
+    return store_dir
+
+
+class _SpyProgress:
+    """Stand-in for style.Progress that only records call counts (no rendering),
+    so the wire-through test stays deterministic and stream-free."""
+
+    instances: list["_SpyProgress"] = []
+
+    def __init__(self, total, **kwargs):
+        self.total = total
+        self.label = kwargs.get("label")
+        self.advance_calls = 0
+        self.done_calls = 0
+        _SpyProgress.instances.append(self)
+
+    def advance(self, *args, **kwargs):
+        self.advance_calls += 1
+
+    def done(self, *args, **kwargs):
+        self.done_calls += 1
+
+
 def test_cmd_wiki_writes_accepted_page(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = _setup_repo(tmp_path)
@@ -443,3 +480,38 @@ def test_cmd_wiki_skips_unchanged_and_force_regenerates(tmp_path, monkeypatch):
 
     assert cmd_wiki(Namespace(config=cfg, force=True)) == 0  # --force regenerates
     assert calls["n"] > first
+
+
+def test_cmd_wiki_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkeypatch, gls_logs):
+    """Wire-through: Progress.advance fires once per target and done() once, on a
+    separate channel from the existing stdout detail/summary log() lines, which
+    must render exactly as before (byte-identical).
+
+    Asserts on gls_logs (not capsys) per the convention documented in
+    tests/kb/test_source_cmd.py: log()'s console handler is lazily (re)created
+    only when the logger has no handlers, and pytest's own log-capture handler
+    is already attached to the named logger by the time the test body runs, so
+    capsys can't reliably see log() output here -- gls_logs reads the logger's
+    records directly instead.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    repo_ids = ["r1", "r2", "r3"]
+    store_dir = _setup_multi_repo(tmp_path, repo_ids)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    _SpyProgress.instances = []
+    monkeypatch.setattr(commands_mod.style, "Progress", _SpyProgress)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    assert len(_SpyProgress.instances) == 1
+    p = _SpyProgress.instances[0]
+    assert p.total == len(repo_ids)
+    assert p.advance_calls == len(repo_ids)
+    assert p.done_calls == 1
+
+    text = gls_logs.text
+    for rid in repo_ids:
+        assert f"{commands_mod.style.ok(rid)}: written (score 0.95)" in text
+    assert "Wiki: 3 written, 0 rejected, 0 unchanged (skipped)" in text
+    for rid in repo_ids:
+        assert (store_dir / "wiki" / f"{rid}.md").exists()
