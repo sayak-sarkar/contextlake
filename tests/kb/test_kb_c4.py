@@ -1,6 +1,8 @@
 """Tests for the C4 namespace-boundary data model (kb.c4) and its CLI wiring
 (``contextlake graph --c4``)."""
 
+import json
+import re
 from datetime import date
 
 import pytest
@@ -143,6 +145,27 @@ def test_graph_c4_dot_writes_cluster_subgraph(tmp_path):
     assert "subgraph cluster_" in text
 
 
+def test_graph_c4_repos_filter_scopes_namespaces(tmp_path):
+    """--c4 --repos scopes the model to matching repos: fnmatch("acme/pay*")
+    matches all three acme/pay/* repos (the "*" wildcard also matches "/") but
+    not acme/ship/api, so only the acme/pay namespace should be emitted."""
+    cfg = _seed_and_configure(tmp_path)
+    out = tmp_path / "c4-scoped.dot"
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--group-depth", "2", "--repos", "acme/pay*",
+              "--format", "dot", "--output", str(out), "--config", str(cfg)])
+    assert e.value.code == 0
+    text = out.read_text(encoding="utf-8")
+    assert text.startswith("digraph")
+    # the matched namespace's cluster is present, with its containers
+    assert "subgraph cluster_acme_pay {" in text
+    assert 'label="acme/pay"' in text
+    assert "acme_pay_api" in text
+    # the excluded namespace (and its repo) never appear anywhere in the model
+    assert "acme_ship" not in text
+    assert "acme/ship" not in text
+
+
 def test_graph_c4_default_html_has_vendored_cytoscape_and_parent_nodes(tmp_path):
     cfg = _seed_and_configure(tmp_path)
     out = tmp_path / "c4.html"
@@ -151,12 +174,42 @@ def test_graph_c4_default_html_has_vendored_cytoscape_and_parent_nodes(tmp_path)
               "--output", str(out), "--config", str(cfg)])
     assert e.value.code == 0
     html = out.read_text(encoding="utf-8")
-    # vendored (offline) cytoscape lib is inlined, not CDN-referenced
+    # vendored (offline) cytoscape lib is inlined, not CDN-referenced -- a
+    # distinctive string from the vendored asset's license header, plus the
+    # sheer size, are a real signal (not just "ns:"/"parent" substrings that
+    # also occur inside cytoscape.min.js/app.js boilerplate on ANY graph).
     assert _CDN_URL not in html
+    assert "The Cytoscape Consortium" in html
     assert len(html) > 100_000
-    # namespace parent node + at least one element carrying a "parent" ref
-    assert "ns:" in html
-    assert '"parent"' in html
+
+    # The actual C4 structure check has to look at the embedded cytoscape
+    # elements payload, not the whole page -- "ns:" and '"parent"' both occur
+    # in the vendored JS even for a plain, non-C4 graph, so asserting them
+    # against `html` would pass whether or not the --c4 branch emitted any
+    # namespace/parent structure at all. Pull out the actual `ELEMENTS` array
+    # the page's inline <script> assigns (see `to_html` in
+    # contextlake/kb/visualize.py, which fills the `__ELEMENTS__` template
+    # placeholder with `json.dumps(_cytoscape_elements(payload))`) and parse it.
+    match = re.search(r"var ELEMENTS = (.*?);\s*\n\s*var COLORS = ", html, re.DOTALL)
+    assert match, "could not locate `var ELEMENTS = [...];` in the rendered HTML"
+    elements = json.loads(match.group(1))
+
+    namespace_nodes = [
+        el for el in elements
+        if "source" not in el["data"]
+        and (str(el["data"].get("id", "")).startswith("ns:")
+             or el["data"].get("kind") == "namespace")
+    ]
+    assert namespace_nodes, "expected at least one ns: namespace compound node"
+
+    container_nodes = [
+        el for el in elements
+        if "source" not in el["data"] and el["data"].get("parent")
+    ]
+    namespace_ids = {n["data"]["id"] for n in namespace_nodes}
+    assert any(n["data"]["parent"] in namespace_ids for n in container_nodes), (
+        "expected a container node whose data.parent joins a namespace node id"
+    )
 
 
 def test_graph_c4_default_output_filename_is_c4_html(tmp_path):
