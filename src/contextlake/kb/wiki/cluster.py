@@ -11,8 +11,9 @@ contract (``generate.SYSTEM`` + the council gate) at cluster scope.
 from __future__ import annotations
 
 import hashlib
+from datetime import date
 
-from .generate import repo_brief
+from .generate import SYSTEM, repo_brief
 
 
 def members(store, namespace: str) -> list[str]:
@@ -99,3 +100,64 @@ def cluster_fingerprint(brief: dict) -> str:
     """Stable short hash of the member (repo, head) pairs, for freshness skip."""
     pairs = sorted((r, h) for r, h in (brief.get("heads") or {}).items())
     return hashlib.sha1(repr(pairs).encode("utf-8")).hexdigest()[:12]
+
+
+def _phrase_edge(e: dict) -> str:
+    s, d, w = e["src"], e["dst"], e.get("weight", 1)
+    if e["flavor"] == "http":
+        return f"{s} calls {d} over HTTP ({w} shared endpoint(s))"
+    if e["flavor"] == "event":
+        return f"{s} publishes events consumed by {d} ({w} shared topic(s))"
+    return f"{s} depends on {d} (shared package)"
+
+
+def render_cluster_prompt(brief: dict) -> str:
+    """A grounded prompt: member roles + internal/boundary coupling, with an
+    explicit no-invention fallback when the graph shows no coupling."""
+    shown = len(brief["repos"])
+    header = f"{brief['member_count']} repositories in this cluster"
+    if brief.get("truncated"):
+        header += f" (showing the first {shown})"
+    lines = [f"Namespace: {brief['namespace']}", header + ":"]
+    for r in brief["repos"]:
+        langs = ", ".join(r["langs"]) if r["langs"] else "?"
+        top = ", ".join(r["top"][:5])
+        lines.append(f"  - {r['repo']} [{langs}]" + (f": {top}" if top else ""))
+    lines.append("")
+    if brief["internal_edges"]:
+        lines.append("How they talk (within this namespace):")
+        lines += [f"  - {_phrase_edge(e)}" for e in brief["internal_edges"]]
+    else:
+        lines.append("No coupling between these repositories was detected in the graph. "
+                     "Do NOT invent connections; state that the coupling is not detected.")
+    if brief["boundary_edges"]:
+        lines.append("")
+        lines.append("Couples to repositories outside this namespace:")
+        lines += [f"  - {_phrase_edge(e)}" for e in brief["boundary_edges"]]
+    lines += [
+        "",
+        "Write a cluster wiki page in Markdown with sections: Overview, Services "
+        "(one line each), How they talk (internal), External coupling, Shared "
+        "dependencies. Ground every statement in the facts above; do not speculate "
+        "or invent any coupling not listed.",
+    ]
+    return "\n".join(lines)
+
+
+def cluster_provenance_footer(brief: dict, verified_at: date | None = None) -> str:
+    repos = ", ".join(f"`{r}`" for r in sorted(brief.get("heads") or {}))
+    return (
+        "\n\n---\n"
+        f"*Cluster wiki for `{brief['namespace']}` generated from the knowledge graph "
+        f"on {verified_at or date.today()}."
+        + (f" Member repos: {repos}." if repos else "")
+        + f" cluster-commits: {cluster_fingerprint(brief)}.*"
+    )
+
+
+def generate_cluster_page(llm, brief: dict, *, verified_at: date | None = None) -> str:
+    """Council-gate this in the caller (like the per-repo path): this only drafts
+    the page + provenance footer from an already-built namespace brief."""
+    body = llm.generate(render_cluster_prompt(brief), system=SYSTEM).strip()
+    return (f"# {brief['namespace']} (cluster)\n\n{body}"
+            + cluster_provenance_footer(brief, verified_at))

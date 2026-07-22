@@ -9,8 +9,10 @@ from contextlake.kb.store.sqlite_store import SqliteStore
 from contextlake.kb.wiki.cluster import (
     cluster_fingerprint,
     cluster_page_name,
+    generate_cluster_page,
     members,
     namespace_brief,
+    render_cluster_prompt,
     split_edges,
 )
 
@@ -110,3 +112,46 @@ def test_namespace_brief_none_for_empty_namespace(tmp_path):
         assert namespace_brief(s, tmp_path, "nope/missing") is None
     finally:
         s.close()
+
+
+class _FakeLlm:
+    name = "fake"
+
+    def generate(self, prompt, *, system=None):
+        return "## Overview\nThe pay cluster.\n"
+
+
+def test_render_cluster_prompt_phrases_internal_and_boundary():
+    brief = {
+        "namespace": "acme/pay", "member_count": 3, "truncated": False,
+        "repos": [{"repo": "acme/pay/api", "langs": {"csharp": 3}, "top": ["OrderSvc"]},
+                  {"repo": "acme/pay/web", "langs": {"typescript": 2}, "top": ["App"]}],
+        "internal_edges": [{"src": "acme/pay/web", "dst": "acme/pay/api",
+                            "flavor": "http", "weight": 2}],
+        "boundary_edges": [{"src": "acme/ship/api", "dst": "acme/pay/web",
+                            "flavor": "http", "weight": 1}],
+        "heads": {"acme/pay/api": "a1", "acme/pay/web": "w1"},
+    }
+    p = render_cluster_prompt(brief)
+    assert "acme/pay/web calls acme/pay/api over HTTP" in p
+    assert "Couples to repositories outside this namespace" in p
+    assert "do not speculate or invent any coupling not listed" in p
+
+
+def test_render_cluster_prompt_no_coupling_fallback():
+    brief = {"namespace": "acme/pay", "member_count": 2, "truncated": False,
+             "repos": [{"repo": "acme/pay/a", "langs": {}, "top": []}],
+             "internal_edges": [], "boundary_edges": [], "heads": {"acme/pay/a": "x"}}
+    p = render_cluster_prompt(brief)
+    assert "not detected" in p and "Do NOT invent" in p
+
+
+def test_generate_cluster_page_has_body_and_fingerprint_footer():
+    brief = {"namespace": "acme/pay", "member_count": 2, "truncated": False,
+             "repos": [{"repo": "acme/pay/api", "langs": {}, "top": []}],
+             "internal_edges": [], "boundary_edges": [],
+             "heads": {"acme/pay/api": "a1", "acme/pay/web": "w1"}}
+    page = generate_cluster_page(_FakeLlm(), brief)
+    assert page.startswith("# acme/pay (cluster)")
+    assert "The pay cluster." in page
+    assert "cluster-commits:" in page and "`acme/pay/api`" in page
