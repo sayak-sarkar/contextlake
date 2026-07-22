@@ -1,8 +1,8 @@
 """Tests for update behaviour, incl. bug #5 (failed pulls reported as success)."""
 
-from conftest import FakeCompleted
+from conftest import FakeCompleted, make_local_repo
 from contextlake import core
-from contextlake.core import update_repository
+from contextlake.core import update_repositories, update_repository
 
 
 def _safe(monkeypatch, safe=True, warnings=None):
@@ -70,6 +70,26 @@ def test_deleted_upstream_branch_is_skipped(
     status, _, msg = update_repository("a", str(tmp_path), base_config)
     assert status == "skip"
     assert "deleted" in msg.lower()
+
+
+def test_deleted_upstream_branch_carries_remediation_hint(
+    tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
+):
+    """H2: the one place a failure class is already distinguished in the code
+    (missing-ref) gets a one-line remediation hint pointing at the fix."""
+    _safe(monkeypatch)
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="feature/gone")
+        if cmd[:2] == ["git", "fetch"]:
+            return FakeCompleted(returncode=1, stderr="fatal: couldn't find remote ref feature/gone")  # noqa: E501
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "skip"
+    assert "branches" in msg.lower()  # points at the remediation (the branches verb)
 
 
 def test_transient_fetch_error_is_retried(
@@ -209,3 +229,37 @@ def test_clean_feature_branch_is_updated(tmp_path, base_config, fake_subprocess,
     status, _, msg = update_repository("a", str(tmp_path), base_config)
     assert status in ("updated", "ok")
     assert "feature/x" in msg
+
+
+# --- update_repositories loop: unified status_line rendering ---------------
+
+def test_update_repositories_failure_line_has_fail_glyph(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """H2: an 'error' outcome renders with the fail glyph (not raw git text)."""
+    make_local_repo(tmp_path, "r1")
+    monkeypatch.setattr(
+        core, "update_repository", lambda p, wd, cfg: ("error", "r1", "fatal: boom")
+    )
+
+    update_repositories(str(tmp_path), base_config)
+
+    text = gls_logs.text
+    assert "✗" in text
+    assert "fatal: boom" in text
+
+
+def test_update_repositories_dryrun_line_has_dryrun_glyph(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """The 'dry-run' outcome maps to the 'dryrun' state glyph ('~'), not fail."""
+    make_local_repo(tmp_path, "r1")
+    monkeypatch.setattr(
+        core, "update_repository", lambda p, wd, cfg: ("dry-run", "r1", "Would update main")
+    )
+
+    update_repositories(str(tmp_path), base_config)
+
+    text = gls_logs.text
+    assert "~" in text
+    assert "✗" not in text

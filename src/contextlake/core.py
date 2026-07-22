@@ -22,9 +22,14 @@ from .logging_setup import log
 from .safety import check_repository_safety, is_safe_branch, stash_changes
 
 
-def _status(i, total, glyph, path, message):
-    """A coloured per-repo progress line: dim counter, coloured glyph, cyan path."""
-    return f"{style.dim(f'[{i}/{total}]')} {glyph} {style.cyan(path)}: {message}"
+def _status(i, total, state, path, message):
+    """A coloured per-repo progress line: dim counter, state glyph, cyan path.
+
+    Thin wrapper over the shared ``style.status_line`` vocabulary -- ``state``
+    is one of the state names it recognises (ok/warn/fail/skip/nochange/
+    switched/dryrun), not a hand-built glyph.
+    """
+    return style.status_line(i, total, state, path, message)
 
 
 def _is_truthy(config, key, default="false"):
@@ -753,7 +758,8 @@ def update_repository(local_path, work_dir, config):
             )
         except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
             if classify_error(str(e)) == "missing-ref":
-                return ("skip", local_path, f"Upstream branch deleted: {current}")
+                return ("skip", local_path,
+                        f"Upstream branch deleted: {current} (run branches to pick a new one)")
             return ("error", local_path, _first_line(str(e)))
 
         before = _rev_parse(full_path, "HEAD")
@@ -1004,6 +1010,8 @@ def clone_missing_repos(work_dir, config, gitlab_group):
     total = len(to_clone)
     progress = style.Progress(total, label="clone")
 
+    _CLONE_STATES = {"ok": "ok", "skip": "skip", "dry-run": "dryrun"}
+
     def handle(result):
         nonlocal done
         done += 1
@@ -1016,7 +1024,9 @@ def clone_missing_repos(work_dir, config, gitlab_group):
             dry.append(path)
         else:
             failures.append(path)
-        log(f"[{done}/{total}] {path}: {message}")
+        # Anything not in _CLONE_STATES is an error, so default to "fail" rather
+        # than let an unmapped status reach status_line (which raises).
+        log(_status(done, total, _CLONE_STATES.get(status, "fail"), path, message))
         progress.advance(path)
         return status in ("ok", "skip", "dry-run")
 
@@ -1069,19 +1079,19 @@ def update_repositories(work_dir, config):
             status, path, message = fut.result()
             if status == "ok":
                 buckets["updated"].append(path)
-                log(_status(i, total, style.green("✓"), path, message))
+                log(_status(i, total, "ok", path, message))
             elif status == "nochange":
                 buckets["unchanged"].append(path)
-                log(_status(i, total, style.dim("="), path, message))
+                log(_status(i, total, "nochange", path, message))
             elif status == "skip":
                 buckets["skipped"].append(path)
-                log(_status(i, total, style.dim("⊘"), path, message))
+                log(_status(i, total, "skip", path, message))
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
-                log(_status(i, total, style.yellow("~"), path, message))
+                log(_status(i, total, "dryrun", path, message))
             else:
                 buckets["errors"].append(path)
-                log(_status(i, total, style.red("✗"), path, message))
+                log(_status(i, total, "fail", path, message))
             progress.advance(path)
 
     progress.done()
@@ -1113,19 +1123,19 @@ def switch_repository_branches(work_dir, config, gitlab_group):
             status, path, message = fut.result()
             if status == "switched":
                 buckets["switched"].append(path)
-                log(_status(i, total, style.cyan("↝"), path, message))
+                log(_status(i, total, "switched", path, message))
             elif status == "ok":
                 buckets["already"].append(path)
-                log(_status(i, total, style.green("✓"), path, message))
+                log(_status(i, total, "ok", path, message))
             elif status == "skip":
                 buckets["skipped"].append(path)
-                log(_status(i, total, style.dim("⊘"), path, message))
+                log(_status(i, total, "skip", path, message))
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
-                log(_status(i, total, style.yellow("~"), path, message))
+                log(_status(i, total, "dryrun", path, message))
             else:
                 buckets["errors"].append(path)
-                log(_status(i, total, style.red("✗"), path, message))
+                log(_status(i, total, "fail", path, message))
             progress.advance(path)
 
     progress.done()

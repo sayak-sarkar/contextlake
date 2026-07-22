@@ -1,8 +1,12 @@
 """Tests for branch selection strategies and protection."""
 
-from conftest import FakeCompleted
+from conftest import FakeCompleted, make_local_repo
 from contextlake import core
-from contextlake.core import select_most_active_branch, switch_repository_branch
+from contextlake.core import (
+    select_most_active_branch,
+    switch_repository_branch,
+    switch_repository_branches,
+)
 
 PROJECTS = {"a": {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}}
 
@@ -67,3 +71,40 @@ def test_dry_run_does_not_checkout(tmp_path, base_config, fake_subprocess, monke
     status, _, msg = switch_repository_branch("a", PROJECTS, str(tmp_path), cfg)
     assert status == "dry-run"
     assert not fake_subprocess.commands_matching("git", "checkout")
+
+
+# --- switch_repository_branches loop: unified status_line rendering --------
+
+def test_switch_repository_branches_switched_line_has_switched_glyph(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    make_local_repo(tmp_path, "a")
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    monkeypatch.setattr(
+        core, "switch_repository_branch",
+        lambda p, proj, wd, cfg: ("switched", "a", "main -> dev"),
+    )
+
+    switch_repository_branches(str(tmp_path), base_config, "g")
+
+    text = gls_logs.text
+    assert "↝" in text
+    assert "main -> dev" in text
+
+
+def test_switch_repository_branches_failure_line_has_fail_glyph(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """H2: an 'error' outcome renders with the fail glyph (not raw git text)."""
+    make_local_repo(tmp_path, "a")
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    monkeypatch.setattr(
+        core, "switch_repository_branch",
+        lambda p, proj, wd, cfg: ("error", "a", "checkout failed"),
+    )
+
+    switch_repository_branches(str(tmp_path), base_config, "g")
+
+    text = gls_logs.text
+    assert "✗" in text
+    assert "checkout failed" in text
