@@ -497,6 +497,13 @@ def test_cmd_wiki_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkeyp
     monkeypatch.setenv("HOME", str(tmp_path))
     repo_ids = ["r1", "r2", "r3"]
     store_dir = _setup_multi_repo(tmp_path, repo_ids)
+    # r4 is indexed but has no shard (repo_brief -> None), so it takes the silent
+    # "brief is None" continue branch with no ✓/⚠ log line -- proves advance()
+    # fires once per iteration regardless of branch, not just on the ok/warn path.
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.upsert_repo(Repo(id="r4", path=str(tmp_path / "r4")))
+    store.close()
+    all_ids = [*repo_ids, "r4"]
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
     _SpyProgress.instances = []
     monkeypatch.setattr(commands_mod.style, "Progress", _SpyProgress)
@@ -505,13 +512,14 @@ def test_cmd_wiki_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkeyp
 
     assert len(_SpyProgress.instances) == 1
     p = _SpyProgress.instances[0]
-    assert p.total == len(repo_ids)
-    assert p.advance_calls == len(repo_ids)
+    assert p.total == len(all_ids)
+    assert p.advance_calls == len(all_ids)          # per-item, including r4's silent skip
     assert p.done_calls == 1
 
     text = gls_logs.text
     for rid in repo_ids:
         assert f"{commands_mod.style.ok(rid)}: written (score 0.95)" in text
+    assert "r4" not in text  # brief-is-None repo has no detail line, as before
     assert "Wiki: 3 written, 0 rejected, 0 unchanged (skipped)" in text
     for rid in repo_ids:
         assert (store_dir / "wiki" / f"{rid}.md").exists()
