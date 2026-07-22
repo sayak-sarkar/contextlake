@@ -277,7 +277,11 @@ are worth decoding.
   stay on stdout.** That split means `contextlake wiki >> run.log` (or any stdout redirect)
   captures clean detail lines with no bar artifacts or `\r` clutter, since the bar never
   touches stdout. When output isn't a TTY (piped, cron, a redirected stderr), the bar itself
-  auto-downgrades to periodic plain summary lines instead of repainting in place.
+  auto-downgrades to periodic plain summary lines instead of repainting in place. When both
+  streams share one terminal (the default interactive case), the bar and the detail lines
+  interleave as the run scrolls (the bar reprints below each new detail line rather than
+  repainting perfectly in place); redirect stdout to a file to keep the bar as a single live
+  line with the detail captured separately.
 - **`✓ <repo>: X nodes, Y edges`** is the incremental indexer's per-repo detail line
   (stdout; the `index` progress bar above it lives on stderr). **`0 nodes, 0 edges`** is
   normal and not an error: that repo has no code in a supported language (config-only,
