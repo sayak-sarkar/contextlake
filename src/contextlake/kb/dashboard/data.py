@@ -231,17 +231,19 @@ def _wiki_out(store, store_dir: Path, repo_id: str) -> dict:
             "html": _md_to_html(sanitize_label(raw, max_len=200_000))}
 
 
-def cluster_detail(store, store_dir, namespace: str, *, anonymize: bool = False) -> dict | None:
+def cluster_detail(store, store_dir, namespace: str, *, anonymize: bool = False,
+                   edges: list | None = None) -> dict | None:
     """A namespace cluster narrative: the rendered cluster wiki HTML plus member
     count and internal/boundary coupling counts. None if the namespace has no
     indexed repos. The prose HTML is dropped under ``anonymize`` (it can carry
     internal names / URLs as live anchors), keeping only the counts + found flag.
+    ``edges`` lets a batch caller pass a precomputed ``cross_repo_edges``.
     """
     from ..visualize import _md_to_html
     from ..wiki.cluster import cluster_page_name, namespace_brief
 
     sd = _store_dir(store, store_dir)
-    brief = namespace_brief(store, sd, namespace)
+    brief = namespace_brief(store, sd, namespace, edges=edges)
     if brief is None:
         return None
     wiki_file = sd / "wiki" / cluster_page_name(namespace)
@@ -266,7 +268,7 @@ def cluster_index(store, store_dir, repo_ids, *, cap: int = 50,
     cluster page on disk. Bounded to ``cap`` clusters (build-time cost: each detail
     scans the cross-repo edges). Prefixes are derived from the repo ids so any
     ``--namespaces`` depth is picked up without decoding filenames."""
-    from ..wiki.cluster import cluster_page_name
+    from ..wiki.cluster import cluster_page_name, cross_repo_edges
 
     sd = _store_dir(store, store_dir)
     candidates = set()
@@ -274,12 +276,15 @@ def cluster_index(store, store_dir, repo_ids, *, cap: int = 50,
         parts = r.split("/")
         for d in range(1, len(parts)):        # every namespace prefix (not the full id)
             candidates.add("/".join(parts[:d]))
+    edges = None
     out: dict = {}
     for ns in sorted(candidates):
         if len(out) >= cap:
             break
         if (sd / "wiki" / cluster_page_name(ns)).exists():
-            detail = cluster_detail(store, sd, ns, anonymize=anonymize)
+            if edges is None:                  # scan the store once for the whole index
+                edges = cross_repo_edges(store)
+            detail = cluster_detail(store, sd, ns, anonymize=anonymize, edges=edges)
             if detail:
                 out[ns] = detail
     return out

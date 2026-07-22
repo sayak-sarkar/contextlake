@@ -473,8 +473,8 @@ def test_get_wiki_serves_cluster_page_by_namespace(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     _seed(s)
     wiki = tmp_path / "wiki"
-    wiki.mkdir()
-    (wiki / "_ns__acme__pay.md").write_text(
+    (wiki / "_clusters").mkdir(parents=True)
+    (wiki / "_clusters" / "acme__pay.md").write_text(
         "# acme/pay (cluster)\n\nThe pay cluster talks over HTTP.\n\n---\n"
         "*cluster-commits: abc123def456.*\n", encoding="utf-8")
     server = build_server(s)

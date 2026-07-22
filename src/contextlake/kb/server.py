@@ -515,7 +515,7 @@ def build_server(
         wiki_file = wiki_dir / (slug + ".md") if wiki_dir else None
         if not wiki_file or not wiki_file.exists():
             # fall back to a cluster (namespace) page for this prefix
-            cluster_file = wiki_dir / ("_ns__" + slug + ".md") if wiki_dir else None
+            cluster_file = wiki_dir / "_clusters" / (slug + ".md") if wiki_dir else None
             if cluster_file and cluster_file.exists():
                 craw = cluster_file.read_text(encoding="utf-8", errors="replace")
                 return WikiOut(repo=sanitize_label(repo), found=True, stale=False,

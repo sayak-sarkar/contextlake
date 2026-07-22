@@ -650,6 +650,7 @@ def cmd_wiki(args) -> int:
     from .wiki.cluster import (
         cluster_fingerprint,
         cluster_page_name,
+        cross_repo_edges,
         generate_cluster_page,
         namespace_brief,
         namespaces_at_depth,
@@ -709,9 +710,10 @@ def cmd_wiki(args) -> int:
                 return 0
             log(f"Generating cluster wiki for {len(ns_list)} namespace(s) with {llm.name} "
                 f"(council of {len(LENSES)})")
+            all_edges = cross_repo_edges(store)   # scan the store once, not per namespace
             written = rejected = skipped = failed = 0
             for ns in ns_list:
-                brief = namespace_brief(store, store_dir, ns)
+                brief = namespace_brief(store, store_dir, ns, edges=all_edges)
                 if brief is None:
                     log(f"  {ns}: no indexed repos under this namespace, skipping")
                     continue
@@ -733,6 +735,7 @@ def cmd_wiki(args) -> int:
                     failed += 1
                     continue
                 if gate["accepted"]:
+                    page_file.parent.mkdir(parents=True, exist_ok=True)   # wiki/_clusters/
                     page_file.write_text(page, encoding="utf-8")
                     # embed cluster prose into @wiki:<namespace> (labeled advisory).
                     _store_wiki_partition(store, store_dir, ns, page, page_file.name, None,
@@ -744,6 +747,9 @@ def cmd_wiki(args) -> int:
                     log(f"  {style.warn(ns)}: rejected by council (score {gate['score']})")
             log(f"{style.ok()} Cluster wiki: {written} written, {rejected} rejected, "
                 f"{skipped} unchanged (skipped) → {wiki_dir}  (--force to regenerate)")
+            # An explicit --namespace that matched no repos is a user error, not success.
+            if namespace and not (written or rejected or skipped):
+                return 1
             if failed and not written and not rejected:
                 return 1
             return 0
