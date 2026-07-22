@@ -1,12 +1,17 @@
-"""Tests for the C4 namespace-boundary data model (kb.c4)."""
+"""Tests for the C4 namespace-boundary data model (kb.c4) and its CLI wiring
+(``contextlake graph --c4``)."""
 
 from datetime import date
 
+import pytest
+
+from contextlake.cli import main
 from contextlake.kb import c4
 from contextlake.kb.ids import make_id
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.store.shards import GraphShard, write_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.visualize import _CDN_URL
 
 _PROV = Provenance(source_file="x", source_line=1, verified_at=date(2026, 6, 21))
 
@@ -111,3 +116,86 @@ def test_c4_payload_edge_join_invariant(tmp_path):
     for e in payload["edges"]:
         assert e["src"] in node_ids, f"edge src {e['src']!r} has no matching node id"
         assert e["dst"] in node_ids, f"edge dst {e['dst']!r} has no matching node id"
+
+
+# --- CLI wiring: `contextlake graph --c4` --------------------------------
+
+def _seed_and_configure(tmp_path):
+    """Seed the fixture store and write a kb.toml pointing at it, mirroring the
+    `contextlake graph` CLI-invocation idiom in tests/kb/test_graph_command.py."""
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    _seed(store_dir).close()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    return cfg
+
+
+def test_graph_c4_dot_writes_cluster_subgraph(tmp_path):
+    cfg = _seed_and_configure(tmp_path)
+    out = tmp_path / "c4.dot"
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--group-depth", "2", "--format", "dot",
+              "--output", str(out), "--config", str(cfg)])
+    assert e.value.code == 0
+    text = out.read_text(encoding="utf-8")
+    assert text.startswith("digraph")
+    assert "subgraph cluster_" in text
+
+
+def test_graph_c4_default_html_has_vendored_cytoscape_and_parent_nodes(tmp_path):
+    cfg = _seed_and_configure(tmp_path)
+    out = tmp_path / "c4.html"
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--group-depth", "2",
+              "--output", str(out), "--config", str(cfg)])
+    assert e.value.code == 0
+    html = out.read_text(encoding="utf-8")
+    # vendored (offline) cytoscape lib is inlined, not CDN-referenced
+    assert _CDN_URL not in html
+    assert len(html) > 100_000
+    # namespace parent node + at least one element carrying a "parent" ref
+    assert "ns:" in html
+    assert '"parent"' in html
+
+
+def test_graph_c4_default_output_filename_is_c4_html(tmp_path):
+    cfg = _seed_and_configure(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--group-depth", "2", "--config", str(cfg)])
+    assert e.value.code == 0
+    default_path = tmp_path / "kb" / "graphs" / "c4.html"
+    assert default_path.exists()
+
+
+def test_graph_c4_mermaid_rejected(tmp_path, capsys):
+    cfg = _seed_and_configure(tmp_path)
+    diagrams_before = set((tmp_path / "kb" / "graphs").glob("*")) \
+        if (tmp_path / "kb" / "graphs").exists() else set()
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--format", "mermaid", "--config", str(cfg)])
+    assert e.value.code != 0
+    diagrams_after = set((tmp_path / "kb" / "graphs").glob("*")) \
+        if (tmp_path / "kb" / "graphs").exists() else set()
+    assert diagrams_after == diagrams_before  # no diagram file written
+    err = capsys.readouterr().err
+    assert "not supported for --c4" in err
+
+
+def test_graph_c4_classdiagram_rejected(tmp_path):
+    cfg = _seed_and_configure(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--format", "classdiagram", "--config", str(cfg)])
+    assert e.value.code != 0
+
+
+def test_graph_c4_json_format(tmp_path, capsys):
+    cfg = _seed_and_configure(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--group-depth", "2", "--format", "json",
+              "--config", str(cfg)])
+    assert e.value.code == 0
+    import json
+    parsed = json.loads(capsys.readouterr().out)
+    assert "nodes" in parsed and "edges" in parsed
+    assert any(n.get("kind") == "namespace" for n in parsed["nodes"])

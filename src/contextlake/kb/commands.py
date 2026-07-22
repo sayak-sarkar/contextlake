@@ -1519,6 +1519,58 @@ def cmd_graph(args) -> int:
             log(style.ok(f"Wrote site -> {out_dir}  (open {out_dir / 'index.html'})"))
             return 0
 
+        # --c4: composed namespace (C4-style) diagram -- repos bucketed into
+        # namespace boundaries with aggregated cross-repo edges, instead of the
+        # node-level overview/repo/neighborhood modes below.
+        if getattr(args, "c4", False):
+            from . import c4 as c4mod
+
+            if fmt in ("mermaid", "classdiagram"):
+                from ..logging_setup import use_stderr
+                use_stderr()
+                log("mermaid/classdiagram output is not supported for --c4; "
+                    "use --format dot or html.")
+                return 1
+
+            group_depth = getattr(args, "group_depth", None) or 1
+            repos_arg = getattr(args, "repos", None)
+            repos_filter = None
+            if repos_arg:
+                patterns = [p.strip() for p in repos_arg.split(",") if p.strip()]
+                if patterns:
+                    repos_filter = [r.id for r in store.list_repos()
+                                     if viz._match_repo(r.id, patterns)]
+
+            model = c4mod.c4_model(store, group_depth=group_depth, repos=repos_filter)
+
+            if fmt == "dot":
+                text = c4mod.to_c4_dot(model)
+            elif fmt == "json":
+                text = viz.to_json(c4mod.c4_payload(model))
+            else:
+                text = viz.to_html(c4mod.c4_payload(model), cdn=getattr(args, "cdn", False),
+                                    layout="cose",
+                                    title=f"C4 - {len(model.boundaries)} namespaces")
+
+            out = getattr(args, "output", None)
+            if fmt == "html" and not out:
+                graphs_dir.mkdir(parents=True, exist_ok=True)
+                out = str(graphs_dir / "c4.html")
+            if out:
+                Path(out).parent.mkdir(parents=True, exist_ok=True)
+                Path(out).write_text(text, encoding="utf-8")
+                container_count = sum(len(b.containers) for b in model.boundaries)
+                log(style.ok(f"Wrote {fmt} c4 diagram ({len(model.boundaries)} namespaces, "
+                             f"{container_count} repos) -> {out}"))
+                if fmt == "html" and getattr(args, "open", False):
+                    import webbrowser
+                    webbrowser.open("file://" + str(Path(out).resolve()))
+            else:
+                from ..logging_setup import use_stderr
+                use_stderr()
+                print(text)
+            return 0
+
         max_fanout = getattr(args, "max_fanout", None) or 50
         hops = getattr(args, "hops", None) or 2
         overview = getattr(args, "overview", False)

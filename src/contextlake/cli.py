@@ -90,7 +90,7 @@ _DEFAULTS = {
     "max_nodes": None, "max_fanout": None, "relation": None, "direction": None,
     "format": None, "layout": None, "output": None, "open": False, "cdn": False,
     "serve": False, "site": None, "repos": None, "group_depth": None,
-    "anonymize": False, "sample": False,
+    "anonymize": False, "sample": False, "c4": False,
     # tri-state booleans: unset on the command line -> None -> config wins
     **{name: None for name in _TRISTATE_FLAGS},
 }
@@ -193,7 +193,7 @@ def _root_hidden_flags(p):
         add(flag)
     for flag in ("--no-audit", "--no-sync", "--no-connect", "--no-embed", "--no-enrich",
                  "--no-wiki", "--force", "--watch", "--overview", "--open", "--cdn",
-                 "--serve", "--anonymize", "--sample"):
+                 "--serve", "--anonymize", "--sample", "--c4"):
         add(flag, action="store_true")
     for flag in ("--interval", "--port", "--limit", "--hops", "--max-nodes",
                  "--max-fanout", "--group-depth"):
@@ -467,6 +467,7 @@ Examples:
   contextlake graph --repo acme/app --format classdiagram   UML class diagram (Mermaid)
   contextlake graph --serve                           live click-to-expand UI
   contextlake graph --site                            offline cross-linked site
+  contextlake graph --c4 --group-depth 2              composed namespace (C4) diagram
                 """)
     p.add_argument("args", nargs="*", metavar="query",
                    help="full-text seed (same as --search)")
@@ -475,6 +476,10 @@ Examples:
     p.add_argument("--search", default=_S, help="seed from a full-text search (+ --kind/--repo)")
     p.add_argument("--overview", action="store_true", default=_S,
                    help="repos-as-nodes with aggregated cross-repo edges")
+    p.add_argument("--c4", action="store_true", default=_S,
+                   help="composed namespace (C4-style) diagram: repos bucketed into "
+                        "namespace boundaries with aggregated cross-repo edges "
+                        "(--format dot|html|json; not mermaid/classdiagram)")
     p.add_argument("--kind", default=_S, help="filter seeds by node kind")
     p.add_argument("--repo", default=_S, help="filter seeds by repo")
     p.add_argument("--limit", type=int, default=_S, help="max seed nodes")
@@ -506,7 +511,11 @@ Examples:
                         "+ index) into DIR (default <store>/graphs/site)")
     p.add_argument("--repos", default=_S, metavar="PATTERN",
                    help="--site: only build repo pages whose id matches a pattern "
-                        "(comma-separated glob/substring)")
+                        "(comma-separated glob/substring); --c4: only include "
+                        "matching repos in the namespace boundaries")
+    p.add_argument("--group-depth", dest="group_depth", type=int, default=_S,
+                   help="--c4: namespace-grouping depth from repo-id path prefixes "
+                        "(default 1)")
     _add_net(p)
 
     command("doctor", "check the knowledge-layer install and configuration (✓/✗)")
