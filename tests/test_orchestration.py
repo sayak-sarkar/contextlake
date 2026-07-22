@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from conftest import make_local_repo
 from contextlake import cli, core
 
 PROJECTS = {
@@ -91,3 +92,98 @@ def test_main_sync_runs_full_pipeline(monkeypatch):
         "fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
         "switch_repository_branches", "verify_structure",
     ]
+
+
+class _SpyProgress:
+    """Stand-in for style.Progress that only records call counts (no rendering),
+    mirroring the wire-through idiom in tests/kb/test_kb_wiki.py and
+    tests/kb/test_kb_commands.py."""
+
+    instances: list["_SpyProgress"] = []
+
+    def __init__(self, total, **kwargs):
+        self.total = total
+        self.label = kwargs.get("label")
+        self.advance_calls = 0
+        self.done_calls = 0
+        _SpyProgress.instances.append(self)
+
+    def advance(self, *args, **kwargs):
+        self.advance_calls += 1
+
+    def done(self, *args, **kwargs):
+        self.done_calls += 1
+
+
+def test_update_repositories_reports_progress_and_leaves_stdout_unchanged(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """Wire-through: Progress.advance fires once per repo across every _status
+    branch (updated/nochange/skip alike) and done() once, on a separate channel
+    (stderr) from the existing stdout `_status(...)` detail lines, which must
+    render exactly as before (byte-identical: same counter/glyph/path/message).
+    """
+    for name in ("r1", "r2", "r3"):
+        make_local_repo(tmp_path, name)
+
+    outcomes = {
+        "r1": ("ok", "r1", "Updated to abc123"),
+        "r2": ("nochange", "r2", "Already up to date"),
+        "r3": ("skip", "r3", "Skipped (unsafe: dirty)"),
+    }
+    monkeypatch.setattr(core, "update_repository", lambda p, wd, cfg: outcomes[p])
+
+    _SpyProgress.instances = []
+    monkeypatch.setattr(core.style, "Progress", _SpyProgress)
+
+    core.update_repositories(str(tmp_path), base_config)
+
+    assert len(_SpyProgress.instances) == 1
+    p = _SpyProgress.instances[0]
+    assert p.total == 3
+    assert p.label == "update"
+    assert p.advance_calls == 3
+    assert p.done_calls == 1
+
+    text = gls_logs.text
+    for path, (_status_val, _p, message) in outcomes.items():
+        assert path in text
+        assert message in text
+    # The existing counter text stays exactly as before: "[i/3]" for each repo.
+    for i in range(1, 4):
+        assert f"[{i}/3]" in text
+
+
+def test_switch_repository_branches_reports_progress(
+    tmp_path, base_config, monkeypatch, gls_logs, cached_projects
+):
+    """Same wire-through coverage for the branches loop: advance once per repo
+    (switched/already/error branches), done() once, existing stdout unchanged.
+    """
+    for name in ("g/a", "g/b"):
+        make_local_repo(tmp_path, name)
+
+    outcomes = {
+        "g/a": ("switched", "g/a", "Switched to dev"),
+        "g/b": ("error", "g/b", "checkout failed"),
+    }
+    monkeypatch.setattr(core, "switch_repository_branch", lambda p, proj, wd, cfg: outcomes[p])
+
+    _SpyProgress.instances = []
+    monkeypatch.setattr(core.style, "Progress", _SpyProgress)
+
+    core.switch_repository_branches(str(tmp_path), base_config, "g")
+
+    assert len(_SpyProgress.instances) == 1
+    p = _SpyProgress.instances[0]
+    assert p.total == 2
+    assert p.label == "branches"
+    assert p.advance_calls == 2
+    assert p.done_calls == 1
+
+    text = gls_logs.text
+    for path, (_status_val, _p, message) in outcomes.items():
+        assert path in text
+        assert message in text
+    for i in range(1, 3):
+        assert f"[{i}/2]" in text
