@@ -49,8 +49,23 @@ def test_verify_structure_reports_nested_and_extra(tmp_path, base_config, monkey
     (tmp_path / "g" / "a" / "inner" / ".git").mkdir(parents=True)  # nested
     (tmp_path / "g" / "extra" / ".git").mkdir(parents=True)  # not in GitLab
     core.verify_structure(str(tmp_path), base_config, "g")
-    assert "1 nested" in gls_logs.text
+    # H5: aligned kv summary (mirrors _status_summary's glyph/label/count rows)
+    # replaces the old flat "Verification complete: ..." line.
+    assert re.search(r"Nested\s+1\b", gls_logs.text)
     assert "g/a/inner" in gls_logs.text
+
+
+def test_verify_structure_summary_emitted_per_line(tmp_path, base_config, monkeypatch, gls_logs):
+    # HO-2: kv() must be logged one row per call, never a single multi-line
+    # log() call, so each row gets its own timestamp/format.
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    (tmp_path / "g" / "a" / ".git").mkdir(parents=True)
+    core.verify_structure(str(tmp_path), base_config, "g")
+    kv_lines = [rec.getMessage() for rec in gls_logs.records if "Valid" in rec.getMessage()]
+    assert len(kv_lines) == 1
+    assert "\n" not in kv_lines[0]
+    assert re.search(r"Valid\s+1\b", kv_lines[0])
+    assert re.search(r"Missing\s+2\b", gls_logs.text)
 
 
 def test_show_status_counts(tmp_path, base_config, monkeypatch, gls_logs):
@@ -100,6 +115,33 @@ def test_main_sync_runs_full_pipeline(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "✓ Full synchronization complete" in out
     assert "Full synchronization complete!" not in out
+    # M1: sync gets the same ▶-prefixed phase header bootstrap uses for the
+    # equivalent stage, so the two commands read as one consistent system.
+    assert "▶ Mirror repositories from GitLab" in out
+
+
+def test_main_sync_headers_audit_stage_when_enabled(monkeypatch, capsys):
+    for name in ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
+                 "switch_repository_branches", "verify_structure"]:
+        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
+    _patch_config(monkeypatch)
+    cli.main(["sync"])
+    out = capsys.readouterr().out
+    assert "▶ Audit repositories (health & age)" in out
+
+
+def test_main_sync_skips_audit_header_with_no_audit(monkeypatch, capsys):
+    for name in ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
+                 "switch_repository_branches", "verify_structure"]:
+        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    run_audit_calls = []
+    monkeypatch.setattr(cli, "run_audit", lambda *a, **k: run_audit_calls.append(1))
+    _patch_config(monkeypatch)
+    cli.main(["sync", "--no-audit"])
+    out = capsys.readouterr().out
+    assert "▶ Audit repositories (health & age)" not in out
+    assert not run_audit_calls
 
 
 class _SpyProgress:

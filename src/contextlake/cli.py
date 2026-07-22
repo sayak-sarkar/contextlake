@@ -643,7 +643,7 @@ def _bootstrap(args, config, work_dir, gitlab_group):
 
     def _stage(title):
         log("")
-        log(style.bold(style.cyan(f"▶ {title}")))
+        log(style.header(title))
 
     failures = []
     if not getattr(args, "no_sync", False):
@@ -827,6 +827,8 @@ def main(argv=None):
             verify_structure(work_dir, config, gitlab_group)
         elif args.command == "sync":
             log("Starting full synchronization...")
+            log("")
+            log(style.header("Mirror repositories from GitLab"))
             fetch_gitlab_projects(gitlab_group, config)
             clone_missing_repos(work_dir, config, gitlab_group)
             update_repositories(work_dir, config)
@@ -834,6 +836,8 @@ def main(argv=None):
             verify_structure(work_dir, config, gitlab_group)
             log(style.summary_line("ok", "Full synchronization complete"))
             if not getattr(args, "no_audit", False):
+                log("")
+                log(style.header("Audit repositories (health & age)"))
                 run_audit(work_dir, config, gitlab_group,
                           report_path=_audit_report_path(args, config),
                           max_workers=_audit_workers(config))

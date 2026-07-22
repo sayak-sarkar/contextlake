@@ -1152,6 +1152,23 @@ def _report_list(label, items, limit=10):
         log(f"  ... and {len(items) - limit} more")
 
 
+def _verify_summary(valid, missing, extra, invalid, nested, width=None):
+    """Styled, aligned glyph summary rows for `verify_structure` (pure, testable).
+
+    Mirrors `_status_summary`'s glyph-prefixed-label treatment, but renders
+    through `style.kv` instead of hand-rolled `align_right` calls.
+    """
+    rows = [
+        (style.green("✓"), "Valid", valid),
+        (style.yellow("⚠") if missing else style.dim("·"), "Missing", missing),
+        (style.yellow("⚠") if extra else style.dim("·"), "Extra", extra),
+        (style.red("✗") if invalid else style.dim("·"), "Invalid", invalid),
+        (style.yellow("⚠") if nested else style.dim("·"), "Nested", nested),
+    ]
+    pairs = [(f"  {glyph} {label}", str(n)) for glyph, label, n in rows]
+    return style.kv(pairs, width=width).splitlines()
+
+
 def verify_structure(work_dir, config, gitlab_group):
     """Verify the local tree matches GitLab and flag repos nested inside repos."""
     log("Verifying repository structure...")
@@ -1172,10 +1189,8 @@ def verify_structure(work_dir, config, gitlab_group):
 
     nested = find_nested_repos(local_repos)
 
-    log(
-        f"Verification complete: {len(valid)} valid, {len(missing)} missing, "
-        f"{len(extra)} extra, {len(invalid)} invalid, {len(nested)} nested"
-    )
+    for line in _verify_summary(len(valid), len(missing), len(extra), len(invalid), len(nested)):
+        log(line)
     _report_list("Missing repositories", missing)
     _report_list("Extra repositories", extra)
     _report_list("Nested repositories (repo inside another repo)", nested)
