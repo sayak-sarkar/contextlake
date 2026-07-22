@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Composed namespace C4 diagram.** `contextlake graph --c4 [--group-depth N]`
+  renders a C4-Context/Container view over already-extracted graph data: namespaces
+  as boundaries, repos as containers, and aggregated `depends_on`/HTTP/event `flow`
+  edges as the labeled inter-service connections (e.g. `http x3`). Fully offline, no
+  new extraction; output as `html` (default, interactive, `<store>/graphs/c4.html`),
+  `dot` (Graphviz clustered), or `json`. Mermaid/classdiagram output and `--serve`
+  are not supported for `--c4`.
+
 ## [2.43.0] - 2026-07-22
 
 ### Added

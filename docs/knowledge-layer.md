@@ -25,7 +25,7 @@ commands are:
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`) |
 | `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`) |
-| `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
+| `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
 | `lint` | Graph health audit: stale repos, dangling edges |
@@ -861,6 +861,31 @@ Output is chosen with `--format`:
 For interactive exploration of a large graph, `contextlake graph --serve` runs a
 local web UI where clicking a node **expands** it (fetches its neighbours on
 demand) so you can walk the graph without pre-rendering all of it.
+
+### Composed namespace C4 diagram
+
+`contextlake graph --c4` renders a different kind of view: a composed **C4-Context/
+Container** diagram over the whole fleet, namespaces are the boundaries, repos are the
+containers inside them, and the aggregated `depends_on`, HTTP `flow`, and event `flow`
+edges become the labeled inter-service connections (grouped by flavor and weight, e.g.
+`http x3`). It renders graph data that `index`/`connect` already extracted, so it runs
+fully offline and adds no new extraction pass. `--group-depth N` (default `1`) controls
+how deep into the namespace path the boundaries are drawn, and `--repos <glob>` scopes
+the diagram to matching repos. Because it only draws coupling the graph already
+resolved (weight-ranked), it doesn't invent links, and folding event-flow in alongside
+HTTP keeps it from telling an HTTP-only half story:
+
+```bash
+contextlake graph --c4 --group-depth 2 --open       # HTML, open in the browser
+contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pasteable
+```
+
+Output is chosen with `--format`: `html` (default, an interactive page with namespace
+boundaries as compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz
+clustered DOT with `subgraph cluster_*` boundaries), or `json` (the raw payload).
+`--format mermaid` and `--format classdiagram` aren't supported with `--c4` (the
+command exits with an error), and `--serve` doesn't apply either, the C4 view is a
+generated file, not a live server.
 
 ## The dashboard
 
