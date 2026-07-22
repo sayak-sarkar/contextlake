@@ -549,11 +549,13 @@ def cmd_embed(args) -> int:
                 log(f"Embedding {len(pass_targets)} repo(s) with {embedder.name} "
                     f"into the {vs.name} vector store")
                 total = failed = skipped = 0
+                progress = style.Progress(len(pass_targets), label="embed")
                 for repo_id, _ in pass_targets:
                     repo = store.get_repo(repo_id)
                     head = repo.head_commit if repo else None
                     if incremental and head and get_embedded_head(vs, repo_id) == head:
                         skipped += 1
+                        progress.advance(repo_id)
                         continue
                     try:
                         n = embed_repo(store_dir, vs, embedder, repo_id,
@@ -561,12 +563,15 @@ def cmd_embed(args) -> int:
                     except Exception as e:  # noqa: BLE001 - one repo must not abort the run
                         log(f"  {repo_id}: embed failed — {e}")
                         failed += 1
+                        progress.advance(repo_id)
                         continue
                     if limit is None:
                         set_embedded_head(vs, repo_id, head)
                     total += n
                     if n:
                         log(f"  {repo_id}: embedded {n} node(s)")
+                    progress.advance(repo_id)
+                progress.done()
                 tail = f", {skipped} already up to date" if skipped else ""
                 log(f"Embed complete: {total} vector(s) written "
                     f"({vs.count()} total in store){tail}")
