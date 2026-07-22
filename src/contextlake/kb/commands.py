@@ -127,7 +127,8 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
 
     def _report(repo_id, shard):
         progress.advance(repo_id)
-        log(f"  {style.ok(repo_id)}: {len(shard.nodes)} nodes, {len(shard.edges)} edges", inline=True)
+        log(f"  {style.ok(repo_id)}: {len(shard.nodes)} nodes, "
+            f"{len(shard.edges)} edges", inline=True)
 
     def _run_serial(items):
         nonlocal failed
@@ -431,7 +432,8 @@ def cmd_connect(args) -> int:
                 total_edges += len(merged_edges)
                 if merged_edges:
                     log(f"  {repo_id}: {len(merged_edges)} link(s)", inline=True)
-            log(style.summary_line("ok", f"Connect complete: {total_edges} external link(s) stored"))
+            log(style.summary_line(
+                "ok", f"Connect complete: {total_edges} external link(s) stored"))
             # Honest exit: every source call attempted failed (e.g. an unreachable
             # connector) -> a failure, even though per-repo errors were logged.
             if attempts and src_failed == attempts:
@@ -756,7 +758,8 @@ def cmd_wiki(args) -> int:
                     log(f"  {style.ok(ns)}: written (score {gate['score']})", inline=True)
                 else:
                     rejected += 1
-                    log(f"  {style.warn(ns)}: rejected by council (score {gate['score']})", inline=True)
+                    log(f"  {style.warn(ns)}: rejected by council "
+                        f"(score {gate['score']})", inline=True)
                 progress.advance(ns)
             progress.done()
             log(f"{style.ok()} Cluster wiki: {written} written, {rejected} rejected, "
@@ -810,7 +813,8 @@ def cmd_wiki(args) -> int:
                 log(f"  {style.ok(repo_id)}: written (score {gate['score']})", inline=True)
             else:
                 rejected += 1
-                log(f"  {style.warn(repo_id)}: rejected by council (score {gate['score']})", inline=True)
+                log(f"  {style.warn(repo_id)}: rejected by council "
+                    f"(score {gate['score']})", inline=True)
                 for issue in gate["issues"][:5]:
                     log(f"      - {issue}")
             progress.advance(repo_id)
