@@ -1026,7 +1026,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
             failures.append(path)
         # Anything not in _CLONE_STATES is an error, so default to "fail" rather
         # than let an unmapped status reach status_line (which raises).
-        log(_status(done, total, _CLONE_STATES.get(status, "fail"), path, message))
+        log(_status(done, total, _CLONE_STATES.get(status, "fail"), path, message), inline=True)
         progress.advance(path)
         return status in ("ok", "skip", "dry-run")
 
@@ -1079,19 +1079,19 @@ def update_repositories(work_dir, config):
             status, path, message = fut.result()
             if status == "ok":
                 buckets["updated"].append(path)
-                log(_status(i, total, "ok", path, message))
+                log(_status(i, total, "ok", path, message), inline=True)
             elif status == "nochange":
                 buckets["unchanged"].append(path)
-                log(_status(i, total, "nochange", path, message))
+                log(_status(i, total, "nochange", path, message), inline=True)
             elif status == "skip":
                 buckets["skipped"].append(path)
-                log(_status(i, total, "skip", path, message))
+                log(_status(i, total, "skip", path, message), inline=True)
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
-                log(_status(i, total, "dryrun", path, message))
+                log(_status(i, total, "dryrun", path, message), inline=True)
             else:
                 buckets["errors"].append(path)
-                log(_status(i, total, "fail", path, message))
+                log(_status(i, total, "fail", path, message), inline=True)
             progress.advance(path)
 
     progress.done()
@@ -1123,19 +1123,19 @@ def switch_repository_branches(work_dir, config, gitlab_group):
             status, path, message = fut.result()
             if status == "switched":
                 buckets["switched"].append(path)
-                log(_status(i, total, "switched", path, message))
+                log(_status(i, total, "switched", path, message), inline=True)
             elif status == "ok":
                 buckets["already"].append(path)
-                log(_status(i, total, "ok", path, message))
+                log(_status(i, total, "ok", path, message), inline=True)
             elif status == "skip":
                 buckets["skipped"].append(path)
-                log(_status(i, total, "skip", path, message))
+                log(_status(i, total, "skip", path, message), inline=True)
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
-                log(_status(i, total, "dryrun", path, message))
+                log(_status(i, total, "dryrun", path, message), inline=True)
             else:
                 buckets["errors"].append(path)
-                log(_status(i, total, "fail", path, message))
+                log(_status(i, total, "fail", path, message), inline=True)
             progress.advance(path)
 
     progress.done()

@@ -26,6 +26,14 @@ class _ConsoleFormatter(logging.Formatter):
     redirect, cron) or the message spans multiple lines, it falls back to the
     classic ``[full-timestamp] message`` form so redirected/audit output keeps
     its timestamps. The log *file* always keeps the full prefix via ``_FORMAT``.
+
+    Records marked ``inline`` (via ``log(..., inline=True)``) never get the
+    clock either, regardless of how much room they'd have: those are the
+    hot per-item loop lines (per-repo mirror/index/embed/wiki progress), and
+    whether such a line is short enough to fit a clock varies line to line
+    with e.g. path length -- so leaving the width check in play would just
+    make the clock flicker on/off across the fleet instead of disappearing.
+    A live Progress bar already shows elapsed time while those lines print.
     """
 
     def __init__(self, handler):
@@ -46,6 +54,9 @@ class _ConsoleFormatter(logging.Formatter):
             return f"[{self.formatTime(record, _DATEFMT)}] {message}"
         if "\n" in message:
             # multi-line block: show it as-is, no per-line timestamp clutter
+            return message
+        if getattr(record, "inline", False):
+            # hot per-item loop line: skip the clock outright (see class docstring)
             return message
         clock = style.dim(self.formatTime(record, _CLOCKFMT), stream=stream)
         return style.align_right(message, clock, style.terminal_width(stream))
@@ -114,6 +125,12 @@ def use_stderr():
             handler.setStream(sys.stderr)
 
 
-def log(message, level=logging.INFO):
-    """Emit a timestamped message through the package logger."""
-    get_logger().log(level, message)
+def log(message, level=logging.INFO, *, inline=False):
+    """Emit a timestamped message through the package logger.
+
+    ``inline=True`` marks a high-frequency per-item detail line (per-repo
+    mirror/index/embed/wiki loop output) so the TTY console formatter skips
+    its right-aligned clock -- see ``_ConsoleFormatter`` for why. Low-frequency
+    section/summary lines should leave this at the default ``False``.
+    """
+    get_logger().log(level, message, extra={"inline": inline})

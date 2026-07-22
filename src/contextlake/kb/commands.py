@@ -127,7 +127,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
 
     def _report(repo_id, shard):
         progress.advance(repo_id)
-        log(f"  {style.ok(repo_id)}: {len(shard.nodes)} nodes, {len(shard.edges)} edges")
+        log(f"  {style.ok(repo_id)}: {len(shard.nodes)} nodes, {len(shard.edges)} edges", inline=True)
 
     def _run_serial(items):
         nonlocal failed
@@ -137,7 +137,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                                        skip_generated=skip_generated, max_file_bytes=max_file_bytes)
             except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
                 failed += 1
-                log(f"  {style.fail(repo_id)}: {e}")
+                log(f"  {style.fail(repo_id)}: {e}", inline=True)
                 continue
             _persist(repo_id, path, head, shard)
             _report(repo_id, shard)
@@ -171,7 +171,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                         shard = fut.result()
                     except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
                         failed += 1
-                        log(f"  {style.fail(repo_id)}: {e}")
+                        log(f"  {style.fail(repo_id)}: {e}", inline=True)
                         continue
                     _persist(repo_id, path, head, shard)
                     _report(repo_id, shard)
@@ -561,7 +561,7 @@ def cmd_embed(args) -> int:
                         n = embed_repo(store_dir, vs, embedder, repo_id,
                                        batch_size=cfg.embeddings.batch_size, limit=limit)
                     except Exception as e:  # noqa: BLE001 - one repo must not abort the run
-                        log(f"  {repo_id}: embed failed — {e}")
+                        log(f"  {repo_id}: embed failed — {e}", inline=True)
                         failed += 1
                         progress.advance(repo_id)
                         continue
@@ -569,7 +569,7 @@ def cmd_embed(args) -> int:
                         set_embedded_head(vs, repo_id, head)
                     total += n
                     if n:
-                        log(f"  {repo_id}: embedded {n} node(s)")
+                        log(f"  {repo_id}: embedded {n} node(s)", inline=True)
                     progress.advance(repo_id)
                 progress.done()
                 tail = f", {skipped} already up to date" if skipped else ""
@@ -724,7 +724,7 @@ def cmd_wiki(args) -> int:
             for ns in ns_list:
                 brief = namespace_brief(store, store_dir, ns, edges=all_edges)
                 if brief is None:
-                    log(f"  {ns}: no indexed repos under this namespace, skipping")
+                    log(f"  {ns}: no indexed repos under this namespace, skipping", inline=True)
                     progress.advance(ns)
                     continue
                 page_file = wiki_dir / cluster_page_name(ns)
@@ -742,7 +742,7 @@ def cmd_wiki(args) -> int:
                                         accept_score=cfg.llm.accept_score,
                                         council_size=getattr(cfg.llm, "council_size", None))
                 except Exception as e:  # noqa: BLE001 - one cluster must not abort the run
-                    log(f"  {style.fail(ns)}: {e}")
+                    log(f"  {style.fail(ns)}: {e}", inline=True)
                     failed += 1
                     progress.advance(ns)
                     continue
@@ -753,10 +753,10 @@ def cmd_wiki(args) -> int:
                     _store_wiki_partition(store, store_dir, ns, page, page_file.name, None,
                                           embedder, vs, cfg.embeddings.batch_size)
                     written += 1
-                    log(f"  {style.ok(ns)}: written (score {gate['score']})")
+                    log(f"  {style.ok(ns)}: written (score {gate['score']})", inline=True)
                 else:
                     rejected += 1
-                    log(f"  {style.warn(ns)}: rejected by council (score {gate['score']})")
+                    log(f"  {style.warn(ns)}: rejected by council (score {gate['score']})", inline=True)
                 progress.advance(ns)
             progress.done()
             log(f"{style.ok()} Cluster wiki: {written} written, {rejected} rejected, "
@@ -797,7 +797,7 @@ def cmd_wiki(args) -> int:
                                     accept_score=cfg.llm.accept_score,
                                     council_size=getattr(cfg.llm, "council_size", None))
             except Exception as e:  # noqa: BLE001 - one repo must not abort the run
-                log(f"  {style.fail(repo_id)}: {e}")
+                log(f"  {style.fail(repo_id)}: {e}", inline=True)
                 failed += 1
                 progress.advance(repo_id)
                 continue
@@ -807,10 +807,10 @@ def cmd_wiki(args) -> int:
                                       wiki_file.name, brief.get("head"),
                                       embedder, vs, cfg.embeddings.batch_size)
                 written += 1
-                log(f"  {style.ok(repo_id)}: written (score {gate['score']})")
+                log(f"  {style.ok(repo_id)}: written (score {gate['score']})", inline=True)
             else:
                 rejected += 1
-                log(f"  {style.warn(repo_id)}: rejected by council (score {gate['score']})")
+                log(f"  {style.warn(repo_id)}: rejected by council (score {gate['score']})", inline=True)
                 for issue in gate["issues"][:5]:
                     log(f"      - {issue}")
             progress.advance(repo_id)
