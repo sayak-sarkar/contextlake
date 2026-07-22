@@ -3,6 +3,7 @@
 from argparse import Namespace
 
 import contextlake.kb.embeddings as emb_pkg
+from contextlake.kb import commands as commands_mod
 from contextlake.kb.commands import cmd_embed
 from contextlake.kb.embeddings.index import embed_repo, node_text
 from contextlake.kb.embeddings.store import VectorStore, build_vector_store
@@ -339,3 +340,94 @@ def test_sql_table_and_view_are_embeddable():
     assert "table" in EMBEDDABLE_KINDS
     assert "view" in EMBEDDABLE_KINDS
     assert "procedure" not in EMBEDDABLE_KINDS  # low signal without a signature
+
+
+class _SpyProgress:
+    """Stand-in for style.Progress that only records call counts (no rendering),
+    mirroring the wire-through idiom in tests/kb/test_kb_wiki.py."""
+
+    instances: list["_SpyProgress"] = []
+
+    def __init__(self, total, **kwargs):
+        self.total = total
+        self.label = kwargs.get("label")
+        self.advance_calls = 0
+        self.done_calls = 0
+        _SpyProgress.instances.append(self)
+
+    def advance(self, *args, **kwargs):
+        self.advance_calls += 1
+
+    def done(self, *args, **kwargs):
+        self.done_calls += 1
+
+
+def test_cmd_embed_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkeypatch, gls_logs):
+    """Wire-through: Progress.advance fires once per pass target (success, failure,
+    and incremental-skip branches alike) and done() once, on a separate channel
+    from the existing stdout detail/summary log() lines, which must render exactly
+    as before (byte-identical).
+
+    Asserts on gls_logs (not capsys) per the convention documented in
+    tests/kb/test_source_cmd.py -- see test_kb_wiki.py's equivalent test.
+    """
+    import contextlake.kb.embeddings.index as emb_index
+    from contextlake.kb.embeddings.store import set_embedded_head
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(parents=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_EMBED_CONFIG.format(store=store_dir.as_posix()))
+
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    # r1: embeds cleanly. r2: embed_repo raises (failure/continue branch).
+    # r3: incremental skip (embedded head already matches, skip/continue branch).
+    s.upsert_repo(Repo(id="r1", path=str(tmp_path / "r1"), head_commit="h1"))
+    s.upsert_repo(Repo(id="r2", path=str(tmp_path / "r2"), head_commit="h2"))
+    s.upsert_repo(Repo(id="r3", path=str(tmp_path / "r3"), head_commit="h3"))
+    s.close()
+    for rid, head in (("r1", "h1"), ("r2", "h2"), ("r3", "h3")):
+        write_shard(store_dir, GraphShard(
+            repo=rid, head_commit=head,
+            nodes=[Node(id=f"{rid}_n", repo=rid, kind="function", name="foo")], edges=[]))
+
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _FakeEmbedder())
+
+    vs = build_vector_store(store_dir / "embeddings.sqlite", backend="auto")
+    try:
+        set_embedded_head(vs, "r3", "h3")   # r3 already up to date -> skip branch
+    finally:
+        vs.close()
+
+    real = emb_index.embed_repo
+
+    def _flaky(store_dir, vs, embedder, repo_id, **kw):
+        if repo_id == "r2":
+            raise RuntimeError("embed failed for r2")
+        return real(store_dir, vs, embedder, repo_id, **kw)
+
+    monkeypatch.setattr(emb_index, "embed_repo", _flaky)
+
+    _SpyProgress.instances = []
+    monkeypatch.setattr(commands_mod.style, "Progress", _SpyProgress)
+
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None,
+                      limit=None, force=False)
+    assert cmd_embed(args) == 0   # not every repo failed -> success
+
+    assert len(_SpyProgress.instances) == 1
+    p = _SpyProgress.instances[0]
+    assert p.total == 3
+    assert p.advance_calls == 3          # per-item, across success/failure/skip branches
+    assert p.done_calls == 1
+
+    text = gls_logs.text
+    assert "r1: embedded 1 node(s)" in text          # success detail line, unchanged
+    # failure detail line, unchanged (checked around the existing em-dash separator
+    # without retyping it here, per the no-em-dash-in-new-code convention)
+    assert "r2: embed failed" in text
+    assert "embed failed for r2" in text
+    assert "r3: embedded" not in text                # skipped -> no detail line, as before
+    assert "Embed complete: 1 vector(s) written" in text
