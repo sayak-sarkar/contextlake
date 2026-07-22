@@ -397,6 +397,13 @@ missing name: `remove` is a no-op (exit 0), `enable`/`disable` fail (exit 1).
                         "llm-local extra); ollama | openai | anthropic | cli | auto")
     p.add_argument("--llm-model", dest="llm_model", default=_S, metavar="MODEL",
                    help="model name for --llm (e.g. llama3.1, gpt-4o-mini)")
+    p.add_argument("--namespace", default=_S, metavar="PREFIX",
+                   help="generate ONE cluster page for the repos under this repo-id "
+                        "prefix (e.g. delivery/dcs), narrating their cross-repo coupling")
+    p.add_argument("--namespaces", action="store_true", default=_S,
+                   help="generate a cluster page for every namespace at --depth")
+    p.add_argument("--depth", type=int, default=_S, metavar="N",
+                   help="--namespaces: repo-id prefix depth to group by (default 2)")
     p.add_argument("--force", action="store_true", default=_S,
                    help="regenerate pages even when the graph is unchanged")
 

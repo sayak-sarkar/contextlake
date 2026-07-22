@@ -118,6 +118,8 @@ class _FakeLlm:
     name = "fake"
 
     def generate(self, prompt, *, system=None):
+        if "Review lens" in prompt:            # council reviewer -> accept
+            return '{"score": 0.95, "issues": []}'
         return "## Overview\nThe pay cluster.\n"
 
 
@@ -155,3 +157,50 @@ def test_generate_cluster_page_has_body_and_fingerprint_footer():
     assert page.startswith("# acme/pay (cluster)")
     assert "The pay cluster." in page
     assert "cluster-commits:" in page and "`acme/pay/api`" in page
+
+
+# --- command wiring -------------------------------------------------------
+
+def _ns_args(tmp_path, **over):
+    from argparse import Namespace
+    base = dict(config=str(tmp_path / "kb.toml"), namespace=None, namespaces=False,
+                depth=None, force=False, llm=None, llm_model=None,
+                workspace=None, source=None, args=[])
+    base.update(over)
+    return Namespace(**base)
+
+
+def _setup_cluster_store(tmp_path, monkeypatch):
+    import contextlake.kb.llm as llm_pkg
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    _seed(store_dir).close()
+    cfg = (f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n\n'
+           '[llm]\nenabled = true\nprovider = "ollama"\n')
+    (tmp_path / "kb.toml").write_text(cfg)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm())
+    return store_dir
+
+
+def test_cmd_wiki_namespace_writes_and_skips(tmp_path, monkeypatch):
+    from contextlake.kb.commands import cmd_wiki
+    store_dir = _setup_cluster_store(tmp_path, monkeypatch)
+    assert cmd_wiki(_ns_args(tmp_path, namespace="acme/pay")) == 0
+    page = store_dir / "wiki" / "_ns__acme__pay.md"
+    assert page.exists()
+    txt = page.read_text()
+    assert "# acme/pay (cluster)" in txt and "cluster-commits:" in txt
+    # second run, unchanged fingerprint -> skipped (page not rewritten)
+    mtime = page.stat().st_mtime
+    assert cmd_wiki(_ns_args(tmp_path, namespace="acme/pay")) == 0
+    assert page.stat().st_mtime == mtime
+
+
+def test_cmd_wiki_namespaces_depth_generates_per_namespace(tmp_path, monkeypatch):
+    from contextlake.kb.commands import cmd_wiki
+    store_dir = _setup_cluster_store(tmp_path, monkeypatch)
+    assert cmd_wiki(_ns_args(tmp_path, namespaces=True, depth=2)) == 0
+    wiki = store_dir / "wiki"
+    assert (wiki / "_ns__acme__pay.md").exists()
+    assert (wiki / "_ns__acme__ship.md").exists()
