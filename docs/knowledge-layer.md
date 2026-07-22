@@ -21,7 +21,7 @@ commands are:
 | `enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
-| `wiki` | LLM-synthesized, council-verified wiki pages; `--llm builtin|ollama|openai|anthropic|cli` enables the LLM tier inline |
+| `wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin|ollama|openai|anthropic|cli` enables the LLM tier inline |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`) |
 | `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`) |
@@ -46,6 +46,7 @@ contextlake connect --workspace ~/work      # link repos to their issues/docs (s
 contextlake embed                           # build semantic vectors (optional, see below)
 contextlake lint                            # graph health: stale repos + dangling edges
 contextlake wiki acme/orders-api --llm builtin      # wiki for one repo; --llm enables the LLM tier inline
+contextlake wiki --namespace delivery/dcs --llm builtin   # a cluster page for a whole namespace
 contextlake steer                           # write per-tool steering: AGENTS.md, .mcp.json, …
 contextlake query "OrderService"            # cited search across the index
 contextlake graph --overview --open         # visualize the graph (HTML/dot/mermaid/classdiagram/json; offline)
@@ -185,6 +186,18 @@ form `contextlake --llm builtin bootstrap` also works.) Without any `--llm`, and
 `[llm]` disabled in `kb.toml`, the wiki stage no-ops and the rest still runs. Because
 everything generated lives under one `store_dir`, setting it to a folder in your
 workspace keeps the entire knowledge base in a single, easy-to-access location.
+
+**Cluster (namespace) wiki.** Beyond per-repo pages, `contextlake wiki --namespace
+delivery/dcs` writes one **cluster page** for a whole group of repos (everything under
+that repo-id prefix), narrating how they fit together: which services call which over
+HTTP, publish/consume which events, and share which packages, split into coupling
+*within* the namespace and coupling to repos *outside* it. Use `--namespaces --depth N`
+to generate one page per namespace at that prefix depth. It grounds strictly in the
+cross-repo edges the graph already resolved (no new extraction) and reuses the same
+review council + provenance footer as the per-repo wiki, so it stays advisory and cited;
+when the graph shows no coupling it says so rather than inventing a link. Cluster pages
+are served over MCP by passing a namespace to `get_wiki`, and shown per group in the
+dashboard's fleet overview.
 
 Both config files are read from their default locations (`~/.contextlake.ini` and
 `~/.contextlake/kb.toml`); pass `--config` / `--kb-config` to point elsewhere. The valid

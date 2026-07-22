@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Fleet / namespace-level wiki.** `contextlake wiki --namespace <prefix>` (or
+  `--namespaces --depth N`) generates a cluster wiki page for a whole group of repos,
+  narrating how they fit together: which services call which over HTTP, publish/consume
+  which events, and share which packages, split into coupling within the namespace and
+  coupling to repos outside it. It grounds strictly in the cross-repo edges the graph
+  already resolved (no new extraction), reuses the per-repo wiki's review council +
+  provenance footer (advisory and cited), and says so rather than inventing a link when
+  the graph shows no coupling. Cluster pages are served over MCP by passing a namespace
+  to `get_wiki`, and shown per group in the dashboard's fleet overview.
+
 ### Changed
 
 - **`query` now points at semantic search when a natural-language phrase finds no
