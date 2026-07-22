@@ -391,6 +391,7 @@ def test_serve_http_logs_the_bind_url(tmp_path, gls_logs, monkeypatch):
     # busy -- the http transport must print its reachable host:port before it
     # blocks in run_server. run_server itself is monkeypatched out so the test
     # doesn't actually block.
+    monkeypatch.setenv("FORCE_COLOR", "1")  # deterministic color path
     cfg = _kb_config(tmp_path)
     calls = []
     monkeypatch.setattr(
@@ -401,17 +402,22 @@ def test_serve_http_logs_the_bind_url(tmp_path, gls_logs, monkeypatch):
 
     assert rc == 0
     assert len(calls) == 1  # run_server was reached (and would have blocked)
-    assert style.ok("MCP server on http://127.0.0.1:8765") in gls_logs.text
+    # gls_logs.text is ANSI-stripped by pytest's LogCaptureHandler, so read the
+    # raw record messages (log()'s actual argument) to compare the colored line.
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert style.ok("MCP server on http://127.0.0.1:8765") in msgs
 
 
 def test_serve_http_logs_the_configured_host_and_port(tmp_path, gls_logs, monkeypatch):
+    monkeypatch.setenv("FORCE_COLOR", "1")  # deterministic color path
     cfg = _kb_config(tmp_path)
     monkeypatch.setattr("contextlake.kb.server.run_server", lambda *a, **kw: None)
 
     rc = commands_mod.cmd_serve(_serve_args(cfg, transport="http", host="0.0.0.0", port=9999))
 
     assert rc == 0
-    assert style.ok("MCP server on http://0.0.0.0:9999") in gls_logs.text
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert style.ok("MCP server on http://0.0.0.0:9999") in msgs
 
 
 def test_serve_stdio_does_not_log_a_bind_url(tmp_path, gls_logs, monkeypatch):
