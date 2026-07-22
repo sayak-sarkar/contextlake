@@ -37,6 +37,8 @@ KIND_COLORS = {
     "design": "#9d4edd",
     # flow nodes (from the HTTP / event extractors) — a service surface, not a symbol
     "endpoint": "#f08c3a", "topic": "#b07fd0",
+    # C4 namespace boundary compound parent node (contextlake/kb/c4.py c4_payload)
+    "namespace": "#3d5a80",
 }
 DEFAULT_COLOR = "#c9c9c9"
 # Relation -> edge hue (within the brand family; greys for structural relations).
@@ -485,13 +487,17 @@ def _cytoscape_elements(payload: dict) -> list[dict]:
     els = []
     for n in payload["nodes"]:
         attrs = n.get("attrs") or {}
-        els.append({"data": {
+        data = {
             "id": n["id"], "label": n.get("name") or n["id"], "kind": n.get("kind", ""),
             "repo": n.get("repo", ""), "qn": n.get("qualified_name") or "",
             "file": n.get("file") or "", "line": n.get("line"),
             "count": attrs.get("node_count"), "href": n.get("href") or "",
             "lang": n.get("lang") or "",
-        }})
+        }
+        parent = n.get("parent") or ""
+        if parent:
+            data["parent"] = parent
+        els.append({"data": data})
     for e in payload["edges"]:
         els.append({"data": {"source": e["src"], "target": e["dst"],
                              "relation": e.get("relation", ""),

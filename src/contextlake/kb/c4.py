@@ -16,7 +16,8 @@ import re
 from dataclasses import dataclass, field
 
 from .dashboard.data import derive_groups
-from .visualize import _CONF_DOT, _dot_escape
+from .security import sanitize_label
+from .visualize import _CONF_DOT, _dot_escape, to_payload
 from .wiki.cluster import cross_repo_edges
 
 
@@ -154,3 +155,63 @@ def to_c4_dot(model: C4Model) -> str:
 
     lines.append("}")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Cytoscape payload (compound-node) rendering
+# ---------------------------------------------------------------------------
+def _ns_node_id(namespace: str) -> str:
+    """Node id for a boundary's compound parent node.
+
+    Prefixed with ``ns:`` so a namespace can never collide with a repo id
+    node (repo ids are GitLab paths and never contain ``:``).
+    """
+    return f"ns:{namespace}"
+
+
+def c4_payload(model: C4Model) -> dict:
+    """Bridge ``model`` into a ``to_payload``-compatible dict for the cytoscape
+    HTML renderer, with namespace boundaries as compound parent nodes.
+
+    Each ``C4Boundary`` becomes a parent node (``kind="namespace"``); each
+    ``C4Container`` becomes a ``kind="repo"`` node carrying ``parent`` set to
+    its boundary's node id, so cytoscape draws it nested inside the boundary.
+
+    Node/edge id canonicalization: ``C4Container.repo_id`` already went
+    through ``sanitize_label`` inside ``derive_groups`` (``c4_model``), but
+    ``C4Edge.src``/``dst`` come straight from ``cross_repo_edges`` and are
+    raw/unsanitized. Cytoscape joins an edge to its endpoints by exact string
+    match on node id, so a raw edge endpoint that differs from its sanitized
+    node id would silently fail to attach (no error, just a missing edge).
+    To guarantee the join, both the container node id and the edge
+    src/dst are run through the same ``sanitize_label`` transform here. This
+    is a no-op for ordinary ASCII repo ids (the common case today) and only
+    changes behavior for repo ids containing control characters.
+    """
+    nodes: list[dict] = []
+    ns_id_of: dict[str, str] = {}
+    for boundary in model.boundaries:
+        ns_id = _ns_node_id(boundary.namespace)
+        ns_id_of[boundary.namespace] = ns_id
+        nodes.append({
+            "id": ns_id, "repo": None, "kind": "namespace", "name": boundary.label,
+            "qualified_name": None, "file": None, "line": None, "lang": None,
+            "signature": None, "parent": None,
+        })
+        for container in boundary.containers:
+            container_id = sanitize_label(container.repo_id)
+            nodes.append({
+                "id": container_id, "repo": container_id, "kind": "repo",
+                "name": container.label, "qualified_name": None, "file": None,
+                "line": None, "lang": None, "signature": None, "parent": ns_id,
+            })
+
+    edges: list[dict] = []
+    for edge in model.edges:
+        edges.append({
+            "src": sanitize_label(edge.src), "dst": sanitize_label(edge.dst),
+            "relation": "flow", "confidence": edge.confidence, "context": edge.flavor,
+            "weight": edge.weight, "prov_file": None, "prov_line": None, "verified_at": None,
+        })
+
+    return to_payload(nodes, edges, dict(model.meta))
