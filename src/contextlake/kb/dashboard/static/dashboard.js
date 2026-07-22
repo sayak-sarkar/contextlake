@@ -345,6 +345,17 @@
           det.appendChild(h("summary", null,
             h("span", { class: "cl-band__name" }, g),
             h("span", { class: "cl-band__count" }, repos.length + " repos")));
+          // Cluster narrative (a --namespace wiki page for this group), when present
+          // in the static snapshot. The html is server-sanitized by _md_to_html.
+          var cl = ((window.__CONTEXTLAKE__ || {}).clusters || {})[g];
+          if (cl && cl.found && cl.html) {
+            det.appendChild(h("div", { class: "cl-sectionhead" },
+              h("strong", null, "Cluster narrative (advisory)"),
+              h("span", { class: "cl-band__count" },
+                cl.member_count + " repos, " + cl.internal + " internal / "
+                + cl.boundary + " boundary links")));
+            det.appendChild(h("div", { class: "cl-md", html: cl.html }));
+          }
           det.appendChild(repoCollection(repos));
           det.addEventListener("toggle", function () {
             openState[g] = det.open; lsSet("bands", JSON.stringify(openState));

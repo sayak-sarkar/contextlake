@@ -204,3 +204,30 @@ def test_cmd_wiki_namespaces_depth_generates_per_namespace(tmp_path, monkeypatch
     wiki = store_dir / "wiki"
     assert (wiki / "_ns__acme__pay.md").exists()
     assert (wiki / "_ns__acme__ship.md").exists()
+
+
+# --- dashboard data layer -------------------------------------------------
+
+def test_dashboard_cluster_detail_and_index(tmp_path):
+    from contextlake.kb.dashboard import data as kbdata
+    s = _seed(tmp_path)
+    try:
+        # brief present even before a page exists (found=False)
+        d = kbdata.cluster_detail(s, tmp_path, "acme/pay")
+        assert d is not None and d["member_count"] == 3 and d["found"] is False
+        assert d["internal"] >= 1  # web->api
+        # write a cluster page -> found + rendered html
+        (tmp_path / "wiki").mkdir()
+        (tmp_path / "wiki" / "_ns__acme__pay.md").write_text(
+            "# acme/pay (cluster)\n\nThe pay cluster.\n", encoding="utf-8")
+        d2 = kbdata.cluster_detail(s, tmp_path, "acme/pay")
+        assert d2["found"] is True and "pay cluster" in (d2["html"] or "")
+        # cluster_index discovers it from the repo-id prefixes
+        idx = kbdata.cluster_index(s, tmp_path,
+                                   ["acme/pay/api", "acme/pay/web", "acme/ship/api"])
+        assert "acme/pay" in idx and idx["acme/pay"]["found"] is True
+        # anonymize drops the prose html but keeps counts
+        anon = kbdata.cluster_detail(s, tmp_path, "acme/pay", anonymize=True)
+        assert anon["html"] is None and anon["member_count"] == 3
+    finally:
+        s.close()

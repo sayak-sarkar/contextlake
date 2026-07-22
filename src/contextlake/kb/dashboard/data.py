@@ -231,6 +231,60 @@ def _wiki_out(store, store_dir: Path, repo_id: str) -> dict:
             "html": _md_to_html(sanitize_label(raw, max_len=200_000))}
 
 
+def cluster_detail(store, store_dir, namespace: str, *, anonymize: bool = False) -> dict | None:
+    """A namespace cluster narrative: the rendered cluster wiki HTML plus member
+    count and internal/boundary coupling counts. None if the namespace has no
+    indexed repos. The prose HTML is dropped under ``anonymize`` (it can carry
+    internal names / URLs as live anchors), keeping only the counts + found flag.
+    """
+    from ..visualize import _md_to_html
+    from ..wiki.cluster import cluster_page_name, namespace_brief
+
+    sd = _store_dir(store, store_dir)
+    brief = namespace_brief(store, sd, namespace)
+    if brief is None:
+        return None
+    wiki_file = sd / "wiki" / cluster_page_name(namespace)
+    found = wiki_file.exists()
+    html = None
+    if found and not anonymize:
+        raw = wiki_file.read_text(encoding="utf-8", errors="replace")
+        html = _md_to_html(sanitize_label(raw, max_len=200_000))
+    return {
+        "namespace": sanitize_label(brief["namespace"]),
+        "member_count": brief["member_count"],
+        "internal": len(brief["internal_edges"]),
+        "boundary": len(brief["boundary_edges"]),
+        "found": found,
+        "html": html,
+    }
+
+
+def cluster_index(store, store_dir, repo_ids, *, cap: int = 50,
+                  anonymize: bool = False) -> dict:
+    """``{namespace: cluster_detail}`` for every repo-id prefix that has a generated
+    cluster page on disk. Bounded to ``cap`` clusters (build-time cost: each detail
+    scans the cross-repo edges). Prefixes are derived from the repo ids so any
+    ``--namespaces`` depth is picked up without decoding filenames."""
+    from ..wiki.cluster import cluster_page_name
+
+    sd = _store_dir(store, store_dir)
+    candidates = set()
+    for r in repo_ids:
+        parts = r.split("/")
+        for d in range(1, len(parts)):        # every namespace prefix (not the full id)
+            candidates.add("/".join(parts[:d]))
+    out: dict = {}
+    for ns in sorted(candidates):
+        if len(out) >= cap:
+            break
+        if (sd / "wiki" / cluster_page_name(ns)).exists():
+            detail = cluster_detail(store, sd, ns, anonymize=anonymize)
+            if detail:
+                out[ns] = detail
+    return out
+
+
 def repo_detail(store, store_dir, repo_id: str, *, anonymize: bool = False) -> dict:
     """A repo's full detail panel: anatomy brief, rendered README + wiki, owners, links.
 
