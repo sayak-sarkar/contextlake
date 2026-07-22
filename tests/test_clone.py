@@ -145,3 +145,41 @@ def test_clone_retries_then_succeeds(tmp_path, base_config, fake_subprocess, no_
     )
     assert status == "ok"
     assert state["n"] == 2  # retried once
+
+
+# --- clone_missing_repos loop: unified status_line rendering (H1) ----------
+
+_LOOP_PROJECTS = {"g/p": {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}}
+
+
+def test_clone_missing_repos_line_has_glyph_and_path(
+    tmp_path, base_config, fake_subprocess, monkeypatch, gls_logs
+):
+    """H1: clone's per-repo line must carry a glyph, matching update/branches --
+    no longer the bare '[i/total] path: message' form."""
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(_LOOP_PROJECTS))
+    monkeypatch.setattr(core, "clone_repository", lambda *a, **k: ("ok", "g/p", "Cloned"))
+
+    core.clone_missing_repos(str(tmp_path), base_config, "g")
+
+    text = gls_logs.text
+    # Pinned to the exact per-repo line (not just "a glyph appears somewhere in
+    # the output"): the "Clone complete: ..." summary line also carries a "✓",
+    # so a loose "'✓' in text" check would pass even against the old bare
+    # "[1/1] g/p: Cloned" form. Anchoring on the full per-repo line shape is
+    # the only assertion that actually distinguishes styled from bare.
+    assert "[1/1] ✓ g/p: Cloned" in text
+
+
+def test_clone_missing_repos_failure_line_has_fail_glyph(
+    tmp_path, base_config, fake_subprocess, monkeypatch, gls_logs
+):
+    """H2: a failed clone renders with the fail glyph, not raw unstyled text."""
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(_LOOP_PROJECTS))
+    monkeypatch.setattr(core, "clone_repository", lambda *a, **k: ("error", "g/p", "boom"))
+
+    core.clone_missing_repos(str(tmp_path), base_config, "g")
+
+    text = gls_logs.text
+    assert "✗" in text
+    assert "boom" in text
