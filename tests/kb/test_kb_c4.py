@@ -69,3 +69,15 @@ def test_c4_model_buckets_namespaces_and_splits_edges(tmp_path):
     assert any(not e.boundary for e in model.edges)
     # weights preserved, confidence INFERRED
     assert all(e.confidence == "INFERRED" and e.weight >= 1 for e in model.edges)
+
+
+def test_to_c4_dot_emits_clusters_and_labeled_edges(tmp_path):
+    store = _seed(tmp_path)
+    model = c4.c4_model(store, group_depth=2)
+    dot = c4.to_c4_dot(model)
+    assert dot.startswith("digraph")
+    assert "subgraph cluster_" in dot          # boundaries drawn as clusters
+    assert 'label="acme/pay"' in dot           # boundary label present
+    assert "http" in dot                       # flavor-labeled edge
+    # deterministic: same model renders identically
+    assert c4.to_c4_dot(model) == dot
