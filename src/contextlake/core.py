@@ -1002,6 +1002,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
     successes, skipped, failures, dry = [], [], [], []
     done = 0
     total = len(to_clone)
+    progress = style.Progress(total, label="clone")
 
     def handle(result):
         nonlocal done
@@ -1016,6 +1017,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
         else:
             failures.append(path)
         log(f"[{done}/{total}] {path}: {message}")
+        progress.advance(path)
         return status in ("ok", "skip", "dry-run")
 
     if adaptive:
@@ -1043,6 +1045,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
             for fut in as_completed(futures):
                 handle(fut.result())
 
+    progress.done()
     log(style.ok("Clone complete: ") + _summarize({
         "successful": successes, "skipped": skipped, "dry-run": dry, "failed": failures,
     }))
@@ -1058,6 +1061,7 @@ def update_repositories(work_dir, config):
 
     buckets = {"updated": [], "unchanged": [], "skipped": [], "dry-run": [], "errors": []}
     total = len(local_repos)
+    progress = style.Progress(total, label="update")
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {ex.submit(update_repository, p, work_dir, config): p for p in local_repos}
@@ -1078,7 +1082,9 @@ def update_repositories(work_dir, config):
             else:
                 buckets["errors"].append(path)
                 log(_status(i, total, style.red("✗"), path, message))
+            progress.advance(path)
 
+    progress.done()
     log(style.ok("Update complete: ") + _summarize(buckets))
 
 
@@ -1096,6 +1102,7 @@ def switch_repository_branches(work_dir, config, gitlab_group):
 
     buckets = {"switched": [], "already": [], "skipped": [], "dry-run": [], "errors": []}
     total = len(local_repos)
+    progress = style.Progress(total, label="branches")
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {
@@ -1119,7 +1126,9 @@ def switch_repository_branches(work_dir, config, gitlab_group):
             else:
                 buckets["errors"].append(path)
                 log(_status(i, total, style.red("✗"), path, message))
+            progress.advance(path)
 
+    progress.done()
     log(style.ok("Branch switch complete: ") + _summarize(buckets))
 
 
