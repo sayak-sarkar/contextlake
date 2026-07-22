@@ -9,7 +9,9 @@ from __future__ import annotations
 import os
 import re
 import sys
+import time
 import unicodedata
+from collections import deque
 
 _CODES = {
     "reset": "0", "bold": "1", "dim": "2",
@@ -145,3 +147,145 @@ def bar(done: int, total: int, width: int = 24) -> str:
     done = max(0, min(done, total))
     filled = round(width * done / total)
     return f"[{'█' * filled}{'░' * (width - filled)}] {done}/{total}"
+
+
+# --- progress reporting -----------------------------------------------------
+
+def _fmt_hms(seconds: float) -> str:
+    """Format ``seconds`` as ``H:MM:SS`` once it reaches an hour, else ``MM:SS``."""
+    seconds = max(0, int(round(seconds)))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+class Progress:
+    """Count-based CLI progress reporter: a live bar on a TTY, periodic
+    summary lines otherwise.
+
+    Stdlib-only, writes to ``stream`` (default ``sys.stderr``) so it never
+    collides with ``log()`` output on stdout. Deliberately count-based (an
+    empirical pass showed node-count does not predict wall-clock duration)
+    but ``weight``-agnostic: :meth:`advance` accepts an optional weight so a
+    future data-backed pass can size-weight progress without changing this
+    helper's shape.
+    """
+
+    _BAR_WIDTH = 14
+
+    def __init__(
+        self,
+        total: int | None,
+        *,
+        label: str = "",
+        now=time.monotonic,
+        stream=None,
+        min_interval: float = 0.5,
+        summary_every: int = 25,
+        summary_seconds: float = 30.0,
+    ) -> None:
+        self._total = total
+        self._label = label
+        self._now = now
+        self._stream = stream if stream is not None else sys.stderr
+        self._min_interval = min_interval
+        self._summary_every = summary_every
+        self._summary_seconds = summary_seconds
+
+        self._count = 0
+        self._done_weight = 0.0
+        # Weight-agnostic bookkeeping for a future size-weighted pass; not
+        # used by today's count-based rendering.
+        self._total_weight = total if total is not None else None
+
+        self._start = self._now()
+        self._last_tick = self._start
+        self._recent: deque[float] = deque(maxlen=20)
+        self._last_render = self._start
+        self._first = True
+        try:
+            self._tty = bool(self._stream.isatty())
+        except Exception:  # noqa: BLE001 - a stream without isatty is non-tty
+            self._tty = False
+
+    def advance(self, item_desc: str = "", *, weight: float = 1.0) -> None:
+        """Record one completed item and (throttled) re-render."""
+        del item_desc  # not part of the rendered line today; kept for callers
+        now = self._now()
+        dur = now - self._last_tick
+        self._last_tick = now
+        self._recent.append(dur)
+        self._count += 1
+        self._done_weight += weight
+        self._render(now)
+
+    def done(self, summary: str = "") -> None:
+        """Finish the run: clear the live bar (TTY) or print a final line."""
+        now = self._now()
+        if self._tty:
+            width = terminal_width(self._stream)
+            self._stream.write("\r")
+            self._stream.write(" " * width)
+            self._stream.write("\r")
+            if summary:
+                self._stream.write(summary + "\n")
+        else:
+            self._stream.write((summary or self._line(now)) + "\n")
+        self._stream.flush()
+
+    # -- internal ------------------------------------------------------
+
+    def _render(self, now: float) -> None:
+        if self._tty:
+            if self._first or (now - self._last_render) >= self._min_interval:
+                self._write_tty_frame(now)
+                self._first = False
+                self._last_render = now
+        else:
+            due_count = self._summary_every > 0 and self._count % self._summary_every == 0
+            due_time = (now - self._last_render) >= self._summary_seconds
+            if due_count or due_time:
+                self._stream.write(self._line(now) + "\n")
+                self._last_render = now
+
+    def _write_tty_frame(self, now: float) -> None:
+        line = self._line(now)
+        width = terminal_width(self._stream)
+        pad = width - visible_width(line)
+        if pad > 0:
+            line = line + (" " * pad)
+        self._stream.write("\r" + line)
+
+    def _line(self, now: float) -> str:
+        elapsed_seconds = now - self._start
+        elapsed = _fmt_hms(elapsed_seconds)
+        recent = self._recent
+        mean = (sum(recent) / len(recent)) if recent else 0.0
+        if recent and mean > 0:
+            rate = 60.0 / mean
+        else:
+            rate = 60.0 * self._count / max(elapsed_seconds, 1e-9)
+
+        if self._total is None:
+            head = f"{self._count} done"
+            tail = f"{elapsed} elapsed · {rate:.1f}/min"
+        else:
+            total = self._total
+            pct = round(100 * self._count / total) if total else 0
+            bar_str = bar(self._count, total, self._BAR_WIDTH)
+            remaining = max(total - self._count, 0)
+            eta = _fmt_hms(remaining * mean if recent else 0.0)
+            head = f"{bar_str} ({pct}%)"
+            tail = f"{elapsed} elapsed · ~{eta} left · {rate:.1f}/min"
+
+        prefix = f"{self._label} " if self._label else ""
+        plain = f"{prefix}{head} · {tail}"
+
+        width = terminal_width(self._stream)
+        if visible_width(plain) > width:
+            return plain[:width]
+
+        colored_tail = dim(tail, stream=self._stream)
+        return f"{prefix}{head} · {colored_tail}"
