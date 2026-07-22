@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   percent, elapsed, ETA, rate) on stderr, degrading to periodic summaries when not a
   TTY, so stdout redirects (e.g. `>> run.log`) stay clean of bar/`\r` artifacts.
 
+### Changed
+
+- **Consistent CLI presentation across every command.** One status vocabulary
+  (`✓` ok, `⚠` warn, `✗` fail, `⊘` skip, `=` unchanged, `↝` switched, `~` dry-run) now
+  covers the mirror tier and every other command; `bootstrap` and `sync` both show
+  `▶ <Phase>` section headers; every long-running command ends with a glyph-prefixed
+  summary line. `contextlake serve --transport http` now logs its bind URL, and
+  `graph --overview` on an empty store warns with a "run `contextlake index` first"
+  hint instead of silently reporting a written artifact. Per-item detail lines
+  (mirror-tier `clone`/`update`/`branches`, `index`, `embed`, `wiki`) no longer flicker
+  a right-aligned clock (the live progress bar already shows elapsed time).
+
 ## [2.43.0] - 2026-07-22
 
 ### Added

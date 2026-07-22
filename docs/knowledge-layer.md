@@ -272,7 +272,29 @@ are worth decoding.
   rate in items/min). The ETA is a moving-average estimate over recent items (that's what
   the `~` marks), and it's count-based, each item counts equally rather than being weighted
   by size. When a run's total isn't known up front, the bar drops the percent/ETA and shows
-  `done · elapsed · rate` instead, rather than guessing.
+  `done · elapsed · rate` instead, rather than guessing. The clock (elapsed/ETA) only shows
+  up on the bar itself and on section/summary lines; the per-item detail lines scrolling
+  beneath it don't repeat it, so they don't flicker as the timestamp ticks over.
+- **One status vocabulary, everywhere.** Every command (mirror-tier `clone`/`update`/
+  `branches`, `index`, `embed`, `wiki`, `enrich`, `ingest`, `connect`, `lint`, `sync`) marks
+  each line with the same seven glyphs, so once you know the glyph you know the outcome
+  without reading the rest of the line:
+
+  | Glyph | Meaning | Color |
+  | --- | --- | --- |
+  | `✓` | ok | green |
+  | `⚠` | warn | yellow |
+  | `✗` | fail | red |
+  | `⊘` | skip | dim |
+  | `=` | unchanged | dim |
+  | `↝` | switched | cyan |
+  | `~` | dry-run | yellow |
+
+  Multi-stage commands (`bootstrap` and `sync`) also print `▶ <Phase>` section headers
+  (e.g. `▶ Mirror repositories from GitLab`, `▶ Audit repositories (health & age)`) so a
+  long run reads as sections rather than one undifferentiated scroll, and every
+  long-running command ends with a one-line, glyph-prefixed summary (`✓ Embed complete:
+  ...`, `✓ Lint: ...`, and so on) you can skim straight to.
 - **The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like)
   stay on stdout.** That split means `contextlake wiki >> run.log` (or any stdout redirect)
   captures clean detail lines with no bar artifacts or `\r` clutter, since the bar never
@@ -302,6 +324,14 @@ are worth decoding.
   score (common with the tiny built-in 0.5B model); those lenses are excluded from the
   mean rather than counted as zero. A capable backend (`--llm ollama`/`anthropic`/`openai`)
   produces far fewer rejections — see [Model providers](#model-providers).
+- **`contextlake serve --transport http` prints its bind URL** once it starts listening
+  (`✓ MCP server on http://127.0.0.1:8765  (Ctrl-C to stop)`), so you don't have to guess
+  the host/port before pointing an editor at it. `stdio` transport has no address to
+  report and stays quiet on that line.
+- **`graph --overview` on an empty store warns instead of reporting silent success.** It
+  still writes the (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...:
+  the store is empty.` followed by a hint to run `contextlake index` first, instead of
+  logging the same success line it would for a populated graph.
 - **A single-writer lock message** naming another process means two runs targeted one
   store at once (see the git-hook note above).
 
