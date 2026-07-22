@@ -114,13 +114,14 @@ def _dot_id(raw: str) -> str:
     or subgraph name.
 
     Every character outside ``[0-9A-Za-z_]`` (``/``, ``.``, ``-``, etc.) becomes
-    ``_``. This is not collision-proof in the abstract (``acme/pay`` and
-    ``acme.pay`` would both sanitize to ``acme_pay``), but real repo ids in this
-    fleet are GitLab namespace paths where ``/`` is the only separator actually
-    used between path segments, so collisions do not occur in practice. The
-    full (unsanitized) path is kept as the DOT ``label``, so even in a
-    hypothetical collision the rendered text stays readable; only the internal
-    node identity would be shared.
+    ``_``. This is not collision-proof in the abstract: two distinct ids collide
+    only if an intra-segment ``-``/``.`` in one id lands where another id has an
+    inter-segment ``/`` (e.g. ``acme/pay-web`` and ``acme/pay/web`` both sanitize
+    to ``acme_pay_web``). GitLab namespace paths do not form ids that way in
+    practice, so this does not occur in the fleet. The full (unsanitized) path
+    is kept as the DOT ``label``, so even in a hypothetical collision the
+    rendered text stays readable; only the internal node identity would be
+    shared.
     """
     return _DOT_UNSAFE.sub("_", raw)
 
@@ -189,10 +190,8 @@ def c4_payload(model: C4Model) -> dict:
     changes behavior for repo ids containing control characters.
     """
     nodes: list[dict] = []
-    ns_id_of: dict[str, str] = {}
     for boundary in model.boundaries:
         ns_id = _ns_node_id(boundary.namespace)
-        ns_id_of[boundary.namespace] = ns_id
         nodes.append({
             "id": ns_id, "repo": None, "kind": "namespace", "name": boundary.label,
             "qualified_name": None, "file": None, "line": None, "lang": None,

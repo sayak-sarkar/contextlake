@@ -85,9 +85,13 @@ def test_to_c4_dot_emits_clusters_and_labeled_edges(tmp_path):
     assert dot.startswith("digraph")
     assert "subgraph cluster_" in dot          # boundaries drawn as clusters
     assert 'label="acme/pay"' in dot           # boundary label present
-    assert "http" in dot                       # flavor-labeled edge
-    # deterministic: same model renders identically
-    assert c4.to_c4_dot(model) == dot
+    assert "http x1" in dot                    # full "<flavor> x<weight>" edge label
+    assert "style=dashed" in dot               # INFERRED edges render dashed
+    # deterministic: two independent model builds from the same store render
+    # identically -- this catches upstream nondeterminism (e.g. dict-iteration
+    # order before sorting) that re-rendering the same model object can't.
+    model_again = c4.c4_model(store, group_depth=2)
+    assert c4.to_c4_dot(model_again) == dot
 
 
 def test_c4_payload_parents_and_cytoscape_elements(tmp_path):
