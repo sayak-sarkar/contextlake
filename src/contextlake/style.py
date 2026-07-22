@@ -139,6 +139,84 @@ def skip(label: str = "", **kw) -> str:
     return f"{dim('⊘', **kw)} {label}".rstrip()
 
 
+def nochange(label: str = "", **kw) -> str:
+    return f"{dim('=', **kw)} {label}".rstrip()
+
+
+def switched(label: str = "", **kw) -> str:
+    return f"{cyan('↝', **kw)} {label}".rstrip()
+
+
+def dryrun(label: str = "", **kw) -> str:
+    return f"{yellow('~', **kw)} {label}".rstrip()
+
+
+_STATE_ACCESSORS = {
+    "ok": ok,
+    "warn": warn,
+    "fail": fail,
+    "skip": skip,
+    "nochange": nochange,
+    "switched": switched,
+    "dryrun": dryrun,
+}
+
+
+def _state_glyph(state: str, **kw) -> str:
+    try:
+        accessor = _STATE_ACCESSORS[state]
+    except KeyError:
+        raise ValueError(f"unknown state: {state!r}") from None
+    return accessor(**kw)
+
+
+def status_line(i, total, state: str, path: str, message: str, *, stream=None) -> str:
+    """A coloured per-item progress line: dim counter, state glyph, cyan path.
+
+    Promotes the ``[i/total] glyph path: message`` shape hand-built by callers
+    (e.g. ``core.py``'s ``_status``) into a single state-driven helper.
+    """
+    glyph = _state_glyph(state, stream=stream)
+    counter = dim(f"[{i}/{total}]", stream=stream)
+    return f"{counter} {glyph} {cyan(path, stream=stream)}: {message}"
+
+
+def summary_line(state: str, text: str, *, stream=None) -> str:
+    """A single glyph-prefixed finale line, e.g. ``✓ Embed complete: ...``."""
+    return f"{_state_glyph(state, stream=stream)} {text}"
+
+
+def header(title: str, *, stream=None) -> str:
+    """A bold-cyan phase header: ``▶ Title``.
+
+    Promotes the styling bootstrap's ``_stage`` closure hand-builds today.
+    """
+    return bold(cyan(f"▶ {title}", stream=stream), stream=stream)
+
+
+def kv(pairs, *, width=None, stream=None) -> str:
+    """Aligned label/value rows, e.g. for a status summary.
+
+    ``pairs`` is a list of ``(label, value)`` tuples; each is rendered as
+    ``label`` flush-left and ``value`` flush-right of a shared column, clamped
+    to ``terminal_width`` so rows degrade to just the label when the terminal
+    is too narrow to fit both (see :func:`align_right`). Returns a multi-line
+    string with no trailing newline.
+    """
+    if not pairs:
+        return ""
+    if width is None:
+        content_width = (
+            max(visible_width(str(label)) for label, _ in pairs)
+            + 2
+            + max(visible_width(str(value)) for _, value in pairs)
+        )
+        width = min(content_width, terminal_width(stream))
+    return "\n".join(
+        align_right(str(label), str(value), width) for label, value in pairs
+    )
+
+
 def bar(done: int, total: int, width: int = 24) -> str:
     """A textual progress bar, e.g. ``[████████░░░░░░] 8/16``."""
     total = max(0, total)
