@@ -81,3 +81,33 @@ def test_to_c4_dot_emits_clusters_and_labeled_edges(tmp_path):
     assert "http" in dot                       # flavor-labeled edge
     # deterministic: same model renders identically
     assert c4.to_c4_dot(model) == dot
+
+
+def test_c4_payload_parents_and_cytoscape_elements(tmp_path):
+    store = _seed(tmp_path)
+    model = c4.c4_model(store, group_depth=2)
+    payload = c4.c4_payload(model)
+    # namespace parent nodes present
+    parents = [n for n in payload["nodes"] if n.get("kind") == "namespace"]
+    assert parents, "expected namespace compound parent nodes"
+    # every container node points at a parent
+    containers = [n for n in payload["nodes"] if n.get("kind") == "repo"]
+    assert containers and all(n.get("parent") for n in containers)
+    # cytoscape elements carry data.parent for compound rendering
+    from contextlake.kb import visualize as viz
+    els = viz._cytoscape_elements(payload)
+    node_els = [e for e in els if e["data"].get("id") and "source" not in e["data"]]
+    assert any(e["data"].get("parent") for e in node_els)
+
+
+def test_c4_payload_edge_join_invariant(tmp_path):
+    """Every payload edge's src/dst must exactly string-match some node id --
+    otherwise cytoscape silently drops the edge (no visible error)."""
+    store = _seed(tmp_path)
+    model = c4.c4_model(store, group_depth=2)
+    payload = c4.c4_payload(model)
+    node_ids = {n["id"] for n in payload["nodes"]}
+    assert payload["edges"], "expected at least one edge in the fixture"
+    for e in payload["edges"]:
+        assert e["src"] in node_ids, f"edge src {e['src']!r} has no matching node id"
+        assert e["dst"] in node_ids, f"edge dst {e['dst']!r} has no matching node id"
