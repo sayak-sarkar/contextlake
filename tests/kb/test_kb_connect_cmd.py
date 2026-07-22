@@ -36,7 +36,7 @@ class _Stub:
         return {"PROJ-1": meta} if "PROJ-1" in keys else {}
 
 
-def test_connect_persists_confirmed_links(tmp_path, monkeypatch):
+def test_connect_persists_confirmed_links(tmp_path, monkeypatch, gls_logs):
     monkeypatch.setenv("HOME", str(tmp_path))  # isolate ~/.gitlab-sync/kb.toml
     store_dir = tmp_path / "kbstore"
     cfg = tmp_path / "kb.toml"
@@ -63,6 +63,9 @@ def test_connect_persists_confirmed_links(tmp_path, monkeypatch):
         assert store.stats().nodes >= 2  # repo node + issue node
     finally:
         store.close()
+
+    # glyph-prefixed summary (H4): counts/text unchanged, just wrapped
+    assert "✓ Connect complete:" in gls_logs.text
 
 
 def test_connect_skips_disabled_sources(tmp_path, monkeypatch):

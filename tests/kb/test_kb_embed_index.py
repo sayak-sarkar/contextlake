@@ -430,4 +430,4 @@ def test_cmd_embed_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkey
     assert "r2: embed failed" in text
     assert "embed failed for r2" in text
     assert "r3: embedded" not in text                # skipped -> no detail line, as before
-    assert "Embed complete: 1 vector(s) written" in text
+    assert "✓ Embed complete: 1 vector(s) written" in text   # glyph-prefixed summary

@@ -431,7 +431,7 @@ def cmd_connect(args) -> int:
                 total_edges += len(merged_edges)
                 if merged_edges:
                     log(f"  {repo_id}: {len(merged_edges)} link(s)")
-            log(f"Connect complete: {total_edges} external link(s) stored")
+            log(style.summary_line("ok", f"Connect complete: {total_edges} external link(s) stored"))
             # Honest exit: every source call attempted failed (e.g. an unreachable
             # connector) -> a failure, even though per-repo errors were logged.
             if attempts and src_failed == attempts:
@@ -573,8 +573,8 @@ def cmd_embed(args) -> int:
                     progress.advance(repo_id)
                 progress.done()
                 tail = f", {skipped} already up to date" if skipped else ""
-                log(f"Embed complete: {total} vector(s) written "
-                    f"({vs.count()} total in store){tail}")
+                log(style.summary_line("ok", f"Embed complete: {total} vector(s) written "
+                                             f"({vs.count()} total in store){tail}"))
                 # Honest exit: if every repo we actually tried to embed failed (e.g. the
                 # embedder went unreachable mid-run), this is a failure, not success.
                 # Up-to-date repos that were skipped don't count as attempts.
@@ -1249,7 +1249,7 @@ def cmd_ingest(args) -> int:
                     msg += f", {n} embedded"
                 log(msg)
             tail = f", {embedded} embedded into the semantic store" if embedded else ""
-            log(f"Ingest complete: {total} document(s) aggregated{tail}")
+            log(style.summary_line("ok", f"Ingest complete: {total} document(s) aggregated{tail}"))
             return 1 if (failed and total == 0) else 0
         finally:
             if vs is not None:
@@ -1302,7 +1302,7 @@ def cmd_enrich(args) -> int:
                                     embedder=embedder, vector_store=vector_store)
                 total += n
                 log(f"  {repo_id}: {n} document(s)")
-            log(f"Enrich complete: {total} document(s) stored")
+            log(style.summary_line("ok", f"Enrich complete: {total} document(s) stored"))
             return 0
         finally:
             if vector_store is not None:
@@ -1715,7 +1715,7 @@ def cmd_eval(args) -> int:
                  f"{result['est_tokens_per_query']} tok/q  "
                  f"P/1k-tok={result['precision_per_1k_tokens']}"))
     for p in result["per_query"]:
-        mark = "✓" if p["hit"] else "✗"
+        mark = style.ok() if p["hit"] else style.fail()
         log(f"  {mark} {p['query'][:60]:60s} P={p['precision@k']:.2f} "
             f"R={p['recall@k']:.2f} rr={p['rr']:.2f}")
     return 0
@@ -1830,7 +1830,7 @@ def cmd_hook(args) -> int:
         on = sum(1 for _, ok in marks if ok)
         for rid, ok in marks:
             if not workspace or ok:   # single repo: always show; fleet: list only the wired ones
-                log(f"  {'✓' if ok else '·'} {rid}")
+                log(f"  {style.ok() if ok else style.dim('·')} {rid}")
         log(style.ok(f"post-commit hook present on {on}/{len(targets)} repo(s)."))
         return 0
 

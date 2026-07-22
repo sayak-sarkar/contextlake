@@ -751,6 +751,8 @@ def _bootstrap(args, config, work_dir, gitlab_group):
 
 
 def main(argv=None):
+    from . import style
+
     parser = build_parser()
     args = parser.parse_args(argv)
     args.command = _ALIASES.get(args.command, args.command)
@@ -830,7 +832,7 @@ def main(argv=None):
             update_repositories(work_dir, config)
             switch_repository_branches(work_dir, config, gitlab_group)
             verify_structure(work_dir, config, gitlab_group)
-            log("Full synchronization complete!")
+            log(style.summary_line("ok", "Full synchronization complete"))
             if not getattr(args, "no_audit", False):
                 run_audit(work_dir, config, gitlab_group,
                           report_path=_audit_report_path(args, config),

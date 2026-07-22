@@ -73,7 +73,13 @@ def test_worktree_gitdir_file(tmp_path):
 
 
 @pytest.mark.parametrize("action", ["install", "status", "uninstall"])
-def test_cmd_hook_dispatch(tmp_path, action, monkeypatch):
+def test_cmd_hook_dispatch(tmp_path, action, monkeypatch, gls_logs):
+    # FORCE_COLOR makes the "status" assertion below discriminating: a bare "✓"
+    # (the old code) would not carry the ANSI codes asserted, so this fails
+    # against the pre-fix code and passes against the fix -- unlike a plain-text
+    # glyph check, which is identical either way.
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
     _repo(tmp_path)
     monkeypatch.chdir(tmp_path)
     from contextlake.cli import _DEFAULTS, build_parser
@@ -86,3 +92,30 @@ def test_cmd_hook_dispatch(tmp_path, action, monkeypatch):
         if not hasattr(args, k):
             setattr(args, k, v)
     assert kb.dispatch("hook", args) == 0
+
+    if action == "status":
+        # H3: the per-repo status glyph must come from style.ok(), not a bare "✓".
+        # gls_logs.text is ANSI-stripped by pytest's LogCaptureHandler itself, so
+        # read the raw record messages (log()'s actual argument) to see the codes.
+        raw = "\n".join(r.getMessage() for r in gls_logs.records)
+        assert f"\033[32m✓\033[0m {tmp_path.name}" in raw
+
+
+def test_cmd_hook_status_shows_dim_dot_when_not_installed(tmp_path, monkeypatch, gls_logs):
+    """H3: the 'not installed' glyph must come from style.dim('·'), not a bare '·'."""
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    _repo(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    args = build_parser().parse_args(["hook", "status"])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    assert kb.dispatch("hook", args) == 0
+    # gls_logs.text is ANSI-stripped by pytest's LogCaptureHandler itself, so
+    # read the raw record messages (log()'s actual argument) to see the codes.
+    raw = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert f"\033[2m·\033[0m {tmp_path.name}" in raw
