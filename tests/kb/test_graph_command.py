@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from contextlake import style
 from contextlake.cli import main
 from contextlake.kb import visualize as viz
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
@@ -509,6 +510,23 @@ def test_cli_graph_requires_a_seed(tmp_path):
     cfg = _kb_config(tmp_path)
     assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     assert _run(["graph", "--config", str(cfg)]) == 2  # no seed -> usage error
+
+
+def test_cli_graph_overview_on_empty_store_warns_with_index_hint(tmp_path, capsys):
+    # An empty overview means nothing was indexed yet -- writing a 0-node HTML and
+    # calling it a success would hide that from the user (same trap cmd_index's
+    # empty-workspace guard avoids). Nothing has been indexed for this config.
+    # capsys (not gls_logs) matches this file's convention for commands invoked
+    # through main(), which rebinds the console handler via setup_logging().
+    cfg = _kb_config(tmp_path)
+    assert _run(["graph", "--config", str(cfg), "--overview"]) == 0
+
+    text = capsys.readouterr().out
+    out = tmp_path / "kb" / "graphs" / "overview.html"
+    assert out.exists()  # the artifact is still written -- the guard only fixes reporting
+    assert style.warn(f"Wrote html (0 nodes, 0 edges) -> {out}: the store is empty.") in text
+    assert "Run `contextlake index` first" in text
+    assert style.ok(f"Wrote html (0 nodes, 0 edges) -> {out}") not in text  # not a bare success
 
 
 # --- class diagram --------------------------------------------------------
