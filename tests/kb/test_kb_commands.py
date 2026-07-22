@@ -1,9 +1,11 @@
 """CLI integration tests for the knowledge-layer verbs (the Phase 2.0 DoD)."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from contextlake import style
 from contextlake.cli import main
 from contextlake.kb import commands as commands_mod
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -374,3 +376,60 @@ def test_query_no_match_singleword_no_hint(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "No matches" in out
     assert "semantic" not in out.lower()
+
+
+# --- serve ------------------------------------------------------------------
+
+def _serve_args(cfg, **kw):
+    defaults = {"config": str(cfg), "transport": None, "host": None, "port": None}
+    defaults.update(kw)
+    return SimpleNamespace(**defaults)
+
+
+def test_serve_http_logs_the_bind_url(tmp_path, gls_logs, monkeypatch):
+    # A blocking server that never says where it listens reads as broken, not
+    # busy -- the http transport must print its reachable host:port before it
+    # blocks in run_server. run_server itself is monkeypatched out so the test
+    # doesn't actually block.
+    cfg = _kb_config(tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        "contextlake.kb.server.run_server",
+        lambda *a, **kw: calls.append((a, kw)))
+
+    rc = commands_mod.cmd_serve(_serve_args(cfg, transport="http"))
+
+    assert rc == 0
+    assert len(calls) == 1  # run_server was reached (and would have blocked)
+    assert style.ok("MCP server on http://127.0.0.1:8765") in gls_logs.text
+
+
+def test_serve_http_logs_the_configured_host_and_port(tmp_path, gls_logs, monkeypatch):
+    cfg = _kb_config(tmp_path)
+    monkeypatch.setattr("contextlake.kb.server.run_server", lambda *a, **kw: None)
+
+    rc = commands_mod.cmd_serve(_serve_args(cfg, transport="http", host="0.0.0.0", port=9999))
+
+    assert rc == 0
+    assert style.ok("MCP server on http://0.0.0.0:9999") in gls_logs.text
+
+
+def test_serve_stdio_does_not_log_a_bind_url(tmp_path, gls_logs, monkeypatch):
+    # stdio has no bind address -- it must stay silent on that front (and stdout
+    # is reserved for the MCP JSON-RPC stream, not human-facing banners).
+    cfg = _kb_config(tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        "contextlake.kb.server.run_server",
+        lambda *a, **kw: calls.append((a, kw)))
+
+    rc = commands_mod.cmd_serve(_serve_args(cfg, transport="stdio"))
+
+    assert rc == 0
+    assert len(calls) == 1
+    # positive control: capture is live on this path (stdio calls use_stderr(),
+    # which retargets the console handler's stream but must not silence gls_logs)
+    # so the absence checks below are meaningful, not a vacuous empty-log pass.
+    assert "Serving knowledge graph over MCP (stdio)" in gls_logs.text
+    assert "http://" not in gls_logs.text
+    assert "MCP server on" not in gls_logs.text

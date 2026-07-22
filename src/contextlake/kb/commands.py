@@ -1351,6 +1351,10 @@ def cmd_serve(args) -> int:
                           "graph search and every other tool work without them"))
 
         log(f"Serving knowledge graph over MCP ({transport})")
+        if transport == "streamable-http":
+            # stdio has no bind address to report; http does, and a blocking
+            # server that never says where it listens reads as broken, not busy.
+            log(style.ok(f"MCP server on http://{host}:{port}  (Ctrl-C to stop)"))
         run_server(store, transport=transport, host=host, port=port,
                    embedder=embedder, vector_store=vector_store)
         return 0
@@ -1660,8 +1664,15 @@ def cmd_graph(args) -> int:
         if out:
             Path(out).parent.mkdir(parents=True, exist_ok=True)
             Path(out).write_text(text, encoding="utf-8")
-            log(style.ok(f"Wrote {fmt} ({len(payload['nodes'])} nodes, "
-                         f"{len(payload['edges'])} edges) -> {out}"))
+            if overview and not payload["nodes"]:
+                # An empty overview is a graph with nothing in it -- reporting that
+                # as a plain "Wrote" success would hide the real problem (nothing
+                # indexed yet), the same trap cmd_index's empty-workspace guard avoids.
+                log(style.warn(f"Wrote {fmt} (0 nodes, 0 edges) -> {out}: the store is empty."))
+                log("  Run `contextlake index` first, then re-run this command.")
+            else:
+                log(style.ok(f"Wrote {fmt} ({len(payload['nodes'])} nodes, "
+                             f"{len(payload['edges'])} edges) -> {out}"))
             if fmt == "html" and getattr(args, "open", False):
                 import webbrowser
                 webbrowser.open("file://" + str(Path(out).resolve()))
