@@ -561,7 +561,7 @@ def cmd_embed(args) -> int:
                         n = embed_repo(store_dir, vs, embedder, repo_id,
                                        batch_size=cfg.embeddings.batch_size, limit=limit)
                     except Exception as e:  # noqa: BLE001 - one repo must not abort the run
-                        log(f"  {repo_id}: embed failed — {e}", inline=True)
+                        log(f"  {repo_id}: embed failed ({e})", inline=True)
                         failed += 1
                         progress.advance(repo_id)
                         continue
