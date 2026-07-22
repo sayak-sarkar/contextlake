@@ -249,6 +249,7 @@ class Progress:
             if due_count or due_time:
                 self._stream.write(self._line(now) + "\n")
                 self._last_render = now
+                self._stream.flush()
 
     def _write_tty_frame(self, now: float) -> None:
         line = self._line(now)
@@ -257,6 +258,10 @@ class Progress:
         if pad > 0:
             line = line + (" " * pad)
         self._stream.write("\r" + line)
+        # stderr is line-buffered; a \r-terminated frame has no trailing "\n"
+        # to trigger a flush on its own, so the live bar would never actually
+        # appear on screen without an explicit flush here.
+        self._stream.flush()
 
     def _line(self, now: float) -> str:
         elapsed_seconds = now - self._start
