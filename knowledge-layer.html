@@ -80,7 +80,7 @@ commands are:</p>
 </tr>
 <tr>
 <td><code>wiki</code></td>
-<td>LLM-synthesized, council-verified wiki pages; <code>--llm builtin|ollama|openai|anthropic|cli</code> enables the LLM tier inline</td>
+<td>LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with <code>--namespace &lt;prefix&gt;</code> / <code>--namespaces --depth N</code>); <code>--llm builtin|ollama|openai|anthropic|cli</code> enables the LLM tier inline</td>
 </tr>
 <tr>
 <td><code>query</code></td>
@@ -128,6 +128,7 @@ contextlake<span class="w"> </span>connect<span class="w"> </span>--workspace<sp
 contextlake<span class="w"> </span>embed<span class="w">                           </span><span class="c1"># build semantic vectors (optional, see below)</span>
 contextlake<span class="w"> </span>lint<span class="w">                            </span><span class="c1"># graph health: stale repos + dangling edges</span>
 contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/orders-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span><span class="w">      </span><span class="c1"># wiki for one repo; --llm enables the LLM tier inline</span>
+contextlake<span class="w"> </span>wiki<span class="w"> </span>--namespace<span class="w"> </span>delivery/dcs<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span><span class="w">   </span><span class="c1"># a cluster page for a whole namespace</span>
 contextlake<span class="w"> </span>steer<span class="w">                           </span><span class="c1"># write per-tool steering: AGENTS.md, .mcp.json, …</span>
 contextlake<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;OrderService&quot;</span><span class="w">            </span><span class="c1"># cited search across the index</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">         </span><span class="c1"># visualize the graph (HTML/dot/mermaid/classdiagram/json; offline)</span>
@@ -251,6 +252,17 @@ form <code>contextlake --llm builtin bootstrap</code> also works.) Without any <
 <code>[llm]</code> disabled in <code>kb.toml</code>, the wiki stage no-ops and the rest still runs. Because
 everything generated lives under one <code>store_dir</code>, setting it to a folder in your
 workspace keeps the entire knowledge base in a single, easy-to-access location.</p>
+<p><strong>Cluster (namespace) wiki.</strong> Beyond per-repo pages, <code>contextlake wiki --namespace
+delivery/dcs</code> writes one <strong>cluster page</strong> for a whole group of repos (everything under
+that repo-id prefix), narrating how they fit together: which services call which over
+HTTP, publish/consume which events, and share which packages, split into coupling
+<em>within</em> the namespace and coupling to repos <em>outside</em> it. Use <code>--namespaces --depth N</code>
+to generate one page per namespace at that prefix depth. It grounds strictly in the
+cross-repo edges the graph already resolved (no new extraction) and reuses the same
+review council + provenance footer as the per-repo wiki, so it stays advisory and cited;
+when the graph shows no coupling it says so rather than inventing a link. Cluster pages
+are served over MCP by passing a namespace to <code>get_wiki</code>, and shown per group in the
+dashboard's fleet overview.</p>
 <p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and
 <code>~/.contextlake/kb.toml</code>); pass <code>--config</code> / <code>--kb-config</code> to point elsewhere. The valid
 <code>[kb]</code> keys are <code>store_dir</code>, <code>languages</code>, <code>skip_generated</code>, <code>max_file_bytes</code>, and
