@@ -1,7 +1,9 @@
 import json
+from argparse import Namespace
 
 import pytest
 
+from contextlake.kb.commands import cmd_eval
 from contextlake.kb.eval import (
     GoldenQuery,
     evaluate,
@@ -13,6 +15,7 @@ from contextlake.kb.eval import (
     reciprocal_rank,
 )
 from contextlake.kb.model import Node
+from contextlake.kb.state import check_schema
 from contextlake.kb.store.sqlite_store import SqliteStore
 
 
@@ -82,6 +85,40 @@ def test_evaluate_reports_cost_dimension(tmp_path):
     assert r["precision_per_1k_tokens"] > 0              # found it, at finite token cost
     assert "est_tokens" in r["per_query"][0]
     s.close()
+
+
+def test_cmd_eval_marks_hits_and_misses_with_colored_glyphs(tmp_path, monkeypatch, gls_logs):
+    """H3: the per-query ✓/✗ mark must come from style.ok()/style.fail() -- coloured
+    when color is on, not a bare uncoloured glyph. FORCE_COLOR makes this
+    discriminating: a bare "✓"/"✗" (the old code) would not carry the ANSI codes
+    asserted below, so this fails against the pre-fix code and passes against the
+    fix, unlike a plain-text glyph check which is identical either way."""
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="OrderService")])
+    s.close()
+
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"queries": [
+        {"query": "OrderService", "expected": ["os"]},          # hit
+        {"query": "NoSuchThing", "expected": ["missing-id"]},   # miss
+    ]}))
+
+    args = Namespace(golden=str(golden), limit=None, retriever=None, config=str(cfg))
+    assert cmd_eval(args) == 0
+
+    # gls_logs.text is ANSI-stripped by pytest's LogCaptureHandler itself, so
+    # read the raw record messages (log()'s actual argument) to see the codes.
+    raw = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "\033[32m✓\033[0m OrderService" in raw   # hit: style.ok(), green + reset
+    assert "\033[31m✗\033[0m NoSuchThing" in raw    # miss: style.fail(), red + reset
 
 
 def test_make_semantic_retriever_binds_deps():

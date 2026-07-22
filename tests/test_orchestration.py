@@ -81,17 +81,25 @@ def test_main_dispatches_to_command(monkeypatch, command, target):
     assert called["n"] == 1
 
 
-def test_main_sync_runs_full_pipeline(monkeypatch):
+def test_main_sync_runs_full_pipeline(monkeypatch, capsys):
     order = []
     for name in ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
                  "switch_repository_branches", "verify_structure"]:
         monkeypatch.setattr(cli, name, lambda *a, _n=name, **k: order.append(_n))
+    monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
     _patch_config(monkeypatch)
     cli.main(["sync"])
     assert order == [
         "fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
         "switch_repository_branches", "verify_structure",
     ]
+    # H4: glyph-prefixed finale, exclamation softened to match the other summaries.
+    # cli.main() rebuilds the logger's handlers via setup_logging(), so gls_logs
+    # (which attaches to the handler that existed before the call) misses this
+    # output -- capsys reads real stdout instead, so it still sees it.
+    out = capsys.readouterr().out
+    assert "✓ Full synchronization complete" in out
+    assert "Full synchronization complete!" not in out
 
 
 class _SpyProgress:

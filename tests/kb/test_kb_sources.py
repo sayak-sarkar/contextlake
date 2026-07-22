@@ -256,7 +256,9 @@ def test_cmd_ingest_writes_document_nodes(tmp_path, capsys, monkeypatch):
         assert any(h.id == "@ingest:cli:faq.md" for h in store.search("faq"))
     finally:
         store.close()
-    assert "2 document(s)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "2 document(s)" in out
+    assert "✓ Ingest complete: 2 document(s) aggregated" in out   # glyph-prefixed summary
 
 
 def test_cmd_ingest_skips_disabled_sources(tmp_path, capsys, monkeypatch):

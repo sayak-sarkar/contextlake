@@ -59,7 +59,7 @@ def _seed_indexed_repo(store, store_dir, repo_id, repo_path):
     store.upsert_repo(Repo(id=repo_id, path=repo_path))
 
 
-def test_enrich_persists_documents_from_configured_source(tmp_path, monkeypatch):
+def test_enrich_persists_documents_from_configured_source(tmp_path, monkeypatch, gls_logs):
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = tmp_path / "kbstore"
     cfg = tmp_path / "kb.toml"
@@ -85,6 +85,9 @@ def test_enrich_persists_documents_from_configured_source(tmp_path, monkeypatch)
     assert len(shard.nodes) == 2
     for node in shard.nodes:
         assert node.kind == "document"
+
+    # glyph-prefixed summary (H4): counts/text unchanged, just wrapped
+    assert "✓ Enrich complete: 2 document(s) stored" in gls_logs.text
 
 
 def test_enrich_no_term_searchable_sources_is_a_noop(tmp_path, monkeypatch):
