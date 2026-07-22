@@ -272,9 +272,11 @@ are worth decoding.
   rate in items/min). The ETA is a moving-average estimate over recent items (that's what
   the `~` marks), and it's count-based, each item counts equally rather than being weighted
   by size. When a run's total isn't known up front, the bar drops the percent/ETA and shows
-  `done · elapsed · rate` instead, rather than guessing. The clock (elapsed/ETA) only shows
-  up on the bar itself and on section/summary lines; the per-item detail lines scrolling
-  beneath it don't repeat it, so they don't flicker as the timestamp ticks over.
+  `done · elapsed · rate` instead, rather than guessing. Across every long-running command
+  (including `connect`, `ingest`, and `enrich`, which don't use the shared bar), the clock
+  only shows up on the bar itself (where there is one) and on section/summary lines; the
+  per-item detail lines scrolling beneath don't repeat it, so they don't flicker as the
+  timestamp ticks over.
 - **One status vocabulary, everywhere.** Every command (mirror-tier `clone`/`update`/
   `branches`, `index`, `embed`, `wiki`, `enrich`, `ingest`, `connect`, `lint`, `sync`) marks
   each line with the same seven glyphs, so once you know the glyph you know the outcome
