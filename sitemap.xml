@@ -9,6 +9,7 @@
   <url><loc>https://sayak.in/contextlake/semantic-search.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/generate-wiki.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/model-providers.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/bootstrap.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/knowledge-layer.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/dashboard.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/serve.html</loc><priority>0.6</priority></url>
@@ -17,6 +18,8 @@
   <url><loc>https://sayak.in/contextlake/benchmarks.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/internals.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/storage.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/cli-reference.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/console-output.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/changelog.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/style-guide.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/style-guide-voice.html</loc><priority>0.6</priority></url>
