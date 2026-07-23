@@ -94,6 +94,11 @@ PAGES = [
      "(Claude Code, Windsurf, Kiro) in one command.",
      "pebble-doc.png",
      [("benchmarks.html", "Benchmarks"), ("dashboard.html", "Dashboard")]),
+    ("visualize.html", "docs/visualize.md", "Visualize the graph", "Visualize the graph",
+     "Use it", "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, "
+     "or a class diagram, plus the composed namespace C4 diagram.",
+     "pebble-doc.png",
+     [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
     ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",
      "Layer 3 · Serve", "An honest, measured look at the token, cost, and correctness "
      "impact of connecting the contextlake MCP to your AI coding tools, new-code "
@@ -159,7 +164,7 @@ NAV_GROUPS = [
                                    "semantic-search.html", "generate-wiki.html",
                                    "model-providers.html"]),
     ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
-                           "serve.html", "benchmarks.html"]),
+                           "serve.html", "visualize.html", "benchmarks.html"]),
     ("Under the hood", ["internals.html", "storage.html"]),
     ("Writing style", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
                        "style-guide-formatting.html", "style-guide-reference.html"]),
@@ -180,7 +185,8 @@ _NEXT_LABEL = {
     "generate-wiki.html": "Generate the wiki",
     "model-providers.html": "Model providers",
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
-    "serve.html": "Serve (MCP)", "benchmarks.html": "Benchmarks",
+    "serve.html": "Serve (MCP)", "visualize.html": "Visualize the graph",
+    "benchmarks.html": "Benchmarks",
     "internals.html": "Architecture", "storage.html": "Storage",
     "changelog.html": "Changelog",
     "style-guide.html": "Writing style",
