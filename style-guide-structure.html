@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page types and structure · contextlake docs</title>
+<meta name="description" content="The concept, how-to, reference, and tutorial page types, each with a fixed skeleton, and how to structure a page.">
+<link rel="canonical" href="https://sayak.in/contextlake/style-guide-structure.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Page types and structure · contextlake docs">
+<meta property="og:description" content="The concept, how-to, reference, and tutorial page types, each with a fixed skeleton, and how to structure a page.">
+<meta property="og:url" content="https://sayak.in/contextlake/style-guide-structure.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Page types and structure · contextlake docs">
+<meta name="twitter:description" content="The concept, how-to, reference, and tutorial page types, each with a fixed skeleton, and how to structure a page.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a></nav><h2>Using contextlake</h2><nav aria-label="Using contextlake"><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Under the hood</h2><nav aria-label="Under the hood"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html" class="active">Page types and structure</a><a href="style-guide-formatting.html">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Writing style</div><h1>Page types and structure</h1><p class="doc-sub">The concept, how-to, reference, and tutorial page types, each with a fixed skeleton, and how to structure a page.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>Every contextlake doc page is exactly one type, with a fixed shape. Typing pages is the cure for walls of
+text: a page that braids explanation, steps, and lookup gets split. This page is part of the
+<a href="style-guide.html">documentation style guide</a>.</p>
+<h2 id="the-page-types">The page types<a class="anchor" href="#the-page-types" title="Link to this section">#</a></h2>
+<p>Sort each section into a type. If a how-to grows three paragraphs of background, that background is a
+concept page in disguise. Signal the type through the nav group and the title form, not an ugly filename
+prefix. Keep URLs clean.</p>
+<h3 id="concept">Concept<a class="anchor" href="#concept" title="Link to this section">#</a></h3>
+<p>Answers "what is this, and why care?".</p>
+<ul>
+<li><strong>Title:</strong> a noun phrase. "The knowledge layer", not "Understanding the knowledge layer".</li>
+<li><strong>Skeleton:</strong> a lead summary, then explanation in prose, lists, and a code-grounded diagram. Begin with a
+  one-sentence definition. No step-by-step instructions; those belong in a how-to.</li>
+</ul>
+<h3 id="how-to-task">How-to (task)<a class="anchor" href="#how-to-task" title="Link to this section">#</a></h3>
+<p>Answers "how do I do X?".</p>
+<ul>
+<li><strong>Title:</strong> a gerund phrase. "Indexing your repos", "Wiring your editor".</li>
+<li><strong>Skeleton:</strong>
+  1. A lead that names what you'll accomplish and why.
+  2. <strong>Prerequisites</strong> (what must be true first).
+  3. Numbered, imperative steps. One action per step. State where before what ("In <code>kb.toml</code>, set...").
+  4. <strong>Verification.</strong> How you know it worked, with the real output to expect. Near-required; it's the most
+     reader-respecting thing a CLI doc can do.
+  5. <strong>Next steps</strong> or <strong>See also.</strong></li>
+</ul>
+<h3 id="reference">Reference<a class="anchor" href="#reference" title="Link to this section">#</a></h3>
+<p>Answers "what are the exact details?".</p>
+<ul>
+<li><strong>Title:</strong> a noun phrase. "<code>contextlake</code> command reference", "Configuration keys".</li>
+<li><strong>Skeleton:</strong> a short lead, then scannable tables and lists (flags, keys, exit codes). Facts, not
+  narrative. Keep subsections consistent across sibling reference pages.</li>
+</ul>
+<h3 id="tutorial">Tutorial<a class="anchor" href="#tutorial" title="Link to this section">#</a></h3>
+<p>Answers "walk me through it end to end".</p>
+<ul>
+<li><strong>Title:</strong> a gerund or "Getting started".</li>
+<li><strong>Skeleton:</strong> a lead stating prerequisites and the end state, then a narrated, ordered path with
+  checkpoints. Teaching-oriented, so a little more prose than a how-to is fine.</li>
+</ul>
+<h3 id="overview-landing">Overview / landing<a class="anchor" href="#overview-landing" title="Link to this section">#</a></h3>
+<p>Answers "where am I, and where do I go next?".</p>
+<ul>
+<li><strong>Title:</strong> a noun phrase.</li>
+<li><strong>Skeleton:</strong> a short orienting lead, then signposts to the pages above.</li>
+</ul>
+<h2 id="rules-that-make-typing-work">Rules that make typing work<a class="anchor" href="#rules-that-make-typing-work" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>One topic per page.</strong> A page must make sense on its own.</li>
+<li><strong>No stubs.</strong> A page covers its topic completely (every flag, the edge cases, at least one example) or it
+  isn't ready. A thin page is worse than no page, because it looks finished.</li>
+<li><strong>The Verification step earns its keep.</strong> "You should see <code>4 repos, 29 nodes, 28 edges</code>" turns a hopeful
+  reader into a confident one, and it dogfoods the grounded ethos.</li>
+</ul>
+<h2 id="structure-within-a-page">Structure within a page<a class="anchor" href="#structure-within-a-page" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>Lead first.</strong> Open every page with a one-to-three-sentence, plain-language summary of what it is and
+  why you'd use it, before any section heading. A reader who stops after the lead still leaves with the
+  gist. This is the highest-leverage fix for scannability.</li>
+<li><strong>One H1, body starts at H2, never skip a level.</strong> The site strips the H1 and shows the hero title, so
+  your first real heading is H2.</li>
+<li><strong>Short paragraphs, three to seven lines.</strong> Single-line paragraphs are fine. Break up anything longer.</li>
+<li><strong>Front-load the keyword</strong> in headings, list items, and the first words of a paragraph. Readers scan in
+  an F-shape.</li>
+<li><strong>A section longer than about forty lines gets sub-headings.</strong> Never use a bold inline run as a stand-in
+  for a heading.</li>
+<li><strong>End with "See also"</strong> (or "Next steps" for a task): a short bulleted list of links, internal before
+  external, no trailing punctuation.</li>
+<li><strong>Long pages rely on the site's "On this page" rail</strong> for in-page navigation. Don't hand-maintain a
+  table of contents.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="style-guide.html">Documentation style guide</a></li>
+<li><a href="style-guide-voice.html">Voice and tone</a></li>
+<li><a href="style-guide-formatting.html">Formatting</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="style-guide-formatting.html"><span>Formatting</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="style-guide-reference.html"><span>Word reference</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#the-page-types">The page types</a><ul>
+<li><a href="#concept">Concept</a></li>
+<li><a href="#how-to-task">How-to (task)</a></li>
+<li><a href="#reference">Reference</a></li>
+<li><a href="#tutorial">Tutorial</a></li>
+<li><a href="#overview-landing">Overview / landing</a></li>
+</ul>
+</li>
+<li><a href="#rules-that-make-typing-work">Rules that make typing work</a></li>
+<li><a href="#structure-within-a-page">Structure within a page</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
