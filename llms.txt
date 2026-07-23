@@ -14,6 +14,7 @@
 - [Index the code graph](https://sayak.in/contextlake/index-code-graph.html): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.
 - [Connect and enrich](https://sayak.in/contextlake/connect-enrich.html): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
 - [Semantic search](https://sayak.in/contextlake/semantic-search.html): Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.
+- [Generate the wiki](https://sayak.in/contextlake/generate-wiki.html): Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.
 
 ## Using contextlake
 
