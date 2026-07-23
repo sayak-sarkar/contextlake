@@ -356,6 +356,136 @@
 <body>
 <a class="skip" href="#main">Skip to content</a>
 
+<!-- ambient depth field: fixed brand glows that drift with scroll (JS); purely atmospheric -->
+<div class="depth-field" aria-hidden="true"><i class="g1"></i><i class="g2"></i><i class="g3"></i></div>
+
+<!-- CINEMATIC DEPTH variant: this direction deliberately explores layered water gradients and
+     depth (an alternative to the production page's solid-tone treatment). All of its styling lives
+     here in the body so the <head> stays byte-identical to index.html; it only adds new rules and
+     never overrides the head's tokens or theme system. -->
+<style>
+  /* =====================================================================
+     CINEMATIC DEPTH: the dive.
+     Below-hero sections become strata you descend through: the hero is the
+     dawn surface, and each scene sinks a little deeper. Scenes dissolve into
+     one another through continuous water gradients instead of hard rules.
+     Deepwater scene colours are hardcoded (exactly like the existing .band
+     and .b-anchor) so they stay identical in light and dark by design; every
+     other surface rides the themed tokens, so no per-theme duplication is
+     needed. Head, hero markup/copy, and all section copy are untouched.
+     ===================================================================== */
+
+  /* main sits above the ambient field; light "chamber" scenes are transparent
+     so the field reads through them, the deepwater scenes are solid strata. */
+  main{position:relative;z-index:1}
+
+  /* Ambient depth field: fixed brand glows behind the whole page that drift
+     gently as you scroll (JS sets --pz). Cool and low-alpha, so in light mode
+     it reads as light filtering through water, never as grime. No drifting
+     motes by choice, the descent is carried by the reveals and dissolves. */
+  .depth-field{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+    transform:translate3d(0,var(--pz,0px),0);will-change:transform}
+  .depth-field i{position:absolute;display:block;border-radius:50%}
+  .depth-field .g1{top:2%;right:-8%;width:48vmax;height:48vmax;
+    background:radial-gradient(circle,rgba(19,122,139,.07),transparent 66%)}
+  .depth-field .g2{top:44%;left:-12%;width:56vmax;height:56vmax;
+    background:radial-gradient(circle,rgba(43,179,163,.06),transparent 66%)}
+  .depth-field .g3{bottom:-10%;right:6%;width:44vmax;height:44vmax;
+    background:radial-gradient(circle,rgba(231,181,60,.045),transparent 66%)}
+
+  /* Depth-based scroll reveals. Near strata settle fast over a short rise;
+     far strata drift up slowly through more blur, so a scene "sets" in layers.
+     The hiding class is added by JS only (after the reduced-motion and
+     IntersectionObserver bail-outs), so no-JS and reduced-motion readers keep
+     every element visible. */
+  .cl-reveal{opacity:0;transform:translateY(var(--rv-y,26px));filter:blur(var(--rv-b,8px));
+    will-change:opacity,transform,filter;transition-delay:var(--rv-delay,0s);
+    transition-property:opacity,transform,filter;transition-timing-function:cubic-bezier(.2,.7,.2,1);
+    transition-duration:var(--rv-d,.8s)}
+  .cl-reveal.near{--rv-y:14px;--rv-b:3px;--rv-d:.6s}
+  .cl-reveal.far{--rv-y:46px;--rv-b:13px;--rv-d:1.05s}
+  .cl-reveal.in{opacity:1;transform:none;filter:blur(0)}
+
+  /* --- Scene 1: the problem band, the first plunge past the surface --- */
+  .band{position:relative;overflow:hidden;
+    background:
+      radial-gradient(72% 62% at 50% -8%, rgba(43,179,163,.13), transparent 62%),
+      linear-gradient(180deg, var(--deepwater) 0%, #0b232b 100%)}
+  /* a luminous waterline you cross as you leave the hero */
+  .band::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(43,179,163,.55),transparent)}
+  .band .band-col{position:relative;z-index:1}
+
+  /* Shared: light chambers are transparent + isolated, with a top dissolve
+     that lets the deep scene above bleed down into the light, plus a soft
+     overhead light shaft. Content rides above the dissolve. */
+  .chamber{position:relative;isolation:isolate;background:transparent}
+  .chamber>.wrap{position:relative;z-index:1}
+  .chamber::before{content:"";position:absolute;left:0;right:0;top:0;height:360px;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(62% 42% at 50% 0%, rgba(43,179,163,.10), transparent 62%),
+      linear-gradient(180deg,#0b232b 0, transparent 210px)}
+
+  /* Deepwater focus scenes: solid strata the heaviest content rests in.
+     Deep-scene text flips to mist, mirroring the hero. */
+  .scene-deep{position:relative;isolation:isolate;color:var(--mist)}
+  .scene-deep>.wrap{position:relative;z-index:1}
+  .scene-deep .sec-eyebrow{color:var(--current)}
+  .scene-deep h2{color:#fff}
+  .scene-deep .sec-lede{color:#9fc0c6}
+  .scene-deep .btn:not(.primary){background:rgba(234,244,244,.07);border-color:rgba(234,244,244,.32);color:var(--mist)}
+  .scene-deep .btn:not(.primary):hover{background:rgba(234,244,244,.15);border-color:var(--mist)}
+
+  /* --- Scene 3: See it, a deepwater focus dissolving down out of the how
+     chamber. graph.jpg (already a dark visualiser) melts into the water. --- */
+  .see-scene{background:linear-gradient(180deg, transparent 0, #0c2530 190px, #0E2A33 100%)}
+  /* a lit-from-within slab that echoes the hero, with a slow glow pulse */
+  .focus-panel{position:relative;border-radius:var(--r);padding:14px;
+    background:linear-gradient(180deg,#17404b,#0f2c35);border:1px solid #2a5661;
+    box-shadow:0 34px 80px -34px rgba(0,0,0,.62),0 0 46px -22px rgba(43,179,163,.22);
+    animation:panelGlow 5s ease-in-out infinite}
+  @keyframes panelGlow{
+    0%,100%{box-shadow:0 34px 80px -34px rgba(0,0,0,.62),0 0 42px -24px rgba(43,179,163,.18)}
+    50%{box-shadow:0 34px 80px -34px rgba(0,0,0,.62),0 0 76px -18px rgba(43,179,163,.44)}}
+  .see-panel .shot{border:none;box-shadow:none;border-radius:calc(var(--r) - 5px)}
+  .scene-deep .shot-cap{color:#8fb0b6}
+
+  /* --- Scene 5: Get started, the lake floor where the pebble rests --- */
+  .start{background:linear-gradient(180deg, transparent 0, #0c2530 190px, #0E2A33 58%, #0b202a 100%);
+    border-top:none;border-bottom:none}
+  /* the command block becomes a lit glass terminal that lifts off the floor */
+  .start .cmd{background:linear-gradient(180deg,#17404b,#0f2c35);border:1px solid #2a5661;
+    box-shadow:0 34px 80px -34px rgba(0,0,0,.6),0 0 42px -24px rgba(43,179,163,.2);
+    animation:termGlow 5s ease-in-out infinite}
+  @keyframes termGlow{
+    0%,100%{box-shadow:0 34px 80px -34px rgba(0,0,0,.6),0 0 42px -24px rgba(43,179,163,.18)}
+    50%{box-shadow:0 34px 80px -34px rgba(0,0,0,.6),0 0 72px -18px rgba(43,179,163,.42)}}
+
+  /* --- floating panels: a touch more lift + a hairline so they read as glass
+     slabs suspended over the ambient water. Reuses themed shadow tokens. --- */
+  .step{transition:transform .22s cubic-bezier(.2,.7,.2,1),box-shadow .22s ease,border-color .22s ease}
+  .step:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--line-2)}
+  .arch-node{transition:transform .18s ease,box-shadow .18s ease}
+  .arch-node:hover{transform:translateY(-2px);box-shadow:0 12px 26px -12px rgba(14,42,51,.34)}
+
+  /* the anchor cell breathes in time with the focus panels */
+  .b-anchor::after{animation:anchorPulse 5s ease-in-out infinite}
+  @keyframes anchorPulse{0%,100%{opacity:.7}50%{opacity:1}}
+
+  /* footer waterline, matching the band */
+  footer{position:relative}
+  footer::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(43,179,163,.35),transparent)}
+
+  /* reduced motion: freeze the ambient drift and the glow pulses; the global
+     rule in the head already disables the reveal transitions, and the reveal JS
+     bails before adding any hiding class, so all content stays fully visible. */
+  @media (prefers-reduced-motion: reduce){
+    .depth-field{transform:none}
+    .focus-panel,.start .cmd,.b-anchor::after{animation:none}
+  }
+</style>
+
 <header>
   <div class="wrap nav">
     <a class="brand" href="#top" aria-label="contextlake home">
@@ -408,7 +538,7 @@
 <!-- PROBLEM -->
 <section id="why" class="band" aria-labelledby="why-h">
   <div class="wrap">
-    <div class="band-col">
+    <div class="band-col" data-reveal data-depth="far">
       <div class="sec-eyebrow" style="color:var(--current)">The problem</div>
       <p class="big" id="why-h">Your AI is only as good as what it can <span class="hl">see.</span></p>
       <p class="muted">Point it at one file and it's sharp. Ask it about the <em>system</em> across
@@ -422,14 +552,14 @@
 </section>
 
 <!-- HOW IT WORKS -->
-<section id="how" aria-labelledby="how-h">
+<section id="how" class="chamber" aria-labelledby="how-h">
   <div class="wrap">
     <div class="sec-head">
       <div class="sec-eyebrow">How it works</div>
       <h2 id="how-h">Three layers, adopted one at a time</h2>
       <p class="sec-lede">The mirror is useful on its own. Each layer above it is optional, turn on only what you need.</p>
     </div>
-    <div class="arch" role="img" aria-label="contextlake architecture. Your repos, a GitLab group or GitHub, Bitbucket or Codeberg org plus optional Figma, Jira and MCP connectors, are indexed and mirrored by contextlake into a graph with embeddings, a wiki, and connectors, then served over MCP to your AI tools: Claude Code, Windsurf, Kiro, Cursor and Postman.">
+    <div class="arch" data-reveal data-depth="far" role="img" aria-label="contextlake architecture. Your repos, a GitLab group or GitHub, Bitbucket or Codeberg org plus optional Figma, Jira and MCP connectors, are indexed and mirrored by contextlake into a graph with embeddings, a wiki, and connectors, then served over MCP to your AI tools: Claude Code, Windsurf, Kiro, Cursor and Postman.">
       <div class="arch-col">
         <div class="arch-cap">Your repos</div>
         <div class="arch-node"><span class="arch-dot" style="background:var(--lake)"></span>GitLab · GitHub · Bitbucket org</div>
@@ -461,19 +591,19 @@
       </div>
     </div>
     <div class="flow-steps">
-      <div class="step">
+      <div class="step" data-reveal data-depth="near">
         <span class="ic" style="background:var(--deepwater)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span>
         <h3>Mirror</h3>
         <p>Clone every repo in a GitLab group, GitHub org, Bitbucket workspace, or Codeberg owner into a faithful mirror, each parked on its most active branch and kept fresh with one command, never touching the branch you're on.</p>
       </div>
       <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
-      <div class="step">
+      <div class="step" data-reveal data-depth="near" data-delay="90">
         <span class="ic" style="background:var(--lake)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.7 7.3 11 16M16.3 7.3 13 16"/></svg></span>
         <h3>Knowledge <span class="opt">optional</span></h3>
         <p>Parse the mirror into a code and dependency graph, then add semantic search, a council-verified wiki, and Atlassian / Figma / GitLab connectors.</p>
       </div>
       <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
-      <div class="step">
+      <div class="step" data-reveal data-depth="near" data-delay="180">
         <span class="ic" style="background:var(--current)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0E2A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         <h3>Serve</h3>
         <p>Expose it all over MCP and an offline graph visualizer, so agents answer <em>“where is X defined?”</em> instead of grepping.</p>
@@ -483,9 +613,9 @@
 </section>
 
 <!-- GRAPH SHOWCASE -->
-<section style="background:var(--callout-bg);border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
+<section class="scene-deep see-scene" aria-labelledby="see-h">
   <div class="wrap">
-    <div class="see-head-row">
+    <div class="see-head-row" data-reveal data-depth="far">
       <div class="sec-head" style="max-width:38em">
         <div class="sec-eyebrow">See it</div>
         <h2 id="see-h">A whole codebase as one navigable graph</h2>
@@ -495,14 +625,16 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834"
-      alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
+    <div class="focus-panel see-panel" data-reveal data-depth="near">
+      <img class="shot" src="graph.jpg" width="1360" height="834"
+        alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
+    </div>
     <p class="shot-cap">The interactive visualizer, vendored, offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
 </section>
 
 <!-- FEATURES -->
-<section id="features" aria-labelledby="feat-h">
+<section id="features" class="chamber" aria-labelledby="feat-h">
   <div class="wrap">
     <div class="sec-head">
       <div class="sec-eyebrow">What's inside</div>
@@ -523,9 +655,9 @@
 </section>
 
 <!-- GET STARTED -->
-<section class="start" aria-labelledby="start-h">
+<section class="start scene-deep" aria-labelledby="start-h">
   <div class="wrap start-grid">
-    <div>
+    <div data-reveal data-depth="near">
       <div class="sec-eyebrow">Get started</div>
       <h2 id="start-h" style="margin-bottom:14px">Up and running in a minute</h2>
       <p class="sec-lede" style="margin-top:0">No GitLab or config needed to try it on a repo you already have. Point it at any local git repo and open the graph.</p>
@@ -534,7 +666,7 @@
         <a class="btn" href="docs.html">Docs</a>
       </div>
     </div>
-    <div class="cmd" aria-label="Quickstart commands">
+    <div class="cmd" aria-label="Quickstart commands" data-reveal data-depth="near" data-delay="110">
       <span class="line"><span class="prompt">$</span> <span class="c">pip install "contextlake[kb]"</span></span>
       <span class="line"><span class="prompt">$</span> <span class="c">contextlake index --source .</span> <span class="hash"># parse this repo</span></span>
       <span class="line"><span class="prompt">$</span> <span class="c">contextlake graph --overview --open</span></span>
@@ -589,28 +721,50 @@
 })();
 </script>
 <script>
-/* Scroll reveal: sections fade + rise as they enter the viewport. Skipped entirely under
-   reduced-motion (content stays visible) so nothing is ever hidden from those users. */
+/* Depth-based scroll reveal + ambient parallax, the "dive" motion. Strata rise into place
+   as they enter view: near strata settle fast over a short rise, far strata drift up slowly
+   through more blur, so each scene sets in layers. The ambient depth field drifts a little
+   as you descend. Both are pure enhancement and bail before touching the DOM:
+   - under reduced motion nothing runs, so no hiding class is ever added (the head rule also
+     kills the transitions) and every element stays fully visible;
+   - without IntersectionObserver the reveal bails for the same reason. */
 (function(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  /* ambient field drift, throttled to a frame */
+  var field=document.querySelector('.depth-field');
+  if(field){
+    var fraf=null;
+    function drift(){ field.style.setProperty('--pz',(Math.min(window.pageYOffset||0,6000)*-0.045).toFixed(1)+'px'); fraf=null; }
+    addEventListener('scroll',function(){ if(!fraf) fraf=requestAnimationFrame(drift); },{passive:true});
+    drift();
+  }
+
   if(!('IntersectionObserver' in window)) return;
-  /* Sections only — NOT the footer. A revealed footer needs translateY(26px), which
-     extends the page's scrollHeight until it flips in, showing as a blank strip below the
-     footer and making the overscroll bounce janky. The footer just stays visible. */
-  var els=document.querySelectorAll('main section');
+  /* Strata to reveal: explicitly tagged elements, plus the bento cells (auto-staggered).
+     The footer is deliberately excluded: a revealed footer extends scrollHeight and flashes
+     a blank strip below the page; it just stays visible. The last section's own reveals use
+     the near tier (small rise) for the same reason. */
+  var els=[].slice.call(document.querySelectorAll('[data-reveal]'));
+  [].forEach.call(document.querySelectorAll('.bento .bcell'),function(c,i){
+    c.setAttribute('data-depth','near'); c.setAttribute('data-delay',String(60*i)); els.push(c);
+  });
   if(!els.length) return;
-  els.forEach(function(el){ el.classList.add('reveal'); });
+  els.forEach(function(el){
+    el.classList.add('cl-reveal');
+    el.classList.add(el.getAttribute('data-depth')==='far'?'far':'near');
+    var d=parseInt(el.getAttribute('data-delay'),10);
+    if(d) el.style.transitionDelay=(d/1000)+'s';  /* kept through the reveal so the stagger reads */
+  });
   function show(el){ el.classList.add('in'); io.unobserve(el); }
   var io=new IntersectionObserver(function(entries){
     entries.forEach(function(e){ if(e.isIntersecting) show(e.target); });
   },{threshold:0.1, rootMargin:'0px 0px -8% 0px'});
   els.forEach(function(el){ io.observe(el); });
-  /* The -8% bottom rootMargin means an element pinned to the very bottom of the page
-     (the footer, the last section) can never cross the threshold, so it would stay hidden
-     and read as blank space. Sweep in anything whose top has scrolled into view. */
+  /* bottom-of-page elements can't cross the -8% margin; sweep anything already in view. */
   function sweep(){
     els.forEach(function(el){
-      if(!el.classList.contains('in') && el.getBoundingClientRect().top < innerHeight * 0.9) show(el);
+      if(!el.classList.contains('in') && el.getBoundingClientRect().top < innerHeight*0.92) show(el);
     });
   }
   addEventListener('scroll', sweep, {passive:true});
