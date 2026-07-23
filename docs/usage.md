@@ -1,13 +1,13 @@
-# Command & configuration guide
+# Mirror repositories
 
-> Every command, plus configuration, branch safety, and scheduling. New here?
-> Start with [QUICKSTART](../QUICKSTART.md). For the knowledge layer see
-> [knowledge-layer.md](knowledge-layer.md).
+Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
+active branch, verify, and audit, with branch-safety guardrails and scheduling. New here? Start with the
+[Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for the knowledge
+layer see the [Knowledge layer](knowledge-layer.md) overview.
 
-> **Knowledge-layer commands** (`source`, `index`, `connect`, `embed`, `ingest`,
-> `wiki`, `query`, `owners`, `impact`, `graph`, `dashboard`, etc.) are documented
-> in [knowledge-layer.md](knowledge-layer.md) with their own command reference table.
-> This guide covers mirror/sync commands only.
+> **Knowledge-layer commands** (`index`, `connect`, `embed`, `wiki`, `query`, `graph`, and so on) are
+> documented in the [Knowledge layer](knowledge-layer.md) overview and the
+> [command reference](cli-reference.md). This page covers the mirror and sync commands.
 
 ## Command reference
 
@@ -192,97 +192,7 @@ offline from the fetch cache.
 
 ## Configuration
 
-### Using configuration files
-
-The tool supports configuration files for persistent settings. Configuration is loaded in the following precedence order:
-
-1. **Local config**: `.contextlake.ini` in the current directory (highest priority)
-2. **Global config**: `~/.contextlake.ini` in the home directory
-3. **Default values**: Built-in defaults (lowest priority)
-4. **CLI arguments**: Override all other settings
-
-> **Upgrading from `gitlab-sync`?** Your existing `~/.gitlab_sync.ini` / `.gitlab_sync.ini`
-> (with its `[gitlab_sync]` section) is still read, and the knowledge store at
-> `~/.gitlab-sync/` is reused as-is, nothing to migrate. New setups use `.contextlake.ini`
-> and `~/.contextlake/`; the `gitlab-sync` command also still works as a deprecated alias.
-
-**Example configuration file (.contextlake.ini):**
-
-```ini
-[contextlake]
-work_dir = ~/work
-gitlab_group = your-gitlab-group
-cache_dir = /tmp
-clone_timeout = 300
-fetch_timeout = 60
-branch_timeout = 30
-pull_timeout = 60
-max_workers = 8
-```
-
-### Custom work directory
-
-```bash
-# Using config file (recommended)
-# Edit .contextlake.ini and set work_dir
-
-# Or override with CLI argument
-contextlake --work-dir /path/to/workspace sync
-```
-
-### Custom GitLab group
-
-```bash
-# Using config file (recommended)
-# Edit .contextlake.ini and set gitlab_group
-
-# Or override with CLI argument
-contextlake --group my-gitlab-group sync
-```
-
-### Combined options
-
-```bash
-contextlake --work-dir /home/user/dev --group your-gitlab-group status
-```
-
-### Custom config file
-
-```bash
-contextlake --config /path/to/custom.ini sync
-```
-
-### Settings reference
-
-| Setting | Description | Default | Example |
-| --- | --- | --- | --- |
-| `work_dir` | Working directory for repositories | `~/work` | `/home/user/projects` |
-| `platform` | Platform to mirror: `gitlab`, `github`, `bitbucket`, `gitea` (+ `codeberg`/`forgejo` flavors) | `gitlab` | `github` |
-| `group` | The group / org / workspace / owner to mirror (`gitlab_group` is its alias) | — | `your-org` |
-| `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
-| `token_env` | Env var holding the platform token | per platform (`GITHUB_TOKEN`, …) | `MY_TOKEN` |
-| `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
-| `cache_dir` | Directory for cache files | `/tmp` | `~/.cache/contextlake` |
-| `cache_file` | Name of projects cache file | `gitlab_projects.txt` | `projects.txt` |
-| `cache_json` | Name of JSON cache file | `gitlab_projects.json` | `projects.json` |
-| `clone_timeout` | Clone operation timeout (seconds) | `300` | `600` |
-| `fetch_timeout` | Fetch operation timeout (seconds) | `60` | `120` |
-| `branch_timeout` | Branch operation timeout (seconds) | `30` | `60` |
-| `pull_timeout` | Pull operation timeout (seconds) | `60` | `120` |
-| `max_workers` | Maximum parallel workers | `8` | `4` |
-| `clean_corrupted` | Auto-remove corrupted directories | `true` | `false` |
-| `max_retries` | Maximum retry attempts for failed operations | `3` | `5` |
-| `backoff_initial` | Initial backoff time in seconds | `1` | `2` |
-| `backoff_max` | Maximum backoff time in seconds | `30` | `60` |
-| `adaptive_workers` | Enable adaptive worker pool | `true` | `false` |
-| `min_workers` | Minimum workers for adaptive pool | `2` | `4` |
-| `error_threshold` | Error rate threshold for adaptive workers | `0.5` | `0.3` |
-| `clone_method` | How repos are cloned: `auto` (git+token, else glab, else git), `git`, or `glab` | `auto` | `git` |
-| `branch_strategy` | Most-active branch selection: `commits`, `recency`, or `hybrid` | `hybrid` | `recency` |
-
-The branch-safety settings (`require_clean_workspace`, `protect_working_branches`,
-`safe_branches`, `auto_stash`) live in their own section below, see
-[Branch safety](#branch-safety).
+contextlake's config-file precedence and the full settings reference now have their own page: **[Configuration](configuration.md)**.
 
 ## Branch safety
 

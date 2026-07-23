@@ -38,18 +38,23 @@ PAGES = [
      "Start here", "A local context layer for your AI tools: mirror your repos, "
      "index them into a knowledge graph, and serve it over MCP.",
      "pebble-doc.png",
-     [("quickstart.html", "Quickstart"), ("usage.html", "Usage & config"),
+     [("quickstart.html", "Quickstart"), ("usage.html", "Mirror repositories"),
       ("knowledge-layer.html", "Knowledge layer")]),
     ("quickstart.html", "QUICKSTART.md", "Quickstart", "Quickstart",
      "Start here · all three layers", "Install, bootstrap, and wire your editor, "
      "the whole Mirror -> Knowledge -> Serve path in a few minutes.",
      "pebble-doc.png",
-     [("usage.html", "Usage & config"), ("knowledge-layer.html", "Knowledge layer")]),
-    ("usage.html", "docs/usage.md", "Usage & config", "Usage & configuration",
-     "Layer 1 · Mirror", "Every mirror command, configuration, branch safety, "
-     "and scheduling, the reference for the Mirror layer.",
+     [("usage.html", "Mirror repositories"), ("knowledge-layer.html", "Knowledge layer")]),
+    ("usage.html", "docs/usage.md", "Mirror repositories", "Mirror repositories",
+     "Build your knowledge base", "Mirror your Git repos locally and keep them fresh: fetch, "
+     "clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.",
      "pebble-doc.png",
      [("knowledge-layer.html", "Knowledge layer"), ("index-code-graph.html", "Index the code graph")]),
+    ("configuration.html", "docs/configuration.md", "Configuration", "Configuration",
+     "Get started", "Config-file precedence, the gitlab-sync upgrade note, and the full "
+     "settings reference for the mirror layer.",
+     "pebble-doc.png",
+     [("quickstart.html", "Quickstart"), ("usage.html", "Mirror repositories")]),
     ("index-code-graph.html", "docs/index-code-graph.md", "Index the code graph",
      "Index the code graph",
      "Build your knowledge base", "Turn your mirrored repos into a queryable code graph: "
@@ -124,7 +129,7 @@ PAGES = [
      "Under the hood", "Where contextlake keeps everything it generates, one store "
      "directory, never polluting your synced repos.",
      "pebble-doc.png",
-     [("internals.html", "Architecture"), ("usage.html", "Usage & config")]),
+     [("internals.html", "Architecture"), ("usage.html", "Mirror repositories")]),
     ("cli-reference.html", "docs/cli-reference.md", "Command reference",
      "contextlake command reference",
      "Reference", "Every contextlake command at a glance, with links to the page that "
@@ -181,8 +186,8 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 # Sidebar navigation, organized into labeled groups (ordered). Every PAGES `out` appears
 # in exactly one group; the group heading reuses the existing `.side h2` styling.
 NAV_GROUPS = [
-    ("Get started", ["docs.html", "quickstart.html", "usage.html"]),
-    ("Build your knowledge base", ["knowledge-layer.html", "index-code-graph.html",
+    ("Get started", ["docs.html", "quickstart.html", "configuration.html"]),
+    ("Build your knowledge base", ["usage.html", "knowledge-layer.html", "index-code-graph.html",
                                    "connect-enrich.html", "semantic-search.html",
                                    "generate-wiki.html", "model-providers.html", "bootstrap.html"]),
     ("Use it", ["serve.html", "dashboard.html", "visualize.html", "ownership.html"]),
