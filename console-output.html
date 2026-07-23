@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading the console output · contextlake docs</title>
+<meta name="description" content="Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.">
+<link rel="canonical" href="https://sayak.in/contextlake/console-output.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Reading the console output · contextlake docs">
+<meta property="og:description" content="Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.">
+<meta property="og:url" content="https://sayak.in/contextlake/console-output.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Reading the console output · contextlake docs">
+<meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="index-code-graph.html">Index the code graph</a><a href="connect-enrich.html">Connect and enrich</a><a href="semantic-search.html">Semantic search</a><a href="generate-wiki.html">Generate the wiki</a><a href="model-providers.html">Model providers</a><a href="bootstrap.html">Bootstrap and keep fresh</a></nav><h2>Using contextlake</h2><nav aria-label="Using contextlake"><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="visualize.html">Visualize the graph</a><a href="ownership.html">Ownership and SMEs</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Under the hood</h2><nav aria-label="Under the hood"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html">Page types and structure</a><a href="style-guide-formatting.html">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference.html">Command reference</a><a href="console-output.html" class="active">Reading the console output</a><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs.html">Docs</a><span aria-hidden="true">/</span><span>Reference</span><span aria-hidden="true">/</span><span aria-current="page">Reading the console output</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Reference</div><h1>Reading the console output</h1><p class="doc-sub">Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>A <code>bootstrap</code> (or a standalone <code>index</code> / <code>embed</code> / <code>wiki</code>, and the mirror-tier <code>clone</code> / <code>update</code> /
+<code>branches</code>) prints progress as it goes. Most lines are self-explanatory; a few are worth decoding.</p>
+<h2 id="the-live-progress-bar">The live progress bar<a class="anchor" href="#the-live-progress-bar" title="Link to this section">#</a></h2>
+<p>One shared renderer is used by every long-running command, so it looks the same everywhere: <code>[████████░░░░]
+42/678 (6%) · 12:30 elapsed · ~2:58:14 left · 3.4/min</code> (bar, done/total, percent, elapsed time, estimated
+time remaining, and rate in items/min). The ETA is a moving-average estimate over recent items (that's
+what the <code>~</code> marks), and it's count-based, each item counts equally rather than being weighted by size.
+When a run's total isn't known up front, the bar drops the percent/ETA and shows <code>done · elapsed · rate</code>
+instead, rather than guessing. Across every long-running command (including <code>connect</code>, <code>ingest</code>, and
+<code>enrich</code>, which don't use the shared bar), the clock only shows up on the bar itself (where there is one)
+and on section/summary lines; the per-item detail lines scrolling beneath don't repeat it, so they don't
+flicker as the timestamp ticks over.</p>
+<h2 id="one-status-vocabulary-everywhere">One status vocabulary, everywhere<a class="anchor" href="#one-status-vocabulary-everywhere" title="Link to this section">#</a></h2>
+<p>Every command (mirror-tier <code>clone</code>/<code>update</code>/<code>branches</code>, <code>index</code>, <code>embed</code>, <code>wiki</code>, <code>enrich</code>, <code>ingest</code>,
+<code>connect</code>, <code>lint</code>, <code>sync</code>) marks each line with the same seven glyphs, so once you know the glyph you know
+the outcome without reading the rest of the line:</p>
+<table>
+<thead>
+<tr>
+<th>Glyph</th>
+<th>Meaning</th>
+<th>Color</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>✓</code></td>
+<td>ok</td>
+<td>green</td>
+</tr>
+<tr>
+<td><code>⚠</code></td>
+<td>warn</td>
+<td>yellow</td>
+</tr>
+<tr>
+<td><code>✗</code></td>
+<td>fail</td>
+<td>red</td>
+</tr>
+<tr>
+<td><code>⊘</code></td>
+<td>skip</td>
+<td>dim</td>
+</tr>
+<tr>
+<td><code>=</code></td>
+<td>unchanged</td>
+<td>dim</td>
+</tr>
+<tr>
+<td><code>↝</code></td>
+<td>switched</td>
+<td>cyan</td>
+</tr>
+<tr>
+<td><code>~</code></td>
+<td>dry-run</td>
+<td>yellow</td>
+</tr>
+</tbody>
+</table>
+<p>Multi-stage commands (<code>bootstrap</code> and <code>sync</code>) also print <code>▶ &lt;Phase&gt;</code> section headers (e.g. <code>▶ Mirror
+repositories from GitLab</code>, <code>▶ Audit repositories (health &amp; age)</code>) so a long run reads as sections rather
+than one undifferentiated scroll, and every long-running command ends with a one-line, glyph-prefixed
+summary (<code>✓ Embed complete: ...</code>, <code>✓ Lint: ...</code>, and so on) you can skim straight to.</p>
+<h2 id="the-stdout-stderr-split">The stdout / stderr split<a class="anchor" href="#the-stdout-stderr-split" title="Link to this section">#</a></h2>
+<p>The bar renders on stderr; the per-item result lines below it (<code>✓</code>/<code>⚠</code> and the like) stay on stdout. That
+split means <code>contextlake wiki &gt;&gt; run.log</code> (or any stdout redirect) captures clean detail lines with no bar
+artifacts or <code>\r</code> clutter, since the bar never touches stdout. When output isn't a TTY (piped, cron, a
+redirected stderr), the bar itself auto-downgrades to periodic plain summary lines instead of repainting in
+place. When both streams share one terminal (the default interactive case), the bar and the detail lines
+interleave as the run scrolls (the bar reprints below each new detail line rather than repainting perfectly
+in place); redirect stdout to a file to keep the bar as a single live line with the detail captured
+separately.</p>
+<h2 id="decoding-specific-lines">Decoding specific lines<a class="anchor" href="#decoding-specific-lines" title="Link to this section">#</a></h2>
+<ul>
+<li><strong><code>✓ &lt;repo&gt;: X nodes, Y edges</code></strong> is the incremental indexer's per-repo detail line (stdout; the <code>index</code>
+  progress bar above it lives on stderr). <strong><code>0 nodes, 0 edges</code></strong> is normal and not an error: that repo has
+  no code in a supported language (config-only, docs-only, IaC/scripts, or empty). Only repos whose HEAD
+  moved are re-indexed; the rest are reported as <em>unchanged</em>.</li>
+<li><strong><code>Embed complete: 0 vector(s) written (N total in store), M already up to date</code></strong>, embedding is
+  incremental too. <code>0 written</code> with a large <code>already up to date</code> count means nothing changed since the last
+  run; the <code>N total</code> is the whole store, not this run.</li>
+<li><strong><code>Fetching 10 files: 100% ... Download complete: 0.00B</code></strong> appears once when the wiki (or built-in
+  embedder) model loads. It is Hugging Face resolving the model repo's files (several GGUF quantizations +
+  tokenizer/config) in your local cache, <strong><code>0.00B</code> means nothing was downloaded, everything was already
+  cached</strong>. It fires once per run at model load, not per repo.</li>
+<li><strong><code>✓ &lt;repo&gt;: written (score 0.98)</code></strong>, a wiki page passed the review council and was saved. <strong><code>⚠ &lt;repo&gt;:
+  rejected by council (score 0.31)</code></strong>, it did not clear the accept threshold; the indented <code>-
+  accuracy/completeness/clarity: ...</code> lines are the per-lens reasons. <strong><code>unparseable review</code></strong> means the
+  model returned a review the council couldn't score (common with the tiny built-in 0.5B model); those
+  lenses are excluded from the mean rather than counted as zero. A capable backend
+  (<code>--llm ollama</code>/<code>anthropic</code>/<code>openai</code>) produces far fewer rejections, see
+  <a href="model-providers.html">Model providers</a>.</li>
+<li><strong><code>contextlake serve --transport http</code> prints its bind URL</strong> once it starts listening (<code>✓ MCP server on
+  http://127.0.0.1:8765  (Ctrl-C to stop)</code>), so you don't have to guess the host/port before pointing an
+  editor at it. <code>stdio</code> transport has no address to report and stays quiet on that line.</li>
+<li><strong><code>graph --overview</code> on an empty store warns instead of reporting silent success.</strong> It still writes the
+  (empty) artifact, but now says <code>⚠ Wrote html (0 nodes, 0 edges) -&gt; ...: the store is empty.</code> followed by
+  a hint to run <code>contextlake index</code> first, instead of logging the same success line it would for a
+  populated graph.</li>
+<li><strong>A single-writer lock message</strong> naming another process means two runs targeted one store at once (see
+  the git-hook note under <a href="bootstrap.html">Bootstrap and keep fresh</a>).</li>
+</ul>
+<p>Warnings from the model download itself (Hugging Face symlink/auth notices) are silenced; the real
+progress still shows.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="bootstrap.html">Bootstrap and keep fresh</a></li>
+<li><a href="index-code-graph.html">Index the code graph</a></li>
+<li><a href="cli-reference.html"><code>contextlake</code> command reference</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="changelog.html"><span>Changelog</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="style-guide.html"><span>Writing style</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#the-live-progress-bar">The live progress bar</a></li>
+<li><a href="#one-status-vocabulary-everywhere">One status vocabulary, everywhere</a></li>
+<li><a href="#the-stdout-stderr-split">The stdout / stderr split</a></li>
+<li><a href="#decoding-specific-lines">Decoding specific lines</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>

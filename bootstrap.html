@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bootstrap and keep fresh · contextlake docs</title>
+<meta name="description" content="Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.">
+<link rel="canonical" href="https://sayak.in/contextlake/bootstrap.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Bootstrap and keep fresh · contextlake docs">
+<meta property="og:description" content="Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.">
+<meta property="og:url" content="https://sayak.in/contextlake/bootstrap.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Bootstrap and keep fresh · contextlake docs">
+<meta name="twitter:description" content="Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="index-code-graph.html">Index the code graph</a><a href="connect-enrich.html">Connect and enrich</a><a href="semantic-search.html">Semantic search</a><a href="generate-wiki.html">Generate the wiki</a><a href="model-providers.html">Model providers</a><a href="bootstrap.html" class="active">Bootstrap and keep fresh</a></nav><h2>Using contextlake</h2><nav aria-label="Using contextlake"><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="visualize.html">Visualize the graph</a><a href="ownership.html">Ownership and SMEs</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Under the hood</h2><nav aria-label="Under the hood"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html">Page types and structure</a><a href="style-guide-formatting.html">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference.html">Command reference</a><a href="console-output.html">Reading the console output</a><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs.html">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Bootstrap and keep fresh</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Bootstrap and keep fresh</h1><p class="doc-sub">Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>Rather than running each stage by hand, <code>bootstrap</code> chains them end to end, so a teammate goes from
+nothing to a fully-wired workspace in one command, and it's safe to re-run on a schedule to stay current.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then enrich, then wiki, then steer." width="760">
+</p>
+
+<p><code>bootstrap</code> chains mirror repos → index → connect → embed → enrich → wiki → write editor steering,
+skipping anything not enabled:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
+</code></pre></div>
+
+<p><code>--llm builtin</code> powers the wiki stage with a zero-setup CPU model, so this single command builds the
+<strong>whole</strong> knowledge layer (graph, vectors, and wiki) for every repo. (<code>--llm ollama</code> | <code>openai</code> | <code>auto</code>
+for higher-quality prose; the pre-command form <code>contextlake --llm builtin bootstrap</code> also works.) Without
+any <code>--llm</code>, and with <code>[llm]</code> disabled in <code>kb.toml</code>, the wiki stage no-ops and the rest still runs. Because
+everything generated lives under one <code>store_dir</code>, setting it to a folder in your workspace keeps the entire
+knowledge base in a single, easy-to-access location.</p>
+<p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and <code>~/.contextlake/kb.toml</code>);
+pass <code>--config</code> / <code>--kb-config</code> to point elsewhere. The valid <code>[kb]</code> keys are <code>store_dir</code>, <code>languages</code>,
+<code>skip_generated</code>, <code>max_file_bytes</code>, and <code>index_workers</code> (plus the <code>[embeddings]</code>, <code>[llm]</code>, <code>[sources]</code>,
+<code>[rules]</code> tables); an unrecognized key or table is warned and ignored, so a typo like <code>store</code> (for
+<code>store_dir</code>) is surfaced rather than silently dropping the run into the wrong place. Skip stages with
+<code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code> / <code>--no-enrich</code>. For an isolated CLI, install with
+<code>pipx install "contextlake[kb]"</code>, or run ad-hoc with <code>uvx</code>.</p>
+<h2 id="command-composition">Command composition<a class="anchor" href="#command-composition" title="Link to this section">#</a></h2>
+<p>Every stage is standalone, idempotent, and composable. Use these flows to build exactly what you need:</p>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Command(s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blank to fully enriched workspace</td>
+<td><code>contextlake init</code> then <code>contextlake bootstrap</code></td>
+</tr>
+<tr>
+<td>Add a connector, re-enrich the wiki</td>
+<td><code>contextlake source add jira ...</code> then <code>contextlake enrich</code> then <code>contextlake wiki</code></td>
+</tr>
+<tr>
+<td>Single repo, enriched</td>
+<td><code>contextlake index .</code> then <code>contextlake source add ...</code> then <code>contextlake enrich</code> then <code>contextlake wiki</code> then <code>contextlake serve</code></td>
+</tr>
+<tr>
+<td>Refresh enrichment only</td>
+<td><code>contextlake enrich</code> then <code>contextlake wiki --force</code></td>
+</tr>
+<tr>
+<td>Manage or inspect sources</td>
+<td><code>contextlake source list</code> or <code>contextlake source test &lt;name&gt;</code> or <code>contextlake doctor</code></td>
+</tr>
+<tr>
+<td>Disable a noisy source</td>
+<td><code>contextlake source disable &lt;name&gt;</code> then re-run <code>contextlake enrich</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>contextlake bootstrap</code> runs the full pipeline (mirror, index, connect, embed, enrich, wiki, steer) end to
+end, so <code>init</code> plus <code>bootstrap</code> takes a blank workspace to a mirrored, indexed, embedded,
+connector-enriched, wiki'd, editor-wired workspace in one command (skip enrich with <code>--no-enrich</code>).</p>
+<h2 id="keep-it-fresh-on-a-schedule">Keep it fresh on a schedule<a class="anchor" href="#keep-it-fresh-on-a-schedule" title="Link to this section">#</a></h2>
+<p><code>bootstrap</code> is incremental and branch-safe, so it's safe to run repeatedly, it re-mirrors, re-indexes only
+the repos whose HEAD moved, refreshes the knowledge layer, and rewrites the steering, without touching an
+in-progress working tree. Run it from cron:</p>
+<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
+</code></pre></div>
+
+<p>or as a systemd user timer, see <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.service"><code>examples/contextlake.service</code></a> and
+<a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.timer"><code>examples/contextlake.timer</code></a>.</p>
+<h2 id="re-index-on-commit-git-hook">Re-index on commit (git hook)<a class="anchor" href="#re-index-on-commit-git-hook" title="Link to this section">#</a></h2>
+<p>For continuous freshness without a schedule, install a git <code>post-commit</code> hook that re-indexes a repo the
+moment you commit to it:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w">                     </span><span class="c1"># the repo in the current directory</span>
+contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># every git repo under a mirror</span>
+contextlake<span class="w"> </span>hook<span class="w"> </span>status<span class="w">  </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># which repos are wired</span>
+contextlake<span class="w"> </span>hook<span class="w"> </span>uninstall<span class="w">                   </span><span class="c1"># remove it (any pre-existing hook is kept)</span>
+</code></pre></div>
+
+<p>The hook runs <code>contextlake index &lt;repo&gt;</code> detached (so the commit returns immediately) and re-uses the
+repo's stored id, so it updates the same graph node rather than a duplicate. Mirror-wide syncing (fetch
+new clones, prune) still belongs to <code>bootstrap</code> on a schedule; the hook keeps <em>local edits</em> current
+between syncs.</p>
+<p>If two contextlake processes ever target one store at once (say a <code>bootstrap</code> and a hook-triggered
+<code>index</code>), the second takes an advisory single-writer lock (<code>&lt;store_dir&gt;/.contextlake.lock</code>) and refuses
+rather than interleaving SQLite writes, naming the process that holds it. A lock left by a crashed run is
+reclaimed automatically; override (rarely correct) with <code>CONTEXTLAKE_ALLOW_CONCURRENT=1</code>.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="index-code-graph.html">Index the code graph</a></li>
+<li><a href="generate-wiki.html">Generate the wiki</a></li>
+<li><a href="console-output.html">Reading the console output</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="knowledge-layer.html"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="dashboard.html"><span>Dashboard</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#command-composition">Command composition</a></li>
+<li><a href="#keep-it-fresh-on-a-schedule">Keep it fresh on a schedule</a></li>
+<li><a href="#re-index-on-commit-git-hook">Re-index on commit (git hook)</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
