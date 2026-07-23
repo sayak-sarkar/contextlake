@@ -67,7 +67,12 @@ PAGES = [
      "Build your knowledge base", "Natural-language and hybrid graph-propagation retrieval: "
      "embed your code, tune the vector backend, and query across repos and languages.",
      "pebble-doc.png",
-     [("knowledge-layer.html", "Knowledge layer"), ("serve.html", "Serve (MCP)")]),
+     [("generate-wiki.html", "Generate the wiki"), ("knowledge-layer.html", "Knowledge layer")]),
+    ("generate-wiki.html", "docs/generate-wiki.md", "Generate the wiki", "Generate the wiki",
+     "Build your knowledge base", "Turn the graph into grounded, council-verified prose per "
+     "repo: searchable, enrichment-aware, with a provenance footer.",
+     "pebble-doc.png",
+     [("knowledge-layer.html", "Knowledge layer"), ("dashboard.html", "Dashboard")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "Knowledge layer", "Knowledge layer",
      "Layer 2 · Knowledge", "Turn the mirror into a queryable graph with search, a wiki, "
      "and connectors.",
@@ -146,7 +151,7 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 NAV_GROUPS = [
     ("Get started", ["docs.html", "quickstart.html"]),
     ("Build your knowledge base", ["index-code-graph.html", "connect-enrich.html",
-                                   "semantic-search.html"]),
+                                   "semantic-search.html", "generate-wiki.html"]),
     ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
                            "serve.html", "benchmarks.html"]),
     ("Under the hood", ["internals.html", "storage.html"]),
@@ -166,6 +171,7 @@ _NEXT_LABEL = {
     "index-code-graph.html": "Index the code graph",
     "connect-enrich.html": "Connect and enrich",
     "semantic-search.html": "Semantic search",
+    "generate-wiki.html": "Generate the wiki",
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
     "serve.html": "Serve (MCP)", "benchmarks.html": "Benchmarks",
     "internals.html": "Architecture", "storage.html": "Storage",
