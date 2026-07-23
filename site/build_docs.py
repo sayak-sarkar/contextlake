@@ -327,6 +327,31 @@ def toc_rail(toc_html: str) -> str:
             f'<p class="toc-title">On this page</p>{inner}</nav></aside>')
 
 
+# Site-wide theme: a no-flash init (runs in <head>) + a toggle button + its wiring. The same
+# three pieces live in site/index.html so the light/dark choice persists across the whole site
+# (shared localStorage key "cl-theme"). No JS -> the page follows the OS via prefers-color-scheme.
+THEME_INIT = ('<script>(function(){try{var t=localStorage.getItem("cl-theme");'
+              'if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>')
+THEME_TOGGLE = (
+    '<button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden '
+    'aria-label="Switch theme" title="Switch light / dark theme">'
+    '<svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
+    '<svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4'
+    'M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button>')
+THEME_JS = (
+    '<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");'
+    'if(!b)return;b.hidden=false;'
+    'function cur(){var e=r.getAttribute("data-theme");'
+    'return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}'
+    'function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}'
+    'lbl(cur());b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";'
+    'r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);});})();</script>')
+
+
 def shell(meta, body, toc_html) -> str:
     out, _, nav_title, h_title, eyebrow, subtitle, pebble, hand_links = meta
     links = hand_links  # curated per page (see PAGES); validated at import against _VALID_OUT
@@ -336,6 +361,7 @@ def shell(meta, body, toc_html) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{THEME_INIT}
 <title>{nav_title} · contextlake docs</title>
 <meta name="description" content="{subtitle}">
 <link rel="canonical" href="{url}">
@@ -362,7 +388,7 @@ def shell(meta, body, toc_html) -> str:
   <a class="brand" href="index.html" aria-label="contextlake home">{GLYPH}contextlake</a>
   <span class="spacer"></span>
   <a class="navlink" href="docs.html">Docs</a>
-  <span class="social-row">{GH_BTN}{PYPI_BTN}</span>
+  <span class="social-row">{THEME_TOGGLE}{GH_BTN}{PYPI_BTN}</span>
 </div></header>
 <div class="shell">
   {sidebar(out)}
@@ -381,6 +407,7 @@ def shell(meta, body, toc_html) -> str:
     <span class="social-row">{GH_BTN}{PYPI_BTN}</span>
   </nav>
 </div></footer>
+{THEME_JS}
 </body>
 </html>"""
 
