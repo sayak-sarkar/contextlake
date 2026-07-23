@@ -76,10 +76,24 @@
     :root:not([data-theme="light"]) .theme-toggle .sun{display:block}
   }
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth;overscroll-behavior:none;background:var(--deepwater)}
+  html{scroll-behavior:smooth;overscroll-behavior:none;background:var(--deepwater);scroll-padding-top:60px}
   @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   body{margin:0;font-family:var(--ff);color:var(--ink);background:var(--bg);line-height:1.6;overscroll-behavior-y:none;
     -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  /* Dark mode reads flat because the deepwater base, the problem band, and the hero are all
+     the same color. Layer faint, viewport-fixed brand glows onto the body so scrolling reveals
+     gentle atmosphere through the transparent content sections; the opaque deepwater band,
+     hero, and footer stay solid as anchors. Dark only; light mode already has contrast. */
+  :root[data-theme="dark"] body{
+    background-color:var(--bg);background-repeat:no-repeat;background-attachment:fixed;
+    background-image:radial-gradient(85% 55% at 10% 3%,rgba(19,122,139,.17),transparent 60%),
+      radial-gradient(70% 48% at 100% 26%,rgba(43,179,163,.10),transparent 56%)}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) body{
+      background-color:var(--bg);background-repeat:no-repeat;background-attachment:fixed;
+      background-image:radial-gradient(85% 55% at 10% 3%,rgba(19,122,139,.17),transparent 60%),
+        radial-gradient(70% 48% at 100% 26%,rgba(43,179,163,.10),transparent 56%)}
+  }
   a{color:var(--link);text-decoration:none}
   a:hover{text-decoration:underline}
   h1,h2,h3{font-family:var(--ff-d);letter-spacing:-.02em;line-height:1.12;margin:0}
@@ -90,7 +104,7 @@
   :focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--current);border-radius:6px}
 
   /* ---- header ---- */
-  header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 86%,transparent);
+  header{position:sticky;top:0;z-index:40;margin-bottom:-60px;background:color-mix(in srgb,var(--bg) 86%,transparent);
     backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line);
     transition:background .25s ease,border-color .25s ease}
   /* while the hero fills the top of the screen, dissolve the bar onto the scene (JS adds
@@ -123,7 +137,7 @@
 
   /* ---- hero (full-bleed scene) ---- */
   .hero{position:relative;overflow:hidden;isolation:isolate;background:var(--deepwater);
-    min-height:calc(100vh - 60px);min-height:calc(100svh - 60px);display:flex;align-items:center}
+    min-height:100vh;min-height:100svh;display:flex;align-items:center}
   .hero-bg{position:absolute;inset:-3%;z-index:0;background:url(hero-scene.webp) right center/cover no-repeat;
     will-change:transform;transform:translate3d(0,0,0)}
   .hero-shimmer{position:absolute;inset:0;z-index:1;pointer-events:none;mix-blend-mode:screen;
@@ -168,7 +182,7 @@
   .install .prompt{color:var(--current);user-select:none}
   .install b{color:#fff;font-weight:600}
   @media (max-width:820px){
-    .hero{min-height:calc(100svh - 60px);align-items:flex-start}
+    .hero{min-height:100svh;align-items:flex-start}
     /* swap the wide establishing shot for a portrait crop centred on Pebble,
        so the otter stays in frame instead of being cropped to empty water */
     .hero-bg{inset:0;background-image:url(hero-scene-mobile.webp);background-position:center bottom;background-size:cover}
