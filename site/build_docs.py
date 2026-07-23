@@ -86,9 +86,19 @@ PAGES = [
      "Reference", "Release history for contextlake.",
      "pebble-doc.png",
      [("docs.html", "Overview"), ("quickstart.html", "Quickstart")]),
+    ("style-guide.html", "docs/style-guide.md", "Style guide", "Documentation style guide",
+     "Reference", "How we write contextlake: voice, page types, formatting, and the rules "
+     "that keep every doc, the CLI, and the site consistent.",
+     "pebble-doc.png",
+     [("brand.html", "Brand guidelines"), ("changelog.html", "Changelog")]),
+    ("brand.html", "BRANDING.md", "Brand guidelines", "Brand guidelines",
+     "Reference", "contextlake's brand: the voice, the lake metaphor, the mark, color, "
+     "type, and Pebble, the otter who surfaces your context.",
+     "pebble-doc.png",
+     [("style-guide.html", "Style guide"), ("docs.html", "Overview")]),
 ]
 TO_PAGE = {src: out for out, src, *_ in PAGES}
-TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "LICENSE"]
+TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "LICENSE"]
 TITLES = {out: nav for out, _, nav, *_ in PAGES}
 
 # "Next steps" are DERIVED from the reading order so every page is consistent: the next two
@@ -98,7 +108,8 @@ _NEXT_LABEL = {
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
     "serve.html": "Serve (MCP)", "benchmarks.html": "Benchmarks",
     "internals.html": "Architecture", "storage.html": "Storage",
-    "changelog.html": "Changelog",
+    "changelog.html": "Changelog", "style-guide.html": "Style guide",
+    "brand.html": "Brand guidelines",
 }
 _ORDER = [p[0] for p in PAGES]
 NEXT_STEPS = {
