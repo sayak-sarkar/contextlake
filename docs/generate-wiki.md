@@ -16,7 +16,7 @@ through a **verification council**, reviewers score it for accuracy, completenes
 chairman publishes only pages above a configurable threshold. Nothing that fails review is written.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
-see [Model providers](knowledge-layer.md).
+see [Model providers](model-providers.md).
 
 ## Searchable prose
 
@@ -45,6 +45,6 @@ provenance footer citing the exact commit and source files it was built from:
 
 ## See also
 
-- [Model providers](knowledge-layer.md)
+- [Model providers](model-providers.md)
 - [Connect and enrich](connect-enrich.md)
 - [The dashboard](dashboard.md)
