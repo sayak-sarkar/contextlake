@@ -4,16 +4,41 @@
 > queryable knowledge graph + wiki, and serve it to AI editors over MCP. Offline-first, so
 > agents answer from real source instead of guessing. Python CLI, published on PyPI.
 
-## Docs
-- [Overview](https://sayak.in/contextlake/docs.html): What contextlake is and the Mirror, Knowledge, Serve model.
-- [Quickstart](https://sayak.in/contextlake/quickstart.html): Install, bootstrap, and wire your editor in a few minutes.
-- [Usage & configuration](https://sayak.in/contextlake/usage.html): Mirror-layer commands, config, branch safety, scheduling.
-- [Knowledge layer](https://sayak.in/contextlake/knowledge-layer.html): Build a queryable graph + wiki and serve it over MCP.
-- [Architecture & internals](https://sayak.in/contextlake/internals.html): Store, concurrency, extraction, the offline boundary.
-- [Changelog](https://sayak.in/contextlake/changelog.html): Release history.
-- [Documentation style guide](https://sayak.in/contextlake/style-guide.html): How contextlake's docs, CLI, and site are written: voice, page types, and formatting.
-- [Brand guidelines](https://sayak.in/contextlake/brand.html): contextlake's brand, the lake metaphor, the mark, color, type, and Pebble the mascot.
+## Get started
+
+- [Overview](https://sayak.in/contextlake/docs.html): A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.
+- [Quickstart](https://sayak.in/contextlake/quickstart.html): Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.
+
+## Using contextlake
+
+- [Usage & config](https://sayak.in/contextlake/usage.html): Every mirror command, configuration, branch safety, and scheduling, the reference for the Mirror layer.
+- [Knowledge layer](https://sayak.in/contextlake/knowledge-layer.html): Turn the mirror into a queryable graph with search, a wiki, and connectors.
+- [Dashboard](https://sayak.in/contextlake/dashboard.html): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
+- [Serve (MCP)](https://sayak.in/contextlake/serve.html): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
+- [Benchmarks](https://sayak.in/contextlake/benchmarks.html): An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools, new-code grounding first, plus search, maintenance, and the caveats.
+
+## Under the hood
+
+- [Architecture](https://sayak.in/contextlake/internals.html): How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.
+- [Storage](https://sayak.in/contextlake/storage.html): Where contextlake keeps everything it generates, one store directory, never polluting your synced repos.
+
+## Writing style
+
+- [Writing style](https://sayak.in/contextlake/style-guide.html): The spirit, the checklist, and links to the focused pages: voice, structure, formatting, and the word reference.
+- [Voice and tone](https://sayak.in/contextlake/style-guide-voice.html): Second person, present tense, warm and grounded: the voice defaults, word choice, and writing for every reader.
+- [Page types and structure](https://sayak.in/contextlake/style-guide-structure.html): The concept, how-to, reference, and tutorial page types, each with a fixed skeleton, and how to structure a page.
+- [Formatting](https://sayak.in/contextlake/style-guide-formatting.html): Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.
+- [Word reference](https://sayak.in/contextlake/style-guide-reference.html): The house-style decision cache, before and after rewrites, and the A-to-Z term reference.
+
+## Brand
+
+- [Brand overview](https://sayak.in/contextlake/brand.html): contextlake's brand in one page: essence, voice, the lake metaphor, Pebble, the palette, and the mark, with the full spec linked.
+
+## Reference
+
+- [Changelog](https://sayak.in/contextlake/changelog.html): Release history for contextlake.
 
 ## Source
+
 - [GitHub repository](https://github.com/sayak-sarkar/contextlake)
 - [PyPI package](https://pypi.org/project/contextlake/)

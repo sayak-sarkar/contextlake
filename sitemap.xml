@@ -2,15 +2,19 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://sayak.in/contextlake/</loc><priority>1.0</priority></url>
   <url><loc>https://sayak.in/contextlake/docs.html</loc><priority>0.9</priority></url>
-  <url><loc>https://sayak.in/contextlake/quickstart.html</loc><priority>0.8</priority></url>
-  <url><loc>https://sayak.in/contextlake/usage.html</loc><priority>0.7</priority></url>
-  <url><loc>https://sayak.in/contextlake/knowledge-layer.html</loc><priority>0.7</priority></url>
+  <url><loc>https://sayak.in/contextlake/quickstart.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/usage.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/knowledge-layer.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/dashboard.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/serve.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/benchmarks.html</loc><priority>0.6</priority></url>
   <url><loc>https://sayak.in/contextlake/internals.html</loc><priority>0.6</priority></url>
-  <url><loc>https://sayak.in/contextlake/changelog.html</loc><priority>0.5</priority></url>
-  <url><loc>https://sayak.in/contextlake/style-guide.html</loc><priority>0.5</priority></url>
-  <url><loc>https://sayak.in/contextlake/style-guide-voice.html</loc><priority>0.4</priority></url>
-  <url><loc>https://sayak.in/contextlake/style-guide-structure.html</loc><priority>0.4</priority></url>
-  <url><loc>https://sayak.in/contextlake/style-guide-formatting.html</loc><priority>0.4</priority></url>
-  <url><loc>https://sayak.in/contextlake/style-guide-reference.html</loc><priority>0.4</priority></url>
-  <url><loc>https://sayak.in/contextlake/brand.html</loc><priority>0.5</priority></url>
+  <url><loc>https://sayak.in/contextlake/storage.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/changelog.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/style-guide.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/style-guide-voice.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/style-guide-structure.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/style-guide-formatting.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/style-guide-reference.html</loc><priority>0.6</priority></url>
+  <url><loc>https://sayak.in/contextlake/brand.html</loc><priority>0.6</priority></url>
 </urlset>
