@@ -62,6 +62,11 @@ PAGES = [
      "sources, and pull grounded external facts into the knowledge layer with query-driven "
      "enrichment.",
      "pebble-doc.png",
+     [("semantic-search.html", "Semantic search"), ("knowledge-layer.html", "Knowledge layer")]),
+    ("semantic-search.html", "docs/semantic-search.md", "Semantic search", "Semantic search",
+     "Build your knowledge base", "Natural-language and hybrid graph-propagation retrieval: "
+     "embed your code, tune the vector backend, and query across repos and languages.",
+     "pebble-doc.png",
      [("knowledge-layer.html", "Knowledge layer"), ("serve.html", "Serve (MCP)")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "Knowledge layer", "Knowledge layer",
      "Layer 2 · Knowledge", "Turn the mirror into a queryable graph with search, a wiki, "
@@ -140,7 +145,8 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 # in exactly one group; the group heading reuses the existing `.side h2` styling.
 NAV_GROUPS = [
     ("Get started", ["docs.html", "quickstart.html"]),
-    ("Build your knowledge base", ["index-code-graph.html", "connect-enrich.html"]),
+    ("Build your knowledge base", ["index-code-graph.html", "connect-enrich.html",
+                                   "semantic-search.html"]),
     ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
                            "serve.html", "benchmarks.html"]),
     ("Under the hood", ["internals.html", "storage.html"]),
@@ -159,6 +165,7 @@ _NEXT_LABEL = {
     "docs.html": "Overview", "quickstart.html": "Quickstart", "usage.html": "Usage & config",
     "index-code-graph.html": "Index the code graph",
     "connect-enrich.html": "Connect and enrich",
+    "semantic-search.html": "Semantic search",
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
     "serve.html": "Serve (MCP)", "benchmarks.html": "Benchmarks",
     "internals.html": "Architecture", "storage.html": "Storage",
