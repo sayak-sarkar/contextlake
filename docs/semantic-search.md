@@ -53,6 +53,26 @@ graph-propagation ranking:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake query payment --retriever hybrid output: ten cited hits spanning acme/orders-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
 </p>
 
+## Measuring retrieval quality
+
+`contextlake eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file**, each entry pairs
+a query with the node ids it should return:
+
+```json
+{
+  "queries": [
+    {"query": "OrderService", "expected": ["demo_app_orderservice"]},
+    {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+  ]
+}
+```
+
+Then `contextlake eval --golden queries.json` reports **precision@k / recall@k / MRR** plus a **cost**
+dimension (estimated tokens per query, and precision per 1k tokens), so "route to the cheapest sufficient
+source" becomes a number, not a vibe. Score any retriever with `--retriever fts|semantic|hybrid`
+(semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
+whether the numbers move.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)
