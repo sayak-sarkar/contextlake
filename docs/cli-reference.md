@@ -27,7 +27,7 @@ command's own page (linked below) covers it in depth.
 | `steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 
 The mirror-tier commands (`fetch`, `clone`, `update`, `branches`, `verify`, `sync`, `status`, `audit`)
-are covered under [Usage and configuration](usage.md).
+are covered under [Mirror repositories](usage.md).
 
 ## See also
 
