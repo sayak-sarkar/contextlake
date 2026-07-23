@@ -9,7 +9,15 @@ If you write or edit a single page, you need only three things: the spirit (belo
 writing (section 4), and the review checklist at the end. Everything between is the reference you reach
 for when a specific question comes up.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-peek.png" alt="Pebble, the contextlake otter, peeking over an edge." width="150">
+</p>
+
 ## The spirit: grounded, lucid, warm
+
+Pebble, contextlake's otter mascot, is the reader's guide through the docs, calm, warm, and always
+holding up the real thing. The [brand guidelines](BRANDING.md) define Pebble in full; this guide is how
+Pebble would write.
 
 contextlake's docs sound like a knowledgeable friend who read your code so the model doesn't have to
 guess. Three brand words govern every page.
@@ -434,6 +442,136 @@ Consistency survives many editing sessions (human and agent) only if it's checke
 8. Links are descriptive (no "click here", no "below"); a "See also" block closes the page.
 9. Every image has alt text; status and diagrams aren't color-only; terms are inclusive.
 10. Zero em-dashes; "contextlake" is lowercase; abbreviations are defined; only example values appear.
+
+---
+
+## 13. Worked examples
+
+Rules are easier to follow when you can see the rewrite. Each row shows a common draft on the left and
+the contextlake version on the right.
+
+### Voice and word choice
+
+| Instead of | Write |
+|---|---|
+| "contextlake allows you to index your repos." | "Use contextlake to index your repos." |
+| "Simply run the command and you're done." | "Run the command." |
+| "It's a powerful, seamless, next-gen context platform." | "contextlake indexes your repos into a graph and serves it over MCP." |
+| "The graph is built by the indexer." | "The indexer builds the graph." |
+| "It is important to note that `sync` is incremental." | "`sync` is incremental." |
+| "This tool leverages embeddings to facilitate retrieval." | "It embeds your code so you can search it in plain language." |
+| "Kill the running process." | "Stop the running process." |
+| "Please click here to read the guide." | "Read the [indexing guide](index-code-graph.md)." |
+
+### A heading
+
+- **Instead of:** "Understanding how the knowledge layer works"
+- **Write:** "The knowledge layer" (concept page) or "Building the knowledge layer" (how-to page)
+
+### A list lead-in
+
+- **Instead of:** a bare fragment like "Sources include:" followed by bullets.
+- **Write:** a complete sentence: "contextlake ships four built-in ingest sources:"
+
+### A code example, the four-part unit
+
+Instead of a bare block:
+
+````markdown
+```bash
+contextlake index --workspace ~/work
+```
+````
+
+Write the full unit, so the reader knows what it does and what success looks like:
+
+````markdown
+To build the graph for every repo under a folder, run `index` with `--workspace`:
+
+```bash
+contextlake index --workspace ~/work
+```
+
+The run is incremental, so only repos whose HEAD moved are re-indexed. You should see a per-repo
+summary ending in a line like `4 repos, 29 nodes, 28 edges`.
+````
+
+### A how-to skeleton
+
+A task page follows a fixed shape. In outline:
+
+```markdown
+# Wiring your editor
+
+Connect your editor to contextlake over MCP so your assistant answers from your indexed repos.
+
+## Prerequisites
+- A built graph (`contextlake index`).
+- One of: Claude Code, Windsurf, or Kiro.
+
+## Steps
+1. Run `contextlake steer` to write the MCP config and editor steering files.
+2. Restart your editor so it picks up the new MCP server.
+
+## Verification
+Ask your assistant a cross-repo question. You should see it call a contextlake tool and cite the
+files the answer came from.
+
+## See also
+- [Serve it to your editor](serve.md)
+```
+
+---
+
+## 14. Word and term reference (A to Z)
+
+The house answer for contextlake's recurring word choices. When a term isn't here, defer to the Google
+developer documentation word list, then Merriam-Webster. Add an entry when a choice comes up more than
+once.
+
+- **abort.** Don't use for stopping a process. Use stop, cancel, end, or exit.
+- **allowlist, blocklist.** Use these, never whitelist or blacklist. "denylist" is also fine for the
+  block sense.
+- **and/or.** Rewrite. Pick "and", "or", or "A, B, or both".
+- **CLI.** Spell out on first use per page (command-line interface), then use CLI.
+- **click here.** Never use as link text. Describe the destination: "see the [indexing guide](...)".
+- **command.** You *run* a command, *pass* it a flag, and *set* a config key.
+- **config, configuration.** Use "configuration" in prose and "config" only where it matches a file or
+  flag. Be consistent within a page.
+- **contextlake.** Always one lowercase word, even at the start of a sentence. Reword rather than
+  capitalize it. Never "Context Lake", "ContextLake", or "context lake".
+- **context layer.** The category noun for contextlake. Not "tool", "platform", "framework", "knowledge
+  base", or "data lake".
+- **data lake.** Never. It reads as an enterprise warehouse and is off-brand.
+- **deep, clear.** The two load-bearing metaphor words. Deep is the real, complete source underneath;
+  clear is the precise answer back. Keep the lake metaphor to these.
+- **e.g.** Write "for example" in running prose. Reserve "e.g." for inside parentheses.
+- **easy, easily.** Avoid. If the reader is in the docs, it wasn't easy, and saying so doesn't help.
+- **email.** One word, no hyphen.
+- **enable, disable.** Spell both out; don't write "enable/disable". (They're also real `source`
+  subcommands, so keep them literal when you mean the command.)
+- **enter, type.** "Enter" text by any method; use "type" only when you mean the keyboard specifically.
+- **file name.** Two words in prose, and use it as an adjective before "file": "the `kb.toml` file".
+- **i.e.** Write "that is" in running prose. Reserve "i.e." for inside parentheses.
+- **internet.** Lowercase.
+- **just.** Avoid as a minimizer, as in "just run X". It gaslights a stuck reader.
+- **kill.** Don't use for processes. Use stop, cancel, or end.
+- **leverage.** Use "use".
+- **log in, login.** "Log in" is the verb ("log in to the server"); "login" is the noun or adjective
+  ("the login screen").
+- **MCP.** Spell out on first use per page (Model Context Protocol), then use MCP.
+- **please.** Don't use in instructions. "To view the graph, run `contextlake graph`", not "Please run".
+- **repo, repository.** Use "repo" in running prose, matching the CLI. "repository" is fine in a formal
+  first mention.
+- **sanity check.** Use "confidence check" or "final check".
+- **select, check.** You "select" a checkbox or an option; you don't "check" it.
+- **set up, setup.** "Set up" is the verb ("set up the store"); "setup" is the noun or adjective ("the
+  setup step").
+- **simply.** Avoid, like "just".
+- **utilize.** Use "use".
+- **via.** Use "with" or "through".
+- **we, you.** Use "you" for the reader's actions. Reserve "we" for a genuine maintainer recommendation.
+- **whitelist, blacklist.** See allowlist, blocklist.
 
 ---
 
