@@ -1,7 +1,7 @@
 # Voice and tone
 
 How contextlake sounds: warm, grounded, and clear. This page covers the voice defaults, word choice, and
-writing for every reader. It extends section 1.6 of the [brand guidelines](BRANDING.md) into doc-length
+writing for every reader. It extends section 1.6 of the [brand guidelines](brand.md) into doc-length
 writing, and it's part of the [documentation style guide](style-guide.md).
 
 ## The defaults
