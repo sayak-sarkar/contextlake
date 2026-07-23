@@ -91,7 +91,18 @@
 
   /* ---- header ---- */
   header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 86%,transparent);
-    backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line)}
+    backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line);
+    transition:background .25s ease,border-color .25s ease}
+  /* while the hero fills the top of the screen, dissolve the bar onto the scene (JS adds
+     .over-hero; the solid bar above is the no-JS default). Hero is dark in both themes. */
+  header.over-hero{backdrop-filter:none;border-bottom-color:transparent;
+    background:linear-gradient(180deg,rgba(7,20,24,.58) 0%,rgba(7,20,24,.30) 52%,rgba(7,20,24,0) 100%)}
+  header.over-hero .brand{color:var(--mist)}
+  header.over-hero .nav a.navlink{color:rgba(234,244,244,.9)}
+  header.over-hero .nav a.navlink:hover{color:#fff}
+  header.over-hero .btn{color:var(--mist);border-color:rgba(234,244,244,.36);background:rgba(234,244,244,.08)}
+  header.over-hero .btn:hover{border-color:var(--mist);background:rgba(234,244,244,.16)}
+  header.over-hero .btn.primary{background:var(--lake);border-color:var(--lake);color:#fff}
   .nav{display:flex;align-items:center;gap:18px;height:60px}
   .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--ink)}
   .brand:hover{text-decoration:none}
@@ -112,7 +123,7 @@
 
   /* ---- hero (full-bleed scene) ---- */
   .hero{position:relative;overflow:hidden;isolation:isolate;background:var(--deepwater);
-    min-height:calc(100vh - 60px);min-height:calc(100svh - 60px);display:flex;align-items:center;border-bottom:1px solid var(--line)}
+    min-height:calc(100vh - 60px);min-height:calc(100svh - 60px);display:flex;align-items:center}
   .hero-bg{position:absolute;inset:-3%;z-index:0;background:url(hero-scene.webp) right center/cover no-repeat;
     will-change:transform;transform:translate3d(0,0,0)}
   .hero-shimmer{position:absolute;inset:0;z-index:1;pointer-events:none;mix-blend-mode:screen;
@@ -193,8 +204,8 @@
   .arch{display:grid;grid-template-columns:1fr auto 1.22fr auto 1fr;gap:12px;align-items:center;max-width:980px;margin:6px auto 0}
   .arch-col{display:flex;flex-direction:column;gap:9px;min-width:0}
   .arch-cap{font-family:var(--ff-m);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--subtle);margin-bottom:1px}
-  .arch-node{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:13.5px;color:var(--ink);font-weight:500;box-shadow:var(--shadow-s)}
-  .arch-node.dashed{border-style:dashed;border-color:var(--line-2);background:var(--surface-2)}
+  .arch-node{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid color-mix(in srgb,var(--ink) 20%,transparent);border-radius:11px;padding:10px 12px;font-size:13.5px;color:var(--ink);font-weight:500;box-shadow:0 6px 18px -8px rgba(14,42,51,.22)}
+  .arch-node.dashed{border-style:dashed;border-color:color-mix(in srgb,var(--ink) 26%,transparent);background:var(--surface-2);box-shadow:none}
   .arch-dot{width:9px;height:9px;border-radius:50%;flex:none}
   .arch-opt{margin-left:auto;font-size:9.5px;font-weight:600;color:var(--link);background:var(--tint);padding:1px 7px;border-radius:6px}
   .arch-sub{font-size:11px;color:var(--subtle);padding-left:3px;margin-top:-3px}
@@ -263,7 +274,7 @@
   @media (max-width:520px){ .feats{grid-template-columns:1fr} }
 
   /* get started */
-  .start{background:linear-gradient(180deg,#eef7f8,var(--bg));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .start{background:linear-gradient(180deg,var(--bg),var(--callout-bg));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .cmd{background:var(--deepwater);color:var(--mist);border-radius:var(--r);padding:22px 24px;
     font-family:var(--ff-m);font-size:14px;line-height:1.9;box-shadow:var(--shadow);overflow-x:auto}
   .cmd .line{display:block}
@@ -433,7 +444,7 @@
 </section>
 
 <!-- GRAPH SHOWCASE -->
-<section style="background:linear-gradient(180deg,var(--bg),#eef7f8);border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
+<section style="background:linear-gradient(180deg,var(--bg),var(--callout-bg));border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
   <div class="wrap">
     <div class="see-head-row">
       <div class="sec-head" style="max-width:38em">
@@ -566,5 +577,8 @@
 })();
 </script>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);});})();</script>
+<script>/* dissolve the sticky bar onto the hero while it fills the top of the screen; the solid
+   bar is the CSS default, so no-JS visitors keep a legible opaque header. */
+(function(){var header=document.querySelector("header"),hero=document.querySelector(".hero");if(!header||!hero)return;var over=null;function update(){var next=hero.getBoundingClientRect().bottom>header.offsetHeight;if(next!==over){over=next;header.classList.toggle("over-hero",next);}}update();addEventListener("scroll",update,{passive:true});addEventListener("resize",update);})();</script>
 </body>
 </html>
