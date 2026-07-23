@@ -1,7 +1,7 @@
 # Configuration
 
 contextlake reads persistent settings from a config file, with CLI arguments overriding them. (Installing
-contextlake is covered in the [Quickstart](quickstart.md); the knowledge-layer extras are in the
+contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-layer extras are in the
 [Knowledge layer](knowledge-layer.md) overview.)
 
 ## Using configuration files
@@ -77,6 +77,6 @@ The branch-safety settings (`require_clean_workspace`, `protect_working_branches
 
 ## See also
 
-- [Quickstart](quickstart.md)
+- [Quickstart](../QUICKSTART.md)
 - [Mirror repositories](usage.md)
 - [Knowledge layer](knowledge-layer.md)
