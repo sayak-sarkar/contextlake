@@ -68,6 +68,14 @@
   .theme-toggle{cursor:pointer}
   .btn.theme-toggle{padding:9px;width:38px;justify-content:center;color:var(--muted)}
   .btn.theme-toggle:hover{color:var(--ink)}
+  /* transient cue on theme switch: needed because the hero is deepwater in BOTH themes,
+     so a toggle at the top of the page otherwise shows no visible change */
+  .theme-toast{position:fixed;top:74px;right:22px;z-index:60;display:inline-flex;align-items:center;gap:8px;
+    padding:9px 14px;border-radius:999px;background:var(--surface);color:var(--ink);border:1px solid var(--line);
+    box-shadow:var(--shadow-s);font-size:13px;font-weight:600;opacity:0;transform:translateY(-8px) scale(.96);
+    pointer-events:none;transition:opacity .28s ease,transform .28s ease}
+  .theme-toast.show{opacity:1;transform:none}
+  .theme-toast svg{width:15px;height:15px;color:var(--current)}
   .theme-toggle .sun{display:none}
   :root[data-theme="dark"] .theme-toggle .moon{display:none}
   :root[data-theme="dark"] .theme-toggle .sun{display:block}
@@ -80,20 +88,8 @@
   @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   body{margin:0;font-family:var(--ff);color:var(--ink);background:var(--bg);line-height:1.6;overscroll-behavior-y:none;
     -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-  /* Dark mode reads flat because the deepwater base, the problem band, and the hero are all
-     the same color. Layer faint, viewport-fixed brand glows onto the body so scrolling reveals
-     gentle atmosphere through the transparent content sections; the opaque deepwater band,
-     hero, and footer stay solid as anchors. Dark only; light mode already has contrast. */
-  :root[data-theme="dark"] body{
-    background-color:var(--bg);background-repeat:no-repeat;background-attachment:fixed;
-    background-image:radial-gradient(85% 55% at 10% 3%,rgba(19,122,139,.17),transparent 60%),
-      radial-gradient(70% 48% at 100% 26%,rgba(43,179,163,.10),transparent 56%)}
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]) body{
-      background-color:var(--bg);background-repeat:no-repeat;background-attachment:fixed;
-      background-image:radial-gradient(85% 55% at 10% 3%,rgba(19,122,139,.17),transparent 60%),
-        radial-gradient(70% 48% at 100% 26%,rgba(43,179,163,.10),transparent 56%)}
-  }
+  /* dark-mode section differentiation is done with solid tones + depth, not gradient washes
+     (per design direction: no gradients across the page). */
   a{color:var(--link);text-decoration:none}
   a:hover{text-decoration:underline}
   h1,h2,h3{font-family:var(--ff-d);letter-spacing:-.02em;line-height:1.12;margin:0}
@@ -106,7 +102,7 @@
   /* ---- header ---- */
   header{position:sticky;top:0;z-index:40;margin-bottom:-60px;background:color-mix(in srgb,var(--bg) 86%,transparent);
     backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line);
-    transition:background .25s ease,border-color .25s ease}
+    transition:background .28s ease,border-color .28s ease}
   /* while the hero fills the top of the screen, dissolve the bar onto the scene (JS adds
      .over-hero; the solid bar above is the no-JS default). Hero is dark in both themes. */
   header.over-hero{backdrop-filter:none;border-bottom-color:transparent;
@@ -118,16 +114,16 @@
   header.over-hero .btn:hover{border-color:var(--mist);background:rgba(7,20,24,.5)}
   header.over-hero .btn.primary{background:var(--lake);border-color:var(--lake);color:#fff}
   .nav{display:flex;align-items:center;gap:18px;height:60px}
-  .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--ink)}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--ink);transition:color .28s ease,text-shadow .28s ease}
   .brand:hover{text-decoration:none}
   .brand .l{color:inherit}
   .brand .glyph{height:30px;width:auto;display:block}
   .nav .spacer{flex:1}
-  .nav a.navlink{color:var(--muted);font-size:14px;font-weight:500}
+  .nav a.navlink{color:var(--muted);font-size:14px;font-weight:500;transition:color .28s ease,text-shadow .28s ease}
   .nav a.navlink:hover{color:var(--ink);text-decoration:none}
   .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;
     padding:9px 16px;border-radius:var(--rs);border:1px solid var(--line-2);background:var(--surface);
-    color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s,transform .05s}
+    color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s,color .28s,text-shadow .28s,box-shadow .15s,transform .05s}
   .btn:hover{background:var(--btn-hover);border-color:var(--lake);text-decoration:none}
   .btn:active{transform:translateY(1px)}
   .btn.primary{background:var(--lake);border-color:var(--lake);color:#fff;box-shadow:var(--shadow-s)}
@@ -180,13 +176,15 @@
     background:rgba(7,20,24,.62);color:var(--mist);font-family:var(--ff-m);font-size:14.5px;
     padding:14px 18px;border-radius:var(--rs);border:1px solid rgba(234,244,244,.15)}
   /* copy-to-clipboard buttons injected by JS (progressive enhancement; absent without JS) */
-  .copy-btn{position:absolute;right:10px;display:inline-flex;align-items:center;gap:6px;
-    font-family:var(--ff);font-size:12px;font-weight:600;line-height:1;padding:6px 10px;border-radius:7px;
-    cursor:pointer;border:1px solid rgba(234,244,244,.24);background:rgba(234,244,244,.08);color:var(--mist);
-    transition:background .15s,border-color .15s,color .15s}
-  .copy-btn:hover{background:rgba(234,244,244,.18);border-color:rgba(234,244,244,.5)}
-  .copy-btn.copied{color:var(--current);border-color:var(--current)}
-  .copy-btn svg{width:13px;height:13px}
+  .copy-btn{position:absolute;right:10px;display:inline-flex;align-items:center;justify-content:center;
+    padding:7px;border-radius:8px;cursor:pointer;border:1px solid rgba(234,244,244,.24);
+    background:rgba(234,244,244,.08);color:var(--mist);transition:background .15s,border-color .15s,color .15s}
+  .copy-btn:hover{background:rgba(234,244,244,.18);border-color:rgba(234,244,244,.55)}
+  .copy-btn svg{width:15px;height:15px;display:block}
+  .copy-btn .ic-check{display:none}
+  .copy-btn.copied{color:#3ddc84;border-color:#3ddc84;background:rgba(61,220,132,.14)}
+  .copy-btn.copied .ic-copy{display:none}
+  .copy-btn.copied .ic-check{display:block}
   .install .copy-btn{top:50%;transform:translateY(-50%)}
   .cmd .copy-btn{top:12px}
   .install .prompt{color:var(--current);user-select:none}
@@ -315,7 +313,7 @@
   @media (max-width:520px){ .bento{grid-template-columns:1fr} .b-anchor,.b-wide{grid-column:span 1} }
 
   /* get started */
-  .start{background:linear-gradient(180deg,var(--bg),var(--callout-bg));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .start{background:var(--callout-bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .cmd{position:relative;background:var(--deepwater);color:var(--mist);border-radius:var(--r);padding:22px 24px;
     font-family:var(--ff-m);font-size:14px;line-height:1.9;box-shadow:var(--shadow);overflow-x:auto}
   .cmd .line{display:block}
@@ -485,7 +483,7 @@
 </section>
 
 <!-- GRAPH SHOWCASE -->
-<section style="background:linear-gradient(180deg,var(--bg),var(--callout-bg));border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
+<section style="background:var(--callout-bg);border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
   <div class="wrap">
     <div class="see-head-row">
       <div class="sec-head" style="max-width:38em">
@@ -620,7 +618,17 @@
   sweep();
 })();
 </script>
-<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);});})();</script>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;
+  function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}
+  function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}
+  lbl(cur());
+  var toast=document.createElement("div");toast.className="theme-toast";toast.setAttribute("role","status");toast.setAttribute("aria-live","polite");document.body.appendChild(toast);
+  var SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>';
+  var MOON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  var tt=null;
+  function toastFor(t){toast.innerHTML=(t==="dark"?MOON:SUN)+"<span>"+(t==="dark"?"Dark":"Light")+" mode</span>";toast.classList.add("show");clearTimeout(tt);tt=setTimeout(function(){toast.classList.remove("show");},1400);}
+  b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);toastFor(n);});
+})();</script>
 <script>/* dissolve the sticky bar onto the hero while it fills the top of the screen; the solid
    bar is the CSS default, so no-JS visitors keep a legible opaque header. */
 (function(){var header=document.querySelector("header"),hero=document.querySelector(".hero");if(!header||!hero)return;var over=null;function update(){var next=hero.getBoundingClientRect().bottom>header.offsetHeight;if(next!==over){over=next;header.classList.toggle("over-hero",next);}}update();addEventListener("scroll",update,{passive:true});addEventListener("resize",update);})();</script>
@@ -628,17 +636,16 @@
    (or insecure context) means no button, and the commands are still readable/selectable. */
 (function(){
   if(!navigator.clipboard||!navigator.clipboard.writeText) return;
-  var COPY='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+  var ICONS='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
   function addBtn(block,getText){
     var b=document.createElement('button');
-    b.type='button'; b.className='copy-btn';
-    b.innerHTML=COPY+'<span class="lbl">Copy</span>';
-    var lbl=b.querySelector('.lbl'), t=null;
-    b.setAttribute('aria-label','Copy command to clipboard');
+    b.type='button'; b.className='copy-btn'; b.setAttribute('aria-label','Copy to clipboard');
+    b.innerHTML=ICONS;
+    var t=null;
     b.addEventListener('click',function(){
       navigator.clipboard.writeText(getText()).then(function(){
-        b.classList.add('copied'); lbl.textContent='Copied';
-        clearTimeout(t); t=setTimeout(function(){ b.classList.remove('copied'); lbl.textContent='Copy'; },1600);
+        b.classList.add('copied'); b.setAttribute('aria-label','Copied');
+        clearTimeout(t); t=setTimeout(function(){ b.classList.remove('copied'); b.setAttribute('aria-label','Copy to clipboard'); },1600);
       });
     });
     block.appendChild(b);
