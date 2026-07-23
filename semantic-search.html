@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semantic search · contextlake docs</title>
+<meta name="description" content="Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.">
+<link rel="canonical" href="https://sayak.in/contextlake/semantic-search.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Semantic search · contextlake docs">
+<meta property="og:description" content="Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.">
+<meta property="og:url" content="https://sayak.in/contextlake/semantic-search.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Semantic search · contextlake docs">
+<meta name="twitter:description" content="Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="index-code-graph.html">Index the code graph</a><a href="connect-enrich.html">Connect and enrich</a><a href="semantic-search.html" class="active">Semantic search</a></nav><h2>Using contextlake</h2><nav aria-label="Using contextlake"><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Under the hood</h2><nav aria-label="Under the hood"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html">Page types and structure</a><a href="style-guide-formatting.html">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs.html">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Semantic search</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Semantic search</h1><p class="doc-sub">Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>Semantic search (optional) adds natural-language retrieval on top of the graph, so you can find code by
+what it does even when you don't know its name. Enable <code>[embeddings]</code> in the config (local-first, vectors
+come from an Ollama model by default, so code never leaves the machine), run <code>contextlake embed</code> to
+vectorize the indexed nodes into a local store, and <code>serve</code> then exposes two retrieval tools:</p>
+<ul>
+<li><strong><code>semantic_search</code></strong> for queries where the exact symbol name is unknown.</li>
+<li><strong><code>hybrid_search</code></strong>, which seeds Personalized PageRank with the embedding hits and propagates relevance
+  across the graph (HippoRAG-style) to surface structurally related nodes, a function's callers, a
+  package's dependents, that a pure semantic match would miss.</li>
+</ul>
+<h2 id="backends-and-tuning">Backends and tuning<a class="anchor" href="#backends-and-tuning" title="Link to this section">#</a></h2>
+<p>The vector store uses an exact pure-Python cosine scan by default; install the optional ANN backend with
+<code>pip install "contextlake[kb-vec]"</code> (sqlite-vec) for larger workspaces. Three <code>[embeddings]</code> keys tune it:</p>
+<ul>
+<li><strong><code>vector_backend</code></strong> (default <code>auto</code>) picks <code>sqlite-vec</code> when that extra is installed and falls back to
+  the pure-Python <code>brute</code> scan otherwise; force one with <code>vector_backend = "sqlite-vec"</code> or <code>"brute"</code>.</li>
+<li><strong><code>vector_chunk_size</code></strong> (the sqlite-vec <code>vec0</code> KNN chunk size, default 1024; clamped to a multiple of 8)
+  is applied when the vector store is first created, so re-embed from scratch to change an existing store.</li>
+<li><strong><code>batch_size</code></strong> (default <code>64</code>) sets how many nodes are embedded per batch.</li>
+</ul>
+<h2 id="what-gets-embedded">What gets embedded<a class="anchor" href="#what-gets-embedded" title="Link to this section">#</a></h2>
+<p>The code <strong>definitions</strong> (classes, functions, methods, interfaces, structs, enums) and HTTP endpoints,
+each with its name, qualified name, file path, and captured <strong>signature and docstring</strong>, so a
+natural-language query like <em>"refund a payment to the original card"</em> finds the right function even when
+its name says nothing of the sort. (Measured on the golden-query harness, adding signature + docstring
+doubled MRR and took hit-rate to 100% on natural-language queries.) File, module, and package nodes are
+deliberately not embedded: a path or a shared package name is low semantic signal, and skipping them keeps
+results clean and avoids re-embedding cross-repo shared nodes once per referencing repo.</p>
+<h2 id="which-model">Which model?<a class="anchor" href="#which-model" title="Link to this section">#</a></h2>
+<p>With that content embedded, the tiny static models punch far above their weight: on a 24-query
+natural-language bake-off, the default <code>potion-base-8M</code> (~30MB, ~1ms per query) outscored the ONNX
+<code>bge-small</code> transformer, and <code>minishlab/potion-base-32M</code> (~120MB, same engine and extra) scored best of
+all, MRR 0.95 with a perfect hit-rate, at a tenth of the ONNX query latency. If you want the quality bump,
+it's one config line: <code>model = "minishlab/potion-base-32M"</code> under <code>[embeddings]</code> (on a fresh vector store,
+the identity guard refuses to mix models).</p>
+<p>Like <code>index</code>, <code>embed</code> is <strong>incremental</strong>: it re-embeds only repos whose indexed HEAD moved since they were
+last embedded, so a scheduled refresh over a large fleet stays cheap. Pass <code>--force</code> to re-embed
+everything. When an upgrade changes the embedded text format itself, <code>embed</code> detects the stale store and
+re-embeds everything once, announcing why, then incremental behavior resumes.</p>
+<p>A single query returns cited hits (<code>repo · file:line · kind · name</code>) that span repos <em>and</em> languages, here
+the C# and Python payment paths together. <code>--retriever fts|semantic|hybrid</code> picks keyword, vector, or
+graph-propagation ranking:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake query payment --retriever hybrid output: ten cited hits spanning acme/orders-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
+</p>
+
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="index-code-graph.html">Index the code graph</a></li>
+<li><a href="connect-enrich.html">Connect and enrich</a></li>
+<li><a href="serve.html">Serve it to your editor</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="knowledge-layer.html"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="dashboard.html"><span>Dashboard</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#backends-and-tuning">Backends and tuning</a></li>
+<li><a href="#what-gets-embedded">What gets embedded</a></li>
+<li><a href="#which-model">Which model?</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
