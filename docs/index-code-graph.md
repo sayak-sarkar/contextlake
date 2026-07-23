@@ -134,6 +134,6 @@ getting a silent best-guess.
 
 ## See also
 
-- [Connect and enrich](knowledge-layer.md)
-- [Semantic search](knowledge-layer.md)
+- [Connect and enrich](connect-enrich.md)
+- [Semantic search](semantic-search.md)
 - [Serve it to your editor](serve.md)
