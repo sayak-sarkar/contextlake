@@ -416,15 +416,15 @@
     background:linear-gradient(90deg,transparent,rgba(43,179,163,.55),transparent)}
   .band .band-col{position:relative;z-index:1}
 
-  /* Shared: light chambers are transparent + isolated, with a top dissolve
-     that lets the deep scene above bleed down into the light, plus a soft
-     overhead light shaft. Content rides above the dissolve. */
-  .chamber{position:relative;isolation:isolate;background:transparent}
+  /* Shared: light chambers sit over the ambient field beneath a faint overhead light
+     shaft. A SHORT dark seam at the very top dissolves the deep scene above into the
+     chamber; extra top padding keeps all heading text clear of that dark seam, so text
+     contrast holds in light mode (dark ink never lands on the dark seam). */
+  .chamber{position:relative;isolation:isolate;padding-top:118px;
+    background:radial-gradient(58% 40% at 50% 0%, rgba(43,179,163,.08), transparent 62%)}
   .chamber>.wrap{position:relative;z-index:1}
-  .chamber::before{content:"";position:absolute;left:0;right:0;top:0;height:360px;pointer-events:none;z-index:0;
-    background:
-      radial-gradient(62% 42% at 50% 0%, rgba(43,179,163,.10), transparent 62%),
-      linear-gradient(180deg,#0b232b 0, transparent 210px)}
+  .chamber::before{content:"";position:absolute;left:0;right:0;top:0;height:104px;pointer-events:none;z-index:0;
+    background:linear-gradient(180deg,#0b232b 0, transparent 100%)}
 
   /* Deepwater focus scenes: solid strata the heaviest content rests in.
      Deep-scene text flips to mist, mirroring the hero. */
@@ -436,9 +436,11 @@
   .scene-deep .btn:not(.primary){background:rgba(234,244,244,.07);border-color:rgba(234,244,244,.32);color:var(--mist)}
   .scene-deep .btn:not(.primary):hover{background:rgba(234,244,244,.15);border-color:var(--mist)}
 
-  /* --- Scene 3: See it, a deepwater focus dissolving down out of the how
-     chamber. graph.jpg (already a dark visualiser) melts into the water. --- */
-  .see-scene{background:linear-gradient(180deg, transparent 0, #0c2530 190px, #0E2A33 100%)}
+  /* --- Scene 3: See it, a deepwater focus. A short top seam dissolves the how chamber
+     down into the water; top padding clears it so mist-coloured text always sits on solid
+     deepwater. graph.jpg (a dark visualiser) melts into the scene. --- */
+  .see-scene{padding-top:120px;
+    background:linear-gradient(180deg, transparent 0, #0E2A33 108px, #0E2A33 100%)}
   /* a lit-from-within slab that echoes the hero, with a slow glow pulse */
   .focus-panel{position:relative;border-radius:var(--r);padding:14px;
     background:linear-gradient(180deg,#17404b,#0f2c35);border:1px solid #2a5661;
@@ -450,8 +452,10 @@
   .see-panel .shot{border:none;box-shadow:none;border-radius:calc(var(--r) - 5px)}
   .scene-deep .shot-cap{color:#8fb0b6}
 
-  /* --- Scene 5: Get started, the lake floor where the pebble rests --- */
-  .start{background:linear-gradient(180deg, transparent 0, #0c2530 190px, #0E2A33 58%, #0b202a 100%);
+  /* --- Scene 5: Get started, the lake floor. Same short top seam + top padding; darkens
+     toward the footer so the two deepwater blocks join seamlessly. --- */
+  .start{padding-top:120px;
+    background:linear-gradient(180deg, transparent 0, #0E2A33 108px, #0E2A33 66%, #0b202a 100%);
     border-top:none;border-bottom:none}
   /* the command block becomes a lit glass terminal that lifts off the floor */
   .start .cmd{background:linear-gradient(180deg,#17404b,#0f2c35);border:1px solid #2a5661;
