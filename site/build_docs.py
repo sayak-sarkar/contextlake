@@ -86,19 +86,55 @@ PAGES = [
      "Reference", "Release history for contextlake.",
      "pebble-doc.png",
      [("docs.html", "Overview"), ("quickstart.html", "Quickstart")]),
-    ("style-guide.html", "docs/style-guide.md", "Style guide", "Documentation style guide",
-     "Reference", "How we write contextlake: voice, page types, formatting, and the rules "
-     "that keep every doc, the CLI, and the site consistent.",
+    ("style-guide.html", "docs/style-guide.md", "Writing style", "Documentation style guide",
+     "Writing style", "The spirit, the checklist, and links to the focused pages: voice, "
+     "structure, formatting, and the word reference.",
      "pebble-doc.png",
-     [("brand.html", "Brand guidelines"), ("changelog.html", "Changelog")]),
-    ("brand.html", "BRANDING.md", "Brand guidelines", "Brand guidelines",
-     "Reference", "contextlake's brand: the voice, the lake metaphor, the mark, color, "
-     "type, and Pebble, the otter who surfaces your context.",
+     [("style-guide-voice.html", "Voice and tone"), ("style-guide-structure.html", "Page types and structure")]),
+    ("style-guide-voice.html", "docs/style-guide-voice.md", "Voice and tone", "Voice and tone",
+     "Writing style", "Second person, present tense, warm and grounded: the voice defaults, "
+     "word choice, and writing for every reader.",
      "pebble-doc.png",
-     [("style-guide.html", "Style guide"), ("docs.html", "Overview")]),
+     [("style-guide-structure.html", "Page types and structure"), ("style-guide-formatting.html", "Formatting")]),
+    ("style-guide-structure.html", "docs/style-guide-structure.md", "Page types and structure",
+     "Page types and structure",
+     "Writing style", "The concept, how-to, reference, and tutorial page types, each with a "
+     "fixed skeleton, and how to structure a page.",
+     "pebble-doc.png",
+     [("style-guide-formatting.html", "Formatting"), ("style-guide-reference.html", "Word reference")]),
+    ("style-guide-formatting.html", "docs/style-guide-formatting.md",
+     "Formatting", "Formatting, accessibility, and inclusive language",
+     "Writing style", "Headings, lists, code, callouts, links, accessibility, and inclusive "
+     "language: the mechanics that keep every page consistent.",
+     "pebble-doc.png",
+     [("style-guide-reference.html", "Word reference"), ("brand.html", "Brand overview")]),
+    ("style-guide-reference.html", "docs/style-guide-reference.md", "Word reference",
+     "Word and term reference",
+     "Writing style", "The house-style decision cache, before and after rewrites, and the "
+     "A-to-Z term reference.",
+     "pebble-doc.png",
+     [("brand.html", "Brand overview"), ("style-guide.html", "Writing style")]),
+    ("brand.html", "docs/brand.md", "Brand overview", "Brand overview",
+     "Brand", "contextlake's brand in one page: essence, voice, the lake metaphor, Pebble, "
+     "the palette, and the mark, with the full spec linked.",
+     "pebble-doc.png",
+     [("style-guide.html", "Writing style"), ("docs.html", "Overview")]),
 ]
 TO_PAGE = {src: out for out, src, *_ in PAGES}
-TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "LICENSE"]
+TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "LICENSE"]
+
+# Sidebar navigation, organized into labeled groups (ordered). Every PAGES `out` appears
+# in exactly one group; the group heading reuses the existing `.side h2` styling.
+NAV_GROUPS = [
+    ("Get started", ["docs.html", "quickstart.html"]),
+    ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
+                           "serve.html", "benchmarks.html"]),
+    ("Under the hood", ["internals.html", "storage.html"]),
+    ("Writing style", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
+                       "style-guide-formatting.html", "style-guide-reference.html"]),
+    ("Brand", ["brand.html"]),
+    ("Reference", ["changelog.html"]),
+]
 TITLES = {out: nav for out, _, nav, *_ in PAGES}
 
 # "Next steps" are DERIVED from the reading order so every page is consistent: the next two
@@ -108,8 +144,13 @@ _NEXT_LABEL = {
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
     "serve.html": "Serve (MCP)", "benchmarks.html": "Benchmarks",
     "internals.html": "Architecture", "storage.html": "Storage",
-    "changelog.html": "Changelog", "style-guide.html": "Style guide",
-    "brand.html": "Brand guidelines",
+    "changelog.html": "Changelog",
+    "style-guide.html": "Writing style",
+    "style-guide-voice.html": "Voice and tone",
+    "style-guide-structure.html": "Page types and structure",
+    "style-guide-formatting.html": "Formatting",
+    "style-guide-reference.html": "Word reference",
+    "brand.html": "Brand overview",
 }
 _ORDER = [p[0] for p in PAGES]
 NEXT_STEPS = {
@@ -186,13 +227,18 @@ def strip_readme_frontmatter(html: str) -> str:
 
 
 def sidebar(active: str) -> str:
-    items = []  # home is reached via the clickable wordmark in the header
-    for out, _, title, *_ in PAGES:
-        cls = ' class="active"' if out == active else ""
-        items.append(f'<a href="{out}"{cls}>{title}</a>')
+    # home is reached via the clickable wordmark in the header. Nav is organized into
+    # labeled groups (NAV_GROUPS); each group heading reuses the `.side h2` styling.
+    blocks = []
+    for group, outs in NAV_GROUPS:
+        links = []
+        for out in outs:
+            cls = ' class="active"' if out == active else ""
+            links.append(f'<a href="{out}"{cls}>{TITLES[out]}</a>')
+        blocks.append(f'<h2>{group}</h2><nav aria-label="{group}">'
+                      + "".join(links) + "</nav>")
     ext = f'<div class="ext"><div class="social-row">{GH_BTN}{PYPI_BTN}</div></div>'
-    return ('<aside class="side"><h2>Documentation</h2><nav aria-label="Docs">'
-            + "".join(items) + "</nav>" + ext + "</aside>")
+    return '<aside class="side">' + "".join(blocks) + ext + "</aside>"
 
 
 def hero(title: str, eyebrow: str, subtitle: str, pebble: str) -> str:
