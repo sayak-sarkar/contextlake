@@ -26,6 +26,18 @@ natural-language question can land on the wiki's explanation of a subsystem, cit
 and labeled advisory (kind `wiki`), never outranking extracted code facts. Pages written before this
 existed are backfilled on the next `wiki` run without any LLM calls.
 
+## Cluster (namespace) wiki
+
+Beyond per-repo pages, `contextlake wiki --namespace acme/payments` writes one **cluster page** for a
+whole group of repos (everything under that repo-id prefix), narrating how they fit together: which
+services call which over HTTP, publish/consume which events, and share which packages, split into coupling
+*within* the namespace and coupling to repos *outside* it. Use `--namespaces --depth N` to generate one
+page per namespace at that prefix depth. It grounds strictly in the cross-repo edges the graph already
+resolved (no new extraction) and reuses the same review council + provenance footer as the per-repo wiki,
+so it stays advisory and cited; when the graph shows no coupling it says so rather than inventing a link.
+Cluster pages are served over MCP by passing a namespace to `get_wiki`, and shown per group in the
+dashboard's fleet overview.
+
 ## Incorporating connector enrichment
 
 When `contextlake enrich` has populated a repo's `@enrich:<repo>` enrichment documents (via Atlassian or
