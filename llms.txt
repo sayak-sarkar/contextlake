@@ -8,9 +8,11 @@
 
 - [Overview](https://sayak.in/contextlake/docs.html): A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.
 - [Quickstart](https://sayak.in/contextlake/quickstart.html): Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.
+- [Usage & config](https://sayak.in/contextlake/usage.html): Every mirror command, configuration, branch safety, and scheduling, the reference for the Mirror layer.
 
 ## Build your knowledge base
 
+- [Knowledge layer](https://sayak.in/contextlake/knowledge-layer.html): Turn the mirror into a queryable graph with search, a wiki, and connectors.
 - [Index the code graph](https://sayak.in/contextlake/index-code-graph.html): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.
 - [Connect and enrich](https://sayak.in/contextlake/connect-enrich.html): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
 - [Semantic search](https://sayak.in/contextlake/semantic-search.html): Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.
@@ -18,20 +20,18 @@
 - [Model providers](https://sayak.in/contextlake/model-providers.html): The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.
 - [Bootstrap and keep fresh](https://sayak.in/contextlake/bootstrap.html): Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.
 
-## Using contextlake
+## Use it
 
-- [Usage & config](https://sayak.in/contextlake/usage.html): Every mirror command, configuration, branch safety, and scheduling, the reference for the Mirror layer.
-- [Knowledge layer](https://sayak.in/contextlake/knowledge-layer.html): Turn the mirror into a queryable graph with search, a wiki, and connectors.
-- [Dashboard](https://sayak.in/contextlake/dashboard.html): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
 - [Serve (MCP)](https://sayak.in/contextlake/serve.html): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
+- [Dashboard](https://sayak.in/contextlake/dashboard.html): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
 - [Visualize the graph](https://sayak.in/contextlake/visualize.html): Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.
 - [Ownership and SMEs](https://sayak.in/contextlake/ownership.html): Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.
-- [Benchmarks](https://sayak.in/contextlake/benchmarks.html): An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools, new-code grounding first, plus search, maintenance, and the caveats.
 
-## Under the hood
+## Understand it
 
 - [Architecture](https://sayak.in/contextlake/internals.html): How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.
 - [Storage](https://sayak.in/contextlake/storage.html): Where contextlake keeps everything it generates, one store directory, never polluting your synced repos.
+- [Benchmarks](https://sayak.in/contextlake/benchmarks.html): An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools, new-code grounding first, plus search, maintenance, and the caveats.
 
 ## Writing style
 
