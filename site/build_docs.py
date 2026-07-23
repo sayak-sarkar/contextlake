@@ -77,7 +77,12 @@ PAGES = [
      "Build your knowledge base", "The pluggable embeddings and wiki backends: auto, built-in "
      "CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.",
      "pebble-doc.png",
-     [("knowledge-layer.html", "Knowledge layer"), ("dashboard.html", "Dashboard")]),
+     [("bootstrap.html", "Bootstrap and keep fresh"), ("dashboard.html", "Dashboard")]),
+    ("bootstrap.html", "docs/bootstrap.md", "Bootstrap and keep fresh", "Bootstrap and keep fresh",
+     "Build your knowledge base", "Run the whole pipeline in one command, compose the stages, "
+     "and keep it fresh with cron or a git post-commit hook.",
+     "pebble-doc.png",
+     [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "Knowledge layer", "Knowledge layer",
      "Layer 2 · Knowledge", "Turn the mirror into a queryable graph with search, a wiki, "
      "and connectors.",
@@ -120,6 +125,18 @@ PAGES = [
      "directory, never polluting your synced repos.",
      "pebble-doc.png",
      [("internals.html", "Architecture"), ("usage.html", "Usage & config")]),
+    ("cli-reference.html", "docs/cli-reference.md", "Command reference",
+     "contextlake command reference",
+     "Reference", "Every contextlake command at a glance, with links to the page that "
+     "documents each in depth.",
+     "pebble-doc.png",
+     [("console-output.html", "Reading the console output"), ("docs.html", "Overview")]),
+    ("console-output.html", "docs/console-output.md", "Reading the console output",
+     "Reading the console output",
+     "Reference", "Decode the progress bar, the status glyph vocabulary, and the "
+     "stdout/stderr split.",
+     "pebble-doc.png",
+     [("cli-reference.html", "Command reference"), ("docs.html", "Overview")]),
     ("changelog.html", "CHANGELOG.md", "Changelog", "Changelog",
      "Reference", "Release history for contextlake.",
      "pebble-doc.png",
@@ -167,7 +184,7 @@ NAV_GROUPS = [
     ("Get started", ["docs.html", "quickstart.html"]),
     ("Build your knowledge base", ["index-code-graph.html", "connect-enrich.html",
                                    "semantic-search.html", "generate-wiki.html",
-                                   "model-providers.html"]),
+                                   "model-providers.html", "bootstrap.html"]),
     ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
                            "serve.html", "visualize.html", "ownership.html",
                            "benchmarks.html"]),
@@ -175,7 +192,7 @@ NAV_GROUPS = [
     ("Writing style", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
                        "style-guide-formatting.html", "style-guide-reference.html"]),
     ("Brand", ["brand.html"]),
-    ("Reference", ["changelog.html"]),
+    ("Reference", ["cli-reference.html", "console-output.html", "changelog.html"]),
 ]
 GROUP_OF = {out: g for g, outs in NAV_GROUPS for out in outs}
 SUBTITLE_OF = {m[0]: m[5] for m in PAGES}
@@ -190,6 +207,9 @@ _NEXT_LABEL = {
     "semantic-search.html": "Semantic search",
     "generate-wiki.html": "Generate the wiki",
     "model-providers.html": "Model providers",
+    "bootstrap.html": "Bootstrap and keep fresh",
+    "cli-reference.html": "Command reference",
+    "console-output.html": "Reading the console output",
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
     "serve.html": "Serve (MCP)", "visualize.html": "Visualize the graph",
     "ownership.html": "Ownership and SMEs", "benchmarks.html": "Benchmarks",
