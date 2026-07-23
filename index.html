@@ -176,9 +176,19 @@
   .cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
   .hero .btn:not(.primary){background:rgba(234,244,244,.07);border-color:rgba(234,244,244,.36);color:var(--mist)}
   .hero .btn:not(.primary):hover{background:rgba(234,244,244,.15);border-color:var(--mist)}
-  .install{margin-top:22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;
+  .install{position:relative;margin-top:22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;
     background:rgba(7,20,24,.62);color:var(--mist);font-family:var(--ff-m);font-size:14.5px;
     padding:14px 18px;border-radius:var(--rs);border:1px solid rgba(234,244,244,.15)}
+  /* copy-to-clipboard buttons injected by JS (progressive enhancement; absent without JS) */
+  .copy-btn{position:absolute;right:10px;display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--ff);font-size:12px;font-weight:600;line-height:1;padding:6px 10px;border-radius:7px;
+    cursor:pointer;border:1px solid rgba(234,244,244,.24);background:rgba(234,244,244,.08);color:var(--mist);
+    transition:background .15s,border-color .15s,color .15s}
+  .copy-btn:hover{background:rgba(234,244,244,.18);border-color:rgba(234,244,244,.5)}
+  .copy-btn.copied{color:var(--current);border-color:var(--current)}
+  .copy-btn svg{width:13px;height:13px}
+  .install .copy-btn{top:50%;transform:translateY(-50%)}
+  .cmd .copy-btn{top:12px}
   .install .prompt{color:var(--current);user-select:none}
   .install b{color:#fff;font-weight:600}
   @media (max-width:820px){
@@ -277,19 +287,36 @@
     width:100%;height:auto;display:block;background:var(--deepwater)}
   .shot-cap{color:var(--subtle);font-size:13.5px;margin-top:14px;text-align:center}
 
-  /* features grid */
-  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .feat{padding:20px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
-  .feat .ic{width:34px;height:34px;border-radius:9px;background:var(--tint);color:var(--link);
-    display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
-  .feat h3{font-size:16px;margin-bottom:6px}
-  .feat p{font-size:14px;color:var(--muted)}
-  @media (max-width:820px){ .feats{grid-template-columns:1fr 1fr} }
-  @media (max-width:520px){ .feats{grid-template-columns:1fr} }
+  /* features bento: varied cells, real depth, an anchor cell that echoes the hero */
+  .bento{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .bcell{position:relative;overflow:hidden;padding:22px;border:1px solid var(--line);border-radius:var(--r);
+    background:var(--surface);box-shadow:var(--shadow-s);
+    transition:transform .2s cubic-bezier(.2,.7,.2,1),box-shadow .2s ease,border-color .2s ease}
+  .bcell:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--line-2)}
+  .bcell .ic{width:42px;height:42px;border-radius:12px;background:var(--tint);color:var(--link);
+    display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .bcell .ic svg{width:22px;height:22px}
+  .bcell h3{font-size:16px;margin:0 0 6px}
+  .bcell p{font-size:14px;color:var(--muted);margin:0}
+  .b-wide{grid-column:span 2}
+  .b-anchor{grid-column:span 2;grid-row:span 2;display:flex;flex-direction:column;justify-content:space-between;
+    background:linear-gradient(155deg,#173640,#0E2A33);border-color:#224b56;color:var(--mist)}
+  .b-anchor::after{content:"";position:absolute;right:-26%;bottom:-38%;width:66%;height:78%;pointer-events:none;
+    background:radial-gradient(circle,rgba(43,179,163,.30),transparent 66%)}
+  .b-anchor::before{content:"";position:absolute;inset:0;border-radius:var(--r);pointer-events:none;
+    box-shadow:inset 0 0 0 1px rgba(43,179,163,.10)}
+  .b-anchor .ic{width:54px;height:54px;background:rgba(43,179,163,.15);color:var(--current);
+    border:1px solid rgba(43,179,163,.42);margin-bottom:0}
+  .b-anchor .ic svg{width:28px;height:28px}
+  .b-anchor h3{font-size:22px;color:var(--mist);margin:0 0 8px}
+  .b-anchor p{font-size:15px;color:rgba(234,244,244,.84);position:relative;z-index:1}
+  .b-anchor .b-body{position:relative;z-index:1}
+  @media (max-width:820px){ .bento{grid-template-columns:1fr 1fr} .b-anchor,.b-wide{grid-column:span 2;grid-row:span 1} }
+  @media (max-width:520px){ .bento{grid-template-columns:1fr} .b-anchor,.b-wide{grid-column:span 1} }
 
   /* get started */
   .start{background:linear-gradient(180deg,var(--bg),var(--callout-bg));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .cmd{background:var(--deepwater);color:var(--mist);border-radius:var(--r);padding:22px 24px;
+  .cmd{position:relative;background:var(--deepwater);color:var(--mist);border-radius:var(--r);padding:22px 24px;
     font-family:var(--ff-m);font-size:14px;line-height:1.9;box-shadow:var(--shadow);overflow-x:auto}
   .cmd .line{display:block}
   .cmd .prompt{color:var(--current);user-select:none}
@@ -483,13 +510,16 @@
       <div class="sec-eyebrow">What's inside</div>
       <h2 id="feat-h">Built for real working machines</h2>
     </div>
-    <div class="feats">
-      <div class="feat"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></span><h3>Offline-first</h3><p>The core tool is stdlib-only; nothing leaves your machine. The knowledge layer is opt-in and runs locally.</p></div>
-      <div class="feat"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><h3>MCP-native</h3><p>Serve the graph to Claude Code, Windsurf, Kiro, Cursor, and other IDEs, over stdio or HTTP. Most tools need no model.</p></div>
-      <div class="feat"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><h3>Semantic search</h3><p>A zero-config built-in CPU model, a local Ollama, or any OpenAI-compatible endpoint, your call.</p></div>
-      <div class="feat"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a9 3 0 0 0 18 0M3 6v12a9 3 0 0 0 18 0V6M3 6a9 3 0 0 1 18 0"/></svg></span><h3>Branch-safe at scale</h3><p>Runs across hundreds of repos concurrently with adaptive backoff, and never clobbers your uncommitted work.</p></div>
-      <div class="feat"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2Z"/><path d="M9 4v15"/></svg></span><h3>Curated wiki</h3><p>LLM-synthesized, council-verified pages grounded strictly in graph facts, with provenance footers.</p></div>
-      <div class="feat"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Editor steering</h3><p>Generate <code style="font-family:var(--ff-m);font-size:.9em">AGENTS.md</code>, <code style="font-family:var(--ff-m);font-size:.9em">.mcp.json</code>, rules, and a skills library, wired to your graph.</p></div>
+    <div class="bento">
+      <div class="bcell b-anchor">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4.5"/></svg></span>
+        <div class="b-body"><h3>Offline-first</h3><p>The core tool is stdlib-only; nothing leaves your machine. The knowledge layer is opt-in and runs locally, so your source and your context stay on your disk.</p></div>
+      </div>
+      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><h3>MCP-native</h3><p>Serve the graph to Claude Code, Windsurf, Kiro, Cursor, and other IDEs, over stdio or HTTP. Most tools need no model.</p></div>
+      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><h3>Semantic search</h3><p>A zero-config built-in CPU model, a local Ollama, or any OpenAI-compatible endpoint, your call.</p></div>
+      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a9 3 0 0 0 18 0M3 6v12a9 3 0 0 0 18 0V6M3 6a9 3 0 0 1 18 0"/></svg></span><h3>Branch-safe at scale</h3><p>Runs across hundreds of repos concurrently with adaptive backoff, and never clobbers your uncommitted work.</p></div>
+      <div class="bcell"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2Z"/><path d="M9 4v15"/></svg></span><h3>Curated wiki</h3><p>LLM-synthesized, council-verified pages grounded strictly in graph facts, with provenance footers.</p></div>
+      <div class="bcell"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Editor steering</h3><p>Generate <code style="font-family:var(--ff-m);font-size:.9em">AGENTS.md</code>, <code style="font-family:var(--ff-m);font-size:.9em">.mcp.json</code>, rules, and a skills library, wired to your graph.</p></div>
     </div>
   </div>
 </section>
@@ -594,5 +624,31 @@
 <script>/* dissolve the sticky bar onto the hero while it fills the top of the screen; the solid
    bar is the CSS default, so no-JS visitors keep a legible opaque header. */
 (function(){var header=document.querySelector("header"),hero=document.querySelector(".hero");if(!header||!hero)return;var over=null;function update(){var next=hero.getBoundingClientRect().bottom>header.offsetHeight;if(next!==over){over=next;header.classList.toggle("over-hero",next);}}update();addEventListener("scroll",update,{passive:true});addEventListener("resize",update);})();</script>
+<script>/* copy-to-clipboard on the command blocks. Progressive enhancement: no Clipboard API
+   (or insecure context) means no button, and the commands are still readable/selectable. */
+(function(){
+  if(!navigator.clipboard||!navigator.clipboard.writeText) return;
+  var COPY='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+  function addBtn(block,getText){
+    var b=document.createElement('button');
+    b.type='button'; b.className='copy-btn';
+    b.innerHTML=COPY+'<span class="lbl">Copy</span>';
+    var lbl=b.querySelector('.lbl'), t=null;
+    b.setAttribute('aria-label','Copy command to clipboard');
+    b.addEventListener('click',function(){
+      navigator.clipboard.writeText(getText()).then(function(){
+        b.classList.add('copied'); lbl.textContent='Copied';
+        clearTimeout(t); t=setTimeout(function(){ b.classList.remove('copied'); lbl.textContent='Copy'; },1600);
+      });
+    });
+    block.appendChild(b);
+  }
+  var inst=document.querySelector('.install');
+  if(inst){ var cmd=inst.querySelector('span:not(.prompt)'); if(cmd) addBtn(inst,function(){return cmd.textContent.trim();}); }
+  var box=document.querySelector('.cmd');
+  if(box){ addBtn(box,function(){
+    return Array.prototype.map.call(box.querySelectorAll('.line .c'),function(el){return el.textContent.trim();}).join('\n');
+  }); }
+})();</script>
 </body>
 </html>
