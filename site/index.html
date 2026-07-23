@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>contextlake, a local context layer for your AI tools</title>
 <meta name="description" content="Mirror your repos, index them into a local knowledge graph, and serve it to your AI tools over MCP, so agents answer from real source instead of guessing. Offline-first.">
 <link rel="canonical" href="https://sayak.in/contextlake/">
@@ -36,6 +37,8 @@
     --shore:#D7C5A0; --sun:#E7B53C;
     --bg:#f4fafb; --surface:#ffffff; --ink:#0E2A33; --muted:#41606a; --subtle:#6c878f;
     --line:#d6e6e9; --line-2:#c2d8dc;
+    --link:#137A8B; --link-hover:#0f6473; --lake-hover:#0f6473;
+    --surface-2:#fbfdfd; --tint:#e6f3f4; --callout-bg:#eef7f8; --btn-hover:#f0f7f8;
     --ff: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --ff-d: "Space Grotesk", var(--ff);
     --ff-m: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
@@ -44,12 +47,40 @@
     --shadow-s: 0 4px 16px -8px rgba(14,42,51,.22);
     --wrap: 1080px;
   }
+  /* dark theme: explicit toggle wins; else follow the OS unless the reader chose light.
+     The hero stays deepwater in both themes by design; the content surfaces flip. */
+  :root[data-theme="dark"]{
+    --bg:#0E2A33; --surface:#16323B; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
+    --line:#24404a; --line-2:#33525c;
+    --link:#2BB3A3; --link-hover:#54c9bb; --lake-hover:#34c4b3;
+    --surface-2:#13303a; --tint:#17343d; --callout-bg:#152f38; --btn-hover:#1d3b44;
+    --shadow:0 18px 48px -22px rgba(0,0,0,.5); --shadow-s:0 4px 16px -8px rgba(0,0,0,.45);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0E2A33; --surface:#16323B; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
+      --line:#24404a; --line-2:#33525c;
+      --link:#2BB3A3; --link-hover:#54c9bb; --lake-hover:#34c4b3;
+      --surface-2:#13303a; --tint:#17343d; --callout-bg:#152f38; --btn-hover:#1d3b44;
+      --shadow:0 18px 48px -22px rgba(0,0,0,.5); --shadow-s:0 4px 16px -8px rgba(0,0,0,.45);
+    }
+  }
+  .theme-toggle{cursor:pointer}
+  .btn.theme-toggle{padding:9px;width:38px;justify-content:center;color:var(--muted)}
+  .btn.theme-toggle:hover{color:var(--ink)}
+  .theme-toggle .sun{display:none}
+  :root[data-theme="dark"] .theme-toggle .moon{display:none}
+  :root[data-theme="dark"] .theme-toggle .sun{display:block}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .theme-toggle .moon{display:none}
+    :root:not([data-theme="light"]) .theme-toggle .sun{display:block}
+  }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth;overscroll-behavior:none;background:var(--deepwater)}
   @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   body{margin:0;font-family:var(--ff);color:var(--ink);background:var(--bg);line-height:1.6;overscroll-behavior-y:none;
     -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-  a{color:var(--lake);text-decoration:none}
+  a{color:var(--link);text-decoration:none}
   a:hover{text-decoration:underline}
   h1,h2,h3{font-family:var(--ff-d);letter-spacing:-.02em;line-height:1.12;margin:0}
   p{margin:0}
@@ -72,10 +103,10 @@
   .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;
     padding:9px 16px;border-radius:var(--rs);border:1px solid var(--line-2);background:var(--surface);
     color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s,transform .05s}
-  .btn:hover{background:#f0f7f8;border-color:var(--lake);text-decoration:none}
+  .btn:hover{background:var(--btn-hover);border-color:var(--lake);text-decoration:none}
   .btn:active{transform:translateY(1px)}
   .btn.primary{background:var(--lake);border-color:var(--lake);color:#fff;box-shadow:var(--shadow-s)}
-  .btn.primary:hover{background:#0f6473;border-color:#0f6473}
+  .btn.primary:hover{background:var(--lake-hover);border-color:var(--lake-hover)}
   .btn svg{width:16px;height:16px}
   @media (max-width:680px){ .nav a.navlink{display:none} }
 
@@ -163,9 +194,9 @@
   .arch-col{display:flex;flex-direction:column;gap:9px;min-width:0}
   .arch-cap{font-family:var(--ff-m);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--subtle);margin-bottom:1px}
   .arch-node{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:13.5px;color:var(--ink);font-weight:500;box-shadow:var(--shadow-s)}
-  .arch-node.dashed{border-style:dashed;border-color:var(--line-2);background:#fbfdfd}
+  .arch-node.dashed{border-style:dashed;border-color:var(--line-2);background:var(--surface-2)}
   .arch-dot{width:9px;height:9px;border-radius:50%;flex:none}
-  .arch-opt{margin-left:auto;font-size:9.5px;font-weight:600;color:var(--lake);background:#e6f3f4;padding:1px 7px;border-radius:6px}
+  .arch-opt{margin-left:auto;font-size:9.5px;font-weight:600;color:var(--link);background:var(--tint);padding:1px 7px;border-radius:6px}
   .arch-sub{font-size:11px;color:var(--subtle);padding-left:3px;margin-top:-3px}
   .arch-flow{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:84px}
   .arch-flow-lbl{font-family:var(--ff-m);font-size:11px;color:var(--lake);white-space:nowrap}
@@ -208,7 +239,7 @@
     justify-content:center;color:#fff;margin-bottom:13px}
   .step h3{font-size:17px;font-weight:600;margin:0 0 7px;display:flex;align-items:center;gap:8px}
   .step p{font-size:14px;color:var(--muted);margin:0}
-  .step .opt{font-size:10.5px;font-weight:600;color:var(--lake);background:#e6f3f4;
+  .step .opt{font-size:10.5px;font-weight:600;color:var(--link);background:var(--tint);
     border-radius:999px;padding:2px 8px}
   .step-sep{flex:none;align-self:center;color:var(--line-2);display:flex;align-items:center}
   @media (max-width:820px){
@@ -224,7 +255,7 @@
   /* features grid */
   .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
   .feat{padding:20px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
-  .feat .ic{width:34px;height:34px;border-radius:9px;background:#e6f3f4;color:var(--lake);
+  .feat .ic{width:34px;height:34px;border-radius:9px;background:var(--tint);color:var(--link);
     display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
   .feat h3{font-size:16px;margin-bottom:6px}
   .feat p{font-size:14px;color:var(--muted)}
@@ -285,6 +316,10 @@
     <a class="navlink" href="#how">How it works</a>
     <a class="navlink" href="#features">Features</a>
     <a class="navlink" href="docs.html">Docs</a>
+    <button class="btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
+    </button>
     <a class="btn" href="https://github.com/sayak-sarkar/contextlake">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>
       GitHub
@@ -404,7 +439,7 @@
       <div class="sec-head" style="max-width:38em">
         <div class="sec-eyebrow">See it</div>
         <h2 id="see-h">A whole codebase as one navigable graph</h2>
-        <p class="sec-lede"><code style="font-family:var(--ff-m);background:#e6f3f4;padding:.15em .4em;border-radius:5px">contextlake graph</code>
+        <p class="sec-lede"><code style="font-family:var(--ff-m);background:var(--tint);padding:.15em .4em;border-radius:5px">contextlake graph</code>
           renders a bounded, offline, interactive map, fleet overview, a symbol's neighbourhood, or a single repo. Type glyphs,
           language lettermarks, confidence-coded edges, level-of-detail labels, and a navigator minimap keep even dense graphs legible.</p>
       </div>
@@ -530,5 +565,6 @@
   sweep();
 })();
 </script>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);});})();</script>
 </body>
 </html>
