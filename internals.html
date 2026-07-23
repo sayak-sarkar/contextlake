@@ -264,7 +264,8 @@ over the mirrored repos. Its pieces:</p>
   Each shard is also snapshotted by commit under <code>history/</code> for bi-temporal queries.</li>
 <li><strong>Extraction</strong> (<code>kb/parse.py</code>, <code>kb/manifest.py</code>, <code>kb/references.py</code>, <code>kb/hcl.py</code>, <code>kb/sql.py</code>):
   tree-sitter builds the code graph (defs/imports/containment + an inferred call graph)
-  across 14 languages (Python, JS/TS(X), C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala, Kotlin);
+  across 14 languages / 13 tree-sitter grammars (Python, JavaScript, TypeScript, TSX, C#, Go, Java, C,
+  C++, Rust, Ruby, PHP, Scala, Kotlin; TypeScript and TSX share one grammar);
   Terraform/HCL (<code>kb/hcl.py</code>) yields an infrastructure <code>depends_on</code> graph
   (resource/data/variable/output/module/local blocks with <code>var.</code>/<code>module.</code>/<code>data.</code>/resource
   references resolved within a repo); SQL DDL (<code>kb/sql.py</code>) yields a referential graph
@@ -286,27 +287,13 @@ over the mirrored repos. Its pieces:</p>
   runs without the extra installed.</li>
 </ul>
 <h2 id="storage-invariants">Storage &amp; invariants<a class="anchor" href="#storage-invariants" title="Link to this section">#</a></h2>
-<p>Everything contextlake generates lives under <strong>one store directory</strong> (default
-<code>~/.contextlake/kb</code>, <code>store_dir</code> in <code>kb.toml</code>), never scattered into your home, your
-cwd, or your repos. Two invariants make this safe by construction, each locked by a test:</p>
-<ul>
-<li><strong>INV-1, no repo pollution.</strong> No generated file is ever written inside a mirrored repo's
-  working tree, the mirror holds <em>your repos, untouched</em>; the knowledge layer lives in the
-  separate store. (<code>tests/kb/test_no_repo_pollution.py</code> asserts each repo tree is
-  byte-identical before/after every generating command.)</li>
-<li><strong>INV-2, the offline boundary.</strong> Parse → graph → FTS → query → visualize → embed all run
-  fully offline; <code>connect</code> (enrichment) is the single opt-in online exception, and even it
-  must <strong>degrade, not fail</strong> (skip/warn and exit cleanly with no network). Cached connect
-  results stay queryable offline afterward. (<code>tests/kb/test_offline_boundary.py</code> blocks
-  outbound sockets and asserts the offline commands still succeed.)</li>
-</ul>
-<p>Under the store: <code>index.sqlite</code> (graph + FTS), <code>graph/</code> (per-repo JSON shards),
-<code>history/&lt;repo&gt;/</code> (bitemporal snapshots), <code>graphs/</code> (rendered visualizations), <code>wiki/</code>
-(LLM pages), <code>embeddings.sqlite</code> (vectors). The one deliberate carve-out is <strong>steering
-files</strong> (<code>AGENTS.md</code>, <code>.mcp.json</code>, skills), which an IDE must find at the workspace root,
-so <code>steer --out</code> writes them to the target you point it at (never inside a synced repo).
-Full detail: <a href="storage.html">storage.md</a>.</p>
-    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="storage.html"><span>Storage</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="cli-reference.html"><span>Command reference</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+<p>Everything contextlake generates lives under <strong>one store directory</strong>, kept safe by two test-locked
+invariants: <strong>INV-1</strong> (no generated file is ever written inside a mirrored repo, the mirror holds your
+repos untouched) and <strong>INV-2</strong>, the offline boundary (parse, graph, FTS, query, visualize, and embed all
+run fully offline; only <code>connect</code> may reach the network, and even it degrades rather than fails).</p>
+<p>The full store layout, both invariants with their enforcing tests, and the steering-files carve-out are
+on the <a href="storage.html">Storage</a> page.</p>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="storage.html"><span>Storage</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="knowledge-layer.html"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
