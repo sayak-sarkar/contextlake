@@ -72,6 +72,11 @@ PAGES = [
      "Build your knowledge base", "Turn the graph into grounded, council-verified prose per "
      "repo: searchable, enrichment-aware, with a provenance footer.",
      "pebble-doc.png",
+     [("model-providers.html", "Model providers"), ("knowledge-layer.html", "Knowledge layer")]),
+    ("model-providers.html", "docs/model-providers.md", "Model providers", "Model providers",
+     "Build your knowledge base", "The pluggable embeddings and wiki backends: auto, built-in "
+     "CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.",
+     "pebble-doc.png",
      [("knowledge-layer.html", "Knowledge layer"), ("dashboard.html", "Dashboard")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "Knowledge layer", "Knowledge layer",
      "Layer 2 · Knowledge", "Turn the mirror into a queryable graph with search, a wiki, "
@@ -151,7 +156,8 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 NAV_GROUPS = [
     ("Get started", ["docs.html", "quickstart.html"]),
     ("Build your knowledge base", ["index-code-graph.html", "connect-enrich.html",
-                                   "semantic-search.html", "generate-wiki.html"]),
+                                   "semantic-search.html", "generate-wiki.html",
+                                   "model-providers.html"]),
     ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
                            "serve.html", "benchmarks.html"]),
     ("Under the hood", ["internals.html", "storage.html"]),
@@ -172,6 +178,7 @@ _NEXT_LABEL = {
     "connect-enrich.html": "Connect and enrich",
     "semantic-search.html": "Semantic search",
     "generate-wiki.html": "Generate the wiki",
+    "model-providers.html": "Model providers",
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
     "serve.html": "Serve (MCP)", "benchmarks.html": "Benchmarks",
     "internals.html": "Architecture", "storage.html": "Storage",
