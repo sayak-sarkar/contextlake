@@ -43,7 +43,14 @@ guide wins on structure.</p>
 <p>If you write or edit a single page, you need only three things: the spirit (below), the page type you're
 writing (section 4), and the review checklist at the end. Everything between is the reference you reach
 for when a specific question comes up.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-peek.png" alt="Pebble, the contextlake otter, peeking over an edge." width="150">
+</p>
+
 <h2 id="the-spirit-grounded-lucid-warm">The spirit: grounded, lucid, warm<a class="anchor" href="#the-spirit-grounded-lucid-warm" title="Link to this section">#</a></h2>
+<p>Pebble, contextlake's otter mascot, is the reader's guide through the docs, calm, warm, and always
+holding up the real thing. The <a href="brand.html">brand guidelines</a> define Pebble in full; this guide is how
+Pebble would write.</p>
 <p>contextlake's docs sound like a knowledgeable friend who read your code so the model doesn't have to
 guess. Three brand words govern every page.</p>
 <p><strong>Grounded.</strong> Every claim traces to something real: a command, a file, a flag, a line of output. We show
@@ -474,6 +481,153 @@ make a new recurring decision, add it here.</p>
 <li>Zero em-dashes; "contextlake" is lowercase; abbreviations are defined; only example values appear.</li>
 </ol>
 <hr />
+<h2 id="13-worked-examples">13. Worked examples<a class="anchor" href="#13-worked-examples" title="Link to this section">#</a></h2>
+<p>Rules are easier to follow when you can see the rewrite. Each row shows a common draft on the left and
+the contextlake version on the right.</p>
+<h3 id="voice-and-word-choice">Voice and word choice<a class="anchor" href="#voice-and-word-choice" title="Link to this section">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Instead of</th>
+<th>Write</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"contextlake allows you to index your repos."</td>
+<td>"Use contextlake to index your repos."</td>
+</tr>
+<tr>
+<td>"Simply run the command and you're done."</td>
+<td>"Run the command."</td>
+</tr>
+<tr>
+<td>"It's a powerful, seamless, next-gen context platform."</td>
+<td>"contextlake indexes your repos into a graph and serves it over MCP."</td>
+</tr>
+<tr>
+<td>"The graph is built by the indexer."</td>
+<td>"The indexer builds the graph."</td>
+</tr>
+<tr>
+<td>"It is important to note that <code>sync</code> is incremental."</td>
+<td>"<code>sync</code> is incremental."</td>
+</tr>
+<tr>
+<td>"This tool leverages embeddings to facilitate retrieval."</td>
+<td>"It embeds your code so you can search it in plain language."</td>
+</tr>
+<tr>
+<td>"Kill the running process."</td>
+<td>"Stop the running process."</td>
+</tr>
+<tr>
+<td>"Please click here to read the guide."</td>
+<td>"Read the <a href="https://github.com/sayak-sarkar/contextlake/blob/main/index-code-graph.md">indexing guide</a>."</td>
+</tr>
+</tbody>
+</table>
+<h3 id="a-heading">A heading<a class="anchor" href="#a-heading" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Instead of:</strong> "Understanding how the knowledge layer works"</li>
+<li><strong>Write:</strong> "The knowledge layer" (concept page) or "Building the knowledge layer" (how-to page)</li>
+</ul>
+<h3 id="a-list-lead-in">A list lead-in<a class="anchor" href="#a-list-lead-in" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Instead of:</strong> a bare fragment like "Sources include:" followed by bullets.</li>
+<li><strong>Write:</strong> a complete sentence: "contextlake ships four built-in ingest sources:"</li>
+</ul>
+<h3 id="a-code-example-the-four-part-unit">A code example, the four-part unit<a class="anchor" href="#a-code-example-the-four-part-unit" title="Link to this section">#</a></h3>
+<p>Instead of a bare block:</p>
+<div class="codehilite"><pre><span></span><code><span class="sb">```bash</span>
+contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work
+<span class="sb">```</span>
+</code></pre></div>
+
+<p>Write the full unit, so the reader knows what it does and what success looks like:</p>
+<div class="codehilite"><pre><span></span><code>To build the graph for every repo under a folder, run <span class="sb">`index`</span> with <span class="sb">`--workspace`</span>:
+
+<span class="sb">```bash</span>
+contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work
+<span class="sb">```</span>
+
+The run is incremental, so only repos whose HEAD moved are re-indexed. You should see a per-repo
+summary ending in a line like <span class="sb">`4 repos, 29 nodes, 28 edges`</span>.
+</code></pre></div>
+
+<h3 id="a-how-to-skeleton">A how-to skeleton<a class="anchor" href="#a-how-to-skeleton" title="Link to this section">#</a></h3>
+<p>A task page follows a fixed shape. In outline:</p>
+<div class="codehilite"><pre><span></span><code><span class="gh"># Wiring your editor</span>
+
+Connect your editor to contextlake over MCP so your assistant answers from your indexed repos.
+
+<span class="gu">## Prerequisites</span>
+<span class="k">-</span><span class="w"> </span>A built graph (<span class="sb">`contextlake index`</span>).
+<span class="k">-</span><span class="w"> </span>One of: Claude Code, Windsurf, or Kiro.
+
+<span class="gu">## Steps</span>
+<span class="k">1.</span> Run <span class="sb">`contextlake steer`</span> to write the MCP config and editor steering files.
+<span class="k">2.</span> Restart your editor so it picks up the new MCP server.
+
+<span class="gu">## Verification</span>
+Ask your assistant a cross-repo question. You should see it call a contextlake tool and cite the
+files the answer came from.
+
+<span class="gu">## See also</span>
+<span class="k">-</span><span class="w"> </span>[<span class="nt">Serve it to your editor</span>](<span class="na">serve.md</span>)
+</code></pre></div>
+
+<hr />
+<h2 id="14-word-and-term-reference-a-to-z">14. Word and term reference (A to Z)<a class="anchor" href="#14-word-and-term-reference-a-to-z" title="Link to this section">#</a></h2>
+<p>The house answer for contextlake's recurring word choices. When a term isn't here, defer to the Google
+developer documentation word list, then Merriam-Webster. Add an entry when a choice comes up more than
+once.</p>
+<ul>
+<li><strong>abort.</strong> Don't use for stopping a process. Use stop, cancel, end, or exit.</li>
+<li><strong>allowlist, blocklist.</strong> Use these, never whitelist or blacklist. "denylist" is also fine for the
+  block sense.</li>
+<li><strong>and/or.</strong> Rewrite. Pick "and", "or", or "A, B, or both".</li>
+<li><strong>CLI.</strong> Spell out on first use per page (command-line interface), then use CLI.</li>
+<li><strong>click here.</strong> Never use as link text. Describe the destination: "see the <a href="https://github.com/sayak-sarkar/contextlake/blob/main/...">indexing guide</a>".</li>
+<li><strong>command.</strong> You <em>run</em> a command, <em>pass</em> it a flag, and <em>set</em> a config key.</li>
+<li><strong>config, configuration.</strong> Use "configuration" in prose and "config" only where it matches a file or
+  flag. Be consistent within a page.</li>
+<li><strong>contextlake.</strong> Always one lowercase word, even at the start of a sentence. Reword rather than
+  capitalize it. Never "Context Lake", "ContextLake", or "context lake".</li>
+<li><strong>context layer.</strong> The category noun for contextlake. Not "tool", "platform", "framework", "knowledge
+  base", or "data lake".</li>
+<li><strong>data lake.</strong> Never. It reads as an enterprise warehouse and is off-brand.</li>
+<li><strong>deep, clear.</strong> The two load-bearing metaphor words. Deep is the real, complete source underneath;
+  clear is the precise answer back. Keep the lake metaphor to these.</li>
+<li><strong>e.g.</strong> Write "for example" in running prose. Reserve "e.g." for inside parentheses.</li>
+<li><strong>easy, easily.</strong> Avoid. If the reader is in the docs, it wasn't easy, and saying so doesn't help.</li>
+<li><strong>email.</strong> One word, no hyphen.</li>
+<li><strong>enable, disable.</strong> Spell both out; don't write "enable/disable". (They're also real <code>source</code>
+  subcommands, so keep them literal when you mean the command.)</li>
+<li><strong>enter, type.</strong> "Enter" text by any method; use "type" only when you mean the keyboard specifically.</li>
+<li><strong>file name.</strong> Two words in prose, and use it as an adjective before "file": "the <code>kb.toml</code> file".</li>
+<li><strong>i.e.</strong> Write "that is" in running prose. Reserve "i.e." for inside parentheses.</li>
+<li><strong>internet.</strong> Lowercase.</li>
+<li><strong>just.</strong> Avoid as a minimizer, as in "just run X". It gaslights a stuck reader.</li>
+<li><strong>kill.</strong> Don't use for processes. Use stop, cancel, or end.</li>
+<li><strong>leverage.</strong> Use "use".</li>
+<li><strong>log in, login.</strong> "Log in" is the verb ("log in to the server"); "login" is the noun or adjective
+  ("the login screen").</li>
+<li><strong>MCP.</strong> Spell out on first use per page (Model Context Protocol), then use MCP.</li>
+<li><strong>please.</strong> Don't use in instructions. "To view the graph, run <code>contextlake graph</code>", not "Please run".</li>
+<li><strong>repo, repository.</strong> Use "repo" in running prose, matching the CLI. "repository" is fine in a formal
+  first mention.</li>
+<li><strong>sanity check.</strong> Use "confidence check" or "final check".</li>
+<li><strong>select, check.</strong> You "select" a checkbox or an option; you don't "check" it.</li>
+<li><strong>set up, setup.</strong> "Set up" is the verb ("set up the store"); "setup" is the noun or adjective ("the
+  setup step").</li>
+<li><strong>simply.</strong> Avoid, like "just".</li>
+<li><strong>utilize.</strong> Use "use".</li>
+<li><strong>via.</strong> Use "with" or "through".</li>
+<li><strong>we, you.</strong> Use "you" for the reader's actions. Reserve "we" for a genuine maintainer recommendation.</li>
+<li><strong>whitelist, blacklist.</strong> See allowlist, blocklist.</li>
+</ul>
+<hr />
 <h2 id="lineage">Lineage<a class="anchor" href="#lineage" title="Link to this section">#</a></h2>
 <p>This guide synthesizes seven widely respected references and reshapes them around contextlake's brand:
 the <a href="https://redhat-documentation.github.io/modular-docs/">Red Hat modular documentation</a> and
@@ -535,6 +689,15 @@ structure and the warmth, and leave the coldness behind.</p>
 <li><a href="#page-review-checklist">Page review checklist</a></li>
 </ul>
 </li>
+<li><a href="#13-worked-examples">13. Worked examples</a><ul>
+<li><a href="#voice-and-word-choice">Voice and word choice</a></li>
+<li><a href="#a-heading">A heading</a></li>
+<li><a href="#a-list-lead-in">A list lead-in</a></li>
+<li><a href="#a-code-example-the-four-part-unit">A code example, the four-part unit</a></li>
+<li><a href="#a-how-to-skeleton">A how-to skeleton</a></li>
+</ul>
+</li>
+<li><a href="#14-word-and-term-reference-a-to-z">14. Word and term reference (A to Z)</a></li>
 <li><a href="#lineage">Lineage</a></li>
 </ul>
 </nav></aside>
