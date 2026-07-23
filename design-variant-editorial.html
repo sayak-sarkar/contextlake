@@ -354,6 +354,150 @@
 </script>
 </head>
 <body>
+
+<style id="editorial">
+  /* ============================================================================
+     EDITORIAL PREMIUM: additive restyle of the below-hero sections.
+     This layer is loaded AFTER the head styles, so at equal specificity it wins
+     by source order; the head (tokens, theme system, hero, header, reduced-motion)
+     is left byte-identical. Everything here reuses the existing design tokens.
+
+     Motion is progressive enhancement: every hidden/armed state is scoped under
+     .js-fx on <html>, which JS adds ONLY when motion is allowed. No JS, or
+     prefers-reduced-motion, means .js-fx is never added, so all content is fully
+     visible and static. The head's reduced-motion block also neutralises hovers.
+     ============================================================================ */
+
+  :root{
+    --ed-ease:cubic-bezier(.2,.7,.2,1);
+    --ed-hair:color-mix(in srgb,var(--ink) 13%,transparent);
+    --ed-hair-2:color-mix(in srgb,var(--ink) 22%,transparent);
+    --ed-hair-dark:rgba(234,244,244,.14);
+  }
+
+  /* generous editorial section rhythm */
+  main > section{padding:clamp(80px,10vw,136px) 0}
+
+  /* ---- shared editorial section header ---- */
+  .ed-head{max-width:38rem;margin-bottom:clamp(40px,6vw,66px)}
+  .ed-kicker{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+  .ed-index{font-family:var(--ff-m);font-size:12px;font-weight:600;letter-spacing:.14em;color:var(--lake)}
+  .ed-rule{display:block;height:1px;width:38px;flex:none;background:var(--lake);transform-origin:left}
+  .ed-kicker .sec-eyebrow{margin:0}
+  .ed-head h2{font-size:clamp(31px,4.7vw,49px);font-weight:600;letter-spacing:-.032em;line-height:1.06}
+  .ed-lede{color:var(--muted);font-size:clamp(16px,1.5vw,18px);line-height:1.56;margin-top:22px;max-width:33rem}
+  .ed-lede code{font-family:var(--ff-m);background:var(--tint);padding:.14em .42em;border-radius:5px;font-size:.9em}
+
+  /* ---- precise reveal system (armed only under .js-fx) ---- */
+  .js-fx .fx{opacity:0;transform:translateY(20px);
+    transition:opacity .78s var(--ed-ease) var(--sd,0s),transform .78s var(--ed-ease) var(--sd,0s)}
+  .js-fx .fx.in{opacity:1;transform:none}
+  .js-fx .fx-line{transform:scaleX(0);transform-origin:left;
+    transition:transform .95s var(--ed-ease) var(--sd,0s)}
+  .js-fx .fx-line.in{transform:scaleX(1)}
+
+  /* ============================ 01 · problem band ============================ */
+  .ed-band{padding:clamp(88px,12vw,150px) 0}
+  .ed-band .ed-index{color:var(--current)}
+  .ed-band .ed-rule{background:var(--current)}
+  .ed-band .sec-eyebrow{color:var(--current)}
+  .band-quote{font-family:var(--ff-d);font-weight:500;letter-spacing:-.024em;
+    font-size:clamp(31px,5.6vw,60px);line-height:1.1;color:var(--mist);max-width:15ch}
+  .band-quote .hl{position:relative;color:var(--sun);white-space:nowrap}
+  .band-quote .hl::after{content:"";position:absolute;left:.02em;right:.05em;bottom:.01em;height:3px;
+    border-radius:2px;background:var(--sun);transform:scaleX(0);transform-origin:left}
+  .js-fx .band-quote.in .hl::after{transform:scaleX(1);transition:transform .8s var(--ed-ease) .4s}
+  .band-body{display:grid;grid-template-columns:1fr 1fr;gap:clamp(26px,5vw,70px);
+    margin-top:clamp(40px,5vw,62px);align-items:start;max-width:none}
+  .band-lead{font-size:clamp(18px,1.95vw,23px);line-height:1.5;color:var(--mist);font-weight:400}
+  .band-lead em{color:var(--current);font-style:normal}
+  .band-support{font-size:16px;line-height:1.72;color:#9fc0c6}
+  .band-support a{color:var(--current)}
+  @media (max-width:720px){ .band-body{grid-template-columns:1fr;gap:22px} }
+
+  /* ============================ 02 · how it works ============================ */
+  .ed-arch{margin-top:clamp(8px,3vw,30px)}
+  .ed-steps{display:grid;grid-template-columns:repeat(3,1fr);
+    margin-top:clamp(48px,6vw,80px);border-top:1px solid var(--ed-hair)}
+  .ed-step{position:relative;padding:32px clamp(16px,2vw,32px) 4px;border-left:1px solid var(--ed-hair)}
+  .ed-step:first-child{border-left:none;padding-left:0}
+  .ed-step::before{content:"";position:absolute;top:-1px;left:-1px;height:2px;width:0;background:var(--current);
+    transition:width .45s var(--ed-ease)}
+  .ed-step:first-child::before{left:0}
+  .ed-step:hover::before{width:58px}
+  .ed-step-num{display:flex;align-items:center;gap:11px;margin-bottom:17px}
+  .ed-step-num b{font-family:var(--ff-m);font-weight:600;font-size:13px;color:var(--lake);letter-spacing:.08em}
+  .ed-step-ic{width:20px;height:20px;color:var(--subtle);transition:color .25s var(--ed-ease)}
+  .ed-step:hover .ed-step-ic{color:var(--current)}
+  .ed-step-ic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:block}
+  .ed-step h3{font-family:var(--ff-d);font-size:19px;font-weight:600;margin:0 0 10px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:var(--ink)}
+  .ed-step h3 .opt{font-family:var(--ff-m);font-size:10.5px;font-weight:600;color:var(--link);background:var(--tint);border-radius:999px;padding:2px 9px;letter-spacing:.02em}
+  .ed-step p{font-size:14.5px;line-height:1.62;color:var(--muted);margin:0}
+  .ed-step p em{color:var(--ink);font-style:italic}
+  @media (max-width:760px){
+    .ed-steps{grid-template-columns:1fr;border-top:none}
+    .ed-step{border-left:none;border-top:1px solid var(--ed-hair);padding:26px 0 4px}
+    .ed-step::before{left:0}
+    .ed-step:first-child{border-top:none}
+  }
+
+  /* ============================ 03 · see it ============================ */
+  .ed-see-head{display:flex;align-items:flex-end;justify-content:space-between;gap:36px;flex-wrap:wrap}
+  .ed-see-head .ed-head{margin-bottom:clamp(30px,4vw,44px);max-width:40rem}
+  @media (max-width:760px){ .ed-see-head{justify-content:center} }
+  .ed-shot{margin:0;border:1px solid var(--ed-hair-2);border-radius:var(--r);overflow:hidden;
+    box-shadow:var(--shadow);background:var(--surface)}
+  .js-fx .ed-shot{opacity:0;transform:translateY(26px) scale(.986);
+    transition:opacity .9s var(--ed-ease),transform .9s var(--ed-ease)}
+  .js-fx .ed-shot.in{opacity:1;transform:none}
+  .ed-shot-bar{display:flex;align-items:center;gap:11px;padding:11px 16px;
+    background:var(--surface-2);border-bottom:1px solid var(--ed-hair)}
+  .ed-live{width:8px;height:8px;border-radius:50%;background:var(--current);flex:none;
+    box-shadow:0 0 0 0 rgba(43,179,163,.55);animation:edPulse 2.6s ease-out infinite}
+  @keyframes edPulse{0%{box-shadow:0 0 0 0 rgba(43,179,163,.5)}70%,100%{box-shadow:0 0 0 7px rgba(43,179,163,0)}}
+  .ed-shot-lbl{font-family:var(--ff-m);font-size:12px;color:var(--subtle);letter-spacing:.02em}
+  .ed-shot-meta{margin-left:auto;font-family:var(--ff-m);font-size:11.5px;color:var(--subtle);opacity:.8}
+  .ed-shot .shot{border:none;border-radius:0;box-shadow:none}
+  .ed-shot .shot-cap{margin:0;padding:15px 18px;background:var(--surface);border-top:1px solid var(--ed-hair);
+    text-align:left;color:var(--subtle);font-size:13.5px}
+
+  /* ============================ 04 · features bento ============================ */
+  .ed-bento .bcell{border-color:var(--ed-hair);box-shadow:none;
+    transition:transform .32s var(--ed-ease),box-shadow .32s var(--ed-ease),border-color .32s var(--ed-ease)}
+  .ed-bento .bcell:hover{transform:translateY(-5px);box-shadow:var(--shadow);border-color:var(--line-2)}
+  .ed-bento .bcell:not(.b-anchor)::before{content:"";position:absolute;top:0;left:22px;right:22px;height:2px;
+    background:var(--current);transform:scaleX(0);transform-origin:left;
+    transition:transform .42s var(--ed-ease);z-index:3}
+  .ed-bento .bcell:not(.b-anchor):hover::before{transform:scaleX(1)}
+  .ed-bento .bcell .ic{background:var(--tint);color:var(--lake);border-radius:11px;
+    transition:transform .32s var(--ed-ease)}
+  .ed-bento .bcell:hover .ic{transform:translateY(-1px) scale(1.04)}
+  .ed-bento .b-anchor .ic{transition:transform .32s var(--ed-ease),box-shadow .32s var(--ed-ease)}
+  .ed-bento .b-anchor:hover .ic{transform:none;box-shadow:0 0 26px -6px rgba(43,179,163,.55)}
+  .ed-bento .bcell h3{font-family:var(--ff-d)}
+
+  /* ============================ 05 · get started ============================ */
+  .ed-start-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,6vw,72px);align-items:center}
+  @media (max-width:820px){ .ed-start-grid{grid-template-columns:1fr;gap:30px} }
+  .ed-term{border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);border:1px solid #224b56}
+  .ed-term-bar{display:flex;align-items:center;gap:11px;padding:11px 16px;
+    background:var(--deepwater);border-bottom:1px solid #224b56}
+  .ed-term-lbl{font-family:var(--ff-m);font-size:12px;color:#7fa6ae;letter-spacing:.02em}
+  .ed-term-meta{margin-left:auto;font-family:var(--ff-m);font-size:11.5px;color:#7fa6ae;opacity:.8}
+  .ed-term .cmd{border-radius:0;box-shadow:none;background:var(--deepwater)}
+
+  /* ============================ footer ============================ */
+  .ed-footer{padding:clamp(60px,8vw,92px) 0 clamp(42px,5vw,58px)}
+  .ed-footer .f-in{align-items:flex-end;gap:32px}
+  .ed-foot-brand{display:flex;align-items:center;gap:14px}
+  .ed-foot-mark{width:42px;height:42px;flex:none}
+  .ed-foot-tag{font-family:var(--ff-d);color:var(--mist);font-weight:500;
+    font-size:clamp(19px,2.2vw,24px);letter-spacing:-.01em;line-height:1.2}
+  .ed-footer .f-links{gap:22px}
+  .ed-footer .f-links a{color:#a9c6cb;font-size:14px;transition:color .2s var(--ed-ease)}
+  .ed-footer .f-links a:hover{color:var(--mist);text-decoration:none}
+</style>
+
 <a class="skip" href="#main">Skip to content</a>
 
 <header>
@@ -406,16 +550,20 @@
 </div>
 
 <!-- PROBLEM -->
-<section id="why" class="band" aria-labelledby="why-h">
+<section id="why" class="band ed-band" aria-labelledby="why-h">
   <div class="wrap">
-    <div class="band-col">
-      <div class="sec-eyebrow" style="color:var(--current)">The problem</div>
-      <p class="big" id="why-h">Your AI is only as good as what it can <span class="hl">see.</span></p>
-      <p class="muted">Point it at one file and it's sharp. Ask it about the <em>system</em> across
+    <div class="ed-kicker fx" style="--sd:0s">
+      <span class="ed-index">01</span>
+      <span class="ed-rule fx-line" aria-hidden="true"></span>
+      <span class="sec-eyebrow">The problem</span>
+    </div>
+    <p class="band-quote fx" id="why-h" style="--sd:.06s">Your AI is only as good as what it can <span class="hl">see.</span></p>
+    <div class="band-body">
+      <p class="band-lead fx" style="--sd:.14s">Point it at one file and it's sharp. Ask it about the <em>system</em> across
         dozens of repos, and it starts guessing.</p>
-      <p class="muted">contextlake gives your tools the real source to read: mirrored to your machine,
+      <p class="band-support fx" style="--sd:.22s">contextlake gives your tools the real source to read: mirrored to your machine,
         indexed into a queryable graph, and served to your editor over
-        <a href="https://modelcontextprotocol.io" style="color:var(--current)">MCP</a>. Everything runs
+        <a href="https://modelcontextprotocol.io">MCP</a>. Everything runs
         locally and offline, so no code leaves your machine.</p>
     </div>
   </div>
@@ -424,12 +572,16 @@
 <!-- HOW IT WORKS -->
 <section id="how" aria-labelledby="how-h">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="sec-eyebrow">How it works</div>
-      <h2 id="how-h">Three layers, adopted one at a time</h2>
-      <p class="sec-lede">The mirror is useful on its own. Each layer above it is optional, turn on only what you need.</p>
+    <div class="ed-head">
+      <div class="ed-kicker fx" style="--sd:0s">
+        <span class="ed-index">02</span>
+        <span class="ed-rule fx-line" aria-hidden="true"></span>
+        <span class="sec-eyebrow">How it works</span>
+      </div>
+      <h2 class="fx" id="how-h" style="--sd:.07s">Three layers, adopted one at a time</h2>
+      <p class="ed-lede fx" style="--sd:.14s">The mirror is useful on its own. Each layer above it is optional, turn on only what you need.</p>
     </div>
-    <div class="arch" role="img" aria-label="contextlake architecture. Your repos, a GitLab group or GitHub, Bitbucket or Codeberg org plus optional Figma, Jira and MCP connectors, are indexed and mirrored by contextlake into a graph with embeddings, a wiki, and connectors, then served over MCP to your AI tools: Claude Code, Windsurf, Kiro, Cursor and Postman.">
+    <div class="arch ed-arch fx" style="--sd:.06s" role="img" aria-label="contextlake architecture. Your repos, a GitLab group or GitHub, Bitbucket or Codeberg org plus optional Figma, Jira and MCP connectors, are indexed and mirrored by contextlake into a graph with embeddings, a wiki, and connectors, then served over MCP to your AI tools: Claude Code, Windsurf, Kiro, Cursor and Postman.">
       <div class="arch-col">
         <div class="arch-cap">Your repos</div>
         <div class="arch-node"><span class="arch-dot" style="background:var(--lake)"></span>GitLab · GitHub · Bitbucket org</div>
@@ -460,21 +612,28 @@
         <div class="arch-node"><span class="arch-dot" style="background:var(--subtle)"></span>Postman</div>
       </div>
     </div>
-    <div class="flow-steps">
-      <div class="step">
-        <span class="ic" style="background:var(--deepwater)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span>
+    <div class="ed-steps">
+      <div class="ed-step fx" style="--sd:0s">
+        <div class="ed-step-num">
+          <b>01</b>
+          <span class="ed-step-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span>
+        </div>
         <h3>Mirror</h3>
         <p>Clone every repo in a GitLab group, GitHub org, Bitbucket workspace, or Codeberg owner into a faithful mirror, each parked on its most active branch and kept fresh with one command, never touching the branch you're on.</p>
       </div>
-      <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
-      <div class="step">
-        <span class="ic" style="background:var(--lake)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.7 7.3 11 16M16.3 7.3 13 16"/></svg></span>
+      <div class="ed-step fx" style="--sd:.1s">
+        <div class="ed-step-num">
+          <b>02</b>
+          <span class="ed-step-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.7 7.3 11 16M16.3 7.3 13 16"/></svg></span>
+        </div>
         <h3>Knowledge <span class="opt">optional</span></h3>
         <p>Parse the mirror into a code and dependency graph, then add semantic search, a council-verified wiki, and Atlassian / Figma / GitLab connectors.</p>
       </div>
-      <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
-      <div class="step">
-        <span class="ic" style="background:var(--current)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0E2A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      <div class="ed-step fx" style="--sd:.2s">
+        <div class="ed-step-num">
+          <b>03</b>
+          <span class="ed-step-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </div>
         <h3>Serve</h3>
         <p>Expose it all over MCP and an offline graph visualizer, so agents answer <em>“where is X defined?”</em> instead of grepping.</p>
       </div>
@@ -483,71 +642,98 @@
 </section>
 
 <!-- GRAPH SHOWCASE -->
-<section style="background:var(--callout-bg);border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
+<section style="background:linear-gradient(180deg,var(--bg),var(--callout-bg));border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
   <div class="wrap">
-    <div class="see-head-row">
-      <div class="sec-head" style="max-width:38em">
-        <div class="sec-eyebrow">See it</div>
-        <h2 id="see-h">A whole codebase as one navigable graph</h2>
-        <p class="sec-lede"><code style="font-family:var(--ff-m);background:var(--tint);padding:.15em .4em;border-radius:5px">contextlake graph</code>
+    <div class="ed-see-head">
+      <div class="ed-head">
+        <div class="ed-kicker fx" style="--sd:0s">
+          <span class="ed-index">03</span>
+          <span class="ed-rule fx-line" aria-hidden="true"></span>
+          <span class="sec-eyebrow">See it</span>
+        </div>
+        <h2 class="fx" id="see-h" style="--sd:.07s">A whole codebase as one navigable graph</h2>
+        <p class="ed-lede fx" style="--sd:.14s"><code>contextlake graph</code>
           renders a bounded, offline, interactive map, fleet overview, a symbol's neighbourhood, or a single repo. Type glyphs,
           language lettermarks, confidence-coded edges, level-of-detail labels, and a navigator minimap keep even dense graphs legible.</p>
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834"
-      alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
-    <p class="shot-cap">The interactive visualizer, vendored, offline, no network. Export to Mermaid, DOT, or JSON.</p>
+    <figure class="ed-shot">
+      <div class="ed-shot-bar" aria-hidden="true">
+        <span class="ed-live"></span>
+        <span class="ed-shot-lbl">contextlake graph</span>
+        <span class="ed-shot-meta">offline</span>
+      </div>
+      <img class="shot" src="graph.jpg" width="1360" height="834"
+        alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
+      <figcaption class="shot-cap">The interactive visualizer, vendored, offline, no network. Export to Mermaid, DOT, or JSON.</figcaption>
+    </figure>
   </div>
 </section>
 
 <!-- FEATURES -->
 <section id="features" aria-labelledby="feat-h">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="sec-eyebrow">What's inside</div>
-      <h2 id="feat-h">Built for real working machines</h2>
+    <div class="ed-head">
+      <div class="ed-kicker fx" style="--sd:0s">
+        <span class="ed-index">04</span>
+        <span class="ed-rule fx-line" aria-hidden="true"></span>
+        <span class="sec-eyebrow">What's inside</span>
+      </div>
+      <h2 class="fx" id="feat-h" style="--sd:.07s">Built for real working machines</h2>
     </div>
-    <div class="bento">
-      <div class="bcell b-anchor">
+    <div class="bento ed-bento">
+      <div class="bcell b-anchor fx" style="--sd:0s">
         <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4.5"/></svg></span>
         <div class="b-body"><h3>Offline-first</h3><p>The core tool is stdlib-only; nothing leaves your machine. The knowledge layer is opt-in and runs locally, so your source and your context stay on your disk.</p></div>
       </div>
-      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><h3>MCP-native</h3><p>Serve the graph to Claude Code, Windsurf, Kiro, Cursor, and other IDEs, over stdio or HTTP. Most tools need no model.</p></div>
-      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><h3>Semantic search</h3><p>A zero-config built-in CPU model, a local Ollama, or any OpenAI-compatible endpoint, your call.</p></div>
-      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a9 3 0 0 0 18 0M3 6v12a9 3 0 0 0 18 0V6M3 6a9 3 0 0 1 18 0"/></svg></span><h3>Branch-safe at scale</h3><p>Runs across hundreds of repos concurrently with adaptive backoff, and never clobbers your uncommitted work.</p></div>
-      <div class="bcell"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2Z"/><path d="M9 4v15"/></svg></span><h3>Curated wiki</h3><p>LLM-synthesized, council-verified pages grounded strictly in graph facts, with provenance footers.</p></div>
-      <div class="bcell"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Editor steering</h3><p>Generate <code style="font-family:var(--ff-m);font-size:.9em">AGENTS.md</code>, <code style="font-family:var(--ff-m);font-size:.9em">.mcp.json</code>, rules, and a skills library, wired to your graph.</p></div>
+      <div class="bcell b-wide fx" style="--sd:.06s"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><h3>MCP-native</h3><p>Serve the graph to Claude Code, Windsurf, Kiro, Cursor, and other IDEs, over stdio or HTTP. Most tools need no model.</p></div>
+      <div class="bcell b-wide fx" style="--sd:.12s"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><h3>Semantic search</h3><p>A zero-config built-in CPU model, a local Ollama, or any OpenAI-compatible endpoint, your call.</p></div>
+      <div class="bcell b-wide fx" style="--sd:.18s"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a9 3 0 0 0 18 0M3 6v12a9 3 0 0 0 18 0V6M3 6a9 3 0 0 1 18 0"/></svg></span><h3>Branch-safe at scale</h3><p>Runs across hundreds of repos concurrently with adaptive backoff, and never clobbers your uncommitted work.</p></div>
+      <div class="bcell fx" style="--sd:.24s"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2Z"/><path d="M9 4v15"/></svg></span><h3>Curated wiki</h3><p>LLM-synthesized, council-verified pages grounded strictly in graph facts, with provenance footers.</p></div>
+      <div class="bcell fx" style="--sd:.3s"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Editor steering</h3><p>Generate <code style="font-family:var(--ff-m);font-size:.9em">AGENTS.md</code>, <code style="font-family:var(--ff-m);font-size:.9em">.mcp.json</code>, rules, and a skills library, wired to your graph.</p></div>
     </div>
   </div>
 </section>
 
 <!-- GET STARTED -->
-<section class="start" aria-labelledby="start-h">
-  <div class="wrap start-grid">
+<section class="start ed-start" aria-labelledby="start-h">
+  <div class="wrap ed-start-grid">
     <div>
-      <div class="sec-eyebrow">Get started</div>
-      <h2 id="start-h" style="margin-bottom:14px">Up and running in a minute</h2>
-      <p class="sec-lede" style="margin-top:0">No GitLab or config needed to try it on a repo you already have. Point it at any local git repo and open the graph.</p>
-      <div class="cta-row" style="margin-top:22px">
+      <div class="ed-kicker fx" style="--sd:0s">
+        <span class="ed-index">05</span>
+        <span class="ed-rule fx-line" aria-hidden="true"></span>
+        <span class="sec-eyebrow">Get started</span>
+      </div>
+      <h2 class="fx" id="start-h" style="--sd:.07s;margin-bottom:16px">Up and running in a minute</h2>
+      <p class="ed-lede fx" style="--sd:.14s;margin-top:0">No GitLab or config needed to try it on a repo you already have. Point it at any local git repo and open the graph.</p>
+      <div class="cta-row fx" style="--sd:.2s;margin-top:26px">
         <a class="btn primary" href="quickstart.html">Read the quickstart</a>
         <a class="btn" href="docs.html">Docs</a>
       </div>
     </div>
-    <div class="cmd" aria-label="Quickstart commands">
-      <span class="line"><span class="prompt">$</span> <span class="c">pip install "contextlake[kb]"</span></span>
-      <span class="line"><span class="prompt">$</span> <span class="c">contextlake index --source .</span> <span class="hash"># parse this repo</span></span>
-      <span class="line"><span class="prompt">$</span> <span class="c">contextlake graph --overview --open</span></span>
-      <span class="line"><span class="prompt">$</span> <span class="c">contextlake serve</span> <span class="hash"># or serve it over MCP</span></span>
+    <div class="ed-term fx" style="--sd:.12s">
+      <div class="ed-term-bar" aria-hidden="true">
+        <span class="ed-live"></span>
+        <span class="ed-term-lbl">quickstart</span>
+        <span class="ed-term-meta">bash</span>
+      </div>
+      <div class="cmd" aria-label="Quickstart commands">
+        <span class="line"><span class="prompt">$</span> <span class="c">pip install "contextlake[kb]"</span></span>
+        <span class="line"><span class="prompt">$</span> <span class="c">contextlake index --source .</span> <span class="hash"># parse this repo</span></span>
+        <span class="line"><span class="prompt">$</span> <span class="c">contextlake graph --overview --open</span></span>
+        <span class="line"><span class="prompt">$</span> <span class="c">contextlake serve</span> <span class="hash"># or serve it over MCP</span></span>
+      </div>
     </div>
   </div>
 </section>
 </main>
 
-<footer>
+<footer class="ed-footer">
   <div class="wrap f-in">
-    <div>
-      <span class="tagline"><img class="pebble-mini" src="mark.png" alt="" aria-hidden="true">Deep context. Clear answers.</span>
+    <div class="ed-foot-brand">
+      <img class="ed-foot-mark" src="mark.png" alt="" aria-hidden="true">
+      <span class="ed-foot-tag">Deep context. Clear answers.</span>
     </div>
     <nav class="f-links" aria-label="Footer">
       <a href="https://github.com/sayak-sarkar/contextlake"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a>
@@ -589,29 +775,29 @@
 })();
 </script>
 <script>
-/* Scroll reveal: sections fade + rise as they enter the viewport. Skipped entirely under
-   reduced-motion (content stays visible) so nothing is ever hidden from those users. */
+/* Editorial reveal: precise fade-up on content and line-draw on hairlines as they
+   enter the viewport. Progressive enhancement: the reduced-motion / no-IO guard
+   returns BEFORE any hidden state is armed, and the armed states live only under
+   the .js-fx class added here, so no-JS and reduced-motion visitors see everything
+   immediately. Individual elements are observed; CSS transition-delay (--sd) does
+   the staggering, so siblings ripple in. A sweep() fallback reveals anything the
+   negative bottom rootMargin would otherwise leave stranded at the page bottom. */
 (function(){
+  var root=document.documentElement;
   if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if(!('IntersectionObserver' in window)) return;
-  /* Sections only — NOT the footer. A revealed footer needs translateY(26px), which
-     extends the page's scrollHeight until it flips in, showing as a blank strip below the
-     footer and making the overscroll bounce janky. The footer just stays visible. */
-  var els=document.querySelectorAll('main section');
+  root.classList.add('js-fx');
+  var els=[].slice.call(document.querySelectorAll('.fx, .fx-line'));
   if(!els.length) return;
-  els.forEach(function(el){ el.classList.add('reveal'); });
   function show(el){ el.classList.add('in'); io.unobserve(el); }
   var io=new IntersectionObserver(function(entries){
     entries.forEach(function(e){ if(e.isIntersecting) show(e.target); });
-  },{threshold:0.1, rootMargin:'0px 0px -8% 0px'});
+  },{threshold:0.12, rootMargin:'0px 0px -8% 0px'});
   els.forEach(function(el){ io.observe(el); });
-  /* The -8% bottom rootMargin means an element pinned to the very bottom of the page
-     (the footer, the last section) can never cross the threshold, so it would stay hidden
-     and read as blank space. Sweep in anything whose top has scrolled into view. */
   function sweep(){
-    els.forEach(function(el){
-      if(!el.classList.contains('in') && el.getBoundingClientRect().top < innerHeight * 0.9) show(el);
-    });
+    for(var i=0;i<els.length;i++){ var el=els[i];
+      if(!el.classList.contains('in') && el.getBoundingClientRect().top < innerHeight*0.92) show(el);
+    }
   }
   addEventListener('scroll', sweep, {passive:true});
   addEventListener('resize', sweep);

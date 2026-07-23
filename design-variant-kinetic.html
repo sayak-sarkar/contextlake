@@ -68,14 +68,6 @@
   .theme-toggle{cursor:pointer}
   .btn.theme-toggle{padding:9px;width:38px;justify-content:center;color:var(--muted)}
   .btn.theme-toggle:hover{color:var(--ink)}
-  /* transient cue on theme switch: needed because the hero is deepwater in BOTH themes,
-     so a toggle at the top of the page otherwise shows no visible change */
-  .theme-toast{position:fixed;top:74px;right:22px;z-index:60;display:inline-flex;align-items:center;gap:8px;
-    padding:9px 14px;border-radius:999px;background:var(--surface);color:var(--ink);border:1px solid var(--line);
-    box-shadow:var(--shadow-s);font-size:13px;font-weight:600;opacity:0;transform:translateY(-8px) scale(.96);
-    pointer-events:none;transition:opacity .28s ease,transform .28s ease}
-  .theme-toast.show{opacity:1;transform:none}
-  .theme-toast svg{width:15px;height:15px;color:var(--current)}
   .theme-toggle .sun{display:none}
   :root[data-theme="dark"] .theme-toggle .moon{display:none}
   :root[data-theme="dark"] .theme-toggle .sun{display:block}
@@ -88,8 +80,20 @@
   @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   body{margin:0;font-family:var(--ff);color:var(--ink);background:var(--bg);line-height:1.6;overscroll-behavior-y:none;
     -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-  /* dark-mode section differentiation is done with solid tones + depth, not gradient washes
-     (per design direction: no gradients across the page). */
+  /* Dark mode reads flat because the deepwater base, the problem band, and the hero are all
+     the same color. Layer faint, viewport-fixed brand glows onto the body so scrolling reveals
+     gentle atmosphere through the transparent content sections; the opaque deepwater band,
+     hero, and footer stay solid as anchors. Dark only; light mode already has contrast. */
+  :root[data-theme="dark"] body{
+    background-color:var(--bg);background-repeat:no-repeat;background-attachment:fixed;
+    background-image:radial-gradient(85% 55% at 10% 3%,rgba(19,122,139,.17),transparent 60%),
+      radial-gradient(70% 48% at 100% 26%,rgba(43,179,163,.10),transparent 56%)}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) body{
+      background-color:var(--bg);background-repeat:no-repeat;background-attachment:fixed;
+      background-image:radial-gradient(85% 55% at 10% 3%,rgba(19,122,139,.17),transparent 60%),
+        radial-gradient(70% 48% at 100% 26%,rgba(43,179,163,.10),transparent 56%)}
+  }
   a{color:var(--link);text-decoration:none}
   a:hover{text-decoration:underline}
   h1,h2,h3{font-family:var(--ff-d);letter-spacing:-.02em;line-height:1.12;margin:0}
@@ -102,7 +106,7 @@
   /* ---- header ---- */
   header{position:sticky;top:0;z-index:40;margin-bottom:-60px;background:color-mix(in srgb,var(--bg) 86%,transparent);
     backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line);
-    transition:background .28s ease,border-color .28s ease}
+    transition:background .25s ease,border-color .25s ease}
   /* while the hero fills the top of the screen, dissolve the bar onto the scene (JS adds
      .over-hero; the solid bar above is the no-JS default). Hero is dark in both themes. */
   header.over-hero{backdrop-filter:none;border-bottom-color:transparent;
@@ -114,16 +118,16 @@
   header.over-hero .btn:hover{border-color:var(--mist);background:rgba(7,20,24,.5)}
   header.over-hero .btn.primary{background:var(--lake);border-color:var(--lake);color:#fff}
   .nav{display:flex;align-items:center;gap:18px;height:60px}
-  .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--ink);transition:color .28s ease,text-shadow .28s ease}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--ink)}
   .brand:hover{text-decoration:none}
   .brand .l{color:inherit}
   .brand .glyph{height:30px;width:auto;display:block}
   .nav .spacer{flex:1}
-  .nav a.navlink{color:var(--muted);font-size:14px;font-weight:500;transition:color .28s ease,text-shadow .28s ease}
+  .nav a.navlink{color:var(--muted);font-size:14px;font-weight:500}
   .nav a.navlink:hover{color:var(--ink);text-decoration:none}
   .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;
     padding:9px 16px;border-radius:var(--rs);border:1px solid var(--line-2);background:var(--surface);
-    color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s,color .28s,text-shadow .28s,box-shadow .15s,transform .05s}
+    color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s,transform .05s}
   .btn:hover{background:var(--btn-hover);border-color:var(--lake);text-decoration:none}
   .btn:active{transform:translateY(1px)}
   .btn.primary{background:var(--lake);border-color:var(--lake);color:#fff;box-shadow:var(--shadow-s)}
@@ -176,15 +180,13 @@
     background:rgba(7,20,24,.62);color:var(--mist);font-family:var(--ff-m);font-size:14.5px;
     padding:14px 18px;border-radius:var(--rs);border:1px solid rgba(234,244,244,.15)}
   /* copy-to-clipboard buttons injected by JS (progressive enhancement; absent without JS) */
-  .copy-btn{position:absolute;right:10px;display:inline-flex;align-items:center;justify-content:center;
-    padding:7px;border-radius:8px;cursor:pointer;border:1px solid rgba(234,244,244,.24);
-    background:rgba(234,244,244,.08);color:var(--mist);transition:background .15s,border-color .15s,color .15s}
-  .copy-btn:hover{background:rgba(234,244,244,.18);border-color:rgba(234,244,244,.55)}
-  .copy-btn svg{width:15px;height:15px;display:block}
-  .copy-btn .ic-check{display:none}
-  .copy-btn.copied{color:#3ddc84;border-color:#3ddc84;background:rgba(61,220,132,.14)}
-  .copy-btn.copied .ic-copy{display:none}
-  .copy-btn.copied .ic-check{display:block}
+  .copy-btn{position:absolute;right:10px;display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--ff);font-size:12px;font-weight:600;line-height:1;padding:6px 10px;border-radius:7px;
+    cursor:pointer;border:1px solid rgba(234,244,244,.24);background:rgba(234,244,244,.08);color:var(--mist);
+    transition:background .15s,border-color .15s,color .15s}
+  .copy-btn:hover{background:rgba(234,244,244,.18);border-color:rgba(234,244,244,.5)}
+  .copy-btn.copied{color:var(--current);border-color:var(--current)}
+  .copy-btn svg{width:13px;height:13px}
   .install .copy-btn{top:50%;transform:translateY(-50%)}
   .cmd .copy-btn{top:12px}
   .install .prompt{color:var(--current);user-select:none}
@@ -204,22 +206,63 @@
     .install{margin-left:auto;margin-right:auto}
   }
 
+  /* ============================================================
+     KINETIC LAYER — a motion-forward restyle of the below-hero
+     sections. Springy hovers, staggered reveals, draw-on
+     connectors, animated lake accents. All motion is auto-gated
+     by the global reduced-motion block above, and every hidden
+     resting state lives under .reveal — a class added ONLY by JS
+     when motion is allowed. So no-JS and reduced-motion visitors
+     always see fully-visible, static content by construction.
+     ============================================================ */
+  :root{
+    --spring:cubic-bezier(.34,1.42,.5,1);     /* gentle overshoot */
+    --spring-2:cubic-bezier(.22,1.2,.36,1);
+    --ease-out:cubic-bezier(.2,.7,.2,1);
+  }
+  /* staggered child reveals: the hidden state exists only under the
+     JS-added .reveal, so it never traps no-JS / reduced-motion users. */
+  .reveal [data-kin]{opacity:0;transform:translateY(22px) scale(.985);
+    transition:opacity .6s var(--ease-out),transform .72s var(--spring)}
+  .reveal.in [data-kin]{opacity:1;transform:none}
+  /* draw-on strokes: resting state = fully drawn (offset 0); the dash
+     gap is only introduced under .reveal, then animated back to drawn. */
+  .reveal .k-draw{stroke-dasharray:54;stroke-dashoffset:54;
+    transition:stroke-dashoffset 1.15s var(--ease-out) .2s}
+  .reveal.in .k-draw{stroke-dashoffset:0}
+
   /* ---- section scaffold ---- */
-  section{padding:76px 0}
-  .sec-head{max-width:34em;margin-bottom:40px}
-  .sec-eyebrow{font-family:var(--ff-m);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
-    color:var(--lake);font-weight:600;margin-bottom:12px}
+  section{padding:88px 0;position:relative}
+  .sec-head{max-width:34em;margin-bottom:44px}
+  .sec-eyebrow{display:inline-flex;align-items:center;gap:10px;font-family:var(--ff-m);font-size:12px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--lake);font-weight:600;margin-bottom:14px}
+  .sec-eyebrow::before{content:"";width:22px;height:2px;border-radius:2px;background:var(--current);
+    transform-origin:left;animation:eyebrowLine 3.4s var(--ease-out) infinite}
+  @keyframes eyebrowLine{0%,100%{transform:scaleX(.45);opacity:.55}50%{transform:scaleX(1);opacity:1}}
   h2{font-size:clamp(26px,3.6vw,36px);font-weight:600}
   .sec-lede{color:var(--muted);font-size:17px;margin-top:14px}
 
-  /* problem band (dark) */
-  .band{background:var(--deepwater);color:var(--mist)}
+  /* problem band (dark) — now with concentric lake ripples + a
+     highlighter swipe that draws under the accent word on entry */
+  .band{background:var(--deepwater);color:var(--mist);position:relative;overflow:hidden}
   .band h2{color:#fff}
+  .band .wrap{position:relative;z-index:1}
   .band-col{max-width:840px;margin:0 auto}
   .band .big{font-family:var(--ff-d);font-weight:500;font-size:clamp(23px,3.3vw,32px);line-height:1.32;
     color:var(--mist);max-width:none}
-  .band .big .hl{color:var(--sun)}
+  .band .big .hl{color:var(--sun);position:relative}
+  .band .big .hl::after{content:"";position:absolute;left:-3px;right:-3px;bottom:.02em;height:.42em;z-index:-1;
+    background:var(--sun);opacity:.18;border-radius:3px;transform:scaleX(1);transform-origin:left}
+  .band.reveal .big .hl::after{transform:scaleX(0);transition:transform .8s var(--ease-out) .5s}
+  .band.reveal.in .big .hl::after{transform:scaleX(1)}
   .band .muted{color:#9fc0c6;margin-top:18px;text-align:justify;max-width:none}
+  /* pebble-drop ripple: two rings expanding outward, offset in time */
+  .band-ripple{position:absolute;right:7%;top:46%;width:16px;height:16px;pointer-events:none;z-index:0}
+  .band-ripple::before,.band-ripple::after{content:"";position:absolute;inset:0;border-radius:50%;
+    border:1.5px solid var(--current);opacity:0;animation:ripple 5s cubic-bezier(.2,.6,.3,1) infinite}
+  .band-ripple::after{animation-delay:2.5s}
+  @keyframes ripple{0%{transform:scale(1);opacity:.5}70%{opacity:.12}100%{transform:scale(13);opacity:0}}
+  @media (max-width:760px){ .band-ripple{right:4%;top:8%} }
 
   /* how-it-works cards */
   /* native architecture diagram */
@@ -231,11 +274,21 @@
   .arch-dot{width:9px;height:9px;border-radius:50%;flex:none}
   .arch-opt{margin-left:auto;font-size:9.5px;font-weight:600;color:var(--link);background:var(--tint);padding:1px 7px;border-radius:6px}
   .arch-sub{font-size:11px;color:var(--subtle);padding-left:3px;margin-top:-3px}
+  .arch-node{transition:transform .26s var(--spring),border-color .22s ease,box-shadow .22s ease}
+  .arch-node:hover{transform:translateY(-3px) scale(1.025);border-color:var(--lake);
+    box-shadow:0 14px 28px -12px rgba(19,122,139,.45)}
+  .arch-node:hover .arch-dot{box-shadow:0 0 0 4px color-mix(in srgb,var(--current) 22%,transparent)}
+  .arch-dot{transition:box-shadow .22s ease}
   .arch-flow{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:84px}
   .arch-flow-lbl{font-family:var(--ff-m);font-size:11px;color:var(--lake);white-space:nowrap}
   .arch-conn{display:flex;align-items:center;width:100%}
-  .arch-track{flex:1;height:2.6px;border-radius:2px;background:repeating-linear-gradient(90deg,var(--current) 0 5px,transparent 5px 12px);background-size:12px 100%;animation:flowBg 1s linear infinite}
+  .arch-track{position:relative;overflow:hidden;flex:1;height:2.6px;border-radius:2px;background:repeating-linear-gradient(90deg,var(--current) 0 5px,transparent 5px 12px);background-size:12px 100%;animation:flowBg 1s linear infinite}
   @keyframes flowBg{to{background-position:12px 0}}
+  /* a bright packet of light travelling the connector, layered over the dashes */
+  .arch-track::after{content:"";position:absolute;top:50%;left:0;width:16px;height:6px;transform:translateY(-50%);
+    border-radius:6px;background:var(--current);box-shadow:0 0 12px 2px rgba(43,179,163,.75);
+    animation:trackPulse 1.9s cubic-bezier(.5,0,.5,1) infinite}
+  @keyframes trackPulse{0%{left:-16px;opacity:0}12%{opacity:1}80%{opacity:1}100%{left:100%;opacity:0}}
   .arch-arrow{flex:none;width:15px;height:15px;color:var(--current);margin-left:-2px}
   .arch-corewrap{position:relative;display:flex}
   .arch-core{position:relative;z-index:2;flex:1;background:linear-gradient(180deg,#173640,#0E2A33);border:1px solid #224b56;border-radius:16px;padding:15px;
@@ -248,13 +301,22 @@
   .arch-layer{display:flex;align-items:center;gap:9px;background:rgba(234,244,244,.06);border:1px solid rgba(234,244,244,.11);border-radius:9px;padding:8px 11px;font-size:13px;color:var(--mist);margin-top:8px}
   .arch-layer svg{width:16px;height:16px;flex:none;stroke:var(--current);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .arch-layer.accent{background:rgba(43,179,163,.16);border-color:rgba(43,179,163,.42)}
+  /* the core gently floats; its layers slide + brighten on hover */
+  .arch-core{animation:coreFloat 6.5s ease-in-out infinite}
+  @keyframes coreFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .arch-layer{transition:transform .24s var(--spring),background .2s ease,border-color .2s ease}
+  .arch-layer:hover{transform:translateX(4px);background:rgba(234,244,244,.12);border-color:rgba(43,179,163,.5)}
+  .arch-layer.accent:hover{background:rgba(43,179,163,.26)}
   @media (max-width:760px){
     .arch{grid-template-columns:1fr;gap:6px;max-width:340px}
     .arch-flow{flex-direction:row;justify-content:center;gap:9px;min-width:0;padding:1px 0}
     .arch-conn{flex-direction:column;width:auto;height:30px}
     .arch-track{flex:none;width:2.6px;height:100%;background:repeating-linear-gradient(180deg,var(--current) 0 5px,transparent 5px 12px);background-size:100% 12px;animation:flowBgV 1s linear infinite}
+    .arch-track::after{width:6px;height:16px;left:50%;top:0;transform:translateX(-50%);
+      animation:trackPulseV 1.9s cubic-bezier(.5,0,.5,1) infinite}
     .arch-arrow{transform:rotate(90deg);margin:-2px 0 0}
   }
+  @keyframes trackPulseV{0%{top:-16px;opacity:0}12%{opacity:1}80%{opacity:1}100%{top:100%;opacity:0}}
   @keyframes flowBgV{to{background-position:0 12px}}
   .archfig{display:none}
   .see-head-row{display:flex;align-items:flex-end;justify-content:flex-start;gap:36px;flex-wrap:wrap}
@@ -266,33 +328,61 @@
   }
   .flow-steps{display:flex;align-items:stretch;justify-content:center;gap:12px;
     max-width:940px;margin:32px auto 0}
-  .step{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
-    padding:22px;box-shadow:var(--shadow-s)}
+  .step{position:relative;overflow:hidden;flex:1;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r);padding:22px;box-shadow:var(--shadow-s);
+    transition:transform .3s var(--spring),box-shadow .3s ease,border-color .25s ease}
+  .step::before{content:"";position:absolute;left:0;top:0;height:3px;width:100%;
+    background:linear-gradient(90deg,var(--lake),var(--current));
+    transform:scaleX(0);transform-origin:left;transition:transform .4s var(--ease-out)}
+  .step:hover{transform:translateY(-7px);box-shadow:var(--shadow);border-color:var(--line-2)}
+  .step:hover::before{transform:scaleX(1)}
   .step .ic{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;
-    justify-content:center;color:#fff;margin-bottom:13px}
+    justify-content:center;color:#fff;margin-bottom:13px;transition:transform .32s var(--spring)}
+  .step:hover .ic{transform:rotate(-8deg) scale(1.12)}
   .step h3{font-size:17px;font-weight:600;margin:0 0 7px;display:flex;align-items:center;gap:8px}
   .step p{font-size:14px;color:var(--muted);margin:0}
   .step .opt{font-size:10.5px;font-weight:600;color:var(--link);background:var(--tint);
-    border-radius:999px;padding:2px 8px}
-  .step-sep{flex:none;align-self:center;color:var(--line-2);display:flex;align-items:center}
+    border-radius:999px;padding:2px 8px;transition:background .2s ease,color .2s ease}
+  .step:hover .opt{background:var(--current);color:#fff}
+  .step-sep{flex:none;align-self:center;color:var(--current);display:flex;align-items:center}
+  .step-sep svg{animation:sepNudge 2.2s ease-in-out infinite}
+  @keyframes sepNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
   @media (max-width:820px){
     .flow-steps{flex-direction:column;align-items:stretch}
     .step-sep{transform:rotate(90deg);margin:2px auto}
   }
 
   /* graph showcase */
-  .shot{border-radius:var(--r);border:1px solid var(--line-2);box-shadow:var(--shadow);
+  .shot-wrap{position:relative;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);
+    transition:transform .4s var(--spring),box-shadow .4s ease}
+  .shot-wrap:hover{transform:translateY(-5px) scale(1.006);
+    box-shadow:0 34px 74px -30px rgba(19,122,139,.55)}
+  .shot{border-radius:var(--r);border:1px solid var(--line-2);
     width:100%;height:auto;display:block;background:var(--deepwater)}
+  /* a light sweep that runs across the shot as the section enters view */
+  .shot-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+    background:linear-gradient(105deg,transparent 32%,rgba(255,255,255,.22) 48%,transparent 64%);
+    transform:translateX(-130%)}
+  .reveal.in .shot-wrap::after{animation:shine 1.7s var(--ease-out) .55s}
+  @keyframes shine{to{transform:translateX(130%)}}
   .shot-cap{color:var(--subtle);font-size:13.5px;margin-top:14px;text-align:center}
+  .see-pebble{animation:pebbleBob 5.5s ease-in-out infinite}
+  @keyframes pebbleBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-11px)}}
 
   /* features bento: varied cells, real depth, an anchor cell that echoes the hero */
   .bento{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   .bcell{position:relative;overflow:hidden;padding:22px;border:1px solid var(--line);border-radius:var(--r);
     background:var(--surface);box-shadow:var(--shadow-s);
-    transition:transform .2s cubic-bezier(.2,.7,.2,1),box-shadow .2s ease,border-color .2s ease}
-  .bcell:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--line-2)}
+    transition:transform .28s var(--spring),box-shadow .28s ease,border-color .28s ease}
+  /* hover scale stays under 1.5% so it can never exceed the .wrap padding
+     and never induce horizontal page scroll */
+  .bcell:hover{transform:translateY(-6px) scale(1.012);box-shadow:var(--shadow);border-color:var(--lake)}
+  .bcell:active{transform:translateY(-2px) scale(.998)}
   .bcell .ic{width:42px;height:42px;border-radius:12px;background:var(--tint);color:var(--link);
-    display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px}
+    display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;
+    transition:transform .32s var(--spring),background .24s ease,color .24s ease}
+  .bcell:not(.b-anchor):hover .ic{transform:translateY(-3px) rotate(-7deg) scale(1.1);
+    background:var(--lake);color:#fff}
   .bcell .ic svg{width:22px;height:22px}
   .bcell h3{font-size:16px;margin:0 0 6px}
   .bcell p{font-size:14px;color:var(--muted);margin:0}
@@ -300,7 +390,10 @@
   .b-anchor{grid-column:span 2;grid-row:span 2;display:flex;flex-direction:column;justify-content:space-between;
     background:linear-gradient(155deg,#173640,#0E2A33);border-color:#224b56;color:var(--mist)}
   .b-anchor::after{content:"";position:absolute;right:-26%;bottom:-38%;width:66%;height:78%;pointer-events:none;
-    background:radial-gradient(circle,rgba(43,179,163,.30),transparent 66%)}
+    background:radial-gradient(circle,rgba(43,179,163,.30),transparent 66%);
+    animation:anchorGlow 5.5s ease-in-out infinite}
+  @keyframes anchorGlow{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.16)}}
+  .b-anchor:hover .ic{transform:translateY(-3px) scale(1.08);background:rgba(43,179,163,.28)}
   .b-anchor::before{content:"";position:absolute;inset:0;border-radius:var(--r);pointer-events:none;
     box-shadow:inset 0 0 0 1px rgba(43,179,163,.10)}
   .b-anchor .ic{width:54px;height:54px;background:rgba(43,179,163,.15);color:var(--current);
@@ -313,13 +406,27 @@
   @media (max-width:520px){ .bento{grid-template-columns:1fr} .b-anchor,.b-wide{grid-column:span 1} }
 
   /* get started */
-  .start{background:var(--callout-bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .start{background:linear-gradient(180deg,var(--bg),var(--callout-bg));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .cmd{position:relative;background:var(--deepwater);color:var(--mist);border-radius:var(--r);padding:22px 24px;
-    font-family:var(--ff-m);font-size:14px;line-height:1.9;box-shadow:var(--shadow);overflow-x:auto}
+    font-family:var(--ff-m);font-size:14px;line-height:1.9;box-shadow:var(--shadow);overflow-x:auto;
+    transition:transform .3s var(--spring),box-shadow .3s ease}
+  .cmd:hover{transform:translateY(-4px);box-shadow:0 30px 66px -28px rgba(19,122,139,.5)}
   .cmd .line{display:block}
+  /* commands "type" in one after another as the section enters; hidden
+     state is under .reveal only, so it never traps no-JS / reduced users */
+  .reveal .cmd .line{opacity:0;transform:translateX(-8px);
+    transition:opacity .4s ease,transform .45s var(--ease-out)}
+  .reveal.in .cmd .line{opacity:1;transform:none}
+  .reveal.in .cmd .line:nth-child(1){transition-delay:.15s}
+  .reveal.in .cmd .line:nth-child(2){transition-delay:.42s}
+  .reveal.in .cmd .line:nth-child(3){transition-delay:.69s}
+  .reveal.in .cmd .line:nth-child(4){transition-delay:.96s}
   .cmd .prompt{color:var(--current);user-select:none}
   .cmd .c{color:#fff}
   .cmd .hash{color:#7fa6ae}
+  .start .btn{transition:transform .22s var(--spring),background .15s ease,border-color .15s ease,box-shadow .2s ease}
+  .start .btn:hover{transform:translateY(-3px)}
+  .start .btn:active{transform:translateY(1px)}
   .start-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center}
   @media (max-width:820px){ .start-grid{grid-template-columns:1fr;gap:24px} }
 
@@ -328,8 +435,12 @@
   footer .f-in{display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between}
   footer a{color:var(--mist)}
   footer .f-links{display:flex;flex-wrap:wrap;gap:18px}
+  footer .f-links a{display:inline-flex;align-items:center;transition:transform .22s var(--spring),color .18s ease}
+  footer .f-links a:hover{transform:translateY(-3px);color:#fff}
   footer .tagline{font-family:var(--ff-d);color:var(--mist);font-size:15px}
-  footer .pebble-mini{width:30px;height:30px;vertical-align:middle;margin-right:8px}
+  footer .pebble-mini{width:30px;height:30px;vertical-align:middle;margin-right:8px;
+    transition:transform .4s var(--spring)}
+  footer .tagline:hover .pebble-mini{transform:rotate(-10deg) scale(1.12)}
 </style>
 <script type="application/ld+json">
 {
@@ -407,13 +518,14 @@
 
 <!-- PROBLEM -->
 <section id="why" class="band" aria-labelledby="why-h">
+  <div class="band-ripple" aria-hidden="true"></div>
   <div class="wrap">
     <div class="band-col">
-      <div class="sec-eyebrow" style="color:var(--current)">The problem</div>
-      <p class="big" id="why-h">Your AI is only as good as what it can <span class="hl">see.</span></p>
-      <p class="muted">Point it at one file and it's sharp. Ask it about the <em>system</em> across
+      <div class="sec-eyebrow" style="color:var(--current)" data-kin>The problem</div>
+      <p class="big" id="why-h" data-kin>Your AI is only as good as what it can <span class="hl">see.</span></p>
+      <p class="muted" data-kin>Point it at one file and it's sharp. Ask it about the <em>system</em> across
         dozens of repos, and it starts guessing.</p>
-      <p class="muted">contextlake gives your tools the real source to read: mirrored to your machine,
+      <p class="muted" data-kin>contextlake gives your tools the real source to read: mirrored to your machine,
         indexed into a queryable graph, and served to your editor over
         <a href="https://modelcontextprotocol.io" style="color:var(--current)">MCP</a>. Everything runs
         locally and offline, so no code leaves your machine.</p>
@@ -438,7 +550,7 @@
       </div>
       <div class="arch-flow">
         <span class="arch-flow-lbl">index · mirror</span>
-        <div class="arch-conn"><span class="arch-track"></span><svg class="arch-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M12 6l6 6-6 6"/></svg></div>
+        <div class="arch-conn"><span class="arch-track"></span><svg class="arch-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="k-draw" d="M5 12h13M12 6l6 6-6 6"/></svg></div>
       </div>
       <div class="arch-corewrap">
         <div class="arch-core">
@@ -450,7 +562,7 @@
       </div>
       <div class="arch-flow">
         <span class="arch-flow-lbl">serve · MCP</span>
-        <div class="arch-conn"><span class="arch-track"></span><svg class="arch-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M12 6l6 6-6 6"/></svg></div>
+        <div class="arch-conn"><span class="arch-track"></span><svg class="arch-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="k-draw" d="M5 12h13M12 6l6 6-6 6"/></svg></div>
       </div>
       <div class="arch-col">
         <div class="arch-cap">Your AI tools</div>
@@ -461,19 +573,19 @@
       </div>
     </div>
     <div class="flow-steps">
-      <div class="step">
+      <div class="step" data-kin>
         <span class="ic" style="background:var(--deepwater)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span>
         <h3>Mirror</h3>
         <p>Clone every repo in a GitLab group, GitHub org, Bitbucket workspace, or Codeberg owner into a faithful mirror, each parked on its most active branch and kept fresh with one command, never touching the branch you're on.</p>
       </div>
-      <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
-      <div class="step">
+      <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="k-draw" d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="step" data-kin>
         <span class="ic" style="background:var(--lake)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.7 7.3 11 16M16.3 7.3 13 16"/></svg></span>
         <h3>Knowledge <span class="opt">optional</span></h3>
         <p>Parse the mirror into a code and dependency graph, then add semantic search, a council-verified wiki, and Atlassian / Figma / GitLab connectors.</p>
       </div>
-      <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
-      <div class="step">
+      <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path class="k-draw" d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      <div class="step" data-kin>
         <span class="ic" style="background:var(--current)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0E2A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         <h3>Serve</h3>
         <p>Expose it all over MCP and an offline graph visualizer, so agents answer <em>“where is X defined?”</em> instead of grepping.</p>
@@ -483,7 +595,7 @@
 </section>
 
 <!-- GRAPH SHOWCASE -->
-<section style="background:var(--callout-bg);border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
+<section style="background:linear-gradient(180deg,var(--bg),var(--callout-bg));border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
   <div class="wrap">
     <div class="see-head-row">
       <div class="sec-head" style="max-width:38em">
@@ -495,8 +607,10 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834"
-      alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
+    <div class="shot-wrap">
+      <img class="shot" src="graph.jpg" width="1360" height="834"
+        alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
+    </div>
     <p class="shot-cap">The interactive visualizer, vendored, offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
 </section>
@@ -509,15 +623,15 @@
       <h2 id="feat-h">Built for real working machines</h2>
     </div>
     <div class="bento">
-      <div class="bcell b-anchor">
+      <div class="bcell b-anchor" data-kin>
         <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4.5"/></svg></span>
         <div class="b-body"><h3>Offline-first</h3><p>The core tool is stdlib-only; nothing leaves your machine. The knowledge layer is opt-in and runs locally, so your source and your context stay on your disk.</p></div>
       </div>
-      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><h3>MCP-native</h3><p>Serve the graph to Claude Code, Windsurf, Kiro, Cursor, and other IDEs, over stdio or HTTP. Most tools need no model.</p></div>
-      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><h3>Semantic search</h3><p>A zero-config built-in CPU model, a local Ollama, or any OpenAI-compatible endpoint, your call.</p></div>
-      <div class="bcell b-wide"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a9 3 0 0 0 18 0M3 6v12a9 3 0 0 0 18 0V6M3 6a9 3 0 0 1 18 0"/></svg></span><h3>Branch-safe at scale</h3><p>Runs across hundreds of repos concurrently with adaptive backoff, and never clobbers your uncommitted work.</p></div>
-      <div class="bcell"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2Z"/><path d="M9 4v15"/></svg></span><h3>Curated wiki</h3><p>LLM-synthesized, council-verified pages grounded strictly in graph facts, with provenance footers.</p></div>
-      <div class="bcell"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Editor steering</h3><p>Generate <code style="font-family:var(--ff-m);font-size:.9em">AGENTS.md</code>, <code style="font-family:var(--ff-m);font-size:.9em">.mcp.json</code>, rules, and a skills library, wired to your graph.</p></div>
+      <div class="bcell b-wide" data-kin><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><h3>MCP-native</h3><p>Serve the graph to Claude Code, Windsurf, Kiro, Cursor, and other IDEs, over stdio or HTTP. Most tools need no model.</p></div>
+      <div class="bcell b-wide" data-kin><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><h3>Semantic search</h3><p>A zero-config built-in CPU model, a local Ollama, or any OpenAI-compatible endpoint, your call.</p></div>
+      <div class="bcell b-wide" data-kin><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a9 3 0 0 0 18 0M3 6v12a9 3 0 0 0 18 0V6M3 6a9 3 0 0 1 18 0"/></svg></span><h3>Branch-safe at scale</h3><p>Runs across hundreds of repos concurrently with adaptive backoff, and never clobbers your uncommitted work.</p></div>
+      <div class="bcell" data-kin><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2Z"/><path d="M9 4v15"/></svg></span><h3>Curated wiki</h3><p>LLM-synthesized, council-verified pages grounded strictly in graph facts, with provenance footers.</p></div>
+      <div class="bcell" data-kin><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Editor steering</h3><p>Generate <code style="font-family:var(--ff-m);font-size:.9em">AGENTS.md</code>, <code style="font-family:var(--ff-m);font-size:.9em">.mcp.json</code>, rules, and a skills library, wired to your graph.</p></div>
     </div>
   </div>
 </section>
@@ -600,7 +714,25 @@
   var els=document.querySelectorAll('main section');
   if(!els.length) return;
   els.forEach(function(el){ el.classList.add('reveal'); });
-  function show(el){ el.classList.add('in'); io.unobserve(el); }
+  /* Kinetic stagger: as a section reveals, its [data-kin] children settle in
+     one after another. Delays are set here (JS-only, motion-allowed path) so
+     the resting markup carries no inline delay for no-JS / reduced-motion. */
+  function show(el){
+    var kids=el.querySelectorAll('[data-kin]');
+    for(var i=0;i<kids.length;i++){ kids[i].style.transitionDelay=(i*90)+'ms'; }
+    el.classList.add('in'); io.unobserve(el);
+    /* Once the entrance stagger has played, detach the hook: clear the inline
+       delay AND drop data-kin so `.reveal [data-kin]` stops matching. Otherwise
+       that rule (higher specificity, permanent .reveal) would keep owning the
+       transition on hoverable cards, dropping box-shadow/border-color from the
+       transition and leaving a stale per-card delay, so hovers snap and lag.
+       After removal the cards use their own crisp .28s spring hover. No visual
+       jump: opacity is already 1 and transform none, the fallback defaults.
+       Motion-path only (show never runs under reduced-motion / no-JS). */
+    setTimeout(function(){
+      for(var j=0;j<kids.length;j++){ kids[j].style.transitionDelay=''; kids[j].removeAttribute('data-kin'); }
+    }, kids.length*90 + 950);
+  }
   var io=new IntersectionObserver(function(entries){
     entries.forEach(function(e){ if(e.isIntersecting) show(e.target); });
   },{threshold:0.1, rootMargin:'0px 0px -8% 0px'});
@@ -618,17 +750,7 @@
   sweep();
 })();
 </script>
-<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;
-  function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}
-  function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}
-  lbl(cur());
-  var toast=document.createElement("div");toast.className="theme-toast";toast.setAttribute("role","status");toast.setAttribute("aria-live","polite");document.body.appendChild(toast);
-  var SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>';
-  var MOON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
-  var tt=null;
-  function toastFor(t){toast.innerHTML=(t==="dark"?MOON:SUN)+"<span>"+(t==="dark"?"Dark":"Light")+" mode</span>";toast.classList.add("show");clearTimeout(tt);tt=setTimeout(function(){toast.classList.remove("show");},1400);}
-  b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);toastFor(n);});
-})();</script>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);});})();</script>
 <script>/* dissolve the sticky bar onto the hero while it fills the top of the screen; the solid
    bar is the CSS default, so no-JS visitors keep a legible opaque header. */
 (function(){var header=document.querySelector("header"),hero=document.querySelector(".hero");if(!header||!hero)return;var over=null;function update(){var next=hero.getBoundingClientRect().bottom>header.offsetHeight;if(next!==over){over=next;header.classList.toggle("over-hero",next);}}update();addEventListener("scroll",update,{passive:true});addEventListener("resize",update);})();</script>
@@ -636,16 +758,17 @@
    (or insecure context) means no button, and the commands are still readable/selectable. */
 (function(){
   if(!navigator.clipboard||!navigator.clipboard.writeText) return;
-  var ICONS='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+  var COPY='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
   function addBtn(block,getText){
     var b=document.createElement('button');
-    b.type='button'; b.className='copy-btn'; b.setAttribute('aria-label','Copy to clipboard');
-    b.innerHTML=ICONS;
-    var t=null;
+    b.type='button'; b.className='copy-btn';
+    b.innerHTML=COPY+'<span class="lbl">Copy</span>';
+    var lbl=b.querySelector('.lbl'), t=null;
+    b.setAttribute('aria-label','Copy command to clipboard');
     b.addEventListener('click',function(){
       navigator.clipboard.writeText(getText()).then(function(){
-        b.classList.add('copied'); b.setAttribute('aria-label','Copied');
-        clearTimeout(t); t=setTimeout(function(){ b.classList.remove('copied'); b.setAttribute('aria-label','Copy to clipboard'); },1600);
+        b.classList.add('copied'); lbl.textContent='Copied';
+        clearTimeout(t); t=setTimeout(function(){ b.classList.remove('copied'); lbl.textContent='Copy'; },1600);
       });
     });
     block.appendChild(b);
