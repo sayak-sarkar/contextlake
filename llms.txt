@@ -11,6 +11,8 @@
 - [Knowledge layer](https://sayak.in/contextlake/knowledge-layer.html): Build a queryable graph + wiki and serve it over MCP.
 - [Architecture & internals](https://sayak.in/contextlake/internals.html): Store, concurrency, extraction, the offline boundary.
 - [Changelog](https://sayak.in/contextlake/changelog.html): Release history.
+- [Documentation style guide](https://sayak.in/contextlake/style-guide.html): How contextlake's docs, CLI, and site are written: voice, page types, and formatting.
+- [Brand guidelines](https://sayak.in/contextlake/brand.html): contextlake's brand, the lake metaphor, the mark, color, type, and Pebble the mascot.
 
 ## Source
 - [GitHub repository](https://github.com/sayak-sarkar/contextlake)

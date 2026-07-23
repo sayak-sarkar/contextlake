@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Style guide · contextlake docs</title>
+<meta name="description" content="How we write contextlake: voice, page types, formatting, and the rules that keep every doc, the CLI, and the site consistent.">
+<link rel="canonical" href="https://sayak.in/contextlake/style-guide.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Style guide · contextlake docs">
+<meta property="og:description" content="How we write contextlake: voice, page types, formatting, and the rules that keep every doc, the CLI, and the site consistent.">
+<meta property="og:url" content="https://sayak.in/contextlake/style-guide.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Style guide · contextlake docs">
+<meta name="twitter:description" content="How we write contextlake: voice, page types, formatting, and the rules that keep every doc, the CLI, and the site consistent.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Documentation</h2><nav aria-label="Docs"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="benchmarks.html">Benchmarks</a><a href="internals.html">Architecture</a><a href="storage.html">Storage</a><a href="changelog.html">Changelog</a><a href="style-guide.html" class="active">Style guide</a><a href="brand.html">Brand guidelines</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Reference</div><h1>Documentation style guide</h1><p class="doc-sub">How we write contextlake: voice, page types, formatting, and the rules that keep every doc, the CLI, and the site consistent.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>How we write contextlake: its docs, and by extension its CLI text, dashboard copy, and website. This is
+the writing companion to the <a href="brand.html">brand guidelines</a>. The brand guidelines decide who contextlake
+is; this guide decides how it talks. Where the two overlap, the brand guidelines win on voice and this
+guide wins on structure.</p>
+<p>If you write or edit a single page, you need only three things: the spirit (below), the page type you're
+writing (section 4), and the review checklist at the end. Everything between is the reference you reach
+for when a specific question comes up.</p>
+<h2 id="the-spirit-grounded-lucid-warm">The spirit: grounded, lucid, warm<a class="anchor" href="#the-spirit-grounded-lucid-warm" title="Link to this section">#</a></h2>
+<p>contextlake's docs sound like a knowledgeable friend who read your code so the model doesn't have to
+guess. Three brand words govern every page.</p>
+<p><strong>Grounded.</strong> Every claim traces to something real: a command, a file, a flag, a line of output. We show
+the receipt. We never overclaim. When something is a deliberate limitation, we say so plainly, because an
+honest boundary builds more trust than a hidden one.</p>
+<p><strong>Lucid.</strong> Short sentences. Plain words. One idea per line. We write for scanning first and reading
+second. If a sentence serves none of the three brand words, we cut it.</p>
+<p><strong>Warm.</strong> We talk to you, not at you. Contractions are welcome. The tone is friendly, never cutesy, never
+corporate. Pebble is on your side.</p>
+<p>The one-line test for any page: <em>structure it like a reference, decide once like a ledger, and talk like
+a friend.</em></p>
+<hr />
+<h2 id="1-voice-and-tone">1. Voice and tone<a class="anchor" href="#1-voice-and-tone" title="Link to this section">#</a></h2>
+<p>This extends section 1.6 of the brand guidelines into doc-length writing.</p>
+<h3 id="the-defaults">The defaults<a class="anchor" href="#the-defaults" title="Link to this section">#</a></h3>
+<p>These five are mechanical. A linter can check them, and reviewers should.</p>
+<ul>
+<li><strong>Second person.</strong> Address the reader as "you". The reader owns the lake. Reserve "we" for a genuine
+  maintainer recommendation ("we recommend Ollama at scale"), never as a synonym for "you".</li>
+<li><strong>Present tense.</strong> "<code>sync</code> fetches and updates every repo", not "will fetch".</li>
+<li><strong>Active voice.</strong> "Run <code>contextlake index</code>", not "the index should be run". Passive is acceptable only
+  when the actor is genuinely unknown or irrelevant, or in an error message where you don't want to blame
+  the reader.</li>
+<li><strong>Imperative for steps.</strong> Every step in a task starts with a verb: "Install", "Run", "Open", "Verify".</li>
+<li><strong>Contractions welcome.</strong> "you'll", "it's", "let's", "don't". This is the heart of the warmth. Avoid a
+  contraction only where it creates real ambiguity in a precision-critical spot.</li>
+</ul>
+<h3 id="warmth-calibrated">Warmth, calibrated<a class="anchor" href="#warmth-calibrated" title="Link to this section">#</a></h3>
+<p>Friendly, not frivolous. Use this three-way test when a sentence feels off:</p>
+<table>
+<thead>
+<tr>
+<th>Too informal</th>
+<th>Just right</th>
+<th>Too formal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Dude, this indexes EVERYTHING, so sick."</td>
+<td>"<code>index</code> walks every repo under a folder and builds the graph."</td>
+<td>"The index subsystem facilitates the construction of a graph representation of the corpus."</td>
+</tr>
+</tbody>
+</table>
+<p>Warmth lives in direct address, contractions, and the occasional light human touch. It does not live in
+slang, hype, or jokes that don't translate. When in doubt, read the sentence aloud. If it doesn't sound
+like something you'd say to a colleague you respect, rewrite it.</p>
+<h3 id="grounded-writing-the-anti-hallucination-habits">Grounded writing: the anti-hallucination habits<a class="anchor" href="#grounded-writing-the-anti-hallucination-habits" title="Link to this section">#</a></h3>
+<p>These are contextlake's signature. They are also just good technical writing.</p>
+<ul>
+<li><strong>Claim, then citation.</strong> Wherever a page states what the tool does, show where it comes from: "the
+  count comes from <code>graph_stats</code>", "you'll see <code>1976 vectors written</code>". A cited noun out-persuades any
+  adjective. This is the single most on-brand thing our docs can do.</li>
+<li><strong>Kill the filler that gaslights a stuck reader.</strong> Delete "just", "simply", "easy", and "easily". If
+  someone is reading the docs, the thing wasn't obvious, and calling it easy only makes a stuck reader
+  feel worse.</li>
+<li><strong>Measured language.</strong> "usually", "in most cases", and "often" beat false absolutes. The promise is
+  provenance, that an answer traces to real source, not infallibility.</li>
+<li><strong>Examples support text, they never replace it.</strong> Never expect the reader to extract the instruction
+  from a bare code block. Say what the block does, then show it, then say what came back.</li>
+</ul>
+<h3 id="banned-words-and-tics">Banned words and tics<a class="anchor" href="#banned-words-and-tics" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Hype:</strong> leverage, seamless, powerful, revolutionary, supercharge, next-gen, robust, cutting-edge,
+  unleash, and "intelligence" as a noun. Rewrite with a concrete verb or noun.</li>
+<li><strong>Overclaims:</strong> "100% accurate", "never wrong", "eliminates hallucinations", "always correct",
+  "guarantees". These break <em>grounded</em>.</li>
+<li><strong>Anthropomorphism:</strong> no "allows you to", "lets you", or "enables you to". Use a reader-focused verb.
+  Write "Use the dashboard to inspect a repo", not "the dashboard lets you inspect a repo". (Software may
+  still "detect", "display", "read", or "prompt". Those are fine.)</li>
+<li><strong>"please"</strong> in instructions. It's superfluous and reads unevenly across cultures. Write "To view the
+  graph, run <code>contextlake graph</code>", not "Please run".</li>
+<li><strong>"click here" / "read this"</strong> as link text. See section 6.6.</li>
+<li><strong>Exclamation points</strong> in body copy. One is allowed, rarely, in the warmest microcopy.</li>
+</ul>
+<hr />
+<h2 id="2-word-choice-and-terminology">2. Word choice and terminology<a class="anchor" href="#2-word-choice-and-terminology" title="Link to this section">#</a></h2>
+<p>Clear words, used consistently, are most of what makes docs feel professional.</p>
+<h3 id="prefer-the-simple-word">Prefer the simple word<a class="anchor" href="#prefer-the-simple-word" title="Link to this section">#</a></h3>
+<p>Use the shorter, plainer option: "use" not "utilize", "with" or "through" not "via", "for example" not
+"e.g.", "that is" not "i.e.", "about" not "approximately". Spell out Latin abbreviations in running prose;
+reserve "e.g." and "i.e." for parentheses if you must.</p>
+<h3 id="use-the-same-word-for-the-same-thing">Use the same word for the same thing<a class="anchor" href="#use-the-same-word-for-the-same-thing" title="Link to this section">#</a></h3>
+<p>If you mean the graph, say "the graph" every time. Don't reach for a synonym to avoid repetition;
+synonym-variety reads as elegance to the writer and as ambiguity to the reader. This matters most for
+contextlake's own concepts, which have precise meanings (see the ledger in section 10).</p>
+<h3 id="precise-verbs">Precise verbs<a class="anchor" href="#precise-verbs" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>enter</strong> text (any input method), <strong>type</strong> only when you mean the keyboard specifically.</li>
+<li><strong>select</strong> a checkbox or an option, don't "check" it.</li>
+<li><strong>run</strong> a command, <strong>pass</strong> a flag, <strong>set</strong> a config key.</li>
+<li><strong>stop</strong> or <strong>cancel</strong> a process, never "kill" or "abort" (see section 8).</li>
+</ul>
+<h3 id="abbreviations">Abbreviations<a class="anchor" href="#abbreviations" title="Link to this section">#</a></h3>
+<p>Define every abbreviation on first use on each page: MCP (Model Context Protocol), AST (abstract syntax
+tree), RAG (retrieval-augmented generation), ANN (approximate nearest neighbor), FTS (full-text search),
+SME (subject-matter expert). After the first mention, the short form is fine.</p>
+<hr />
+<h2 id="3-the-reader-and-writing-for-everyone">3. The reader, and writing for everyone<a class="anchor" href="#3-the-reader-and-writing-for-everyone" title="Link to this section">#</a></h2>
+<p>Assume your reader is smart, busy, and possibly reading English as a second language. That single
+assumption drives most of the rules below.</p>
+<ul>
+<li><strong>Short sentences.</strong> Aim under 25 words. Split a long sentence into two, or into a list.</li>
+<li><strong>Keep "that".</strong> "Verify that the service is running" is easier to parse than "Verify the service is
+  running", especially in translation.</li>
+<li><strong>Avoid idioms and figurative load-bearing language.</strong> "Solve two problems at once", not "kill two
+  birds with one stone". A metaphor may decorate, but it must never carry the only copy of a technical
+  fact. (The lake metaphor is the one sanctioned exception, and it is decorative, see section 10.)</li>
+<li><strong>Don't open with an expletive subject.</strong> "The store holds three tables", not "There are three tables
+  in the store". Expletive openers ("there is", "it is important to") hide the real subject.</li>
+<li><strong>One idea per sentence, one topic per paragraph,</strong> and state the paragraph's point in its first
+  sentence.</li>
+</ul>
+<hr />
+<h2 id="4-page-types">4. Page types<a class="anchor" href="#4-page-types" title="Link to this section">#</a></h2>
+<p>Every page is exactly one type. This is the shared lesson of the field's best guides, and it is the cure
+for walls of text: a page that braids explanation, steps, and lookup gets split. Sort each section into a
+type. If a how-to grows three paragraphs of background, that background is a concept page in disguise.</p>
+<p>Signal the type through the folder or nav group and the title form, not through an ugly filename prefix.
+Keep URLs clean.</p>
+<h3 id="concept">Concept<a class="anchor" href="#concept" title="Link to this section">#</a></h3>
+<p>Answers "what is this, and why care?".</p>
+<ul>
+<li><strong>Title:</strong> a noun phrase. "The knowledge layer", not "Understanding the knowledge layer".</li>
+<li><strong>Skeleton:</strong> a lead summary, then explanation in prose, lists, and a code-grounded diagram. Begin with
+  a one-sentence definition. No step-by-step instructions; those belong in a how-to.</li>
+</ul>
+<h3 id="how-to-task">How-to (task)<a class="anchor" href="#how-to-task" title="Link to this section">#</a></h3>
+<p>Answers "how do I do X?".</p>
+<ul>
+<li><strong>Title:</strong> a gerund phrase. "Indexing your repos", "Wiring your editor".</li>
+<li><strong>Skeleton:</strong>
+  1. A lead that names what you'll accomplish and why.
+  2. <strong>Prerequisites</strong> (what must be true first).
+  3. Numbered, imperative steps. One action per step. State where before what ("In <code>kb.toml</code>, set...").
+  4. <strong>Verification.</strong> How you know it worked, with the real output to expect. This step is near-required;
+     it is the most reader-respecting thing a CLI doc can do.
+  5. <strong>Next steps</strong> or <strong>See also.</strong></li>
+</ul>
+<h3 id="reference">Reference<a class="anchor" href="#reference" title="Link to this section">#</a></h3>
+<p>Answers "what are the exact details?".</p>
+<ul>
+<li><strong>Title:</strong> a noun phrase. "<code>contextlake</code> command reference", "Configuration keys".</li>
+<li><strong>Skeleton:</strong> a short lead, then scannable tables and lists (flags, keys, exit codes). Facts, not
+  narrative. Keep subsections consistent across sibling reference pages (for a command: summary, synopsis,
+  options, examples, related commands).</li>
+</ul>
+<h3 id="tutorial">Tutorial<a class="anchor" href="#tutorial" title="Link to this section">#</a></h3>
+<p>Answers "walk me through it end to end".</p>
+<ul>
+<li><strong>Title:</strong> a gerund or "Getting started".</li>
+<li><strong>Skeleton:</strong> a lead stating prerequisites and the end state, then a narrated, ordered path with
+  checkpoints along the way. Teaching-oriented, so a little more prose than a how-to is fine.</li>
+</ul>
+<h3 id="overview-landing">Overview / landing<a class="anchor" href="#overview-landing" title="Link to this section">#</a></h3>
+<p>Answers "where am I, and where do I go next?".</p>
+<ul>
+<li><strong>Title:</strong> a noun phrase.</li>
+<li><strong>Skeleton:</strong> a short orienting lead, then signposts to the pages above.</li>
+</ul>
+<p><strong>Rules that make typing work:</strong></p>
+<ul>
+<li><strong>One topic per page.</strong> A page must make sense on its own.</li>
+<li><strong>No stubs.</strong> A page covers its topic completely (every flag, the edge cases, at least one example) or
+  it isn't ready. A thin page is worse than no page, because it looks finished.</li>
+<li><strong>The Verification step earns its keep.</strong> "You should see <code>4 repos, 29 nodes, 28 edges</code>" turns a
+  hopeful reader into a confident one, and it dogfoods the grounded ethos.</li>
+</ul>
+<hr />
+<h2 id="5-structure-within-a-page">5. Structure within a page<a class="anchor" href="#5-structure-within-a-page" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>Lead first.</strong> Open every page with a one-to-three-sentence, plain-language summary of what it is and
+  why you'd use it, before any section heading. A reader who stops after the lead still leaves with the
+  gist. This is the highest-leverage fix for scannability.</li>
+<li><strong>One H1, body starts at H2, never skip a level.</strong> The site strips the H1 and shows the hero title, so
+  your first real heading is H2.</li>
+<li><strong>Short paragraphs, three to seven lines.</strong> Single-line paragraphs are fine. Break up anything longer.</li>
+<li><strong>Front-load the keyword</strong> in headings, list items, and the first words of a paragraph. Readers scan in
+  an F-shape, so the scannable word goes first.</li>
+<li><strong>A section longer than about forty lines gets sub-headings.</strong> Never use a bold inline run as a
+  stand-in for a heading.</li>
+<li><strong>End with "See also"</strong> (or "Next steps" for a task): a short bulleted list of links, internal before
+  external, with no trailing punctuation.</li>
+<li><strong>Long pages rely on the site's "On this page" rail</strong> for in-page navigation. Don't hand-maintain a
+  table of contents.</li>
+</ul>
+<hr />
+<h2 id="6-formatting">6. Formatting<a class="anchor" href="#6-formatting" title="Link to this section">#</a></h2>
+<h3 id="61-headings">6.1 Headings<a class="anchor" href="#61-headings" title="Link to this section">#</a></h3>
+<p>Sentence case. "Building the knowledge layer", not "Building The Knowledge Layer". No terminal period or
+colon. Unique and descriptive within the page, because each one becomes an anchor link. No vague openers,
+so "Understanding indexing" becomes "Indexing". No questions except in an FAQ or troubleshooting section.
+Parallel across peers (all gerunds, or all nouns). Never stack two headings with no text between them, and
+never leave a lone single sub-section, have two or none.</p>
+<h3 id="62-lists">6.2 Lists<a class="anchor" href="#62-lists" title="Link to this section">#</a></h3>
+<ul>
+<li>Introduce a list with a complete sentence ending in a colon. Not a fragment like "Examples include:".</li>
+<li>Keep items parallel: all imperative, or all noun phrases, never mixed.</li>
+<li>Use all-or-none end punctuation. If every item is a full sentence, end each with a period. If all are
+  fragments, use none. Don't mix.</li>
+<li>Bullet when order doesn't matter; number when it does, or when you'll refer to a step by its number.</li>
+<li>Aim for at most about seven items, and nest at most two levels deep. A single-step procedure is a
+  sentence, not a one-item list.</li>
+</ul>
+<h3 id="63-tables">6.3 Tables<a class="anchor" href="#63-tables" title="Link to this section">#</a></h3>
+<p>Use tables for genuinely tabular data: flags, config keys, provider matrices, comparisons. Don't use a
+table to lay out prose. Give every table a short lead-in sentence, sentence-case column headers, and
+specific rather than generic headers ("Config key", not "Item").</p>
+<h3 id="64-code-and-command-examples">6.4 Code and command examples<a class="anchor" href="#64-code-and-command-examples" title="Link to this section">#</a></h3>
+<p>Every non-trivial example follows the four-part unit:</p>
+<ol>
+<li>A short lead-in sentence ending in a colon, or a scenario sub-heading.</li>
+<li>One sentence on what the command does.</li>
+<li>The code block: language-tagged (the site requires an explicit language), one command per block, the
+   command separated from its output.</li>
+<li>What the output means, especially the line the reader should see to know it worked.</li>
+</ol>
+<p>More conventions:</p>
+<ul>
+<li><strong>Monospace</strong> (backticks) for commands, flags, filenames, paths, config keys, values the reader types,
+  and literal output.</li>
+<li><strong>Replaceable values</strong> as <code>&lt;placeholder&gt;</code>: angle brackets, lowercase, descriptive. Mark trimmed output
+  with a comment like <code># ...output omitted...</code>.</li>
+<li><strong>A filename is an adjective, not a noun.</strong> "Edit the <code>kb.toml</code> file", not "edit <code>kb.toml</code>". Include the
+  leading dot in an extension and read it aloud as "dot" ("a <code>.tf</code> file").</li>
+<li><strong>Straight quotes only inside code and commands.</strong> Smart quotes break copy-paste.</li>
+<li><strong>Enclose config tags in angle brackets</strong> and don't split a sentence across a code block.</li>
+</ul>
+<h3 id="65-callouts">6.5 Callouts<a class="anchor" href="#65-callouts" title="Link to this section">#</a></h3>
+<p>Use a small, named set, and use it sparingly. One strong callout beats five buried in prose. A callout
+stands alone; never bury it inline in a paragraph.</p>
+<table>
+<thead>
+<tr>
+<th>Callout</th>
+<th>Use for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Note</strong></td>
+<td>a neutral aside worth surfacing</td>
+</tr>
+<tr>
+<td><strong>Tip</strong></td>
+<td>a shortcut or a better path</td>
+</tr>
+<tr>
+<td><strong>Important</strong></td>
+<td>a prerequisite or constraint the reader must not miss</td>
+</tr>
+<tr>
+<td><strong>Warning</strong></td>
+<td>a destructive or irreversible action (a sync over a dirty tree, a forced branch switch)</td>
+</tr>
+</tbody>
+</table>
+<p>Pick the weakest level that fits, and don't cry wolf. Reserve <strong>Warning</strong> for the genuinely destructive,
+matching the CLI's own safety-flag posture.</p>
+<h3 id="66-links">6.6 Links<a class="anchor" href="#66-links" title="Link to this section">#</a></h3>
+<ul>
+<li>Use descriptive link text that makes sense out of context. Never "click here", "this", "here", or a
+  bare URL. Screen-reader users navigate by a list of links stripped of surrounding text.</li>
+<li>Name the section for a same-page reference ("see <a href="#backends-and-tuning">Backends and tuning</a>"), never
+  "below" or "above".</li>
+<li>Write cross-doc links in the form the site rewriter normalizes (a bare <code>foo.md</code> between sibling docs,
+  <code>docs/foo.md</code> from the README) so they resolve on both GitHub and the site.</li>
+<li>Put related links in a "See also" block at the end. Use an inline link only where the reader genuinely
+  must leave the page right now.</li>
+</ul>
+<h3 id="67-numbers-dates-and-units">6.7 Numbers, dates, and units<a class="anchor" href="#67-numbers-dates-and-units" title="Link to this section">#</a></h3>
+<ul>
+<li>Use numerals for anything technical: versions, counts, sizes, flags, percentages ("5 MB", "v2.44.0",
+  "5%"). Spell out zero through nine only in ordinary prose.</li>
+<li>Write bytes as <code>B</code> and bits as <code>b</code>; never let a prefix stand alone ("16 KB", not "16 K").</li>
+<li>Never write a date numerically. "15 May 2026", not "5/15/26", which is ambiguous across locales.</li>
+</ul>
+<h3 id="68-capitalization-and-punctuation">6.8 Capitalization and punctuation<a class="anchor" href="#68-capitalization-and-punctuation" title="Link to this section">#</a></h3>
+<ul>
+<li>Sentence case for headings, UI text, and generic terms. Capitalize only proper nouns and trademarks.</li>
+<li><strong>"contextlake" is always one lowercase word,</strong> even at the start of a sentence. Reword rather than
+  capitalize it. Never "Context Lake", "ContextLake", or split across a line.</li>
+<li>Don't invent internal caps ("copy pool", not "CopyPool"). Match the interface's capitalization when you
+  name a UI element.</li>
+<li>Use the serial (Oxford) comma.</li>
+<li><strong>No em-dashes anywhere.</strong> Use a comma, a colon, parentheses, or a period. Every reference guide forbids
+  em-dashes in technical writing, and it's contextlake house style besides.</li>
+</ul>
+<hr />
+<h2 id="7-accessibility">7. Accessibility<a class="anchor" href="#7-accessibility" title="Link to this section">#</a></h2>
+<p>These are correctness, not decoration, and they improve the rendered site for everyone.</p>
+<ul>
+<li><strong>Alt text on every image,</strong> describing its function, not its appearance. Use empty alt text for a
+  purely decorative image, and add a longer description for a data-carrying visual.</li>
+<li><strong>Never put information only in an image.</strong> Pair every diagram with prose that carries the same fact.</li>
+<li><strong>Never rely on color alone.</strong> contextlake's CLI already dual-encodes status with glyphs
+  (<code>✓ ⚠ ✗ ⊘ = ↝ ~</code>) plus color; that is the standard. Extend it to the graph and C4 diagrams: distinguish
+  node kinds by shape and label, not by hue alone.</li>
+<li><strong>Use descriptive, standalone link text</strong> (also an accessibility rule, see section 6.6).</li>
+<li><strong>Don't use direction as the only locator.</strong> Name the thing ("the Fleet overview tab"), not "the tab on
+  the right".</li>
+<li><strong>Convey hierarchy with heading levels, not bold text,</strong> and never force a line break inside a sentence.</li>
+<li><strong>Give tables real headers and a short description</strong> so a screen reader can convey the cell
+  relationships.</li>
+</ul>
+<hr />
+<h2 id="8-inclusive-language">8. Inclusive language<a class="anchor" href="#8-inclusive-language" title="Link to this section">#</a></h2>
+<p>Use neutral, precise terms. The substitutions below are field-standard across Google, MDN, and Red Hat.</p>
+<table>
+<thead>
+<tr>
+<th>Avoid</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>whitelist / blacklist</td>
+<td>allowlist / blocklist (or denylist)</td>
+</tr>
+<tr>
+<td>master / slave</td>
+<td>primary / replica, controller / device, source / replica</td>
+</tr>
+<tr>
+<td>kill / abort (a process)</td>
+<td>stop, cancel, end, exit</td>
+</tr>
+<tr>
+<td>dummy value</td>
+<td>placeholder</td>
+</tr>
+<tr>
+<td>sanity check</td>
+<td>confidence check, final check</td>
+</tr>
+<tr>
+<td>crazy, insane, dumb, blind to</td>
+<td>confusing, baffling, unaware of</td>
+</tr>
+<tr>
+<td>man-hours, mankind</td>
+<td>person-hours, humanity</td>
+</tr>
+<tr>
+<td>native (speaker or feature)</td>
+<td>omit, or name the specific language</td>
+</tr>
+</tbody>
+</table>
+<p>Use singular "they" for a person of unknown gender, or make the subject plural, or drop the pronoun.
+Never default to "he" or "she". Use diverse, realistic names in examples.</p>
+<hr />
+<h2 id="9-diagrams-and-visuals">9. Diagrams and visuals<a class="anchor" href="#9-diagrams-and-visuals" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>Code-grounded, always.</strong> Every diagram traces to real structure. The knowledge-graph taxonomy diagram
+  imports its colors from <code>kb/visualize.py</code> so it matches <code>contextlake graph</code> output exactly.
+  Anti-hallucination applies to pictures too.</li>
+<li><strong>Generated, not hand-drawn.</strong> Flat diagrams come from <code>site/tools/gen_diagrams.py</code> (SVG, brand palette,
+  transparent background), rasterized with cairosvg where a PNG is needed. Don't use an image model for a
+  flat diagram; it garbles labels and structure. Painterly Pebble scene art is a separate register, it is
+  decorative, and it is never load-bearing.</li>
+<li><strong>Lead with real CLI screenshots</strong> where they teach best, use a code-grounded diagram where a picture
+  replaces more than a hundred words of prose, and use painterly brand art last and sparingly.</li>
+<li>Give every visual alt text, and a caption on the site where it aids scanning.</li>
+</ul>
+<hr />
+<h2 id="10-the-house-style-decision-cache">10. The house-style decision cache<a class="anchor" href="#10-the-house-style-decision-cache" title="Link to this section">#</a></h2>
+<p>A style guide's real value is removing per-instance deliberation. This is the lookup table for
+contextlake's recurring micro-choices, so that no contributor, and no agent, re-decides them. When you
+make a new recurring decision, add it here.</p>
+<ul>
+<li><strong>The name:</strong> <code>contextlake</code>, always one lowercase word. Never "Context Lake", "ContextLake", or
+  capitalized mid-sentence.</li>
+<li><strong>The category noun:</strong> "context layer". Never "tool", "platform", "framework", "knowledge base", or
+  "data lake".</li>
+<li><strong>One term per concept.</strong> These mean specific things; don't use them as loose synonyms:</li>
+<li><strong>the graph</strong> is the extracted node-and-edge structure.</li>
+<li><strong>the knowledge layer</strong> is the whole optional subsystem (<code>contextlake.kb</code>).</li>
+<li><strong>the index</strong> is the built store; <strong>indexing</strong> is the act of building it.</li>
+<li><strong>a repo</strong> in running prose (match the CLI), not "repository".</li>
+<li>command names (<code>sync</code>, <code>index</code>, <code>graph</code>, <code>wiki</code>, <code>serve</code>) are lowercase and in <code>code</code>.</li>
+<li><strong>The language count:</strong> "14 languages across 13 tree-sitter grammars" (<code>.tsx</code> shares the TypeScript
+  grammar). Use this exact phrasing everywhere.</li>
+<li><strong>The lake metaphor</strong> is a closed system (brand guidelines section 1.3): <em>deep</em> is the real, complete
+  source underneath, and <em>clear</em> is the precise answer back. Never oceans, waves, fishing, drowning, or
+  "data lake". Depth is calm and legible, never threatening.</li>
+<li><strong>Example values only:</strong> <code>example.com</code> and <code>.org</code>, <code>127.0.0.1</code>, and the public <code>pallets</code> GitHub org we
+  dogfood on. Never a real private host, token, or internal path.</li>
+<li><strong>Abbreviations:</strong> define on first use per page (MCP, AST, RAG, ANN, FTS, SME).</li>
+</ul>
+<hr />
+<h2 id="11-beyond-the-docs-cli-dashboard-and-website">11. Beyond the docs: CLI, dashboard, and website<a class="anchor" href="#11-beyond-the-docs-cli-dashboard-and-website" title="Link to this section">#</a></h2>
+<p>This guide is the writing layer of the brand, so it shapes every surface where contextlake uses words.</p>
+<ul>
+<li><strong>CLI text.</strong> Help strings, status lines, and errors follow the same voice: grounded (show the real
+  path or count), lucid (one idea per line), warm (plain and direct). Status is never conveyed by color
+  alone. Remember that the best doc is the one you don't need: invest in self-explanatory output and
+  empty-state guidance first, then let the docs cover what the CLI can't inline.</li>
+<li><strong>Dashboard copy.</strong> Labels, empty states, and tooltips use sentence case, second person, and the same
+  callout discipline as the docs.</li>
+<li><strong>Website.</strong> Hero and marketing copy follow the brand guidelines' tagline hierarchy; body and docs
+  follow this guide. Sentence case, no em-dashes, and a cited noun over an adjective, everywhere.</li>
+</ul>
+<hr />
+<h2 id="12-enforcement">12. Enforcement<a class="anchor" href="#12-enforcement" title="Link to this section">#</a></h2>
+<p>Consistency survives many editing sessions (human and agent) only if it's checked, not just hoped for.</p>
+<ul>
+<li><strong>A page review checklist</strong> (below) runs against every page before it ships.</li>
+<li><strong>A lint config</strong> (Vale or equivalent) encodes the mechanical rules: the banned hype words, "click
+  here", the filler words, em-dashes, and "allows you to". Style becomes a build gate like <code>ruff</code>, not a
+  review argument. Keep the ruleset small and focused.</li>
+<li><strong>The site's <code>de_emdash</code> step</strong> stays as a backstop, but source should already be em-dash-free.</li>
+</ul>
+<h3 id="page-review-checklist">Page review checklist<a class="anchor" href="#page-review-checklist" title="Link to this section">#</a></h3>
+<ol>
+<li>The page is one type, titled correctly (gerund task, noun concept, noun reference).</li>
+<li>A lead summary sits in the first one to three sentences.</li>
+<li>Headings are sentence case, unique, and parallel; no bold-run fake headings.</li>
+<li>Voice is second person, present tense, active, with contractions; no hype, no "allows you to", no
+   filler words.</li>
+<li>Every claim shows its receipt; nothing overclaims.</li>
+<li>Code examples follow the four-part unit; commands are monospace; placeholders are in <code>&lt;angle brackets&gt;</code>.</li>
+<li>Every how-to has a Verification step.</li>
+<li>Links are descriptive (no "click here", no "below"); a "See also" block closes the page.</li>
+<li>Every image has alt text; status and diagrams aren't color-only; terms are inclusive.</li>
+<li>Zero em-dashes; "contextlake" is lowercase; abbreviations are defined; only example values appear.</li>
+</ol>
+<hr />
+<h2 id="lineage">Lineage<a class="anchor" href="#lineage" title="Link to this section">#</a></h2>
+<p>This guide synthesizes seven widely respected references and reshapes them around contextlake's brand:
+the <a href="https://redhat-documentation.github.io/modular-docs/">Red Hat modular documentation</a> and
+<a href="https://redhat-documentation.github.io/supplementary-style-guide/">supplementary style guide</a>, the IBM
+Style Guide, the <a href="https://developers.google.com/style">Google developer documentation style guide</a>, the
+<a href="https://learn.microsoft.com/en-us/style-guide/welcome/">Microsoft Writing Style Guide</a>, the
+<a href="https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines">MDN writing guidelines</a>, the
+<a href="https://en.wikipedia.org/wiki/Wikipedia:Manual_of_Style">Wikipedia Manual of Style</a>, and the National
+Geographic Style Manual. The structure comes mostly from Red Hat, IBM, MDN, and Wikipedia; the warm voice
+comes mostly from Google and Microsoft; the discipline of a written-down decision cache comes from
+National Geographic. Where those guides turn cold (no contractions, no second person), we keep the
+structure and the warmth, and leave the coldness behind.</p>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="brand.html"><span>Brand guidelines</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="docs.html"><span>Overview</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#the-spirit-grounded-lucid-warm">The spirit: grounded, lucid, warm</a></li>
+<li><a href="#1-voice-and-tone">1. Voice and tone</a><ul>
+<li><a href="#the-defaults">The defaults</a></li>
+<li><a href="#warmth-calibrated">Warmth, calibrated</a></li>
+<li><a href="#grounded-writing-the-anti-hallucination-habits">Grounded writing: the anti-hallucination habits</a></li>
+<li><a href="#banned-words-and-tics">Banned words and tics</a></li>
+</ul>
+</li>
+<li><a href="#2-word-choice-and-terminology">2. Word choice and terminology</a><ul>
+<li><a href="#prefer-the-simple-word">Prefer the simple word</a></li>
+<li><a href="#use-the-same-word-for-the-same-thing">Use the same word for the same thing</a></li>
+<li><a href="#precise-verbs">Precise verbs</a></li>
+<li><a href="#abbreviations">Abbreviations</a></li>
+</ul>
+</li>
+<li><a href="#3-the-reader-and-writing-for-everyone">3. The reader, and writing for everyone</a></li>
+<li><a href="#4-page-types">4. Page types</a><ul>
+<li><a href="#concept">Concept</a></li>
+<li><a href="#how-to-task">How-to (task)</a></li>
+<li><a href="#reference">Reference</a></li>
+<li><a href="#tutorial">Tutorial</a></li>
+<li><a href="#overview-landing">Overview / landing</a></li>
+</ul>
+</li>
+<li><a href="#5-structure-within-a-page">5. Structure within a page</a></li>
+<li><a href="#6-formatting">6. Formatting</a><ul>
+<li><a href="#61-headings">6.1 Headings</a></li>
+<li><a href="#62-lists">6.2 Lists</a></li>
+<li><a href="#63-tables">6.3 Tables</a></li>
+<li><a href="#64-code-and-command-examples">6.4 Code and command examples</a></li>
+<li><a href="#65-callouts">6.5 Callouts</a></li>
+<li><a href="#66-links">6.6 Links</a></li>
+<li><a href="#67-numbers-dates-and-units">6.7 Numbers, dates, and units</a></li>
+<li><a href="#68-capitalization-and-punctuation">6.8 Capitalization and punctuation</a></li>
+</ul>
+</li>
+<li><a href="#7-accessibility">7. Accessibility</a></li>
+<li><a href="#8-inclusive-language">8. Inclusive language</a></li>
+<li><a href="#9-diagrams-and-visuals">9. Diagrams and visuals</a></li>
+<li><a href="#10-the-house-style-decision-cache">10. The house-style decision cache</a></li>
+<li><a href="#11-beyond-the-docs-cli-dashboard-and-website">11. Beyond the docs: CLI, dashboard, and website</a></li>
+<li><a href="#12-enforcement">12. Enforcement</a><ul>
+<li><a href="#page-review-checklist">Page review checklist</a></li>
+</ul>
+</li>
+<li><a href="#lineage">Lineage</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
