@@ -47,8 +47,8 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 /* layout: sidebar + content */
 .shell{display:grid;grid-template-columns:220px minmax(0,1fr) 200px;gap:40px;max-width:1320px;margin:0 auto;padding:30px 24px 80px}
 .side{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 96px);overflow:auto}
-.side h2{font-family:var(--ff-m);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
-  font-weight:600;color:var(--subtle);margin:22px 0 6px;padding-left:12px}
+.side h2{font-family:var(--ff-d);font-size:12px;letter-spacing:.05em;text-transform:uppercase;
+  font-weight:700;color:var(--muted);margin:24px 0 7px;padding-left:12px}
 .side h2:first-of-type{margin-top:2px}
 .side nav a{display:block;padding:5px 12px;border-radius:8px;color:var(--muted);text-decoration:none;
   font-size:14px;font-weight:450;line-height:1.4}
