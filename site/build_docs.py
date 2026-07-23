@@ -99,6 +99,11 @@ PAGES = [
      "or a class diagram, plus the composed namespace C4 diagram.",
      "pebble-doc.png",
      [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
+    ("ownership.html", "docs/ownership.md", "Ownership and SMEs", "Ownership and SMEs",
+     "Use it", "Find who owns a repo or path and who to ask, ranked recency-weighted from git "
+     "history (`contextlake owners` / `who_knows`), no config or index required.",
+     "pebble-doc.png",
+     [("serve.html", "Serve (MCP)"), ("dashboard.html", "Dashboard")]),
     ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",
      "Layer 3 · Serve", "An honest, measured look at the token, cost, and correctness "
      "impact of connecting the contextlake MCP to your AI coding tools, new-code "
@@ -164,7 +169,8 @@ NAV_GROUPS = [
                                    "semantic-search.html", "generate-wiki.html",
                                    "model-providers.html"]),
     ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
-                           "serve.html", "visualize.html", "benchmarks.html"]),
+                           "serve.html", "visualize.html", "ownership.html",
+                           "benchmarks.html"]),
     ("Under the hood", ["internals.html", "storage.html"]),
     ("Writing style", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
                        "style-guide-formatting.html", "style-guide-reference.html"]),
@@ -186,7 +192,7 @@ _NEXT_LABEL = {
     "model-providers.html": "Model providers",
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
     "serve.html": "Serve (MCP)", "visualize.html": "Visualize the graph",
-    "benchmarks.html": "Benchmarks",
+    "ownership.html": "Ownership and SMEs", "benchmarks.html": "Benchmarks",
     "internals.html": "Architecture", "storage.html": "Storage",
     "changelog.html": "Changelog",
     "style-guide.html": "Writing style",
