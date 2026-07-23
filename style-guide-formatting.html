@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formatting · contextlake docs</title>
+<meta name="description" content="Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.">
+<link rel="canonical" href="https://sayak.in/contextlake/style-guide-formatting.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Formatting · contextlake docs">
+<meta property="og:description" content="Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.">
+<meta property="og:url" content="https://sayak.in/contextlake/style-guide-formatting.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Formatting · contextlake docs">
+<meta name="twitter:description" content="Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a></nav><h2>Using contextlake</h2><nav aria-label="Using contextlake"><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Under the hood</h2><nav aria-label="Under the hood"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html">Page types and structure</a><a href="style-guide-formatting.html" class="active">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Writing style</div><h1>Formatting, accessibility, and inclusive language</h1><p class="doc-sub">Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>The mechanics: how headings, lists, code, callouts, links, and images look and read, plus the
+accessibility and inclusive-language rules that are correctness, not decoration. This page is part of the
+<a href="style-guide.html">documentation style guide</a>.</p>
+<h2 id="headings">Headings<a class="anchor" href="#headings" title="Link to this section">#</a></h2>
+<p>Sentence case. "Building the knowledge layer", not "Building The Knowledge Layer". No terminal period or
+colon. Unique and descriptive within the page, because each becomes an anchor link. No vague openers, so
+"Understanding indexing" becomes "Indexing". No questions except in an FAQ or troubleshooting section.
+Parallel across peers (all gerunds, or all nouns). Never stack two headings with no text between them, and
+never leave a lone single sub-section, have two or none.</p>
+<h2 id="lists">Lists<a class="anchor" href="#lists" title="Link to this section">#</a></h2>
+<ul>
+<li>Introduce a list with a complete sentence ending in a colon. Not a fragment like "Examples include:".</li>
+<li>Keep items parallel: all imperative, or all noun phrases, never mixed.</li>
+<li>Use all-or-none end punctuation. If every item is a full sentence, end each with a period. If all are
+  fragments, use none.</li>
+<li>Bullet when order doesn't matter; number when it does, or when you'll refer to a step by its number.</li>
+<li>Aim for at most about seven items, and nest at most two levels deep. A single-step procedure is a
+  sentence, not a one-item list.</li>
+</ul>
+<h2 id="tables">Tables<a class="anchor" href="#tables" title="Link to this section">#</a></h2>
+<p>Use tables for genuinely tabular data: flags, config keys, provider matrices, comparisons. Don't use a
+table to lay out prose. Give every table a short lead-in sentence, sentence-case column headers, and
+specific rather than generic headers ("Config key", not "Item").</p>
+<h2 id="code-and-command-examples">Code and command examples<a class="anchor" href="#code-and-command-examples" title="Link to this section">#</a></h2>
+<p>Every non-trivial example follows the four-part unit:</p>
+<ol>
+<li>A short lead-in sentence ending in a colon, or a scenario sub-heading.</li>
+<li>One sentence on what the command does.</li>
+<li>The code block: language-tagged (the site requires an explicit language), one command per block, the
+   command separated from its output.</li>
+<li>What the output means, especially the line the reader should see to know it worked.</li>
+</ol>
+<p>More conventions:</p>
+<ul>
+<li><strong>Monospace</strong> (backticks) for commands, flags, filenames, paths, config keys, values the reader types,
+  and literal output.</li>
+<li><strong>Replaceable values</strong> as <code>&lt;placeholder&gt;</code>: angle brackets, lowercase, descriptive. Mark trimmed output
+  with a comment like <code># ...output omitted...</code>.</li>
+<li><strong>A filename is an adjective, not a noun.</strong> "Edit the <code>kb.toml</code> file", not "edit <code>kb.toml</code>". Read an
+  extension aloud as "dot" ("a <code>.tf</code> file").</li>
+<li><strong>Straight quotes only inside code and commands.</strong> Smart quotes break copy-paste.</li>
+<li><strong>Enclose config tags in angle brackets</strong> and don't split a sentence across a code block.</li>
+</ul>
+<h2 id="callouts">Callouts<a class="anchor" href="#callouts" title="Link to this section">#</a></h2>
+<p>Use a small, named set, sparingly. One strong callout beats five buried in prose. A callout stands alone;
+never bury it inline in a paragraph.</p>
+<table>
+<thead>
+<tr>
+<th>Callout</th>
+<th>Use for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Note</strong></td>
+<td>a neutral aside worth surfacing</td>
+</tr>
+<tr>
+<td><strong>Tip</strong></td>
+<td>a shortcut or a better path</td>
+</tr>
+<tr>
+<td><strong>Important</strong></td>
+<td>a prerequisite or constraint the reader must not miss</td>
+</tr>
+<tr>
+<td><strong>Warning</strong></td>
+<td>a destructive or irreversible action (a sync over a dirty tree, a forced branch switch)</td>
+</tr>
+</tbody>
+</table>
+<p>Pick the weakest level that fits, and don't cry wolf. Reserve <strong>Warning</strong> for the genuinely destructive,
+matching the CLI's own safety-flag posture.</p>
+<h2 id="links">Links<a class="anchor" href="#links" title="Link to this section">#</a></h2>
+<ul>
+<li>Use descriptive link text that makes sense out of context. Never "click here", "this", "here", or a
+  bare URL. Screen-reader users navigate by a list of links stripped of surrounding text.</li>
+<li>Name the section for a same-page reference ("see Backends and tuning"), never "below" or "above".</li>
+<li>Write cross-doc links in the form the site rewriter normalizes (a bare <code>foo.md</code> between sibling docs,
+  <code>docs/foo.md</code> from the README) so they resolve on both GitHub and the site.</li>
+<li>Put related links in a "See also" block at the end.</li>
+</ul>
+<h2 id="numbers-dates-and-units">Numbers, dates, and units<a class="anchor" href="#numbers-dates-and-units" title="Link to this section">#</a></h2>
+<ul>
+<li>Use numerals for anything technical: versions, counts, sizes, flags, percentages ("5 MB", "v2.44.0",
+  "5%"). Spell out zero through nine only in ordinary prose.</li>
+<li>Write bytes as <code>B</code> and bits as <code>b</code>; never let a prefix stand alone ("16 KB", not "16 K").</li>
+<li>Never write a date numerically. "15 May 2026", not "5/15/26", which is ambiguous across locales.</li>
+</ul>
+<h2 id="capitalization-and-punctuation">Capitalization and punctuation<a class="anchor" href="#capitalization-and-punctuation" title="Link to this section">#</a></h2>
+<ul>
+<li>Sentence case for headings, UI text, and generic terms. Capitalize only proper nouns and trademarks.</li>
+<li><strong>"contextlake" is always one lowercase word,</strong> even at the start of a sentence. Reword rather than
+  capitalize it.</li>
+<li>Don't invent internal caps ("copy pool", not "CopyPool"). Match the interface's capitalization when you
+  name a UI element.</li>
+<li>Use the serial (Oxford) comma.</li>
+<li><strong>No em-dashes anywhere.</strong> Use a comma, a colon, parentheses, or a period.</li>
+</ul>
+<h2 id="accessibility">Accessibility<a class="anchor" href="#accessibility" title="Link to this section">#</a></h2>
+<p>These improve the rendered site for everyone.</p>
+<ul>
+<li><strong>Alt text on every image,</strong> describing its function, not its appearance. Empty alt text for a purely
+  decorative image; a longer description for a data-carrying visual.</li>
+<li><strong>Never put information only in an image.</strong> Pair every diagram with prose that carries the same fact.</li>
+<li><strong>Never rely on color alone.</strong> contextlake's CLI already dual-encodes status with glyphs
+  (<code>✓ ⚠ ✗ ⊘ = ↝ ~</code>) plus color; that's the standard. Extend it to diagrams: distinguish node kinds by
+  shape and label, not hue alone.</li>
+<li><strong>Descriptive, standalone link text</strong> (also an accessibility rule).</li>
+<li><strong>Don't use direction as the only locator.</strong> Name the thing ("the Fleet overview tab"), not "the tab on
+  the right".</li>
+<li><strong>Convey hierarchy with heading levels, not bold text,</strong> and never force a line break inside a sentence.</li>
+<li><strong>Give tables real headers and a short description</strong> so a screen reader can convey the cell relationships.</li>
+</ul>
+<h2 id="inclusive-language">Inclusive language<a class="anchor" href="#inclusive-language" title="Link to this section">#</a></h2>
+<p>Use neutral, precise terms. These substitutions are field-standard across Google, MDN, and Red Hat.</p>
+<table>
+<thead>
+<tr>
+<th>Avoid</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>whitelist / blacklist</td>
+<td>allowlist / blocklist (or denylist)</td>
+</tr>
+<tr>
+<td>master / slave</td>
+<td>primary / replica, controller / device, source / replica</td>
+</tr>
+<tr>
+<td>kill / abort (a process)</td>
+<td>stop, cancel, end, exit</td>
+</tr>
+<tr>
+<td>dummy value</td>
+<td>placeholder</td>
+</tr>
+<tr>
+<td>sanity check</td>
+<td>confidence check, final check</td>
+</tr>
+<tr>
+<td>crazy, insane, dumb, blind to</td>
+<td>confusing, baffling, unaware of</td>
+</tr>
+<tr>
+<td>man-hours, mankind</td>
+<td>person-hours, humanity</td>
+</tr>
+<tr>
+<td>native (speaker or feature)</td>
+<td>omit, or name the specific language</td>
+</tr>
+</tbody>
+</table>
+<p>Use singular "they" for a person of unknown gender, or make the subject plural, or drop the pronoun.
+Never default to "he" or "she". Use diverse, realistic names in examples.</p>
+<h2 id="diagrams-and-visuals">Diagrams and visuals<a class="anchor" href="#diagrams-and-visuals" title="Link to this section">#</a></h2>
+<ul>
+<li><strong>Code-grounded, always.</strong> Every diagram traces to real structure. The knowledge-graph taxonomy diagram
+  imports its colors from <code>kb/visualize.py</code> so it matches <code>contextlake graph</code> output exactly.</li>
+<li><strong>Generated, not hand-drawn.</strong> Flat diagrams come from <code>site/tools/gen_diagrams.py</code> (SVG, brand palette,
+  transparent), rasterized with cairosvg where a PNG is needed. Don't use an image model for a flat
+  diagram; it garbles labels. Painterly Pebble scene art is a separate, decorative register.</li>
+<li><strong>Lead with real CLI screenshots</strong> where they teach best, a code-grounded diagram where a picture
+  replaces more than a hundred words of prose, and painterly brand art last and sparingly.</li>
+<li>Give every visual alt text, and a caption on the site where it aids scanning.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="style-guide.html">Documentation style guide</a></li>
+<li><a href="style-guide-structure.html">Page types and structure</a></li>
+<li><a href="style-guide-reference.html">Word and term reference</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="style-guide-reference.html"><span>Word reference</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="brand.html"><span>Brand overview</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#headings">Headings</a></li>
+<li><a href="#lists">Lists</a></li>
+<li><a href="#tables">Tables</a></li>
+<li><a href="#code-and-command-examples">Code and command examples</a></li>
+<li><a href="#callouts">Callouts</a></li>
+<li><a href="#links">Links</a></li>
+<li><a href="#numbers-dates-and-units">Numbers, dates, and units</a></li>
+<li><a href="#capitalization-and-punctuation">Capitalization and punctuation</a></li>
+<li><a href="#accessibility">Accessibility</a></li>
+<li><a href="#inclusive-language">Inclusive language</a></li>
+<li><a href="#diagrams-and-visuals">Diagrams and visuals</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
