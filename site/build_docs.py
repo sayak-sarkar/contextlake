@@ -56,6 +56,12 @@ PAGES = [
      "incremental indexing, and the full node and edge model across 14 languages, Terraform, "
      "SQL, and web topology.",
      "pebble-doc.png",
+     [("connect-enrich.html", "Connect and enrich"), ("knowledge-layer.html", "Knowledge layer")]),
+    ("connect-enrich.html", "docs/connect-enrich.md", "Connect and enrich", "Connect and enrich",
+     "Build your knowledge base", "Link repos to their issues, docs, and designs, manage "
+     "sources, and pull grounded external facts into the knowledge layer with query-driven "
+     "enrichment.",
+     "pebble-doc.png",
      [("knowledge-layer.html", "Knowledge layer"), ("serve.html", "Serve (MCP)")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "Knowledge layer", "Knowledge layer",
      "Layer 2 · Knowledge", "Turn the mirror into a queryable graph with search, a wiki, "
@@ -134,7 +140,7 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 # in exactly one group; the group heading reuses the existing `.side h2` styling.
 NAV_GROUPS = [
     ("Get started", ["docs.html", "quickstart.html"]),
-    ("Build your knowledge base", ["index-code-graph.html"]),
+    ("Build your knowledge base", ["index-code-graph.html", "connect-enrich.html"]),
     ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
                            "serve.html", "benchmarks.html"]),
     ("Under the hood", ["internals.html", "storage.html"]),
@@ -152,6 +158,7 @@ TITLES = {out: nav for out, _, nav, *_ in PAGES}
 _NEXT_LABEL = {
     "docs.html": "Overview", "quickstart.html": "Quickstart", "usage.html": "Usage & config",
     "index-code-graph.html": "Index the code graph",
+    "connect-enrich.html": "Connect and enrich",
     "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
     "serve.html": "Serve (MCP)", "benchmarks.html": "Benchmarks",
     "internals.html": "Architecture", "storage.html": "Storage",
