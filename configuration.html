@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration · contextlake docs</title>
+<meta name="description" content="Config-file precedence, the gitlab-sync upgrade note, and the full settings reference for the mirror layer.">
+<link rel="canonical" href="https://sayak.in/contextlake/configuration.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Configuration · contextlake docs">
+<meta property="og:description" content="Config-file precedence, the gitlab-sync upgrade note, and the full settings reference for the mirror layer.">
+<meta property="og:url" content="https://sayak.in/contextlake/configuration.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Configuration · contextlake docs">
+<meta name="twitter:description" content="Config-file precedence, the gitlab-sync upgrade note, and the full settings reference for the mirror layer.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a><a href="configuration.html" class="active">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="usage.html">Mirror repositories</a><a href="knowledge-layer.html">Knowledge layer</a><a href="index-code-graph.html">Index the code graph</a><a href="connect-enrich.html">Connect and enrich</a><a href="semantic-search.html">Semantic search</a><a href="generate-wiki.html">Generate the wiki</a><a href="model-providers.html">Model providers</a><a href="bootstrap.html">Bootstrap and keep fresh</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="serve.html">Serve (MCP)</a><a href="dashboard.html">Dashboard</a><a href="visualize.html">Visualize the graph</a><a href="ownership.html">Ownership and SMEs</a></nav><h2>Understand it</h2><nav aria-label="Understand it"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html">Page types and structure</a><a href="style-guide-formatting.html">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference.html">Command reference</a><a href="console-output.html">Reading the console output</a><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs.html">Docs</a><span aria-hidden="true">/</span><span>Get started</span><span aria-hidden="true">/</span><span aria-current="page">Configuration</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Get started</div><h1>Configuration</h1><p class="doc-sub">Config-file precedence, the gitlab-sync upgrade note, and the full settings reference for the mirror layer.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>contextlake reads persistent settings from a config file, with CLI arguments overriding them. (Installing
+contextlake is covered in the <a href="https://github.com/sayak-sarkar/contextlake/blob/main/quickstart.md">Quickstart</a>; the knowledge-layer extras are in the
+<a href="knowledge-layer.html">Knowledge layer</a> overview.)</p>
+<h2 id="using-configuration-files">Using configuration files<a class="anchor" href="#using-configuration-files" title="Link to this section">#</a></h2>
+<p>Configuration is loaded in this precedence order:</p>
+<ol>
+<li><strong>Local config</strong>: <code>.contextlake.ini</code> in the current directory (highest priority)</li>
+<li><strong>Global config</strong>: <code>~/.contextlake.ini</code> in the home directory</li>
+<li><strong>Default values</strong>: built-in defaults (lowest priority)</li>
+<li><strong>CLI arguments</strong>: override all other settings</li>
+</ol>
+<blockquote>
+<p><strong>Upgrading from <code>gitlab-sync</code>?</strong> Your existing <code>~/.gitlab_sync.ini</code> / <code>.gitlab_sync.ini</code> (with its
+<code>[gitlab_sync]</code> section) is still read, and the knowledge store at <code>~/.gitlab-sync/</code> is reused as-is,
+nothing to migrate. New setups use <code>.contextlake.ini</code> and <code>~/.contextlake/</code>; the <code>gitlab-sync</code> command
+also still works as a deprecated alias.</p>
+</blockquote>
+<p>An example <code>.contextlake.ini</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[contextlake]</span>
+<span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
+<span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
+<span class="na">cache_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">/tmp</span>
+<span class="na">clone_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">300</span>
+<span class="na">fetch_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">60</span>
+<span class="na">branch_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">30</span>
+<span class="na">pull_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">60</span>
+<span class="na">max_workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">8</span>
+</code></pre></div>
+
+<h2 id="overriding-on-the-command-line">Overriding on the command line<a class="anchor" href="#overriding-on-the-command-line" title="Link to this section">#</a></h2>
+<p>Any setting can be overridden per-invocation. The config file is the recommended home for persistent
+values; use flags for one-off overrides:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/path/to/workspace<span class="w"> </span>sync<span class="w">   </span><span class="c1"># override work_dir</span>
+contextlake<span class="w"> </span>--group<span class="w"> </span>my-gitlab-group<span class="w"> </span>sync<span class="w">          </span><span class="c1"># override the group</span>
+contextlake<span class="w"> </span>--config<span class="w"> </span>/path/to/custom.ini<span class="w"> </span>sync<span class="w">     </span><span class="c1"># use a different config file</span>
+contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/home/user/dev<span class="w"> </span>--group<span class="w"> </span>your-gitlab-group<span class="w"> </span>status<span class="w">  </span><span class="c1"># combine</span>
+</code></pre></div>
+
+<h2 id="settings-reference">Settings reference<a class="anchor" href="#settings-reference" title="Link to this section">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+<th>Default</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>work_dir</code></td>
+<td>Working directory for repositories</td>
+<td><code>~/work</code></td>
+<td><code>/home/user/projects</code></td>
+</tr>
+<tr>
+<td><code>platform</code></td>
+<td>Platform to mirror: <code>gitlab</code>, <code>github</code>, <code>bitbucket</code>, <code>gitea</code> (+ <code>codeberg</code>/<code>forgejo</code> flavors)</td>
+<td><code>gitlab</code></td>
+<td><code>github</code></td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td>The group / org / workspace / owner to mirror (<code>gitlab_group</code> is its alias)</td>
+<td>none</td>
+<td><code>your-org</code></td>
+</tr>
+<tr>
+<td><code>gitlab_group</code></td>
+<td>GitLab group to synchronize</td>
+<td><code>your-gitlab-group</code></td>
+<td><code>mycompany-group</code></td>
+</tr>
+<tr>
+<td><code>token_env</code></td>
+<td>Env var holding the platform token</td>
+<td>per platform (<code>GITHUB_TOKEN</code>, and so on)</td>
+<td><code>MY_TOKEN</code></td>
+</tr>
+<tr>
+<td><code>api_base</code></td>
+<td>REST endpoint for self-hosted / enterprise instances</td>
+<td>per platform</td>
+<td><code>https://github.example.com/api/v3</code></td>
+</tr>
+<tr>
+<td><code>cache_dir</code></td>
+<td>Directory for cache files</td>
+<td><code>/tmp</code></td>
+<td><code>~/.cache/contextlake</code></td>
+</tr>
+<tr>
+<td><code>cache_file</code></td>
+<td>Name of projects cache file</td>
+<td><code>gitlab_projects.txt</code></td>
+<td><code>projects.txt</code></td>
+</tr>
+<tr>
+<td><code>cache_json</code></td>
+<td>Name of JSON cache file</td>
+<td><code>gitlab_projects.json</code></td>
+<td><code>projects.json</code></td>
+</tr>
+<tr>
+<td><code>clone_timeout</code></td>
+<td>Clone operation timeout (seconds)</td>
+<td><code>300</code></td>
+<td><code>600</code></td>
+</tr>
+<tr>
+<td><code>fetch_timeout</code></td>
+<td>Fetch operation timeout (seconds)</td>
+<td><code>60</code></td>
+<td><code>120</code></td>
+</tr>
+<tr>
+<td><code>branch_timeout</code></td>
+<td>Branch operation timeout (seconds)</td>
+<td><code>30</code></td>
+<td><code>60</code></td>
+</tr>
+<tr>
+<td><code>pull_timeout</code></td>
+<td>Pull operation timeout (seconds)</td>
+<td><code>60</code></td>
+<td><code>120</code></td>
+</tr>
+<tr>
+<td><code>max_workers</code></td>
+<td>Maximum parallel workers</td>
+<td><code>8</code></td>
+<td><code>4</code></td>
+</tr>
+<tr>
+<td><code>clean_corrupted</code></td>
+<td>Auto-remove corrupted directories</td>
+<td><code>true</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>max_retries</code></td>
+<td>Maximum retry attempts for failed operations</td>
+<td><code>3</code></td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td><code>backoff_initial</code></td>
+<td>Initial backoff time in seconds</td>
+<td><code>1</code></td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td><code>backoff_max</code></td>
+<td>Maximum backoff time in seconds</td>
+<td><code>30</code></td>
+<td><code>60</code></td>
+</tr>
+<tr>
+<td><code>adaptive_workers</code></td>
+<td>Enable adaptive worker pool</td>
+<td><code>true</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>min_workers</code></td>
+<td>Minimum workers for adaptive pool</td>
+<td><code>2</code></td>
+<td><code>4</code></td>
+</tr>
+<tr>
+<td><code>error_threshold</code></td>
+<td>Error rate threshold for adaptive workers</td>
+<td><code>0.5</code></td>
+<td><code>0.3</code></td>
+</tr>
+<tr>
+<td><code>clone_method</code></td>
+<td>How repos are cloned: <code>auto</code> (git+token, else glab, else git), <code>git</code>, or <code>glab</code></td>
+<td><code>auto</code></td>
+<td><code>git</code></td>
+</tr>
+<tr>
+<td><code>branch_strategy</code></td>
+<td>Most-active branch selection: <code>commits</code>, <code>recency</code>, or <code>hybrid</code></td>
+<td><code>hybrid</code></td>
+<td><code>recency</code></td>
+</tr>
+</tbody>
+</table>
+<p>The branch-safety settings (<code>require_clean_workspace</code>, <code>protect_working_branches</code>, <code>safe_branches</code>,
+<code>auto_stash</code>) live with <a href="usage.html#branch-safety">Mirror repositories</a>.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="https://github.com/sayak-sarkar/contextlake/blob/main/quickstart.md">Quickstart</a></li>
+<li><a href="usage.html">Mirror repositories</a></li>
+<li><a href="knowledge-layer.html">Knowledge layer</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="quickstart.html"><span>Quickstart</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="usage.html"><span>Mirror repositories</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#using-configuration-files">Using configuration files</a></li>
+<li><a href="#overriding-on-the-command-line">Overriding on the command line</a></li>
+<li><a href="#settings-reference">Settings reference</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>

@@ -8,10 +8,11 @@
 
 - [Overview](https://sayak.in/contextlake/docs.html): A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.
 - [Quickstart](https://sayak.in/contextlake/quickstart.html): Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.
-- [Usage & config](https://sayak.in/contextlake/usage.html): Every mirror command, configuration, branch safety, and scheduling, the reference for the Mirror layer.
+- [Configuration](https://sayak.in/contextlake/configuration.html): Config-file precedence, the gitlab-sync upgrade note, and the full settings reference for the mirror layer.
 
 ## Build your knowledge base
 
+- [Mirror repositories](https://sayak.in/contextlake/usage.html): Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.
 - [Knowledge layer](https://sayak.in/contextlake/knowledge-layer.html): Turn the mirror into a queryable graph with search, a wiki, and connectors.
 - [Index the code graph](https://sayak.in/contextlake/index-code-graph.html): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.
 - [Connect and enrich](https://sayak.in/contextlake/connect-enrich.html): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
