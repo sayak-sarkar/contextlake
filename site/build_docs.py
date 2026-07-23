@@ -181,14 +181,12 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 # Sidebar navigation, organized into labeled groups (ordered). Every PAGES `out` appears
 # in exactly one group; the group heading reuses the existing `.side h2` styling.
 NAV_GROUPS = [
-    ("Get started", ["docs.html", "quickstart.html"]),
-    ("Build your knowledge base", ["index-code-graph.html", "connect-enrich.html",
-                                   "semantic-search.html", "generate-wiki.html",
-                                   "model-providers.html", "bootstrap.html"]),
-    ("Using contextlake", ["usage.html", "knowledge-layer.html", "dashboard.html",
-                           "serve.html", "visualize.html", "ownership.html",
-                           "benchmarks.html"]),
-    ("Under the hood", ["internals.html", "storage.html"]),
+    ("Get started", ["docs.html", "quickstart.html", "usage.html"]),
+    ("Build your knowledge base", ["knowledge-layer.html", "index-code-graph.html",
+                                   "connect-enrich.html", "semantic-search.html",
+                                   "generate-wiki.html", "model-providers.html", "bootstrap.html"]),
+    ("Use it", ["serve.html", "dashboard.html", "visualize.html", "ownership.html"]),
+    ("Understand it", ["internals.html", "storage.html", "benchmarks.html"]),
     ("Writing style", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
                        "style-guide-formatting.html", "style-guide-reference.html"]),
     ("Brand", ["brand.html"]),
