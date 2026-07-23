@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Index the code graph · contextlake docs</title>
+<meta name="description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
+<link rel="canonical" href="https://sayak.in/contextlake/index-code-graph.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Index the code graph · contextlake docs">
+<meta property="og:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
+<meta property="og:url" content="https://sayak.in/contextlake/index-code-graph.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Index the code graph · contextlake docs">
+<meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="index-code-graph.html" class="active">Index the code graph</a></nav><h2>Using contextlake</h2><nav aria-label="Using contextlake"><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Under the hood</h2><nav aria-label="Under the hood"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html">Page types and structure</a><a href="style-guide-formatting.html">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs.html">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Index the code graph</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Index the code graph</h1><p class="doc-sub">Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>Indexing turns your mirrored repos into a queryable knowledge graph. <code>contextlake index --workspace
+~/work</code> walks every git repo under a folder and builds the graph. Runs are incremental by default;
+<code>--force</code> rebuilds from scratch.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
+</p>
+
+<h2 id="incremental-and-time-travel">Incremental and time-travel<a class="anchor" href="#incremental-and-time-travel" title="Link to this section">#</a></h2>
+<p><code>index --workspace</code> is <strong>incremental</strong>, it re-indexes only repos whose git HEAD moved since their last
+index, so a scheduled (cron) run stays cheap; pass <code>--force</code> to rebuild everything, or <code>--watch [--interval
+N]</code> to keep re-indexing in a loop (the same <code>--watch</code> / <code>--interval</code> flags also drive <code>connect</code> and
+<code>embed</code>). Every indexed snapshot is kept, so <code>query "&lt;text&gt;" --repo R --as-of &lt;commit&gt;</code> does
+<strong>time-travel</strong>, it searches repo <code>R</code> as it was at a previously-indexed commit.</p>
+<h2 id="parallelism-and-noise-pruning">Parallelism and noise-pruning<a class="anchor" href="#parallelism-and-noise-pruning" title="Link to this section">#</a></h2>
+<p>Repositories are parsed across <strong>worker processes</strong> (CPU-bound work) while the SQLite store is written
+serially from the parent. The <code>spawn</code> start method is used on every platform, so behaviour is identical on
+Linux, macOS, and Windows, with an automatic serial fallback if a worker pool can't start. It defaults to
+<code>cpu_count - 1</code> workers (capped at 8); set <code>[kb] index_workers</code> to tune it (<code>1</code> forces serial).</p>
+<p>The parser also <strong>skips machine-generated and derived files</strong> (<code>*.designer.cs</code>, <code>*.min.js</code>,
+<code>AssemblyInfo.cs</code>, and <code>@generated</code> / <code>&lt;auto-generated&gt;</code> headers) plus code files larger than <code>[kb]
+max_file_bytes</code> (5 MB). That's derived noise, not real source, and every skip is reported (no silent gaps).
+Set <code>[kb] skip_generated = false</code> or raise <code>max_file_bytes</code> to index them anyway. Discovery also skips
+<strong>vendored nested repos</strong>: an upstream clone carried inside the mirror with its own <code>.git</code> under a
+<code>module-federation</code> path segment, which is not your source and would flood the global graph with
+upstream-demo nodes. Each such skip is logged. (<code>node_modules</code> trees are already pruned before discovery
+descends into them.)</p>
+<p>To exclude your own paths, drop a <strong><code>.contextlakeignore</code></strong> at a repo's root: one glob per line (<code>#</code>
+comments and blank lines ignored), matched against each file's path relative to the repo and its name, so
+<code>*.lock</code> ignores by name anywhere and <code>vendor/</code> ignores a directory and everything under it. It's a small,
+dependency-free subset of gitignore syntax (no negation, <code>**</code>, or anchoring), enough to drop vendored trees
+and lockfiles from the graph.</p>
+<h2 id="health-and-maintenance">Health and maintenance<a class="anchor" href="#health-and-maintenance" title="Link to this section">#</a></h2>
+<p><code>contextlake doctor</code> checks the environment (FTS5, <code>git</code> / <code>glab</code> on PATH, the store, the embedder, and the
+ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. <code>contextlake lint</code>
+audits the graph itself, reporting <strong>stale repos</strong> (HEAD moved since they were indexed) and <strong>dangling
+edges</strong> (an edge whose endpoint node is missing). Both exit non-zero on problems, so they're CI-friendly.</p>
+<h2 id="what-the-graph-captures">What the graph captures<a class="anchor" href="#what-the-graph-captures" title="Link to this section">#</a></h2>
+<p>Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
+interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong> (<code>inherits</code> edges for
+<code>extends</code> / <code>implements</code> / base classes), so "what extends <code>BaseController</code>?" is one hop, and changing a
+base class shows its subclasses in <code>blast_radius</code>. Every node kind and edge relation below is colored and
+styled the same way here, in <code>contextlake graph</code>, and in the dashboard:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: node kinds (symbols like class/function/method, containers like file/module/package/repo, service surfaces like endpoint/topic, cross-source issue/page/design, and the namespace boundary) each with their color, and edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, inherits, references) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
+</p>
+
+<h3 id="languages">Languages<a class="anchor" href="#languages" title="Link to this section">#</a></h3>
+<p>tree-sitter covers <strong>14 languages across 13 grammars</strong> (TypeScript and TSX share one grammar), and the
+parser registry is pluggable:</p>
+<table>
+<thead>
+<tr>
+<th>Ecosystem</th>
+<th>Languages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JVM</td>
+<td>Java, Kotlin, Scala</td>
+</tr>
+<tr>
+<td>.NET</td>
+<td>C#</td>
+</tr>
+<tr>
+<td>Web / JS</td>
+<td>JavaScript, TypeScript, TSX</td>
+</tr>
+<tr>
+<td>Systems</td>
+<td>C, C++, Rust, Go</td>
+</tr>
+<tr>
+<td>Scripting</td>
+<td>Python, Ruby, PHP</td>
+</tr>
+</tbody>
+</table>
+<p>Frameworks are indexed through their base language: <strong>React / Next.js / Node.js</strong> are JS/TS(X),
+<strong>Angular</strong> is TS (its templates are HTML), and <strong>.NET</strong> is C#.</p>
+<h3 id="infrastructure-terraform-hcl">Infrastructure: Terraform / HCL<a class="anchor" href="#infrastructure-terraform-hcl" title="Link to this section">#</a></h3>
+<p><code>.tf</code> files build an infrastructure dependency graph: <code>resource</code> / <code>data</code> / <code>variable</code> / <code>output</code> /
+<code>module</code> / <code>local</code> definitions with <code>depends_on</code> edges resolving <code>var.</code> / <code>module.</code> / <code>data.</code> / resource
+references across files in a repo. <code>resource</code> nodes are semantically searchable.</p>
+<p>Resolution is repo-wide, so a block address defined identically in separate root-module directories (for
+example <code>environments/prod</code> and <code>environments/staging</code>) surfaces as an <code>AMBIGUOUS</code> edge; directory-scoped
+resolution is a future refinement.</p>
+<h3 id="databases-sql-ddl">Databases: SQL DDL<a class="anchor" href="#databases-sql-ddl" title="Link to this section">#</a></h3>
+<p><code>.sql</code> files build a referential graph: <code>table</code> / <code>view</code> / <code>procedure</code> definitions with <code>references</code> edges
+from foreign-key <code>REFERENCES</code> clauses, resolved across files in a repo. <code>table</code> and <code>view</code> nodes are
+semantically searchable.</p>
+<p>It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
+high-value defs and FK references and is a <strong>deliberate undercount</strong>.</p>
+<h3 id="web-topology-endpoints-and-routes">Web topology: endpoints and routes<a class="anchor" href="#web-topology-endpoints-and-routes" title="Link to this section">#</a></h3>
+<p>Two web-topology layers sit on top of the definitions.</p>
+<p><strong>HTTP endpoints</strong> a repo exposes or calls (Express/Fastify/Nest, FastAPI/Flask, ASP.NET minimal-API, and
+Next.js App Router <code>route.ts</code> handlers) become shared <code>endpoint</code> nodes that join across repos into <code>flow</code>
+edges, from the caller repo to the exposer repo.</p>
+<p><strong>Frontend routes</strong> become repo-scoped, embeddable <code>route</code> nodes from three frameworks:</p>
+<table>
+<thead>
+<tr>
+<th>Framework</th>
+<th>Source</th>
+<th>Normalization rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Next.js App Router</td>
+<td><code>app/**/page.*</code> file convention</td>
+<td>route groups <code>(name)</code> dropped; dynamic <code>[id]</code> / <code>[...slug]</code> collapsed to <code>{}</code></td>
+</tr>
+<tr>
+<td>React Router</td>
+<td>flat JSX <code>&lt;Route path=...&gt;</code> and the data-router object form <code>createBrowserRouter([{ path, Component, children, index }])</code></td>
+<td><code>index: true</code> resolves to the parent path</td>
+</tr>
+<tr>
+<td>Angular</td>
+<td><code>Routes</code> tables</td>
+<td><code>redirectTo</code> skipped; lazy <code>loadChildren</code> captured as the mount path</td>
+</tr>
+</tbody>
+</table>
+<p>The object-literal forms use a tree-sitter AST walk anchored on the route-table container (a
+<code>Routes</code>-typed declarator, or the array argument to <code>forRoot</code> / <code>provideRouter</code> / <code>create*Router</code>), so
+nested <code>children</code> compose into full paths and bare <code>{path:...}</code> config objects are never mis-read as routes.</p>
+<blockquote>
+<p><strong>Skipped rather than guessed.</strong> Not yet extracted: Luigi navigation configs, Angular lazy
+<code>loadChildren</code> sub-trees, React <code>loader</code> / <code>lazy</code>, realtime / WebSocket channels, templates, and
+stylesheets.</p>
+</blockquote>
+<h3 id="manifests-and-cross-repo-dependencies">Manifests and cross-repo dependencies<a class="anchor" href="#manifests-and-cross-repo-dependencies" title="Link to this section">#</a></h3>
+<p>Indexing also reads manifests (<code>pyproject.toml</code>, <code>package.json</code>, <code>*.csproj</code>, <code>pom.xml</code>) to build a
+<strong>cross-repo dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP, from
+finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change this"); see
+<a href="serve.html">the full tool list under Serve</a>.</p>
+<p>The same change-impact walk is a one-liner from the shell: <code>contextlake impact &lt;symbol&gt; [--hops N]</code> lists
+what calls / depends on a node, no editor needed. When a symbol name (e.g. <code>Node</code>, <code>Order</code>) is defined in
+more than one repo, <code>impact</code> lists the candidates and you narrow it with <code>--repo &lt;repo&gt;</code> rather than
+getting a silent best-guess.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/orders-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
+</p>
+
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="knowledge-layer.html">Connect and enrich</a></li>
+<li><a href="knowledge-layer.html">Semantic search</a></li>
+<li><a href="serve.html">Serve it to your editor</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="knowledge-layer.html"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="dashboard.html"><span>Dashboard</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#incremental-and-time-travel">Incremental and time-travel</a></li>
+<li><a href="#parallelism-and-noise-pruning">Parallelism and noise-pruning</a></li>
+<li><a href="#health-and-maintenance">Health and maintenance</a></li>
+<li><a href="#what-the-graph-captures">What the graph captures</a><ul>
+<li><a href="#languages">Languages</a></li>
+<li><a href="#infrastructure-terraform-hcl">Infrastructure: Terraform / HCL</a></li>
+<li><a href="#databases-sql-ddl">Databases: SQL DDL</a></li>
+<li><a href="#web-topology-endpoints-and-routes">Web topology: endpoints and routes</a></li>
+<li><a href="#manifests-and-cross-repo-dependencies">Manifests and cross-repo dependencies</a></li>
+</ul>
+</li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
