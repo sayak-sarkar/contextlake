@@ -15,6 +15,7 @@
 - [Connect and enrich](https://sayak.in/contextlake/connect-enrich.html): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
 - [Semantic search](https://sayak.in/contextlake/semantic-search.html): Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.
 - [Generate the wiki](https://sayak.in/contextlake/generate-wiki.html): Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.
+- [Model providers](https://sayak.in/contextlake/model-providers.html): The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.
 
 ## Using contextlake
 
