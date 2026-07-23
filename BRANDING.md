@@ -4,6 +4,10 @@
 
 **Asset status (updated as the system shipped):** the three legacy assets that encoded the old brand have been corrected. `docs/branding/mascot.md` is rewritten to Section 5; `docs/branding/wordmark.svg` is re-exported single-color (Section 2.4); `docs/branding/glyph.svg` is demoted to a decorative lake-cross-section motif with the gold droplet removed (it is NOT the logo). The primary flat otter-head mark now ships at `docs/branding/mark.svg` (primary) and `docs/branding/mark-dark.svg` (reversed for dark backgrounds), traced from the approved reference and snapped to the palette. A simplified glyph for small sizes (favicon, nav) ships as `docs/branding/glyph-mark.svg`.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/mark.png" alt="The contextlake mark: a flat, front-facing otter head cradling a glowing teal context-pebble over a deepwater keyline." width="180">
+</p>
+
 ---
 
 ## 1. Brand essence & voice
@@ -223,6 +227,10 @@ The six primitives stay the governing identity; tiers 2 and 3 are sanctioned, na
 | shore | `#D7C5A0` | **decorative warm-neutral, illustration only** (sand/light, painterly dividers). Never a UI text/fill color; never a page background. |
 | sun / gold | `#E7B53C` | decorative + emphatic accent; never functional text on light |
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/brand-palette.png" alt="The six locked brand primitives as swatches: deepwater #0E2A33, lake #137A8B, current #2BB3A3, mist #EAF4F4, shore #D7C5A0, and sun #E7B53C." width="820">
+</p>
+
 ### 3.4 Tier 2: dark theme (default) semantic roles
 
 | Role | Token | Hex | Verified |
@@ -393,6 +401,10 @@ This section is canon. Pebble and the context-pebble are fixed; their silhouette
 ### 5.1 Who Pebble is
 
 Pebble is a small, friendly, innocent-faced **dark blue-grey river otter** who surfaces from the contextlake cradling a glowing translucent **context-pebble** in both forepaws, offering it forward. Read in one beat: *"I went down, I found the real thing, here it is."* Calm, competent, never frantic. Pebble is the embodiment of the anti-hallucination promise, it returns with real context, not a guess.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter cradling a glowing translucent context-pebble in both forepaws, offering it forward." width="240">
+</p>
 
 ### 5.2 Silhouette & proportions (locked)
 
