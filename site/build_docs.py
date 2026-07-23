@@ -49,30 +49,30 @@ PAGES = [
      "Layer 1 · Mirror", "Every mirror command, configuration, branch safety, "
      "and scheduling, the reference for the Mirror layer.",
      "pebble-doc.png",
-     [("knowledge-layer.html", "Knowledge layer"), ("internals.html", "Architecture")]),
+     [("knowledge-layer.html", "Knowledge layer"), ("index-code-graph.html", "Index the code graph")]),
     ("index-code-graph.html", "docs/index-code-graph.md", "Index the code graph",
      "Index the code graph",
      "Build your knowledge base", "Turn your mirrored repos into a queryable code graph: "
      "incremental indexing, and the full node and edge model across 14 languages, Terraform, "
      "SQL, and web topology.",
      "pebble-doc.png",
-     [("connect-enrich.html", "Connect and enrich"), ("knowledge-layer.html", "Knowledge layer")]),
+     [("connect-enrich.html", "Connect and enrich"), ("semantic-search.html", "Semantic search")]),
     ("connect-enrich.html", "docs/connect-enrich.md", "Connect and enrich", "Connect and enrich",
      "Build your knowledge base", "Link repos to their issues, docs, and designs, manage "
      "sources, and pull grounded external facts into the knowledge layer with query-driven "
      "enrichment.",
      "pebble-doc.png",
-     [("semantic-search.html", "Semantic search"), ("knowledge-layer.html", "Knowledge layer")]),
+     [("semantic-search.html", "Semantic search"), ("generate-wiki.html", "Generate the wiki")]),
     ("semantic-search.html", "docs/semantic-search.md", "Semantic search", "Semantic search",
      "Build your knowledge base", "Natural-language and hybrid graph-propagation retrieval: "
      "embed your code, tune the vector backend, and query across repos and languages.",
      "pebble-doc.png",
-     [("generate-wiki.html", "Generate the wiki"), ("knowledge-layer.html", "Knowledge layer")]),
+     [("generate-wiki.html", "Generate the wiki"), ("model-providers.html", "Model providers")]),
     ("generate-wiki.html", "docs/generate-wiki.md", "Generate the wiki", "Generate the wiki",
      "Build your knowledge base", "Turn the graph into grounded, council-verified prose per "
      "repo: searchable, enrichment-aware, with a provenance footer.",
      "pebble-doc.png",
-     [("model-providers.html", "Model providers"), ("knowledge-layer.html", "Knowledge layer")]),
+     [("model-providers.html", "Model providers"), ("bootstrap.html", "Bootstrap and keep fresh")]),
     ("model-providers.html", "docs/model-providers.md", "Model providers", "Model providers",
      "Build your knowledge base", "The pluggable embeddings and wiki backends: auto, built-in "
      "CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.",
@@ -87,7 +87,7 @@ PAGES = [
      "Layer 2 · Knowledge", "Turn the mirror into a queryable graph with search, a wiki, "
      "and connectors.",
      "pebble-doc.png",
-     [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
+     [("index-code-graph.html", "Index the code graph"), ("bootstrap.html", "Bootstrap and keep fresh")]),
     ("dashboard.html", "docs/dashboard.md", "Dashboard", "The dashboard",
      "Layer 2 · the human UI", "A guided tour of the local, offline-first dashboard: "
      "the fleet overview, per-repo anatomy, the architecture graph, blast radius, and "
@@ -98,7 +98,7 @@ PAGES = [
      "Layer 3 · Serve", "Expose the knowledge layer over MCP and wire your editors "
      "(Claude Code, Windsurf, Kiro) in one command.",
      "pebble-doc.png",
-     [("benchmarks.html", "Benchmarks"), ("dashboard.html", "Dashboard")]),
+     [("dashboard.html", "Dashboard"), ("visualize.html", "Visualize the graph")]),
     ("visualize.html", "docs/visualize.md", "Visualize the graph", "Visualize the graph",
      "Use it", "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, "
      "or a class diagram, plus the composed namespace C4 diagram.",
@@ -196,36 +196,15 @@ GROUP_OF = {out: g for g, outs in NAV_GROUPS for out in outs}
 SUBTITLE_OF = {m[0]: m[5] for m in PAGES}
 TITLES = {out: nav for out, _, nav, *_ in PAGES}
 
-# "Next steps" are DERIVED from the reading order so every page is consistent: the next two
-# pages in the docs sequence, wrapping at the end back to the top. Concise, uniform labels.
-_NEXT_LABEL = {
-    "docs.html": "Overview", "quickstart.html": "Quickstart", "usage.html": "Usage & config",
-    "index-code-graph.html": "Index the code graph",
-    "connect-enrich.html": "Connect and enrich",
-    "semantic-search.html": "Semantic search",
-    "generate-wiki.html": "Generate the wiki",
-    "model-providers.html": "Model providers",
-    "bootstrap.html": "Bootstrap and keep fresh",
-    "cli-reference.html": "Command reference",
-    "console-output.html": "Reading the console output",
-    "knowledge-layer.html": "Knowledge layer", "dashboard.html": "Dashboard",
-    "serve.html": "Serve (MCP)", "visualize.html": "Visualize the graph",
-    "ownership.html": "Ownership and SMEs", "benchmarks.html": "Benchmarks",
-    "internals.html": "Architecture", "storage.html": "Storage",
-    "changelog.html": "Changelog",
-    "style-guide.html": "Writing style",
-    "style-guide-voice.html": "Voice and tone",
-    "style-guide-structure.html": "Page types and structure",
-    "style-guide-formatting.html": "Formatting",
-    "style-guide-reference.html": "Word reference",
-    "brand.html": "Brand overview",
-}
-_ORDER = [p[0] for p in PAGES]
-NEXT_STEPS = {
-    out: [(_ORDER[(i + k) % len(_ORDER)], _NEXT_LABEL[_ORDER[(i + k) % len(_ORDER)]])
-          for k in (1, 2)]
-    for i, out in enumerate(_ORDER)
-}
+# "Next steps" are CURATED per page: the last field of each PAGES entry names the one or two
+# most relevant next reads (learning-journey pages point forward; reference/meta pages point
+# back to a guide or omit it). Build-time check: every curated target must be a real page, so a
+# renamed or retired page fails the build loudly instead of leaving a dead link.
+_VALID_OUT = {p[0] for p in PAGES}
+for _p in PAGES:
+    for _href, _lbl in _p[7]:
+        if _href not in _VALID_OUT:
+            raise SystemExit(f"build_docs: Next-steps target {_href!r} on {_p[0]} is not a page")
 
 GLYPH = '<img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">'
 GH_MARK = ('<svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" '
@@ -322,6 +301,8 @@ def hero(title: str, eyebrow: str, subtitle: str, pebble: str) -> str:
 
 
 def next_steps(links) -> str:
+    if not links:  # reference / meta pages may omit Next steps entirely
+        return ""
     cards = "".join(
         f'<a class="next-card" href="{href}"><span>{label}</span>'
         f'<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">'
@@ -342,8 +323,8 @@ def toc_rail(toc_html: str) -> str:
 
 
 def shell(meta, body, toc_html) -> str:
-    out, _, nav_title, h_title, eyebrow, subtitle, pebble, _hand_links = meta
-    links = NEXT_STEPS[out]  # derived from reading order — consistent across all pages
+    out, _, nav_title, h_title, eyebrow, subtitle, pebble, hand_links = meta
+    links = hand_links  # curated per page (see PAGES); validated at import against _VALID_OUT
     url = f"{BASE}{out}"
     return f"""<!doctype html>
 <html lang="en">
