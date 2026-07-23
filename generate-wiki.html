@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generate the wiki · contextlake docs</title>
+<meta name="description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
+<link rel="canonical" href="https://sayak.in/contextlake/generate-wiki.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Generate the wiki · contextlake docs">
+<meta property="og:description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
+<meta property="og:url" content="https://sayak.in/contextlake/generate-wiki.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Generate the wiki · contextlake docs">
+<meta name="twitter:description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="index-code-graph.html">Index the code graph</a><a href="connect-enrich.html">Connect and enrich</a><a href="semantic-search.html">Semantic search</a><a href="generate-wiki.html" class="active">Generate the wiki</a></nav><h2>Using contextlake</h2><nav aria-label="Using contextlake"><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Under the hood</h2><nav aria-label="Under the hood"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html">Page types and structure</a><a href="style-guide-formatting.html">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs.html">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Generate the wiki</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Generate the wiki</h1><p class="doc-sub">Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>The wiki (optional, local-first) turns the graph into prose: a grounded, council-verified Markdown page
+per repo, with a provenance footer citing the commit and sources it was built from.</p>
+<h2 id="running-it">Running it<a class="anchor" href="#running-it" title="Link to this section">#</a></h2>
+<p>Enable <code>[llm]</code> in the config (generation runs on a local Ollama model by default, prompts never leave the
+machine), or skip the toml entirely and pass <code>--llm &lt;provider&gt;</code> (<code>builtin</code> | <code>ollama</code> | <code>openai</code> |
+<code>anthropic</code> | <code>cli</code>), for example <code>contextlake wiki acme/orders-api --llm builtin</code>, which enables the tier
+inline and scopes generation to the named repo(s).</p>
+<p>Run <code>contextlake wiki</code>: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
+symbols, dependencies, files) with a provenance footer citing the commit and sources, then puts the draft
+through a <strong>verification council</strong>, reviewers score it for accuracy, completeness, and clarity and a
+chairman publishes only pages above a configurable threshold. Nothing that fails review is written.</p>
+<p>For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
+see <a href="knowledge-layer.html">Model providers</a>.</p>
+<h2 id="searchable-prose">Searchable prose<a class="anchor" href="#searchable-prose" title="Link to this section">#</a></h2>
+<p>Accepted pages also become <strong>searchable prose</strong>: each page's sections are stored in an isolated
+<code>@wiki:&lt;repo&gt;</code> partition and, when the semantic tier is enabled, embedded alongside the code vectors, so a
+natural-language question can land on the wiki's explanation of a subsystem, cited back to the page file
+and labeled advisory (kind <code>wiki</code>), never outranking extracted code facts. Pages written before this
+existed are backfilled on the next <code>wiki</code> run without any LLM calls.</p>
+<h2 id="incorporating-connector-enrichment">Incorporating connector enrichment<a class="anchor" href="#incorporating-connector-enrichment" title="Link to this section">#</a></h2>
+<p>When <code>contextlake enrich</code> has populated a repo's <code>@enrich:&lt;repo&gt;</code> enrichment documents (via Atlassian or
+MCP search sources), the wiki synthesizer draws on them and incorporates an "External context" section
+into each repo's curated page. Each external fact is directly quoted from its source (Confluence page,
+Jira issue, or MCP search result) and attributed by source URL or name, never presented as a free
+assertion or as an undisclosed code fact. The council still gates the enriched page before it is written,
+ensuring external context supplements rather than displaces code-backed facts and that attribution is
+clear and verifiable.</p>
+<p>The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
+provenance footer citing the exact commit and source files it was built from:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-rendered.png" alt="The curated wiki for acme/orders-api rendered in the dashboard Wiki tab: an advisory banner, then Overview, Key components (OrderService, PaymentClient), How a request flows, and Notes, grounded in the repo's real symbols with a provenance footer." width="820">
+</p>
+
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="knowledge-layer.html">Model providers</a></li>
+<li><a href="connect-enrich.html">Connect and enrich</a></li>
+<li><a href="dashboard.html">The dashboard</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="knowledge-layer.html"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="dashboard.html"><span>Dashboard</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#running-it">Running it</a></li>
+<li><a href="#searchable-prose">Searchable prose</a></li>
+<li><a href="#incorporating-connector-enrichment">Incorporating connector enrichment</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
