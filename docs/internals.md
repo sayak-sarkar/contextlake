@@ -220,7 +220,8 @@ over the mirrored repos. Its pieces:
   Each shard is also snapshotted by commit under `history/` for bi-temporal queries.
 - **Extraction** (`kb/parse.py`, `kb/manifest.py`, `kb/references.py`, `kb/hcl.py`, `kb/sql.py`):
   tree-sitter builds the code graph (defs/imports/containment + an inferred call graph)
-  across 14 languages (Python, JS/TS(X), C#, Go, Java, C, C++, Rust, Ruby, PHP, Scala, Kotlin);
+  across 14 languages / 13 tree-sitter grammars (Python, JavaScript, TypeScript, TSX, C#, Go, Java, C,
+  C++, Rust, Ruby, PHP, Scala, Kotlin; TypeScript and TSX share one grammar);
   Terraform/HCL (`kb/hcl.py`) yields an infrastructure `depends_on` graph
   (resource/data/variable/output/module/local blocks with `var.`/`module.`/`data.`/resource
   references resolved within a repo); SQL DDL (`kb/sql.py`) yields a referential graph
@@ -243,23 +244,10 @@ over the mirrored repos. Its pieces:
 
 ## Storage & invariants
 
-Everything contextlake generates lives under **one store directory** (default
-`~/.contextlake/kb`, `store_dir` in `kb.toml`), never scattered into your home, your
-cwd, or your repos. Two invariants make this safe by construction, each locked by a test:
+Everything contextlake generates lives under **one store directory**, kept safe by two test-locked
+invariants: **INV-1** (no generated file is ever written inside a mirrored repo, the mirror holds your
+repos untouched) and **INV-2**, the offline boundary (parse, graph, FTS, query, visualize, and embed all
+run fully offline; only `connect` may reach the network, and even it degrades rather than fails).
 
-- **INV-1, no repo pollution.** No generated file is ever written inside a mirrored repo's
-  working tree, the mirror holds *your repos, untouched*; the knowledge layer lives in the
-  separate store. (`tests/kb/test_no_repo_pollution.py` asserts each repo tree is
-  byte-identical before/after every generating command.)
-- **INV-2, the offline boundary.** Parse → graph → FTS → query → visualize → embed all run
-  fully offline; `connect` (enrichment) is the single opt-in online exception, and even it
-  must **degrade, not fail** (skip/warn and exit cleanly with no network). Cached connect
-  results stay queryable offline afterward. (`tests/kb/test_offline_boundary.py` blocks
-  outbound sockets and asserts the offline commands still succeed.)
-
-Under the store: `index.sqlite` (graph + FTS), `graph/` (per-repo JSON shards),
-`history/<repo>/` (bitemporal snapshots), `graphs/` (rendered visualizations), `wiki/`
-(LLM pages), `embeddings.sqlite` (vectors). The one deliberate carve-out is **steering
-files** (`AGENTS.md`, `.mcp.json`, skills), which an IDE must find at the workspace root,
-so `steer --out` writes them to the target you point it at (never inside a synced repo).
-Full detail: [storage.md](storage.md).
+The full store layout, both invariants with their enforcing tests, and the steering-files carve-out are
+on the [Storage](storage.md) page.
