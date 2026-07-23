@@ -24,6 +24,7 @@
 - [Dashboard](https://sayak.in/contextlake/dashboard.html): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
 - [Serve (MCP)](https://sayak.in/contextlake/serve.html): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
 - [Visualize the graph](https://sayak.in/contextlake/visualize.html): Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.
+- [Ownership and SMEs](https://sayak.in/contextlake/ownership.html): Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.
 - [Benchmarks](https://sayak.in/contextlake/benchmarks.html): An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools, new-code grounding first, plus search, maintenance, and the caveats.
 
 ## Under the hood

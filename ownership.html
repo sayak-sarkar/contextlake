@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ownership and SMEs · contextlake docs</title>
+<meta name="description" content="Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.">
+<link rel="canonical" href="https://sayak.in/contextlake/ownership.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Ownership and SMEs · contextlake docs">
+<meta property="og:description" content="Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.">
+<meta property="og:url" content="https://sayak.in/contextlake/ownership.html">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ownership and SMEs · contextlake docs">
+<meta name="twitter:description" content="Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <a class="navlink" href="docs.html">Docs</a>
+  <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs.html">Overview</a><a href="quickstart.html">Quickstart</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="index-code-graph.html">Index the code graph</a><a href="connect-enrich.html">Connect and enrich</a><a href="semantic-search.html">Semantic search</a><a href="generate-wiki.html">Generate the wiki</a><a href="model-providers.html">Model providers</a></nav><h2>Using contextlake</h2><nav aria-label="Using contextlake"><a href="usage.html">Usage & config</a><a href="knowledge-layer.html">Knowledge layer</a><a href="dashboard.html">Dashboard</a><a href="serve.html">Serve (MCP)</a><a href="visualize.html">Visualize the graph</a><a href="ownership.html" class="active">Ownership and SMEs</a><a href="benchmarks.html">Benchmarks</a></nav><h2>Under the hood</h2><nav aria-label="Under the hood"><a href="internals.html">Architecture</a><a href="storage.html">Storage</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide.html">Writing style</a><a href="style-guide-voice.html">Voice and tone</a><a href="style-guide-structure.html">Page types and structure</a><a href="style-guide-formatting.html">Formatting</a><a href="style-guide-reference.html">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand.html">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="changelog.html">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs.html">Docs</a><span aria-hidden="true">/</span><span>Using contextlake</span><span aria-hidden="true">/</span><span aria-current="page">Ownership and SMEs</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Ownership and SMEs</h1><p class="doc-sub">Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p><code>contextlake owners &lt;repo&gt;</code> (or <code>--path SUBDIR</code> for a sub-tree) answers <strong>"who owns this, who do I ask?"</strong>
+straight from git history, no config, no index required. It ranks contributors by a <strong>recency-weighted</strong>
+blend of commit volume and lines changed, so someone active in that area lately outranks a long-departed
+prolific author:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w">                 </span><span class="c1"># top contributors for the whole repo</span>
+contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w"> </span>--path<span class="w"> </span>src/auth<span class="w">  </span><span class="c1"># ...scoped to the auth module</span>
+</code></pre></div>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-owners.png" alt="contextlake owners acme/orders-api output: a recency-weighted SME ranking from git history: Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
+</p>
+
+<p>The same ranking is available to agents over MCP as <strong><code>who_knows(repo, path?, limit?)</code></strong>.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="serve.html">Serve it to your editor</a></li>
+<li><a href="dashboard.html">The dashboard</a></li>
+<li><a href="index-code-graph.html">Index the code graph</a></li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="benchmarks.html"><span>Benchmarks</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="internals.html"><span>Architecture</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  </nav>
+</div></footer>
+</body>
+</html>
