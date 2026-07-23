@@ -95,6 +95,14 @@ footer .f-in{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-con
 footer a{color:var(--mist)} footer .f-links{display:flex;flex-wrap:wrap;gap:16px}
 footer .tagline{font-family:var(--ff-d);color:var(--mist)}
 
+/* breadcrumbs */
+.crumbs{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--ff-m);
+  font-size:12px;color:var(--subtle);margin:0 0 16px}
+.crumbs a{color:var(--muted);text-decoration:none}
+.crumbs a:hover{color:var(--ink)}
+.crumbs span[aria-hidden]{color:var(--line-2)}
+.crumbs span[aria-current]{color:var(--ink)}
+
 /* page hero */
 .doc-hero{display:flex;align-items:flex-end;justify-content:flex-start;gap:18px;
   margin:0 0 26px;padding:0 0 22px;border-bottom:1px solid var(--line)}

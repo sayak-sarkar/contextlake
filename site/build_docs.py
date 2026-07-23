@@ -68,7 +68,7 @@ PAGES = [
      [("benchmarks.html", "Benchmarks"), ("dashboard.html", "Dashboard")]),
     ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",
      "Layer 3 · Serve", "An honest, measured look at the token, cost, and correctness "
-     "impact of connecting the contextlake MCP to your AI coding tools — new-code "
+     "impact of connecting the contextlake MCP to your AI coding tools, new-code "
      "grounding first, plus search, maintenance, and the caveats.",
      "pebble-doc.png",
      [("serve.html", "Serve (MCP)"), ("knowledge-layer.html", "Knowledge layer")]),
@@ -78,7 +78,7 @@ PAGES = [
      "pebble-doc.png",
      [("storage.html", "Storage"), ("knowledge-layer.html", "Knowledge layer")]),
     ("storage.html", "docs/storage.md", "Storage", "Storage & the no-pollution invariant",
-     "Under the hood", "Where contextlake keeps everything it generates — one store "
+     "Under the hood", "Where contextlake keeps everything it generates, one store "
      "directory, never polluting your synced repos.",
      "pebble-doc.png",
      [("internals.html", "Architecture"), ("usage.html", "Usage & config")]),
@@ -135,6 +135,8 @@ NAV_GROUPS = [
     ("Brand", ["brand.html"]),
     ("Reference", ["changelog.html"]),
 ]
+GROUP_OF = {out: g for g, outs in NAV_GROUPS for out in outs}
+SUBTITLE_OF = {m[0]: m[5] for m in PAGES}
 TITLES = {out: nav for out, _, nav, *_ in PAGES}
 
 # "Next steps" are DERIVED from the reading order so every page is consistent: the next two
@@ -313,6 +315,7 @@ def shell(meta, body, toc_html) -> str:
 <div class="shell">
   {sidebar(out)}
   <main class="prose" id="doc">
+    {breadcrumbs(out)}
     {hero(h_title, eyebrow, subtitle, pebble)}
     {body}
     {next_steps(links)}
@@ -412,7 +415,7 @@ def make404():
     <p class="eyebrow">404 · off the map</p>
     <h1>Lost in the fog</h1>
     <p class="sub">This page drifted off into the mist. <b>Pebble</b> can't find it
-      down here either — but the way back to shore is just a click away.</p>
+      down here either, but the way back to shore is just a click away.</p>
     <div class="actions">
       <a class="btn primary" href="index.html">Back to shore</a>
       <a class="btn ghost" href="docs.html">Read the docs</a>
@@ -421,6 +424,51 @@ def make404():
 </main>
 </body>
 </html>"""
+
+
+def breadcrumbs(out: str) -> str:
+    group = GROUP_OF.get(out, "")
+    return (f'<nav class="crumbs" aria-label="Breadcrumb">'
+            f'<a href="docs.html">Docs</a><span aria-hidden="true">/</span>'
+            f'<span>{group}</span><span aria-hidden="true">/</span>'
+            f'<span aria-current="page">{TITLES.get(out, "")}</span></nav>')
+
+
+LLMS_INTRO = """# contextlake
+
+> A local context layer for your AI tools: mirror your Git repositories, index them into a
+> queryable knowledge graph + wiki, and serve it to AI editors over MCP. Offline-first, so
+> agents answer from real source instead of guessing. Python CLI, published on PyPI.
+"""
+
+
+def gen_sitemap():
+    """sitemap.xml, generated from PAGES so it never goes stale by hand."""
+    urls = [f'<url><loc>{BASE}</loc><priority>1.0</priority></url>']
+    for out, *_ in PAGES:
+        pr = "0.9" if out == "docs.html" else "0.6"
+        urls.append(f'<url><loc>{BASE}{out}</loc><priority>{pr}</priority></url>')
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  '
+           + "\n  ".join(urls) + "\n</urlset>\n")
+    (OUT / "sitemap.xml").write_text(xml, encoding="utf-8")
+    print("  -> sitemap.xml")
+
+
+def gen_llms():
+    """llms.txt (llmstxt.org), generated from PAGES/NAV_GROUPS so an AI ingesting the
+    docs gets a complete, current, link-annotated map. Grouped by the nav sections."""
+    parts = [LLMS_INTRO]
+    for group, outs in NAV_GROUPS:
+        parts.append(f"## {group}\n")
+        for out in outs:
+            parts.append(f"- [{TITLES[out]}]({BASE}{out}): {SUBTITLE_OF[out]}")
+        parts.append("")
+    parts += ["## Source\n",
+              "- [GitHub repository](https://github.com/sayak-sarkar/contextlake)",
+              "- [PyPI package](https://pypi.org/project/contextlake/)", ""]
+    (OUT / "llms.txt").write_text("\n".join(parts), encoding="utf-8")
+    print("  -> llms.txt")
 
 
 def main():
@@ -442,6 +490,8 @@ def main():
         print(f"  {src} -> {out}")
     (OUT / "404.html").write_text(make404(), encoding="utf-8")
     print("  -> 404.html")
+    gen_sitemap()
+    gen_llms()
     sync_assets()
 
 
