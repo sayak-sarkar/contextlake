@@ -110,12 +110,12 @@
   /* while the hero fills the top of the screen, dissolve the bar onto the scene (JS adds
      .over-hero; the solid bar above is the no-JS default). Hero is dark in both themes. */
   header.over-hero{backdrop-filter:none;border-bottom-color:transparent;
-    background:linear-gradient(180deg,rgba(7,20,24,.58) 0%,rgba(7,20,24,.30) 52%,rgba(7,20,24,0) 100%)}
-  header.over-hero .brand{color:var(--mist)}
-  header.over-hero .nav a.navlink{color:rgba(234,244,244,.9)}
+    background:linear-gradient(180deg,rgba(7,20,24,.80) 0%,rgba(7,20,24,.50) 46%,rgba(7,20,24,.12) 82%,rgba(7,20,24,0) 100%)}
+  header.over-hero .brand{color:#fff;text-shadow:0 1px 8px rgba(7,20,24,.8)}
+  header.over-hero .nav a.navlink{color:#fff;text-shadow:0 1px 8px rgba(7,20,24,.8)}
   header.over-hero .nav a.navlink:hover{color:#fff}
-  header.over-hero .btn{color:var(--mist);border-color:rgba(234,244,244,.36);background:rgba(234,244,244,.08)}
-  header.over-hero .btn:hover{border-color:var(--mist);background:rgba(234,244,244,.16)}
+  header.over-hero .btn{color:#fff;border-color:rgba(234,244,244,.5);background:rgba(7,20,24,.32);text-shadow:0 1px 6px rgba(7,20,24,.7)}
+  header.over-hero .btn:hover{border-color:var(--mist);background:rgba(7,20,24,.5)}
   header.over-hero .btn.primary{background:var(--lake);border-color:var(--lake);color:#fff}
   .nav{display:flex;align-items:center;gap:18px;height:60px}
   .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--ink)}
