@@ -51,9 +51,9 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
   font-weight:700;color:var(--muted);margin:24px 0 7px;padding-left:12px}
 .side h2:first-of-type{margin-top:2px}
 .side nav a{display:block;padding:5px 12px;border-radius:8px;color:var(--muted);text-decoration:none;
-  font-size:14px;font-weight:450;line-height:1.4}
+  font-size:14px;font-weight:400;line-height:1.4}
 .side nav a:hover{background:#e9f4f5;color:var(--ink)}
-.side nav a.active{background:var(--lake);color:#fff;font-weight:600}
+.side nav a.active{background:var(--lake);color:#fff;font-weight:500}
 .side .ext{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
 
 /* prose */
