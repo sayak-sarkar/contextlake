@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<script>(function(){try{
+  var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);
+  /* preload the exact hero for the resolved theme + viewport (covers a saved-theme override the
+     static media-preload can't see; the browser dedups when it matches). */
+  var dark=(t==="dark")||(!t&&matchMedia("(prefers-color-scheme: dark)").matches);
+  var img="hero-scene"+(dark?"-night":"")+(matchMedia("(max-width: 820px)").matches?"-mobile":"")+".webp";
+  var l=document.createElement("link");l.rel="preload";l.as="image";l.href=img;l.setAttribute("fetchpriority","high");
+  document.head.appendChild(l);
+}catch(e){}})();</script>
 <title>contextlake, a local context layer for your AI tools</title>
 <meta name="description" content="Mirror your repos, index them into a local knowledge graph, and serve it to your AI tools over MCP, so agents answer from real source instead of guessing. Offline-first.">
 <link rel="canonical" href="https://sayak.in/contextlake/">
@@ -28,6 +36,12 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#137A8B">
+<!-- Preload the hero (a CSS background is otherwise discovered late, after CSS parse). Scoped by
+     theme + viewport so only the one hero that will render is fetched, at high priority. -->
+<link rel="preload" as="image" href="hero-scene.webp" fetchpriority="high" media="(min-width: 821px) and (prefers-color-scheme: light)">
+<link rel="preload" as="image" href="hero-scene-night.webp" fetchpriority="high" media="(min-width: 821px) and (prefers-color-scheme: dark)">
+<link rel="preload" as="image" href="hero-scene-mobile.webp" fetchpriority="high" media="(max-width: 820px) and (prefers-color-scheme: light)">
+<link rel="preload" as="image" href="hero-scene-night-mobile.webp" fetchpriority="high" media="(max-width: 820px) and (prefers-color-scheme: dark)">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
