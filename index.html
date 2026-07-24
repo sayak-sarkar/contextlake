@@ -45,7 +45,7 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1267c18">
+<link rel="stylesheet" href="fonts.css?v=20a30df">
 <style>
   :root{
     --deepwater:#0E2A33; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4;
@@ -373,7 +373,7 @@
   /* one clickability cue, in one place: a labelled chevron whose gentle bob invites the
      click (the pulse lives in the affordance itself, not a detached status dot). */
   .bcell.act .explore{display:inline-flex;align-items:center;gap:7px;margin-top:16px;
-    font-family:var(--ff-m);font-size:13px;letter-spacing:.01em;color:var(--link);font-weight:600}
+    font-family:var(--ff-m);font-size:12.5px;letter-spacing:.02em;color:var(--link);font-weight:400}
   .bcell.act:hover .explore{text-decoration:underline;text-underline-offset:3px}
   .bcell.act .explore svg{width:14px;height:14px;transition:transform .25s ease;animation:cl-bob 2.4s ease-in-out infinite}
   .bcell.act:hover .explore svg{transform:translateX(3px);animation:none}
@@ -397,19 +397,31 @@
   .bcell.open .demo .stg.s3{transition-delay:.36s}.bcell.open .demo .stg.s4{transition-delay:.54s}
   .bcell.open .demo .stg.s5{transition-delay:.72s}
 
-  /* demo A — "ask your codebase": a grounded MCP answer beside a lit graph fragment */
-  .ask{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:center}
-  .ask .q{background:var(--tint);border:1px solid var(--line);border-radius:12px 12px 12px 3px;
-    padding:11px 14px;font-size:14.5px;color:var(--ink);max-width:26em}
-  .ask .tool{display:inline-flex;align-items:center;gap:8px;margin:14px 0 12px;font-family:var(--ff-m);font-size:11px;
-    background:color-mix(in srgb,var(--deepwater) 86%,var(--surface));color:var(--mist);border-radius:999px;padding:5px 11px}
-  .ask .tool .fn{color:var(--sun)}
-  .ask .tool .arg{opacity:.72}
-  .ask .ans{font-size:14px;color:var(--muted);line-height:1.6}
-  .ask .ans b{color:var(--ink);font-weight:600}
-  .ask .ans ul{list-style:none;margin:9px 0 0;padding:0;display:grid;gap:7px}
-  .ask .ans li{font-family:var(--ff-m);font-size:12.5px;color:var(--ink);display:flex;align-items:center;gap:9px}
-  .ask .ans li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--current);flex:none}
+  /* All three demos now show a REAL contextlake surface (captured from the tool running on its
+     own source): an editor/MCP exchange and two terminals. Shared window chrome, deepwater. */
+  .win{background:var(--deepwater);border:1px solid color-mix(in srgb,var(--mist) 12%,var(--deepwater));
+    border-radius:12px;overflow:hidden;box-shadow:var(--shadow-s);font-family:var(--ff-m)}
+  .win-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:rgba(255,255,255,.045);
+    border-bottom:1px solid rgba(234,244,244,.09)}
+  .win-bar .dots{display:inline-flex;gap:6px;flex:none}
+  .win-bar .dots i{width:10px;height:10px;border-radius:50%;background:rgba(234,244,244,.2)}
+  .win-bar .wt{font-size:11.5px;color:rgba(234,244,244,.62);letter-spacing:.01em}
+  .win-body{padding:16px 18px;font-size:13px;line-height:1.85;color:var(--mist);overflow-x:auto}
+
+  /* MCP-native: an editor exchange (the chat lives in your editor; contextlake answers the call) */
+  .mcp{display:grid;grid-template-columns:1.05fr .95fr;gap:24px;align-items:center}
+  @media(max-width:720px){.mcp{grid-template-columns:1fr;gap:16px}}
+  .turn{margin:0 0 11px}
+  .turn .who{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:rgba(234,244,244,.5);margin-right:9px}
+  .turn.you{color:var(--mist)}
+  .turn.tool{color:rgba(234,244,244,.72)}
+  .turn.tool .call{color:var(--current)} .turn.tool .arg{color:var(--sun)}
+  .turn.ans{color:rgba(234,244,244,.86);font-size:12.5px}
+  .turn.ans b{color:#fff;font-weight:600}
+  .turn.ans ul{list-style:none;margin:9px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:7px}
+  .turn.ans li{font-size:12px;background:rgba(43,179,163,.14);color:var(--mist);
+    border:1px solid rgba(43,179,163,.32);border-radius:6px;padding:3px 9px}
+  .turn.ans .more{display:block;margin-top:9px;color:rgba(234,244,244,.5)}
   .frag{width:100%;height:auto;aspect-ratio:16/11;background:var(--surface-2);border:1px solid var(--line);border-radius:12px}
   .frag .edge{stroke:var(--line-2);stroke-width:1.6;fill:none;stroke-dasharray:1;stroke-dashoffset:1;
     transition:stroke-dashoffset .7s ease,stroke .7s ease}
@@ -434,51 +446,66 @@
   .lead-ghost .gnode{fill:var(--line-2)} .lead-ghost .gnode.h{fill:var(--lake)}
   .bcell.open .lead-ghost{display:none}
 
-  /* demo B — "search cast": ranked results with similarity bars filling to score */
-  .search .field{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line-2);
-    border-radius:10px;padding:11px 14px;font-family:var(--ff-m);font-size:13px;color:var(--ink)}
-  .search .field svg{width:16px;height:16px;color:var(--subtle);flex:none}
-  .search .field .cursor{width:1px;height:15px;background:var(--current);margin-left:-2px;animation:cl-caret 1.1s step-end infinite}
-  @keyframes cl-caret{50%{opacity:0}}
-  .search .res{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:13px}
-  .search .res li{opacity:0;transform:translateY(9px);transition:opacity .42s ease,transform .42s ease}
-  .bcell.open .search .res li{opacity:1;transform:none}
-  .bcell.open .search .res li:nth-child(1){transition-delay:.14s}.bcell.open .search .res li:nth-child(2){transition-delay:.28s}
-  .bcell.open .search .res li:nth-child(3){transition-delay:.42s}.bcell.open .search .res li:nth-child(4){transition-delay:.56s}
-  .search .path{font-family:var(--ff-m);font-size:13px;color:var(--ink);display:flex;justify-content:space-between;gap:12px;align-items:baseline}
-  .search .score{color:var(--current);font-variant-numeric:tabular-nums;font-weight:600}
-  .search .snip{font-size:12.5px;color:var(--subtle);margin-top:3px}
-  .search .bar{height:6px;border-radius:3px;background:var(--line);margin:9px 0 0 auto;max-width:360px;overflow:hidden}
-  .search .bar>i{display:block;height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--lake),var(--current));
-    transition:width .8s cubic-bezier(.4,0,.2,1)}
-  .bcell.open .search .bar>i{width:var(--w)}
-  .bcell.open .search .res li:nth-child(1) .bar>i{transition-delay:.3s}.bcell.open .search .res li:nth-child(2) .bar>i{transition-delay:.44s}
-  .bcell.open .search .res li:nth-child(3) .bar>i{transition-delay:.58s}.bcell.open .search .res li:nth-child(4) .bar>i{transition-delay:.72s}
+  /* Terminals (semantic search + sync): real captured output, line-styled */
+  .tline{white-space:pre-wrap;color:rgba(234,244,244,.9)}
+  .tline .prompt{color:var(--current);margin-right:9px}
+  .tline .dim{color:rgba(234,244,244,.42)}
+  .tline .qy{color:var(--sun)}
+  .hits{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:5px}
+  .hits li{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:baseline}
+  .hits .score{color:var(--current);font-variant-numeric:tabular-nums}
+  .hits .path{color:var(--mist);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hits .sym{color:rgba(234,244,244,.5)}
+  .rows{margin:8px 0;display:grid;gap:4px}
+  .r{display:grid;grid-template-columns:1.5em 148px 1fr;align-items:baseline;color:rgba(234,244,244,.85)}
+  @media(max-width:520px){.r{grid-template-columns:1.5em 1fr}.r em{display:none}}
+  .r .g{color:rgba(234,244,244,.5)}
+  .r .nm{color:inherit}
+  .r.up{color:var(--mist)} .r.up .g{color:#3ddc84}
+  .r.skip{color:rgba(234,244,244,.62)} .r.skip .g{color:var(--sun)}
+  .r.same{color:rgba(234,244,244,.55)} .r.same .g{color:rgba(234,244,244,.42)}
+  .r em{font-style:normal;color:rgba(234,244,244,.4)}
+  .term-progress{display:flex;align-items:center;gap:12px;margin:12px 0 8px;color:rgba(234,244,244,.7);font-variant-numeric:tabular-nums}
+  .term-progress .pb{flex:1;max-width:260px;height:8px;border-radius:4px;background:rgba(234,244,244,.12);overflow:hidden}
+  .term-progress .pb>i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--lake),var(--current));
+    transition:width 1.15s cubic-bezier(.4,0,.2,1) .45s}
+  .bcell.open .term-progress .pb>i{width:100%}
+  .tdone{color:#3ddc84;margin-top:6px}
+  /* rows cascade in on open */
+  .bcell.open .rows .r{animation:cl-rowin .4s ease backwards}
+  .bcell.open .rows .r:nth-child(1){animation-delay:.12s}.bcell.open .rows .r:nth-child(2){animation-delay:.19s}
+  .bcell.open .rows .r:nth-child(3){animation-delay:.26s}.bcell.open .rows .r:nth-child(4){animation-delay:.33s}
+  .bcell.open .rows .r:nth-child(5){animation-delay:.4s}.bcell.open .rows .r:nth-child(6){animation-delay:.47s}
+  .bcell.open .rows .r:nth-child(7){animation-delay:.54s}.bcell.open .rows .r:nth-child(8){animation-delay:.61s}
+  .bcell.open .hits li{animation:cl-rowin .42s ease backwards}
+  .bcell.open .hits li:nth-child(1){animation-delay:.14s}.bcell.open .hits li:nth-child(2){animation-delay:.24s}
+  .bcell.open .hits li:nth-child(3){animation-delay:.34s}.bcell.open .hits li:nth-child(4){animation-delay:.44s}
+  .bcell.open .hits li:nth-child(5){animation-delay:.54s}
+  @keyframes cl-rowin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-  /* demo C — "the fleet": a grid of repo tiles lighting up concurrently, a live count */
-  .fleet .head{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}
-  .fleet .count{font-family:var(--ff-m);font-size:30px;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
-  .fleet .clabel{font-size:13px;color:var(--muted)}
-  .fleet .grid{display:grid;grid-template-columns:repeat(28,1fr);gap:4px}
-  .fleet .grid i{aspect-ratio:1;border-radius:2px;background:var(--line);transition:background .3s ease,box-shadow .3s ease}
-  .fleet .grid i.on{background:var(--current)}                        /* mid-sync flash */
-  .fleet .grid i.sync{background:var(--lake)}                         /* mirrored */
-  .fleet .grid i.sync.sb{background:color-mix(in srgb,var(--lake) 78%,var(--current))}
-  .fleet .grid i.sync.sc{background:color-mix(in srgb,var(--lake) 74%,var(--deepwater))}
-  .fleet .grid i.dirty{background:color-mix(in srgb,var(--sun) 26%,transparent);box-shadow:inset 0 0 0 1.5px var(--sun)}
-  .fleet .legend{display:flex;gap:20px;margin-top:14px;font-size:12.5px;color:var(--muted)}
-  .fleet .legend span{display:inline-flex;align-items:center;gap:7px}
-  .fleet .legend .sw{width:11px;height:11px;border-radius:3px;flex:none}
-  .fleet .legend .sw.m{background:var(--lake)}
-  .fleet .legend .sw.d{background:color-mix(in srgb,var(--sun) 26%,transparent);box-shadow:inset 0 0 0 1.5px var(--sun)}
-  @media(max-width:720px){.fleet .grid{grid-template-columns:repeat(18,1fr)}}
+  /* next action: a real, copyable command under each demo */
+  .demo-foot{margin-top:16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+  .demo-foot .demo-cap{flex-basis:100%;margin:0}
+  .runline{display:inline-flex;align-items:center;gap:9px;font:inherit;font-family:var(--ff-m);font-size:12.5px;cursor:pointer;
+    background:var(--tint);border:1px solid var(--line);border-radius:8px;padding:8px 11px 8px 13px;color:var(--ink);
+    -webkit-appearance:none;appearance:none;transition:border-color .2s ease}
+  .runline:hover{border-color:var(--line-2)}
+  .runline:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+  .runline .rp{color:var(--link);user-select:none}
+  .runline .rc{color:var(--ink)}
+  .runline svg{width:14px;height:14px;color:var(--subtle)}
+  .runline .ic-check{display:none;color:var(--current)}
+  .runline.copied .ic-copy{display:none} .runline.copied .ic-check{display:inline}
+  .doclink{font-family:var(--ff);font-size:13px;color:var(--link);font-weight:500;text-decoration:none}
+  .doclink:hover{text-decoration:underline;text-underline-offset:3px}
 
   /* reduced motion: everything snaps to its finished state, nothing hidden or moving */
   @media (prefers-reduced-motion: reduce){
     .bcell.act,.bcell.act:hover{transform:none;transition:none}
     .bcell .panel{transition:none}
-    .bcell.act .explore svg,.search .field .cursor{animation:none}
-    .demo .stg,.bcell.open .demo .stg,.search .res li,.search .bar>i,.frag .node,.frag .edge{transition:none}
+    .bcell.act .explore svg{animation:none}
+    .demo .stg,.bcell.open .demo .stg,.frag .node,.frag .edge,.term-progress .pb>i{transition:none}
+    .bcell.open .rows .r,.bcell.open .hits li{animation:none}
   }
   /* dark refinements: lift the anchor off the other cards + a teal edge (no glow, no gradient) */
   :root[data-theme="dark"] .b-anchor.act{background:#173a58;border-color:color-mix(in srgb,var(--current) 32%,transparent)}
@@ -675,7 +702,7 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=1267c18"
+    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=20a30df"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
     <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
@@ -706,34 +733,37 @@
           </svg>
         </button>
         <div class="panel" id="demo-ask" role="region" aria-label="How an editor asks contextlake, answered from the graph" inert><div class="panel-in">
-          <div class="demo ask">
-            <div>
-              <div class="q stg s1">If I change the embedder interface, what depends on it?</div>
-              <div class="tool stg s2"><span class="fn">find_dependents</span><span class="arg">kb/embeddings/base.py</span></div>
-              <div class="ans stg s3"><b>4 modules</b> implement the <b>Embedder</b> interface:
-                <ul>
-                  <li>kb/embeddings/builtin.py</li>
-                  <li>kb/embeddings/ollama.py</li>
-                  <li>kb/embeddings/openai.py</li>
-                  <li>kb/embeddings/__init__.py</li>
-                </ul>
+          <div class="demo mcp">
+            <div class="win editor stg s1">
+              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">your editor, connected to contextlake over MCP</span></div>
+              <div class="win-body">
+                <div class="turn you stg s2"><span class="who">you</span>what depends on the Embedder interface?</div>
+                <div class="turn tool stg s3"><span class="who">contextlake</span><span class="call">blast_radius(<span class="arg">"Embedder"</span>)</span></div>
+                <div class="turn ans stg s4"><b>30 nodes</b> affected within 3 hops. Direct subclasses:
+                  <ul><li>OllamaEmbedder</li><li>BuiltinEmbedder</li><li>OpenAIEmbedder</li></ul>
+                  <span class="more">then build_embedder and 26 callers across cmd_embed, serve, wiki, eval, and the tests.</span>
+                </div>
               </div>
             </div>
-            <svg class="frag stg s2" viewBox="0 0 320 220" role="img" aria-label="Graph fragment: four modules depend on the Embedder base module, and the graph continues past the frame">
+            <svg class="frag stg s2" viewBox="0 0 320 220" role="img" aria-label="Graph fragment: three embedder classes inherit the Embedder base, the factory calls it, and the graph continues past the frame">
               <line class="edge e1" pathLength="1" x1="142" y1="116" x2="56"  y2="50"/>
               <line class="edge e2" pathLength="1" x1="142" y1="116" x2="246" y2="58"/>
               <line class="edge e3" pathLength="1" x1="142" y1="116" x2="80"  y2="184"/>
               <line class="edge e4" pathLength="1" x1="142" y1="116" x2="258" y2="150"/>
               <line class="edge e5 stub" pathLength="1" x1="246" y1="58" x2="298" y2="98"/>
-              <g class="node n1"><circle class="dotn" cx="56"  cy="50"  r="5"/><text x="56"  y="38"  text-anchor="middle">builtin.py</text></g>
-              <g class="node n2"><circle class="dotn" cx="246" cy="58"  r="5"/><text x="246" y="46"  text-anchor="middle">ollama.py</text></g>
-              <g class="node n3"><circle class="dotn" cx="80"  cy="184" r="5"/><text x="80"  y="200" text-anchor="middle">openai.py</text></g>
-              <g class="node n4"><circle class="dotn" cx="258" cy="150" r="5"/><text x="258" y="168" text-anchor="middle">__init__.py</text></g>
+              <g class="node n1"><circle class="dotn" cx="56"  cy="50"  r="5"/><text x="56"  y="38"  text-anchor="middle">BuiltinEmbedder</text></g>
+              <g class="node n2"><circle class="dotn" cx="246" cy="58"  r="5"/><text x="246" y="46"  text-anchor="middle">OllamaEmbedder</text></g>
+              <g class="node n3"><circle class="dotn" cx="80"  cy="184" r="5"/><text x="80"  y="200" text-anchor="middle">OpenAIEmbedder</text></g>
+              <g class="node n4"><circle class="dotn" cx="258" cy="150" r="5"/><text x="258" y="168" text-anchor="middle">build_embedder</text></g>
               <g class="node n5"><circle class="dotn stub" cx="298" cy="98" r="3.5"/></g>
-              <g class="node n0"><circle class="dotn hub" cx="142" cy="116" r="7"/><text class="hubt" x="142" y="137" text-anchor="middle">base.py</text></g>
+              <g class="node n0"><circle class="dotn hub" cx="142" cy="116" r="7"/><text class="hubt" x="142" y="137" text-anchor="middle">Embedder</text></g>
             </svg>
           </div>
-          <p class="demo-cap">A real <code style="font-family:var(--ff-m)">find_dependents</code> call over contextlake's own graph. No model, no network.</p>
+          <div class="demo-foot">
+            <p class="demo-cap">A real <code style="font-family:var(--ff-m)">blast_radius</code> call, answered from the graph inside your editor. No model, no network.</p>
+            <button class="runline" type="button" data-cmd="contextlake serve"><span class="rp">$</span><span class="rc">contextlake serve</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
+            <a class="doclink" href="serve.html">MCP setup &rarr;</a>
+          </div>
         </div></div>
       </div>
 
@@ -747,16 +777,27 @@
           <span class="explore"><span class="txt-open">try a query</span><span class="txt-close">close</span> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
         </button>
         <div class="panel" id="demo-search" role="region" aria-label="A semantic search over contextlake's own code" inert><div class="panel-in">
-          <div class="demo search">
-            <div class="field stg s1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><span>how are embeddings stored and searched?</span><span class="cursor" aria-hidden="true"></span></div>
-            <ul class="res">
-              <li><div class="path"><span>kb/embeddings/store.py</span><span class="score">0.92</span></div><div class="snip">vector store: build, upsert, cosine top-k query</div><div class="bar" style="--w:92%"><i></i></div></li>
-              <li><div class="path"><span>kb/embeddings/index.py</span><span class="score">0.88</span></div><div class="snip">embed a repo into the local index</div><div class="bar" style="--w:88%"><i></i></div></li>
-              <li><div class="path"><span>kb/embeddings/hybrid.py</span><span class="score">0.84</span></div><div class="snip">blend lexical recall with vector similarity</div><div class="bar" style="--w:84%"><i></i></div></li>
-              <li><div class="path"><span>kb/router.py</span><span class="score">0.77</span></div><div class="snip">route a query to the right partition</div><div class="bar" style="--w:77%"><i></i></div></li>
-            </ul>
+          <div class="demo">
+            <div class="win stg s1">
+              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">contextlake, semantic_search</span></div>
+              <div class="win-body">
+                <div class="tline stg s2"><span class="prompt">$</span>contextlake serve <span class="dim"># exposes semantic_search to your editor</span></div>
+                <div class="tline stg s2"><span class="dim">semantic_search(</span><span class="qy">"how are embeddings stored and searched?"</span><span class="dim">)</span></div>
+                <ul class="hits">
+                  <li><span class="score">0.62</span><span class="path">kb/embeddings/store.py <span class="sym">class VectorStore</span></span></li>
+                  <li><span class="score">0.61</span><span class="path">kb/embeddings/base.py <span class="sym">embed</span></span></li>
+                  <li><span class="score">0.57</span><span class="path">kb/embeddings/base.py <span class="sym">build_embedder</span></span></li>
+                  <li><span class="score">0.57</span><span class="path">kb/embeddings/builtin.py <span class="sym">embed</span></span></li>
+                  <li><span class="score">0.56</span><span class="path">kb/embeddings/base.py <span class="sym">_build_builtin_embedder</span></span></li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <p class="demo-cap">A real <code style="font-family:var(--ff-m)">semantic_search</code> ranked by cosine similarity, over contextlake's own source.</p>
+          <div class="demo-foot">
+            <p class="demo-cap">Real cosine-ranked hits over contextlake's own code. The built-in CPU model needs no key and no network.</p>
+            <button class="runline" type="button" data-cmd="contextlake embed"><span class="rp">$</span><span class="rc">contextlake embed</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
+            <a class="doclink" href="semantic-search.html">Semantic search &rarr;</a>
+          </div>
         </div></div>
       </div>
 
@@ -768,12 +809,32 @@
           <span class="explore"><span class="txt-open">watch it sync</span><span class="txt-close">close</span> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
         </button>
         <div class="panel" id="demo-fleet" role="region" aria-label="A fleet of repositories mirrored concurrently" inert><div class="panel-in">
-          <div class="demo fleet">
-            <div class="head stg s1"><span class="count">0</span><span class="clabel">repos mirrored concurrently, each on its most active branch</span></div>
-            <div class="grid" aria-hidden="true"></div>
-            <div class="legend stg s1"><span><i class="sw m"></i> mirrored</span><span><i class="sw d"></i> uncommitted work, left untouched</span></div>
+          <div class="demo">
+            <div class="win stg s1">
+              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">contextlake, sync</span></div>
+              <div class="win-body">
+                <div class="tline stg s2"><span class="prompt">$</span>contextlake sync</div>
+                <div class="tline stg s2"><span class="dim">Found 8 local repositories</span></div>
+                <div class="rows">
+                  <div class="r skip"><span class="g">&#8856;</span><span class="nm">user-profile</span><em>skipped, uncommitted changes</em></div>
+                  <div class="r skip"><span class="g">&#8856;</span><span class="nm">auth-service</span><em>skipped, uncommitted changes</em></div>
+                  <div class="r up"><span class="g">&#10003;</span><span class="nm">billing-api</span><em>updated, main</em></div>
+                  <div class="r same"><span class="g">=</span><span class="nm">notify-worker</span><em>up to date</em></div>
+                  <div class="r up"><span class="g">&#10003;</span><span class="nm">gateway</span><em>updated, main</em></div>
+                  <div class="r up"><span class="g">&#10003;</span><span class="nm">web-frontend</span><em>updated, main</em></div>
+                  <div class="r same"><span class="g">=</span><span class="nm">search-index</span><em>up to date</em></div>
+                  <div class="r same"><span class="g">=</span><span class="nm">docs-site</span><em>up to date</em></div>
+                </div>
+                <div class="term-progress stg s3"><span class="pb"><i></i></span><span>8/8</span></div>
+                <div class="tdone stg s3"><span class="g">&#10003;</span> 3 updated &middot; 3 unchanged &middot; 2 skipped &middot; 0 errors</div>
+              </div>
+            </div>
           </div>
-          <p class="demo-cap">A real mirror pass across a fleet, concurrent and resumable. Repos with local changes are detected and skipped.</p>
+          <div class="demo-foot">
+            <p class="demo-cap">A real sync run. Uncommitted work is detected and left untouched, and the same pass scales to hundreds of repos, concurrent and resumable.</p>
+            <button class="runline" type="button" data-cmd="contextlake sync"><span class="rp">$</span><span class="rc">contextlake sync</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
+            <a class="doclink" href="usage.html">Syncing &rarr;</a>
+          </div>
         </div></div>
       </div>
 
@@ -948,7 +1009,6 @@
     cards.forEach(function(o){if(o!==c&&o.classList.contains('open'))close(o);});
     c.classList.add('open');faceOf(c).setAttribute('aria-expanded','true');
     var p=panelOf(c);if(p)p.removeAttribute('inert');
-    var fleet=c.querySelector('.fleet');if(fleet)runFleet(fleet);
     /* bring the card header (which holds "close") near the top, clear of the sticky nav */
     if(!reduce)setTimeout(function(){var y=c.getBoundingClientRect().top+scrollY-88;if(y<scrollY-4||c.getBoundingClientRect().top>140)scrollTo({top:y,behavior:'smooth'});},70);
   }
@@ -960,39 +1020,18 @@
     var o=document.querySelector('.bcell.act.open');
     if(o){close(o);faceOf(o).focus();}
   });
-  /* the fleet: a grid of repo tiles lighting up concurrently as they mirror (sync), with a
-     few carrying local changes that are detected and skipped (dirty), and a readout counting
-     the mirrored repos in step. Built once, on first open. */
-  function runFleet(fleet){
-    if(fleet.dataset.ran)return; fleet.dataset.ran='1';
-    var grid=fleet.querySelector('.grid'), countEl=fleet.querySelector('.count');
-    var cells=196, tiles=[], dirtyCount=0;
-    var frag=document.createDocumentFragment();
-    for(var i=0;i<cells;i++){var t=document.createElement('i');
-      if(i%33===17){t.dataset.dirty='1';dirtyCount++;}           /* a few carry local changes */
-      else{var m=i%7; if(m===2)t.dataset.shade='sb'; else if(m===5)t.dataset.shade='sc';}  /* teal texture */
-      frag.appendChild(t);tiles.push(t);}
-    grid.appendChild(frag);
-    var synced=cells-dirtyCount;                                 /* counter == teal tiles, reconciled */
-    function settle(t){ if(t.dataset.dirty){t.classList.add('dirty');return;}
-      t.classList.add('sync'); if(t.dataset.shade)t.classList.add(t.dataset.shade); }
-    if(reduce){tiles.forEach(settle);countEl.textContent=synced;return;}
-    /* deterministic scramble so the fill looks organic without Math.random */
-    var order=tiles.map(function(_,i){return i;});
-    for(var j=order.length-1;j>0;j--){var k=(j*7+3)%(j+1);var tmp=order[j];order[j]=order[k];order[k]=tmp;}
-    order.forEach(function(idx,pos){
-      var delay=140+pos*9;
-      setTimeout(function(){
-        var t=tiles[idx];
-        if(t.dataset.dirty){t.classList.add('dirty');return;}     /* skipped, stays amber */
-        t.classList.add('on');
-        setTimeout(function(){t.classList.remove('on');settle(t);},240);
-      },delay);
+  /* the next-action run lines copy their real command on click (progressive enhancement:
+     without the Clipboard API they still read as the command to run). */
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    [].forEach.call(document.querySelectorAll('.runline'),function(b){
+      var t=null;
+      b.addEventListener('click',function(e){
+        e.stopPropagation();
+        navigator.clipboard.writeText(b.getAttribute('data-cmd')||'').then(function(){
+          b.classList.add('copied');clearTimeout(t);t=setTimeout(function(){b.classList.remove('copied');},1600);
+        });
+      });
     });
-    var span=140+cells*9+240, start=null;
-    function tick(ts){if(start===null)start=ts;var p=Math.min(1,(ts-start)/span);
-      countEl.textContent=Math.round(p*synced);if(p<1)requestAnimationFrame(tick);}
-    requestAnimationFrame(tick);
   }
 })();</script>
 </body>
