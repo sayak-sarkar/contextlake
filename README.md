@@ -73,7 +73,7 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 ```
 
 <details>
-<summary>Install extras (the mirror needs none — add these for the knowledge layer)</summary>
+<summary>Install extras (the mirror needs none, add these for the knowledge layer)</summary>
 
 | Extra | Adds | When you need it |
 | --- | --- | --- |
@@ -121,7 +121,7 @@ uv tool upgrade contextlake                     # uv
 docker pull ghcr.io/sayak-sarkar/contextlake   # image
 ```
 
-Your store and config carry forward — the graph re-indexes incrementally on the next
+Your store and config carry forward. The graph re-indexes incrementally on the next
 `index`/`sync`, so nothing needs migrating. Confirm with `contextlake --version` and
 `contextlake doctor`.
 
@@ -132,7 +132,7 @@ repos, so your source is never touched):
 pipx uninstall contextlake        # or: pip uninstall contextlake
 rm -rf ~/.contextlake             # store + kb.toml + graph/dashboard exports (optional)
 rm -f  ~/.contextlake.ini         # mirror config (optional)
-# mirrored repos live in your work_dir (default ~/work) — delete only if unwanted
+# mirrored repos live in your work_dir (default ~/work), delete only if unwanted
 ```
 </details>
 
@@ -177,7 +177,7 @@ any path with `--source PATH`, or every git repo under a directory with `--works
 ## Fleet mode: mirror a whole org
 
 Where contextlake goes beyond single-repo tools is mirroring and cross-referencing a *whole
-fleet* — a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea/Codeberg/Forgejo
+fleet*: a GitLab group, a GitHub org, a Bitbucket workspace, or a Gitea/Codeberg/Forgejo
 owner. Copy the example config and set your platform, group and workspace:
 
 ```bash
@@ -197,9 +197,9 @@ contextlake status      # see where you stand (read-only)
 contextlake sync        # fetch → clone → update → branches → verify → audit
 ```
 
-Auth is one env var — the platform's token (`GITLAB_TOKEN` / `GITHUB_TOKEN` /
+Auth is one env var: the platform's token (`GITLAB_TOKEN` / `GITHUB_TOKEN` /
 `BITBUCKET_TOKEN` / `GITEA_TOKEN`), carried in headers and the child environment, never in
-URLs or argv — so `.contextlake.ini` holds only non-secret settings and is gitignored by
+URLs or argv, so `.contextlake.ini` holds only non-secret settings and is gitignored by
 default. (On GitLab, an authenticated `glab` works too; public orgs on other platforms need
 no token at all.) It runs across hundreds of repos **concurrently**, with an adaptive worker
 pool, retries with backoff, and **never stomps on the feature branch you're in the middle
@@ -267,7 +267,7 @@ Full guide: **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextl
 ### The dashboard
 
 `contextlake dashboard --serve` opens a local, offline-first window into everything the
-knowledge layer builds — a fleet overview, per-repo anatomy, the cross-repo architecture
+knowledge layer builds: a fleet overview, per-repo anatomy, the cross-repo architecture
 graph, change-impact (blast radius), health, and search. Try it with zero setup via
 `contextlake dashboard --serve --sample`.
 
@@ -275,7 +275,7 @@ graph, change-impact (blast radius), health, and search. Try it with zero setup 
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
 </p>
 
-**[The dashboard — a guided tour](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)** — step by step, with screenshots.
+**[The dashboard: a guided tour](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, step by step, with screenshots.
 
 ## Documentation
 
