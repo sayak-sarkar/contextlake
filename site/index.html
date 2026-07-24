@@ -216,14 +216,24 @@
     color:var(--mist);max-width:none;letter-spacing:-.01em}
   .band .big .hl{color:var(--current);text-shadow:0 0 26px rgba(43,179,163,.5)}
   .band .muted{color:#9fc0c6;margin-top:18px;text-align:left;max-width:62ch}
-  .band .mist-layer{position:absolute;inset:0 0 auto;height:72%;z-index:1;pointer-events:none;opacity:.4;transition:opacity 1.5s ease}
-  .band .mist-layer::before,.band .mist-layer::after{content:"";position:absolute;border-radius:50%;filter:blur(48px)}
-  .band .mist-layer::before{width:62%;height:150%;left:-8%;top:-42%;background:radial-gradient(circle,rgba(234,244,244,.16),transparent 70%)}
-  .band .mist-layer::after{width:54%;height:150%;right:-6%;top:-56%;background:radial-gradient(circle,rgba(167,179,182,.13),transparent 70%)}
-  .band .dawn-light{position:absolute;z-index:1;left:50%;top:-14%;width:74%;height:64%;transform:translateX(-50%);pointer-events:none;opacity:.85;transition:opacity 1.7s ease;
+  /* shared "deepwater scene": a dark section + clearing mist + dawn-light. Used by the problem
+     band and the graph showcase so the page reads as depth resolving into clarity. */
+  .scene{position:relative;overflow:hidden;background:var(--deepwater);color:var(--mist)}
+  .scene .wrap,.scene .band-col,.scene .sec-head{position:relative;z-index:2}
+  .scene .sec-eyebrow{color:var(--current)}
+  .scene h2{color:#fff}
+  .scene .sec-lede{color:#9fc0c6}
+  .scene .sec-lede code{background:rgba(234,244,244,.10);color:var(--mist);border:1px solid rgba(234,244,244,.14)}
+  .scene .shot{border-color:rgba(234,244,244,.14);box-shadow:0 22px 60px -26px rgba(0,0,0,.65),0 0 54px -22px rgba(43,179,163,.28)}
+  .scene .shot-cap{color:#8fa1a5}
+  .scene .mist-layer{position:absolute;inset:0 0 auto;height:72%;z-index:1;pointer-events:none;opacity:.4;transition:opacity 1.5s ease}
+  .scene .mist-layer::before,.scene .mist-layer::after{content:"";position:absolute;border-radius:50%;filter:blur(48px)}
+  .scene .mist-layer::before{width:62%;height:150%;left:-8%;top:-42%;background:radial-gradient(circle,rgba(234,244,244,.16),transparent 70%)}
+  .scene .mist-layer::after{width:54%;height:150%;right:-6%;top:-56%;background:radial-gradient(circle,rgba(167,179,182,.13),transparent 70%)}
+  .scene .dawn-light{position:absolute;z-index:1;left:50%;top:-14%;width:74%;height:64%;transform:translateX(-50%);pointer-events:none;opacity:.85;transition:opacity 1.7s ease;
     background:radial-gradient(58% 60% at 50% 34%,rgba(43,179,163,.15),rgba(19,122,139,.05) 46%,transparent 72%)}
-  .band.reveal:not(.in) .mist-layer{opacity:.92}
-  .band.reveal:not(.in) .dawn-light{opacity:0}
+  .scene.reveal:not(.in) .mist-layer{opacity:.92}
+  .scene.reveal:not(.in) .dawn-light{opacity:0}
 
   /* how-it-works cards */
   /* native architecture diagram */
@@ -244,8 +254,7 @@
   .arch-corewrap{position:relative;display:flex}
   .arch-core{position:relative;z-index:2;flex:1;background:linear-gradient(180deg,#173640,#0E2A33);border:1px solid #224b56;border-radius:16px;padding:15px;
     box-shadow:0 16px 44px -22px rgba(14,42,51,.6),0 0 30px -12px rgba(43,179,163,.28)}
-  .arch-core::before{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;animation:corePulse 3.4s ease-in-out infinite}
-  @keyframes corePulse{0%,100%{box-shadow:0 0 30px -10px rgba(43,179,163,.22)}50%{box-shadow:0 0 54px -2px rgba(43,179,163,.5)}}
+  .arch-core::before{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;box-shadow:0 0 40px -12px rgba(43,179,163,.30)}
   .arch-core-head{display:flex;align-items:center;gap:9px;margin-bottom:11px}
   .arch-mark{width:32px;height:32px;flex:none}
   .arch-core-head span{font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--mist)}
@@ -410,7 +419,7 @@
 </div>
 
 <!-- PROBLEM -->
-<section id="why" class="band" aria-labelledby="why-h">
+<section id="why" class="band scene" aria-labelledby="why-h">
   <div class="mist-layer" aria-hidden="true"></div>
   <div class="dawn-light" aria-hidden="true"></div>
   <div class="wrap">
@@ -489,13 +498,15 @@
 </section>
 
 <!-- GRAPH SHOWCASE -->
-<section style="background:var(--callout-bg);border-top:1px solid var(--line);position:relative" aria-labelledby="see-h">
+<section class="scene" aria-labelledby="see-h">
+  <div class="mist-layer" aria-hidden="true"></div>
+  <div class="dawn-light" aria-hidden="true"></div>
   <div class="wrap">
     <div class="see-head-row">
       <div class="sec-head" style="max-width:38em">
         <div class="sec-eyebrow">See it</div>
         <h2 id="see-h">A whole codebase as one navigable graph</h2>
-        <p class="sec-lede"><code style="font-family:var(--ff-m);background:var(--tint);padding:.15em .4em;border-radius:5px">contextlake graph</code>
+        <p class="sec-lede"><code style="font-family:var(--ff-m);padding:.15em .4em;border-radius:5px">contextlake graph</code>
           renders a bounded, offline, interactive map, fleet overview, a symbol's neighbourhood, or a single repo. Type glyphs,
           language lettermarks, confidence-coded edges, level-of-detail labels, and a navigator minimap keep even dense graphs legible.</p>
       </div>
