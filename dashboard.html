@@ -23,8 +23,8 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=99b6ed3">
-<link rel="stylesheet" href="docs.css?v=99b6ed3">
+<link rel="stylesheet" href="fonts.css?v=55e4868">
+<link rel="stylesheet" href="docs.css?v=55e4868">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -111,40 +111,38 @@ guaranteed-generic demo fleet).</p>
 </blockquote>
 <h2 id="3-the-fleet-overview">3. The fleet overview<a class="anchor" href="#3-the-fleet-overview" title="Link to this section">#</a></h2>
 <p>Stat cards, a <strong>knowledge-confidence</strong> bar, and your repos grouped by namespace.</p>
-<p><img alt="Fleet overview, cards layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" /></p>
+<p><img class="ss ss-light" alt="Fleet overview, cards layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" /><img class="ss ss-dark" alt="Fleet overview, cards layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards-dark.png" /></p>
 <p>Prefer denser views? Switch the layout, <strong>Cards / List / Table</strong> (your choice is
 remembered):</p>
-<p><img alt="Fleet overview, list layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-list.png" /></p>
-<p><img alt="Fleet overview, table layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-table.png" /></p>
+<p><img class="ss ss-light" alt="Fleet overview, list layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-list.png" /><img class="ss ss-dark" alt="Fleet overview, list layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-list-dark.png" /></p>
+<p><img class="ss ss-light" alt="Fleet overview, table layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-table.png" /><img class="ss ss-dark" alt="Fleet overview, table layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-table-dark.png" /></p>
 <p>Not sure what a control means? The <strong>ⓘ "What am I looking at?"</strong> button explains nodes,
 edges, the three confidence levels, and the Live vs. Static data source:</p>
-<p><img alt="The info popover explaining nodes, edges, confidence, and data source" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/info-popover.png" /></p>
+<p><img class="ss ss-light" alt="The info popover explaining nodes, edges, confidence, and data source" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/info-popover.png" /><img class="ss ss-dark" alt="The info popover explaining nodes, edges, confidence, and data source" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/info-popover-dark.png" /></p>
 <h2 id="4-a-repo-up-close">4. A repo up close<a class="anchor" href="#4-a-repo-up-close" title="Link to this section">#</a></h2>
 <p>Click any repo for its <strong>anatomy</strong> (node kinds and top symbols) plus README, curated
 wiki, owners (ranked from git history), and connector links. Every symbol has a
 one-click <strong>Blast radius</strong>, and every fact carries its provenance.</p>
-<p><img alt="A repo's anatomy: kinds and top symbols" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png" /></p>
+<p><img class="ss ss-light" alt="A repo's anatomy: kinds and top symbols" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png" /><img class="ss ss-dark" alt="A repo's anatomy: kinds and top symbols" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy-dark.png" /></p>
 <h2 id="5-architecture-relationships">5. Architecture &amp; relationships<a class="anchor" href="#5-architecture-relationships" title="Link to this section">#</a></h2>
 <p>The cross-repo dependency graph, a <strong>namespace</strong> mindmap and a <strong>dependency</strong> flow,
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).</p>
-<p><img alt="The architecture graph: cross-repo dependencies" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png" /></p>
+<p><img class="ss ss-light" alt="The architecture graph: cross-repo dependencies" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png" /><img class="ss ss-dark" alt="The architecture graph: cross-repo dependencies" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture-dark.png" /></p>
 <h2 id="6-change-impact-blast-radius">6. Change impact (blast radius)<a class="anchor" href="#6-change-impact-blast-radius" title="Link to this section">#</a></h2>
 <p>Pick a symbol (from search or a repo's symbol list) and see what a change would touch,
 hop by hop, with the confidence of each path.</p>
-<p><img alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png" /></p>
+<p><img class="ss ss-light" alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png" /><img class="ss ss-dark" alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius-dark.png" /></p>
 <h2 id="7-generate-a-wiki">7. Generate a wiki<a class="anchor" href="#7-generate-a-wiki" title="Link to this section">#</a></h2>
 <p>No wiki for a repo yet? Its <strong>Wiki</strong> tab hands you the exact command (one click to copy):</p>
-<p><img alt="The wiki tab offering a Generate wiki action" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-generate.png" /></p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/orders-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/catalog-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
 
 <p><code>--llm</code> enables the LLM tier inline, <code>builtin</code> runs a small CPU model with no Ollama or
 API key (install the <code>llm-local</code> extra first); <code>ollama</code> / <code>openai</code> use those backends.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders right in the Wiki tab, grounded in the repo's real symbols, with a provenance
-footer citing the exact commit and source files:</p>
-<p><img alt="The generated wiki rendered in the dashboard Wiki tab" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-rendered.png" /></p>
+footer citing the exact commit and source files.</p>
 <p>See <a href="knowledge-layer.html#curated-wiki">knowledge-layer.md → Curated wiki</a>.</p>
 <hr />
 <p>Everything here is read-only and runs entirely on your machine. Sync and MCP-connection

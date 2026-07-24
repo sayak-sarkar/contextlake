@@ -23,8 +23,8 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=99b6ed3">
-<link rel="stylesheet" href="docs.css?v=99b6ed3">
+<link rel="stylesheet" href="fonts.css?v=55e4868">
+<link rel="stylesheet" href="docs.css?v=55e4868">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -47,17 +47,17 @@
 <p><code>contextlake graph</code> draws a <strong>bounded</strong> slice of the graph. The whole thing (hundreds of thousands of
 nodes) is far too large to render, so every view is scoped from a seed and capped:</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">                 </span><span class="c1"># repos-as-nodes: the architecture map</span>
-contextlake<span class="w"> </span>graph<span class="w"> </span>--name<span class="w"> </span>OrderService<span class="w"> </span>--kind<span class="w"> </span>class<span class="w">  </span><span class="c1"># a symbol&#39;s neighbourhood (default 2 hops)</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--name<span class="w"> </span>CatalogService<span class="w"> </span>--kind<span class="w"> </span>class<span class="w">  </span><span class="c1"># a symbol&#39;s neighbourhood (default 2 hops)</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--node<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--hops<span class="w"> </span><span class="m">3</span><span class="w">              </span><span class="c1"># expand around an exact node id</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--search<span class="w"> </span><span class="s2">&quot;payment&quot;</span><span class="w"> </span>--open<span class="w">         </span><span class="c1"># seed from a full-text search</span>
-contextlake<span class="w"> </span>graph<span class="w"> </span>--repo<span class="w"> </span>acme/orders-api<span class="w">           </span><span class="c1"># one repo&#39;s internal code graph</span>
+contextlake<span class="w"> </span>graph<span class="w"> </span>--repo<span class="w"> </span>acme/catalog-api<span class="w">           </span><span class="c1"># one repo&#39;s internal code graph</span>
 </code></pre></div>
 
 <p><code>contextlake graph --repo &lt;repo&gt;</code> renders one repo's internal code graph to a single self-contained HTML
 page: nodes coloured by kind and sized by degree, edges by relation, with an in-page layout switcher,
 search, and a minimap; it opens straight from <code>file://</code>:</p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/orders-api: file, class, and method nodes (OrderService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
 </p>
 
 <p>Seed with one of <code>--node</code> / <code>--name</code> (+<code>--kind</code>) / <code>--search</code> / <code>--repo</code> / <code>--overview</code>. Bound the result

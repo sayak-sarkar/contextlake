@@ -23,8 +23,8 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=99b6ed3">
-<link rel="stylesheet" href="docs.css?v=99b6ed3">
+<link rel="stylesheet" href="fonts.css?v=55e4868">
+<link rel="stylesheet" href="docs.css?v=55e4868">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -49,7 +49,7 @@ per repo, with a provenance footer citing the commit and sources it was built fr
 <h2 id="running-it">Running it<a class="anchor" href="#running-it" title="Link to this section">#</a></h2>
 <p>Enable <code>[llm]</code> in the config (generation runs on a local Ollama model by default, prompts never leave the
 machine), or skip the toml entirely and pass <code>--llm &lt;provider&gt;</code> (<code>builtin</code> | <code>ollama</code> | <code>openai</code> |
-<code>anthropic</code> | <code>cli</code>), for example <code>contextlake wiki acme/orders-api --llm builtin</code>, which enables the tier
+<code>anthropic</code> | <code>cli</code>), for example <code>contextlake wiki acme/catalog-api --llm builtin</code>, which enables the tier
 inline and scopes generation to the named repo(s).</p>
 <p>Run <code>contextlake wiki</code>: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
 symbols, dependencies, files) with a provenance footer citing the commit and sources, then puts the draft
@@ -82,11 +82,7 @@ assertion or as an undisclosed code fact. The council still gates the enriched p
 ensuring external context supplements rather than displaces code-backed facts and that attribution is
 clear and verifiable.</p>
 <p>The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
-provenance footer citing the exact commit and source files it was built from:</p>
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-rendered.png" alt="The curated wiki for acme/orders-api rendered in the dashboard Wiki tab: an advisory banner, then Overview, Key components (OrderService, PaymentClient), How a request flows, and Notes, grounded in the repo's real symbols with a provenance footer." width="820">
-</p>
-
+provenance footer citing the exact commit and source files it was built from.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="model-providers.html">Model providers</a></li>

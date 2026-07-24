@@ -23,8 +23,8 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=99b6ed3">
-<link rel="stylesheet" href="docs.css?v=99b6ed3">
+<link rel="stylesheet" href="fonts.css?v=55e4868">
+<link rel="stylesheet" href="docs.css?v=55e4868">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -103,7 +103,7 @@ Rovo search, or any <code>mcp</code> source with a <code>tool</code> and <code>a
 the returned documents in a searchable, embedded <code>@enrich:&lt;repo&gt;</code> partition, idempotent and re-runnable
 across the whole fleet or a single repo:</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
-contextlake<span class="w"> </span>enrich<span class="w"> </span>acme/orders-api<span class="w">         </span><span class="c1"># one repo</span>
+contextlake<span class="w"> </span>enrich<span class="w"> </span>acme/catalog-api<span class="w">         </span><span class="c1"># one repo</span>
 </code></pre></div>
 
 <p>Prerequisites: the code graph must be <strong>indexed first</strong> (<code>contextlake index</code>), and at least one
