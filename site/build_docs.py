@@ -349,8 +349,11 @@ THEME_JS = (
     'function cur(){var e=r.getAttribute("data-theme");'
     'return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}'
     'function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}'
-    'lbl(cur());b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";'
-    'r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);});})();</script>')
+    'lbl(cur());'
+    'function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}'
+    'b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";'
+    'var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;'
+    'if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>')
 
 # copy-to-clipboard on code blocks (progressive enhancement: no Clipboard API -> no button)
 COPY_JS = r"""<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
