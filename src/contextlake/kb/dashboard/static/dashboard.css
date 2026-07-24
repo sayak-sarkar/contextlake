@@ -47,13 +47,14 @@
   --cl-shadow: 0 6px 20px rgba(14,42,51,.10);
 }
 
+/* dark theme: moonlit-navy (BRANDING.md 3.4), cohering with the night hero */
 [data-theme="dark"] {
-  --cl-bg: #0b2128;
-  --cl-surface: #11313a;
-  --cl-surface-2: #163b45;
+  --cl-bg: #0C2438;
+  --cl-surface: #15314C;
+  --cl-surface-2: #18344F;
   --cl-ink: #EAF4F4;
-  --cl-ink-muted: #9bb6bd;
-  --cl-line: #224852;
+  --cl-ink-muted: #A4B3B6;
+  --cl-line: #274864;
   --cl-primary: #4fc7d6;
   --cl-focus: #2BB3A3;
   --cl-shadow: 0 6px 24px rgba(0,0,0,.40);

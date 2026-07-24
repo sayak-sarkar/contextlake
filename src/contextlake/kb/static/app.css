@@ -12,12 +12,13 @@
     --ff:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     --ff-d:"Space Grotesk",var(--ff);--dur:.16s;--ease:cubic-bezier(.2,.6,.2,1);
   }
+  /* dark theme: moonlit-navy (BRANDING.md 3.4), cohering with the night hero */
   body[data-theme="dark"]{
-    --bg:#0a1f26;--surface:#102e38;--surface-2:#16414e;--line:#1d4d5b;--line-2:#286675;
-    --text:#EAF4F4;--muted:#9bbcc2;--subtle:#6f969e;--brand:#2BB3A3;--brand-h:#3fc6b6;
-    --canvas-label:#EAF4F4;--surface-solid:#102e38;
+    --bg:#0C2438;--surface:#15314C;--surface-2:#18344F;--line:#274864;--line-2:#375672;
+    --text:#EAF4F4;--muted:#A4B3B6;--subtle:#8FA1A5;--brand:#2BB3A3;--brand-h:#3fc6b6;
+    --canvas-label:#EAF4F4;--surface-solid:#15314C;
     --faded-opacity:0.16;
-    --cy-bg:radial-gradient(120% 90% at 50% -10%,#103039 0%,#0c252d 45%,#081b21 100%);
+    --cy-bg:radial-gradient(120% 90% at 50% -10%,#123351 0%,#0C2438 45%,#081D30 100%);
     --e1:0 1px 2px rgba(0,0,0,.4);--e2:0 6px 18px -6px rgba(0,0,0,.55);
   }
   body[data-sidebar="collapsed"]{--rail:0px}
