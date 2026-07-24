@@ -51,18 +51,18 @@
   /* dark theme: explicit toggle wins; else follow the OS unless the reader chose light.
      The hero stays deepwater in both themes by design; the content surfaces flip. */
   :root[data-theme="dark"]{
-    --bg:#0E2A33; --surface:#16323B; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
-    --line:#24404a; --line-2:#33525c;
+    --deepwater:#081D30; --bg:#0C2438; --surface:#15314C; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
+    --line:#274864; --line-2:#375672;
     --link:#2BB3A3; --link-hover:#54c9bb; --lake-hover:#34c4b3;
-    --surface-2:#13303a; --tint:#17343d; --callout-bg:#152f38; --btn-hover:#1d3b44;
+    --surface-2:#112B44; --tint:#163350; --callout-bg:#132C48; --btn-hover:#1E3C58;
     --shadow:0 18px 48px -22px rgba(0,0,0,.5); --shadow-s:0 4px 16px -8px rgba(0,0,0,.45);
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#0E2A33; --surface:#16323B; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
-      --line:#24404a; --line-2:#33525c;
+      --deepwater:#081D30; --bg:#0C2438; --surface:#15314C; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
+      --line:#274864; --line-2:#375672;
       --link:#2BB3A3; --link-hover:#54c9bb; --lake-hover:#34c4b3;
-      --surface-2:#13303a; --tint:#17343d; --callout-bg:#152f38; --btn-hover:#1d3b44;
+      --surface-2:#112B44; --tint:#163350; --callout-bg:#132C48; --btn-hover:#1E3C58;
       --shadow:0 18px 48px -22px rgba(0,0,0,.5); --shadow-s:0 4px 16px -8px rgba(0,0,0,.45);
     }
   }
