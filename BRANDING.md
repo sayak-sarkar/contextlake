@@ -204,7 +204,7 @@ The system is **dark-first** with a fully paired light theme. Tokens are namespa
 
 ### 3.1 Foundational rule: no pure black, no pure white surface
 
-`#000000` is **forbidden everywhere**, backgrounds, text, borders, shadows, icon strokes, keylines. The darkest value in the system is **deepwater `#0E2A33`**. Shadows are deepwater at low alpha (`rgba(14,42,33,0.X)`), never black. `#FFFFFF` is permitted only as a light-theme **card surface** and as on-fill text over lake; it is never a page background (light canvas is mist-tinted `#F3F8F8`).
+`#000000` is **forbidden everywhere**, backgrounds, text, borders, shadows, icon strokes, keylines. The darkest tone in the light theme is **deepwater `#0E2A33`**; the moonlit-navy dark theme goes a touch deeper on recessed panels (`#081D30`, §3.4). Shadows are deepwater at low alpha (`rgba(14,42,33,0.X)`), never black. `#FFFFFF` is permitted only as a light-theme **card surface** and as on-fill text over lake; it is never a page background (light canvas is mist-tinted `#F3F8F8`).
 
 ### 3.2 Token taxonomy (three tiers: replaces the "six locked" framing)
 
@@ -231,24 +231,29 @@ The six primitives stay the governing identity; tiers 2 and 3 are sanctioned, na
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/brand-palette.png" alt="The six locked brand primitives as swatches: deepwater #0E2A33, lake #137A8B, current #2BB3A3, mist #EAF4F4, shore #D7C5A0, and sun #E7B53C." width="820">
 </p>
 
-### 3.4 Tier 2: dark theme (default) semantic roles
+### 3.4 Tier 2: dark theme (moonlit-navy) semantic roles
+
+The dark theme is a **moonlit-navy** night lake, cooler and bluer than the deepwater light-mode tone, so the dark UI coheres with the moonlit-night hero (light theme = sunrise, dark = moonlight). **`deepwater #0E2A33` stays a locked primitive and the light-mode dark tone**; the dark canvas is a navy derivation of it. (Sampled from the night hero; see §6.)
 
 | Role | Token | Hex | Verified |
 |---|---|---|---|
-| Canvas bg | `--cl-bg` | `#0E2A33` | text mist **13.41:1** |
-| Surface (card) | `--cl-surface` | `#16323B` | text mist **12.07:1** |
-| Surface raised | `--cl-surface-raised` | `#1F3B43` | text mist **10.62:1** |
-| Text | `--cl-text` | `#EAF4F4` | 13.41:1 on bg ✓ AAA |
-| Muted text | `--cl-text-muted` | `#A4B3B6` | **6.94:1** bg ✓ (≥5.5 all surfaces) |
-| Subtle text | `--cl-text-subtle` | `#8FA1A5` | corrected; **≥4.5:1 on bg, surface, and raised** ✓ |
-| Brand / link | `--cl-brand` | `#2BB3A3` | **5.78:1** on bg ✓ (always underlined) |
+| Canvas bg | `--cl-bg` | `#0C2438` | text mist **14.15:1** |
+| Surface (card) | `--cl-surface` | `#15314C` | text mist **11.90:1** |
+| Surface raised | `--cl-surface-raised` | `#18344F` | text mist **11.41:1** (subtle 4.75) |
+| Recessed panel | `--cl-panel` | `#081D30` | bands/footers/code blocks; text mist **15.26:1** |
+| Text | `--cl-text` | `#EAF4F4` | 14.15:1 on bg ✓ AAA |
+| Muted text | `--cl-text-muted` | `#A4B3B6` | **7.32:1** bg ✓ (≥5.5 all surfaces) |
+| Subtle text | `--cl-text-subtle` | `#8FA1A5` | **≥4.5:1 on bg, surface, and raised** ✓ |
+| Brand / link | `--cl-brand` | `#2BB3A3` | **6.10:1** on bg ✓ (always underlined) |
 | Accent fill | `--cl-accent` | `#137A8B` (lake) | fill only; **on-text = mist/white (5.02)** |
-| Border interactive | `--cl-border` | `#728990` | corrected; **≥3:1 on bg, surface, and raised** ✓ (1.4.11) |
-| Divider (decorative) | `--cl-line` | `#274A53` | exempt |
+| Border interactive | `--cl-border` | `#728990` | **≥3:1 on bg, surface, and raised** ✓ (1.4.11) |
+| Divider (decorative) | `--cl-line` | `#274864` | exempt |
 | Focus ring | `--cl-focus` | dual-tone (§3.7) | ≥3:1 vs component **and** surface |
-| Success | `--cl-success` | `#3DD9A0` | **8.32:1** on bg ✓ |
-| Warning | `--cl-warn` | `#E7B53C` (sun) | icon/large + **deepwater label**; 7.92:1 on bg |
-| Error | `--cl-error` | `#FF8388` | corrected; **≥4.5:1 on bg, surface, and raised** ✓ |
+| Success | `--cl-success` | `#3DD9A0` | **8.78:1** on bg ✓ |
+| Warning | `--cl-warn` | `#E7B53C` (sun) | icon/large + **deepwater label**; 8.36:1 on bg |
+| Error | `--cl-error` | `#FF8388` | **6.68:1** on bg ✓ (≥4.5 on surface/raised) |
+
+The **light theme (§3.5) is unchanged** and keeps deepwater as its dark tone. Teal accents (`current`, `lake`) are kept in both themes for pop. *Product surfaces (dashboard, graph UI) should adopt this same moonlit-navy dark ramp for cross-surface consistency.*
 
 ### 3.5 Tier 2: light theme semantic roles
 
