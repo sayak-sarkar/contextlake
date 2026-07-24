@@ -399,8 +399,10 @@
 
   /* All three demos now show a REAL contextlake surface (captured from the tool running on its
      own source): an editor/MCP exchange and two terminals. Shared window chrome, deepwater. */
-  .win{background:var(--deepwater);border:1px solid color-mix(in srgb,var(--mist) 12%,var(--deepwater));
+  .win{background:var(--deepwater);border:1px solid color-mix(in srgb,var(--mist) 17%,var(--deepwater));
     border-radius:12px;overflow:hidden;box-shadow:var(--shadow-s);font-family:var(--ff-m)}
+  :root[data-theme="dark"] .win{border-color:color-mix(in srgb,var(--current) 22%,var(--deepwater))}
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .win{border-color:color-mix(in srgb,var(--current) 22%,var(--deepwater))}}
   .win-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:rgba(255,255,255,.045);
     border-bottom:1px solid rgba(234,244,244,.09)}
   .win-bar .dots{display:inline-flex;gap:6px;flex:none}
@@ -511,6 +513,51 @@
   :root[data-theme="dark"] .b-anchor.act{background:#173a58;border-color:color-mix(in srgb,var(--current) 32%,transparent)}
   @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .b-anchor.act{background:#173a58;border-color:color-mix(in srgb,var(--current) 32%,transparent)}}
 
+  /* use cases: concrete scenarios, each tied to a real command */
+  .uc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:720px){.uc-grid{grid-template-columns:1fr}}
+  .uc{padding:24px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow-s);
+    display:flex;flex-direction:column}
+  .uc .uc-ic{width:38px;height:38px;border-radius:10px;background:var(--tint);color:var(--link);
+    display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .uc .uc-ic svg{width:20px;height:20px}
+  .uc h3{font-size:17px;margin:0 0 8px}
+  .uc p{color:var(--muted);font-size:14.5px;margin:0 0 16px;line-height:1.55;flex:1}
+  .uc .uc-cmd{font-family:var(--ff-m);font-size:12.5px;color:var(--link);background:var(--callout-bg);
+    border:1px solid var(--line);border-radius:7px;padding:6px 10px;align-self:flex-start}
+  .uc .uc-cmd .p{color:var(--subtle)}
+
+  /* why not: two grounded comparison cards */
+  .wn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:720px){.wn-grid{grid-template-columns:1fr}}
+  .wn{padding:26px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2)}
+  .wn h3{font-size:15px;margin:0 0 12px;font-family:var(--ff-m);color:var(--ink);font-weight:600}
+  .wn p{color:var(--muted);font-size:14.5px;margin:0;line-height:1.65}
+  .wn p b{color:var(--ink);font-weight:600}
+
+  /* contribute */
+  .contrib-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center}
+  @media(max-width:760px){.contrib-grid{grid-template-columns:1fr;gap:22px}}
+  .contrib-notes ul{list-style:none;margin:0 0 22px;padding:0;display:grid;gap:13px}
+  .contrib-notes li{position:relative;padding-left:26px;color:var(--muted);font-size:14.5px;line-height:1.5}
+  .contrib-notes li b{color:var(--ink);font-weight:600}
+  .contrib-notes li::before{content:"";position:absolute;left:0;top:6px;width:12px;height:12px;border-radius:3px;
+    background:var(--current)}
+
+  /* Pebble moment: a warm brand beat, the favorite-stone metaphor tied to real behavior */
+  .pebble-moment{background:var(--tint);padding:58px 0}
+  .pm-in{display:grid;grid-template-columns:300px 1fr;gap:46px;align-items:center}
+  @media(max-width:720px){.pm-in{grid-template-columns:1fr;gap:16px;text-align:center}}
+  .pm-art{width:100%;height:auto;filter:drop-shadow(0 22px 44px rgba(14,42,51,.22))}
+  :root[data-theme="dark"] .pm-art{filter:drop-shadow(0 18px 38px rgba(0,0,0,.45)) drop-shadow(0 0 46px rgba(43,179,163,.14))}
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .pm-art{filter:drop-shadow(0 18px 38px rgba(0,0,0,.45)) drop-shadow(0 0 46px rgba(43,179,163,.14))}}
+  @media(max-width:720px){.pm-art{width:190px;margin:0 auto}}
+  .pm-lead{font-family:var(--ff-d);font-size:30px;font-weight:600;color:var(--ink);margin:10px 0 14px;line-height:1.18;letter-spacing:-.01em}
+  @media(max-width:520px){.pm-lead{font-size:25px}}
+  .pm-sub{color:var(--muted);font-size:16px;line-height:1.65;max-width:34em;margin:0}
+  @media(max-width:720px){.pm-sub{margin:0 auto}}
+  .pm-link{display:inline-block;margin-top:18px}
+
   /* get started */
   .start{background:var(--callout-bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .cmd{position:relative;background:var(--deepwater);color:var(--mist);border-radius:var(--r);padding:22px 24px;
@@ -567,6 +614,8 @@
     <span class="spacer"></span>
     <a class="navlink" href="#how">How it works</a>
     <a class="navlink" href="#features">Features</a>
+    <a class="navlink" href="#use-cases">Use cases</a>
+    <a class="navlink" href="#contribute">Contribute</a>
     <a class="navlink" href="docs.html">Docs</a>
     <button class="btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme">
       <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -735,13 +784,13 @@
         <div class="panel" id="demo-ask" role="region" aria-label="How an editor asks contextlake, answered from the graph" inert><div class="panel-in">
           <div class="demo mcp">
             <div class="win editor stg s1">
-              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">your editor, connected to contextlake over MCP</span></div>
+              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">your editor &middot; connected to contextlake over MCP</span></div>
               <div class="win-body">
                 <div class="turn you stg s2"><span class="who">you</span>what depends on the Embedder interface?</div>
                 <div class="turn tool stg s3"><span class="who">contextlake</span><span class="call">blast_radius(<span class="arg">"Embedder"</span>)</span></div>
                 <div class="turn ans stg s4"><b>30 nodes</b> affected within 3 hops. Direct subclasses:
                   <ul><li>OllamaEmbedder</li><li>BuiltinEmbedder</li><li>OpenAIEmbedder</li></ul>
-                  <span class="more">then build_embedder and 26 callers across cmd_embed, serve, wiki, eval, and the tests.</span>
+                  <span class="more">Plus build_embedder and 26 callers across cmd_embed, serve, wiki, eval, and the tests.</span>
                 </div>
               </div>
             </div>
@@ -779,9 +828,8 @@
         <div class="panel" id="demo-search" role="region" aria-label="A semantic search over contextlake's own code" inert><div class="panel-in">
           <div class="demo">
             <div class="win stg s1">
-              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">contextlake, semantic_search</span></div>
+              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">contextlake &middot; semantic_search</span></div>
               <div class="win-body">
-                <div class="tline stg s2"><span class="prompt">$</span>contextlake serve <span class="dim"># exposes semantic_search to your editor</span></div>
                 <div class="tline stg s2"><span class="dim">semantic_search(</span><span class="qy">"how are embeddings stored and searched?"</span><span class="dim">)</span></div>
                 <ul class="hits">
                   <li><span class="score">0.62</span><span class="path">kb/embeddings/store.py <span class="sym">class VectorStore</span></span></li>
@@ -811,7 +859,7 @@
         <div class="panel" id="demo-fleet" role="region" aria-label="A fleet of repositories mirrored concurrently" inert><div class="panel-in">
           <div class="demo">
             <div class="win stg s1">
-              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">contextlake, sync</span></div>
+              <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">contextlake &middot; sync</span></div>
               <div class="win-body">
                 <div class="tline stg s2"><span class="prompt">$</span>contextlake sync</div>
                 <div class="tline stg s2"><span class="dim">Found 8 local repositories</span></div>
@@ -831,7 +879,7 @@
             </div>
           </div>
           <div class="demo-foot">
-            <p class="demo-cap">A real sync run. Uncommitted work is detected and left untouched, and the same pass scales to hundreds of repos, concurrent and resumable.</p>
+            <p class="demo-cap">A real sync run over a local test fleet. Uncommitted work is detected and left untouched, and the same pass scales to hundreds of repos, concurrent and resumable.</p>
             <button class="runline" type="button" data-cmd="contextlake sync"><span class="rp">$</span><span class="rc">contextlake sync</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
             <a class="doclink" href="usage.html">Syncing &rarr;</a>
           </div>
@@ -840,6 +888,76 @@
 
       <div class="bcell"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2Z"/><path d="M9 4v15"/></svg></span><h3>Curated wiki</h3><p>LLM-synthesized, council-verified pages grounded strictly in graph facts, with provenance footers.</p></div>
       <div class="bcell"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Editor steering</h3><p>Generate <code style="font-family:var(--ff-m);font-size:.9em">AGENTS.md</code>, <code style="font-family:var(--ff-m);font-size:.9em">.mcp.json</code>, rules, and a skills library, wired to your graph.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- USE CASES -->
+<section id="use-cases" aria-labelledby="uc-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">Use cases</div>
+      <h2 id="uc-h">When you reach for contextlake</h2>
+      <p class="sec-lede">The same graph answers a handful of everyday questions that are painful across many repos.</p>
+    </div>
+    <div class="uc-grid">
+      <div class="uc">
+        <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <h3>Land in an unfamiliar fleet</h3>
+        <p>New to a codebase spread across dozens of repos? Ask where a symbol is defined, what calls it, and how repos connect, without cloning your way through it by hand.</p>
+        <span class="uc-cmd"><span class="p">$</span> contextlake query "OrderService"</span>
+      </div>
+      <div class="uc">
+        <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+        <h3>Ground your AI editor</h3>
+        <p>Point Claude Code, Cursor, Windsurf, or Kiro at the graph over MCP so they answer from your real source with cited file:line, instead of guessing from training data.</p>
+        <span class="uc-cmd"><span class="p">$</span> contextlake serve</span>
+      </div>
+      <div class="uc">
+        <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg></span>
+        <h3>Check blast radius before a change</h3>
+        <p>See what depends on a class or module across every repo before you touch it, so a small edit does not quietly break a service three repos away.</p>
+        <span class="uc-cmd"><span class="p">$</span> contextlake impact Embedder</span>
+      </div>
+      <div class="uc">
+        <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+        <h3>Find who knows it</h3>
+        <p>Surface the likely owners and reviewers for a repo or path from commit history, so you know who to ask before a change lands.</p>
+        <span class="uc-cmd"><span class="p">$</span> contextlake owners billing-api</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY NOT -->
+<section id="why-not" aria-labelledby="wn-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">Why not just&#8230;</div>
+      <h2 id="wn-h">grep, or a hosted vector database?</h2>
+    </div>
+    <div class="wn-grid">
+      <div class="wn">
+        <h3>vs. grep across repos</h3>
+        <p>grep finds strings, one repo at a time. It cannot tell a definition from a call, cannot cross repo boundaries, and buries the answer in matches. contextlake parses code into a <b>typed graph</b>, so you ask for callers, dependents, or owners and get <b>cited file:line answers across the whole fleet</b>.</p>
+      </div>
+      <div class="wn">
+        <h3>vs. a hosted vector DB</h3>
+        <p>A hosted vector database means standing up infra and usually shipping your code to a third party. contextlake is <b>offline and graph-first</b>: exact edges instead of fuzzy nearness, token-cheap for agents, and semantic vectors are an opt-in <b>local</b> layer, not a dependency. Your source and your context stay on your disk.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PEBBLE MOMENT -->
+<section class="pebble-moment" aria-labelledby="pm-h">
+  <div class="wrap pm-in">
+    <img class="pm-art" src="pebble-proud.webp" width="560" height="759" alt="Pebble, the contextlake otter, holding up a glowing stone with obvious pride" loading="lazy">
+    <div class="pm-copy">
+      <div class="sec-eyebrow">Meet Pebble</div>
+      <p class="pm-lead" id="pm-h">Otters keep a favorite stone. Pebble keeps yours.</p>
+      <p class="pm-sub">Every repo you care about, mirrored to your own lake and kept on its most active branch, so the context is always within reach for you and your agents. No stone goes missing, and the work you have not committed yet is never dropped.</p>
+      <a class="doclink pm-link" href="usage.html">How branch-safety works &rarr;</a>
     </div>
   </div>
 </section>
@@ -861,6 +979,36 @@
       <span class="line"><span class="prompt">$</span> <span class="c">contextlake index --source .</span> <span class="hash"># parse this repo</span></span>
       <span class="line"><span class="prompt">$</span> <span class="c">contextlake graph --overview --open</span></span>
       <span class="line"><span class="prompt">$</span> <span class="c">contextlake serve</span> <span class="hash"># or serve it over MCP</span></span>
+    </div>
+  </div>
+</section>
+
+<!-- CONTRIBUTE -->
+<section id="contribute" aria-labelledby="cont-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">Contribute</div>
+      <h2 id="cont-h">Open source, and small on purpose</h2>
+      <p class="sec-lede">contextlake is MIT-licensed and deliberately focused. Small, sharp tools live or die by their edges, so bug reports, fixes, and well-scoped features are all welcome.</p>
+    </div>
+    <div class="contrib-grid">
+      <div class="cmd" aria-label="Contributor setup commands">
+        <span class="line"><span class="prompt">$</span> <span class="c">gh repo clone sayak-sarkar/contextlake</span></span>
+        <span class="line"><span class="prompt">$</span> <span class="c">python -m venv .venv &amp;&amp; source .venv/bin/activate</span></span>
+        <span class="line"><span class="prompt">$</span> <span class="c">pip install -e ".[dev,kb]"</span></span>
+        <span class="line"><span class="prompt">$</span> <span class="c">ruff check src tests &amp;&amp; pytest</span> <span class="hash"># the whole loop</span></span>
+      </div>
+      <div class="contrib-notes">
+        <ul>
+          <li><b>Keep it lean.</b> One job, done well; features that stray from it are a hard sell.</li>
+          <li><b>No network in tests,</b> and every change ships with the test that proves it.</li>
+          <li><b>Nothing deployment-specific, ever:</b> a publish guard in CI enforces it.</li>
+        </ul>
+        <div class="cta-row">
+          <a class="btn primary" href="https://github.com/sayak-sarkar/contextlake/issues">Open an issue or PR</a>
+          <a class="btn" href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md">Contributing guide</a>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -916,7 +1064,7 @@
 (function(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if(!('IntersectionObserver' in window)) return;
-  /* Sections only — NOT the footer. A revealed footer needs translateY(26px), which
+  /* Sections only, NOT the footer. A revealed footer needs translateY(26px), which
      extends the page's scrollHeight until it flips in, showing as a blank strip below the
      footer and making the overscroll bounce janky. The footer just stays visible. */
   var els=document.querySelectorAll('main section');
@@ -972,10 +1120,9 @@
   }
   var inst=document.querySelector('.install');
   if(inst){ var cmd=inst.querySelector('span:not(.prompt)'); if(cmd) addBtn(inst,function(){return cmd.textContent.trim();}); }
-  var box=document.querySelector('.cmd');
-  if(box){ addBtn(box,function(){
+  [].forEach.call(document.querySelectorAll('.cmd'),function(box){ addBtn(box,function(){
     return Array.prototype.map.call(box.querySelectorAll('.line .c'),function(el){return el.textContent.trim();}).join('\n');
-  }); }
+  }); });
 })();</script>
 <script>/* progressive enhancement: swap the static graph shot for the real interactive visualizer
    (self-contained, offline iframe) once near the viewport. No-JS keeps the image; on load failure
