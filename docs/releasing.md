@@ -18,7 +18,7 @@ pip install -e ".[release]"        # build + twine
 2. Enable two-factor auth (PyPI **requires** it to upload).
 3. Create an API token at <https://pypi.org/manage/account/token/>.
    - For the **very first** publish of this project, the token must be
-     **account-scoped** ("Entire account") — project-scoped tokens only exist
+     **account-scoped** ("Entire account"), project-scoped tokens only exist
      once the project is on PyPI.
    - After the first publish, create a new token **scoped to `contextlake`**,
      store that, and delete the account-wide one.
@@ -101,7 +101,7 @@ pip install -e ".[release]"        # build + twine
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes to
 PyPI automatically using
-[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) — short-lived
+[Trusted Publishing](https://docs.pypi.org/trusted-publishers/), short-lived
 OIDC tokens minted per run, **no API token stored anywhere**. With this set up, a
 release is just steps 1–4 above (bump, changelog, commit, **push the `vX.Y.Z`
 tag**); the workflow then verifies the tag matches the package version, runs lint
@@ -118,17 +118,17 @@ tag**); the workflow then verifies the tag matches the package version, runs lin
 3. Save. (These must match the workflow exactly, including the `pypi` environment.)
 
 After the first successful tag-triggered publish, you can **delete the stored API
-token** and remove `~/.pypirc` — the workflow no longer needs them. (Manual
+token** and remove `~/.pypirc`, the workflow no longer needs them. (Manual
 `twine upload` remains available as a fallback.)
 
 ## Container image (ghcr.io)
 
 The same tag push also builds and publishes a Docker image to the **GitHub
 Container Registry** via the `docker` job in `release.yml` (using the built-in
-`GITHUB_TOKEN` with `packages: write` — no extra secret). The image bundles the
+`GITHUB_TOKEN` with `packages: write`, no extra secret). The image bundles the
 `[kb]` + built-in model extras and **bakes in the pinned models** (see
 [`Dockerfile`](../Dockerfile) and [`docker/prefetch_models.py`](../docker/prefetch_models.py)),
-so `docker run` needs no model download at runtime — useful for zero-config or
+so `docker run` needs no model download at runtime, useful for zero-config or
 air-gapped use:
 
 ```bash
@@ -140,7 +140,7 @@ Tags published: the release version (e.g. `2.1.5`) and `latest`. PyPI remains th
 **primary** distribution; GitHub Packages does not host PyPI-style Python packages,
 so the image is the only relevant GitHub Packages artifact. Note the image is large
 (it compiles `llama-cpp-python` and bundles a GGUF) and the build downloads the
-models from HuggingFace — fine on GitHub's runners. To **build locally behind a
+models from HuggingFace, fine on GitHub's runners. To **build locally behind a
 TLS-inspecting proxy**, pass your OS CA bundle so the in-build HF download trusts it,
 e.g. `docker build --network=host --build-arg ... ` after baking
 `REQUESTS_CA_BUNDLE` into the build (or build on a network without interception).
@@ -165,7 +165,7 @@ export PIP_CERT=/etc/ssl/certs/ca-certificates.crt             # pip
 export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt        # stdlib ssl
 ```
 
-Do **not** disable verification (`--insecure` / `verify=False`) — reuse the real
+Do **not** disable verification (`--insecure` / `verify=False`), reuse the real
 root from your OS store instead.
 
 **`File already exists`** on upload. PyPI is immutable: a version can never be

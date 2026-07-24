@@ -16,8 +16,8 @@
 
   var CONF = (SNAP && SNAP.confidence) || {
     EXTRACTED: ["Extracted", "#2BB3A3", "Direct from source (AST / manifest)"],
-    INFERRED: ["Inferred", "#E7B53C", "Deduced — second-pass / heuristic"],
-    AMBIGUOUS: ["Ambiguous", "#e76f51", "Uncertain — flagged for review"]
+    INFERRED: ["Inferred", "#E7B53C", "Deduced (second-pass / heuristic)"],
+    AMBIGUOUS: ["Ambiguous", "#e76f51", "Uncertain (flagged for review)"]
   };
   // Lock the shell's confidence colours to the snapshot's triple so the dashboard
   // and the embedded graph can never drift (mirrors visualize.CONF_META).
@@ -223,8 +223,8 @@
       h("span", { html: icon("ui-copy") }), label);
     b.onclick = function () {
       try { navigator.clipboard.writeText(cmd); } catch (e) { /* clipboard blocked under file:// */ }
-      live("Copied “" + cmd + "” — run it in your terminal, then refresh");
-      if (b.lastChild) b.lastChild.nodeValue = " Copied — run in terminal";
+      live("Copied “" + cmd + "”, run it in your terminal, then refresh");
+      if (b.lastChild) b.lastChild.nodeValue = " Copied, run in terminal";
     };
     return b;
   }

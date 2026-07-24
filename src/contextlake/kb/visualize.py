@@ -54,8 +54,8 @@ _CONF_DOT = {"EXTRACTED": "solid", "INFERRED": "dashed", "AMBIGUOUS": "dotted"}
 # Confidence -> human label + trust dot, surfaced in the edge inspector.
 CONF_META = {
     "EXTRACTED": ("Extracted", "#2BB3A3", "Direct from source (AST / manifest)"),
-    "INFERRED": ("Inferred", "#E7B53C", "Deduced — second-pass / heuristic"),
-    "AMBIGUOUS": ("Ambiguous", "#e76f51", "Uncertain — flagged for review"),
+    "INFERRED": ("Inferred", "#E7B53C", "Deduced (second-pass / heuristic)"),
+    "AMBIGUOUS": ("Ambiguous", "#e76f51", "Uncertain (flagged for review)"),
 }
 _CDN_URL = "https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"
 
@@ -241,7 +241,7 @@ def extract_subgraph(store: Store, seed_ids, *, hops: int = 2, max_nodes: int = 
             continue
         node = store.get_node(sid)
         if node is None:
-            log(f"  seed {sid!r} not found in the graph — skipping")
+            log(f"  seed {sid!r} not found in the graph, skipping")
             continue
         seen.add(sid)
         nodes.append(node)
@@ -745,7 +745,7 @@ def _md_to_html(md: str) -> str:
 _WIKI_TEMPLATE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>contextlake — __REPO__ wiki</title>
+<title>contextlake: __REPO__ wiki</title>
 <style>
   :root{--lake:#137A8B;--bg:#f5fafb;--surface:#fff;--line:#dce8ea;--text:#0E2A33;
     --muted:#5b7177;--sun:#E7B53C;--ff:"Inter",system-ui,-apple-system,Segoe UI,sans-serif;
@@ -776,7 +776,7 @@ _WIKI_TEMPLATE = """<!doctype html>
     <span class="repo">__REPO__</span><span class="badge __STALECLASS__">__STALE__</span>
     <a href="repo-__SLUG__.html">graph →</a></header>
   <main>
-    <div class="advisory">Advisory — this page is LLM-synthesised from the knowledge graph.
+    <div class="advisory">Advisory: this page is LLM-synthesised from the knowledge graph.
       Verify against the cited sources; it never outranks extracted facts.</div>
     __BODY__
   </main>
@@ -787,7 +787,7 @@ _WIKI_TEMPLATE = """<!doctype html>
 _INDEX_TEMPLATE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>contextlake — index</title>
+<title>contextlake: index</title>
 <style>
   :root{--deepwater:#0E2A33;--lake:#137A8B;--current:#2BB3A3;--bg:#f5fafb;
     --surface:#fff;--line:#dce8ea;--text:#0E2A33;--muted:#5b7177;--subtle:#8aa2a6;

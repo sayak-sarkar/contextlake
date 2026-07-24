@@ -1,7 +1,7 @@
 # Serve it to your editor (MCP)
 
 The third layer. Once the [knowledge layer](knowledge-layer.md) is built, `contextlake serve`
-exposes it as an **MCP server** — so any MCP client (Claude Code, Windsurf, Kiro, Cursor,
+exposes it as an **MCP server**, so any MCP client (Claude Code, Windsurf, Kiro, Cursor,
 Postman, …) can query the graph directly instead of grepping.
 
 **Start with `ask`.** One tool, natural language: `ask("who calls charge_order")` /
@@ -12,16 +12,16 @@ explain / search), resolves the symbol or repo, and returns one labeled answer (
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
 no wiki exists yet). An agent that would rather not choose among the tools can just `ask`.
 
-**Most of it needs no model.** The underlying graph tools work on their own —
+**Most of it needs no model.** The underlying graph tools work on their own , 
 `search_code`, `find_definition`, `find_callers`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
 `repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
-`get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health` — plus a `kb://stats`
+`get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`, plus a `kb://stats`
 resource with the store counts.
 
 `semantic_search` / `hybrid_search` are the two exceptions: they register **only when
 embeddings exist** (an `[embeddings]` section in `kb.toml` and a `contextlake embed`
-run). Without that, the server starts fine and says so — the two tools are simply
+run). Without that, the server starts fine and says so, the two tools are simply
 absent from the tool list, and everything above still works.
 
 ## The quick way: let contextlake wire your editors
@@ -40,7 +40,7 @@ server natively:
 - A merged **`.mcp.json`** entry for the `contextlake serve` server.
 - A generic library of **agent skills / workflows** (`.claude/skills/`, `.windsurf/workflows/`):
   investigate-root-cause, plan-before-coding, surgical-change, review-before-landing,
-  ship-safely, use-knowledge-graph — a strong operating playbook even for a small-context model.
+  ship-safely, use-knowledge-graph, a strong operating playbook even for a small-context model.
 
 **It never corrupts your existing files.** If you already have an `AGENTS.md`, `CLAUDE.md`,
 `.windsurfrules`, or `.kiro/steering`, your content is preserved and only a clearly-delimited
@@ -56,7 +56,7 @@ Claude Code:
 claude mcp add contextlake-kb -- contextlake serve --config ~/.contextlake/kb.toml
 ```
 
-Windsurf / Devin — add the same server in its MCP config (Cascade's *MCP Servers* panel, or
+Windsurf / Devin, add the same server in its MCP config (Cascade's *MCP Servers* panel, or
 `~/.codeium/windsurf/mcp_config.json`):
 
 ```json
@@ -73,5 +73,5 @@ Windsurf / Devin — add the same server in its MCP config (Cascade's *MCP Serve
 ## Once connected
 
 Ask the agent things like *"where is `OrderService` defined?"*, *"who calls `charge`?"*, or
-*"which repos depend on `shared-core`?"* and it calls the graph tools directly — you can even
+*"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
 have it draft wiki pages from the graph without the built-in `wiki` command.
