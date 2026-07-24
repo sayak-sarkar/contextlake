@@ -23,8 +23,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4fd1e26">
-<link rel="stylesheet" href="docs.css?v=4fd1e26">
+<link rel="stylesheet" href="fonts.css?v=76d1660">
+<link rel="stylesheet" href="docs.css?v=76d1660">
+<link rel="stylesheet" href="cmdk.css">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -35,8 +36,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
-  <a class="navlink" href="docs">Docs</a>
-  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
   <aside class="side"><h2>Get started</h2><nav aria-label="Get started"><a href="docs">Overview</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="usage">Mirror repositories</a><a href="knowledge-layer">Knowledge layer</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="model-providers">Model providers</a><a href="bootstrap">Bootstrap and keep fresh</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a><a href="ownership">Ownership and SMEs</a></nav><h2>Understand it</h2><nav aria-label="Understand it"><a href="internals">Architecture</a><a href="storage">Storage</a><a href="benchmarks">Benchmarks</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference" class="active">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference">Command reference</a><a href="console-output">Reading the console output</a><a href="changelog">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></aside>
@@ -225,22 +225,6 @@ developer documentation word list, then Merriam-Webster.</p>
     <span class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
   </nav>
 </div></footer>
-<div class="cmdk" id="cmdk" hidden>
-  <div class="cmdk-backdrop" data-cmdk-close></div>
-  <div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Search the docs">
-    <div class="cmdk-input-row">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="cmdk-input" class="cmdk-input" type="text" role="combobox" aria-expanded="true" aria-controls="cmdk-list" aria-autocomplete="list" aria-label="Search the docs" placeholder="Search the docs" autocomplete="off" spellcheck="false">
-      <button class="cmdk-esc" type="button" data-cmdk-close aria-label="Close search">esc</button>
-    </div>
-    <div id="cmdk-list" class="cmdk-list" role="listbox" aria-label="Search results"></div>
-    <div class="cmdk-foot" aria-hidden="true">
-      <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
-      <span><kbd>&crarr;</kbd> open</span>
-      <span class="brand"><span class="dot"></span> semantic index, offline</span>
-    </div>
-  </div>
-</div>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
 <script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
 var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
@@ -249,67 +233,6 @@ var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>
-<script>(function(){
-var trigger=document.getElementById("cmdk-open"),modal=document.getElementById("cmdk"),
-    input=document.getElementById("cmdk-input"),list=document.getElementById("cmdk-list");
-if(!modal||!input||!list)return;
-var idx=null,loading=false,active=-1,lastFocus=null;
-var mac=/Mac|iPhone|iPad|iPod/.test(navigator.platform||navigator.userAgent||"");
-var hint=document.getElementById("cmdk-hint");if(hint)hint.textContent=mac?"⌘K":"Ctrl K";
-function load(cb){if(idx){cb();return;}if(loading)return;loading=true;
-  fetch("search-index.json").then(function(r){return r.json();}).then(function(d){idx=d;loading=false;cb();}).catch(function(){idx=[];loading=false;cb();});}
-function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
-function rx(t){return t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
-function hl(text,toks){var e=esc(text);if(!toks.length)return e;try{return e.replace(new RegExp("("+toks.map(rx).join("|")+")","ig"),"<mark>$1</mark>");}catch(_){return e;}}
-function recents(){try{return JSON.parse(localStorage.getItem("cl:recent")||"[]");}catch(e){return[];}}
-function remember(q){try{var r=recents().filter(function(x){return x!==q;});r.unshift(q);localStorage.setItem("cl:recent",JSON.stringify(r.slice(0,6)));}catch(e){}}
-function score(e,q,toks){var t=e.title.toLowerCase(),x=(e.text||"").toLowerCase(),s=0,hit=false;
-  if(t.indexOf(q)>=0){s+=100;hit=true;if(t.indexOf(q)===0)s+=50;}
-  for(var i=0;i<toks.length;i++){var k=toks[i];if(t.indexOf(k)>=0){s+=28;hit=true;}else if(x.indexOf(k)>=0){s+=8;hit=true;}}
-  if(q.length>2&&x.indexOf(q)>=0){s+=12;hit=true;}
-  if(e.kind==="page")s+=6;return hit?s:0;}
-function fuzzy(t,q){var p=0;for(var i=0;i<q.length;i++){p=t.indexOf(q[i],p);if(p<0)return false;p++;}return true;}
-function search(q){var toks=q.split(/\s+/).filter(Boolean),scored=[],byUrl={},i,j;
-  for(i=0;i<idx.length;i++){byUrl[idx[i].url]=i;var sc=score(idx[i],q,toks);if(sc>0)scored.push({e:idx[i],s:sc});}
-  var boost={};scored.forEach(function(h){(h.e.related||[]).forEach(function(u){boost[u]=Math.max(boost[u]||0,h.s*0.3);});});
-  Object.keys(boost).forEach(function(u){var f=null;for(j=0;j<scored.length;j++){if(scored[j].e.url===u){f=scored[j];break;}}if(f)f.s+=boost[u];else if(byUrl[u]!=null)scored.push({e:idx[byUrl[u]],s:boost[u]});});
-  if(!scored.length&&q.length>=3){for(i=0;i<idx.length;i++){if(fuzzy(idx[i].title.toLowerCase(),q))scored.push({e:idx[i],s:5});}}
-  scored.sort(function(a,b){return b.s-a.s;});return scored.slice(0,10).map(function(h){return h.e;});}
-var CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
-function optHTML(e,toks,i){var crumb=e.kind==="section"?'<span class="g">'+esc(e.page)+"</span>"+CHEV+"<span>"+esc(e.group||"")+"</span>":'<span class="g">'+esc(e.group||"")+"</span>";
-  return '<a class="cmdk-opt" role="option" id="cmdk-opt-'+i+'" href="'+e.url+'" aria-selected="false"><span class="crumb">'+crumb+'</span><span class="ttl">'+hl(e.title,toks)+"</span>"+(e.text?'<span class="snip">'+hl(e.text.slice(0,160),toks)+"</span>":"")+'<span class="arrow" aria-hidden="true">&crarr;</span></a>';}
-function opts(){return list.querySelectorAll(".cmdk-opt");}
-function setActive(n){var o=opts();if(!o.length){active=-1;input.removeAttribute("aria-activedescendant");return;}active=(n+o.length)%o.length;
-  for(var i=0;i<o.length;i++)o[i].setAttribute("aria-selected",i===active?"true":"false");input.setAttribute("aria-activedescendant",o[active].id);o[active].scrollIntoView({block:"nearest"});}
-function render(){var q=input.value.trim();if(!q){empty();return;}
-  var items=search(q),toks=q.toLowerCase().split(/\s+/).filter(Boolean);
-  if(!items.length){list.innerHTML='<div class="cmdk-empty">No matches for &ldquo;'+esc(q)+'&rdquo;<span class="hint">Try a feature: graph, embed, wiki, serve, or owners.</span></div>';active=-1;input.removeAttribute("aria-activedescendant");return;}
-  list.innerHTML=items.map(function(e,i){return optHTML(e,toks,i);}).join("");setActive(0);}
-function empty(){if(!idx){list.innerHTML='<div class="cmdk-empty">Loading the index…</div>';return;}
-  var r=recents(),html="",pages=idx.filter(function(e){return e.kind==="page";}).slice(0,6);
-  if(r.length)html+='<div class="cmdk-sec-label">Recent</div>'+r.map(function(q){return '<button class="cmdk-opt cmdk-recent" type="button" role="option" data-q="'+esc(q)+'" aria-selected="false"><span class="ttl">'+esc(q)+"</span></button>";}).join("");
-  html+='<div class="cmdk-sec-label">Jump to a page</div>'+pages.map(function(e,i){return optHTML(e,[],i);}).join("");
-  list.innerHTML=html;opts().forEach&&opts().forEach(function(o,i){o.id="cmdk-opt-"+i;});
-  var o=opts();for(var i=0;i<o.length;i++)o[i].id="cmdk-opt-"+i;setActive(0);}
-function activate(el){if(!el)return;if(el.dataset.q){input.value=el.dataset.q;render();input.focus();return;}var q=input.value.trim();if(q)remember(q);window.location.href=el.getAttribute("href");}
-function open(){if(!modal.hidden)return;lastFocus=document.activeElement;modal.hidden=false;document.documentElement.style.overflow="hidden";input.value="";load(function(){render();});render();setTimeout(function(){input.focus();},0);}
-function close(){if(modal.hidden)return;modal.hidden=true;document.documentElement.style.overflow="";input.removeAttribute("aria-activedescendant");if(lastFocus&&lastFocus.focus)lastFocus.focus();}
-if(trigger)trigger.addEventListener("click",open);
-document.addEventListener("keydown",function(e){
-  if((e.key==="k"||e.key==="K")&&(e.metaKey||e.ctrlKey)){e.preventDefault();modal.hidden?open():close();return;}
-  if(e.key==="/"&&modal.hidden){var a=document.activeElement,tag=a&&a.tagName;if(tag!=="INPUT"&&tag!=="TEXTAREA"&&!(a&&a.isContentEditable)){e.preventDefault();open();}return;}
-  if(modal.hidden)return;
-  if(e.key==="Escape"){e.preventDefault();close();}
-  else if(e.key==="ArrowDown"){e.preventDefault();setActive(active+1);}
-  else if(e.key==="ArrowUp"){e.preventDefault();setActive(active-1);}
-  else if(e.key==="Enter"){e.preventDefault();activate(opts()[active]);}
-  else if(e.key==="Tab"){e.preventDefault();}
-});
-input.addEventListener("input",render);
-list.addEventListener("click",function(e){var el=e.target.closest(".cmdk-opt");if(!el)return;if(el.dataset.q){e.preventDefault();activate(el);}else{var q=input.value.trim();if(q)remember(q);}});
-list.addEventListener("mousemove",function(e){var el=e.target.closest(".cmdk-opt");if(!el)return;var o=opts();for(var i=0;i<o.length;i++)if(o[i]===el){setActive(i);break;}});
-modal.addEventListener("mousedown",function(e){if(e.target===modal||e.target.hasAttribute("data-cmdk-close"))close();});
-})();</script>
 <script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
 var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
 var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
@@ -318,5 +241,6 @@ b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});
 strip.appendChild(b);});
 g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
 tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
+<script defer src="cmdk.js"></script>
 </body>
 </html>
