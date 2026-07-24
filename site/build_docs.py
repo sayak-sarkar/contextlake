@@ -395,23 +395,87 @@ var b=document.createElement("button");b.type="button";b.className="copy-btn";b.
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>"""
 
-# hand-rolled client-side docs search (no dependency): lazy-load a small JSON index, filter, show results
-SEARCH_JS = r"""<script>(function(){
-var input=document.getElementById("doc-search"),box=document.getElementById("doc-search-results");if(!input||!box)return;
-var idx=null,loading=false;
-function load(){if(idx||loading)return;loading=true;fetch("search-index.json").then(function(r){return r.json();}).then(function(d){idx=d;run();}).catch(function(){idx=[];});}
-input.addEventListener("focus",load);
-function esc(s){return s.replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
-function run(){var q=input.value.trim().toLowerCase();if(!q){box.hidden=true;box.innerHTML="";return;}if(!idx){load();return;}
-var hits=[];for(var i=0;i<idx.length;i++){var p=idx[i],hay=(p.title+" "+p.text).toLowerCase(),ti=p.title.toLowerCase().indexOf(q),sp=p.text.toLowerCase().indexOf(q);if(ti<0&&sp<0)continue;
-var snip=p.text.slice(0,90);if(sp>=0){var st=Math.max(0,sp-38);snip=(st>0?"…":"")+p.text.slice(st,sp+62)+"…";}
-hits.push({p:p,snip:snip,score:ti>=0?0:1});}
-hits.sort(function(a,b){return a.score-b.score;});hits=hits.slice(0,8);
-if(!hits.length){box.innerHTML='<div class="ds-empty">No matches</div>';box.hidden=false;return;}
-box.innerHTML=hits.map(function(h){return '<a class="ds-hit" href="'+h.p.url+'"><span class="ds-group">'+esc(h.p.group)+'</span><span class="ds-title">'+esc(h.p.title)+'</span><span class="ds-snip">'+esc(h.snip)+'</span></a>';}).join("");box.hidden=false;}
-input.addEventListener("input",run);
-input.addEventListener("keydown",function(e){if(e.key==="Escape"){input.value="";box.hidden=true;input.blur();}});
-document.addEventListener("click",function(e){if(!input.contains(e.target)&&!box.contains(e.target))box.hidden=true;});
+# ⌘K command palette. Modal markup + logic; lazy-loads the section-level search index
+# (semantically enriched at build time with nearest-neighbour "related" links) and ranks
+# with a neighbour boost. Combobox a11y (aria-activedescendant), focus trap + restore,
+# ⌘K / Ctrl-K / "/" to open. No runtime model: the intelligence is baked into the JSON.
+CMDK_HTML = r"""<div class="cmdk" id="cmdk" hidden>
+  <div class="cmdk-backdrop" data-cmdk-close></div>
+  <div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Search the docs">
+    <div class="cmdk-input-row">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="cmdk-input" class="cmdk-input" type="text" role="combobox" aria-expanded="true" aria-controls="cmdk-list" aria-autocomplete="list" aria-label="Search the docs" placeholder="Search the docs" autocomplete="off" spellcheck="false">
+      <button class="cmdk-esc" type="button" data-cmdk-close aria-label="Close search">esc</button>
+    </div>
+    <div id="cmdk-list" class="cmdk-list" role="listbox" aria-label="Search results"></div>
+    <div class="cmdk-foot" aria-hidden="true">
+      <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
+      <span><kbd>&crarr;</kbd> open</span>
+      <span class="brand"><span class="dot"></span> semantic index, offline</span>
+    </div>
+  </div>
+</div>"""
+
+CMDK_JS = r"""<script>(function(){
+var trigger=document.getElementById("cmdk-open"),modal=document.getElementById("cmdk"),
+    input=document.getElementById("cmdk-input"),list=document.getElementById("cmdk-list");
+if(!modal||!input||!list)return;
+var idx=null,loading=false,active=-1,lastFocus=null;
+var mac=/Mac|iPhone|iPad|iPod/.test(navigator.platform||navigator.userAgent||"");
+var hint=document.getElementById("cmdk-hint");if(hint)hint.textContent=mac?"⌘K":"Ctrl K";
+function load(cb){if(idx){cb();return;}if(loading)return;loading=true;
+  fetch("search-index.json").then(function(r){return r.json();}).then(function(d){idx=d;loading=false;cb();}).catch(function(){idx=[];loading=false;cb();});}
+function esc(s){return (s||"").replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function rx(t){return t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
+function hl(text,toks){var e=esc(text);if(!toks.length)return e;try{return e.replace(new RegExp("("+toks.map(rx).join("|")+")","ig"),"<mark>$1</mark>");}catch(_){return e;}}
+function recents(){try{return JSON.parse(localStorage.getItem("cl:recent")||"[]");}catch(e){return[];}}
+function remember(q){try{var r=recents().filter(function(x){return x!==q;});r.unshift(q);localStorage.setItem("cl:recent",JSON.stringify(r.slice(0,6)));}catch(e){}}
+function score(e,q,toks){var t=e.title.toLowerCase(),x=(e.text||"").toLowerCase(),s=0,hit=false;
+  if(t.indexOf(q)>=0){s+=100;hit=true;if(t.indexOf(q)===0)s+=50;}
+  for(var i=0;i<toks.length;i++){var k=toks[i];if(t.indexOf(k)>=0){s+=28;hit=true;}else if(x.indexOf(k)>=0){s+=8;hit=true;}}
+  if(q.length>2&&x.indexOf(q)>=0){s+=12;hit=true;}
+  if(e.kind==="page")s+=6;return hit?s:0;}
+function fuzzy(t,q){var p=0;for(var i=0;i<q.length;i++){p=t.indexOf(q[i],p);if(p<0)return false;p++;}return true;}
+function search(q){var toks=q.split(/\s+/).filter(Boolean),scored=[],byUrl={},i,j;
+  for(i=0;i<idx.length;i++){byUrl[idx[i].url]=i;var sc=score(idx[i],q,toks);if(sc>0)scored.push({e:idx[i],s:sc});}
+  var boost={};scored.forEach(function(h){(h.e.related||[]).forEach(function(u){boost[u]=Math.max(boost[u]||0,h.s*0.3);});});
+  Object.keys(boost).forEach(function(u){var f=null;for(j=0;j<scored.length;j++){if(scored[j].e.url===u){f=scored[j];break;}}if(f)f.s+=boost[u];else if(byUrl[u]!=null)scored.push({e:idx[byUrl[u]],s:boost[u]});});
+  if(!scored.length&&q.length>=3){for(i=0;i<idx.length;i++){if(fuzzy(idx[i].title.toLowerCase(),q))scored.push({e:idx[i],s:5});}}
+  scored.sort(function(a,b){return b.s-a.s;});return scored.slice(0,10).map(function(h){return h.e;});}
+var CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+function optHTML(e,toks,i){var crumb=e.kind==="section"?'<span class="g">'+esc(e.page)+"</span>"+CHEV+"<span>"+esc(e.group||"")+"</span>":'<span class="g">'+esc(e.group||"")+"</span>";
+  return '<a class="cmdk-opt" role="option" id="cmdk-opt-'+i+'" href="'+e.url+'" aria-selected="false"><span class="crumb">'+crumb+'</span><span class="ttl">'+hl(e.title,toks)+"</span>"+(e.text?'<span class="snip">'+hl(e.text.slice(0,160),toks)+"</span>":"")+'<span class="arrow" aria-hidden="true">&crarr;</span></a>';}
+function opts(){return list.querySelectorAll(".cmdk-opt");}
+function setActive(n){var o=opts();if(!o.length){active=-1;input.removeAttribute("aria-activedescendant");return;}active=(n+o.length)%o.length;
+  for(var i=0;i<o.length;i++)o[i].setAttribute("aria-selected",i===active?"true":"false");input.setAttribute("aria-activedescendant",o[active].id);o[active].scrollIntoView({block:"nearest"});}
+function render(){var q=input.value.trim();if(!q){empty();return;}
+  var items=search(q),toks=q.toLowerCase().split(/\s+/).filter(Boolean);
+  if(!items.length){list.innerHTML='<div class="cmdk-empty">No matches for &ldquo;'+esc(q)+'&rdquo;<span class="hint">Try a feature: graph, embed, wiki, serve, or owners.</span></div>';active=-1;input.removeAttribute("aria-activedescendant");return;}
+  list.innerHTML=items.map(function(e,i){return optHTML(e,toks,i);}).join("");setActive(0);}
+function empty(){if(!idx){list.innerHTML='<div class="cmdk-empty">Loading the index…</div>';return;}
+  var r=recents(),html="",pages=idx.filter(function(e){return e.kind==="page";}).slice(0,6);
+  if(r.length)html+='<div class="cmdk-sec-label">Recent</div>'+r.map(function(q){return '<button class="cmdk-opt cmdk-recent" type="button" role="option" data-q="'+esc(q)+'" aria-selected="false"><span class="ttl">'+esc(q)+"</span></button>";}).join("");
+  html+='<div class="cmdk-sec-label">Jump to a page</div>'+pages.map(function(e,i){return optHTML(e,[],i);}).join("");
+  list.innerHTML=html;opts().forEach&&opts().forEach(function(o,i){o.id="cmdk-opt-"+i;});
+  var o=opts();for(var i=0;i<o.length;i++)o[i].id="cmdk-opt-"+i;setActive(0);}
+function activate(el){if(!el)return;if(el.dataset.q){input.value=el.dataset.q;render();input.focus();return;}var q=input.value.trim();if(q)remember(q);window.location.href=el.getAttribute("href");}
+function open(){if(!modal.hidden)return;lastFocus=document.activeElement;modal.hidden=false;document.documentElement.style.overflow="hidden";input.value="";load(function(){render();});render();setTimeout(function(){input.focus();},0);}
+function close(){if(modal.hidden)return;modal.hidden=true;document.documentElement.style.overflow="";input.removeAttribute("aria-activedescendant");if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+if(trigger)trigger.addEventListener("click",open);
+document.addEventListener("keydown",function(e){
+  if((e.key==="k"||e.key==="K")&&(e.metaKey||e.ctrlKey)){e.preventDefault();modal.hidden?open():close();return;}
+  if(e.key==="/"&&modal.hidden){var a=document.activeElement,tag=a&&a.tagName;if(tag!=="INPUT"&&tag!=="TEXTAREA"&&!(a&&a.isContentEditable)){e.preventDefault();open();}return;}
+  if(modal.hidden)return;
+  if(e.key==="Escape"){e.preventDefault();close();}
+  else if(e.key==="ArrowDown"){e.preventDefault();setActive(active+1);}
+  else if(e.key==="ArrowUp"){e.preventDefault();setActive(active-1);}
+  else if(e.key==="Enter"){e.preventDefault();activate(opts()[active]);}
+  else if(e.key==="Tab"){e.preventDefault();}
+});
+input.addEventListener("input",render);
+list.addEventListener("click",function(e){var el=e.target.closest(".cmdk-opt");if(!el)return;if(el.dataset.q){e.preventDefault();activate(el);}else{var q=input.value.trim();if(q)remember(q);}});
+list.addEventListener("mousemove",function(e){var el=e.target.closest(".cmdk-opt");if(!el)return;var o=opts();for(var i=0;i<o.length;i++)if(o[i]===el){setActive(i);break;}});
+modal.addEventListener("mousedown",function(e){if(e.target===modal||e.target.hasAttribute("data-cmdk-close"))close();});
 })();</script>"""
 
 
@@ -433,6 +497,22 @@ def _plain_text(html: str) -> str:
     for a, b in (("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"), ("&#39;", "'"), ("&quot;", '"')):
         t = t.replace(a, b)
     return re.sub(r"\s+", " ", t).strip()
+
+
+def _sections(html: str):
+    """Split prose HTML into (anchor, section_title, section_text) by content headings
+    (h2/h3 carry an id from the toc extension; sidebar headings don't, so they're skipped).
+    The heading's trailing permalink anchor is stripped from the title by _plain_text."""
+    heads = list(re.finditer(r'<h[23]\s+id="([^"]+)"[^>]*>(.*?)</h[23]>', html, re.S))
+    secs = []
+    for i, m in enumerate(heads):
+        inner = re.sub(r'(?s)<a class="anchor".*?</a>', "", m.group(2))  # drop the permalink #
+        title = _plain_text(inner)
+        if not title:
+            continue
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(html)
+        secs.append((m.group(1), title, _plain_text(html[m.end():end])))
+    return secs
 
 
 def shell(meta, body, toc_html) -> str:
@@ -472,10 +552,10 @@ def shell(meta, body, toc_html) -> str:
 <header><div class="nav">
   <a class="brand" href="./" aria-label="contextlake home">{GLYPH}contextlake</a>
   <span class="spacer"></span>
-  <div class="doc-search-wrap">
-    <input id="doc-search" class="doc-search" type="search" placeholder="Search docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
-    <div id="doc-search-results" class="doc-search-results" role="listbox" hidden></div>
-  </div>
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
+  </button>
   <a class="navlink" href="docs">Docs</a>
   <span class="social-row">{THEME_TOGGLE}{GH_BTN}{PYPI_BTN}</span>
 </div></header>
@@ -496,9 +576,10 @@ def shell(meta, body, toc_html) -> str:
     <span class="social-row">{GH_BTN}{PYPI_BTN}</span>
   </nav>
 </div></footer>
+{CMDK_HTML}
 {THEME_JS}
 {COPY_JS}
-{SEARCH_JS}
+{CMDK_JS}
 {TAB_JS}
 </body>
 </html>"""
@@ -659,8 +740,13 @@ def main():
         html = theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text)))
         html = strip_readme_frontmatter(html) if out == "docs.html" else strip_first_h1(html)
         (OUT / out).write_text(shell(meta, html, md.toc), encoding="utf-8")
-        search.append({"url": linkify(out), "title": meta[2], "group": GROUP_OF.get(out, ""),
-                       "text": _plain_text(html)[:1400]})
+        page_url, group, page_title = linkify(out), GROUP_OF.get(out, ""), meta[2]
+        # page-level entry, then one entry per content section (heading + text, anchored)
+        search.append({"url": page_url, "page": page_title, "title": page_title,
+                       "group": group, "kind": "page", "text": _plain_text(html)[:1600]})
+        for anchor, sec_title, sec_text in _sections(html):
+            search.append({"url": f"{page_url}#{anchor}", "page": page_title, "title": sec_title,
+                           "group": group, "kind": "section", "text": sec_text[:600]})
         print(f"  {src} -> {out}")
     (OUT / "404.html").write_text(make404(), encoding="utf-8")
     print("  -> 404.html")

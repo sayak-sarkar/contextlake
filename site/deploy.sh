@@ -13,6 +13,9 @@ PY="${PYTHON:-python3}"
 
 echo "==> building docs + syncing assets"
 "$PY" "$HERE/build_docs.py"
+# enrich the search index with build-time semantic neighbours (best-effort: no-op if the
+# knowledge-layer extra is absent, so a lean environment still ships the lexical index).
+"$PY" "$HERE/tools/gen_search_index.py" || true
 
 WT="$(mktemp -d)"
 cleanup() { git -C "$REPO" worktree remove --force "$WT" 2>/dev/null || true; }
