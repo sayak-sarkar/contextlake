@@ -277,21 +277,21 @@
     .see-head-row{justify-content:center}
     .see-pebble{width:min(64vw,240px);margin:6px auto -10vw}
   }
-  .flow-steps{display:flex;align-items:stretch;justify-content:center;gap:12px;
-    max-width:940px;margin:32px auto 0}
-  .step{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
-    padding:22px;box-shadow:var(--shadow-s)}
-  .step .ic{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;
-    justify-content:center;color:#fff;margin-bottom:13px}
+  /* editorial numbered steps: hairline-separated columns (no boxes), a teal top-accent
+     that draws across on hover. */
+  .flow-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;max-width:960px;margin:40px auto 0}
+  .step{position:relative;padding-top:20px;border-top:1px solid var(--line)}
+  .step::before{content:"";position:absolute;top:-1px;left:0;height:2px;width:40px;background:var(--current);
+    transition:width .35s cubic-bezier(.2,.7,.2,1)}
+  .step:hover::before{width:100%}
+  .step .step-n{display:block;font-family:var(--ff-m);font-size:12px;color:var(--subtle);letter-spacing:.09em}
+  .step .ic{width:36px;height:36px;border-radius:10px;display:inline-flex;align-items:center;
+    justify-content:center;color:#fff;margin:14px 0 13px}
   .step h3{font-size:17px;font-weight:600;margin:0 0 7px;display:flex;align-items:center;gap:8px}
-  .step p{font-size:14px;color:var(--muted);margin:0}
+  .step p{font-size:14px;color:var(--muted);margin:0;max-width:36ch}
   .step .opt{font-size:10.5px;font-weight:600;color:var(--link);background:var(--tint);
     border-radius:999px;padding:2px 8px}
-  .step-sep{flex:none;align-self:center;color:var(--line-2);display:flex;align-items:center}
-  @media (max-width:820px){
-    .flow-steps{flex-direction:column;align-items:stretch}
-    .step-sep{transform:rotate(90deg);margin:2px auto}
-  }
+  @media (max-width:820px){ .flow-steps{grid-template-columns:1fr;gap:26px} }
 
   /* graph showcase */
   .shot{border-radius:var(--r);border:1px solid var(--line-2);box-shadow:var(--shadow);
@@ -337,7 +337,10 @@
   @media (max-width:820px){ .start-grid{grid-template-columns:1fr;gap:24px} }
 
   /* footer */
-  footer{background:var(--deepwater);color:#a9c6cb;padding:48px 0 40px;font-size:14px}
+  footer{position:relative;overflow:hidden;background:var(--deepwater);color:#a9c6cb;padding:48px 0 40px;font-size:14px}
+  footer::before{content:"";position:absolute;top:0;left:0;right:0;height:70%;pointer-events:none;
+    background:radial-gradient(72% 100% at 50% 0%,rgba(43,179,163,.07),transparent 72%)}
+  footer .f-in{position:relative;z-index:1}
   footer .f-in{display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between}
   footer a{color:var(--mist)}
   footer .f-links{display:flex;flex-wrap:wrap;gap:18px}
@@ -477,18 +480,19 @@
     </div>
     <div class="flow-steps">
       <div class="step">
+        <span class="step-n">01</span>
         <span class="ic" style="background:var(--deepwater)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span>
         <h3>Mirror</h3>
         <p>Clone every repo in a GitLab group, GitHub org, Bitbucket workspace, or Codeberg owner into a faithful mirror, each parked on its most active branch and kept fresh with one command, never touching the branch you're on.</p>
       </div>
-      <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
       <div class="step">
+        <span class="step-n">02</span>
         <span class="ic" style="background:var(--lake)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.7 7.3 11 16M16.3 7.3 13 16"/></svg></span>
         <h3>Knowledge <span class="opt">optional</span></h3>
         <p>Parse the mirror into a code and dependency graph, then add semantic search, a council-verified wiki, and Atlassian / Figma / GitLab connectors.</p>
       </div>
-      <div class="step-sep" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
       <div class="step">
+        <span class="step-n">03</span>
         <span class="ic" style="background:var(--current)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0E2A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         <h3>Serve</h3>
         <p>Expose it all over MCP and an offline graph visualizer, so agents answer <em>“where is X defined?”</em> instead of grepping.</p>
