@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1128 132" width="1128" height="132" role="img" aria-label="contextlake bootstrap pipeline" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#137A8B"/></marker></defs>
+<text x="24" y="26" font-size="13" font-weight="600" fill="#41606a" letter-spacing=".02em">contextlake bootstrap</text>
+<rect x="24" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
+<text x="90" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">sync</text>
+<text x="90" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">mirror</text>
+<line x1="159" y1="70" x2="177" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="182" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
+<text x="248" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">index</text>
+<text x="248" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">graph</text>
+<line x1="317" y1="70" x2="335" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="340" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
+<text x="406" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">connect</text>
+<text x="406" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">links</text>
+<line x1="475" y1="70" x2="493" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="498" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
+<text x="564" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">embed</text>
+<text x="564" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">vectors</text>
+<line x1="633" y1="70" x2="651" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="656" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
+<text x="722" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">enrich</text>
+<text x="722" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">context</text>
+<line x1="791" y1="70" x2="809" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="814" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
+<text x="880" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">wiki</text>
+<text x="880" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">prose</text>
+<line x1="949" y1="70" x2="967" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="972" y="41" width="132" height="58" rx="12" fill="#e4f5f1" stroke="#2BB3A3" stroke-width="1.5"/>
+<text x="1038" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">steer</text>
+<text x="1038" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">editors</text>
+</svg>

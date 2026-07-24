@@ -5,13 +5,13 @@
       "head_commit": "abc123",
       "nodes": [
         {
-          "id": "demo_app_orderservice",
+          "id": "demo_app_catalogservice",
           "repo": "demo/app",
           "kind": "class",
-          "name": "OrderService",
+          "name": "CatalogService",
           "attrs": {},
           "lang": "python",
-          "file": "src/order.py"
+          "file": "src/catalog.py"
         },
         {
           "id": "demo_app_charge",
@@ -25,7 +25,7 @@
       ],
       "edges": [
         {
-          "src": "demo_app_orderservice",
+          "src": "demo_app_catalogservice",
           "dst": "demo_app_charge",
           "relation": "calls",
           "confidence": "EXTRACTED",
@@ -291,19 +291,19 @@
       ]
     },
     {
-      "repo": "acme/orders-api",
+      "repo": "acme/catalog-api",
       "head_commit": "55cc66",
       "nodes": [
         {
           "id": "acme_orders_api_repo",
-          "repo": "acme/orders-api",
+          "repo": "acme/catalog-api",
           "kind": "repo",
-          "name": "acme/orders-api",
+          "name": "acme/catalog-api",
           "attrs": {}
         },
         {
           "id": "acme_orders_api_manifest",
-          "repo": "acme/orders-api",
+          "repo": "acme/catalog-api",
           "kind": "file",
           "name": "manifest.cs",
           "attrs": {},
@@ -312,7 +312,7 @@
         },
         {
           "id": "acme_orders_api_ordercontroller",
-          "repo": "acme/orders-api",
+          "repo": "acme/catalog-api",
           "kind": "class",
           "name": "OrderController",
           "attrs": {},
@@ -320,17 +320,17 @@
           "file": "src/OrderController.cs"
         },
         {
-          "id": "acme_orders_api_orderservice",
-          "repo": "acme/orders-api",
+          "id": "acme_orders_api_catalogservice",
+          "repo": "acme/catalog-api",
           "kind": "class",
-          "name": "OrderService",
+          "name": "CatalogService",
           "attrs": {},
           "lang": "csharp",
-          "file": "src/OrderService.cs"
+          "file": "src/CatalogService.cs"
         },
         {
           "id": "acme_orders_api_orderrepository",
-          "repo": "acme/orders-api",
+          "repo": "acme/catalog-api",
           "kind": "class",
           "name": "OrderRepository",
           "attrs": {},
@@ -339,7 +339,7 @@
         },
         {
           "id": "acme_orders_api_validateorder",
-          "repo": "acme/orders-api",
+          "repo": "acme/catalog-api",
           "kind": "method",
           "name": "ValidateOrder",
           "attrs": {},
@@ -348,7 +348,7 @@
         },
         {
           "id": "pkg_acme-orders",
-          "repo": "acme/orders-api",
+          "repo": "acme/catalog-api",
           "kind": "package",
           "name": "acme-orders",
           "attrs": {}
@@ -357,7 +357,7 @@
       "edges": [
         {
           "src": "acme_orders_api_ordercontroller",
-          "dst": "acme_orders_api_orderservice",
+          "dst": "acme_orders_api_catalogservice",
           "relation": "calls",
           "confidence": "EXTRACTED",
           "context": "call",
@@ -369,7 +369,7 @@
           "weight": 1.0
         },
         {
-          "src": "acme_orders_api_orderservice",
+          "src": "acme_orders_api_catalogservice",
           "dst": "acme_orders_api_orderrepository",
           "relation": "calls",
           "confidence": "EXTRACTED",

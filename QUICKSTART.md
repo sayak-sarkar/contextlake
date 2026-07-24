@@ -182,7 +182,7 @@ claude mcp add contextlake-kb -- contextlake serve --config ~/.contextlake/kb.to
 ```
 
 **Windsurf / Devin** and **Kiro** pick up the generated config and rules
-automatically. Now ask your agent: *"where is `OrderService` defined?"*, *"who calls
+automatically. Now ask your agent: *"where is `CatalogService` defined?"*, *"who calls
 `charge`?"*, *"which repos depend on `shared-core`?"*, it queries the graph and cites
 files instead of guessing. The installed skills give even a small-context model a
 strong operating playbook.

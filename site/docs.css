@@ -154,6 +154,15 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .prose th{background:var(--hover);font-weight:600;font-family:var(--ff-d)}
 .prose tr:nth-child(2n) td{background:var(--row-alt)}
 .prose img{max-width:100%;height:auto;border-radius:10px}
+/* dashboard screenshots ship a light + dark capture; show the one matching the theme */
+.prose img.ss{border:1px solid var(--line)}
+.ss-dark{display:none}
+:root[data-theme="dark"] .ss-light{display:none}
+:root[data-theme="dark"] .ss-dark{display:inline}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .ss-light{display:none}
+  :root:not([data-theme="light"]) .ss-dark{display:inline}
+}
 .prose hr{border:0;border-top:1px solid var(--line);margin:2em 0}
 .prose :is(h1,h2,h3,h4) .anchor{opacity:0;color:var(--subtle);text-decoration:none;border:0;
   padding-left:.4em;font-size:.62em;font-weight:500;vertical-align:middle;transition:opacity .15s ease}

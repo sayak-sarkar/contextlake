@@ -220,7 +220,7 @@ Get started:
   contextlake init                          guided setup: write your config (start here)
   contextlake bootstrap                     one command: mirror + index + connect + steer
   contextlake index .                       index the current repo into the local graph
-  contextlake query "OrderService"          search the graph (cited file:line hits)
+  contextlake query "CatalogService"          search the graph (cited file:line hits)
   contextlake serve                         expose the graph to your editor over MCP
   contextlake dashboard --serve --sample    explore a demo fleet, zero setup
 
@@ -399,7 +399,7 @@ missing name: `remove` is a no-op (exit 0), `enable`/`disable` fail (exit 1).
                    help="model name for --llm (e.g. llama3.1, gpt-4o-mini)")
     p.add_argument("--namespace", default=_S, metavar="PREFIX",
                    help="generate ONE cluster page for the repos under this repo-id "
-                        "prefix (e.g. team/svc), narrating their cross-repo coupling")
+                        "prefix (e.g. team/api), narrating their cross-repo coupling")
     p.add_argument("--namespaces", action="store_true", default=_S,
                    help="generate a cluster page for every namespace at --depth")
     p.add_argument("--depth", type=int, default=_S, metavar="N",
@@ -448,7 +448,7 @@ Examples:
     p = command("query", "search the graph from the terminal (cited file:line hits)",
                 epilog="""
 Examples:
-  contextlake query "OrderService"
+  contextlake query "CatalogService"
   contextlake query charge --kind function --repo billing-service
   contextlake query charge --repo billing-service --as-of a1b2c3
                 """)
@@ -463,7 +463,7 @@ Examples:
                 epilog="""
 Examples:
   contextlake graph --overview                        repos-as-nodes fleet view
-  contextlake graph --name OrderService --hops 2      neighbourhood of a symbol
+  contextlake graph --name CatalogService --hops 2      neighbourhood of a symbol
   contextlake graph --repo acme/app --format classdiagram   UML class diagram (Mermaid)
   contextlake graph --serve                           live click-to-expand UI
   contextlake graph --site                            offline cross-linked site

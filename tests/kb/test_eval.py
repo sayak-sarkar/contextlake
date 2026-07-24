@@ -57,10 +57,10 @@ def test_load_golden(tmp_path):
 def test_fts_retriever_scores_real_search(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     s.upsert_nodes("r", [
-        Node(id="os", repo="r", kind="class", name="OrderService"),
+        Node(id="os", repo="r", kind="class", name="CatalogService"),
         Node(id="bh", repo="r", kind="class", name="BaggageHandler"),
     ])
-    r = evaluate(s, [GoldenQuery("OrderService", ["os"])], k=5,
+    r = evaluate(s, [GoldenQuery("CatalogService", ["os"])], k=5,
                  retriever=make_fts_retriever(s))
     assert r["hit_rate"] == 1.0          # search finds the node we asked for
     assert r["mrr"] > 0.0
@@ -79,8 +79,8 @@ def test_match_by_name(tmp_path):
 def test_evaluate_reports_cost_dimension(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     s.upsert_nodes("r", [Node(id="os", repo="r", kind="class",
-                              name="OrderService", file="svc.py")])
-    r = evaluate(s, [GoldenQuery("OrderService", ["os"])], k=5)
+                              name="CatalogService", file="svc.py")])
+    r = evaluate(s, [GoldenQuery("CatalogService", ["os"])], k=5)
     assert r["est_tokens_per_query"] > 0                 # returning a node costs tokens
     assert r["precision_per_1k_tokens"] > 0              # found it, at finite token cost
     assert "est_tokens" in r["per_query"][0]
@@ -102,12 +102,12 @@ def test_cmd_eval_marks_hits_and_misses_with_colored_glyphs(tmp_path, monkeypatc
 
     s = SqliteStore(store_dir / "index.sqlite")
     check_schema(s)
-    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="OrderService")])
+    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
     s.close()
 
     golden = tmp_path / "golden.json"
     golden.write_text(json.dumps({"queries": [
-        {"query": "OrderService", "expected": ["os"]},          # hit
+        {"query": "CatalogService", "expected": ["os"]},          # hit
         {"query": "NoSuchThing", "expected": ["missing-id"]},   # miss
     ]}))
 
@@ -117,7 +117,7 @@ def test_cmd_eval_marks_hits_and_misses_with_colored_glyphs(tmp_path, monkeypatc
     # gls_logs.text is ANSI-stripped by pytest's LogCaptureHandler itself, so
     # read the raw record messages (log()'s actual argument) to see the codes.
     raw = "\n".join(r.getMessage() for r in gls_logs.records)
-    assert "\033[32m✓\033[0m OrderService" in raw   # hit: style.ok(), green + reset
+    assert "\033[32m✓\033[0m CatalogService" in raw   # hit: style.ok(), green + reset
     assert "\033[31m✗\033[0m NoSuchThing" in raw    # miss: style.fail(), red + reset
 
 

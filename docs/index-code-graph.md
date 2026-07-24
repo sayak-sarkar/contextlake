@@ -124,12 +124,12 @@ finding a definition to cross-repo `blast_radius` ("what could break if I change
 [the full tool list under Serve](serve.md).
 
 The same change-impact walk is a one-liner from the shell: `contextlake impact <symbol> [--hops N]` lists
-what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Order`) is defined in
+what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Catalog`) is defined in
 more than one repo, `impact` lists the candidates and you narrow it with `--repo <repo>` rather than
 getting a silent best-guess.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/orders-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
 
 ## See also

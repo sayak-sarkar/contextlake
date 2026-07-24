@@ -28,8 +28,8 @@ def _prov():
 def _seed_shard(store_dir):
     """A shard with a mix of embeddable and non-embeddable nodes, wired up with
     edges so degree-ranking has something real to rank."""
-    order_service = Node(id="n1", repo=REPO, kind="class", name="OrderService",
-                          file="app/order.py")
+    order_service = Node(id="n1", repo=REPO, kind="class", name="CatalogService",
+                          file="app/catalog.py")
     charge_fn = Node(id="n2", repo=REPO, kind="function", name="chargeCard",
                       file="app/billing.py")
     a_module = Node(id="n3", repo=REPO, kind="module", name="app.main", file="app/main.py")
@@ -58,7 +58,7 @@ def test_build_terms_returns_repo_name_and_embeddable_symbols(tmp_path):
     _seed_shard(tmp_path)
     terms = build_terms(tmp_path, REPO)
     assert terms[0] == "app"  # repo name leads
-    assert "OrderService" in terms
+    assert "CatalogService" in terms
     assert "chargeCard" in terms
     # non-embeddable kinds (module, file) never make the cut
     assert "app.main" not in terms
@@ -78,10 +78,10 @@ def test_build_terms_no_shard_returns_empty(tmp_path):
 
 def test_build_terms_dedupes_and_preserves_order(tmp_path):
     # repo name collides with a symbol name -- must not appear twice
-    nodes = [Node(id="n1", repo="group/OrderService", kind="class", name="OrderService")]
-    write_shard(tmp_path, GraphShard(repo="group/OrderService", head_commit="c", nodes=nodes))
-    terms = build_terms(tmp_path, "group/OrderService")
-    assert terms == ["OrderService"]
+    nodes = [Node(id="n1", repo="group/CatalogService", kind="class", name="CatalogService")]
+    write_shard(tmp_path, GraphShard(repo="group/CatalogService", head_commit="c", nodes=nodes))
+    terms = build_terms(tmp_path, "group/CatalogService")
+    assert terms == ["CatalogService"]
 
 
 # --- search_source dispatch ---------------------------------------------------

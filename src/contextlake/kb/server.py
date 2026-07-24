@@ -355,7 +355,7 @@ def build_server(
 
     def _as_node_id(node_id_or_name: str) -> str | None:
         """Accept a node id OR a bare symbol name. Agents (and humans) naturally pass
-        a name like ``OrderService``; resolve it to the first matching node id so
+        a name like ``CatalogService``; resolve it to the first matching node id so
         callers/impact work without a separate find_definition round-trip. An exact
         node id is returned as-is; an unknown string yields None."""
         if not node_id_or_name:
@@ -369,7 +369,7 @@ def build_server(
     def find_callers(node_id: str, limit: int = 50) -> NodesOut:
         """Find the definitions that call a node — 'who calls X?' (incoming calls edges).
 
-        `node_id` accepts a node id **or a bare symbol name** (e.g. ``OrderService``),
+        `node_id` accepts a node id **or a bare symbol name** (e.g. ``CatalogService``),
         resolved to its first matching definition. EXTRACTED-first, capped at `limit`;
         `truncated`/`total` flag hot symbols with more callers than returned.
         """
@@ -476,7 +476,7 @@ def build_server(
                      limit: int = 100) -> BlastRadiusOut:
         """What could break if you change this node — bounded transitive REVERSE reach.
 
-        `node_id` accepts a node id **or a bare symbol name** (e.g. ``OrderService``),
+        `node_id` accepts a node id **or a bare symbol name** (e.g. ``CatalogService``),
         resolved to its first matching definition. Walks INCOMING edges (who calls /
         depends on / subclasses the node) breadth-first up to `hops`, capped at
         `limit`, over `relations` (default calls + depends_on + inherits).
@@ -499,7 +499,7 @@ def build_server(
     def get_wiki(repo: str) -> WikiOut:
         """The generated LLM-wiki page for a repo, or a namespace's cluster page.
 
-        Pass a repo id for its page, or a namespace prefix (e.g. ``team/svc``)
+        Pass a repo id for its page, or a namespace prefix (e.g. ``team/api``)
         for the cluster page narrating that group's cross-repo coupling.
 
         **Advisory, not ground truth** — synthesized text to verify against the

@@ -7,7 +7,7 @@ per repo, with a provenance footer citing the commit and sources it was built fr
 
 Enable `[llm]` in the config (generation runs on a local Ollama model by default, prompts never leave the
 machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ollama` | `openai` |
-`anthropic` | `cli`), for example `contextlake wiki acme/orders-api --llm builtin`, which enables the tier
+`anthropic` | `cli`), for example `contextlake wiki acme/catalog-api --llm builtin`, which enables the tier
 inline and scopes generation to the named repo(s).
 
 Run `contextlake wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
@@ -49,11 +49,7 @@ ensuring external context supplements rather than displaces code-backed facts an
 clear and verifiable.
 
 The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
-provenance footer citing the exact commit and source files it was built from:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-rendered.png" alt="The curated wiki for acme/orders-api rendered in the dashboard Wiki tab: an advisory banner, then Overview, Key components (OrderService, PaymentClient), How a request flows, and Notes, grounded in the repo's real symbols with a provenance footer." width="820">
-</p>
+provenance footer citing the exact commit and source files it was built from.
 
 ## See also
 

@@ -378,7 +378,7 @@ def _repo_filter_patterns(config) -> list[str]:
 def match_repo_filter(full_path: str, local_path: str, patterns: list[str]) -> bool:
     """A repo matches if any pattern is a glob hit or a plain substring of its
     group-qualified path or its local (group-stripped) path. Case-insensitive.
-    ``team/*``, ``billing``, and ``acme/orders-api`` all work."""
+    ``team/*``, ``billing``, and ``acme/catalog-api`` all work."""
     from fnmatch import fnmatch
     fp, lp = (full_path or "").lower(), (local_path or "").lower()
     for p in patterns:

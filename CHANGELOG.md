@@ -314,7 +314,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **`find_callers` and `blast_radius` accept a bare symbol name.** Agents call these
-  MCP tools with a name (e.g. `OrderService`), but they only accepted an internal
+  MCP tools with a name (e.g. `CatalogService`), but they only accepted an internal
   node id, so a name silently returned nothing even when the graph had the answer
   (only the `ask` router resolved names). Both now resolve a name to its first
   matching definition. Surfaced while benchmarking MCP token cost on a 1M-node fleet.
@@ -426,7 +426,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`ask`'s explain route degrades usefully.** When a question like "explain the
-  orders-api" hits a repo with no generated wiki, `ask` now returns that repo's
+  catalog-api" hits a repo with no generated wiki, `ask` now returns that repo's
   grounded anatomy (top symbols, packages, languages) from the graph instead of a
   blind semantic search — a structured `brief` beats fuzzy hits for "explain this."
   (Surfaced by a full end-to-end test sweep of the CLI + MCP server, which otherwise
@@ -438,7 +438,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`ask` — one MCP tool, natural language, auto-routed.** A small-context IDE agent
   no longer has to pick among twenty graph tools: `ask("who calls charge_order")`,
-  `ask("what breaks if I change OrderService")`, `ask("explain the orders-api")`. A
+  `ask("what breaks if I change CatalogService")`, `ask("explain the catalog-api")`. A
   deterministic, offline classifier maps the question to a substrate (definition /
   callers / dependents / impact / owners / explain / search), resolves the symbol or
   repo, and returns one labeled answer — graph facts cited and confidence-tagged, the

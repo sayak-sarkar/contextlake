@@ -269,7 +269,7 @@ def test_embed_repo_skips_non_definition_kinds(tmp_path):
     from contextlake.kb.embeddings.index import EMBEDDABLE_KINDS
     nodes = [
         Node(id="fn", repo="r", kind="function", name="charge"),
-        Node(id="cls", repo="r", kind="class", name="OrderService"),
+        Node(id="cls", repo="r", kind="class", name="CatalogService"),
         Node(id="ep", repo="r", kind="endpoint", name="/charge"),
         Node(id="file", repo="r", kind="file", name="svc.py"),
         Node(id="mod", repo="(mods)", kind="module", name="os"),

@@ -65,7 +65,7 @@ _POM = b"""<?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.acme.orders</groupId>
-  <artifactId>orders-api</artifactId>
+  <artifactId>catalog-api</artifactId>
   <version>1.2.0</version>
   <dependencies>
     <dependency>
@@ -98,9 +98,9 @@ def test_pom_is_a_manifest():
 
 
 def test_pom_publishes_project_and_depends_on_each_dependency():
-    nodes, edges = parse_manifest("acme/orders-api", "pom.xml", _POM)
+    nodes, edges = parse_manifest("acme/catalog-api", "pom.xml", _POM)
     rels = {(e.relation, _pkg_name(nodes, e.dst)) for e in edges}
-    assert ("publishes", "com.acme.orders:orders-api") in rels
+    assert ("publishes", "com.acme.orders:catalog-api") in rels
     assert ("depends_on", "org.springframework.boot:spring-boot-starter-web") in rels
     assert ("depends_on", "com.acme.common:acme-common") in rels
     # all package nodes are the maven ecosystem

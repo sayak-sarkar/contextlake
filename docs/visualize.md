@@ -5,10 +5,10 @@ nodes) is far too large to render, so every view is scoped from a seed and cappe
 
 ```bash
 contextlake graph --overview --open                 # repos-as-nodes: the architecture map
-contextlake graph --name OrderService --kind class  # a symbol's neighbourhood (default 2 hops)
+contextlake graph --name CatalogService --kind class  # a symbol's neighbourhood (default 2 hops)
 contextlake graph --node <id> --hops 3              # expand around an exact node id
 contextlake graph --search "payment" --open         # seed from a full-text search
-contextlake graph --repo acme/orders-api           # one repo's internal code graph
+contextlake graph --repo acme/catalog-api           # one repo's internal code graph
 ```
 
 `contextlake graph --repo <repo>` renders one repo's internal code graph to a single self-contained HTML
@@ -16,7 +16,7 @@ page: nodes coloured by kind and sized by degree, edges by relation, with an in-
 search, and a minimap; it opens straight from `file://`:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/orders-api: file, class, and method nodes (OrderService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for acme/catalog-api: file, class, and method nodes (CatalogService, PaymentClient, place_order, charge, refund) coloured by kind and linked by calls/contains edges, with a legend, layout switcher, and corner minimap." width="820">
 </p>
 
 Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. Bound the result

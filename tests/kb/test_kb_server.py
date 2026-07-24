@@ -13,7 +13,7 @@ from contextlake.kb.store.sqlite_store import SqliteStore
 
 def _seed(store):
     store.upsert_nodes("team/api", [
-        Node(id="a", repo="team/api", kind="function", name="OrderService", file="svc.py"),
+        Node(id="a", repo="team/api", kind="function", name="CatalogService", file="svc.py"),
         Node(id="b", repo="team/api", kind="function", name="charge"),
     ])
     store.upsert_edges("team/api", [Edge(
@@ -60,7 +60,7 @@ def test_lists_expected_tools(server):
 
 
 def test_find_definition_exact(server):
-    res = asyncio.run(_call(server, "find_definition", {"name": "OrderService"}))
+    res = asyncio.run(_call(server, "find_definition", {"name": "CatalogService"}))
     items = _unwrap(res.structuredContent)
     assert any(n["id"] == "a" for n in items)
 
@@ -101,7 +101,7 @@ def test_get_node_round_trip(server):
     res = asyncio.run(_call(server, "get_node", {"node_id": "a"}))
     assert not res.isError
     node = _unwrap(res.structuredContent)
-    assert node["name"] == "OrderService"
+    assert node["name"] == "CatalogService"
     assert node["repo"] == "team/api"
 
 
@@ -112,9 +112,9 @@ def test_graph_stats(server):
 
 
 def test_search_code(server):
-    res = asyncio.run(_call(server, "search_code", {"query": "order"}))
+    res = asyncio.run(_call(server, "search_code", {"query": "catalog"}))
     items = _unwrap(res.structuredContent)
-    assert any(n["name"] == "OrderService" for n in items)
+    assert any(n["name"] == "CatalogService" for n in items)
 
 
 def test_get_neighbors_with_provenance(server):
@@ -206,7 +206,7 @@ def test_get_readme_reads_local_clone(tmp_path):
 def test_get_repo_brief_from_shard(tmp_path):
     from contextlake.kb.store.shards import GraphShard, write_shard
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="OrderService", file="svc.py"),
+        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py"),
         Node(id="chg", repo="r", kind="function", name="charge", file="svc.py", lang="python"),
         Node(id="pkg", repo="(packages)", kind="package", name="requests")]
     prov = Provenance(source_file="svc.py", source_line=1, verified_at=date(2026, 6, 21))
@@ -328,13 +328,13 @@ def test_get_wiki_serves_prose_with_staleness(tmp_path):
     wdir = tmp_path / "wiki"
     wdir.mkdir()
     (wdir / "team__api.md").write_text(
-        "# team/api\n\nThe order service.\n\n"
+        "# team/api\n\nThe catalog service.\n\n"
         "*Generated from the knowledge graph of `team/api` at commit `abc123` on 2026-06-25.*\n")
 
     out = _unwrap(asyncio.run(
         _call(build_server(s), "get_wiki", {"repo": "team/api"})).structuredContent)
     assert out["found"] and out["stale"] is False   # wiki commit == current head
-    assert "The order service." in out["markdown"]
+    assert "The catalog service." in out["markdown"]
     assert out["wiki_commit"] == "abc123"
 
     # repo moves on -> the wiki is now stale
@@ -353,19 +353,19 @@ def test_get_wiki_serves_prose_with_staleness(tmp_path):
 # --- ask router -----------------------------------------------------------
 
 def test_ask_routes_definition(server):
-    res = asyncio.run(_call(server, "ask", {"question": "where is OrderService defined"}))
+    res = asyncio.run(_call(server, "ask", {"question": "where is CatalogService defined"}))
     out = res.structuredContent
     assert out["route"] == "definition"
-    assert out["target"] == "OrderService"
-    assert [n["name"] for n in out["nodes"]] == ["OrderService"]
+    assert out["target"] == "CatalogService"
+    assert [n["name"] for n in out["nodes"]] == ["CatalogService"]
 
 
 def test_ask_routes_callers(server):
     res = asyncio.run(_call(server, "ask", {"question": "who calls charge"}))
     out = res.structuredContent
     assert out["route"] == "callers"
-    # OrderService (node a) calls charge (node b)
-    assert "OrderService" in [n["name"] for n in out["nodes"]]
+    # CatalogService (node a) calls charge (node b)
+    assert "CatalogService" in [n["name"] for n in out["nodes"]]
 
 
 def test_ask_routes_impact(server):
@@ -395,7 +395,7 @@ def test_ask_explain_falls_back_to_repo_brief_when_no_wiki(tmp_path):
     # (repo brief), not a blind semantic search.
     from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
     s = SqliteStore(tmp_path / "kb.sqlite")
-    nodes = [Node(id="svc", repo="acme/orders", kind="class", name="OrderService",
+    nodes = [Node(id="svc", repo="acme/orders", kind="class", name="CatalogService",
                   file="svc.py")]
     s.upsert_repo(Repo(id="acme/orders", path=str(tmp_path), head_commit="h1"))
     write_shard(tmp_path, GraphShard(repo="acme/orders", head_commit="h1",
@@ -444,7 +444,7 @@ def test_find_callers_and_blast_radius_resolve_a_bare_name(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     prov = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 21))
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="OrderService"),
+        Node(id="svc", repo="r", kind="class", name="CatalogService"),
         Node(id="c1", repo="r", kind="function", name="checkout"),
         Node(id="c2", repo="r", kind="function", name="refund"),
     ]
@@ -459,9 +459,9 @@ def test_find_callers_and_blast_radius_resolve_a_bare_name(tmp_path):
     reindex_shard(s, tmp_path, "r")
     srv = build_server(s)
     # by NAME (what an agent passes) — not by the internal id "svc"
-    callers = asyncio.run(_call(srv, "find_callers", {"node_id": "OrderService"}))
+    callers = asyncio.run(_call(srv, "find_callers", {"node_id": "CatalogService"}))
     assert callers.structuredContent["total"] == 2
-    blast = asyncio.run(_call(srv, "blast_radius", {"node_id": "OrderService"}))
+    blast = asyncio.run(_call(srv, "blast_radius", {"node_id": "CatalogService"}))
     assert blast.structuredContent["total"] == 2
     # an unknown name resolves to an empty (not an error) result
     empty = asyncio.run(_call(srv, "find_callers", {"node_id": "NoSuchSymbol"}))

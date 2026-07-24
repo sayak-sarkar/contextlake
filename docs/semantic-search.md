@@ -50,7 +50,7 @@ the C# and Python payment paths together. `--retriever fts|semantic|hybrid` pick
 graph-propagation ranking:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake query payment --retriever hybrid output: ten cited hits spanning acme/orders-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
 </p>
 
 ## Measuring retrieval quality
@@ -61,7 +61,7 @@ a query with the node ids it should return:
 ```json
 {
   "queries": [
-    {"query": "OrderService", "expected": ["demo_app_orderservice"]},
+    {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
     {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
   ]
 }

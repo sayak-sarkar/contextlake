@@ -161,14 +161,15 @@ def test_parse_go():
 
 def test_parse_java():
     src = (b"package com.acme;\nimport java.util.List;\n"
-           b"public class OrderService extends BaseService implements Auditable {\n"
-           b"  public OrderService() {}\n"
+           b"public class CatalogService extends BaseService implements Auditable {\n"
+           b"  public CatalogService() {}\n"
            b"  public Order get(String id) { return repo.find(id); }\n}\n"
            b"interface Auditable { void audit(); }\nenum Status { OPEN, CLOSED }\n")
     nodes, _e, calls, _i = parse_source("r", "f.java", src, "java")
     k = _kinds(nodes)
-    assert "OrderService" in k["class"] and "Auditable" in k["interface"] and "Status" in k["enum"]
-    assert "get" in k["method"] and "OrderService" in k["method"]   # constructor indexes as method
+    assert "CatalogService" in k["class"] and "Auditable" in k["interface"]
+    assert "Status" in k["enum"]
+    assert "get" in k["method"] and "CatalogService" in k["method"]  # constructor -> method
     assert "java.util.List" in k["module"]
     assert "find" in {c[1] for c in calls}
 
@@ -223,11 +224,11 @@ def test_parse_ruby():
 def test_parse_php():
     src = (b"<?php\nnamespace App;\nuse App\\Base;\n"
            b"interface Auditable { public function audit(); }\n"
-           b"class OrderService extends Base implements Auditable {\n"
+           b"class CatalogService extends Base implements Auditable {\n"
            b"  public function get($id) { return $this->repo->find($id); }\n}\n")
     nodes, _e, calls, inh = parse_source("r", "f.php", src, "php")
     k = _kinds(nodes)
-    assert "OrderService" in k["class"] and "Auditable" in k["interface"] and "get" in k["method"]
+    assert "CatalogService" in k["class"] and "Auditable" in k["interface"] and "get" in k["method"]
     assert "App\\Base" in k["module"] and "find" in {c[1] for c in calls}
     assert {"Base", "Auditable"} <= {base for _s, base, _f, _l in inh}
 
@@ -256,9 +257,9 @@ def test_parse_kotlin():
         b"    object Empty : Result()\n"
         b"}\n\n"
         b"enum class Status { ACTIVE, CANCELLED }\n\n"
-        b"class OrderService(private val repo: Repository) : Base(), Repository {\n"
+        b"class CatalogService(private val repo: Repository) : Base(), Repository {\n"
         b"    companion object {\n"
-        b"        fun create(): OrderService = OrderService(InMemoryRepo())\n"
+        b"        fun create(): CatalogService = CatalogService(InMemoryRepo())\n"
         b"    }\n"
         b"    fun process(id: String): Result {\n"
         b"        return helper(id)\n"
@@ -278,7 +279,7 @@ def test_parse_kotlin():
     for n in nodes:
         by_kind.setdefault(n.kind, set()).add(n.name)
     # interface/enum/data/sealed/class ALL map to kind "class" (intentional collapse)
-    assert {"Repository", "Result", "Success", "Status", "OrderService", "Repo2"} \
+    assert {"Repository", "Result", "Success", "Status", "CatalogService", "Repo2"} \
         <= by_kind["class"]
     # a top-level fun is a function; a fun inside a class is a method
     assert "freeFunction" in by_kind["function"]
@@ -496,7 +497,7 @@ def test_inherits_edges_across_languages(tmp_path):
     (tmp_path / "d.js").write_text("class Widget {}\nclass Button extends Widget {}\n")
     (tmp_path / "e.java").write_text(
         "class BaseService {}\ninterface Auditable {}\n"
-        "class OrderService extends BaseService implements Auditable {}\n")
+        "class CatalogService extends BaseService implements Auditable {}\n")
     (tmp_path / "f.cpp").write_text("class Base {};\nclass Derived : public Base {};\n")
     inh = _inherits(index_repo_dir(str(tmp_path), "demo"))
     assert ("Child", "Base") in inh
@@ -504,7 +505,7 @@ def test_inherits_edges_across_languages(tmp_path):
     assert ("Cat", "Animal") in inh and ("Cat", "Named") in inh   # extends + implements
     assert ("Car", "Vehicle") in inh
     assert ("Button", "Widget") in inh
-    assert ("OrderService", "BaseService") in inh and ("OrderService", "Auditable") in inh
+    assert ("CatalogService", "BaseService") in inh and ("CatalogService", "Auditable") in inh
     assert ("Derived", "Base") in inh
 
 

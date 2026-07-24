@@ -3,12 +3,12 @@
   "head_commit": "abc123",
   "nodes": [
     {
-      "id": "demo_app_orderservice",
+      "id": "demo_app_catalogservice",
       "repo": "demo/app",
       "kind": "class",
-      "name": "OrderService",
-      "qualified_name": "demo.app.order.OrderService",
-      "file": "src/order.py",
+      "name": "CatalogService",
+      "qualified_name": "demo.app.order.CatalogService",
+      "file": "src/catalog.py",
       "line_start": 1,
       "line_end": 40,
       "lang": "python",
@@ -26,12 +26,12 @@
   ],
   "edges": [
     {
-      "src": "demo_app_orderservice",
+      "src": "demo_app_catalogservice",
       "dst": "demo_app_charge",
       "relation": "calls",
       "confidence": "EXTRACTED",
       "context": "call",
-      "provenance": {"source_file": "src/order.py", "source_line": 12, "verified_at": "2026-06-21"},
+      "provenance": {"source_file": "src/catalog.py", "source_line": 12, "verified_at": "2026-06-21"},
       "weight": 1.0
     }
   ]

@@ -24,7 +24,7 @@ _PROV = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 
 def served(tmp_path):
     s = SqliteStore(tmp_path / "index.sqlite")
     nodes = [
-        Node(id="svc", repo="team/app", kind="class", name="OrderService", lang="python"),
+        Node(id="svc", repo="team/app", kind="class", name="CatalogService", lang="python"),
         Node(id="caller", repo="team/app", kind="function", name="checkout", lang="python"),
     ]
     edges = [Edge(src="caller", dst="svc", relation="calls",
@@ -59,8 +59,8 @@ def test_health_endpoint(served):
 
 
 def test_search_and_impact_endpoints(served):
-    res = json.loads(_get(served + "/api/search?q=OrderService"))
-    assert "OrderService" in {n["name"] for n in res["results"]}
+    res = json.loads(_get(served + "/api/search?q=CatalogService"))
+    assert "CatalogService" in {n["name"] for n in res["results"]}
     imp = json.loads(_get(served + "/api/impact?node=svc"))
     assert imp["found"] and "checkout" in {h["name"] for h in imp["hits"]}
 

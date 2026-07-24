@@ -19,7 +19,7 @@ def _shard():
         repo="team/api",
         head_commit="deadbeef",
         nodes=[
-            Node(id="a", repo="team/api", kind="function", name="OrderService"),
+            Node(id="a", repo="team/api", kind="function", name="CatalogService"),
             Node(id="b", repo="team/api", kind="function", name="charge"),
         ],
         edges=[Edge(src="a", dst="b", relation="calls", confidence=Confidence.EXTRACTED,
@@ -47,7 +47,7 @@ def test_reindex_matches_direct_upsert(tmp_path):
     write_shard(tmp_path, s)
     store = SqliteStore(tmp_path / "kb.sqlite")
     assert reindex_shard(store, tmp_path, "team/api") is True
-    assert store.get_node("a").name == "OrderService"
+    assert store.get_node("a").name == "CatalogService"
     assert {e.dst for e in store.neighbors("a", direction="out")} == {"b"}
     assert store.stats().nodes == 2 and store.stats().edges == 1
     # re-running is idempotent (clear + reload), not duplicating

@@ -21,7 +21,7 @@ from contextlake.kb.router import (
 
 # (question, expected_route, expected_target-or-None-to-skip-target-check)
 _CASES = [
-    ("where is OrderService defined", DEFINITION, "OrderService"),
+    ("where is CatalogService defined", DEFINITION, "CatalogService"),
     ("definition of charge_order", DEFINITION, "charge_order"),
     ("who calls charge_order", CALLERS, "charge_order"),
     ("what calls PaymentClient", CALLERS, "PaymentClient"),
@@ -35,15 +35,15 @@ _CASES = [
     ("who implements Store", SUBCLASSES, "Store"),
     ("implementations of PaymentGateway", SUBCLASSES, "PaymentGateway"),
     ("classes that extend BaseView", SUBCLASSES, "BaseView"),
-    ("what breaks if I change OrderService", IMPACT, "OrderService"),
+    ("what breaks if I change CatalogService", IMPACT, "CatalogService"),
     ("blast radius of charge_order", IMPACT, "charge_order"),
     ("is it safe to remove LegacyAdapter", IMPACT, "LegacyAdapter"),
     ("impact of modifying the billing module", IMPACT, "billing"),
-    ("who owns the orders-api", OWNERS, "orders-api"),
+    ("who owns the catalog-api", OWNERS, "catalog-api"),
     ("who knows about payment-gateway", OWNERS, "payment-gateway"),
     ("who is the SME for billing-api", OWNERS, "billing-api"),
     ("explain the order-service architecture", EXPLAIN, "order-service"),
-    ("how does OrderService work", EXPLAIN, "OrderService"),
+    ("how does CatalogService work", EXPLAIN, "CatalogService"),
     ("what is the billing-service", EXPLAIN, "billing-service"),
     ("give me an overview of auth-service", EXPLAIN, "auth-service"),
     ("where do we validate the tenant header", SEARCH, None),

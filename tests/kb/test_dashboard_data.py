@@ -51,8 +51,8 @@ def store_dir(tmp_path):
 
     # team/app — a class + a function, a caller (for impact), a dep edge, a repo link.
     app_nodes = [
-        Node(id="app_orderservice", repo="team/app", kind="class", name="OrderService",
-             file="src/order.py", lang="python"),
+        Node(id="app_catalogservice", repo="team/app", kind="class", name="CatalogService",
+             file="src/catalog.py", lang="python"),
         Node(id="app_charge", repo="team/app", kind="function", name="charge",
              file="src/pay.py", lang="python"),
         Node(id="app_caller", repo="team/app", kind="function", name="checkout",
@@ -64,7 +64,7 @@ def store_dir(tmp_path):
                     "status": "open"}),
     ]
     app_edges = [
-        _edge("app_caller", "app_orderservice", "calls"),
+        _edge("app_caller", "app_catalogservice", "calls"),
         _edge("app_mod", "libpkg", "depends_on"),
         _edge(make_id("repo", "team/app"), "issue_42", "tracked_by"),
     ]
@@ -121,7 +121,7 @@ def test_repo_detail_brief_readme_wiki_owners(store_dir):
     s, sd = store_dir
     d = kbdata.repo_detail(s, sd, "team/app")
     assert d["brief"]["node_count"] >= 4
-    assert "OrderService" in {t["name"] for t in d["brief"]["top_symbols"]} or d["brief"]["kinds"]
+    assert "CatalogService" in {t["name"] for t in d["brief"]["top_symbols"]} or d["brief"]["kinds"]
     assert d["readme_html"] and "<strong>order</strong>" in d["readme_html"]
     assert d["wiki"]["found"] and d["wiki"]["html"]
     assert d["wiki"]["stale"] is False  # wiki commit matches the indexed head
@@ -167,10 +167,10 @@ def test_repo_relationships_bulk_matches_per_repo(store_dir):
 
 def test_impact_blast_radius_and_name_fallback(store_dir):
     s, _ = store_dir
-    by_id = kbdata.impact(s, "app_orderservice")
+    by_id = kbdata.impact(s, "app_catalogservice")
     assert by_id["found"] and by_id["total"] >= 1
     assert "checkout" in {h["name"] for h in by_id["hits"]}
-    by_name = kbdata.impact(s, "OrderService")  # falls back to search
+    by_name = kbdata.impact(s, "CatalogService")  # falls back to search
     assert by_name["found"]
     assert kbdata.impact(s, "does-not-exist")["found"] is False
 
@@ -185,6 +185,6 @@ def test_health_shape(store_dir):
 
 def test_code_search_returns_nodes(store_dir):
     s, _ = store_dir
-    res = kbdata.code_search(s, "OrderService")
+    res = kbdata.code_search(s, "CatalogService")
     assert res["semantic"] is False
-    assert "OrderService" in {n["name"] for n in res["results"]}
+    assert "CatalogService" in {n["name"] for n in res["results"]}

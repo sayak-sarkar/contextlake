@@ -390,14 +390,14 @@ def test_build_site_emits_wiki_page_with_staleness(store, tmp_path):
     wiki_dir = store.path.parent / "wiki"
     wiki_dir.mkdir(parents=True, exist_ok=True)
     (wiki_dir / "team__api.md").write_text(
-        "# team/api\n\nThe order service.\n\n"
+        "# team/api\n\nThe catalog service.\n\n"
         "*Generated from the knowledge graph of `team/api` at commit `abc123` on 2026-06-25.*\n")
     out = tmp_path / "site"
     viz.build_site(store, out)
     wiki_html = out / "wiki-team__api.html"
     assert wiki_html.is_file()
     body = wiki_html.read_text(encoding="utf-8")
-    assert "The order service." in body and "fresh" in body   # commit matches -> fresh
+    assert "The catalog service." in body and "fresh" in body   # commit matches -> fresh
     assert 'href="repo-team__api.html"' in body               # links back to the graph
     assert 'href="wiki-team__api.html"' in (out / "index.html").read_text(encoding="utf-8")
 
@@ -486,18 +486,18 @@ def test_cli_graph_formats_and_seeds(tmp_path, capsys):
     assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    # --name seed -> mermaid to stdout (charge is reachable from OrderService)
-    assert _run(["graph", "--config", str(cfg), "--name", "OrderService", "--kind", "class",
+    # --name seed -> mermaid to stdout (charge is reachable from CatalogService)
+    assert _run(["graph", "--config", str(cfg), "--name", "CatalogService", "--kind", "class",
                  "--hops", "1", "--format", "mermaid"]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("graph LR") and "OrderService" in out
+    assert out.startswith("graph LR") and "CatalogService" in out
 
     # --node seed -> json to a file
     target = tmp_path / "g.json"
-    assert _run(["graph", "--config", str(cfg), "--node", "demo_app_orderservice",
+    assert _run(["graph", "--config", str(cfg), "--node", "demo_app_catalogservice",
                  "--format", "json", "--output", str(target)]) == 0
     d = json.loads(target.read_text())
-    assert any(n["id"] == "demo_app_orderservice" for n in d["nodes"])
+    assert any(n["id"] == "demo_app_catalogservice" for n in d["nodes"])
 
     # default html lands in --output
     html = tmp_path / "g.html"

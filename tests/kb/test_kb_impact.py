@@ -67,12 +67,12 @@ def test_cmd_impact_usage_error_without_target():
 # -- resolve_target: exact-name-first, repo scoping, disambiguation -----------
 def _multi_repo_store(tmp_path):
     """Two repos each defining a class named ``Node``; repo ``a`` also has a file
-    named ``Node`` (must lose to the class) and a fuzzy-only symbol ``OrderService``."""
+    named ``Node`` (must lose to the class) and a fuzzy-only symbol ``CatalogService``."""
     s = SqliteStore(tmp_path / "index.sqlite")
     s.upsert_nodes("a", [
         Node(id="a:node-class", repo="a", kind="class", name="Node", file="src/node.py"),
         Node(id="a:node-file", repo="a", kind="file", name="Node", file="src/node.py"),
-        Node(id="a:os", repo="a", kind="class", name="OrderService", file="src/svc.py"),
+        Node(id="a:os", repo="a", kind="class", name="CatalogService", file="src/svc.py"),
     ])
     s.upsert_nodes("b", [
         Node(id="b:node-class", repo="b", kind="class", name="Node", file="lib/node.ts"),
@@ -112,8 +112,8 @@ def test_resolve_repo_scope_disambiguates_and_prefers_source(tmp_path):
 def test_resolve_fuzzy_fallback_for_partial_name(tmp_path):
     s = _multi_repo_store(tmp_path)
     try:
-        node, cands = resolve_target(s, "OrderServ")     # no exact name -> FTS
-        assert node is not None and node.name == "OrderService" and cands == []
+        node, cands = resolve_target(s, "CatalogServ")   # no exact name -> FTS
+        assert node is not None and node.name == "CatalogService" and cands == []
     finally:
         s.close()
 

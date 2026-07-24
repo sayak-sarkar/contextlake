@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1038 188" width="1038" height="188" role="img" aria-label="contextlake brand color primitives: deepwater, lake, current, mist, shore, sun" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">
+<rect x="24" y="24" width="150" height="96" rx="10" fill="#0E2A33"/>
+<text x="28" y="142" font-size="15" font-weight="600" fill="#0E2A33">deepwater</text>
+<text x="28" y="160" font-size="13" fill="#41606a" font-family="'JetBrains Mono',ui-monospace,monospace">#0E2A33</text>
+<rect x="192" y="24" width="150" height="96" rx="10" fill="#137A8B"/>
+<text x="196" y="142" font-size="15" font-weight="600" fill="#0E2A33">lake</text>
+<text x="196" y="160" font-size="13" fill="#41606a" font-family="'JetBrains Mono',ui-monospace,monospace">#137A8B</text>
+<rect x="360" y="24" width="150" height="96" rx="10" fill="#2BB3A3"/>
+<text x="364" y="142" font-size="15" font-weight="600" fill="#0E2A33">current</text>
+<text x="364" y="160" font-size="13" fill="#41606a" font-family="'JetBrains Mono',ui-monospace,monospace">#2BB3A3</text>
+<rect x="528" y="24" width="150" height="96" rx="10" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1"/>
+<text x="532" y="142" font-size="15" font-weight="600" fill="#0E2A33">mist</text>
+<text x="532" y="160" font-size="13" fill="#41606a" font-family="'JetBrains Mono',ui-monospace,monospace">#EAF4F4</text>
+<rect x="696" y="24" width="150" height="96" rx="10" fill="#D7C5A0"/>
+<text x="700" y="142" font-size="15" font-weight="600" fill="#0E2A33">shore</text>
+<text x="700" y="160" font-size="13" fill="#41606a" font-family="'JetBrains Mono',ui-monospace,monospace">#D7C5A0</text>
+<rect x="864" y="24" width="150" height="96" rx="10" fill="#E7B53C"/>
+<text x="868" y="142" font-size="15" font-weight="600" fill="#0E2A33">sun</text>
+<text x="868" y="160" font-size="13" fill="#41606a" font-family="'JetBrains Mono',ui-monospace,monospace">#E7B53C</text>
+</svg>

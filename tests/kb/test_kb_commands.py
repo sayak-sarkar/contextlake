@@ -54,15 +54,15 @@ def test_index_then_query_round_trip(tmp_path, capsys):
 
     # the store on disk is populated
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
-    assert store.get_node("demo_app_orderservice").name == "OrderService"
+    assert store.get_node("demo_app_catalogservice").name == "CatalogService"
     assert store.stats().edges == 1
     store.close()
 
     # query finds it (cited)
     capsys.readouterr()
-    assert _run(["query", "OrderService", "--config", str(cfg)]) == 0
+    assert _run(["query", "CatalogService", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out
-    assert "OrderService" in out and "demo/app" in out
+    assert "CatalogService" in out and "demo/app" in out
 
 
 def test_index_workspace_indexes_each_repo(tmp_path):
@@ -228,7 +228,7 @@ def test_read_only_commands_do_not_import_tomlkit_eagerly(tmp_path):
         "except SystemExit as e:\n"
         "    assert e.code == 0\n"
         "try:\n"
-        "    main(['query', 'OrderService', '--config', cfg])\n"
+        "    main(['query', 'CatalogService', '--config', cfg])\n"
         "except SystemExit as e:\n"
         "    assert e.code == 0\n"
         "assert 'tomlkit' not in sys.modules, 'tomlkit imported by index/query'\n"

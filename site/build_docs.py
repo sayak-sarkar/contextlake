@@ -233,6 +233,27 @@ def de_emdash(text: str) -> str:
     return text.replace(" — ", ", ").replace("—", ", ")
 
 
+def theme_swap_dashboard_imgs(html: str) -> str:
+    """A dashboard screenshot with a ``NAME-dark.png`` sibling becomes a light+dark pair;
+    docs.css shows the one that matches the reader's theme (manual toggle or OS preference)."""
+    def add_cls(tag: str, cls: str) -> str:
+        if 'class="' in tag:
+            return re.sub(r'class="([^"]*)"', lambda mm: f'class="{mm.group(1)} {cls}"', tag, count=1)
+        return tag.replace("<img", f'<img class="{cls}"', 1)
+
+    def repl(m):
+        tag, src, name = m.group(0), m.group("src"), m.group("name")
+        if name.endswith("-dark") or not (REPO / f"docs/img/dashboard/{name}-dark.png").exists():
+            return tag
+        light = add_cls(tag, "ss ss-light")
+        dark = add_cls(tag.replace(f"{name}.png", f"{name}-dark.png"), "ss ss-dark")
+        return light + dark
+
+    return re.sub(
+        r'<img[^>]*\bsrc="(?P<src>[^"]*docs/img/dashboard/(?P<name>[a-z0-9-]+)\.png)"[^>]*>',
+        repl, html)
+
+
 # Map each doc source to its built page by BOTH its full path and its bare basename, so
 # cross-links written either way resolve — README uses `docs/foo.md`, sibling docs use a
 # bare `foo.md`. Anchors (`foo.md#sec`) are preserved.
@@ -625,7 +646,7 @@ def main():
         out, src = meta[0], meta[1]
         md.reset()
         md_text = de_emdash((REPO / src).read_text(encoding="utf-8"))
-        html = rewrite_links(md.convert(md_text))
+        html = theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text)))
         html = strip_readme_frontmatter(html) if out == "docs.html" else strip_first_h1(html)
         (OUT / out).write_text(shell(meta, html, md.toc), encoding="utf-8")
         search.append({"url": out, "title": meta[2], "group": GROUP_OF.get(out, ""),

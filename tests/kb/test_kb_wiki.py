@@ -17,7 +17,7 @@ from contextlake.kb.wiki.generate import external_context, generate_page, render
 
 def _shard(store_dir):
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="OrderService", file="svc.py"),
+        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py"),
         Node(id="charge", repo="r", kind="function", name="charge", file="svc.py"),
         Node(id="pkg", repo="(packages)", kind="package", name="requests"),
     ]
@@ -36,7 +36,7 @@ class _FakeLlm:
     def generate(self, prompt, *, system=None):
         if "Review lens" in prompt:
             return f'{{"score": {self._score}, "issues": []}}'
-        return "## Overview\nOrderService charges orders.\n"
+        return "## Overview\nCatalogService charges orders.\n"
 
 
 # --- generation -----------------------------------------------------------
@@ -47,12 +47,12 @@ def test_repo_brief_and_prompt(tmp_path):
     assert brief["head"] == "abc123" and brief["node_count"] == 3
     assert "requests" in brief["packages"]
     prompt = render_prompt(brief)
-    assert "OrderService" in prompt and "svc.py" in prompt and "requests" in prompt
+    assert "CatalogService" in prompt and "svc.py" in prompt and "requests" in prompt
 
 
 def test_repo_brief_carries_docstrings_into_the_wiki_prompt(tmp_path):
     nodes = [
-        Node(id="svc", repo="r", kind="class", name="OrderService", file="svc.py",
+        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py",
              attrs={"doc": "Handles orders end to end.", "signature": "(self)"}),
         Node(id="chg", repo="r", kind="function", name="charge", file="svc.py")]
     edges = [Edge(src="svc", dst="chg", relation="calls", confidence=Confidence.EXTRACTED,
@@ -61,8 +61,8 @@ def test_repo_brief_carries_docstrings_into_the_wiki_prompt(tmp_path):
     write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
     brief = repo_brief(tmp_path, "r")
     top = {t["name"]: t for t in brief["top_symbols"]}
-    assert top["OrderService"]["doc"] == "Handles orders end to end."
-    assert top["OrderService"]["signature"] == "(self)"
+    assert top["CatalogService"]["doc"] == "Handles orders end to end."
+    assert top["CatalogService"]["signature"] == "(self)"
     assert "Handles orders end to end." in render_prompt(brief)   # docstring reaches the wiki
 
 
@@ -81,7 +81,7 @@ def _enrich_shard(store_dir, repo_id, docs):
 def test_external_context_reads_enrich_partition(tmp_path):
     _enrich_shard(tmp_path, "r", [
         ("atlassian", "Runbook", "https://x/1", "how to page the on-call engineer"),
-        ("atlassian", "Design doc", "https://x/2", "architecture notes for OrderService"),
+        ("atlassian", "Design doc", "https://x/2", "architecture notes for CatalogService"),
     ])
     items = external_context(tmp_path, "r")
     assert len(items) == 2
@@ -168,7 +168,7 @@ def test_render_prompt_without_external_context_is_unchanged(tmp_path):
     prompt = render_prompt(brief)
     assert "External context" not in prompt
     # baseline code-facts content is still present, byte-for-byte behavior preserved
-    assert "OrderService" in prompt and "svc.py" in prompt and "requests" in prompt
+    assert "CatalogService" in prompt and "svc.py" in prompt and "requests" in prompt
     assert prompt.strip().endswith(
         "Write a wiki page in Markdown with sections: Overview, Key components, "
         "Dependencies. Ground every statement in the facts above; do not speculate.")
@@ -178,7 +178,7 @@ def test_generate_page_has_title_body_provenance(tmp_path):
     _shard(tmp_path)
     page = generate_page(_FakeLlm(), tmp_path, "r", verified_at=date(2026, 6, 21))
     assert page.startswith("# r\n")
-    assert "OrderService charges orders." in page
+    assert "CatalogService charges orders." in page
     assert "commit `abc123`" in page and "2026-06-21" in page and "`svc.py`" in page
 
 
@@ -325,7 +325,7 @@ def _setup_multi_repo(tmp_path, repo_ids):
     check_schema(store)
     for rid in repo_ids:
         store.upsert_repo(Repo(id=rid, path=str(tmp_path / rid)))
-        node = Node(id=f"{rid}:svc", repo=rid, kind="class", name="OrderService", file="svc.py")
+        node = Node(id=f"{rid}:svc", repo=rid, kind="class", name="CatalogService", file="svc.py")
         write_shard(store_dir, GraphShard(repo=rid, head_commit=f"head-{rid}",
                                           nodes=[node], edges=[]))
     store.close()
@@ -359,7 +359,7 @@ def test_cmd_wiki_writes_accepted_page(tmp_path, monkeypatch):
 
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     page = store_dir / "wiki" / "r.md"
-    assert page.exists() and "OrderService charges orders." in page.read_text()
+    assert page.exists() and "CatalogService charges orders." in page.read_text()
 
 
 def test_cmd_wiki_builds_advisory_partition(tmp_path, monkeypatch):

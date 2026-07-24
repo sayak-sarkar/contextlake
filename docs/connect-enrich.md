@@ -71,7 +71,7 @@ across the whole fleet or a single repo:
 
 ```bash
 contextlake enrich --workspace ~/work     # all indexed repos
-contextlake enrich acme/orders-api         # one repo
+contextlake enrich acme/catalog-api         # one repo
 ```
 
 Prerequisites: the code graph must be **indexed first** (`contextlake index`), and at least one

@@ -45,8 +45,8 @@ def _prov():
 def _seed_indexed_repo(store, store_dir, repo_id, repo_path):
     """An indexed repo: a shard with an embeddable symbol (so build_terms finds
     something) plus the store's repo record (so `_connect_targets` lists it)."""
-    order_service = Node(id="n1", repo=repo_id, kind="class", name="OrderService",
-                          file="app/order.py")
+    order_service = Node(id="n1", repo=repo_id, kind="class", name="CatalogService",
+                          file="app/catalog.py")
     charge_fn = Node(id="n2", repo=repo_id, kind="function", name="chargeCard",
                       file="app/billing.py")
     nodes = [order_service, charge_fn]

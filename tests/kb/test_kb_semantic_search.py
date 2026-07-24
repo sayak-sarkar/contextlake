@@ -37,7 +37,7 @@ async def _tool_names(server):
 def _store_with_vectors(tmp_path):
     store = SqliteStore(tmp_path / "kb.sqlite")
     store.upsert_nodes("r", [
-        Node(id="a", repo="r", kind="function", name="OrderService"),
+        Node(id="a", repo="r", kind="function", name="CatalogService"),
         Node(id="b", repo="r", kind="function", name="charge"),
     ])
     vs = VectorStore(tmp_path / "embeddings.sqlite")

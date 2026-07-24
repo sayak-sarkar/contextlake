@@ -8,7 +8,7 @@ so a retrieval change (embed-bodies, reranking, the future ``ask`` router) is
 Stdlib-only; the golden set is plain JSON:
 
     {"queries": [
-      {"query": "order service", "expected": ["demo_app_orderservice"]},
+      {"query": "catalog service", "expected": ["demo_app_catalogservice"]},
       {"query": "charge a card", "expected": ["charge"], "match": "name", "kind": "function"}
     ]}
 

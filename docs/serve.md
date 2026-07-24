@@ -5,8 +5,8 @@ exposes it as an **MCP server**, so any MCP client (Claude Code, Windsurf, Kiro,
 Postman, …) can query the graph directly instead of grepping.
 
 **Start with `ask`.** One tool, natural language: `ask("who calls charge_order")` /
-`ask("what breaks if I change OrderService")` / `ask("what extends BaseController")` /
-`ask("explain the orders-api")`. It classifies the question, routes it to the right
+`ask("what breaks if I change CatalogService")` / `ask("what extends BaseController")` /
+`ask("explain the catalog-api")`. It classifies the question, routes it to the right
 substrate below (definition / callers / dependents / subclasses / impact / owners /
 explain / search), resolves the symbol or repo, and returns one labeled answer (graph
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
@@ -72,6 +72,6 @@ Windsurf / Devin, add the same server in its MCP config (Cascade's *MCP Servers*
 
 ## Once connected
 
-Ask the agent things like *"where is `OrderService` defined?"*, *"who calls `charge`?"*, or
+Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
 *"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
 have it draft wiki pages from the graph without the built-in `wiki` command.
