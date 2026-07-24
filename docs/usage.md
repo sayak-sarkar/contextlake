@@ -11,12 +11,12 @@ layer see the [Knowledge layer](knowledge-layer.md) overview.
 
 ## Command reference
 
-Every command carries its own scoped help — `contextlake <command> --help` shows
+Every command carries its own scoped help, `contextlake <command> --help` shows
 just that command's flags with worked examples, and bare `contextlake` prints the
 full command list.
 
 **Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `index
---workspace`) accepts `--repos PATTERN` — a comma-separated **glob/substring** filter
+--workspace`) accepts `--repos PATTERN`, a comma-separated **glob/substring** filter
 over your repo paths, so you can mirror and index just a handful instead of the whole
 group. Ideal for a demo or a try-before-fleet run:
 
@@ -38,7 +38,7 @@ available as its own command:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-sync.png" alt="The contextlake sync pipeline: fetch, then clone, then update, then branches, then verify, then audit." width="760">
 </p>
 
-### `status` — check current synchronization status
+### `status`: check current synchronization status
 
 Shows the current state of your workspace compared to GitLab.
 
@@ -63,7 +63,7 @@ Extra:                    1        # cloned locally but not on GitLab
 
 A fully synced workspace shows `0` for both.
 
-### `fetch` — fetch all GitLab projects
+### `fetch`: fetch all GitLab projects
 
 Retrieves all repositories from the specified GitLab group and caches them locally.
 
@@ -78,7 +78,7 @@ This command:
 - Skips archived repositories
 - Caches results in `/tmp/gitlab_projects.txt` and `/tmp/gitlab_projects.json`
 
-### `clone` — clone missing repositories
+### `clone`: clone missing repositories
 
 Clones any repositories that exist in GitLab but are missing locally.
 
@@ -96,12 +96,12 @@ This command:
 
 How each repo is cloned (`clone_method = auto`, the default): with `GITLAB_TOKEN`
 set, contextlake clones with plain `git`, passing the token as an auth header
-through the child environment — never on the command line and never in the URL, so
+through the child environment, never on the command line and never in the URL, so
 it can't leak into `ps` output or `.git/config`. Without a token it uses `glab repo
 clone` (glab's own auth) when glab is installed, else plain `git clone` over HTTPS.
 Set `clone_method = git` or `glab` to force one path.
 
-### `update` — update existing repositories
+### `update`: update existing repositories
 
 Fetches and pulls the latest changes for all local repositories.
 
@@ -116,7 +116,7 @@ This command:
 - Handles detached HEAD states appropriately
 - Reports repositories that are already up to date
 
-### `branches` — switch to most active branches
+### `branches`: switch to most active branches
 
 Analyzes all repositories and switches them to their most active development branch.
 
@@ -138,7 +138,7 @@ that is both busy and recently touched wins. Two alternatives exist: `commits` (
 commit count, the legacy behaviour) and `recency` (most recent commit). Archived repos,
 repos without branches, and detached-HEAD states are skipped.
 
-### `verify` — verify repository structure
+### `verify`: verify repository structure
 
 Checks that the local workspace structure matches GitLab exactly.
 
@@ -154,7 +154,7 @@ This command:
 - Lists missing repositories (in GitLab but not local)
 - Reports synchronization status
 
-### `sync` — full synchronization
+### `sync`: full synchronization
 
 Runs the complete synchronization pipeline in sequence.
 
@@ -171,7 +171,7 @@ This command executes:
 5. `verify` - Verify structure
 6. `audit` - Report repo health & age (skip with `--no-audit`)
 
-### `audit` — repo health & age report
+### `audit`: repo health & age report
 
 Scans every local clone and reports which repos are effectively empty and how old/active
 they are. Runs automatically at the end of `sync`/`bootstrap`, or on demand:

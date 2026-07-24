@@ -22,7 +22,7 @@ The tool uses a hierarchical configuration system with the following precedence:
 
 3. **CLI Arguments**: Override all other settings
 
-**Configuration loading flow** — `load_config()` merges each layer over the one
+**Configuration loading flow**, `load_config()` merges each layer over the one
 before it, so the most specific source wins:
 
 <p align="center">
