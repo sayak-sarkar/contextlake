@@ -46,6 +46,7 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
 <link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="cmdk.css">
 <style>
   :root{
     --deepwater:#0E2A33; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4;
@@ -82,7 +83,7 @@
   }
   .theme-toggle{cursor:pointer}
   /* no color here: the toggle inherits the header button color (mist over the hero, ink scrolled) */
-  .btn.theme-toggle{padding:9px;width:38px;justify-content:center}
+  .btn.theme-toggle,.btn.cmdk-icon{padding:9px;width:38px;justify-content:center}
   /* theme switch cross-fades via the View Transitions API (wired in JS); tune duration + respect reduced-motion */
   ::view-transition-old(root),::view-transition-new(root){animation-duration:.45s;animation-timing-function:ease}
   @media (prefers-reduced-motion: reduce){ ::view-transition-old(root),::view-transition-new(root){animation:none} }
@@ -617,6 +618,9 @@
     <a class="navlink" href="#use-cases">Use cases</a>
     <a class="navlink" href="#contribute">Contribute</a>
     <a class="navlink" href="docs">Docs</a>
+    <button class="btn cmdk-icon" id="cmdk-open" type="button" aria-label="Search docs" title="Search docs (press /)" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    </button>
     <button class="btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme">
       <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
@@ -1181,5 +1185,6 @@
     });
   }
 })();</script>
+<script defer src="cmdk.js"></script>
 </body>
 </html>
