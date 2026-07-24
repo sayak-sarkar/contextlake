@@ -661,7 +661,9 @@
   function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}
   function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}
   lbl(cur());
-  function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}
+  function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);
+    var gf=document.getElementById("graph-frame");
+    if(gf&&gf.contentWindow){try{gf.contentWindow.postMessage({type:"cl-theme",theme:n},"*");}catch(e){}}}
   b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";
     var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
     if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}
@@ -693,11 +695,16 @@
   }); }
 })();</script>
 <script>/* progressive enhancement: swap the static graph shot for the real interactive visualizer
-   (a self-contained, offline iframe) once the section nears the viewport. No-JS keeps the image. */
+   (self-contained, offline iframe) once near the viewport. No-JS keeps the image; on load failure
+   we restore it. The iframe opens in the current theme and follows theme toggles via postMessage. */
 (function(){var img=document.querySelector('.shot[data-embed]');if(!img||!('IntersectionObserver' in window))return;
+  function theme(){var e=document.documentElement.getAttribute('data-theme');return e||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
   var io=new IntersectionObserver(function(es){if(!es[0].isIntersecting)return;io.disconnect();
-    var f=document.createElement('iframe');f.className='shot graph-embed';f.src=img.getAttribute('data-embed');
-    f.title=img.alt;f.loading='lazy';f.setAttribute('scrolling','no');img.replaceWith(f);},{rootMargin:'300px 0px'});
+    var f=document.createElement('iframe');f.className='shot graph-embed';f.id='graph-frame';
+    f.title=img.alt;f.setAttribute('scrolling','no');
+    f.onerror=function(){f.replaceWith(img);};
+    f.src=img.getAttribute('data-embed')+'#theme='+theme();
+    img.replaceWith(f);},{rootMargin:'400px 0px'});
   io.observe(img);})();</script>
 <script>/* two-state navbar: add .scrolled once the hero is scrolled up under the header, so the bar
    cross-fades from the dark over-hero look to the theme frosted bar. No-JS keeps the dark bar. */
