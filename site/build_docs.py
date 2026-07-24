@@ -266,6 +266,16 @@ for _out, _src, *_rest in PAGES:
     _LINK_TO_PAGE[GH + _src] = _out
 
 
+def linkify(out: str) -> str:
+    """An internal page link without its ``.html`` extension. Files keep their ``.html``
+    names on disk, but GitHub Pages (with .nojekyll) serves them extensionless, so the
+    address bar stays clean and old ``/foo.html`` links still resolve. ``index.html`` maps
+    to the site root so it never shows as ``/index``."""
+    if out == "index.html":
+        return "./"
+    return out[:-5] if out.endswith(".html") else out
+
+
 def rewrite_links(html: str) -> str:
     """Resolve every doc link consistently: a link to a built page (in any form —
     `foo.md`, `docs/foo.md`, `../foo.md`, or the absolute GitHub URL used in the README)
@@ -279,7 +289,7 @@ def rewrite_links(html: str) -> str:
             norm = norm.split("/", 1)[1] if "/" in norm else ""
         for key in (path, norm, norm.split("/")[-1], "docs/" + norm):
             if key and key in _LINK_TO_PAGE:
-                return f'href="{_LINK_TO_PAGE[key]}{sep}{anchor}"'
+                return f'href="{linkify(_LINK_TO_PAGE[key])}{sep}{anchor}"'
         if href.startswith(("http", "#", "mailto:")):
             return m.group(0)
         if norm:  # a repo file with no built page → point at GitHub
@@ -308,7 +318,7 @@ def sidebar(active: str) -> str:
         links = []
         for out in outs:
             cls = ' class="active"' if out == active else ""
-            links.append(f'<a href="{out}"{cls}>{TITLES[out]}</a>')
+            links.append(f'<a href="{linkify(out)}"{cls}>{TITLES[out]}</a>')
         blocks.append(f'<h2>{group}</h2><nav aria-label="{group}">'
                       + "".join(links) + "</nav>")
     ext = f'<div class="ext"><div class="social-row">{GH_BTN}{PYPI_BTN}</div></div>'
@@ -331,7 +341,7 @@ def next_steps(links) -> str:
     if not links:  # reference / meta pages may omit Next steps entirely
         return ""
     cards = "".join(
-        f'<a class="next-card" href="{href}"><span>{label}</span>'
+        f'<a class="next-card" href="{linkify(href)}"><span>{label}</span>'
         f'<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">'
         f'<path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" '
         f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>'
@@ -428,7 +438,7 @@ def _plain_text(html: str) -> str:
 def shell(meta, body, toc_html) -> str:
     out, _, nav_title, h_title, eyebrow, subtitle, pebble, hand_links = meta
     links = hand_links  # curated per page (see PAGES); validated at import against _VALID_OUT
-    url = f"{BASE}{out}"
+    url = f"{BASE}{linkify(out)}"
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -460,13 +470,13 @@ def shell(meta, body, toc_html) -> str:
 <body>
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
-  <a class="brand" href="index.html" aria-label="contextlake home">{GLYPH}contextlake</a>
+  <a class="brand" href="./" aria-label="contextlake home">{GLYPH}contextlake</a>
   <span class="spacer"></span>
   <div class="doc-search-wrap">
     <input id="doc-search" class="doc-search" type="search" placeholder="Search docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
     <div id="doc-search-results" class="doc-search-results" role="listbox" hidden></div>
   </div>
-  <a class="navlink" href="docs.html">Docs</a>
+  <a class="navlink" href="docs">Docs</a>
   <span class="social-row">{THEME_TOGGLE}{GH_BTN}{PYPI_BTN}</span>
 </div></header>
 <div class="shell">
@@ -482,7 +492,7 @@ def shell(meta, body, toc_html) -> str:
 <footer><div class="f-in">
   <span class="tagline">{FOOT_MARK}Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="index.html">Home</a><a href="changelog.html">Changelog</a>
+    <a href="./">Home</a><a href="changelog">Changelog</a>
     <span class="social-row">{GH_BTN}{PYPI_BTN}</span>
   </nav>
 </div></footer>
@@ -569,7 +579,7 @@ def make404():
 </head>
 <body>
 <main class="scene">
-  <a class="home" href="index.html" aria-label="contextlake home">
+  <a class="home" href="./" aria-label="contextlake home">
     <img src="icon-64.png" width="26" height="26" alt="">contextlake
   </a>
   <div class="content">
@@ -578,8 +588,8 @@ def make404():
     <p class="sub">This page drifted off into the mist. <b>Pebble</b> can't find it
       down here either, but the way back to shore is just a click away.</p>
     <div class="actions">
-      <a class="btn primary" href="index.html">Back to shore</a>
-      <a class="btn ghost" href="docs.html">Read the docs</a>
+      <a class="btn primary" href="./">Back to shore</a>
+      <a class="btn ghost" href="docs">Read the docs</a>
     </div>
   </div>
 </main>
@@ -590,7 +600,7 @@ def make404():
 def breadcrumbs(out: str) -> str:
     group = GROUP_OF.get(out, "")
     return (f'<nav class="crumbs" aria-label="Breadcrumb">'
-            f'<a href="docs.html">Docs</a><span aria-hidden="true">/</span>'
+            f'<a href="docs">Docs</a><span aria-hidden="true">/</span>'
             f'<span>{group}</span><span aria-hidden="true">/</span>'
             f'<span aria-current="page">{TITLES.get(out, "")}</span></nav>')
 
@@ -608,7 +618,7 @@ def gen_sitemap():
     urls = [f'<url><loc>{BASE}</loc><priority>1.0</priority></url>']
     for out, *_ in PAGES:
         pr = "0.9" if out == "docs.html" else "0.6"
-        urls.append(f'<url><loc>{BASE}{out}</loc><priority>{pr}</priority></url>')
+        urls.append(f'<url><loc>{BASE}{linkify(out)}</loc><priority>{pr}</priority></url>')
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  '
            + "\n  ".join(urls) + "\n</urlset>\n")
@@ -623,7 +633,7 @@ def gen_llms():
     for group, outs in NAV_GROUPS:
         parts.append(f"## {group}\n")
         for out in outs:
-            parts.append(f"- [{TITLES[out]}]({BASE}{out}): {SUBTITLE_OF[out]}")
+            parts.append(f"- [{TITLES[out]}]({BASE}{linkify(out)}): {SUBTITLE_OF[out]}")
         parts.append("")
     parts += ["## Source\n",
               "- [GitHub repository](https://github.com/sayak-sarkar/contextlake)",
@@ -649,7 +659,7 @@ def main():
         html = theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text)))
         html = strip_readme_frontmatter(html) if out == "docs.html" else strip_first_h1(html)
         (OUT / out).write_text(shell(meta, html, md.toc), encoding="utf-8")
-        search.append({"url": out, "title": meta[2], "group": GROUP_OF.get(out, ""),
+        search.append({"url": linkify(out), "title": meta[2], "group": GROUP_OF.get(out, ""),
                        "text": _plain_text(html)[:1400]})
         print(f"  {src} -> {out}")
     (OUT / "404.html").write_text(make404(), encoding="utf-8")
