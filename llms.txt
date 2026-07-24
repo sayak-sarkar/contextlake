@@ -6,51 +6,51 @@
 
 ## Get started
 
-- [Overview](https://sayak.in/contextlake/docs.html): A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.
-- [Quickstart](https://sayak.in/contextlake/quickstart.html): Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.
-- [Configuration](https://sayak.in/contextlake/configuration.html): Config-file precedence, the gitlab-sync upgrade note, and the full settings reference for the mirror layer.
+- [Overview](https://sayak.in/contextlake/docs): A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.
+- [Quickstart](https://sayak.in/contextlake/quickstart): Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.
+- [Configuration](https://sayak.in/contextlake/configuration): Config-file precedence, the gitlab-sync upgrade note, and the full settings reference for the mirror layer.
 
 ## Build your knowledge base
 
-- [Mirror repositories](https://sayak.in/contextlake/usage.html): Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.
-- [Knowledge layer](https://sayak.in/contextlake/knowledge-layer.html): Turn the mirror into a queryable graph with search, a wiki, and connectors.
-- [Index the code graph](https://sayak.in/contextlake/index-code-graph.html): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.
-- [Connect and enrich](https://sayak.in/contextlake/connect-enrich.html): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
-- [Semantic search](https://sayak.in/contextlake/semantic-search.html): Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.
-- [Generate the wiki](https://sayak.in/contextlake/generate-wiki.html): Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.
-- [Model providers](https://sayak.in/contextlake/model-providers.html): The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.
-- [Bootstrap and keep fresh](https://sayak.in/contextlake/bootstrap.html): Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.
+- [Mirror repositories](https://sayak.in/contextlake/usage): Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.
+- [Knowledge layer](https://sayak.in/contextlake/knowledge-layer): Turn the mirror into a queryable graph with search, a wiki, and connectors.
+- [Index the code graph](https://sayak.in/contextlake/index-code-graph): Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.
+- [Connect and enrich](https://sayak.in/contextlake/connect-enrich): Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.
+- [Semantic search](https://sayak.in/contextlake/semantic-search): Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.
+- [Generate the wiki](https://sayak.in/contextlake/generate-wiki): Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.
+- [Model providers](https://sayak.in/contextlake/model-providers): The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.
+- [Bootstrap and keep fresh](https://sayak.in/contextlake/bootstrap): Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.
 
 ## Use it
 
-- [Serve (MCP)](https://sayak.in/contextlake/serve.html): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
-- [Dashboard](https://sayak.in/contextlake/dashboard.html): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
-- [Visualize the graph](https://sayak.in/contextlake/visualize.html): Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.
-- [Ownership and SMEs](https://sayak.in/contextlake/ownership.html): Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.
+- [Serve (MCP)](https://sayak.in/contextlake/serve): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
+- [Dashboard](https://sayak.in/contextlake/dashboard): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
+- [Visualize the graph](https://sayak.in/contextlake/visualize): Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.
+- [Ownership and SMEs](https://sayak.in/contextlake/ownership): Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.
 
 ## Understand it
 
-- [Architecture](https://sayak.in/contextlake/internals.html): How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.
-- [Storage](https://sayak.in/contextlake/storage.html): Where contextlake keeps everything it generates, one store directory, never polluting your synced repos.
-- [Benchmarks](https://sayak.in/contextlake/benchmarks.html): An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools, new-code grounding first, plus search, maintenance, and the caveats.
+- [Architecture](https://sayak.in/contextlake/internals): How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.
+- [Storage](https://sayak.in/contextlake/storage): Where contextlake keeps everything it generates, one store directory, never polluting your synced repos.
+- [Benchmarks](https://sayak.in/contextlake/benchmarks): An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools, new-code grounding first, plus search, maintenance, and the caveats.
 
 ## Writing style
 
-- [Writing style](https://sayak.in/contextlake/style-guide.html): The spirit, the checklist, and links to the focused pages: voice, structure, formatting, and the word reference.
-- [Voice and tone](https://sayak.in/contextlake/style-guide-voice.html): Second person, present tense, warm and grounded: the voice defaults, word choice, and writing for every reader.
-- [Page types and structure](https://sayak.in/contextlake/style-guide-structure.html): The concept, how-to, reference, and tutorial page types, each with a fixed skeleton, and how to structure a page.
-- [Formatting](https://sayak.in/contextlake/style-guide-formatting.html): Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.
-- [Word reference](https://sayak.in/contextlake/style-guide-reference.html): The house-style decision cache, before and after rewrites, and the A-to-Z term reference.
+- [Writing style](https://sayak.in/contextlake/style-guide): The spirit, the checklist, and links to the focused pages: voice, structure, formatting, and the word reference.
+- [Voice and tone](https://sayak.in/contextlake/style-guide-voice): Second person, present tense, warm and grounded: the voice defaults, word choice, and writing for every reader.
+- [Page types and structure](https://sayak.in/contextlake/style-guide-structure): The concept, how-to, reference, and tutorial page types, each with a fixed skeleton, and how to structure a page.
+- [Formatting](https://sayak.in/contextlake/style-guide-formatting): Headings, lists, code, callouts, links, accessibility, and inclusive language: the mechanics that keep every page consistent.
+- [Word reference](https://sayak.in/contextlake/style-guide-reference): The house-style decision cache, before and after rewrites, and the A-to-Z term reference.
 
 ## Brand
 
-- [Brand overview](https://sayak.in/contextlake/brand.html): contextlake's brand in one page: essence, voice, the lake metaphor, Pebble, the palette, and the mark, with the full spec linked.
+- [Brand overview](https://sayak.in/contextlake/brand): contextlake's brand in one page: essence, voice, the lake metaphor, Pebble, the palette, and the mark, with the full spec linked.
 
 ## Reference
 
-- [Command reference](https://sayak.in/contextlake/cli-reference.html): Every contextlake command at a glance, with links to the page that documents each in depth.
-- [Reading the console output](https://sayak.in/contextlake/console-output.html): Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.
-- [Changelog](https://sayak.in/contextlake/changelog.html): Release history for contextlake.
+- [Command reference](https://sayak.in/contextlake/cli-reference): Every contextlake command at a glance, with links to the page that documents each in depth.
+- [Reading the console output](https://sayak.in/contextlake/console-output): Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.
+- [Changelog](https://sayak.in/contextlake/changelog): Release history for contextlake.
 
 ## Source
 
