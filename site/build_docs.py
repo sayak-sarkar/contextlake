@@ -5,6 +5,7 @@ Every page shares one template: a hero (layer eyebrow + title + subtitle +
 Pebble accent), the doc body, an on-page TOC rail, and a Next-steps footer.
 The eyebrows anchor each page to the Mirror -> Knowledge -> Serve spine."""
 import re
+import json
 import pathlib
 import markdown
 
@@ -351,6 +352,54 @@ THEME_JS = (
     'lbl(cur());b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";'
     'r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);});})();</script>')
 
+# copy-to-clipboard on code blocks (progressive enhancement: no Clipboard API -> no button)
+COPY_JS = r"""<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>"""
+
+# hand-rolled client-side docs search (no dependency): lazy-load a small JSON index, filter, show results
+SEARCH_JS = r"""<script>(function(){
+var input=document.getElementById("doc-search"),box=document.getElementById("doc-search-results");if(!input||!box)return;
+var idx=null,loading=false;
+function load(){if(idx||loading)return;loading=true;fetch("search-index.json").then(function(r){return r.json();}).then(function(d){idx=d;run();}).catch(function(){idx=[];});}
+input.addEventListener("focus",load);
+function esc(s){return s.replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+function run(){var q=input.value.trim().toLowerCase();if(!q){box.hidden=true;box.innerHTML="";return;}if(!idx){load();return;}
+var hits=[];for(var i=0;i<idx.length;i++){var p=idx[i],hay=(p.title+" "+p.text).toLowerCase(),ti=p.title.toLowerCase().indexOf(q),sp=p.text.toLowerCase().indexOf(q);if(ti<0&&sp<0)continue;
+var snip=p.text.slice(0,90);if(sp>=0){var st=Math.max(0,sp-38);snip=(st>0?"…":"")+p.text.slice(st,sp+62)+"…";}
+hits.push({p:p,snip:snip,score:ti>=0?0:1});}
+hits.sort(function(a,b){return a.score-b.score;});hits=hits.slice(0,8);
+if(!hits.length){box.innerHTML='<div class="ds-empty">No matches</div>';box.hidden=false;return;}
+box.innerHTML=hits.map(function(h){return '<a class="ds-hit" href="'+h.p.url+'"><span class="ds-group">'+esc(h.p.group)+'</span><span class="ds-title">'+esc(h.p.title)+'</span><span class="ds-snip">'+esc(h.snip)+'</span></a>';}).join("");box.hidden=false;}
+input.addEventListener("input",run);
+input.addEventListener("keydown",function(e){if(e.key==="Escape"){input.value="";box.hidden=true;input.blur();}});
+document.addEventListener("click",function(e){if(!input.contains(e.target)&&!box.contains(e.target))box.hidden=true;});
+})();</script>"""
+
+
+# content tabs: progressive enhancement. Authors write <div class="tabs"> with <div class="tab"
+# data-label="..."> children; no-JS stacks them labeled, JS builds a tab strip showing one at a time.
+TAB_JS = r"""<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>"""
+
+
+def _plain_text(html: str) -> str:
+    t = re.sub(r"(?s)<(script|style)\b.*?</\1>", " ", html)
+    t = re.sub(r"(?s)<[^>]+>", " ", t)
+    for a, b in (("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"), ("&#39;", "'"), ("&quot;", '"')):
+        t = t.replace(a, b)
+    return re.sub(r"\s+", " ", t).strip()
+
 
 def shell(meta, body, toc_html) -> str:
     out, _, nav_title, h_title, eyebrow, subtitle, pebble, hand_links = meta
@@ -378,8 +427,10 @@ def shell(meta, body, toc_html) -> str:
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="docs.css">
 </head>
 <body>
@@ -387,6 +438,10 @@ def shell(meta, body, toc_html) -> str:
 <header><div class="nav">
   <a class="brand" href="index.html" aria-label="contextlake home">{GLYPH}contextlake</a>
   <span class="spacer"></span>
+  <div class="doc-search-wrap">
+    <input id="doc-search" class="doc-search" type="search" placeholder="Search docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <div id="doc-search-results" class="doc-search-results" role="listbox" hidden></div>
+  </div>
   <a class="navlink" href="docs.html">Docs</a>
   <span class="social-row">{THEME_TOGGLE}{GH_BTN}{PYPI_BTN}</span>
 </div></header>
@@ -408,6 +463,9 @@ def shell(meta, body, toc_html) -> str:
   </nav>
 </div></footer>
 {THEME_JS}
+{COPY_JS}
+{SEARCH_JS}
+{TAB_JS}
 </body>
 </html>"""
 
@@ -559,6 +617,7 @@ def main():
                     "permalink_title": "Link to this section", "toc_depth": "2-3"},
         },
     )
+    search = []
     for meta in PAGES:
         out, src = meta[0], meta[1]
         md.reset()
@@ -566,9 +625,13 @@ def main():
         html = rewrite_links(md.convert(md_text))
         html = strip_readme_frontmatter(html) if out == "docs.html" else strip_first_h1(html)
         (OUT / out).write_text(shell(meta, html, md.toc), encoding="utf-8")
+        search.append({"url": out, "title": meta[2], "group": GROUP_OF.get(out, ""),
+                       "text": _plain_text(html)[:1400]})
         print(f"  {src} -> {out}")
     (OUT / "404.html").write_text(make404(), encoding="utf-8")
     print("  -> 404.html")
+    (OUT / "search-index.json").write_text(json.dumps(search, ensure_ascii=False), encoding="utf-8")
+    print("  -> search-index.json")
     gen_sitemap()
     gen_llms()
     sync_assets()

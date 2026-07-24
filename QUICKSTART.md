@@ -14,11 +14,15 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 
 ## 2. Install
 
-```bash
-pipx install "contextlake[kb-full]"   # graph + semantic search, zero config (recommended)
-# lighter:  pipx install "contextlake[kb]"   # graph + search, but bring your own embedder
-# or from a clone:  pip install ".[kb-full]"
-```
+<div class="tabs">
+<div class="tab" data-label="pipx"><pre><code>pipx install "contextlake[kb-full]"</code></pre></div>
+<div class="tab" data-label="pip"><pre><code>pip install "contextlake[kb-full]"</code></pre></div>
+<div class="tab" data-label="uv"><pre><code>uv tool install "contextlake[kb-full]"</code></pre></div>
+<div class="tab" data-label="Docker"><pre><code>docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor</code></pre></div>
+</div>
+
+`pipx` is recommended (isolated, on your PATH). The lighter `[kb]` extra is graph + search
+without the built-in embedder; `[kb-full]` is batteries-included. From a clone: `pip install ".[kb-full]"`.
 
 **`[kb-full]`** is the batteries-included install: the knowledge layer plus the
 built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend — so

@@ -11,7 +11,7 @@
   --iconbtn-hover:#eef6f7; --hero-tint:#dcecee; --card-shadow:rgba(14,42,51,.14);
   --ff: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ff-d: "Space Grotesk", var(--ff);
-  --ff-m: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --ff-m: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --rs: 9px;
 }
 /* dark theme: explicit toggle wins; otherwise follow the OS unless the reader chose light */
@@ -106,6 +106,44 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .prose pre{background:var(--pre-bg);color:var(--mist);padding:16px 18px;border-radius:12px;overflow:auto;border:1px solid var(--line-2);
   font-family:var(--ff-m);font-size:13.5px;line-height:1.55;box-shadow:0 8px 22px -14px rgba(14,42,51,.5);margin:1.1em 0}
 .prose pre code{background:none;color:inherit;padding:0;font-size:inherit}
+/* copy-to-clipboard on code blocks (JS-injected; appears on hover; green check on success) */
+.prose pre.has-copy{position:relative}
+.prose pre .copy-btn{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;justify-content:center;
+  padding:6px;border-radius:7px;cursor:pointer;border:1px solid rgba(234,244,244,.22);background:rgba(234,244,244,.08);
+  color:var(--mist);opacity:0;transition:opacity .15s,background .15s,border-color .15s,color .15s}
+.prose pre.has-copy:hover .copy-btn,.prose pre .copy-btn:focus-visible{opacity:1}
+.prose pre .copy-btn:hover{background:rgba(234,244,244,.16);border-color:rgba(234,244,244,.5)}
+.prose pre .copy-btn svg{width:15px;height:15px;display:block}
+.prose pre .copy-btn .ic-check{display:none}
+.prose pre .copy-btn.copied{color:#3ddc84;border-color:#3ddc84;background:rgba(61,220,132,.14);opacity:1}
+.prose pre .copy-btn.copied .ic-copy{display:none}
+.prose pre .copy-btn.copied .ic-check{display:block}
+/* header docs search (hand-rolled client-side index) */
+.doc-search-wrap{position:relative;margin-right:4px}
+.doc-search{width:200px;max-width:42vw;font:inherit;font-size:14px;padding:7px 13px;border-radius:999px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);outline:none;transition:border-color .15s,width .2s}
+.doc-search:focus{border-color:var(--lake);width:236px}
+.doc-search::placeholder{color:var(--subtle)}
+.doc-search-results{position:absolute;top:calc(100% + 8px);right:0;width:min(420px,86vw);max-height:62vh;overflow:auto;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:60}
+.ds-hit{display:block;padding:9px 11px;border-radius:8px;text-decoration:none;color:var(--ink)}
+.ds-hit:hover{background:var(--hover)}
+.ds-group{display:block;font-family:var(--ff-m);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--lake)}
+.ds-title{display:block;font-weight:600;font-size:14px;margin:1px 0 2px}
+.ds-snip{display:block;font-size:12.5px;color:var(--muted);line-height:1.4}
+.ds-empty{padding:12px;color:var(--muted);font-size:14px}
+@media (max-width:600px){ .doc-search{width:132px} .doc-search:focus{width:150px} }
+/* content tabs (JS builds the strip; no-JS stacks each tab with its label) */
+.tabs{margin:1.1em 0}
+.tabs-js .tab-strip{display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.tab-btn{font-family:var(--ff-d);font-weight:500;font-size:13.5px;padding:8px 15px;border:0;background:none;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:8px 8px 0 0}
+.tab-btn:hover{color:var(--ink);background:var(--hover)}
+.tab-btn[aria-selected="true"]{color:var(--lake);border-bottom-color:var(--lake)}
+.tabs-js .tab[hidden]{display:none}
+.tabs:not(.tabs-js) .tab{margin-top:.5em}
+.tabs:not(.tabs-js) .tab::before{content:attr(data-label);display:block;font-family:var(--ff-m);font-size:11px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--subtle);margin-bottom:4px}
 .prose blockquote{margin:1.1em 0;padding:2px 18px;border-left:3px solid var(--current);background:var(--callout-bg);border-radius:0 8px 8px 0;color:var(--callout-ink)}
 .prose table{border-collapse:collapse;width:100%;margin:1.1em 0;font-size:14px;display:block;overflow-x:auto}
 .prose th,.prose td{border:1px solid var(--line-2);padding:8px 12px;text-align:left;vertical-align:top}
