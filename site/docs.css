@@ -80,7 +80,8 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 
 /* layout: sidebar + content */
 .shell{display:grid;grid-template-columns:220px minmax(0,1fr) 200px;gap:40px;max-width:1320px;margin:0 auto;padding:30px 24px 80px}
-.side{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 96px);overflow:auto}
+.side{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;
+  border-right:1px solid var(--line);padding-right:20px}
 .side h2{font-family:var(--ff-d);font-size:12px;letter-spacing:.05em;text-transform:uppercase;
   font-weight:700;color:var(--muted);margin:24px 0 7px;padding-left:12px}
 .side h2:first-of-type{margin-top:2px}
@@ -224,7 +225,7 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist)}
 }
 @media (max-width:860px){
   .shell{grid-template-columns:1fr;gap:18px}
-  .side{position:static;max-height:none;border-bottom:1px solid var(--line);padding-bottom:14px}
+  .side{position:static;max-height:none;border-right:none;padding-right:0;border-bottom:1px solid var(--line);padding-bottom:14px}
   .side nav{display:flex;flex-wrap:wrap;gap:4px}
   .side nav a{padding:6px 10px}
   .doc-pebble{width:88px}
