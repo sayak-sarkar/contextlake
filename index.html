@@ -164,8 +164,9 @@
   .hero-copy>*:nth-child(3){animation-delay:.36s}
   .hero-copy>*:nth-child(4){animation-delay:.52s}
   .hero-copy>*:nth-child(5){animation-delay:.64s}
+  /* scrim uses var(--deepwater) so it follows the theme: teal in light, moonlit-navy in dark */
   .hero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
-    background:linear-gradient(90deg,rgba(14,42,51,.95) 0%,rgba(14,42,51,.82) 28%,rgba(14,42,51,.36) 54%,rgba(14,42,51,0) 76%),linear-gradient(0deg,rgba(14,42,51,.55) 0%,rgba(14,42,51,0) 30%)}
+    background:linear-gradient(90deg,color-mix(in srgb,var(--deepwater) 95%,transparent) 0%,color-mix(in srgb,var(--deepwater) 82%,transparent) 28%,color-mix(in srgb,var(--deepwater) 36%,transparent) 54%,transparent 76%),linear-gradient(0deg,color-mix(in srgb,var(--deepwater) 55%,transparent) 0%,transparent 30%)}
   .hero-in{position:relative;z-index:2;width:100%;max-width:var(--wrap);margin:0 auto;padding:80px 24px 92px}
   .hero-copy{max-width:34rem}
   .eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--ff-m);font-size:12px;
@@ -204,7 +205,7 @@
     :root[data-theme="dark"] .hero-bg{background-image:url(hero-scene-night-mobile.webp)}
     .hero-shimmer{display:none}
     /* dark behind the top copy, clearing toward the bottom so Pebble surfaces */
-    .hero-scrim{background:linear-gradient(180deg,rgba(14,42,51,.93) 0%,rgba(14,42,51,.82) 30%,rgba(14,42,51,.45) 62%,rgba(14,42,51,.12) 100%)}
+    .hero-scrim{background:linear-gradient(180deg,color-mix(in srgb,var(--deepwater) 93%,transparent) 0%,color-mix(in srgb,var(--deepwater) 82%,transparent) 30%,color-mix(in srgb,var(--deepwater) 45%,transparent) 62%,color-mix(in srgb,var(--deepwater) 12%,transparent) 100%)}
     .hero-in{padding:40px 22px 0;text-align:center}
     .hero-copy{max-width:none}
     .eyebrow,.cta-row{justify-content:center}
@@ -273,6 +274,9 @@
   .arch-core{position:relative;z-index:2;flex:1;background:linear-gradient(180deg,#173640,#0E2A33);border:1px solid #224b56;border-radius:16px;padding:15px;
     box-shadow:0 16px 44px -22px rgba(14,42,51,.6),0 0 30px -12px rgba(43,179,163,.28)}
   .arch-core::before{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;box-shadow:0 0 40px -12px rgba(43,179,163,.30)}
+  /* dark theme: the core card follows the moonlit-navy family (stays deepwater teal in light) */
+  :root[data-theme="dark"] .arch-core{background:linear-gradient(180deg,#14304C,#081D30);border-color:#274864}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .arch-core{background:linear-gradient(180deg,#14304C,#081D30);border-color:#274864} }
   .arch-core-head{display:flex;align-items:center;gap:9px;margin-bottom:11px}
   .arch-mark{width:32px;height:32px;flex:none}
   .arch-core-head span{font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--mist)}
