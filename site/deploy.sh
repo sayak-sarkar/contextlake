@@ -29,6 +29,20 @@ cp "$HERE"/*.html "$HERE"/docs.css "$HERE"/fonts.css "$HERE"/manifest.webmanifes
 cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$HERE"/*.svg "$WT"/ 2>/dev/null || true
 cp -r "$HERE"/fonts "$WT"/
 
+# cache-bust the linked assets: GitHub Pages serves static files with a 4h
+# max-age, and we reuse filenames (docs.css, fonts.css, graph-embed.html), so a
+# browser keeps serving the stale copy until it expires. Stamp each linked ref
+# with the current commit sha; the HTML itself has a short (10min) TTL, so a
+# changed file now propagates within that window instead of 4h. The hero images
+# are cross-referenced from inline CSS + preload + JS and are finalized, so we
+# leave them (a version skew there would defeat the preload).
+VER="$(git -C "$REPO" rev-parse --short HEAD)"
+find "$WT" -maxdepth 1 -name '*.html' -print0 | xargs -0 sed -i \
+  -e "s/href=\"docs\.css\"/href=\"docs.css?v=$VER\"/g" \
+  -e "s/href=\"fonts\.css\"/href=\"fonts.css?v=$VER\"/g" \
+  -e "s/data-embed=\"graph-embed\.html\"/data-embed=\"graph-embed.html?v=$VER\"/g"
+echo "==> cache-busted linked assets with ?v=$VER"
+
 git -C "$WT" add -A
 if git -C "$WT" diff --cached --quiet; then
   echo "==> no changes to deploy"
