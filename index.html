@@ -296,6 +296,9 @@
   /* graph showcase */
   .shot{border-radius:var(--r);border:1px solid var(--line-2);box-shadow:var(--shadow);
     width:100%;height:auto;display:block;background:var(--deepwater)}
+  /* the live interactive graph (JS swaps the static shot for this iframe on scroll-in) */
+  iframe.graph-embed{height:600px;overflow:hidden}
+  @media (max-width:760px){ iframe.graph-embed{height:460px} }
   .shot-cap{color:var(--subtle);font-size:13.5px;margin-top:14px;text-align:center}
 
   /* features bento: varied cells, real depth, an anchor cell that echoes the hero */
@@ -516,9 +519,9 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834"
+    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
-    <p class="shot-cap">The interactive visualizer, vendored, offline, no network. Export to Mermaid, DOT, or JSON.</p>
+    <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
 </section>
 
@@ -675,5 +678,12 @@
     return Array.prototype.map.call(box.querySelectorAll('.line .c'),function(el){return el.textContent.trim();}).join('\n');
   }); }
 })();</script>
+<script>/* progressive enhancement: swap the static graph shot for the real interactive visualizer
+   (a self-contained, offline iframe) once the section nears the viewport. No-JS keeps the image. */
+(function(){var img=document.querySelector('.shot[data-embed]');if(!img||!('IntersectionObserver' in window))return;
+  var io=new IntersectionObserver(function(es){if(!es[0].isIntersecting)return;io.disconnect();
+    var f=document.createElement('iframe');f.className='shot graph-embed';f.src=img.getAttribute('data-embed');
+    f.title=img.alt;f.loading='lazy';f.setAttribute('scrolling','no');img.replaceWith(f);},{rootMargin:'300px 0px'});
+  io.observe(img);})();</script>
 </body>
 </html>
