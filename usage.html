@@ -20,8 +20,10 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="docs.css">
 </head>
 <body>
@@ -29,6 +31,10 @@
 <header><div class="nav">
   <a class="brand" href="index.html" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
   <span class="spacer"></span>
+  <div class="doc-search-wrap">
+    <input id="doc-search" class="doc-search" type="search" placeholder="Search docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <div id="doc-search-results" class="doc-search-results" role="listbox" hidden></div>
+  </div>
   <a class="navlink" href="docs.html">Docs</a>
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></span>
 </div></header>
@@ -70,7 +76,7 @@ available as its own command:</p>
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-sync.png" alt="The contextlake sync pipeline: fetch, then clone, then update, then branches, then verify, then audit." width="760">
 </p>
 
-<h3 id="status-check-current-synchronization-status"><code>status</code>, check current synchronization status<a class="anchor" href="#status-check-current-synchronization-status" title="Link to this section">#</a></h3>
+<h3 id="status-check-current-synchronization-status"><code>status</code>: check current synchronization status<a class="anchor" href="#status-check-current-synchronization-status" title="Link to this section">#</a></h3>
 <p>Shows the current state of your workspace compared to GitLab.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>status
 </code></pre></div>
@@ -90,7 +96,7 @@ Extra:                    1        # cloned locally but not on GitLab
   renamed, archived, or removed there; <code>contextlake</code> leaves it alone for you to review.</li>
 </ul>
 <p>A fully synced workspace shows <code>0</code> for both.</p>
-<h3 id="fetch-fetch-all-gitlab-projects"><code>fetch</code>, fetch all GitLab projects<a class="anchor" href="#fetch-fetch-all-gitlab-projects" title="Link to this section">#</a></h3>
+<h3 id="fetch-fetch-all-gitlab-projects"><code>fetch</code>: fetch all GitLab projects<a class="anchor" href="#fetch-fetch-all-gitlab-projects" title="Link to this section">#</a></h3>
 <p>Retrieves all repositories from the specified GitLab group and caches them locally.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>fetch
 </code></pre></div>
@@ -102,7 +108,7 @@ Extra:                    1        # cloned locally but not on GitLab
 <li>Skips archived repositories</li>
 <li>Caches results in <code>/tmp/gitlab_projects.txt</code> and <code>/tmp/gitlab_projects.json</code></li>
 </ul>
-<h3 id="clone-clone-missing-repositories"><code>clone</code>, clone missing repositories<a class="anchor" href="#clone-clone-missing-repositories" title="Link to this section">#</a></h3>
+<h3 id="clone-clone-missing-repositories"><code>clone</code>: clone missing repositories<a class="anchor" href="#clone-clone-missing-repositories" title="Link to this section">#</a></h3>
 <p>Clones any repositories that exist in GitLab but are missing locally.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>clone
 </code></pre></div>
@@ -121,7 +127,7 @@ through the child environment, never on the command line and never in the URL, s
 it can't leak into <code>ps</code> output or <code>.git/config</code>. Without a token it uses <code>glab repo
 clone</code> (glab's own auth) when glab is installed, else plain <code>git clone</code> over HTTPS.
 Set <code>clone_method = git</code> or <code>glab</code> to force one path.</p>
-<h3 id="update-update-existing-repositories"><code>update</code>, update existing repositories<a class="anchor" href="#update-update-existing-repositories" title="Link to this section">#</a></h3>
+<h3 id="update-update-existing-repositories"><code>update</code>: update existing repositories<a class="anchor" href="#update-update-existing-repositories" title="Link to this section">#</a></h3>
 <p>Fetches and pulls the latest changes for all local repositories.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>update
 </code></pre></div>
@@ -133,7 +139,7 @@ Set <code>clone_method = git</code> or <code>glab</code> to force one path.</p>
 <li>Handles detached HEAD states appropriately</li>
 <li>Reports repositories that are already up to date</li>
 </ul>
-<h3 id="branches-switch-to-most-active-branches"><code>branches</code>, switch to most active branches<a class="anchor" href="#branches-switch-to-most-active-branches" title="Link to this section">#</a></h3>
+<h3 id="branches-switch-to-most-active-branches"><code>branches</code>: switch to most active branches<a class="anchor" href="#branches-switch-to-most-active-branches" title="Link to this section">#</a></h3>
 <p>Analyzes all repositories and switches them to their most active development branch.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>branches
 </code></pre></div>
@@ -151,7 +157,7 @@ weighted blend of <strong>60% normalized commit count + 40% normalized recency</
 that is both busy and recently touched wins. Two alternatives exist: <code>commits</code> (highest
 commit count, the legacy behaviour) and <code>recency</code> (most recent commit). Archived repos,
 repos without branches, and detached-HEAD states are skipped.</p>
-<h3 id="verify-verify-repository-structure"><code>verify</code>, verify repository structure<a class="anchor" href="#verify-verify-repository-structure" title="Link to this section">#</a></h3>
+<h3 id="verify-verify-repository-structure"><code>verify</code>: verify repository structure<a class="anchor" href="#verify-verify-repository-structure" title="Link to this section">#</a></h3>
 <p>Checks that the local workspace structure matches GitLab exactly.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>verify
 </code></pre></div>
@@ -164,7 +170,7 @@ repos without branches, and detached-HEAD states are skipped.</p>
 <li>Lists missing repositories (in GitLab but not local)</li>
 <li>Reports synchronization status</li>
 </ul>
-<h3 id="sync-full-synchronization"><code>sync</code>, full synchronization<a class="anchor" href="#sync-full-synchronization" title="Link to this section">#</a></h3>
+<h3 id="sync-full-synchronization"><code>sync</code>: full synchronization<a class="anchor" href="#sync-full-synchronization" title="Link to this section">#</a></h3>
 <p>Runs the complete synchronization pipeline in sequence.</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>sync
 </code></pre></div>
@@ -178,7 +184,7 @@ repos without branches, and detached-HEAD states are skipped.</p>
 <li><code>verify</code> - Verify structure</li>
 <li><code>audit</code> - Report repo health &amp; age (skip with <code>--no-audit</code>)</li>
 </ol>
-<h3 id="audit-repo-health-age-report"><code>audit</code>, repo health &amp; age report<a class="anchor" href="#audit-repo-health-age-report" title="Link to this section">#</a></h3>
+<h3 id="audit-repo-health-age-report"><code>audit</code>: repo health &amp; age report<a class="anchor" href="#audit-repo-health-age-report" title="Link to this section">#</a></h3>
 <p>Scans every local clone and reports which repos are effectively empty and how old/active
 they are. Runs automatically at the end of <code>sync</code>/<code>bootstrap</code>, or on demand:</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>audit<span class="w">                       </span><span class="c1"># summary to console + report to &lt;cache_dir&gt;/repo_audit.json</span>
@@ -469,14 +475,14 @@ sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </sp
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#command-reference">Command reference</a><ul>
-<li><a href="#status-check-current-synchronization-status">status, check current synchronization status</a></li>
-<li><a href="#fetch-fetch-all-gitlab-projects">fetch, fetch all GitLab projects</a></li>
-<li><a href="#clone-clone-missing-repositories">clone, clone missing repositories</a></li>
-<li><a href="#update-update-existing-repositories">update, update existing repositories</a></li>
-<li><a href="#branches-switch-to-most-active-branches">branches, switch to most active branches</a></li>
-<li><a href="#verify-verify-repository-structure">verify, verify repository structure</a></li>
-<li><a href="#sync-full-synchronization">sync, full synchronization</a></li>
-<li><a href="#audit-repo-health-age-report">audit, repo health &amp; age report</a></li>
+<li><a href="#status-check-current-synchronization-status">status: check current synchronization status</a></li>
+<li><a href="#fetch-fetch-all-gitlab-projects">fetch: fetch all GitLab projects</a></li>
+<li><a href="#clone-clone-missing-repositories">clone: clone missing repositories</a></li>
+<li><a href="#update-update-existing-repositories">update: update existing repositories</a></li>
+<li><a href="#branches-switch-to-most-active-branches">branches: switch to most active branches</a></li>
+<li><a href="#verify-verify-repository-structure">verify: verify repository structure</a></li>
+<li><a href="#sync-full-synchronization">sync: full synchronization</a></li>
+<li><a href="#audit-repo-health-age-report">audit: repo health &amp; age report</a></li>
 </ul>
 </li>
 <li><a href="#configuration">Configuration</a></li>
@@ -512,5 +518,37 @@ sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </sp
   </nav>
 </div></footer>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);});})();</script>
+<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>
+<script>(function(){
+var input=document.getElementById("doc-search"),box=document.getElementById("doc-search-results");if(!input||!box)return;
+var idx=null,loading=false;
+function load(){if(idx||loading)return;loading=true;fetch("search-index.json").then(function(r){return r.json();}).then(function(d){idx=d;run();}).catch(function(){idx=[];});}
+input.addEventListener("focus",load);
+function esc(s){return s.replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+function run(){var q=input.value.trim().toLowerCase();if(!q){box.hidden=true;box.innerHTML="";return;}if(!idx){load();return;}
+var hits=[];for(var i=0;i<idx.length;i++){var p=idx[i],hay=(p.title+" "+p.text).toLowerCase(),ti=p.title.toLowerCase().indexOf(q),sp=p.text.toLowerCase().indexOf(q);if(ti<0&&sp<0)continue;
+var snip=p.text.slice(0,90);if(sp>=0){var st=Math.max(0,sp-38);snip=(st>0?"…":"")+p.text.slice(st,sp+62)+"…";}
+hits.push({p:p,snip:snip,score:ti>=0?0:1});}
+hits.sort(function(a,b){return a.score-b.score;});hits=hits.slice(0,8);
+if(!hits.length){box.innerHTML='<div class="ds-empty">No matches</div>';box.hidden=false;return;}
+box.innerHTML=hits.map(function(h){return '<a class="ds-hit" href="'+h.p.url+'"><span class="ds-group">'+esc(h.p.group)+'</span><span class="ds-title">'+esc(h.p.title)+'</span><span class="ds-snip">'+esc(h.snip)+'</span></a>';}).join("");box.hidden=false;}
+input.addEventListener("input",run);
+input.addEventListener("keydown",function(e){if(e.key==="Escape"){input.value="";box.hidden=true;input.blur();}});
+document.addEventListener("click",function(e){if(!input.contains(e.target)&&!box.contains(e.target))box.hidden=true;});
+})();</script>
+<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
 </body>
 </html>
