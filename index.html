@@ -101,18 +101,27 @@
   :focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--current);border-radius:6px}
 
   /* ---- header ---- */
-  /* One consistent deepwater (dark) frosted bar in BOTH themes: it blends into the dark hero
-     (no clip in light mode), never flips state, keeps light nav text legible, and gives the
-     deepwater brand a persistent top anchor. */
+  /* two-state navbar: a dark deepwater bar over the dark hero (blends, no clip, immersive, light
+     text) that smoothly cross-fades to the theme frosted bar once scrolled past the hero.
+     Consistent-dark is the no-JS baseline; JS adds .scrolled. */
   header{position:sticky;top:0;z-index:40;margin-bottom:-60px;
     background:color-mix(in srgb,var(--deepwater) 74%,transparent);
     backdrop-filter:saturate(150%) blur(10px);-webkit-backdrop-filter:saturate(150%) blur(10px);
-    border-bottom:1px solid rgba(234,244,244,.10)}
+    border-bottom:1px solid rgba(234,244,244,.10);
+    transition:background .3s ease,border-color .3s ease}
+  header .brand,header .nav a.navlink,header .btn{transition:color .3s ease,background .3s ease,border-color .3s ease}
   header .brand{color:var(--mist)}
   header .nav a.navlink{color:rgba(234,244,244,.82)}
   header .nav a.navlink:hover{color:#fff}
   header .btn{color:var(--mist);border-color:rgba(234,244,244,.26);background:rgba(234,244,244,.06)}
   header .btn:hover{border-color:var(--mist);background:rgba(234,244,244,.14)}
+  /* scrolled past the hero: the theme frosted bar (light in light theme, deepwater in dark) */
+  header.scrolled{background:color-mix(in srgb,var(--bg) 82%,transparent);border-bottom-color:var(--line)}
+  header.scrolled .brand{color:var(--ink)}
+  header.scrolled .nav a.navlink{color:var(--muted)}
+  header.scrolled .nav a.navlink:hover{color:var(--ink)}
+  header.scrolled .btn{color:var(--ink);border-color:var(--line-2);background:var(--surface)}
+  header.scrolled .btn:hover{border-color:var(--lake);background:var(--btn-hover)}
   .nav{display:flex;align-items:center;gap:18px;height:60px}
   .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:18px;color:var(--ink);transition:color .28s ease,text-shadow .28s ease}
   .brand:hover{text-decoration:none}
@@ -684,5 +693,8 @@
     var f=document.createElement('iframe');f.className='shot graph-embed';f.src=img.getAttribute('data-embed');
     f.title=img.alt;f.loading='lazy';f.setAttribute('scrolling','no');img.replaceWith(f);},{rootMargin:'300px 0px'});
   io.observe(img);})();</script>
+<script>/* two-state navbar: add .scrolled once the hero is scrolled up under the header, so the bar
+   cross-fades from the dark over-hero look to the theme frosted bar. No-JS keeps the dark bar. */
+(function(){var header=document.querySelector("header"),hero=document.querySelector(".hero");if(!header||!hero)return;var on=null;function upd(){var s=hero.getBoundingClientRect().bottom<=header.offsetHeight;if(s!==on){on=s;header.classList.toggle("scrolled",s);}}upd();addEventListener("scroll",upd,{passive:true});addEventListener("resize",upd);})();</script>
 </body>
 </html>
