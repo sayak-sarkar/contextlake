@@ -49,8 +49,9 @@ a{color:var(--link)} a:hover{color:var(--link-hover)}
 
 /* header — the sticky SITE nav only, never the per-page .doc-hero (also a <header>),
    which would otherwise stick to top:0 and overlap the nav on scroll */
-header:not(.doc-hero){position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);
-  backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line)}
+header:not(.doc-hero){position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 74%,transparent);
+  backdrop-filter:saturate(140%) blur(9px);-webkit-backdrop-filter:saturate(140%) blur(9px);
+  border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
 .doc-hero{position:static}
 .nav{display:flex;align-items:center;gap:16px;height:58px;max-width:1180px;margin:0 auto;padding:0 24px}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--ff-d);font-weight:600;font-size:17px;color:var(--ink);text-decoration:none}
@@ -140,9 +141,18 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist)}
 .crumbs span[aria-current]{color:var(--ink)}
 
 /* page hero */
-.doc-hero{display:flex;align-items:flex-end;justify-content:flex-start;gap:18px;
+.doc-hero{position:relative;display:flex;align-items:flex-end;justify-content:flex-start;gap:18px;
   margin:0 0 26px;padding:0 0 22px;border-bottom:1px solid var(--line)}
-.doc-hero-text{min-width:0}
+/* a faint pebble-glow behind the mascot ties the page head to the brand's clarity-from-fog
+   world without touching readability (the glow sits on the mascot side, behind the text). */
+.doc-hero::before{content:"";position:absolute;right:0;top:-16%;width:min(300px,42%);height:150%;z-index:0;
+  pointer-events:none;background:radial-gradient(58% 56% at 74% 42%,rgba(43,179,163,.11),transparent 70%)}
+.doc-hero-text,.doc-pebble{position:relative;z-index:1}
+/* clarity emerging: a single gentle fade-up on load (reduced-motion disables it) */
+@keyframes docRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.doc-hero,.prose{animation:docRise .6s both cubic-bezier(.2,.7,.2,1)}
+.prose{animation-delay:.08s}
+@media (prefers-reduced-motion: reduce){ .doc-hero,.prose{animation:none} }
 .doc-eyebrow{font-family:var(--ff-m);font-size:11px;font-weight:600;letter-spacing:.09em;
   text-transform:uppercase;color:var(--lake);margin-bottom:10px}
 .doc-hero h1{font-family:var(--ff-d);font-size:clamp(30px,4.2vw,40px);font-weight:700;
