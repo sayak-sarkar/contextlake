@@ -2943,6 +2943,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.47.0] - 2026-07-25
+
 ### BREAKING
 
 - **`repo_id` is now canonical (derived from the repo's git remote), not the path
