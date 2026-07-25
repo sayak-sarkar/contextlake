@@ -2989,6 +2989,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The dashboard's "Generate wiki" action copied a command that silently
+  no-ops.** docs/dashboard.md documents `contextlake wiki <repo-id> --llm
+  builtin`; the actual generated/copied command
+  (`kb/dashboard/static/dashboard.js`, shared by both `--serve` and `--site`)
+  was `contextlake wiki <repo-id>` with no `--llm` flag at all, and without
+  `--llm` (or `[llm]` enabled in `kb.toml`), the wiki stage does nothing.
+  Not just a docs mismatch: the copied command didn't work. Now appends
+  `--llm builtin`, matching the docs.
+
+- **`ask`'s `explain`/`owners` routes didn't resolve a repo by its short name,
+  contradicting the docs' own headline example.** `ask("explain the
+  catalog-api")` (verbatim from docs/serve.md) silently fell through to
+  `search` instead of returning wiki prose or a repo brief: repo ids are
+  always host-qualified (`gitlab.example.com/acme/catalog-api`), but the
+  router only extracts the trailing "catalog-api" out of the question, which
+  never matched the full stored id via `get_wiki`/`get_repo_brief`/
+  `who_knows`'s exact lookup. A person naturally refers to a repo by its
+  short name, so this needed to be resolved, not documented around. Added
+  `_resolve_repo`, mirroring the existing symbol-resolving `_resolve_id`:
+  falls back to matching the repo's last path segment when an exact id
+  lookup misses (`kb/server.py`).
+
+- **`contextlake audit --repos PATTERN` accepted the flag but silently ignored
+  it, scanning every repo regardless.** docs/usage.md promises `--repos`
+  works for "every mirror command" (audit included, per
+  docs/cli-reference.md's own mirror-tier list), but `scan_repo_metrics`
+  called `get_local_repos` directly and never consulted `repo_filter`, unlike
+  fetch/clone/update/branches/verify/status, which already route through the
+  same `match_repo_filter` check. Now filters the same way (`metrics.py`).
+  `repo_filter_patterns` (`core.py`) is promoted from `_repo_filter_patterns`
+  to a public name, reflecting that it was already a cross-module helper
+  (`kb/commands.py` also calls it).
+
+- **Wiki review parsing: a JSON `"score": true`/`false` was silently accepted
+  as a perfect/zero score.** `bool` is an `int` subclass in Python, so
+  `float(True) == 1.0` raises nothing, the primary score-parsing path
+  lacked the same `not isinstance(val, bool)` guard its own sibling fallback
+  ladder (`_extract_score`) already applies. Now abstains (as any other
+  wrong-shaped score does) instead of fabricating a score from a bool
+  (`kb/wiki/council.py`).
+- **The most-active-branch scan could silently drop a real branch whose name
+  merely contained the substring "HEAD"** (e.g. `release/HEAD-fix`), not just
+  the `origin/HEAD` symbolic ref it was meant to filter, a substring check
+  (`"HEAD" in line`) over the whole `git for-each-ref` line, rather than an
+  exact match on the ref name. `select_most_active_branch`/`branches` could
+  then pick a less-active branch, or (if the affected branch was the only
+  one) report "No branches found" (`core.py`).
+- **`contextlake branches`' own fetch could report a deleted/access-revoked
+  upstream project as a generic error, inconsistent with `update`.** A prior
+  fix classified this condition as a clean skip in `update_repository`'s
+  fetch path only; `switch_repository_branch`'s `git fetch --all` (the
+  `branches` command's own fetch, hitting the same origin) still reported it
+  as an undifferentiated `("error", ...)`. Now applies the same
+  `classify_error(...) == "project-deleted"` check (`core.py`).
+
 ## [2.48.1] - 2026-07-26
 
 ### Fixed

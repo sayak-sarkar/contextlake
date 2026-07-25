@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The dashboard's "Generate wiki" action copied a command that silently
+  no-ops.** docs/dashboard.md documents `contextlake wiki <repo-id> --llm
+  builtin`; the actual generated/copied command
+  (`kb/dashboard/static/dashboard.js`, shared by both `--serve` and `--site`)
+  was `contextlake wiki <repo-id>` with no `--llm` flag at all — and without
+  `--llm` (or `[llm]` enabled in `kb.toml`), the wiki stage does nothing.
+  Not just a docs mismatch: the copied command didn't work. Now appends
+  `--llm builtin`, matching the docs.
+
 - **`ask`'s `explain`/`owners` routes didn't resolve a repo by its short name,
   contradicting the docs' own headline example.** `ask("explain the
   catalog-api")` (verbatim from docs/serve.md) silently fell through to

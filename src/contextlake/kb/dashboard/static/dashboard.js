@@ -519,8 +519,8 @@
         pane.appendChild(stateBlock({
           kind: "empty", title: "No wiki generated for this repo yet",
           msg: "Generate a curated wiki from this repo's code and history, then refresh.",
-          cmd: "contextlake wiki " + id,
-          action: genAction("Generate wiki", "contextlake wiki " + id)
+          cmd: "contextlake wiki " + id + " --llm builtin",
+          action: genAction("Generate wiki", "contextlake wiki " + id + " --llm builtin")
         }));
         return;
       }
