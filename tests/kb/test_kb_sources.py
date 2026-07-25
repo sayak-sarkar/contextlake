@@ -1,6 +1,7 @@
 """Source/plugin seam: built-in FilesSource, entry-point discovery, and `ingest`."""
 
 import importlib.metadata as importlib_metadata
+import json
 
 import pytest
 
@@ -126,6 +127,78 @@ def test_api_source_uses_token_env_for_auth(monkeypatch):
     docs = list(api.ApiSource(url="https://api/x", token_env="MY_TOKEN").iter_documents())
     assert docs and docs[0].id == "a"
     assert captured["auth"] == "Bearer sekret"   # pulled from the env var, not config
+
+
+def test_graphql_source_maps_records_and_skips_textless(monkeypatch):
+    from contextlake.kb.sources.graphql import GraphQLSource
+
+    payload = {"data": {"repository": {"issues": {"nodes": [
+        {"id": "1", "title": "One", "body": "first"},
+        {"id": "2", "title": "Two", "body": ""},        # no text -> skipped
+        {"id": "3", "title": "Three", "body": "third"},
+    ]}}}}
+    monkeypatch.setattr(GraphQLSource, "_fetch", lambda self: payload)
+    docs = list(GraphQLSource(url="https://api/graphql", query="{ x }",
+                              items="repository.issues.nodes",
+                              text_field="body").iter_documents())
+    assert [d.id for d in docs] == ["1", "3"]
+    assert docs[0].title == "One" and docs[0].text == "first"
+    assert docs[0].uri == "https://api/graphql"
+
+
+def test_graphql_source_skips_on_reported_errors(monkeypatch):
+    from contextlake.kb.sources.graphql import GraphQLSource
+
+    payload = {"data": {"x": [{"id": "1", "text": "partial"}]},
+               "errors": [{"message": "field x.y not found"}]}
+    monkeypatch.setattr(GraphQLSource, "_fetch", lambda self: payload)
+    docs = list(GraphQLSource(url="https://api/graphql", query="{ x }",
+                              items="x").iter_documents())
+    assert docs == []  # never trust partial data alongside a reported error
+
+
+def test_graphql_source_noop_without_url_or_query():
+    from contextlake.kb.sources.graphql import GraphQLSource
+    assert list(GraphQLSource(url="https://api/graphql").iter_documents()) == []
+    assert list(GraphQLSource(query="{ x }").iter_documents()) == []
+
+
+def test_graphql_source_uses_token_env_and_posts_query(monkeypatch):
+    import contextlake.kb.sources.graphql as graphql
+
+    captured = {}
+
+    class _Resp:
+        headers = type("H", (), {"get_content_charset": lambda self: "utf-8"})()
+
+        def read(self):
+            return b'{"data": {"id": "a", "text": "hi"}}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=None):
+        captured["auth"] = req.headers.get("Authorization")
+        captured["method"] = req.get_method()
+        captured["body"] = json.loads(req.data.decode("utf-8"))
+        return _Resp()
+
+    monkeypatch.setenv("MY_TOKEN", "sekret")
+    monkeypatch.setattr(graphql.urllib.request, "urlopen", fake_urlopen)
+    docs = list(graphql.GraphQLSource(
+        url="https://api/graphql", query="{ x }", variables={"n": 1},
+        token_env="MY_TOKEN").iter_documents())
+    assert docs and docs[0].id == "a"
+    assert captured["auth"] == "Bearer sekret"
+    assert captured["method"] == "POST"
+    assert captured["body"] == {"query": "{ x }", "variables": {"n": 1}}
+
+
+def test_registry_has_graphql():
+    assert "graphql" in discover_sources()
 
 
 def test_registry_has_mcp():

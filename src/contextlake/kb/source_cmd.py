@@ -71,7 +71,8 @@ def _prompt_missing(src: dict) -> dict:
     from ..init_cmd import _ask  # lazy: keeps this module import-cheap
 
     if not src.get("type"):
-        src["type"] = _ask("Source type (atlassian/figma/gitlab/files/web/api/mcp)", "files")
+        src["type"] = _ask(
+            "Source type (atlassian/figma/gitlab/files/web/api/graphql/mcp)", "files")
     if not src.get("name"):
         src["name"] = _ask("Source name", src["type"])
     return src
