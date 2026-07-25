@@ -22,6 +22,7 @@ from pathlib import Path
 import tree_sitter as ts
 
 from ..logging_setup import log
+from .flow.data import extract_data_refs
 from .flow.events import extract_event_flow
 from .flow.http import extract_http_flow
 from .flow.state import extract_state_flow
@@ -634,6 +635,8 @@ def index_repo_dir(
     all_inherits: list[tuple[str, str, str, int]] = []
     all_hcl_refs: list[tuple[str, str, str, int]] = []
     all_sql_refs: list[tuple[str, str, str, int]] = []
+    all_data_reads: list[tuple[str, str, str, int]] = []
+    all_data_writes: list[tuple[str, str, str, int]] = []
     n_files = n_generated = n_oversize = n_ignored = 0
 
     for dirpath, dirnames, filenames in os.walk(root):
@@ -689,12 +692,16 @@ def index_repo_dir(
                     all_calls.extend(calls)
                     all_inherits.extend(inh)
                     # cross-repo flow surfaces: HTTP endpoints + message topics;
-                    # repo-local frontend routes (web-topology) and entity
-                    # state machines (state-diagram source data)
+                    # repo-local frontend routes (web-topology), entity state
+                    # machines (state-diagram source data), and intra-repo
+                    # dataflow (which tables/views this file reads/writes)
                     hn, he = extract_http_flow(repo_id, rel, source, LANG_BY_EXT[ext])
                     en, ee = extract_event_flow(repo_id, rel, source, LANG_BY_EXT[ext])
                     wn, we = extract_web_flow(repo_id, rel, source, LANG_BY_EXT[ext])
                     sn, se = extract_state_flow(repo_id, rel, source, LANG_BY_EXT[ext])
+                    dr, dw = extract_data_refs(repo_id, rel, source)
+                    all_data_reads.extend(dr)
+                    all_data_writes.extend(dw)
                     nodes += hn + en + wn + sn
                     edges += he + ee + we + se
                 else:
@@ -716,6 +723,10 @@ def index_repo_dir(
         all_hcl_refs, by_id, relation="depends_on", target_kinds=_HCL_KINDS))
     shard.edges.extend(_resolve_name_refs(
         all_sql_refs, by_id, relation="references", target_kinds=_SQL_KINDS))
+    shard.edges.extend(_resolve_name_refs(
+        all_data_reads, by_id, relation="reads", target_kinds=_SQL_KINDS))
+    shard.edges.extend(_resolve_name_refs(
+        all_data_writes, by_id, relation="writes", target_kinds=_SQL_KINDS))
     log(f"  parsed {n_files} file(s); skipped {n_generated} generated, "
         f"{n_oversize} oversized, {n_ignored} ignored", level=logging.DEBUG)
     return shard

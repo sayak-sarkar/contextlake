@@ -132,3 +132,26 @@ def test_cmd_impact_ambiguous_name_lists_repos(tmp_path, capsys):
 def test_default_relations_includes_references():
     from contextlake.kb.impact import DEFAULT_RELATIONS
     assert "references" in DEFAULT_RELATIONS
+
+
+def test_default_relations_includes_dataflow_reads_and_writes():
+    """A table's blast radius must include the code that reads/writes it by
+    default -- the whole point of tracking dataflow is answering "what breaks
+    if I change this table" without the caller needing to know to pass
+    --relation reads,writes."""
+    from contextlake.kb.impact import DEFAULT_RELATIONS
+    assert "reads" in DEFAULT_RELATIONS and "writes" in DEFAULT_RELATIONS
+
+
+def test_blast_radius_finds_code_that_reads_a_table(tmp_path):
+    s = SqliteStore(tmp_path / "index.sqlite")
+    try:
+        s.upsert_nodes("r", [Node(id="orders", repo="r", kind="table", name="orders"),
+                             Node(id="dao.py", repo="r", kind="file", name="dao.py")])
+        s.upsert_edges("r", [Edge(src="dao.py", dst="orders", relation="reads",
+                                  confidence=Confidence.INFERRED, provenance=_PROV)])
+        hits, _ = blast_radius(s, "orders", hops=2)
+        assert {h.name for h in hits} == {"dao.py"}
+        assert hits[0].via == "reads"
+    finally:
+        s.close()

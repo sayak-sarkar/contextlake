@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same field), so a diagram never claims a transition the code doesn't actually establish — an
   honest undercount, never a guess. Regex-based, Python/JS·TS/C# (`kb/flow/state.py`), every edge
   `INFERRED`, same stance as the existing HTTP/event flow extractors.
+- **Intra-repo dataflow: `reads`/`writes` edges from code to the tables/views it queries.** A literal
+  `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in any file becomes a `reads`
+  or `writes` edge to the matching `table`/`view` node the SQL DDL extractor already found —
+  resolved by name repo-wide, the same mechanism an FK `references` edge uses, so a query against a
+  table this repo never defines is an honest miss, not a guessed link (`kb/flow/data.py`).
+  `reads`/`writes` are now in `impact`'s default relation set, so `contextlake impact <table>`
+  answers "what code touches this table" without needing `--relation reads,writes` spelled out.
 
 ### Fixed
 
