@@ -396,6 +396,24 @@ def test_ambiguous_calls_emit_ambiguous_edges(tmp_path):
     assert len({e.dst for e in calls}) == 2  # both A.h and B.h are candidate targets
 
 
+def test_resolve_name_refs_dedup_keeps_lowest_line():
+    """A repeated call site (same caller, same callee) must keep the LOWEST source
+    line among duplicates, deterministically -- not whichever occurrence tree-sitter's
+    capture order happens to list first (unordered w.r.t. source position, verified
+    empirically to not always match line order). A sequence-diagram renderer sorting
+    calls edges by line depends on this."""
+    from contextlake.kb.model import Node
+    from contextlake.kb.parse import _resolve_name_refs
+
+    nodes_by_id = {"caller": Node(id="caller", repo="r", kind="function", name="caller"),
+                   "helper": Node(id="helper", repo="r", kind="function", name="helper")}
+    # deliberately out of line order, as an unordered capture list could be
+    refs = [("caller", "helper", "a.py", 10), ("caller", "helper", "a.py", 3)]
+    edges = _resolve_name_refs(refs, nodes_by_id, relation="calls", target_kinds={"function"})
+    assert len(edges) == 1
+    assert edges[0].provenance.source_line == 3
+
+
 def test_over_ambiguous_calls_are_skipped(tmp_path):
     # a name matching more than the fan-out cap is too generic to be signal
     from contextlake.kb.parse import _MAX_AMBIG_FANOUT

@@ -778,7 +778,11 @@ def _resolve_name_refs(
     (which silently loses the hottest symbols and undercounts blast radius), emit an
     AMBIGUOUS edge to each candidate. Names matching more than the cap are too generic
     to be signal and are skipped; self-references and duplicate (src, dst) pairs are
-    de-duplicated.
+    de-duplicated, keeping the lowest source line among duplicates (a repeated call
+    site, e.g. ``helper()`` invoked twice from the same caller, must not surface an
+    arbitrary later line just because tree-sitter's capture order isn't guaranteed to
+    match source order -- callers that order edges by line, like a sequence diagram,
+    depend on this being deterministic).
     """
     name_index: dict[str, set[str]] = {}
     for node in nodes_by_id.values():
@@ -788,7 +792,7 @@ def _resolve_name_refs(
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()
     resolved = ambiguous = dropped = 0
-    for src_id, name, rel, line in refs:
+    for src_id, name, rel, line in sorted(refs, key=lambda r: r[3]):
         matches = name_index.get(name)
         if not matches:
             continue
