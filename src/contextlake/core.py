@@ -877,11 +877,15 @@ def _collect_branch_info(full_path, branch_timeout):
         raise RuntimeError((result.stderr or "git for-each-ref failed").strip())
     branch_info = []
     for line in result.stdout.strip().split("\n"):
-        if not line or "HEAD" in line:
+        if not line:
             continue
         parts = line.split("|")
         if len(parts) != 3:
             continue
+        if parts[0] == "origin/HEAD":
+            continue  # the symbolic ref, not a real branch -- an *exact* match,
+            # not a substring one: a real branch merely named e.g. "release/HEAD-fix"
+            # must not be silently dropped from consideration.
         branch = parts[0].replace("origin/", "")
         count_res = subprocess.run(
             ["git", "rev-list", "--count", f"origin/{branch}"],
@@ -919,6 +923,14 @@ def switch_repository_branch(local_path, projects, work_dir, config):
                 ["git", "fetch", "--all", "--quiet"], full_path, fetch_timeout, config
             )
         except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
+            # Same classification update_repository already applies to its own
+            # fetch failure: a deleted/access-revoked upstream project is a
+            # clean skip here too, not a generic error inflating the run's
+            # error count -- this command also fetches from the same origin.
+            if classify_error(str(e)) == "project-deleted":
+                return ("skip", local_path,
+                        "Upstream project not found (deleted or access revoked) "
+                        "-- run verify to confirm")
             return ("error", local_path, _first_line(str(e)))
 
         try:

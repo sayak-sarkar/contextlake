@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The most-active-branch scan could silently drop a real branch whose name
+  merely contained the substring "HEAD"** (e.g. `release/HEAD-fix`), not just
+  the `origin/HEAD` symbolic ref it was meant to filter — a substring check
+  (`"HEAD" in line`) over the whole `git for-each-ref` line, rather than an
+  exact match on the ref name. `select_most_active_branch`/`branches` could
+  then pick a less-active branch, or (if the affected branch was the only
+  one) report "No branches found" (`core.py`).
+- **`contextlake branches`' own fetch could report a deleted/access-revoked
+  upstream project as a generic error, inconsistent with `update`.** A prior
+  fix classified this condition as a clean skip in `update_repository`'s
+  fetch path only; `switch_repository_branch`'s `git fetch --all` (the
+  `branches` command's own fetch, hitting the same origin) still reported it
+  as an undifferentiated `("error", ...)`. Now applies the same
+  `classify_error(...) == "project-deleted"` check (`core.py`).
+
 ## [2.48.1] - 2026-07-26
 
 ### Fixed

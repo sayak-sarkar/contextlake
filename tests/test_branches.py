@@ -35,6 +35,29 @@ def test_empty_branch_info_returns_none():
     assert select_most_active_branch([], "hybrid") is None
 
 
+def test_collect_branch_info_drops_only_the_symbolic_head_ref(monkeypatch):
+    """The `origin/HEAD` symbolic ref must be excluded by an EXACT match, not a
+    substring one -- a real branch merely named e.g. `release/HEAD-fix` must
+    not be silently dropped from consideration."""
+    foreach_out = "\n".join([
+        "origin/HEAD|2026-06-10 12:00:00 +0000|abc0",
+        "origin/main|2026-06-09 12:00:00 +0000|abc1",
+        "origin/release/HEAD-fix|2026-06-08 12:00:00 +0000|abc2",
+    ])
+
+    def fake_run(cmd, **kwargs):
+        if "for-each-ref" in cmd:
+            return FakeCompleted(stdout=foreach_out)
+        if "rev-list" in cmd:
+            return FakeCompleted(stdout="10")
+        return FakeCompleted()
+
+    monkeypatch.setattr(core.subprocess, "run", fake_run)
+    info = core._collect_branch_info("/repo", branch_timeout=5)
+    names = {b["name"] for b in info}
+    assert names == {"main", "release/HEAD-fix"}
+
+
 def _switch_handler(current="dev", branches=("origin/main", "origin/dev")):
     foreach = "\n".join(f"{b}|2026-06-10 12:00:00 +0000|abc{i}" for i, b in enumerate(branches))
 
@@ -48,6 +71,33 @@ def _switch_handler(current="dev", branches=("origin/main", "origin/dev")):
         return FakeCompleted()
 
     return handler
+
+
+def test_switch_repository_branch_deleted_project_is_a_clean_skip(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """A deleted/access-revoked upstream project must not inflate the run's
+    error count here either -- update_repository already treats this as a
+    clean skip; switch_repository_branch's own `git fetch --all` hits the
+    exact same origin and must be consistent, not report a generic error."""
+    monkeypatch.setattr(core, "check_repository_safety", lambda *a, **k: (True, []))
+
+    def handler(cmd, **kwargs):
+        if "fetch" in cmd:
+            return FakeCompleted(
+                returncode=1,
+                stderr="fatal: repository 'https://gitlab.example.com/g/p.git/' not found: "
+                       "The project you were looking for could not be found or "
+                       "you don't have permission to view it.",
+            )
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    cfg = base_config.copy()
+    cfg["max_retries"] = "1"
+    result = switch_repository_branch("a", PROJECTS, str(tmp_path), cfg)
+    assert result[0] == "skip"
+    assert "deleted or access revoked" in result[2]
 
 
 def test_protected_working_branch_is_skipped(tmp_path, base_config, fake_subprocess, monkeypatch):
