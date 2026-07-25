@@ -18,7 +18,7 @@ import re
 from datetime import date
 
 from ..ids import make_id
-from ..model import Confidence, Edge, Node, Provenance
+from ..model import SHARED_REPO, Confidence, Edge, Node, Provenance
 from .web import nextjs_url
 
 # language (from LANG_BY_EXT) -> framework family
@@ -100,7 +100,7 @@ def extract_http_flow(repo_id: str, rel_path: str, source, lang: str,
                     continue
                 seen.add((relation, ep_id))
                 method = (m.group(mspec) if isinstance(mspec, int) else mspec) or "*"
-                nodes.append(Node(id=ep_id, repo=repo_id, kind="endpoint",
+                nodes.append(Node(id=ep_id, repo=SHARED_REPO, kind="endpoint",
                                   name=norm, qualified_name=norm))
                 edges.append(Edge(
                     src=file_id, dst=ep_id, relation=relation,
@@ -120,7 +120,7 @@ def extract_http_flow(repo_id: str, rel_path: str, source, lang: str,
             hits = [(m.group(1), m.start()) for m in _NEXT_METHOD.finditer(text)]
             fresh = [(mm, pos) for mm, pos in hits if (ep_id, mm) not in seen]
             if fresh:
-                nodes.append(Node(id=ep_id, repo=repo_id, kind="endpoint",
+                nodes.append(Node(id=ep_id, repo=SHARED_REPO, kind="endpoint",
                                   name=api, qualified_name=api))
                 for mm, pos in fresh:
                     seen.add((ep_id, mm))

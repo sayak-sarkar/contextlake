@@ -18,7 +18,7 @@ import re
 from datetime import date
 
 from ..ids import make_id
-from ..model import Confidence, Edge, Node, Provenance
+from ..model import SHARED_REPO, Confidence, Edge, Node, Provenance
 
 # Producer side: a function/file publishes to a named topic. Each regex captures
 # the topic literal in group 1. Patterns require a messaging context (a kafka
@@ -74,7 +74,7 @@ def extract_event_flow(repo_id: str, rel_path: str, source, lang: str,
                 if (relation, tid) in seen:
                     continue
                 seen.add((relation, tid))
-                nodes.append(Node(id=tid, repo=repo_id, kind="topic",
+                nodes.append(Node(id=tid, repo=SHARED_REPO, kind="topic",
                                   name=topic, qualified_name=topic))
                 edges.append(Edge(
                     src=file_id, dst=tid, relation=relation,

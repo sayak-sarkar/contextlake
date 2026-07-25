@@ -48,6 +48,9 @@ def fetch():
     assert ("exposes", "GET") in _rels(edges)
     assert ("calls_http", "POST") in _rels(edges)
     assert all(e.confidence == Confidence.INFERRED for e in edges)
+    # endpoint nodes aren't owned by whichever repo happened to expose/call them
+    # last (Finding #10) -- the same "/orders/{}" node is shared across repos
+    assert {n.repo for n in nodes if n.kind == "endpoint"} == {"(shared)"}
 
 
 def test_extract_csharp_aspnet_and_httpclient():

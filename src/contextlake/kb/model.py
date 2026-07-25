@@ -17,6 +17,22 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+SHARED_REPO = "(shared)"
+"""Pseudo-repo for node kinds no single repo owns (``module``/``endpoint``/``topic`` —
+an imported package, an HTTP route, an event topic can be produced/consumed by many
+repos at once). One of a small family of such sentinels, each naming *why* a node has
+no single owner: ``"(packages)"`` for manifest-declared package identities
+(``kb/manifest.py``), ``"(external)"`` for connector-fetched nodes with no repo at all
+(Figma designs, Atlassian issues). The store dedupes these nodes to one row per store
+(their id doesn't encode a repo), so a single ``repo_id`` column can't hold "owned by
+many" — per-repo attribution for a shared node lives on its *edges* instead (each
+``imports``/``exposes``/``calls_http``/``publishes_event``/``consumes_event`` edge is
+attributed to the file that produced it, which always has exactly one real owning
+repo — see ``arch/resolve.py``, which already reads attribution this way, never from
+the shared node's own ``repo``). Using a stable sentinel instead of the last repo
+indexed also means ``clear_repo`` on any one repo can never delete a node other repos
+still reference."""
+
 
 class Confidence(str, Enum):
     """How much to trust an edge."""

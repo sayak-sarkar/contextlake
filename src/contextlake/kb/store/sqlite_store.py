@@ -120,6 +120,17 @@ class SqliteStore(Store):
 
     # -- nodes ----------------------------------------------------------------
     def upsert_nodes(self, repo_id: str, nodes: Iterable[Node]) -> None:
+        """Insert/update ``nodes`` from the ``repo_id`` shard's indexing pass.
+
+        ``repo_id`` names which shard produced this batch; the ``repo_id``
+        *column* is taken from each node's own ``.repo`` instead, not this
+        parameter. They agree for ordinary per-repo nodes (every extractor sets
+        ``repo=repo_id``), but a shared node (``module``/``endpoint``/``topic``/
+        ``package``/connector nodes) carries a stable sentinel repo of its own
+        (Finding #10) -- stamping it with whichever shard happened to produce
+        this batch would make it flip repos on every reindex and let
+        ``clear_repo`` on one repo delete a node another repo still uses.
+        """
         nodes = list(nodes)
         if not nodes:
             return
@@ -144,7 +155,7 @@ class SqliteStore(Store):
             "kind=excluded.kind, name=excluded.name, qualified_name=excluded.qualified_name, "
             "file=excluded.file, line_start=excluded.line_start, line_end=excluded.line_end, "
             "lang=excluded.lang, attrs=excluded.attrs",
-            [(n.id, repo_id, n.kind, n.name, n.qualified_name, n.file,
+            [(n.id, n.repo, n.kind, n.name, n.qualified_name, n.file,
               n.line_start, n.line_end, n.lang, json.dumps(n.attrs)) for n in nodes],
         )
         cur.executemany(

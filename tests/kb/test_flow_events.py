@@ -46,6 +46,9 @@ consumer.subscribe(["baggage.events"]);
     assert ("consumes_event", make_id("topic", "order.created")) in _rels(edges)
     assert ("consumes_event", make_id("topic", "baggage.events")) in _rels(edges)
     assert all(e.confidence == Confidence.INFERRED for e in edges)
+    # topic nodes aren't owned by whichever repo happened to publish/consume them
+    # last (Finding #10) -- the same "order.created" node is shared across repos
+    assert {n.repo for n in nodes if n.kind == "topic"} == {"(shared)"}
 
 
 def test_extract_eventbridge_detailtype():

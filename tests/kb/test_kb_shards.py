@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from contextlake.kb.model import Confidence, Edge, Node, Provenance
+from contextlake.kb.model import SHARED_REPO, Confidence, Edge, Node, Provenance
 from contextlake.kb.store.shards import (
     GraphShard,
     read_shard,
@@ -53,6 +53,45 @@ def test_reindex_matches_direct_upsert(tmp_path):
     # re-running is idempotent (clear + reload), not duplicating
     reindex_shard(store, tmp_path, "team/api")
     assert store.stats().edges == 1
+    store.close()
+
+
+def test_reindex_of_two_repos_shares_a_module_node_via_the_sentinel(tmp_path):
+    """The actual production path (Finding #10): two repos each shard their own
+    "import requests" as a module node with the exact same id and repo=SHARED_REPO;
+    reindex_shard runs upsert_nodes(repo_id, shard.nodes) per repo, exactly like
+    a real `contextlake index` run would. The shared node must read back with the
+    sentinel (not either repo's id) and survive either repo's reindex/clear_repo."""
+    prov = Provenance(source_file="x.py", source_line=1, verified_at=date(2026, 6, 21))
+    shared = Node(id="module_requests", repo=SHARED_REPO, kind="module", name="requests")
+
+    api = GraphShard(
+        repo="team/api", head_commit="a1",
+        nodes=[Node(id="api_file", repo="team/api", kind="file", name="svc.py"), shared],
+        edges=[Edge(src="api_file", dst="module_requests", relation="imports",
+                    confidence=Confidence.EXTRACTED, provenance=prov)],
+    )
+    web = GraphShard(
+        repo="team/web", head_commit="w1",
+        nodes=[Node(id="web_file", repo="team/web", kind="file", name="client.py"), shared],
+        edges=[Edge(src="web_file", dst="module_requests", relation="imports",
+                    confidence=Confidence.EXTRACTED, provenance=prov)],
+    )
+    write_shard(tmp_path, api)
+    write_shard(tmp_path, web)
+
+    store = SqliteStore(tmp_path / "kb.sqlite")
+    reindex_shard(store, tmp_path, "team/api")
+    reindex_shard(store, tmp_path, "team/web")
+    assert store.get_node("module_requests").repo == SHARED_REPO
+
+    # reindexing (or clearing) team/api alone must not delete the node team/web
+    # still has a live "imports" edge to.
+    reindex_shard(store, tmp_path, "team/api")
+    assert store.get_node("module_requests") is not None
+    assert store.get_node("web_file") is not None
+    assert {e.src for e in store.neighbors("module_requests", direction="in")} \
+        == {"api_file", "web_file"}
     store.close()
 
 

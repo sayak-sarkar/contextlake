@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.model import SHARED_REPO, Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.store.sqlite_store import SqliteStore
 
 
@@ -127,6 +127,57 @@ def test_clear_repo(store):
     assert store.get_node("a") is None
     assert store.stats().nodes == 0 and store.stats().edges == 0
     assert store.search("a") == []  # fts cleared too
+
+
+def test_shared_node_keeps_sentinel_repo_regardless_of_index_order(store):
+    """A module/endpoint/topic node's id doesn't encode a repo (Finding #10): two
+    repos that both import "requests" produce the exact same node id. Before the
+    SHARED_REPO fix, whichever repo upserted it last silently "won" the repo_id
+    column. It must now stay pinned to the sentinel no matter which repo goes
+    second."""
+    shared = _node("module_requests", repo=SHARED_REPO, kind="module", name="requests")
+    store.upsert_nodes("team/api", [shared])
+    assert store.get_node("module_requests").repo == SHARED_REPO
+    store.upsert_nodes("team/web", [shared])
+    assert store.get_node("module_requests").repo == SHARED_REPO
+
+
+def test_clear_repo_does_not_delete_a_shared_node_another_repo_still_uses(store):
+    """The bug Finding #10's fix also closes: clear_repo on the repo that happened
+    to last-write a shared node used to delete it out from under every other repo
+    still holding an edge to it (a self-inflicted dangling edge). A sentinel repo_id
+    that never equals a real repo_id means clear_repo's `WHERE repo_id=?` can never
+    match the shared node at all."""
+    shared = _node("module_requests", repo=SHARED_REPO, kind="module", name="requests")
+    store.upsert_nodes("team/api", [_node("api_file", kind="file"), shared])
+    store.upsert_edges("team/api", [_edge("api_file", "module_requests", relation="imports")])
+    store.upsert_nodes("team/web", [_node("web_file", kind="file"), shared])
+    store.upsert_edges("team/web", [_edge("web_file", "module_requests", relation="imports")])
+
+    store.clear_repo("team/api")
+
+    assert store.get_node("module_requests") is not None  # still there for team/web
+    assert store.get_node("api_file") is None              # team/api's own node is gone
+    remaining = store.neighbors("module_requests", direction="in")
+    assert {e.src for e in remaining} == {"web_file"}       # team/api's edge is gone too
+
+
+def test_clear_repo_does_not_delete_a_package_node_another_repo_depends_on(store):
+    """Same bug, the ("(packages)") sentinel that predates this fix: upsert_nodes
+    used to stamp EVERY node in a shard's batch with that shard's own repo_id,
+    ignoring each Node's own .repo entirely -- so a "(packages)" package node
+    was just as vulnerable to clear_repo deleting it out from under another
+    repo's depends_on edge as the new module/endpoint/topic sentinel is."""
+    pkg = _node("pkg_requests", repo="(packages)", kind="package", name="requests")
+    store.upsert_nodes("team/api", [pkg])
+    store.upsert_edges("team/api", [_edge("team_api_mod", "pkg_requests", relation="depends_on")])
+    store.upsert_nodes("team/web", [pkg])
+    store.upsert_edges("team/web", [_edge("team_web_mod", "pkg_requests", relation="depends_on")])
+
+    store.clear_repo("team/api")
+
+    assert store.get_node("pkg_requests") is not None
+    assert store.get_node("pkg_requests").repo == "(packages)"
 
 
 def test_reopen_existing_db(tmp_path):

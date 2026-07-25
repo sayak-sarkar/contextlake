@@ -30,7 +30,7 @@ from .flow.web import extract_web_flow
 from .hcl import parse_hcl
 from .ids import make_id
 from .manifest import is_manifest, parse_manifest
-from .model import Confidence, Edge, Node, Provenance
+from .model import SHARED_REPO, Confidence, Edge, Node, Provenance
 from .sql import parse_sql
 from .store.shards import GraphShard
 
@@ -569,7 +569,7 @@ def parse_source(
     for imp in captures.get("import", []):
         module = imp.text.decode("utf-8", "replace").strip().strip("'\"")
         mid = make_id("module", module)
-        nodes.append(Node(id=mid, repo=repo_id, kind="module", name=module, lang=lang))
+        nodes.append(Node(id=mid, repo=SHARED_REPO, kind="module", name=module, lang=lang))
         edges.append(Edge(
             src=file_id, dst=mid, relation="imports", confidence=Confidence.EXTRACTED,
             provenance=Provenance(source_file=rel_path, source_line=imp.start_point[0] + 1,

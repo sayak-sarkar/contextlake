@@ -40,6 +40,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in static mode. `impact()` now returns the seed's own `repo` (`kb/dashboard/data.py`), fixing the
   toggle in live mode and, incidentally, a symbol-view provenance chip that was citing the wrong
   "repo" (actually the raw node id, via a `.split(":")` on an id that never had a colon in it).
+- **Finding #10: shared nodes (`module`/`endpoint`/`topic`, and — found while fixing this —
+  `package` and connector nodes) had their `repo_id` silently overwritten by whichever repo's index
+  run touched them last, and could be deleted out from under another repo entirely.** Root cause:
+  `SqliteStore.upsert_nodes` stamped every node in a shard's batch with that shard's own `repo_id`,
+  ignoring each `Node`'s own `.repo` field — so a "requests" module imported by two repos flipped
+  owner on every reindex, and `clear_repo` on whichever repo it currently pointed at deleted the
+  node (and any other repo's still-live edges into it) as collateral damage. `upsert_nodes` now
+  writes each node's own `.repo`; extractors for `module`/`endpoint`/`topic` nodes now set it to a
+  new `"(shared)"` sentinel (`kb/model.py`), matching the existing `"(packages)"` / `"(external)"`
+  pattern for nodes no single repo owns — per-repo attribution for these already lives correctly on
+  their *edges* (`arch/resolve.py` has always read it from there, never from the shared node itself).
+  **No migration needed**: existing stores self-correct as each repo is next reindexed; until then a
+  shared node may still show a stale owning repo from before this fix.
 
 ## [2.47.0] - 2026-07-25
 

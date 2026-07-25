@@ -72,6 +72,10 @@ def test_parse_extracts_defs_and_imports():
     assert "bar" in by_kind.get("method", [])  # method (inside a class)
     assert "top" in by_kind["function"]
     assert set(by_kind["module"]) == {"os", "a.b"}
+    # module nodes aren't owned by the repo that happened to import them (Finding
+    # #10) -- the same "os" node would collide with every other repo's "os" import
+    module_repos = {n.repo for n in nodes if n.kind == "module"}
+    assert module_repos == {"(shared)"}
 
     ids = {n.name: n.id for n in nodes}
     contains = {(e.src, e.dst) for e in edges if e.relation == "contains"}

@@ -140,6 +140,12 @@ nested `children` compose into full paths and bare `{path:...}` config objects a
 > `loadChildren` sub-trees, React `loader` / `lazy`, realtime / WebSocket channels, templates, and
 > stylesheets.
 
+> **Shared nodes aren't owned by one repo.** An `endpoint`/`topic`/`module`/package node's id doesn't
+> encode a repo — two repos that both import `requests`, call the same route, or publish to the same
+> topic produce the identical node, which the store dedupes to one row. Its `repo` reads as a
+> pseudo-repo (`"(shared)"`, `"(packages)"`) rather than any one real repo, by design: which repos
+> actually touch it is a question the cross-repo edges answer, not the node itself.
+
 ### Manifests and cross-repo dependencies
 
 Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `pom.xml`) to build a
