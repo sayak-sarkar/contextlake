@@ -30,6 +30,14 @@ def test_is_safe_branch():
     assert not safety.is_safe_branch(None, cfg)
 
 
+def test_is_safe_branch_tolerates_whitespace_in_config():
+    # A natural "main, master, develop" (spaces after commas) must still match each
+    # branch -- otherwise every entry but the first is silently treated as unsafe.
+    cfg = {"safe_branches": "main, master , develop"}
+    assert safety.is_safe_branch("master", cfg)
+    assert safety.is_safe_branch("develop", cfg)
+
+
 def test_has_uncommitted_changes(fake_safety_subprocess):
     fake_safety_subprocess.handler = lambda cmd, **k: FakeCompleted(stdout=" M file.py\n")
     assert safety.has_uncommitted_changes("/repo")

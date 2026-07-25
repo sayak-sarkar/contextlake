@@ -274,9 +274,11 @@ def _fetch_projects_page_http(base_url, group_enc, token, per_page, timeout, pag
 
 def _fetch_projects_page_glab(group_enc, per_page, page):
     """One page via the ``glab`` CLI (uses glab's own auth). Raises on failure."""
+    # timeout so a stalled read (not just glab's own dial timeout) surfaces as an
+    # exception the retry_with_backoff wrapper can rescue, rather than hanging fetch.
     result = subprocess.run(
         ["glab", "api", _projects_endpoint(group_enc, per_page, page)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, timeout=60,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "glab api failed")

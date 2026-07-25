@@ -50,7 +50,8 @@ def is_safe_branch(branch, config):
     """Check if branch is considered safe for automatic operations."""
     if branch is None or branch == 'HEAD':
         return False
-    safe_branches = config.get('safe_branches', 'main,master,develop,development').split(',')
+    raw = config.get('safe_branches', 'main,master,develop,development')
+    safe_branches = [b.strip() for b in raw.split(',') if b.strip()]
     return branch in safe_branches
 
 
@@ -88,7 +89,7 @@ def stash_changes(full_path, config):
     try:
         result = subprocess.run(
             ['git', 'stash', 'push', '-m', 'contextlake_auto_stash'],
-            capture_output=True, text=True, cwd=full_path
+            capture_output=True, text=True, cwd=full_path, timeout=30,
         )
         if result.returncode == 0:
             return True, "Changes stashed successfully"
