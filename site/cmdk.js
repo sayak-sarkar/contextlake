@@ -5,6 +5,8 @@
    Combobox/listbox a11y (aria-activedescendant), focus trap + restore. ⌘K / Ctrl-K / "/" open. */
 (function () {
   var CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+  // a history glyph (clock w/ rewind hand) so a recent query reads as history, not a result row
+  var CLOCK = '<svg class="rec-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>';
   if (!document.getElementById("cmdk")) {
     var host = document.createElement("div");
     host.innerHTML =
@@ -84,7 +86,7 @@
   function empty() {
     if (!idx) { list.innerHTML = '<div class="cmdk-empty">Loading the index…</div>'; return; }
     var r = recents(), html = "", pages = idx.filter(function (e) { return e.kind === "page"; }).slice(0, 6);
-    if (r.length) html += '<div class="cmdk-sec-label">Recent</div>' + r.map(function (q) { return '<button class="cmdk-opt cmdk-recent" type="button" role="option" data-q="' + esc(q) + '" aria-selected="false"><span class="ttl">' + esc(q) + "</span></button>"; }).join("");
+    if (r.length) html += '<div class="cmdk-sec-label">Recent</div>' + r.map(function (q) { return '<button class="cmdk-opt cmdk-recent" type="button" role="option" data-q="' + esc(q) + '" aria-selected="false" aria-label="Search again for ' + esc(q) + '">' + CLOCK + '<span class="rec-q">' + esc(q) + '</span><span class="arrow" aria-hidden="true">↵</span></button>'; }).join("");
     html += '<div class="cmdk-sec-label">Jump to a page</div>' + pages.map(function (e, i) { return optHTML(e, [], i); }).join("");
     list.innerHTML = html;
     var o = opts(); for (var i = 0; i < o.length; i++) o[i].id = "cmdk-opt-" + i;
