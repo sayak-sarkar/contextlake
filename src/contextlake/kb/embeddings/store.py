@@ -128,9 +128,17 @@ class SqliteVecStore:
         self.conn.commit()
         row = self.conn.execute("SELECT value FROM vec_meta WHERE key='dim'").fetchone()
         self._dim = int(row[0]) if row else None
+        # 'dim' can be written by guard_store_identity independently of table creation, so it
+        # is NOT a reliable "vec_items exists" sentinel; probe sqlite_master for the real state.
+        # (Otherwise: guard a fresh store, embed a zero-node workspace so upsert/_ensure_table
+        # never runs, reopen -> _dim set but no table -> count/search/clear raise 'no such table'.)
+        self._has_table = self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='vec_items'"
+        ).fetchone() is not None
 
     def _ensure_table(self, dim: int) -> None:
-        if self._dim is not None:
+        self._dim = dim
+        if self._has_table:
             return
         self.conn.execute(
             "CREATE VIRTUAL TABLE IF NOT EXISTS vec_items USING vec0("
@@ -141,7 +149,7 @@ class SqliteVecStore:
             "INSERT OR REPLACE INTO vec_meta(key, value) VALUES('dim', ?)", (str(dim),)
         )
         self.conn.commit()
-        self._dim = dim
+        self._has_table = True
 
     def upsert(self, items) -> int:
         items = list(items)
@@ -159,18 +167,18 @@ class SqliteVecStore:
         return len(items)
 
     def clear_repo(self, repo_id: str) -> None:
-        if self._dim is None:
+        if not self._has_table:
             return
         self.conn.execute("DELETE FROM vec_items WHERE repo_id=?", (repo_id,))
         self.conn.commit()
 
     def count(self) -> int:
-        if self._dim is None:
+        if not self._has_table:
             return 0
         return self.conn.execute("SELECT COUNT(*) FROM vec_items").fetchone()[0]
 
     def search(self, query, k: int = 10, repo: str | None = None) -> list[tuple[str, float]]:
-        if self._dim is None or len(query) != self._dim:
+        if not self._has_table or self._dim is None or len(query) != self._dim:
             return []
         q = _pack(query)
         if repo:

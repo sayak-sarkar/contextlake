@@ -60,3 +60,24 @@ def test_reindex_absent_shard_returns_false(tmp_path):
     store = SqliteStore(tmp_path / "kb.sqlite")
     assert reindex_shard(store, tmp_path, "missing/repo") is False
     store.close()
+
+
+def test_shard_path_rejects_traversal(tmp_path):
+    """repo_id can arrive from an untrusted caller (an MCP tool arg), so a value that
+    would escape the graph/ dir must be refused rather than resolved to an outside file."""
+    import pytest
+
+    from contextlake.kb.store.shards import shard_path
+
+    # legitimate nested namespace ids still work
+    assert shard_path(tmp_path, "team/api").name == "api.json"
+    for bad in ("../../etc/passwd", "team/../../outside", "/etc/passwd"):
+        with pytest.raises(ValueError):
+            shard_path(tmp_path, bad)
+
+
+def test_read_shard_returns_none_for_traversal(tmp_path):
+    # a traversal attempt reads nothing and degrades to "no such shard"
+    outside = tmp_path / "secret.json"
+    outside.write_text('{"repo": "x"}', encoding="utf-8")
+    assert read_shard(tmp_path / "store", "../secret") is None

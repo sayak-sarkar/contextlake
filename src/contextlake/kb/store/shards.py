@@ -28,8 +28,18 @@ class GraphShard(BaseModel):
 
 
 def shard_path(store_dir: str | Path, repo_id: str) -> Path:
-    """Path of a repo's shard; the repo's namespace nests as directories."""
-    return Path(store_dir) / "graph" / f"{repo_id}.json"
+    """Path of a repo's shard; the repo's namespace nests as directories.
+
+    repo_id legitimately contains ``/`` (namespace nesting), but it can arrive from an
+    untrusted caller (e.g. an MCP tool argument), so reject any value that would escape
+    the ``graph/`` directory (``..`` traversal, absolute paths) rather than reading an
+    arbitrary file off disk.
+    """
+    base = (Path(store_dir) / "graph").resolve()
+    p = (base / f"{repo_id}.json").resolve()
+    if p != base and base not in p.parents:
+        raise ValueError(f"invalid repo id (path escape): {repo_id!r}")
+    return p
 
 
 def write_shard(store_dir: str | Path, shard: GraphShard) -> Path:
@@ -43,7 +53,10 @@ def write_shard(store_dir: str | Path, shard: GraphShard) -> Path:
 
 
 def read_shard(store_dir: str | Path, repo_id: str) -> GraphShard | None:
-    p = shard_path(store_dir, repo_id)
+    try:
+        p = shard_path(store_dir, repo_id)
+    except ValueError:
+        return None  # traversal / invalid id -> treat as "no such shard", never read outside
     if not p.exists():
         return None
     return GraphShard.model_validate_json(p.read_text(encoding="utf-8"))

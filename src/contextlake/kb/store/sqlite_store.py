@@ -213,25 +213,42 @@ class SqliteStore(Store):
         return [self._row_to_node(r) for r in self.conn.execute(sql, params).fetchall()]
 
     # -- edges ----------------------------------------------------------------
-    def _repo_of(self, node_id: str) -> str | None:
-        row = self.conn.execute(
-            "SELECT repo_id FROM nodes WHERE node_id=?", (node_id,)
-        ).fetchone()
-        return row["repo_id"] if row else None
+    def _repos_of(self, node_ids: set[str]) -> dict[str, str]:
+        """repo_id for each given node, in batched queries (not one SELECT per node)."""
+        out: dict[str, str] = {}
+        ids = list(node_ids)
+        for i in range(0, len(ids), 500):   # stay under SQLite's variable limit
+            chunk = ids[i:i + 500]
+            marks = ",".join("?" * len(chunk))
+            for row in self.conn.execute(
+                f"SELECT node_id, repo_id FROM nodes WHERE node_id IN ({marks})", chunk
+            ):
+                out[row["node_id"]] = row["repo_id"]
+        return out
 
     def upsert_edges(self, repo_id: str, edges: Iterable[Edge]) -> None:
-        cur = self.conn.cursor()
+        edges = list(edges)
+        if not edges:
+            return
+        # Resolve every endpoint's repo in a few batched queries, then insert in one
+        # executemany. Previously this issued two SELECTs *per edge* plus an unbatched
+        # INSERT, which dominated index time at fleet scale.
+        repo_of = self._repos_of({e.src for e in edges} | {e.dst for e in edges})
+        rows = []
         for e in edges:
-            src_repo, dst_repo = self._repo_of(e.src), self._repo_of(e.dst)
+            src_repo, dst_repo = repo_of.get(e.src), repo_of.get(e.dst)
             cross = int(bool(src_repo and dst_repo and src_repo != dst_repo))
-            cur.execute(
-                "INSERT INTO edges(repo_id, src, dst, relation, confidence, context, "
-                "source_file, source_line, verified_at, weight, cross_repo) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            rows.append(
                 (repo_id, e.src, e.dst, e.relation, e.confidence.value, e.context,
                  e.provenance.source_file, e.provenance.source_line,
-                 e.provenance.verified_at.isoformat(), e.weight, cross),
+                 e.provenance.verified_at.isoformat(), e.weight, cross)
             )
+        self.conn.executemany(
+            "INSERT INTO edges(repo_id, src, dst, relation, confidence, context, "
+            "source_file, source_line, verified_at, weight, cross_repo) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            rows,
+        )
         self.conn.commit()
 
     @staticmethod

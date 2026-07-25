@@ -125,3 +125,25 @@ def test_sqlite_vec_persists(tmp_path):
         assert s2.count() == 1 and s2.search([1.0, 0.0], k=1)[0][0] == "a"
     finally:
         s2.close()
+
+
+@requires_vec
+def test_vec_store_survives_dim_written_without_table(tmp_path):
+    """guard_store_identity writes vec_meta['dim'] independently of table creation, so
+    'dim' must not be treated as a 'vec_items exists' sentinel: embedding a zero-node
+    workspace then reopening previously raised 'no such table: vec_items'."""
+    from contextlake.kb.embeddings.store import guard_store_identity
+
+    path = tmp_path / "embeddings.sqlite"
+    vs = SqliteVecStore(path)
+    guard_store_identity(vs, "test-embedder", 8)   # writes dim, creates no vec_items
+    vs.close()
+
+    reopened = SqliteVecStore(path)                 # reads dim -> must not assume the table
+    assert reopened.count() == 0                    # previously: sqlite3.OperationalError
+    assert reopened.search([0.0] * 8) == []
+    reopened.clear_repo("team/api")                 # previously raised
+    # and it can still be populated normally afterwards
+    assert reopened.upsert([("n1", "team/api", [0.1] * 8)]) == 1
+    assert reopened.count() == 1
+    reopened.close()
