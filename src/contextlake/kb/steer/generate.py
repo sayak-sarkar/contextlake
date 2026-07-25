@@ -134,7 +134,7 @@ The knowledge-graph MCP server is configured for this workspace in `.mcp.json`
 
 
 def render_windsurfrules(facts: dict, *, config_path: str | None = None) -> str:
-    return f"""# Workspace rules (Windsurf / Devin)
+    return f"""# Workspace rules (Windsurf)
 
 This workspace mirrors {_repos(facts['count'])} with a local knowledge graph.
 Reach it over MCP (`{_serve_cmd(config_path)}`, also in this workspace's MCP config)
@@ -154,7 +154,13 @@ AGENTS.md for tools and repo list.
 
 
 def mcp_server_entry(config_path: str | None = None) -> dict:
-    """The MCP server entry for this workspace (merged into .mcp.json)."""
+    """The MCP server entry for this workspace.
+
+    The per-server shape (``command``/``args``) is identical across clients;
+    only the top-level wrapper key differs (``.mcp.json`` -> ``mcpServers``,
+    VS Code's ``.vscode/mcp.json`` -> ``servers``), so this one dict is reused
+    for both.
+    """
     args = ["serve"]
     if config_path:
         args += ["--config", config_path]

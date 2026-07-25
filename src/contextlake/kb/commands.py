@@ -849,7 +849,8 @@ def cmd_wiki(args) -> int:
 
 def cmd_steer(args) -> int:
     """Generate per-tool steering files (AGENTS.md, CLAUDE.md, .windsurfrules,
-    .kiro/steering, .mcp.json) that point local AI tools at the knowledge graph."""
+    .kiro/steering, .mcp.json, .vscode/mcp.json) that point local AI tools at
+    the knowledge graph."""
     import json as _json
 
     from .steer.generate import (
@@ -927,17 +928,26 @@ def cmd_steer(args) -> int:
         log(f"  {style.ok(f'steering enhanced + {len(skills) // 2} skills')} "
             + (f"({skipped} foreign skill file(s) kept)" if skipped else "written"))
 
-        # .mcp.json: merge our server entry, preserving any others the user has.
-        mcp = out / ".mcp.json"
-        data = {}
-        if mcp.exists():
-            try:
-                data = _json.loads(mcp.read_text())
-            except _json.JSONDecodeError:
-                data = {}
-        data.setdefault("mcpServers", {})["contextlake-kb"] = mcp_server_entry(config_path)
-        mcp.write_text(_json.dumps(data, indent=2) + "\n", encoding="utf-8")
-        log(f"  {style.ok('.mcp.json')} (contextlake-kb MCP server, other servers kept)")
+        def _merge_mcp_entry(rel: str, wrapper_key: str) -> None:
+            """Merge our server entry into an MCP config file under `wrapper_key`,
+            preserving any other servers the user already has configured there."""
+            path = out / rel
+            data = {}
+            if path.exists():
+                try:
+                    data = _json.loads(path.read_text())
+                except _json.JSONDecodeError:
+                    data = {}
+            data.setdefault(wrapper_key, {})["contextlake-kb"] = mcp_server_entry(config_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(_json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            log(f"  {style.ok(rel)} (contextlake-kb MCP server, other servers kept)")
+
+        # .mcp.json (Claude Code, Windsurf, Cursor, …) and VS Code's own
+        # .vscode/mcp.json — same per-server shape, different wrapper key
+        # (`mcpServers` vs `servers`), so both are merged the same way.
+        _merge_mcp_entry(".mcp.json", "mcpServers")
+        _merge_mcp_entry(".vscode/mcp.json", "servers")
 
         log(f"{style.ok()} Steering written to {out} (existing files enhanced, not replaced)")
         return 0

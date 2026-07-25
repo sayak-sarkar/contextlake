@@ -124,6 +124,26 @@ def test_cmd_steer_writes_files_and_merges_mcp(tmp_path, monkeypatch):
     assert mcp["mcpServers"]["contextlake-kb"]["command"] == "contextlake"
 
 
+def test_cmd_steer_writes_vscode_mcp_json_under_servers_key(tmp_path, monkeypatch):
+    """VS Code's .vscode/mcp.json uses a `servers` top-level key, not `mcpServers`
+    -- a distinct schema from Claude Code/Windsurf/Cursor's .mcp.json."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    out.mkdir()
+    (out / ".vscode").mkdir()
+    (out / ".vscode" / "mcp.json").write_text('{"servers": {"other": {"command": "x"}}}')
+
+    rc = cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
+    assert rc == 0
+
+    vscode = json.loads((out / ".vscode" / "mcp.json").read_text())
+    assert "mcpServers" not in vscode
+    assert "other" in vscode["servers"]  # preserved
+    assert vscode["servers"]["contextlake-kb"]["command"] == "contextlake"
+    assert vscode["servers"]["contextlake-kb"]["args"][0] == "serve"
+
+
 def test_cmd_steer_enhances_existing_files_without_clobbering(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     cfg = _cfg(tmp_path)
