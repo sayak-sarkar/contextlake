@@ -50,6 +50,52 @@ def test_no_sql_in_file_is_a_noop():
     assert extract_data_refs("r", "plain.py", b"def f():\n    return 1\n") == ([], [])
 
 
+def test_commented_out_sql_is_not_a_write():
+    """A dead `# DELETE FROM orders` in a data-access file must not assert a
+    write that doesn't happen -- an honest miss, never a false write."""
+    src = b'''
+def f():
+    # TODO: we used to do this
+    # DELETE FROM orders WHERE id = 1
+    pass
+'''
+    reads, writes = extract_data_refs("r", "dao.py", src)
+    assert reads == [] and writes == []
+
+
+def test_sql_inside_a_docstring_is_not_a_write():
+    src = b'''
+def f():
+    """Legacy: INSERT INTO audit_log VALUES (1)"""
+    pass
+'''
+    reads, writes = extract_data_refs("r", "dao.py", src)
+    assert reads == [] and writes == []
+
+
+def test_sql_inside_a_block_comment_is_not_a_read():
+    src = b'''
+def f():
+    /* SELECT * FROM widgets */
+    pass
+'''
+    reads, writes = extract_data_refs("r", "dao.py", src)
+    assert reads == [] and writes == []
+
+
+def test_a_real_query_after_a_stripped_comment_still_reports_the_right_line():
+    """Comment-blanking must preserve newlines so line numbers on real matches
+    downstream of a stripped comment don't shift."""
+    src = b'''
+def f():
+    # DELETE FROM orders WHERE id = 1
+    cursor.execute("SELECT * FROM widgets")
+'''
+    reads, writes = extract_data_refs("r", "dao.py", src)
+    assert writes == []
+    assert reads == [("r_dao_py", "widgets", "dao.py", 4)]
+
+
 def test_source_bytes_and_str_are_equivalent():
     src_bytes = b'x.execute("SELECT * FROM orders")'
     src_str = src_bytes.decode()
