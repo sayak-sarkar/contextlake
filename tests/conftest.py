@@ -119,6 +119,22 @@ def no_sleep(monkeypatch):
     monkeypatch.setattr(core.time, "sleep", lambda *_a, **_k: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_leaked_progress_bars():
+    """Drop any live progress bar between tests.
+
+    Bars register themselves globally so the log handler can erase/repaint them.
+    A test that builds one on a fake TTY and never calls done() would otherwise
+    leave it registered, and the next test's log output would try to repaint a
+    bar whose scripted clock is exhausted.
+    """
+    from contextlake import style
+
+    yield
+    with style._active_lock:
+        style._active.clear()
+
+
 @pytest.fixture
 def base_config():
     """A realistic config dict mirroring DEFAULT_CONFIG values."""

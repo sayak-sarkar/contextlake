@@ -6,11 +6,14 @@ not a TTY, so piped, redirected, and cron output stays clean. No third-party dep
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import sys
+import threading
 import time
 import unicodedata
+import weakref
 from collections import deque
 
 _CODES = {
@@ -19,11 +22,13 @@ _CODES = {
     "blue": "34", "magenta": "35", "cyan": "36", "gray": "90",
 }
 
-_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+# Any CSI sequence, not just SGR colour: the live progress bar also emits an
+# erase-in-line (``\033[K``), and width maths must treat that as zero columns.
+_ANSI_RE = re.compile(r"\033\[[0-9;]*[A-Za-z]")
 
 
 def strip_ansi(text: str) -> str:
-    """Remove ANSI SGR (colour) escape sequences from ``text``."""
+    """Remove ANSI CSI escape sequences (colour, erase, cursor moves) from ``text``."""
     return _ANSI_RE.sub("", text)
 
 
@@ -170,14 +175,55 @@ def _state_glyph(state: str, **kw) -> str:
     return accessor(**kw)
 
 
+def elide(text: str, limit: int) -> str:
+    """Shorten ``text`` to ``limit`` columns, dropping from the middle.
+
+    Middle-elision (not a tail cut) because the informative parts of a repo id
+    are at both ends: the leading namespace and the trailing repo name.
+    """
+    if limit <= 0:
+        return ""
+    if visible_width(text) <= limit:
+        return text
+    if limit <= 3:
+        return "." * limit
+    keep = limit - 3
+    head = (keep + 1) // 2
+    return f"{text[:head]}...{text[len(text) - (keep - head):]}"
+
+
 def status_line(i, total, state: str, path: str, message: str, *, stream=None) -> str:
     """A coloured per-item progress line: dim counter, state glyph, cyan path.
 
     Promotes the ``[i/total] glyph path: message`` shape hand-built by callers
     (e.g. ``core.py``'s ``_status``) into a single state-driven helper.
+
+    Clamped to one terminal row: deeply nested repo ids plus a git message used to
+    wrap onto a second line, which tore through the live progress bar below it.
+    The path is elided before the message is trimmed, so the reason stays legible.
     """
     glyph = _state_glyph(state, stream=stream)
     counter = dim(f"[{i}/{total}]", stream=stream)
+    message = " ".join((message or "").split())  # never let a newline through
+
+    out = stream if stream is not None else sys.stdout
+    # Clamp only for a live terminal. Wrapping matters because it tears through
+    # the progress bar on the row below; in a pipe or a log file there is no bar,
+    # and a truncated repo id or reason is strictly worse than a long line.
+    try:
+        is_tty = bool(out.isatty())
+    except Exception:  # noqa: BLE001 - a stream without isatty is not a terminal
+        is_tty = False
+
+    if is_tty:
+        # "[i/total] G " + path + ": " + message, measured without colour codes.
+        budget = terminal_width(out) - (visible_width(f"[{i}/{total}] x ") + 2)
+        if budget > 0 and visible_width(path) + visible_width(message) > budget:
+            # The reason is short and bounded, the path is what runs long, so
+            # spend the overflow on the path and keep the message readable.
+            path = elide(path, max(20, budget - visible_width(message)))
+            message = elide(message, max(0, budget - visible_width(path)))
+
     return f"{counter} {glyph} {cyan(path, stream=stream)}: {message}"
 
 
@@ -239,6 +285,45 @@ def _fmt_hms(seconds: float) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
+# Rewind to column 0 and erase to end of line. Replaces padding the frame out to
+# the full terminal width: same visual erase, no flood of trailing spaces (which
+# also left the cursor at the right margin, so the next stdout line started there).
+_ERASE_LINE = "\r\033[K"
+
+# An ETA needs enough completions (or enough wall-clock) to mean anything.
+_ETA_MIN_ITEMS = 10
+_ETA_MIN_SECONDS = 5.0
+
+# The bar (stderr) and log lines (stdout) share one terminal cursor, so a frame
+# left on screen gets welded to whatever prints next. Any live bar registers here
+# so the logging handler can erase it, let the line through, and repaint after.
+#
+# A WeakSet, so a bar abandoned without done() (an exception mid-run) is dropped
+# when it is collected instead of being repainted by every later log line for the
+# rest of the process.
+_active_lock = threading.RLock()
+_active: weakref.WeakSet[Progress] = weakref.WeakSet()
+
+
+@contextlib.contextmanager
+def suspend_progress():
+    """Erase any live progress bar for the duration of the block, then repaint.
+
+    Used by the console log handler: per-repo status lines are written by worker
+    threads while the main thread renders the bar, so clearing at the call site
+    is not possible. Reentrant and a no-op when no bar is live.
+    """
+    with _active_lock:
+        bars = list(_active)
+        for p in bars:
+            p.clear()
+        try:
+            yield
+        finally:
+            for p in bars:
+                p.repaint()
+
+
 class Progress:
     """Count-based CLI progress reporter: a live bar on a TTY, periodic
     summary lines otherwise.
@@ -283,10 +368,14 @@ class Progress:
         self._recent: deque[float] = deque(maxlen=20)
         self._last_render = self._start
         self._first = True
+        self._live = False  # is a frame currently painted on the terminal?
         try:
             self._tty = bool(self._stream.isatty())
         except Exception:  # noqa: BLE001 - a stream without isatty is non-tty
             self._tty = False
+        if self._tty:
+            with _active_lock:
+                _active.add(self)
 
     def advance(self, item_desc: str = "", *, weight: float = 1.0) -> None:
         """Record one completed item and (throttled) re-render."""
@@ -303,17 +392,41 @@ class Progress:
         """Finish the run: clear the live bar (TTY) or print a final line."""
         now = self._now()
         if self._tty:
-            width = terminal_width(self._stream)
-            self._stream.write("\r")
-            self._stream.write(" " * width)
-            self._stream.write("\r")
+            with _active_lock:
+                _active.discard(self)
+            self.clear()
             if summary:
                 self._stream.write(summary + "\n")
         else:
             self._stream.write((summary or self._line(now)) + "\n")
         self._stream.flush()
 
+    def clear(self) -> None:
+        """Erase the painted frame so another writer can use the line (TTY only)."""
+        if not (self._tty and self._live):
+            return
+        self._write(_ERASE_LINE)
+        self._live = False
+
+    def repaint(self) -> None:
+        """Redraw the frame erased by :meth:`clear` (TTY only, no-op if never painted)."""
+        if not self._tty or self._live or self._first:
+            return
+        self._write_tty_frame(self._now())
+
     # -- internal ------------------------------------------------------
+
+    def _write(self, text: str) -> None:
+        """Write to the bar's stream, tolerating a stream that has gone away.
+
+        The logging handler erases/repaints every live bar around each log line,
+        so a stale or closed stream here must never take down the whole command.
+        """
+        try:
+            self._stream.write(text)
+            self._stream.flush()
+        except Exception:  # noqa: BLE001 - a dead progress stream is never fatal
+            self._tty = False
 
     def _render(self, now: float) -> None:
         if self._tty:
@@ -330,26 +443,23 @@ class Progress:
                 self._stream.flush()
 
     def _write_tty_frame(self, now: float) -> None:
-        line = self._line(now)
-        width = terminal_width(self._stream)
-        pad = width - visible_width(line)
-        if pad > 0:
-            line = line + (" " * pad)
-        self._stream.write("\r" + line)
-        # stderr is line-buffered; a \r-terminated frame has no trailing "\n"
-        # to trigger a flush on its own, so the live bar would never actually
-        # appear on screen without an explicit flush here.
-        self._stream.flush()
+        # Erase-to-end-of-line rather than padding with spaces out to the terminal
+        # width: padding left the cursor at the right margin, so the next stdout
+        # line (per-repo status) started there and every frame stayed in scrollback.
+        # _write flushes; a \r-terminated frame has no newline to flush on its own.
+        self._write(_ERASE_LINE + self._line(now))
+        self._live = True
 
     def _line(self, now: float) -> str:
         elapsed_seconds = now - self._start
         elapsed = _fmt_hms(elapsed_seconds)
-        recent = self._recent
-        mean = (sum(recent) / len(recent)) if recent else 0.0
-        if recent and mean > 0:
-            rate = 60.0 / mean
-        else:
-            rate = 60.0 * self._count / max(elapsed_seconds, 1e-9)
+        # Cumulative mean, not a trailing window: with a worker pool the gaps
+        # between completions are extremely spiky (a burst of cached repos then a
+        # slow fetch), and a short window turned that into an ETA swinging between
+        # seconds and half an hour. The cumulative figure is self-smoothing and
+        # converges monotonically.
+        mean = (elapsed_seconds / self._count) if self._count else 0.0
+        rate = (60.0 * self._count / elapsed_seconds) if elapsed_seconds > 0 else 0.0
 
         if self._total is None:
             head = f"{self._count} done"
@@ -359,9 +469,16 @@ class Progress:
             pct = round(100 * self._count / total) if total else 0
             bar_str = bar(self._count, total, self._BAR_WIDTH)
             remaining = max(total - self._count, 0)
-            eta = _fmt_hms(remaining * mean if recent else 0.0)
             head = f"{bar_str} ({pct}%)"
-            tail = f"{elapsed} elapsed · ~{eta} left · {rate:.1f}/min"
+            # One early sample is not an estimate: quoting an ETA off the first
+            # completion produced confidently wrong numbers ("~36s left" for a
+            # 10-minute run). Stay silent until there is enough signal.
+            warm = self._count >= _ETA_MIN_ITEMS or elapsed_seconds >= _ETA_MIN_SECONDS
+            if warm and mean > 0:
+                tail = (f"{elapsed} elapsed · ~{_fmt_hms(remaining * mean)} left "
+                        f"· {rate:.1f}/min")
+            else:
+                tail = f"{elapsed} elapsed · {rate:.1f}/min"
 
         prefix = f"{self._label} " if self._label else ""
         plain = f"{prefix}{head} · {tail}"

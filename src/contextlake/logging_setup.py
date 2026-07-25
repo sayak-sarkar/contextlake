@@ -72,6 +72,25 @@ def get_logger():
     return logger
 
 
+class _ConsoleHandler(logging.StreamHandler):
+    """Console handler that yields the terminal line to any live progress bar.
+
+    The bar renders on stderr while these lines go to stdout, but both share one
+    terminal cursor: without this, a painted frame stayed on screen and the next
+    log line was appended to its right edge. Erasing around the write keeps the
+    bar a single live line at the bottom. Also flushes the underlying stream
+    before releasing, so the repaint cannot land ahead of the line it follows.
+    """
+
+    def emit(self, record):
+        with style.suspend_progress():
+            super().emit(record)
+            try:
+                self.flush()
+            except Exception:  # noqa: BLE001 - flush failures are never fatal here
+                pass
+
+
 def setup_logging(verbose=False, quiet=False, log_file=None):
     """Configure the package logger.
 
@@ -94,7 +113,7 @@ def setup_logging(verbose=False, quiet=False, log_file=None):
     # (pipes/redirects); the file always keeps the full audit prefix.
     file_formatter = logging.Formatter(_FORMAT, datefmt=_DATEFMT)
 
-    console = logging.StreamHandler(sys.stdout)
+    console = _ConsoleHandler(sys.stdout)
     console.setLevel(console_level)
     console.setFormatter(_ConsoleFormatter(console))
     logger.addHandler(console)
@@ -121,7 +140,7 @@ def use_stderr():
     """
     logger = get_logger()
     for handler in logger.handlers:
-        if type(handler) is logging.StreamHandler:  # the console handler, not the file one
+        if type(handler) is _ConsoleHandler:  # the console handler, not the file one
             handler.setStream(sys.stderr)
 
 

@@ -189,3 +189,54 @@ def test_kv_explicit_width_overrides_terminal_width(monkeypatch):
     monkeypatch.delenv("COLUMNS", raising=False)
     out = style.kv([("A", "1")], width=10, stream=_NotTty())
     assert style.visible_width(out) == 10
+
+
+# --- one-row clamping (long ids must not wrap through the progress bar) -----
+
+def test_status_line_elides_a_long_path_to_one_row(monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.setenv("COLUMNS", "80")
+    long_path = "group/sub/team/service-area/deeply-nested-component-name-here"
+    out = style.status_line(12, 635, "nochange", long_path,
+                            "Already up to date on some-long-branch-name",
+                            stream=_Tty())
+    plain = style.strip_ansi(out)
+    assert style.visible_width(plain) <= 80
+    assert "..." in plain
+    # the reason stays whole: the path absorbs the overflow, not the message
+    assert plain.endswith("Already up to date on some-long-branch-name")
+
+
+def test_status_line_does_not_clamp_when_piped(monkeypatch):
+    """No live bar in a pipe or log file, so a full path beats a truncated one."""
+    monkeypatch.setenv("COLUMNS", "80")
+    long_path = "group/sub/team/service-area/deeply-nested-component-name-here"
+    out = style.strip_ansi(
+        style.status_line(12, 635, "nochange", long_path, "Already up to date on dev",
+                          stream=_NotTty()))
+    assert long_path in out
+    assert "..." not in out
+
+
+def test_status_line_leaves_a_short_line_untouched(monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.setenv("COLUMNS", "80")
+    out = style.strip_ansi(style.status_line(1, 5, "ok", "team/api", "Updated dev",
+                                             stream=_Tty()))
+    assert out == "[1/5] ✓ team/api: Updated dev"
+
+
+def test_status_line_collapses_a_multiline_message(monkeypatch):
+    monkeypatch.setenv("COLUMNS", "200")
+    out = style.status_line(1, 2, "fail", "team/api", "fatal: bad\nUse '--' to separate",
+                            stream=_Tty())
+    assert "\n" not in out
+
+
+def test_elide_keeps_both_ends():
+    assert style.elide("abcdefghij", 20) == "abcdefghij"
+    out = style.elide("group/sub/team/repo-name", 12)
+    assert style.visible_width(out) <= 12
+    assert out.startswith("group") and out.endswith("name")

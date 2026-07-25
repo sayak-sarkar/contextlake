@@ -263,3 +263,27 @@ def test_update_repositories_dryrun_line_has_dryrun_glyph(
     text = gls_logs.text
     assert "~" in text
     assert "✗" not in text
+
+
+def test_empty_repo_reports_a_readable_reason_not_gits_usage_hint():
+    """git's "ambiguous argument 'HEAD'" is a three-line usage dump; a status
+    line must carry one readable sentence instead."""
+    raw = (
+        "fatal: ambiguous argument 'HEAD': unknown revision or path not in the "
+        "working tree.\nUse '--' to separate paths from revisions, like this:\n"
+        "'git <command> [<revision>...] -- [<file>...]'"
+    )
+    assert core._git_reason(raw) == "No commits yet (empty repository)"
+
+
+def test_git_reason_falls_back_to_a_clamped_first_line():
+    raw = "error: " + ("x" * 400) + "\nsecond line"
+    out = core._git_reason(raw)
+    assert "\n" not in out
+    assert len(out) <= 120
+
+
+def test_summary_keeps_the_space_after_the_colon(tmp_path, base_config, monkeypatch, capsys):
+    """style.ok() rstrips, so ok("... : ") + summary used to render "complete:0"."""
+    line = core.style.ok("Update complete: " + core._summarize({"updated": [], "errors": []}))
+    assert "complete: 0 updated" in core.style.strip_ansi(line)

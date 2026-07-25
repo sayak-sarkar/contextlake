@@ -709,6 +709,22 @@ def _first_line(text, limit=200):
     return stripped.splitlines()[0][:limit] if stripped else ""
 
 
+def _git_reason(text, limit=120):
+    """A short, human-readable reason from raw git error output.
+
+    Git's most common failure here is a repository with no commits, which it
+    reports as a three-line "ambiguous argument 'HEAD'" usage hint -- accurate for
+    a git user, meaningless as a one-line status. Recognised cases get a plain
+    explanation; anything else falls back to the first line, tightly clamped so a
+    long remote message cannot wrap the progress display.
+    """
+    first = _first_line(text, limit=limit)
+    lowered = first.lower()
+    if "ambiguous argument 'head'" in lowered or "unknown revision" in lowered:
+        return "No commits yet (empty repository)"
+    return first
+
+
 def _fetch_with_retry(git_args, full_path, fetch_timeout, config):
     """Fetch with exponential-backoff retry on transient proxy/network drops."""
     retry_with_backoff(
@@ -787,7 +803,9 @@ def update_repository(local_path, work_dir, config):
     except subprocess.TimeoutExpired:
         return ("error", local_path, "Timeout")
     except Exception as e:  # noqa: BLE001
-        return ("error", local_path, str(e)[:200])
+        # _git_reason, not a raw slice: git's "ambiguous argument 'HEAD'" is three
+        # lines of usage hint, and printing it verbatim wrecked the progress display.
+        return ("error", local_path, _git_reason(str(e)))
 
 
 # ---------------------------------------------------------------------------
@@ -933,7 +951,9 @@ def switch_repository_branch(local_path, projects, work_dir, config):
     except subprocess.TimeoutExpired:
         return ("error", local_path, "Timeout")
     except Exception as e:  # noqa: BLE001
-        return ("error", local_path, str(e)[:200])
+        # _git_reason, not a raw slice: git's "ambiguous argument 'HEAD'" is three
+        # lines of usage hint, and printing it verbatim wrecked the progress display.
+        return ("error", local_path, _git_reason(str(e)))
 
 
 # ---------------------------------------------------------------------------
@@ -1058,9 +1078,9 @@ def clone_missing_repos(work_dir, config, gitlab_group):
                 handle(fut.result())
 
     progress.done()
-    log(style.ok("Clone complete: ") + _summarize({
+    log(style.ok("Clone complete: " + _summarize({
         "successful": successes, "skipped": skipped, "dry-run": dry, "failed": failures,
-    }))
+    })))
 
 
 def update_repositories(work_dir, config):
@@ -1097,7 +1117,7 @@ def update_repositories(work_dir, config):
             progress.advance(path)
 
     progress.done()
-    log(style.ok("Update complete: ") + _summarize(buckets))
+    log(style.ok(f"Update complete: {_summarize(buckets)}"))
 
 
 def switch_repository_branches(work_dir, config, gitlab_group):
@@ -1141,7 +1161,7 @@ def switch_repository_branches(work_dir, config, gitlab_group):
             progress.advance(path)
 
     progress.done()
-    log(style.ok("Branch switch complete: ") + _summarize(buckets))
+    log(style.ok(f"Branch switch complete: {_summarize(buckets)}"))
 
 
 def _report_list(label, items, limit=10):

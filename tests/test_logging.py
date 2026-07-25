@@ -9,7 +9,8 @@ from contextlake import logging_setup, style
 
 def _console_handler():
     logger = logging.getLogger(logging_setup.LOGGER_NAME)
-    return next(h for h in logger.handlers if type(h) is logging.StreamHandler)
+    return next(h for h in logger.handlers
+                if type(h) is logging_setup._ConsoleHandler)
 
 
 class _Tty(io.StringIO):

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Readable terminal output while a long run is in flight.** The live progress bar
+  (stderr) and per-item status lines (stdout) share one terminal cursor, so every
+  frame was left on screen with the next status line welded to its right edge. The
+  bar is now erased before each log line and repainted after, and it erases to
+  end-of-line instead of padding out to the terminal width.
+- Per-item status lines are clamped to one row on a terminal (long ids elide from
+  the middle, the reason stays whole) so they cannot wrap through the bar. Piped and
+  redirected output is left unclamped, where full ids matter and there is no bar.
+- Git's three-line "ambiguous argument 'HEAD'" usage hint is reported as
+  `No commits yet (empty repository)` instead of being dumped into the status line.
+- No ETA is shown until there is enough signal, and it is derived from the cumulative
+  rate: a single early completion used to produce confidently wrong estimates that
+  swung between seconds and tens of minutes.
+- `Update complete:` / `Clone complete:` / `Branch switch complete:` no longer lose
+  the space before their counts.
+
 ## [2.45.0] - 2026-07-25
 
 ### Fixed

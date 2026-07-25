@@ -123,8 +123,10 @@ def test_done_tty_clears_and_writes_summary(monkeypatch):
     p.advance()
     p.done("wrote 10")
     out = stream.getvalue()
-    width = style.terminal_width(stream)
-    assert out.endswith("\r" + (" " * width) + "\r" + "wrote 10\n")
+    # Erase-to-end-of-line, not padding out to the terminal width: padding parked
+    # the cursor at the right margin so the next stdout line began there.
+    assert out.endswith("\r\033[Kwrote 10\n")
+    assert " " * 20 not in out  # no whitespace flood
 
 
 def test_done_non_tty_final_summary(monkeypatch):
@@ -178,6 +180,75 @@ def test_zero_and_degenerate_do_not_raise(monkeypatch):
     # unknown total, never advanced.
     stream4 = _NotTty()
     style.Progress(None, now=_clock([0, 0]), stream=stream4).done()
+
+
+def test_suspend_progress_erases_and_repaints_around_a_log_line(monkeypatch):
+    # The bug: the bar (stderr) and log lines (stdout) share one terminal cursor,
+    # so a painted frame stayed on screen and the next log line was appended to
+    # its right edge. suspend_progress must erase before, repaint after.
+    _quiet_env(monkeypatch)
+    stream = _Tty()
+    p = style.Progress(10, now=_clock([0, 1, 2, 3, 4]), stream=stream)
+    p.advance()
+    painted = stream.getvalue()
+    assert painted.endswith("6.0/min") or "1/10" in painted
+
+    with style.suspend_progress():
+        mid = stream.getvalue()
+        assert mid.endswith("\r\033[K"), "bar must be erased for the duration"
+    after = stream.getvalue()
+    assert after.count("1/10") == 2, "frame must be repainted after the block"
+    p.done()
+
+
+def test_suspend_progress_is_a_noop_without_a_live_bar(monkeypatch):
+    _quiet_env(monkeypatch)
+    with style.suspend_progress():
+        pass  # must not raise when nothing is registered
+
+
+def test_done_unregisters_so_later_logs_do_not_touch_a_dead_bar(monkeypatch):
+    _quiet_env(monkeypatch)
+    stream = _Tty()
+    p = style.Progress(3, now=_clock([0, 1, 1]), stream=stream)
+    p.advance()
+    p.done()
+    before = stream.getvalue()
+    with style.suspend_progress():
+        pass
+    assert stream.getvalue() == before, "a finished bar must not be repainted"
+
+
+def test_eta_is_suppressed_until_there_is_enough_signal(monkeypatch):
+    # One completion 0.06s in produced "~00:36 left" for a run that took minutes.
+    _quiet_env(monkeypatch)
+    stream = _Tty()
+    p = style.Progress(635, now=_clock([0, 0.06, 0.07]), stream=stream)
+    p.advance()
+    frame = style.strip_ansi(stream.getvalue().split("\r")[-1])
+    assert "left" not in frame, "no ETA from a single early sample"
+    assert "1/635" in frame
+    p.done()
+
+
+def test_eta_appears_once_warm(monkeypatch):
+    _quiet_env(monkeypatch)
+    stream = _Tty()
+    p = style.Progress(10, now=_clock([0, 10, 10]), stream=stream)
+    p.advance()  # 10s elapsed clears the warmup floor
+    frame = style.strip_ansi(stream.getvalue().split("\r")[-1])
+    assert "~01:30 left" in frame  # 9 remaining x 10s cumulative mean
+    p.done()
+
+
+def test_frame_never_pads_out_to_the_terminal_width(monkeypatch):
+    _quiet_env(monkeypatch)
+    monkeypatch.setenv("COLUMNS", "120")
+    stream = _Tty()
+    p = style.Progress(10, now=_clock([0, 1, 1]), stream=stream)
+    p.advance()
+    assert "    " not in stream.getvalue(), "erase-to-EOL, never a run of spaces"
+    p.done()
 
 
 def test_line_clamps_to_terminal_width(monkeypatch):
