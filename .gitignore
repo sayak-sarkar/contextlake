@@ -38,3 +38,7 @@ coverage.xml
 
 # Local-only private token denylist for the publish guard (never published)
 .publish-denylist
+
+# Local end-to-end testing sandbox: cloned public repos + isolated contextlake store.
+# Never committed (transient test data, can be large).
+playground/
