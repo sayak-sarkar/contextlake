@@ -105,7 +105,7 @@ PyPI automatically using
 OIDC tokens minted per run, **no API token stored anywhere**. With this set up, a
 release is just steps 1–4 above (bump, changelog, commit, **push the `vX.Y.Z`
 tag**); the workflow then verifies the tag matches the package version, runs lint
-+ core tests, builds, and uploads.
++ the full test suite (knowledge layer included), builds, and uploads.
 
 **One-time PyPI configuration** (do this once, on PyPI):
 

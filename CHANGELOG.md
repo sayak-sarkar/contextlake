@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged "no mapping for property... try a `[deg]` selector" before silently correcting itself.
   `deg` is now computed once server-side (`kb/visualize.py:_cytoscape_elements`, mirroring the
   existing `weight`-always-present pattern for edges), present from the very first render.
+- **The release gate never actually ran the knowledge-layer test suite.** `release.yml` installed
+  only the core package and ran `pytest --ignore=tests/kb`, mirroring CI's "core (no knowledge
+  layer)" job rather than its "knowledge-layer" job — so a broken `tests/kb/*` test could tag and
+  ship a release. Found the hard way cutting v2.48.0 (caught before anything published, since the
+  gate still failed *first*, on an unrelated core-only error, but for the wrong reason). Now
+  installs the `[kb]` extra and runs the full suite, matching CI's knowledge-layer job.
 
 ## [2.48.0] - 2026-07-26
 
