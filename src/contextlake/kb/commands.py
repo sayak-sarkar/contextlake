@@ -141,7 +141,12 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                 failed += 1
                 log(f"  {style.fail(repo_id)}: {e}", inline=True)
                 continue
-            _persist(repo_id, path, head, shard)
+            try:
+                _persist(repo_id, path, head, shard)
+            except Exception as e:  # noqa: BLE001 - one repo's write must not abort the fleet
+                failed += 1
+                log(f"  {style.fail(repo_id)}: persist failed: {e}", inline=True)
+                continue
             _report(repo_id, shard)
 
     if workers <= 1 or total <= 1:
@@ -175,7 +180,12 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                         failed += 1
                         log(f"  {style.fail(repo_id)}: {e}", inline=True)
                         continue
-                    _persist(repo_id, path, head, shard)
+                    try:
+                        _persist(repo_id, path, head, shard)
+                    except Exception as e:  # noqa: BLE001 - one repo's write must not abort the fleet
+                        failed += 1
+                        log(f"  {style.fail(repo_id)}: persist failed: {e}", inline=True)
+                        continue
                     _report(repo_id, shard)
         except (BrokenProcessPool, OSError) as e:
             # The worker pool could not run here (sandboxed env, no fork/spawn, …).
@@ -224,6 +234,7 @@ def _guard_store(store_dir, command: str) -> bool:
 def cmd_index(args) -> int:
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "index"):
+        store.close()
         return 1
     cfg = load_kb_config(getattr(args, "config", None))
     parse_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes)
@@ -484,6 +495,7 @@ def cmd_embed(args) -> int:
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "embed"):
+        store.close()
         return 1
     try:
         cfg = load_kb_config(getattr(args, "config", None))
@@ -672,6 +684,7 @@ def cmd_wiki(args) -> int:
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "wiki"):
+        store.close()
         return 1
     embedder = vs = None
     try:
@@ -1500,13 +1513,15 @@ def cmd_doctor(args) -> int:
             # read time, not at LlmCfg construction — see llm.base.default_api_key_env).
             env = getattr(llm, "api_key_env", None) or default_api_key_env("anthropic")
             key = os.environ.get(env)
-            _check("wiki LLM", bool(key),
+            # wiki is an optional tier: report ⚠ (not a hard ✗ that the OK/exit summary
+            # ignores) when the key is missing, matching the builtin-runtime branch above.
+            _check("wiki LLM", True if key else None,
                    f"anthropic · {llm.model or 'claude-opus-4-8'} · "
                    + (f"{env} set" if key else f"set {env}"))
         elif llm.provider == "cli":
             cmd = getattr(llm, "command", None) or "claude"
             found = shutil.which(cmd)
-            _check("wiki LLM", bool(found),
+            _check("wiki LLM", True if found else None,
                    f"cli · {cmd} · " + (f"found at {found}" if found else "not on PATH"))
         else:
             _check("wiki LLM", True, f"{llm.provider} · {llm.model or 'default model'}")
@@ -1808,6 +1823,7 @@ def _canonical_repo_id(root: Path, args) -> str:
     Matching the stored id keeps the hook's re-index updating the SAME node rather
     than creating a duplicate under a bare basename.
     """
+    store = None
     try:
         store, _ = _open_store(args)
         rp = root.resolve()
@@ -1816,6 +1832,9 @@ def _canonical_repo_id(root: Path, args) -> str:
                 return repo.id
     except Exception:  # noqa: BLE001 - store is optional here; fall back to the dir name
         pass
+    finally:
+        if store is not None:
+            store.close()
     return root.name
 
 
