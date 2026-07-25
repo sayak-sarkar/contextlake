@@ -5,10 +5,11 @@ across hundreds of repos), so every view here is *scoped*: a seed (a node, a nam
 a search, or a whole repo) expanded a few hops with hard node/fan-out caps. Caps
 are enforced *during* expansion and any truncation is logged — never silent.
 
-Renders to five formats: ``json`` (the canonical payload), ``dot`` (Graphviz),
+Renders to six formats: ``json`` (the canonical payload), ``dot`` (Graphviz),
 ``mermaid`` (Markdown-embeddable relation graph), ``classdiagram`` (a Mermaid UML
-class diagram — classifiers with members + inheritance arrows), and ``html`` (a
-self-contained, offline-first cytoscape.js page). A small live server
+class diagram — classifiers with members + inheritance arrows), ``sequencediagram``
+(a Mermaid call-order trace from one seed node, ordered by call-site line), and
+``html`` (a self-contained, offline-first cytoscape.js page). A small live server
 (``serve_graph``) adds click-to-expand.
 
 Pure-Python/stdlib only; no module-level heavy imports.
@@ -480,6 +481,77 @@ def to_class_diagram(payload: dict) -> str:
             # base <|-- sub (extends); base <|.. sub (implements an interface)
             arrow = "<|.." if by_id[base].get("kind") == "interface" else "<|--"
             lines.append(f"  {alias[base]} {arrow} {alias[sub]}")
+    return "\n".join(lines)
+
+
+_SEQUENCE_MAX_MESSAGES = 200
+
+
+def to_sequence_diagram(payload: dict, *, max_messages: int = _SEQUENCE_MAX_MESSAGES) -> str:
+    """Render a Mermaid ``sequenceDiagram`` walking outgoing ``calls`` edges from the
+    view's single seed node, depth-first, each caller's callees ordered by call-site
+    line (``prov_line``) -- the order they actually appear in the source.
+
+    Requires a view with exactly one seed (``graph --node/--name/--search``, not
+    ``--repo``/``--overview``): a sequence diagram needs one unambiguous starting
+    actor -- there's no single obvious ordering across multiple unrelated seeds, so
+    this doesn't guess one. Only ``calls`` edges already present in the view are
+    walked, so depth is governed by the view's own ``--hops``; there's no separate
+    depth control here. A node already on the current call path is not re-entered
+    (breaks cycles/recursion without dropping the rest of the diagram); the walk is
+    capped at ``max_messages`` with a truncation note appended -- never silent.
+    """
+    seeds = (payload.get("meta") or {}).get("seed_ids") or []
+    if len(seeds) != 1:
+        return ("sequenceDiagram\n  %% needs exactly one seed node "
+                "(graph --node/--name/--search, not --repo/--overview)")
+    seed = seeds[0]
+    by_id = {n["id"]: n for n in payload["nodes"]}
+    if seed not in by_id:
+        return "sequenceDiagram\n  %% seed node not present in this view"
+
+    calls_from: dict[str, list[dict]] = {}
+    for e in payload["edges"]:
+        if e.get("relation") == "calls" and e["src"] in by_id and e["dst"] in by_id:
+            calls_from.setdefault(e["src"], []).append(e)
+    for lst in calls_from.values():
+        lst.sort(key=lambda e: (e.get("prov_line") is None, e.get("prov_line")))
+
+    alias: dict[str, str] = {}
+
+    def _alias(nid: str) -> str:
+        if nid not in alias:
+            alias[nid] = f"p{len(alias)}"
+        return alias[nid]
+
+    _alias(seed)
+    messages: list[tuple[str, str, str]] = []  # (src_alias, dst_alias, label)
+    truncated = False
+
+    def walk(node_id: str, path: frozenset[str]) -> None:
+        nonlocal truncated
+        for e in calls_from.get(node_id, []):
+            if len(messages) >= max_messages:
+                truncated = True
+                return
+            dst = e["dst"]
+            label = _mermaid_escape(by_id[dst].get("name") or dst)
+            messages.append((_alias(node_id), _alias(dst), label))
+            if dst not in path:
+                walk(dst, path | {dst})
+
+    walk(seed, frozenset({seed}))
+
+    if not messages:
+        return "sequenceDiagram\n  %% no outgoing calls from this seed in view"
+
+    lines = ["sequenceDiagram"]
+    for nid, a in alias.items():
+        lines.append(f'  participant {a} as {_mermaid_escape(by_id[nid].get("name") or nid)}')
+    for s, d, label in messages:
+        lines.append(f"  {s}->>{d}: {label}()")
+    if truncated:
+        lines.append(f"  %% truncated at {max_messages} messages")
     return "\n".join(lines)
 
 

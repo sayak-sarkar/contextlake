@@ -202,7 +202,7 @@ def _root_hidden_flags(p):
     add("--transport", choices=["stdio", "http"])
     add("--retriever", choices=("fts", "semantic", "hybrid"))
     add("--direction", choices=["in", "out", "both"])
-    add("--format", choices=["html", "dot", "mermaid", "classdiagram", "json"])
+    add("--format", choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram", "json"])
     add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"])
     add("--site", nargs="?", const="")
 
@@ -465,6 +465,7 @@ Examples:
   contextlake graph --overview                        repos-as-nodes fleet view
   contextlake graph --name CatalogService --hops 2      neighbourhood of a symbol
   contextlake graph --repo acme/app --format classdiagram   UML class diagram (Mermaid)
+  contextlake graph --node ID --format sequencediagram      call-order trace (Mermaid)
   contextlake graph --serve                           live click-to-expand UI
   contextlake graph --site                            offline cross-linked site
   contextlake graph --c4 --group-depth 2              composed namespace (C4) diagram
@@ -479,7 +480,7 @@ Examples:
     p.add_argument("--c4", action="store_true", default=_S,
                    help="composed namespace (C4-style) diagram: repos bucketed into "
                         "namespace boundaries with aggregated cross-repo edges "
-                        "(--format dot|html|json; not mermaid/classdiagram)")
+                        "(--format dot|html|json; not mermaid/classdiagram/sequencediagram)")
     p.add_argument("--kind", default=_S, help="filter seeds by node kind")
     p.add_argument("--repo", default=_S, help="filter seeds by repo")
     p.add_argument("--limit", type=int, default=_S, help="max seed nodes")
@@ -492,8 +493,9 @@ Examples:
     p.add_argument("--direction", choices=["in", "out", "both"], default=_S,
                    help="edge direction to follow (default both)")
     p.add_argument("--format", default=_S,
-                   choices=["html", "dot", "mermaid", "classdiagram", "json"],
-                   help="output format (default html; classdiagram = UML Mermaid)")
+                   choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram", "json"],
+                   help="output format (default html; classdiagram = UML Mermaid; "
+                        "sequencediagram = Mermaid call-order trace, needs --node/--name/--search)")
     p.add_argument("--layout", default=_S,
                    choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
                    help="html: initial layout (default cose; switchable in the page)")

@@ -582,6 +582,79 @@ def test_class_diagram_empty_when_no_classifiers():
     assert out.startswith("classDiagram") and "no classes" in out
 
 
+# --- sequence diagram -------------------------------------------------------
+
+def _seq_prov(line):
+    return Provenance(source_file="m.py", source_line=line, verified_at=date(2026, 6, 21))
+
+
+def test_sequence_diagram_orders_by_call_site_line_not_edge_order():
+    nodes = [Node(id="a", repo="r", kind="function", name="main"),
+             Node(id="b", repo="r", kind="function", name="second"),
+             Node(id="c", repo="r", kind="function", name="first")]
+    # edges deliberately listed out of source order -- output must still be by line
+    edges = [
+        Edge(src="a", dst="b", relation="calls", confidence=Confidence.INFERRED,
+             provenance=_seq_prov(9)),
+        Edge(src="a", dst="c", relation="calls", confidence=Confidence.INFERRED,
+             provenance=_seq_prov(3)),
+    ]
+    payload = viz.to_payload(nodes, edges, meta={"seed_ids": ["a"]})
+    out = viz.to_sequence_diagram(payload)
+    assert out.startswith("sequenceDiagram")
+    assert out.index("first()") < out.index("second()")   # line 3 before line 9
+
+
+def test_sequence_diagram_multi_hop_walks_callees():
+    nodes = [Node(id="a", repo="r", kind="function", name="a"),
+             Node(id="b", repo="r", kind="function", name="b"),
+             Node(id="c", repo="r", kind="function", name="c")]
+    edges = [
+        Edge(src="a", dst="b", relation="calls", confidence=Confidence.INFERRED,
+             provenance=_seq_prov(1)),
+        Edge(src="b", dst="c", relation="calls", confidence=Confidence.INFERRED,
+             provenance=_seq_prov(1)),
+    ]
+    payload = viz.to_payload(nodes, edges, meta={"seed_ids": ["a"]})
+    out = viz.to_sequence_diagram(payload)
+    assert "->>" in out and out.count("->>") == 2
+    assert "c()" in out   # second hop reached, not just direct calls
+
+
+def test_sequence_diagram_recursion_does_not_infinite_loop():
+    nodes = [Node(id="a", repo="r", kind="function", name="a"),
+             Node(id="b", repo="r", kind="function", name="b")]
+    edges = [
+        Edge(src="a", dst="b", relation="calls", confidence=Confidence.INFERRED,
+             provenance=_seq_prov(1)),
+        Edge(src="b", dst="a", relation="calls", confidence=Confidence.INFERRED,
+             provenance=_seq_prov(2)),
+    ]
+    payload = viz.to_payload(nodes, edges, meta={"seed_ids": ["a"]})
+    out = viz.to_sequence_diagram(payload)   # must return, not hang
+    assert out.count("->>") == 2   # a->b, b->a -- then a is already on the path, stop
+
+
+def test_sequence_diagram_requires_exactly_one_seed():
+    nodes = [Node(id="a", repo="r", kind="function", name="a")]
+    no_seed = viz.to_payload(nodes, [], meta={})
+    two_seeds = viz.to_payload(nodes, [], meta={"seed_ids": ["a", "b"]})
+    for payload in (no_seed, two_seeds):
+        out = viz.to_sequence_diagram(payload)
+        assert out.startswith("sequenceDiagram") and "one seed" in out
+
+
+def test_sequence_diagram_truncates_with_a_note_not_silently():
+    nodes = [Node(id="a", repo="r", kind="function", name="a")] + [
+        Node(id=f"b{i}", repo="r", kind="function", name=f"b{i}") for i in range(5)]
+    edges = [Edge(src="a", dst=f"b{i}", relation="calls", confidence=Confidence.INFERRED,
+                  provenance=_seq_prov(i)) for i in range(5)]
+    payload = viz.to_payload(nodes, edges, meta={"seed_ids": ["a"]})
+    out = viz.to_sequence_diagram(payload, max_messages=2)
+    assert out.count("->>") == 2
+    assert "truncated" in out
+
+
 def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, capsys):
     # Regression: the truncation warning (and any payload-building log) used to land
     # on stdout, corrupting a redirected `--format json|mermaid|classdiagram` payload.
