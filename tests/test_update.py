@@ -92,6 +92,30 @@ def test_deleted_upstream_branch_carries_remediation_hint(
     assert "branches" in msg.lower()  # points at the remediation (the branches verb)
 
 
+def test_deleted_upstream_project_is_skipped_not_errored(
+    tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
+):
+    """A whole project deleted (or access revoked) on GitLab is a clean skip, not
+    a fatal error -- same expected-steady-state treatment as a deleted branch."""
+    _safe(monkeypatch)
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="dev")
+        if cmd[:2] == ["git", "fetch"]:
+            return FakeCompleted(
+                returncode=1,
+                stderr="remote: The project you were looking for could not be "
+                       "found or you don't have permission to view it.",
+            )
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "skip"
+    assert "deleted" in msg.lower() or "access revoked" in msg.lower()
+
+
 def test_transient_fetch_error_is_retried(
     tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
 ):

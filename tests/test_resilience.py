@@ -42,6 +42,8 @@ def test_pool_never_below_min():
         ("SSL handshake failed", "tls"),
         ("something else", "other"),
         ("fatal: couldn't find remote ref feature/x", "missing-ref"),
+        ("remote: The project you were looking for could not be found or you "
+         "don't have permission to view it.", "project-deleted"),
         ("fatal: Not possible to fast-forward, aborting.", "diverged"),
         ("hint: You have divergent branches", "diverged"),
         # a dropped TLS connection ("eof") is transient/network, not a tls failure
@@ -62,6 +64,21 @@ def test_retry_fails_fast_on_missing_ref(no_sleep):
     with pytest.raises(RuntimeError):
         retry_with_backoff(gone, max_retries=5)
     assert calls["n"] == 1  # deleted upstream -> not retried
+
+
+def test_retry_fails_fast_on_project_deleted(no_sleep):
+    calls = {"n": 0}
+
+    def gone():
+        calls["n"] += 1
+        raise RuntimeError(
+            "remote: The project you were looking for could not be found or "
+            "you don't have permission to view it."
+        )
+
+    with pytest.raises(RuntimeError):
+        retry_with_backoff(gone, max_retries=5)
+    assert calls["n"] == 1  # deleted project -> not retried
 
 
 def test_retry_fails_fast_on_diverged(no_sleep):

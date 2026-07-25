@@ -68,9 +68,11 @@ def classify_error(error_msg):
     """Classify a git/network error to drive the retry strategy.
 
     Transient categories (network/timeout) are retried. The rest fail fast:
-    dns/tls won't recover on retry, and the two expected "the remote moved"
+    dns/tls won't recover on retry, and the three expected "the remote moved"
     states are not errors to retry but states to report -- ``missing-ref`` (the
-    upstream branch was deleted) and ``diverged`` (local and remote both moved).
+    upstream branch was deleted), ``project-deleted`` (the whole upstream project
+    was deleted or the token lost access to it), and ``diverged`` (local and
+    remote both moved).
     """
     error_msg = error_msg.lower()
     # 'eof' is checked first so a "TLS ... unexpected eof" (a dropped connection,
@@ -79,6 +81,11 @@ def classify_error(error_msg):
         return 'network'
     if "couldn't find remote ref" in error_msg or 'unknown revision' in error_msg:
         return 'missing-ref'
+    # GitLab returns this exact wording for both a deleted project and one the
+    # token no longer has access to -- indistinguishable from a fetch failure,
+    # and either way there is nothing to retry or fast-forward.
+    if ('could not be found' in error_msg and "don't have permission" in error_msg):
+        return 'project-deleted'
     if ('not possible to fast-forward' in error_msg or 'divergent branches' in error_msg
             or 'have divergent' in error_msg):
         return 'diverged'
@@ -106,7 +113,8 @@ def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_ma
             raise  # a missing binary/path never recovers on retry
         except Exception as e:
             last_error = e
-            if classify_error(str(e)) in ('dns', 'tls', 'missing-ref', 'diverged'):
+            non_transient = ('dns', 'tls', 'missing-ref', 'project-deleted', 'diverged')
+            if classify_error(str(e)) in non_transient:
                 break
             if attempt < max_retries - 1:
                 backoff = min(backoff_initial * (2 ** attempt), backoff_max)
@@ -775,9 +783,14 @@ def update_repository(local_path, work_dir, config):
                 ["git", "fetch", "--quiet", "origin", current], full_path, fetch_timeout, config
             )
         except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
-            if classify_error(str(e)) == "missing-ref":
+            reason = classify_error(str(e))
+            if reason == "missing-ref":
                 return ("skip", local_path,
                         f"Upstream branch deleted: {current} (run branches to pick a new one)")
+            if reason == "project-deleted":
+                return ("skip", local_path,
+                        "Upstream project not found (deleted or access revoked) "
+                        "-- run verify to confirm")
             return ("error", local_path, _first_line(str(e)))
 
         before = _rev_parse(full_path, "HEAD")

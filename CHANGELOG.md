@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A deleted (or access-revoked) upstream GitLab project is a clean `update` skip, not an
+  error.** Previously bucketed into the generic error count alongside real failures; now
+  classified like the existing deleted-branch case, so a project marked for deletion upstream
+  no longer inflates `N errors` in the run summary.
+
 ## [2.47.0] - 2026-07-25
 
 ### BREAKING
