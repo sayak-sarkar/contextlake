@@ -458,7 +458,9 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
 
 
 def _plain_text(html: str) -> str:
-    t = re.sub(r"(?s)<(script|style)\b.*?</\1>", " ", html)
+    # drop heading permalink anchors first (tag + its "#" text), else the # leaks into snippets
+    t = re.sub(r'(?s)<a class="anchor".*?</a>', " ", html)
+    t = re.sub(r"(?s)<(script|style)\b.*?</\1>", " ", t)
     t = re.sub(r"(?s)<[^>]+>", " ", t)
     for a, b in (("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"), ("&#39;", "'"), ("&quot;", '"')):
         t = t.replace(a, b)
