@@ -1166,6 +1166,11 @@ the same field, so a diagram never claims a transition the code doesn't actually
 and C# (regex, every edge `INFERRED`). Render with `contextlake graph --repo <repo> --format statediagram`
 (a Mermaid entity state machine), see [Visualize](visualize.md).
 
+`transitions_to` is deliberately **not** in `impact`'s default relation set: unlike a table schema a
+query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
+enum member is a language-level rename, not a graph-discoverable break), pass `--relation transitions_to`
+explicitly if you do want that walk.
+
 ### Intra-repo dataflow: reads and writes
 
 Application code querying a table or view it never explicitly imports still shows up in the graph: a
