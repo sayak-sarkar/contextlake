@@ -2989,6 +2989,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.48.0] - 2026-07-26
+
 ### Added
 
 - **`statediagram` graph format.** `contextlake graph --repo <repo> --format statediagram` renders a
@@ -3033,8 +3035,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new `"(shared)"` sentinel (`kb/model.py`), matching the existing `"(packages)"` / `"(external)"`
   pattern for nodes no single repo owns, per-repo attribution for these already lives correctly on
   their *edges* (`arch/resolve.py` has always read it from there, never from the shared node itself).
-  **No migration needed**: existing stores self-correct as each repo is next reindexed; until then a
-  shared node may still show a stale owning repo from before this fix.
+  **No schema migration needed, but self-correction requires an actual re-parse, not just re-running
+  `index`**: `index`'s incremental skip (a repo whose HEAD hasn't moved since its last index is left
+  untouched) means a shared node keeps a stale owning repo from before this fix until the repo that
+  currently owns it is actually re-parsed, a new commit landing, or `index --force`. Run `--force`
+  once after upgrading if you want existing shared nodes corrected immediately rather than opportunistically.
 - **Dashboard: a shared node's breadcrumb no longer links to a repo that doesn't exist.** Search
   for a symbol like an imported module, an HTTP endpoint, or an event topic and trace its blast
   radius (reachable from any search result's "Blast" button) and its owning "repo" is a pseudo-repo
