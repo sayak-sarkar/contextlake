@@ -73,8 +73,11 @@ def test_sample_site_is_offline_and_well_formed(tmp_path):
 
     # offline boundary: the gate files reference no network/CDN resources. data.js is
     # scanned too — the injected snapshot must not smuggle external URLs into the export.
+    # W3C XML-namespace URNs (e.g. the SVG xmlns in an inline data-URI favicon) are standards
+    # identifiers the browser never fetches, so they don't count as network references.
     for name in ("index.html", "dashboard.js", "dashboard.css", "data.js"):
         low = (out / name).read_text(encoding="utf-8").lower()
+        low = low.replace("http://www.w3.org/", "")  # xmlns/xlink namespaces, never fetched
         assert "http://" not in low and "https://" not in low and "cdn." not in low, name
 
     # the iframed graph site was emitted alongside (reused visualize.build_site)
