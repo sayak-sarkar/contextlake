@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.45.0] - 2026-07-25
+
+### Fixed
+
+- **`doctor` flags a missing wiki-LLM runtime.** When the built-in wiki LLM is
+  configured but `llama-cpp-python` isn't installed, `doctor` now reports
+  `⚠ … runtime not installed` with the install hint, instead of a green `✓` that only
+  checked for the model file — so the report matches what `wiki` will actually do.
+- **Dashboard favicon.** The dashboard shell ships an inline SVG favicon, so browsers
+  no longer log a `/favicon.ico` 404 (and the tab gets an icon).
+
+### Changed
+
+- **Moonlit-navy dark theme** for the dashboard and the graph visualizer.
+- Renamed the demo running example to a generic "Catalog" service across the sample
+  fixture, examples, and docs.
+- Stripped em-dashes from user-facing copy (house style).
+
 ## [2.44.0] - 2026-07-23
 
 ### Added
