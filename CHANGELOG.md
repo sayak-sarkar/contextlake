@@ -26,7 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency that doesn't exist — the same "never a false edge" contract this
   extractor documents. Line comments (`#`, `//`), block comments (`/* */`), and
   triple-quoted strings are now blanked out (newlines preserved, so line numbers on
-  real matches don't shift) before scanning (`kb/flow/data.py`).
+  real matches don't shift) before scanning (`kb/flow/data.py`). Trade-off, by design
+  (honest undercount over false positive): a real query written as a triple-quoted
+  string (`query = """SELECT * FROM orders"""`) is now missed too, same as the
+  existing undercount for ORM/string-concatenation queries.
 - **The fleet architecture map and generated site could render a shared-node
   sentinel (`"(shared)"`, `"(packages)"`) as though it were a repo.** Since Finding
   #10 (v2.48.0) gave shared nodes their own stable `repo_id`, that id showed up in
