@@ -14,7 +14,7 @@ import re
 from .._util import chunks
 from ..ids import make_id
 from ..mcp_client import call_tool
-from ..model import Confidence, Edge, Node
+from ..model import EXTERNAL_REPO, Confidence, Edge, Node
 from .common import claims, host_of, link_edge, repo_node
 
 __all__ = [
@@ -113,7 +113,7 @@ def issue_summary(node: dict) -> dict:
 def external_node(kind: str, key: str, *, title: str | None = None,
                   url: str | None = None, site: str | None = None) -> Node:
     attrs = {k: v for k, v in {"title": title, "url": url, "site": site}.items() if v}
-    return Node(id=make_id("atlassian", kind, key), repo="(external)", kind=kind,
+    return Node(id=make_id("atlassian", kind, key), repo=EXTERNAL_REPO, kind=kind,
                 name=key, attrs=attrs)
 
 

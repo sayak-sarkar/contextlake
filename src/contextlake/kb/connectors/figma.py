@@ -15,7 +15,7 @@ from urllib.parse import unquote
 
 from ..ids import make_id
 from ..mcp_client import call_tool
-from ..model import Node
+from ..model import EXTERNAL_REPO, Node
 from .common import claims, link_edge, repo_node
 
 DEFAULT_HOSTS = ("figma.com",)
@@ -51,7 +51,7 @@ def title_of(url: str) -> str | None:
 def design_node(key: str, *, url: str | None = None, title: str | None = None,
                 node_id: str | None = None) -> Node:
     attrs = {k: v for k, v in {"url": url, "title": title, "node_id": node_id}.items() if v}
-    return Node(id=make_id("figma", "design", key), repo="(external)", kind="design",
+    return Node(id=make_id("figma", "design", key), repo=EXTERNAL_REPO, kind="design",
                 name=key, attrs=attrs)
 
 

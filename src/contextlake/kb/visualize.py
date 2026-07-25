@@ -28,6 +28,25 @@ if TYPE_CHECKING:  # avoid importing the model at call time; we only need types 
     from .model import Edge, Node
     from .store.base import Store
 
+
+def _is_sentinel_repo(repo_id: str) -> bool:
+    """A pseudo-repo id (``kb.model.SHARED_REPO`` and family) -- never a real
+    repo, so must never appear as a node in a fleet-wide repo listing or get a
+    per-repo page. Checked by the shared ``(``-prefix convention rather than
+    importing ``kb.model`` (this module intentionally avoids the pydantic
+    import at load time); ``dashboard.js`` makes the same check independently.
+    """
+    return repo_id.startswith("(")
+
+
+def _repo_node_sizes(store: Store) -> dict[str, int]:
+    """``{repo_id: node_count}`` for real repos only -- a shared/packages/external
+    sentinel node (e.g. every module imported fleet-wide) is not a repo and must
+    not be ranked, listed, or given a page as though it were one."""
+    sizes = dict(store.conn.execute(
+        "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
+    return {r: c for r, c in sizes.items() if not _is_sentinel_repo(r)}
+
 # ---------------------------------------------------------------------------
 # Styling vocab (kind -> colour, confidence -> line style). Generic, no private data.
 # ---------------------------------------------------------------------------
@@ -330,8 +349,7 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000,
     marked ``INFERRED`` (manifest-derived, a likely undercount — not ground truth).
     """
     from .arch.resolve import repo_dependency_edges, repo_event_flow_edges, repo_http_flow_edges
-    sizes = dict(store.conn.execute(
-        "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
+    sizes = _repo_node_sizes(store)
     log("  resolving real cross-repo dependencies (package two-hop)…")
     # structural deps (depends_on) + runtime flow (HTTP + events); all INFERRED,
     # all repo→repo. Flow is empty until an index has run the flow extractors.
@@ -1053,8 +1071,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     for name in ("cytoscape.min.js", "app.css", "app.js"):
         (out / name).write_text(_read_static_raw(name), encoding="utf-8")
 
-    sizes = dict(store.conn.execute(
-        "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
+    sizes = _repo_node_sizes(store)
     repos_with_nodes = sorted(r for r, c in sizes.items() if c)
     if repos:
         repos_with_nodes = [r for r in repos_with_nodes if _match_repo(r, repos)]
@@ -1192,8 +1209,7 @@ def build_site_server(store: Store, *, host: str = "127.0.0.1", port: int = 8765
     import urllib.parse
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-    sizes = dict(store.conn.execute(
-        "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
+    sizes = _repo_node_sizes(store)
     repos_with_nodes = sorted(r for r, c in sizes.items() if c)
     pages = {r: f"repo-{repo_slug(r)}.html" for r in repos_with_nodes}
     slug_to_repo = {repo_slug(r): r for r in repos_with_nodes}

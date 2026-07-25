@@ -16,7 +16,7 @@ import re
 from datetime import date
 
 from .ids import make_id
-from .model import Confidence, Edge, Node, Provenance
+from .model import PACKAGES_REPO, Confidence, Edge, Node, Provenance
 
 try:  # Python 3.11+
     import tomllib
@@ -88,7 +88,7 @@ def _maven_project_coord(text: str) -> str | None:
 
 def _package_node(name: str, ecosystem: str) -> Node:
     return Node(
-        id=make_id("pkg", ecosystem, name), repo="(packages)", kind="package",
+        id=make_id("pkg", ecosystem, name), repo=PACKAGES_REPO, kind="package",
         name=name, lang=ecosystem, attrs={"ecosystem": ecosystem},
     )
 

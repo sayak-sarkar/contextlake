@@ -56,8 +56,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     # overview once (self-contained, live=True for click-to-expand); repo pages are
     # rendered on demand. Repo nodes link to ``repo-<slug>.html`` (resolved under
     # /graph/ in the iframe).
-    sizes = dict(store.conn.execute(
-        "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
+    sizes = viz._repo_node_sizes(store)
     repos_with_nodes = sorted(r for r, c in sizes.items() if c)
     pages = {r: f"repo-{viz.repo_slug(r)}.html" for r in repos_with_nodes}
     slug_to_repo = {viz.repo_slug(r): r for r in repos_with_nodes}

@@ -13,7 +13,7 @@ import subprocess
 import urllib.parse
 
 from ..ids import make_id
-from ..model import Confidence, Node
+from ..model import EXTERNAL_REPO, Confidence, Node
 from .common import link_edge, repo_node
 
 
@@ -60,7 +60,7 @@ def _item_node(repo_id: str, kind: str, sigil: str, item: dict) -> Node:
         "title": item.get("title"), "state": item.get("state"),
         "url": item.get("web_url"),
     }.items() if v}
-    return Node(id=make_id("gitlab", kind, repo_id, str(iid)), repo="(external)",
+    return Node(id=make_id("gitlab", kind, repo_id, str(iid)), repo=EXTERNAL_REPO,
                 kind=kind, name=f"{repo_id}{sigil}{iid}", attrs=attrs)
 
 

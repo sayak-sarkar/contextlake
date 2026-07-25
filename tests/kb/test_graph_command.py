@@ -122,6 +122,23 @@ def test_overview_aggregates_cross_repo(store):
     assert dep[0]["confidence"] == "INFERRED"  # manifest-derived, not ground truth
 
 
+def test_overview_never_shows_a_shared_node_sentinel_as_a_repo(store):
+    """A `(shared)`/`(packages)`/`(external)` sentinel node (e.g. every module
+    imported fleet-wide, via SHARED_REPO) is not a repo and must never be
+    ranked, listed, or given its own page as though it were one -- it would
+    otherwise be the single largest "repo" in the whole fleet overview."""
+    store.upsert_repo(Repo(id="repoA", path="/a"))
+    store.upsert_nodes("repoA", [_node("a1", repo="repoA")])
+    # 50 module nodes owned by the shared-node sentinel, as parse.py now emits
+    store.upsert_nodes("repoA", [_node(f"m{i}", repo="(shared)", kind="module")
+                                 for i in range(50)])
+    store.upsert_nodes("repoA", [_node("pkg1", repo="(packages)", kind="package")])
+    nodes, _ = viz.overview_subgraph(store, max_nodes=50)
+    ids = {n["id"] for n in nodes}
+    assert ids == {"repoA"}
+    assert "(shared)" not in ids and "(packages)" not in ids
+
+
 def test_overview_keeps_most_connected_not_alphabetical(store):
     # 'zzz' is a hub (sorts last alphabetically) linked to aaa/bbb/ccc; the trivial
     # repos each have degree 1. With max_nodes=2 the hub must survive, not be dropped

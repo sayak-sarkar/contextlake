@@ -33,6 +33,22 @@ the shared node's own ``repo``). Using a stable sentinel instead of the last rep
 indexed also means ``clear_repo`` on any one repo can never delete a node other repos
 still reference."""
 
+PACKAGES_REPO = "(packages)"
+"""Sentinel for manifest-declared package identities (``kb/manifest.py``) -- see
+:data:`SHARED_REPO` for the family this belongs to."""
+
+EXTERNAL_REPO = "(external)"
+"""Sentinel for connector-fetched nodes with no repo at all (Figma designs, Atlassian
+issues, GitLab entities) -- see :data:`SHARED_REPO` for the family this belongs to."""
+
+
+def is_sentinel_repo(repo_id: str) -> bool:
+    """True for a pseudo-repo id (the :data:`SHARED_REPO` family) -- never a real
+    repo, so must never be treated as one in a fleet-wide repo listing, a per-repo
+    view, or the dashboard breadcrumb. The ``(``-prefix is the shared contract every
+    sentinel follows, checked here and independently in ``dashboard.js``."""
+    return repo_id.startswith("(")
+
 
 class Confidence(str, Enum):
     """How much to trust an edge."""
