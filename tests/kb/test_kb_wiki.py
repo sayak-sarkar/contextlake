@@ -217,6 +217,15 @@ def test_parse_review_recovers_n_out_of_10_form():
     assert r["score"] == 0.8 and r["parsed"] is True
 
 
+def test_parse_review_recovers_score_from_malformed_json():
+    # Small models emit valid `"score"` but break the JSON elsewhere (unescaped inner
+    # quotes in a later value), so json.loads fails and the score must be recovered from
+    # the raw text -- the labeled-score regex has to tolerate the JSON `"score":` form.
+    raw = '{"score": 0.95, "issues": [], "note": ["the "command" class is fine"]}'
+    r = _parse_review(raw)
+    assert r["score"] == 0.95 and r["parsed"] is True
+
+
 def test_parse_review_still_abstains_on_unlabeled_prose():
     # Prose criticism with no labeled number must NOT invent a score.
     r = _parse_review("The claim is not supported by the facts.")

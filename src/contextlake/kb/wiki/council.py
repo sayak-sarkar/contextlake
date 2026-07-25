@@ -29,12 +29,14 @@ REVIEW_SYSTEM = (
 # Fallback keys a small model might use instead of the requested "score".
 _ALT_SCORE_KEYS = ("rating", "overall", "overall_score", "quality")
 
-# A score explicitly labeled "score"/"rating" in prose, e.g. "Score: 0.7 - thin.".
-# Requires an explicit separator (":", "=", "is", "of") between the keyword and the
-# number so an unrelated small integer near the word -- e.g. an issue-list ordinal
+# A score explicitly labeled "score"/"rating", e.g. "Score: 0.7 - thin." or the JSON
+# form `"score": 0.95` (small models often emit JSON with unescaped inner quotes elsewhere,
+# so json.loads fails and we recover the score from the raw text). A closing quote and
+# whitespace may sit between the keyword and the separator. Requires an explicit separator
+# (":", "=", "is") so an unrelated small integer near the word -- e.g. an issue-list ordinal
 # like "rating 1 - the intro lacks context" -- is never mistaken for a labeled score.
 _LABELED_SCORE_RE = re.compile(
-    r"(?i)\b(?:score|rating)\b\s*(?:[:=]|\bis\b)\s*([01](?:\.\d+)?)\b")
+    r'(?i)\b(?:score|rating)\b["\s]*(?:[:=]|\bis\b)\s*([01](?:\.\d+)?)\b')
 
 # An "N/10" or "N out of 10" style rating, e.g. "I'd rate this 8/10.".
 _FRACTION_10_RE = re.compile(r"(?i)\b([0-9](?:\.\d+)?)\s*(?:/|out of)\s*10\b")
