@@ -123,8 +123,9 @@ class ConfluenceSource:
         yield Document(id="123", title="Runbook", text="...", uri="https://...")
 ```
 
-`contextlake ingest` then discovers `type = "confluence"` automatically. Four sources ship built-in:
-`files`, `web`, `api`, and `mcp`. **`web`** fetches URLs and ingests their readable text (stdlib-only):
+`contextlake ingest` then discovers `type = "confluence"` automatically. Five sources ship built-in:
+`files`, `web`, `api`, `graphql`, and `mcp`. **`web`** fetches URLs and ingests their readable text
+(stdlib-only):
 
 ```toml
 [[sources]]
@@ -144,6 +145,20 @@ url = "https://api.example.com/v1/articles"
 items = "data.articles"        # dotted path to the record list
 text_field = "body"            # which key holds the document text
 token_env = "EXAMPLE_API_TOKEN"  # bearer token comes from this env var
+```
+
+A **`graphql`** source ships built-in too: POST a query (+ optional variables) and map records in
+the response to documents, the same way `api` maps a REST response:
+
+```toml
+[[sources]]
+type = "graphql"
+name = "issues"
+url = "https://api.example.com/graphql"
+query = "{ repository { issues { nodes { id title body } } } }"
+items = "repository.issues.nodes"   # dotted path into the response, rooted at `data`
+text_field = "body"
+token_env = "EXAMPLE_API_TOKEN"     # bearer token comes from this env var
 ```
 
 An **`mcp`** source ships built-in as well: contextlake connects as an MCP *client* (stdio or

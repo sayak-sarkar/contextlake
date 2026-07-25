@@ -12,7 +12,7 @@ command's own page (linked below) covers it in depth.
 | `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
-| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
+| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`) |

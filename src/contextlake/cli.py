@@ -544,7 +544,7 @@ Examples:
     p.add_argument("--hops", type=int, default=_S, help="reverse depth (default 3)")
     p.add_argument("--limit", type=int, default=_S, help="max nodes listed (default 100)")
 
-    p = command("ingest", "aggregate external documents (files/web/api/mcp sources) "
+    p = command("ingest", "aggregate external documents (files/web/api/graphql/mcp sources) "
                           "into the graph")
     p.add_argument("--path", default=_S, help="the path (or URL/endpoint) to ingest")
     p.add_argument("--source-type", dest="source_type", default=_S,

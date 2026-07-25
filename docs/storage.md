@@ -43,7 +43,8 @@ connectivity, and its *cached* results stay queryable offline afterward.
 ## The one deliberate carve-out: steering files
 
 `steer` (and the steering stage of `bootstrap`) writes editor-config files, `AGENTS.md`,
-`CLAUDE.md`, `.windsurfrules`, `.kiro/steering/`, `.mcp.json`, skills, that an IDE/agent must find
+`CLAUDE.md`, `.windsurfrules`, `.kiro/steering/`, `.mcp.json`, `.vscode/mcp.json`, skills, that an
+IDE/agent must find
 **at the workspace root it opens**, so these are written to the target you point `steer --out` at
 (bootstrap uses the mirror root, which is not itself a repo). They are still never written inside an
 individual synced repo tree under the mirror. When onboarding a *single* project you own, you choose

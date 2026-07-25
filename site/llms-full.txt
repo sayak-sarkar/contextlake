@@ -244,7 +244,7 @@ and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/
 | `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
-| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
+| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` (alias `who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
@@ -252,7 +252,7 @@ and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
 | `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
 | `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
-| `steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
+| `steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
 | `lint` · `doctor` · `eval` | Graph health · environment check · retrieval-quality scoring |
 
 Global options apply to any command: `--dry-run` (preview without changing anything),
@@ -1333,8 +1333,9 @@ class ConfluenceSource:
         yield Document(id="123", title="Runbook", text="...", uri="https://...")
 ```
 
-`contextlake ingest` then discovers `type = "confluence"` automatically. Four sources ship built-in:
-`files`, `web`, `api`, and `mcp`. **`web`** fetches URLs and ingests their readable text (stdlib-only):
+`contextlake ingest` then discovers `type = "confluence"` automatically. Five sources ship built-in:
+`files`, `web`, `api`, `graphql`, and `mcp`. **`web`** fetches URLs and ingests their readable text
+(stdlib-only):
 
 ```toml
 [[sources]]
@@ -1354,6 +1355,20 @@ url = "https://api.example.com/v1/articles"
 items = "data.articles"        # dotted path to the record list
 text_field = "body"            # which key holds the document text
 token_env = "EXAMPLE_API_TOKEN"  # bearer token comes from this env var
+```
+
+A **`graphql`** source ships built-in too: POST a query (+ optional variables) and map records in
+the response to documents, the same way `api` maps a REST response:
+
+```toml
+[[sources]]
+type = "graphql"
+name = "issues"
+url = "https://api.example.com/graphql"
+query = "{ repository { issues { nodes { id title body } } } }"
+items = "repository.issues.nodes"   # dotted path into the response, rooted at `data`
+text_field = "body"
+token_env = "EXAMPLE_API_TOKEN"     # bearer token comes from this env var
 ```
 
 An **`mcp`** source ships built-in as well: contextlake connects as an MCP *client* (stdio or
@@ -2766,7 +2781,8 @@ connectivity, and its *cached* results stay queryable offline afterward.
 ## The one deliberate carve-out: steering files
 
 `steer` (and the steering stage of `bootstrap`) writes editor-config files, `AGENTS.md`,
-`CLAUDE.md`, `.windsurfrules`, `.kiro/steering/`, `.mcp.json`, skills, that an IDE/agent must find
+`CLAUDE.md`, `.windsurfrules`, `.kiro/steering/`, `.mcp.json`, `.vscode/mcp.json`, skills, that an
+IDE/agent must find
 **at the workspace root it opens**, so these are written to the target you point `steer --out` at
 (bootstrap uses the mirror root, which is not itself a repo). They are still never written inside an
 individual synced repo tree under the mirror. When onboarding a *single* project you own, you choose
@@ -2791,7 +2807,7 @@ command's own page (linked below) covers it in depth.
 | `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
-| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
+| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`) |

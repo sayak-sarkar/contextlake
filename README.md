@@ -232,7 +232,7 @@ and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/
 | `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
-| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`mcp` sources, or plugins) |
+| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
 | `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `owners` (alias `who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
@@ -240,7 +240,7 @@ and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
 | `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
 | `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
-| `steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.windsurfrules`, skills |
+| `steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
 | `lint` · `doctor` · `eval` | Graph health · environment check · retrieval-quality scoring |
 
 Global options apply to any command: `--dry-run` (preview without changing anything),

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`graphql` source type for `ingest`.** POSTs a query (+ optional variables) to one
+  endpoint and maps records in the response to documents, the same shape as the
+  existing `api` source's REST mapping. Auth is a bearer token read from an env var
+  named in config, never stored.
+- **`.vscode/mcp.json` steering output.** `contextlake steer` now writes VS Code's own
+  MCP config file (top-level `servers` key, a different schema from `.mcp.json`'s
+  `mcpServers`) alongside the existing steering files, merging in the `contextlake-kb`
+  server entry without disturbing any other servers already configured there.
+
+### Fixed
+
+- **Docs corrected a false claim that Devin reads the same repo-committed MCP config
+  file as Windsurf.** Devin's MCP connections are account/org-level (`mcp.devin.ai`,
+  API key + org header); contextlake cannot self-register there the way it can for
+  file-based clients. `docs/serve.md` now says so plainly instead of grouping Devin
+  with Windsurf's wiring instructions.
+
 ## [2.45.1] - 2026-07-25
 
 ### Fixed
