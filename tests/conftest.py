@@ -113,6 +113,18 @@ def _clean_gitlab_env(monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
 
+@pytest.fixture(autouse=True)
+def _clean_color_env(monkeypatch):
+    """Keep tests hermetic: a shell (or terminal wrapper) that sets FORCE_COLOR
+    would make style.ok()/style.warn() emit ANSI codes even under pytest's
+    non-tty capsys capture, breaking any test that asserts a literal plain-text
+    log/output string. Tests that want to exercise the colored path set
+    FORCE_COLOR/NO_COLOR explicitly via monkeypatch.setenv.
+    """
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+
+
 @pytest.fixture
 def no_sleep(monkeypatch):
     """Make time.sleep a no-op so backoff tests run instantly."""
