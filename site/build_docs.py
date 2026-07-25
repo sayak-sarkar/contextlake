@@ -325,7 +325,20 @@ def sidebar(active: str) -> str:
         blocks.append(f'<h2>{group}</h2><nav aria-label="{group}">'
                       + "".join(links) + "</nav>")
     ext = f'<div class="ext"><div class="social-row">{GH_BTN}{PYPI_BTN}</div></div>'
-    return '<aside class="side">' + "".join(blocks) + ext + "</aside>"
+    # On mobile the whole nav is collapsed behind a disclosure toggle so readers land on
+    # the content, not a wall of links; on desktop the toggle is hidden and the body shows.
+    toggle = ('<button class="side-toggle" id="side-toggle" type="button" '
+              'aria-expanded="false" aria-controls="side-body">'
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+              'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+              '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/>'
+              '<line x1="3" y1="18" x2="21" y2="18"/></svg>'
+              '<span>Browse docs</span>'
+              '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+              'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+              '<path d="m6 9 6 6 6-6"/></svg></button>')
+    body = f'<div class="side-body" id="side-body">{"".join(blocks)}{ext}</div>'
+    return f'<aside class="side">{toggle}{body}</aside>'
 
 
 def hero(title: str, eyebrow: str, subtitle: str, pebble: str) -> str:
@@ -408,6 +421,13 @@ b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});
 strip.appendChild(b);});
 g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
 tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>"""
+
+
+# Mobile-only sidebar disclosure: the toggle button flips .side.open and its aria-expanded.
+# It closes when a nav link is chosen (navigation follows anyway) so the menu never lingers.
+SIDE_JS = r"""<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
+s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>"""
 
 
 def _plain_text(html: str) -> str:
@@ -498,6 +518,7 @@ def shell(meta, body, toc_html) -> str:
 {THEME_JS}
 {COPY_JS}
 {TAB_JS}
+{SIDE_JS}
 <script defer src="cmdk.js"></script>
 </body>
 </html>"""
