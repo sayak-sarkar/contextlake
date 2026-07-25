@@ -88,6 +88,11 @@ hop by hop, with the confidence of each path.
 
 ![Blast radius: what a change to a symbol would touch](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
 
+The breadcrumb keeps going from there: **repo → symbol → Diagram → Wiki → Links**, one click each to
+that symbol's repo-scoped architecture graph, curated wiki, and connector links (Jira/Confluence/GitLab).
+Wiki and Links only appear when the repo actually has one — an absent wiki or connector link is omitted
+from the trail, never shown as a dead crumb.
+
 ## 7. Generate a wiki
 
 No wiki for a repo yet? Its **Wiki** tab hands you the exact command (one click to copy):

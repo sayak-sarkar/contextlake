@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   table this repo never defines is an honest miss, not a guessed link (`kb/flow/data.py`).
   `reads`/`writes` are now in `impact`'s default relation set, so `contextlake impact <table>`
   answers "what code touches this table" without needing `--relation reads,writes` spelled out.
+- **Dashboard: the symbol breadcrumb continues to Diagram / Wiki / Links.** Viewing a symbol's blast
+  radius now shows `repo → symbol → Diagram → Wiki → Links`, one click each to that symbol's
+  repo-scoped architecture graph, curated wiki, and connector links — Wiki/Links only appear when the
+  repo actually has one, never as a dead crumb for data that doesn't exist.
 
 ### Fixed
 
@@ -30,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error.** Previously bucketed into the generic error count alongside real failures; now
   classified like the existing deleted-branch case, so a project marked for deletion upstream
   no longer inflates `N errors` in the run summary.
+- **Dashboard: the symbol view's "Cross-repo only" toggle was silently dead in live mode.** It
+  worked only against the static demo snapshot, because `/api/impact` never told the client which
+  repo the seed symbol lived in — the client tried to look it up in a symbol index that only exists
+  in static mode. `impact()` now returns the seed's own `repo` (`kb/dashboard/data.py`), fixing the
+  toggle in live mode and, incidentally, a symbol-view provenance chip that was citing the wrong
+  "repo" (actually the raw node id, via a `.split(":")` on an id that never had a colon in it).
 
 ## [2.47.0] - 2026-07-25
 

@@ -151,7 +151,7 @@
   };
 
   // ---- context spine ----------------------------------------------------
-  var ctx = { domain: null, repoId: null, nodeId: null };
+  var ctx = { domain: null, repoId: null, nodeId: null, symbolExtras: null };
 
   // ---- confidence + provenance components -------------------------------
   function confLabel(c) { return (CONF[c] || [c])[0]; }
@@ -642,7 +642,7 @@
       }));
       return;
     }
-    ctx.nodeId = seed; refreshChrome();
+    ctx.nodeId = seed; ctx.symbolRepo = null; ctx.symbolExtras = null; refreshChrome();
     // Always load the payload at the widest hops (3) so the slider/relation/cross
     // controls are pure client-side filters: narrowing re-paints in place (no re-fetch,
     // no skeleton flash, no rebuilt slider). Static already returns the hops=3
@@ -676,15 +676,20 @@
       }
       body.appendChild(h("div", { class: "cl-card cl-sectionhead" },
         h("div", { class: "cl-row" }, kindIcon("function"), h("strong", null, imp.name || seed),
-          citeButton({ claim: imp.name || seed, repo: (imp.seed || "").split(":")[0], source: imp.seed, confidence: "EXTRACTED" }))));
+          citeButton({ claim: imp.name || seed, repo: imp.repo, source: imp.seed, confidence: "EXTRACTED" }))));
 
-      // The impact payload carries no seed repo; resolve it from the symbol index so
-      // "cross-repo only" is real, not a silent no-op. When unresolvable (live mode, no
-      // local index) the control is disabled rather than dead.
-      var seedSym = (CL.data.symbols() || []).filter(function (s) { return s.id === imp.seed; })[0];
-      var seedRepo = seedSym ? seedSym.repo : null;
+      // The impact payload now carries the seed's own repo (data.py), so "cross-repo
+      // only" and the breadcrumb's repo-scoped links work in live mode too, not just
+      // the static snapshot's precomputed symbol index.
+      var seedRepo = imp.repo || null;
       var crossKnown = seedRepo != null;
       if (!crossKnown) blastCfg.crossOnly = false;
+      // The Diagram breadcrumb only needs the repo id (known now); Wiki/Links need a
+      // fetch to know whether either actually exists for this repo, so they append
+      // once that resolves rather than blocking on it.
+      ctx.symbolRepo = seedRepo;
+      refreshChrome("symbol");
+      loadSymbolCrumbExtras(seedRepo, seed);
 
       // Lanes + summary live in their own container so a control change re-paints ONLY
       // this, leaving the controls (and any keyboard focus on the slider) untouched.
@@ -905,16 +910,58 @@
       if (ctx.repoId.indexOf("/") >= 0) crumb(ctx.repoId.split("/")[0], "#/fleet");
       crumb(ctx.repoId, "#/repo/" + ctx.repoId, lens === "repo");
     }
-    if (ctx.nodeId && lens === "symbol") crumb(String(ctx.nodeId).split("/").pop(), null, true);
+    if (ctx.nodeId && lens === "symbol") {
+      // The symbol's own repo path (acme / acme/auth-service) -- shown even when this
+      // symbol was reached directly (search, a deep link) rather than by clicking
+      // through its repo first, which is the only way ctx.repoId above gets set. Skipped
+      // when it's already the pinned repoId's path, so it's never rendered twice.
+      if (ctx.symbolRepo && ctx.symbolRepo !== ctx.repoId) {
+        if (ctx.symbolRepo.indexOf("/") >= 0) crumb(ctx.symbolRepo.split("/")[0], "#/fleet");
+        crumb(ctx.symbolRepo, "#/repo/" + ctx.symbolRepo, false);
+      }
+      crumb(String(ctx.nodeId).split("/").pop(), "#/symbol/" + ctx.nodeId, true);
+      // Diagram/Wiki/Links: quick links onward from this symbol, not "you are here"
+      // segments, so none of them carry aria-current. Diagram only needs the repo id
+      // (known as soon as the impact payload resolves); Wiki/Links need to know the
+      // repo actually HAS one, so they only appear once that's confirmed -- an absent
+      // wiki or connector link is omitted, never shown as a dead/disabled crumb.
+      if (ctx.symbolRepo) {
+        crumb("Diagram", "#/arch/" + ctx.symbolRepo, false);
+        var extras = ctx.symbolExtras;
+        if (extras && extras.repo === ctx.symbolRepo) {
+          if (extras.wiki) crumb("Wiki", "#/repo/" + ctx.symbolRepo + "?tab=wiki", false);
+          if (extras.links) crumb("Links", "#/repo/" + ctx.symbolRepo + "?tab=links", false);
+        }
+      }
+    }
     // pinned chip
     var pin = $("#cl-pinchip");
     if (ctx.repoId) {
       pin.hidden = false; clear(pin);
       pin.appendChild(h("span", { html: icon("ui-pin") }));
       pin.appendChild(document.createTextNode(ctx.repoId));
-      pin.onclick = function () { ctx.repoId = null; ctx.nodeId = null; refreshChrome(); live("Context cleared"); };
+      pin.onclick = function () { ctx.repoId = null; ctx.nodeId = null; ctx.symbolRepo = null; ctx.symbolExtras = null; refreshChrome(); live("Context cleared"); };
       pin.setAttribute("aria-label", "Clear pinned " + ctx.repoId);
     } else pin.hidden = true;
+  }
+
+  // Fetches whether the symbol's repo has a wiki / connector links, so the
+  // breadcrumb can append Wiki/Links crumbs (or not) once known. Guarded against
+  // the user navigating to a different symbol before this resolves.
+  function loadSymbolCrumbExtras(repo, forSeed) {
+    if (!repo) return;
+    CL.data.repo(repo).then(function (d) {
+      if (ctx.nodeId !== forSeed) return;  // navigated away; stale response, drop it
+      ctx.symbolExtras = {
+        repo: repo,
+        wiki: !!(d.wiki && d.wiki.found),
+        links: !!(d.links && Object.keys(d.links).length),
+      };
+      refreshChrome("symbol");
+    }, function () {
+      // repo() failed (e.g. static snapshot doesn't carry this repo's detail) --
+      // Diagram still works from symbolRepo alone; Wiki/Links just stay omitted.
+    });
   }
 
   // ---- command palette --------------------------------------------------

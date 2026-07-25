@@ -175,6 +175,15 @@ def test_impact_blast_radius_and_name_fallback(store_dir):
     assert kbdata.impact(s, "does-not-exist")["found"] is False
 
 
+def test_impact_carries_the_seeds_own_repo(store_dir):
+    """The dashboard's symbol view has no other way to learn the seed's repo
+    (node ids don't encode it) -- without this, cross-repo filtering and any
+    repo-scoped link from the symbol view silently can't work in live mode."""
+    s, _ = store_dir
+    imp = kbdata.impact(s, "app_catalogservice")
+    assert imp["repo"]
+
+
 def test_health_shape(store_dir):
     s, sd = store_dir
     h = kbdata.health(s, sd)

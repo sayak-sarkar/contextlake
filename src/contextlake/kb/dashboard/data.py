@@ -407,6 +407,7 @@ def impact(store, node_id: str, hops: int = 3, limit: int = 100,
     return {
         "seed": sanitize_label(node.id),
         "name": sanitize_label(node.name),
+        "repo": sanitize_label(node.repo),
         "found": True,
         "hops": hops,
         "total": len(hits),

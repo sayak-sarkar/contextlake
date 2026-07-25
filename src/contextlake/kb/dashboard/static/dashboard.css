@@ -105,10 +105,14 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-wordmark__text { font-size: var(--fs-500); margin: 0; letter-spacing: -.01em; }
 .cl-ctxbar__spacer { flex: 1; }
 
-.cl-breadcrumb { min-width: 0; overflow: hidden; }
-.cl-crumbs { display: flex; align-items: center; gap: var(--sp-1);
+/* Crumbs never shrink to fit (that squeezed every label to 1-2 unreadable
+   characters once a symbol view's Diagram/Wiki/Links crumbs pushed the count
+   past ~4) -- the row scrolls horizontally instead, so each crumb keeps its
+   own max-width/ellipsis behavior below and stays readable. */
+.cl-breadcrumb { min-width: 0; overflow-x: auto; overflow-y: hidden; }
+.cl-crumbs { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: nowrap;
   margin: 0; padding: 0; list-style: none; font-size: var(--fs-300); }
-.cl-crumbs li { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+.cl-crumbs li { display: flex; align-items: center; gap: var(--sp-1); flex: 0 0 auto; }
 .cl-crumbs li::after { content: "▸"; color: var(--cl-ink-muted); margin-left: var(--sp-1); }
 .cl-crumbs li:last-child::after { content: ""; }
 .cl-crumb { background: none; border: 0; color: var(--cl-primary); cursor: pointer;
