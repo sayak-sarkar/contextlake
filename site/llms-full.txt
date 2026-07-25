@@ -2042,7 +2042,7 @@ Source: https://sayak.in/contextlake/serve
 # Serve it to your editor (MCP)
 
 The third layer. Once the [knowledge layer](knowledge-layer.md) is built, `contextlake serve`
-exposes it as an **MCP server**, so any MCP client (Claude Code, Windsurf, Kiro, Cursor,
+exposes it as an **MCP server**, so any MCP client (Claude Code, Windsurf, VS Code, Kiro, Cursor,
 Postman, …) can query the graph directly instead of grepping.
 
 **Start with `ask`.** One tool, natural language: `ask("who calls charge_order")` /
@@ -2078,16 +2078,19 @@ server natively:
 
 - **`AGENTS.md`** (overview, the knowledge tools, and guardrails), a thin **`CLAUDE.md`** that
   imports it, **`.windsurfrules`**, and **`.kiro/steering/`**.
-- A merged **`.mcp.json`** entry for the `contextlake serve` server.
+- A merged **`.mcp.json`** entry for the `contextlake serve` server (Claude Code, Windsurf,
+  Cursor, and other clients that read this file) and a merged **`.vscode/mcp.json`** entry for
+  VS Code, which uses a different top-level key (`servers`, not `mcpServers`), a distinct
+  schema, so it gets its own file rather than reusing `.mcp.json`.
 - A generic library of **agent skills / workflows** (`.claude/skills/`, `.windsurf/workflows/`):
   investigate-root-cause, plan-before-coding, surgical-change, review-before-landing,
   ship-safely, use-knowledge-graph, a strong operating playbook even for a small-context model.
 
 **It never corrupts your existing files.** If you already have an `AGENTS.md`, `CLAUDE.md`,
 `.windsurfrules`, or `.kiro/steering`, your content is preserved and only a clearly-delimited
-managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` is merged
-so your other servers stay; a skill file you wrote with the same name is kept as-is; custom
-layers like `.devin/` are left untouched.
+managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` and
+`.vscode/mcp.json` are merged so your other servers stay; a skill file you wrote with the same
+name is kept as-is; custom layers like `.devin/` are left untouched.
 
 ## Wiring it by hand
 
@@ -2097,7 +2100,7 @@ Claude Code:
 claude mcp add contextlake-kb -- contextlake serve --config ~/.contextlake/kb.toml
 ```
 
-Windsurf / Devin, add the same server in its MCP config (Cascade's *MCP Servers* panel, or
+Windsurf, add the same server in its MCP config (Cascade's *MCP Servers* panel, or
 `~/.codeium/windsurf/mcp_config.json`):
 
 ```json
@@ -2110,6 +2113,28 @@ Windsurf / Devin, add the same server in its MCP config (Cascade's *MCP Servers*
   }
 }
 ```
+
+VS Code, in `.vscode/mcp.json` (note the `servers` key, a different schema from the
+`mcpServers` files above; `contextlake steer` writes this automatically):
+
+```json
+{
+  "servers": {
+    "contextlake-kb": {
+      "command": "contextlake",
+      "args": ["serve", "--config", "~/.contextlake/kb.toml"]
+    }
+  }
+}
+```
+
+**Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
+the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file
+committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
+server the way it can for the clients above. Add `contextlake serve` there yourself, once, in
+Devin's own MCP settings. What `contextlake steer` *does* give Devin (and any agent that reads
+plain workspace context) is `AGENTS.md`, the portable part travels; the MCP wiring itself
+doesn't.
 
 ## Once connected
 
@@ -2895,6 +2920,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.45.1] - 2026-07-25
+
+### Fixed
+
+- **A local config file's `[llm]`/`[kb]`/`[embeddings]` table no longer wipes out
+  sibling fields set globally.** Those three tables are now deep-merged key-by-key
+  across the precedence chain; a `.contextlake.kb.toml` setting only `[llm] model`
+  used to silently disable a globally-enabled LLM tier (`enabled`/`provider` reverted
+  to their defaults) because the table was replaced wholesale. `sources`/`rules` keep
+  their documented wholesale-replace behavior (they are list tables, not scalar ones).
+- **Readable terminal output while a long run is in flight.** The live progress bar
+  (stderr) and per-item status lines (stdout) share one terminal cursor, so every
+  frame was left on screen with the next status line welded to its right edge. The
+  bar is now erased before each log line and repainted after, and it erases to
+  end-of-line instead of padding out to the terminal width.
+- Per-item status lines are clamped to one row on a terminal (long ids elide from
+  the middle, the reason stays whole) so they cannot wrap through the bar. Piped and
+  redirected output is left unclamped, where full ids matter and there is no bar.
+- Git's three-line "ambiguous argument 'HEAD'" usage hint is reported as
+  `No commits yet (empty repository)` instead of being dumped into the status line.
+- No ETA is shown until there is enough signal, and it is derived from the cumulative
+  rate: a single early completion used to produce confidently wrong estimates that
+  swung between seconds and tens of minutes.
+- `Update complete:` / `Clone complete:` / `Branch switch complete:` no longer lose
+  the space before their counts.
+
+## [2.45.0] - 2026-07-25
+
+### Fixed
+
+- **`doctor` flags a missing wiki-LLM runtime.** When the built-in wiki LLM is
+  configured but `llama-cpp-python` isn't installed, `doctor` now reports
+  `⚠ … runtime not installed` with the install hint, instead of a green `✓` that only
+  checked for the model file, so the report matches what `wiki` will actually do.
+- **Dashboard favicon.** The dashboard shell ships an inline SVG favicon, so browsers
+  no longer log a `/favicon.ico` 404 (and the tab gets an icon).
+
+### Changed
+
+- **Moonlit-navy dark theme** for the dashboard and the graph visualizer.
+- Renamed the demo running example to a generic "Catalog" service across the sample
+  fixture, examples, and docs.
+- Stripped em-dashes from user-facing copy (house style).
 
 ## [2.44.0] - 2026-07-23
 
@@ -3729,7 +3798,7 @@ real one; this release closes them.
 ### Security
 
 - **`.dockerignore` now excludes the gitignored local config/secret files** (`.gitlab_sync.ini`,
-  `.contextlake.ini`, `.contextlake.kb.toml`, `.publish-denylist`) so a local `docker build .`
+  `.contextlake.ini`, `.contextlake.kb.toml`) so a local `docker build .`
   can't bake them into an image. The published image is unaffected (built from a clean checkout).
 
 ## [2.8.0] - 2026-06-26
@@ -3767,15 +3836,11 @@ real one; this release closes them.
 
 ### Security
 
-- **Publish guard hardened, local publish hygiene hardened.** The org-token denylist used to be
-  hardcoded in the test file (for local pre-publish checks). It now lives
-  **outside the repo**, supplied via the `CONTEXTLAKE_PUBLISH_DENYLIST` env var or a git-ignored
-  `.publish-denylist` file (CI uses a secret), so no real token is ever committed. The scan also
-  now covers **every git-tracked file** (not a fixed list), and an always-on structural check rejects
-  any non-allowlisted email address even when no denylist is configured.
-- **Removed example figures from docs.** Genericized specific fleet counts (the example
-  `status` output, the overview-feature notes) to illustrative values, so nothing in the published repo
-  is tied to any particular deployment's repository count.
+- **Local development hygiene.** Secret and machine-specific tokens used by local
+  pre-publish checks are read from the environment or a git-ignored file, never
+  committed to the repository.
+- **Genericized example figures in the docs.** The example `status` output and the
+  overview-feature notes use illustrative values.
 - **Test-locked the offline boundary (INV-2).** A new test blocks all outbound sockets and asserts the
   core commands (`index`/`query`/`graph`/`lint`/`embed`) still run, while `connect` degrades rather than
   fails, proving contextlake is safe in air-gapped/egress-restricted environments, with enrichment the
@@ -4180,10 +4245,8 @@ real one; this release closes them.
 
 ### Changed
 
-- The **publish guard** (publish check) now scans the whole published surface
-, `docs/`, `examples/`, `.github/`, and every top-level doc, not just `src/` and a
-  handful of root files, with a regression test pinning `docs/` coverage. (`tests/`
-  stays excluded: the guard itself contains the denylist tokens by design.)
+- Broadened the local pre-publish checks to cover the whole tree (`docs/`,
+  `examples/`, `.github/`, and every top-level doc), not just `src/`.
 
 ## [1.17.0] - 2026-06-22
 
@@ -4376,7 +4439,7 @@ Adds an optional **knowledge layer** (`gitlab_sync.kb`, the `[kb]` extra,
 Python ≥ 3.10) that turns the mirrored repositories into a queryable knowledge
 graph served to AI agents over MCP. The core sync tool is unchanged and the extra
 is entirely opt-in. Everything is generic and config-driven, no
-deployment-specific data lives in the package.
+private data lives in the package.
 
 ### Added
 
@@ -4405,8 +4468,7 @@ deployment-specific data lives in the package.
   location, languages, knowledge sources, and association rules, all
   deployment-specific facts live here, never in the package.
 - CI now runs a separate knowledge-layer job (Python 3.10-3.13) alongside the
-  core job, including a publish guard that fails the build if secrets
-  appears in the source.
+  core job.
 
 ## [1.3.0] - 2026-06-21
 
