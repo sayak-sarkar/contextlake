@@ -99,6 +99,9 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .side nav a:hover{background:var(--hover);color:var(--ink)}
 .side nav a.active{background:var(--lake);color:#fff;font-weight:500}
 .side .ext{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+/* the disclosure toggle is a mobile-only affordance; desktop hides it and always shows the body */
+.side-toggle{display:none}
+.side-body{display:block}
 
 /* prose */
 .prose{min-width:0;max-width:820px}
@@ -112,6 +115,8 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .prose li{margin:.3em 0}
 .prose a{text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--link) 35%,transparent)}
 .prose a:hover{border-bottom-color:var(--link)}
+/* outbound-link marker (build-time ↗ on http links): small, raised, no underline of its own */
+.prose a .ext-arrow{font-size:.7em;vertical-align:.35em;line-height:0;margin-left:1px;border:0;color:var(--link);opacity:.75}
 .prose code{font-family:var(--ff-m);font-size:.86em;background:var(--code-bg);color:var(--code-ink);padding:.15em .42em;border-radius:5px}
 .prose pre{background:var(--pre-bg);color:var(--mist);padding:16px 18px;border-radius:12px;overflow:auto;border:1px solid var(--line-2);
   font-family:var(--ff-m);font-size:13.5px;line-height:1.55;box-shadow:0 8px 22px -14px rgba(14,42,51,.5);margin:1.1em 0}
@@ -171,9 +176,11 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 
 /* footer */
 footer{background:var(--deepwater);color:#a9c6cb;padding:34px 0;font-size:14px}
-footer .f-in{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between;max-width:1180px;margin:0 auto;padding:0 24px}
-footer a{color:var(--mist)} footer .f-links{display:flex;flex-wrap:wrap;gap:16px}
-footer .tagline{font-family:var(--ff-d);color:var(--mist)}
+footer .f-in{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between;max-width:1320px;margin:0 auto;padding:0 24px}
+footer a{color:var(--mist)} footer .f-links{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+footer .f-links a{display:inline-flex;align-items:center}
+footer .f-links a .lmark{margin-right:6px}
+footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;align-items:center}
 
 /* breadcrumbs */
 .crumbs{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--ff-m);
@@ -229,8 +236,20 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist)}
 }
 @media (max-width:860px){
   .shell{grid-template-columns:1fr;gap:18px}
-  .side{position:static;max-height:none;border-right:none;padding-right:0;border-bottom:1px solid var(--line);padding-bottom:14px}
-  .side nav{display:flex;flex-wrap:wrap;gap:4px}
-  .side nav a{padding:6px 10px}
+  /* nav collapses behind the toggle so the reader lands on content, not a link wall */
+  .side{position:static;max-height:none;overflow:visible;border-right:none;padding-right:0}
+  .side-toggle{display:flex;align-items:center;gap:10px;width:100%;font:inherit;font-family:var(--ff-d);
+    font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;padding:11px 14px;
+    background:var(--surface);border:1px solid var(--line-2);border-radius:11px}
+  .side-toggle:hover{border-color:var(--muted)}
+  .side-toggle:focus-visible{outline:2px solid var(--lake);outline-offset:2px}
+  .side-toggle>svg:first-child{width:17px;height:17px;color:var(--muted);flex:none}
+  .side-toggle .chev{width:16px;height:16px;color:var(--muted);flex:none;margin-left:auto;transition:transform .18s ease}
+  .side.open .side-toggle .chev{transform:rotate(180deg)}
+  .side.open .side-toggle{border-color:var(--lake);border-bottom-left-radius:0;border-bottom-right-radius:0}
+  .side-body{display:none;border:1px solid var(--line-2);border-top:none;border-radius:0 0 11px 11px;padding:6px 8px 12px}
+  .side.open .side-body{display:block}
+  .side h2:first-of-type{margin-top:10px}
   .doc-pebble{width:88px}
 }
+@media (prefers-reduced-motion: reduce){ .side-toggle .chev{transition:none} }
