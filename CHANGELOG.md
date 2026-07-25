@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   MCP config file (top-level `servers` key, a different schema from `.mcp.json`'s
   `mcpServers`) alongside the existing steering files, merging in the `contextlake-kb`
   server entry without disturbing any other servers already configured there.
+- **`sequencediagram` graph format.** `contextlake graph --node/--name/--search ID
+  --format sequencediagram` renders a Mermaid call-order trace from one seed function,
+  walking `calls` edges depth-first and ordering each caller's callees by call-site
+  line. No new extraction was needed — every `calls` edge already carried its source
+  line — so this is a renderer over data already collected, not a new parser pass.
 
 ### Fixed
 
@@ -25,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   API key + org header); contextlake cannot self-register there the way it can for
   file-based clients. `docs/serve.md` now says so plainly instead of grouping Devin
   with Windsurf's wiring instructions.
+- **Deterministic lowest-line dedup for repeated `calls`/`inherits` references.** A
+  call site hit twice from the same caller could surface an arbitrary (not
+  necessarily first) line, since tree-sitter's capture order isn't guaranteed to
+  match source order. References are now sorted by line before resolution.
 
 ## [2.45.1] - 2026-07-25
 

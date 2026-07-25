@@ -39,6 +39,12 @@ Output is chosen with `--format`:
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces
   / structs with their methods as members, and `inherits` edges as inheritance arrows (`<|--` extends,
   `<|..` implements). Great for a PR or design doc: `contextlake graph --repo acme/app --format classdiagram`.
+- **`sequencediagram`**, a **Mermaid call-order trace** from one seeded function, each caller's callees
+  ordered by call-site line, the order they actually appear in the source: `contextlake graph --name
+  process_order --format sequencediagram`. Needs exactly one seed (`--node`/`--name`/`--search`, not
+  `--repo`/`--overview` — there's no single obvious ordering across unrelated seeds), and depth follows
+  the view's own `--hops`. Recursion/cycles stop cleanly (a function already on the current call path
+  isn't re-entered) instead of hanging.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
@@ -63,9 +69,9 @@ contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pastea
 
 Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
 compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
-cluster_*` boundaries), or `json` (the raw payload). `--format mermaid` and `--format classdiagram` aren't
-supported with `--c4` (the command exits with an error), and `--serve` doesn't apply either, the C4 view
-is a generated file, not a live server.
+cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `--format classdiagram`, and
+`--format sequencediagram` aren't supported with `--c4` (the command exits with an error), and `--serve`
+doesn't apply either, the C4 view is a generated file, not a live server.
 
 ## See also
 

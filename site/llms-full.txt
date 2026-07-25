@@ -2203,6 +2203,12 @@ Output is chosen with `--format`:
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces
   / structs with their methods as members, and `inherits` edges as inheritance arrows (`<|--` extends,
   `<|..` implements). Great for a PR or design doc: `contextlake graph --repo acme/app --format classdiagram`.
+- **`sequencediagram`**, a **Mermaid call-order trace** from one seeded function, each caller's callees
+  ordered by call-site line, the order they actually appear in the source: `contextlake graph --name
+  process_order --format sequencediagram`. Needs exactly one seed (`--node`/`--name`/`--search`, not
+  `--repo`/`--overview`, there's no single obvious ordering across unrelated seeds), and depth follows
+  the view's own `--hops`. Recursion/cycles stop cleanly (a function already on the current call path
+  isn't re-entered) instead of hanging.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
@@ -2227,9 +2233,9 @@ contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pastea
 
 Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
 compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
-cluster_*` boundaries), or `json` (the raw payload). `--format mermaid` and `--format classdiagram` aren't
-supported with `--c4` (the command exits with an error), and `--serve` doesn't apply either, the C4 view
-is a generated file, not a live server.
+cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `--format classdiagram`, and
+`--format sequencediagram` aren't supported with `--c4` (the command exits with an error), and `--serve`
+doesn't apply either, the C4 view is a generated file, not a live server.
 
 ## See also
 
@@ -2936,6 +2942,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- **`graphql` source type for `ingest`.** POSTs a query (+ optional variables) to one
+  endpoint and maps records in the response to documents, the same shape as the
+  existing `api` source's REST mapping. Auth is a bearer token read from an env var
+  named in config, never stored.
+- **`.vscode/mcp.json` steering output.** `contextlake steer` now writes VS Code's own
+  MCP config file (top-level `servers` key, a different schema from `.mcp.json`'s
+  `mcpServers`) alongside the existing steering files, merging in the `contextlake-kb`
+  server entry without disturbing any other servers already configured there.
+- **`sequencediagram` graph format.** `contextlake graph --node/--name/--search ID
+  --format sequencediagram` renders a Mermaid call-order trace from one seed function,
+  walking `calls` edges depth-first and ordering each caller's callees by call-site
+  line. No new extraction was needed, every `calls` edge already carried its source
+  line, so this is a renderer over data already collected, not a new parser pass.
+
+### Fixed
+
+- **Docs corrected a false claim that Devin reads the same repo-committed MCP config
+  file as Windsurf.** Devin's MCP connections are account/org-level (`mcp.devin.ai`,
+  API key + org header); contextlake cannot self-register there the way it can for
+  file-based clients. `docs/serve.md` now says so plainly instead of grouping Devin
+  with Windsurf's wiring instructions.
+- **Deterministic lowest-line dedup for repeated `calls`/`inherits` references.** A
+  call site hit twice from the same caller could surface an arbitrary (not
+  necessarily first) line, since tree-sitter's capture order isn't guaranteed to
+  match source order. References are now sorted by line before resolution.
 
 ## [2.45.1] - 2026-07-25
 
