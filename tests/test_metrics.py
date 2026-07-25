@@ -85,6 +85,28 @@ def test_scan_prefers_gitlab_dates(tmp_path):
     assert m["archived"] is True
 
 
+def test_scan_honors_repos_filter(tmp_path):
+    """docs/usage.md promises `--repos` for "every mirror command" -- audit is
+    a mirror-tier command (docs/cli-reference.md) but scan_repo_metrics used
+    to call get_local_repos directly and never consult repo_filter at all."""
+    for rel in ("team/api", "team/web", "other/thing"):
+        (tmp_path / rel / ".git").mkdir(parents=True)
+    facts = {rel: {"head": True, "files": ["README.md"]}
+             for rel in ("team/api", "team/web", "other/thing")}
+    metrics = scan_repo_metrics(str(tmp_path), {}, run=_fake_git(facts),
+                               config={"repo_filter": "team/*"})
+    assert {m["repo"] for m in metrics} == {"team/api", "team/web"}
+
+    # a pattern matching nothing scans zero repos, not the whole workspace
+    metrics_none = scan_repo_metrics(str(tmp_path), {}, run=_fake_git(facts),
+                                     config={"repo_filter": "zzz-nonexistent"})
+    assert metrics_none == []
+
+    # no filter at all (or an unset one) still scans everything, unchanged
+    metrics_all = scan_repo_metrics(str(tmp_path), {}, run=_fake_git(facts))
+    assert {m["repo"] for m in metrics_all} == {"team/api", "team/web", "other/thing"}
+
+
 def test_summarize_counts_and_staleness():
     now = datetime(2026, 6, 23, tzinfo=timezone.utc)
     metrics = [

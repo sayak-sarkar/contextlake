@@ -379,7 +379,7 @@ _PLATFORM_FETCHERS = {
 }
 
 
-def _repo_filter_patterns(config) -> list[str]:
+def repo_filter_patterns(config) -> list[str]:
     """Comma-separated ``--repos`` / ``repo_filter`` patterns, or [] if unset."""
     raw = (config.get("repo_filter") or "").strip()
     return [p.strip() for p in raw.split(",") if p.strip()]
@@ -494,7 +494,7 @@ def fetch_gitlab_projects(gitlab_group, config):
     # Optional subset: --repos / repo_filter narrows the mirror to matching repos, so
     # `clone`/`update`/`branches`/`verify`/`status` (all keyed off this cache) operate
     # on just that set. Ideal for a demo or a try-before-fleet run.
-    patterns = _repo_filter_patterns(config)
+    patterns = repo_filter_patterns(config)
     if patterns:
         before = len(all_projects)
         all_projects = {k: v for k, v in all_projects.items()

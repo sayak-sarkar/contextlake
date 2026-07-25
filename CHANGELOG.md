@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`contextlake audit --repos PATTERN` accepted the flag but silently ignored
+  it, scanning every repo regardless.** docs/usage.md promises `--repos`
+  works for "every mirror command" (audit included, per
+  docs/cli-reference.md's own mirror-tier list) — but `scan_repo_metrics`
+  called `get_local_repos` directly and never consulted `repo_filter`, unlike
+  fetch/clone/update/branches/verify/status, which already route through the
+  same `match_repo_filter` check. Now filters the same way (`metrics.py`).
+  `repo_filter_patterns` (`core.py`) is promoted from `_repo_filter_patterns`
+  to a public name, reflecting that it was already a cross-module helper
+  (`kb/commands.py` also calls it).
+
 - **Wiki review parsing: a JSON `"score": true`/`false` was silently accepted
   as a perfect/zero score.** `bool` is an `int` subclass in Python, so
   `float(True) == 1.0` raises nothing — the primary score-parsing path

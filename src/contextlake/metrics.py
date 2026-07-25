@@ -22,7 +22,7 @@ from pathlib import Path
 
 from . import style
 from .config import get_cache_paths
-from .core import get_local_repos, to_local_path
+from .core import get_local_repos, match_repo_filter, repo_filter_patterns, to_local_path
 from .logging_setup import log
 
 # Files that don't count as "real content" — a repo with only these is a skeleton.
@@ -92,15 +92,21 @@ def _run(cmd, timeout=15):
 
 
 def scan_repo_metrics(work_dir: str, projects: dict | None = None,
-                      max_workers: int = 8, run=_run) -> list[dict]:
+                      max_workers: int = 8, run=_run, config: dict | None = None) -> list[dict]:
     """Scan every local clone under ``work_dir`` and return a metric record each.
 
     ``projects`` is the GitLab project map (from the fetch cache); when present its
     ``created_at`` / ``last_activity_at`` enrich each record, else dates fall back to
-    the local git history.
+    the local git history. ``config``'s ``--repos``/``repo_filter`` is honored the
+    same way fetch/clone/update/branches/verify/status already do -- docs/usage.md
+    promises this for "every mirror command", audit included.
     """
     projects = projects or {}
     repos = get_local_repos(work_dir)
+    patterns = repo_filter_patterns(config or {})
+    if patterns:
+        repos = [r for r in repos
+                if match_repo_filter(projects.get(r, {}).get("full_path", r), r, patterns)]
 
     def scan_one(rel: str) -> dict:
         has_head, files, last_commit, root = _git_facts(os.path.join(work_dir, rel), run)
@@ -224,5 +230,5 @@ def run_audit(work_dir: str, config: dict, gitlab_group: str,
               report_path: str | Path | None = None, max_workers: int = 8) -> dict:
     """Convenience entry point: read the project cache (offline), scan, and report."""
     projects = _cached_projects(config, gitlab_group)
-    metrics = scan_repo_metrics(work_dir, projects, max_workers=max_workers)
+    metrics = scan_repo_metrics(work_dir, projects, max_workers=max_workers, config=config)
     return report_repo_metrics(metrics, report_path=report_path)

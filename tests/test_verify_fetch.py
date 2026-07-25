@@ -332,8 +332,8 @@ def test_configure_network_resilience_sets_and_respects(monkeypatch):
 
 
 def test_match_repo_filter_glob_and_substring():
-    from contextlake.core import _repo_filter_patterns, match_repo_filter
-    pats = _repo_filter_patterns({"repo_filter": "billing/*, team/api ,frontend"})
+    from contextlake.core import match_repo_filter, repo_filter_patterns
+    pats = repo_filter_patterns({"repo_filter": "billing/*, team/api ,frontend"})
     assert pats == ["billing/*", "team/api", "frontend"]
     assert match_repo_filter("acme/billing/core", "billing/core", pats)   # glob on local
     assert match_repo_filter("acme/team/api", "team/api", pats)           # exact substring

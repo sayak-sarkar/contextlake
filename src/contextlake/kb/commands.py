@@ -93,8 +93,8 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     # path-shaped filter like "team/api" needs the local workspace-relative path too,
     # not just the canonical id, to keep matching what a user actually types.
     if repo_filter:
-        from ..core import _repo_filter_patterns, match_repo_filter
-        patterns = _repo_filter_patterns({"repo_filter": repo_filter})
+        from ..core import match_repo_filter, repo_filter_patterns
+        patterns = repo_filter_patterns({"repo_filter": repo_filter})
         if patterns:
             def _local(path: str) -> str:
                 try:
