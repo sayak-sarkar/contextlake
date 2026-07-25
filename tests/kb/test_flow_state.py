@@ -132,6 +132,80 @@ def test_unsupported_language_is_noop():
         [], [])
 
 
+def test_assignment_in_an_else_branch_is_not_the_if_branchs_transition():
+    """The assignment is reached when the guard is FALSE, not true -- emitting
+    it as a transition from the guarded state would be a false transition,
+    which this module's docstring promises never to produce."""
+    src = b'''
+class Order:
+    def foo(self):
+        if self.status == "Created":
+            notify()
+        else:
+            self.status = "Cancelled"
+'''
+    nodes, edges = extract_state_flow("r", "order.py", src, "python")
+    assert nodes == [] and edges == []
+
+
+def test_assignment_in_an_elif_branch_is_not_the_ifs_transition():
+    """Must not cross-wire to a DIFFERENT elif branch's own (unmatched) guard,
+    and must not swallow the elif's real transition via the same match."""
+    src = b'''
+class Order:
+    def foo(self):
+        if self.status == "Created":
+            log()
+        elif self.status == "Shipped":
+            self.status = "Delivered"
+'''
+    nodes, edges = extract_state_flow("r", "order.py", src, "python")
+    assert nodes == [] and edges == []
+
+
+def test_assignment_after_a_guard_in_a_different_method_is_dropped():
+    src = b'''
+class Order:
+    def a(self):
+        if self.status == "Created":
+            log()
+    def b(self):
+        if self.status == "Shipped":
+            self.status = "Delivered"
+'''
+    nodes, edges = extract_state_flow("r", "order.py", src, "python")
+    assert nodes == [] and edges == []
+
+
+def test_assignment_actually_governed_by_a_later_unrelated_guard_is_dropped():
+    """A `!=` guard doesn't match `_GUARD_ASSIGN` on its own, but its presence
+    between an unrelated `==` guard and the assignment means the assignment
+    isn't reliably reached under the first guard either."""
+    src = b'''
+class Order:
+    def foo(self):
+        if self.status == "Created":
+            pass
+        if self.status != "Paid":
+            self.status = "Failed"
+'''
+    nodes, edges = extract_state_flow("r", "order.py", src, "python")
+    assert nodes == [] and edges == []
+
+
+def test_assignment_from_a_field_read_is_not_a_state_literal():
+    """`self.status = other.status` copies a field, it doesn't assign a state
+    literal -- must not synthesize a state node named after the field itself."""
+    src = b'''
+class Order:
+    def foo(self, other):
+        if self.status == "Created":
+            self.status = other.status
+'''
+    nodes, edges = extract_state_flow("r", "order.py", src, "python")
+    assert nodes == [] and edges == []
+
+
 def test_repeated_identical_transition_is_deduped():
     src = b'''
 class Order:

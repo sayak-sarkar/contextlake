@@ -41,21 +41,21 @@ _GUARD_ASSIGN: dict[str, re.Pattern] = {
     "py": re.compile(
         rf"if\s+(?P<recv>[\w.]+)\.(?P<field>{_FIELD})\s*(?:==|is)\s*"
         rf"(?P<from>[\w.'\"]+)\s*:"
-        rf".{{0,{_MAX_GAP}}}?"
+        rf"(?P<gap>.{{0,{_MAX_GAP}}}?)"
         rf"(?P=recv)\.(?P=field)\s*=\s*(?P<to>[\w.'\"]+)",
         re.DOTALL | re.IGNORECASE,
     ),
     "js": re.compile(
         rf"if\s*\(\s*(?P<recv>[\w.]+)\.(?P<field>{_FIELD})\s*===?\s*"
         rf"(?P<from>[\w.'\"`]+)\s*\)"
-        rf".{{0,{_MAX_GAP}}}?"
+        rf"(?P<gap>.{{0,{_MAX_GAP}}}?)"
         rf"(?P=recv)\.(?P=field)\s*=\s*(?P<to>[\w.'\"`]+)",
         re.DOTALL | re.IGNORECASE,
     ),
     "cs": re.compile(
         rf"if\s*\(\s*(?P<recv>[\w.]+)\.(?P<field>{_FIELD})\s*==\s*"
         rf"(?P<from>[\w.'\"]+)\s*\)"
-        rf".{{0,{_MAX_GAP}}}?"
+        rf"(?P<gap>.{{0,{_MAX_GAP}}}?)"
         rf"(?P=recv)\.(?P=field)\s*=\s*(?P<to>[\w.'\"]+)\s*;",
         re.DOTALL | re.IGNORECASE,
     ),
@@ -64,12 +64,37 @@ _GUARD_ASSIGN: dict[str, re.Pattern] = {
 _CLASS = re.compile(r"\bclass\s+(\w+)")
 _METHOD_NAME: dict[str, re.Pattern] = {
     "py": re.compile(r"\bdef\s+(\w+)\s*\("),
-    "js": re.compile(r"\bfunction\s+(\w+)\s*\(|\b(\w+)\s*\([^()]*\)\s*\{"),
+    "js": re.compile(
+        r"\bfunction\s+(\w+)\s*\("
+        r"|\b(?!if\b|for\b|while\b|catch\b|switch\b|else\b)(\w+)\s*\([^()]*\)\s*\{"
+    ),
     "cs": re.compile(
         r"\b(?:public|private|protected|internal)\s+(?:static\s+)?(?:async\s+)?"
         r"[\w<>\[\],\s]+?\s+(\w+)\s*\([^)]*\)\s*\{"
     ),
 }
+
+# A guard licenses the assignment that follows it only if nothing between them
+# suggests the assignment is actually reached under a *different* condition --
+# an `else`/`elif` sibling branch, a `}` closing the guard's own block, crossing
+# into another method/class, or a second guard/reassignment of the same
+# receiver+field (which would actually be the one governing the assignment).
+# Any of these means "possibly not really guarded by this if" -- and per this
+# module's stated invariant (never a false transition), that must fail closed,
+# not emit a transition anyway.
+_BOUNDARY: dict[str, re.Pattern] = {
+    "py": re.compile(r"\b(?:else|elif|def|class)\b"),
+    "js": re.compile(r"}|\bfunction\b|\bclass\b"),
+    "cs": re.compile(r"}|\bclass\b|\b(?:public|private|protected|internal)\b"),
+}
+
+
+def _crosses_boundary(fam: str, gap: str, recv: str, field: str) -> bool:
+    if _BOUNDARY[fam].search(gap):
+        return True
+    # a second mention of the same receiver+field in between means some other
+    # condition or reassignment -- not our guard -- actually governs it.
+    return re.search(rf"{re.escape(recv)}\.{re.escape(field)}\b", gap, re.IGNORECASE) is not None
 
 
 def _strip_value(raw: str) -> str:
@@ -123,12 +148,18 @@ def extract_state_flow(repo_id: str, rel_path: str, source, lang: str,
         return nid
 
     for m in _GUARD_ASSIGN[fam].finditer(text):
+        recv, field = m.group("recv"), m.group("field")
+        if _crosses_boundary(fam, m.group("gap"), recv, field):
+            continue  # assignment isn't reliably reached under this guard
         entity = _nearest_before(_CLASS, text, m.start())
         if not entity:
             continue  # no enclosing class -> nothing to group this transition under
         from_val, to_val = _strip_value(m.group("from")), _strip_value(m.group("to"))
         if from_val == to_val:
             continue  # a guard re-asserting the same value is not a transition
+        field_lower = field.lower()
+        if from_val.lower() == field_lower or to_val.lower() == field_lower:
+            continue  # e.g. `x.status = other.status` -- a field read, not a state literal
         method = _nearest_before(_METHOD_NAME[fam], text, m.start()) or "?"
         line = text.count("\n", 0, m.start()) + 1
 
