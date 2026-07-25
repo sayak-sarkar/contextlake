@@ -291,6 +291,11 @@ class SqliteStore(Store):
         self.conn.execute("DELETE FROM edges WHERE repo_id=?", (repo_id,))
         self.conn.commit()
 
+    def delete_repo(self, repo_id: str) -> None:
+        self.clear_repo(repo_id)
+        self.conn.execute("DELETE FROM repos WHERE repo_id=?", (repo_id,))
+        self.conn.commit()
+
     def stats(self) -> Stats:
         repos = self.conn.execute("SELECT COUNT(*) c FROM repos").fetchone()["c"]
         nodes = self.conn.execute("SELECT COUNT(*) c FROM nodes").fetchone()["c"]

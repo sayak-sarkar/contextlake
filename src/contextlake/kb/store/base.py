@@ -72,7 +72,15 @@ class Store(ABC):
 
     @abstractmethod
     def clear_repo(self, repo_id: str) -> None:
-        """Remove all nodes/edges for a repo (for a clean re-index)."""
+        """Remove all nodes/edges for a repo (for a clean re-index). Leaves the
+        ``repos`` row itself in place -- use :meth:`delete_repo` to drop that too."""
+
+    @abstractmethod
+    def delete_repo(self, repo_id: str) -> None:
+        """Remove a repo entirely: its nodes/edges (as :meth:`clear_repo`) and its
+        ``repos`` row. For a repo that no longer exists under this id at all (moved,
+        renamed, migrated to a new canonical id) -- not for a routine re-index,
+        which should keep the row and just clear its content."""
 
     def __enter__(self) -> Store:
         return self

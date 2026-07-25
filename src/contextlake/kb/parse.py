@@ -718,15 +718,32 @@ def index_repo_dir(
     return shard
 
 
+def _repo_commit_epoch(path: str) -> int:
+    """HEAD's commit time (unix epoch), or -1 if unavailable -- used only to break
+    a tie between two local checkouts of the same canonical repo."""
+    from .repo_identity import run_git
+
+    out = run_git(path, "log", "-1", "--format=%ct")
+    return int(out) if out.isdigit() else -1
+
+
 def discover_repos(root: str) -> list[tuple[str, str]]:
     """Find git repositories under ``root``: (repo_id, absolute_path) pairs.
 
-    A directory containing a ``.git`` entry is a repo; its ``repo_id`` is its path
-    relative to ``root`` (group-relative, matching the local mirror layout), and
-    discovery does not descend into a repo once found.
+    ``repo_id`` is canonical (see :mod:`repo_identity`) -- derived from the repo's
+    ``origin`` remote, not its path relative to ``root`` -- so the same physical
+    repo gets the same id regardless of where it's checked out or indexed from.
+    Discovery does not descend into a repo once found.
+
+    Two local checkouts of the *same* remote (a stale pre-reorg clone left behind
+    alongside its replacement, a real pattern found in this project's own fleet)
+    would otherwise collide on one canonical id; the more recently committed
+    checkout wins and the other is skipped with a logged reason, never silently.
     """
+    from .repo_identity import resolve_repo_id
+
     base = Path(root)
-    found = []
+    by_id: dict[str, str] = {}
     for dirpath, dirnames, _filenames in os.walk(base):
         here = Path(dirpath)
         if (here / ".git").exists():
@@ -735,10 +752,21 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
             if _VENDORED_REPO_MARKERS & set(here.relative_to(base).parts):
                 log(f"  skip vendored repo {rel}")
                 continue
-            found.append((rel if rel != "." else here.name, str(here)))
+            rid = resolve_repo_id(str(here))
+            prior = by_id.get(rid)
+            if prior is not None:
+                # same canonical repo checked out twice -- keep whichever HEAD is
+                # more recently committed, log the one dropped.
+                winner, loser = ((prior, str(here)) if _repo_commit_epoch(prior)
+                                  >= _repo_commit_epoch(str(here)) else (str(here), prior))
+                log(f"  skip duplicate checkout of {rid}: {loser} "
+                    f"(keeping the more recently committed {winner})")
+                by_id[rid] = winner
+                continue
+            by_id[rid] = str(here)
             continue
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
-    return found
+    return [(rid, path) for rid, path in by_id.items()]
 
 
 # Node kinds a call can resolve to, and the (narrower) kinds a base class/interface

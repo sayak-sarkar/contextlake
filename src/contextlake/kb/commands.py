@@ -84,15 +84,26 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
 
     if max_file_bytes is None:
         max_file_bytes = DEFAULT_MAX_FILE_BYTES
+    from .repo_migrate import migrate_stale_repo_ids
+    migrate_stale_repo_ids(store, store_dir)
     repos = discover_repos(str(workspace))
     # --repos scopes indexing to a subset (so `bootstrap --repos ...` indexes only the
-    # mirrored subset, even when the workspace holds the full fleet).
+    # mirrored subset, even when the workspace holds the full fleet). repo_id is now
+    # canonical (from the remote, not the local path -- see repo_identity.py), so a
+    # path-shaped filter like "team/api" needs the local workspace-relative path too,
+    # not just the canonical id, to keep matching what a user actually types.
     if repo_filter:
         from ..core import _repo_filter_patterns, match_repo_filter
         patterns = _repo_filter_patterns({"repo_filter": repo_filter})
         if patterns:
+            def _local(path: str) -> str:
+                try:
+                    return Path(path).relative_to(workspace).as_posix()
+                except ValueError:
+                    return path
+
             repos = [(rid, path) for rid, path in repos
-                     if match_repo_filter(rid, rid, patterns)]
+                     if match_repo_filter(rid, _local(path), patterns)]
     if not repos:
         # An empty workspace must fail loudly: an agent cannot cite from an empty
         # graph, so "success" here would be the hollow kind.
@@ -1080,9 +1091,10 @@ def cmd_query(args) -> int:
 def _repo_id_suggestions(store, target: str, n: int = 3) -> list[str]:
     """Stored repo ids closest to an unknown ``target``.
 
-    Covers typos (fuzzy match) and the workspace-relative-prefix case: a repo
-    indexed from a sub-workspace gets a prefix-stripped id, so ``team/billing/api``
-    should still point at the stored ``acme/team/billing/api``.
+    Covers typos (fuzzy match) and a partial/suffix id: repo_id is now canonical
+    (host/namespace/path, see repo_identity.py), so a user typing just the
+    namespace/path tail -- ``team/billing/api`` -- should still point at the
+    stored ``gitlab.example.com/acme/team/billing/api``.
     """
     import difflib
 

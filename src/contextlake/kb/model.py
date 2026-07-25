@@ -64,7 +64,8 @@ class Edge(BaseModel):
 class Repo(BaseModel):
     """An indexed repository (host-agnostic)."""
 
-    id: str  # group-relative path, e.g. "team/service-api"
+    id: str  # canonical, from the repo's remote (see repo_identity.py); e.g.
+             # "gitlab.example.com/team/service-api", stable across workspace roots
     path: str  # absolute local path of the clone
     host: str | None = None
     default_branch: str | None = None

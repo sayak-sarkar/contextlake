@@ -341,13 +341,18 @@ def test_cross_repo_dependency_via_shared_package(tmp_path):
 
 
 def test_discover_repos_finds_and_prunes(tmp_path):
+    # A repo_id is now canonical (from the remote, or a dirname+root-commit
+    # fallback with no remote) -- not the path relative to root. These bare
+    # `.git` dirs have neither a real remote nor commits, so each falls back to
+    # its own directory name.
     from contextlake.kb.parse import discover_repos
 
     (tmp_path / "team" / "a" / ".git").mkdir(parents=True)
     (tmp_path / "b" / ".git").mkdir(parents=True)
     (tmp_path / "team" / "a" / "nested" / ".git").mkdir(parents=True)  # inside a repo -> skip
     repos = dict(discover_repos(str(tmp_path)))
-    assert set(repos) == {"team/a", "b"}  # nested repo not descended into
+    assert set(repos) == {"a", "b"}  # nested repo not descended into
+    assert repos["a"] == str(tmp_path / "team" / "a")
 
 
 def test_discover_repos_skips_vendored_nested(tmp_path):
@@ -360,6 +365,51 @@ def test_discover_repos_skips_vendored_nested(tmp_path):
     ids = {rid for rid, _ in discover_repos(str(tmp_path))}
     assert "app" in ids
     assert not any("module-federation" in rid for rid in ids)
+
+
+def _git_repo(path, *, remote=None, commit_message="init"):
+    import subprocess
+
+    path.mkdir(parents=True, exist_ok=True)
+    run = lambda *a: subprocess.run(["git", "-C", str(path), *a], check=True,  # noqa: E731
+                                    capture_output=True, text=True)
+    run("init", "-q")
+    run("config", "user.email", "a@b.c")
+    run("config", "user.name", "a")
+    (path / "f.txt").write_text(commit_message)
+    run("add", "-A")
+    run("commit", "-q", "-m", commit_message)
+    if remote:
+        run("remote", "add", "origin", remote)
+
+
+def test_discover_repos_uses_canonical_remote_id_not_local_path(tmp_path):
+    from contextlake.kb.parse import discover_repos
+
+    _git_repo(tmp_path / "some" / "local" / "path", remote="https://example.com/acme/widgets.git")
+    ids = {rid for rid, _ in discover_repos(str(tmp_path))}
+    assert ids == {"example.com/acme/widgets"}  # not "some/local/path"
+
+
+def test_discover_repos_collapses_duplicate_checkouts_of_the_same_remote(tmp_path):
+    """The exact bug this fixes: a stale pre-reorg clone left alongside its
+    replacement must not become two nodes for one project."""
+    from contextlake.kb.parse import discover_repos
+
+    old = tmp_path / "old-namespace" / "widgets"
+    new = tmp_path / "new-namespace" / "widgets"
+    _git_repo(old, remote="https://example.com/acme/widgets.git", commit_message="old commit")
+    _git_repo(new, remote="https://example.com/acme/widgets.git", commit_message="new commit")
+    # make `new` the more recently committed checkout
+    import subprocess
+    import time
+    time.sleep(1.1)  # commit-time resolution is whole seconds
+    (new / "f.txt").write_text("newer")
+    subprocess.run(["git", "-C", str(new), "commit", "-aqm", "newer"], check=True)
+
+    repos = dict(discover_repos(str(tmp_path)))
+    assert len(repos) == 1
+    assert repos["example.com/acme/widgets"] == str(new)  # the more recent checkout wins
 
 
 def test_resolves_call_edges(tmp_path):

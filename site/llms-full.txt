@@ -2943,6 +2943,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING
+
+- **`repo_id` is now canonical (derived from the repo's git remote), not the path
+  relative to `--workspace`.** The old scheme meant the same physical repo got a
+  different id from a different index root, duplicate ids, broken path-based
+  owners/graph/impact views. The canonical id survives being re-cloned elsewhere or
+  indexed from a different workspace root. Two local checkouts of the same remote
+  (e.g. a stale pre-reorg clone left alongside its replacement, a real pattern
+  found in this project's own fleet) collapse to one repo, keeping whichever is
+  more recently committed; the dropped checkout is logged, never silently skipped.
+  A repo with no remote falls back to a stable `dirname@root-commit-hash` id.
+  **Migration is automatic**: the next `index`/`bootstrap` run on an existing store
+  detects any repo still under the old id, clears its old row/shard/vectors, and
+  re-derives it fresh under the canonical id, same as a first index, no manual
+  step. **This re-parses every existing repo once** (their content doesn't change,
+  only their id), and **clears embeddings for migrated repos**, re-run `embed`
+  afterward if semantic search is enabled. Verified against this project's real
+  678-repo store (detection pass, full scale) and a real multi-repo slice
+  (full detect-clear-reindex pipeline).
+
 ## [2.46.0] - 2026-07-25
 
 ### Added

@@ -80,6 +80,45 @@ def test_index_workspace_indexes_each_repo(tmp_path):
     store.close()
 
 
+def test_index_transparently_migrates_a_store_from_the_old_id_scheme(tmp_path):
+    """An upgrade scenario: a store built before repo_id canonicalization has a
+    row keyed by the old workspace-relative path. Running `index` again -- the
+    normal, only command a user would run -- must migrate it to the canonical
+    id and re-derive its content, with no manual step and no leftover ghost row
+    under the old id."""
+    import subprocess
+
+    from contextlake.kb.model import Repo
+    from contextlake.kb.store.shards import GraphShard, shard_path, write_shard
+
+    ws = tmp_path / "ws"
+    repo_dir = ws / "team" / "widgets"
+    repo_dir.mkdir(parents=True)
+    (repo_dir / "a.py").write_text("def f():\n    pass\n")
+    for args in (["init", "-q"], ["config", "user.email", "a@b.c"],
+                 ["config", "user.name", "a"], ["add", "-A"],
+                 ["commit", "-q", "-m", "init"],
+                 ["remote", "add", "origin", "https://example.com/acme/widgets.git"]):
+        subprocess.run(["git", "-C", str(repo_dir), *args], check=True, capture_output=True)
+
+    cfg = _kb_config(tmp_path)
+    store_dir = tmp_path / "kb"
+    old_id = "team/widgets"   # the pre-canonicalization scheme: path relative to --workspace
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.upsert_repo(Repo(id=old_id, path=str(repo_dir)))
+    write_shard(store_dir, GraphShard(repo=old_id, nodes=[], edges=[]))
+    store.close()
+
+    assert _run(["index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    ids = {r.id for r in store.list_repos()}
+    assert ids == {"example.com/acme/widgets"}   # migrated, not duplicated
+    assert store.nodes_by_name("f")               # re-derived, not just relabeled
+    store.close()
+    assert not shard_path(store_dir, old_id).exists()   # old shard cleaned up
+
+
 def test_index_empty_workspace_fails_honestly(tmp_path, capsys):
     # 0 repos indexed = an empty graph no agent can cite from; that must be a
     # loud non-zero exit, not a green checkmark (it also makes bootstrap abort).
@@ -284,7 +323,10 @@ def test_embed_unavailable_hint_is_actionable():
 
 
 def test_index_workspace_repos_filter(tmp_path):
-    # --repos scopes a workspace index to matching repos (glob/substring)
+    # --repos scopes a workspace index to matching repos (glob/substring), matched
+    # against the local workspace-relative path (these bare `.git` dirs have no
+    # remote, so each repo_id itself falls back to just its own dirname -- the
+    # filter still has to see "team/api"-shaped patterns via the local path).
     ws = tmp_path / "ws"
     for r in ("team/api", "team/web", "billing/core", "billing/reports"):
         (ws / r).mkdir(parents=True)
@@ -294,7 +336,7 @@ def test_index_workspace_repos_filter(tmp_path):
     assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
                  "--repos", "billing/*,team/api"]) == 0
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
-    assert {r.id for r in store.list_repos()} == {"billing/core", "billing/reports", "team/api"}
+    assert {r.id for r in store.list_repos()} == {"core", "reports", "api"}
     store.close()
 
 
