@@ -19,7 +19,7 @@ reports, fixes, and well-scoped features are all welcome.
   comments, or commit messages. Use generic placeholders (`frontend/*`,
   `auth-service`, `user@example.com`). The publish guard
   (`tests/kb/test_publish_guard.py`) enforces this: structural checks (no
-  foreign emails) always run, and a token scan runs when an private token denylist is
+  foreign emails) always run, and a token scan runs when a private-token denylist is
   supplied out-of-band via the `CONTEXTLAKE_PUBLISH_DENYLIST` env var or a
   local, git-ignored `.publish-denylist` file — the real tokens are **never**
   committed. (Maintainers: set the `PUBLISH_DENYLIST` repo secret so CI
