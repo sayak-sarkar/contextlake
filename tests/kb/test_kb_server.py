@@ -411,6 +411,45 @@ def test_ask_explain_falls_back_to_repo_brief_when_no_wiki(tmp_path):
     s.close()
 
 
+def test_ask_explain_resolves_a_short_name_to_the_full_host_qualified_repo_id(tmp_path):
+    """A person naturally says "explain the catalog-api", not the full
+    host-qualified id (`gitlab.example.com/acme/catalog-api`) contextlake
+    actually stores repos under -- the router's extract_target only pulls
+    that trailing segment out of the question, so explain must resolve it
+    back to the real repo id rather than treat it as an unknown repo."""
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    repo_id = "gitlab.example.com/acme/catalog-api"
+    nodes = [Node(id="svc", repo=repo_id, kind="class", name="CatalogService", file="svc.py")]
+    s.upsert_repo(Repo(id=repo_id, path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo=repo_id, head_commit="h1", nodes=nodes, edges=[]))
+    reindex_shard(s, tmp_path, repo_id)
+    res = asyncio.run(_call(build_server(s), "ask", {"question": "explain the catalog-api"}))
+    out = res.structuredContent
+    assert out["route"] == "explain"
+    assert out["brief"] is not None and out["brief"]["found"] is True
+    assert out["brief"]["repo"] == repo_id
+    s.close()
+
+
+def test_ask_owners_resolves_a_short_repo_name_too(tmp_path):
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    repo_id = "gitlab.example.com/acme/catalog-api"
+    s.upsert_repo(Repo(id=repo_id, path=str(tmp_path), head_commit="h1"))
+    res = asyncio.run(_call(build_server(s), "ask", {"question": "who owns catalog-api"}))
+    out = res.structuredContent
+    assert out["route"] == "owners"
+    assert repo_id in out["note"] or "catalog-api" in out["note"]
+    s.close()
+
+
+def test_ask_explain_reports_when_no_repo_matches_at_all(server):
+    # a target that resolves to no repo at all still degrades to search cleanly
+    res = asyncio.run(_call(server, "ask", {"question": "explain the zzz-nonexistent-repo"}))
+    out = res.structuredContent
+    assert out["route"] == "search"
+
+
 def test_ask_routes_subclasses(tmp_path):
     # "what extends X" returns the types with an incoming inherits edge to X
     from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard

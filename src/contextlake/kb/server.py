@@ -729,6 +729,24 @@ def build_server(
                      if len(matches) > 1 else "")
             return matches[0].id, extra or None
 
+        def _resolve_repo(name):
+            """A question names a repo, typically by a short/partial name (the
+            natural way a person refers to one, e.g. "the catalog-api") -- but
+            owners/explain need the full, canonical repo id (host-qualified,
+            e.g. "gitlab.example.com/acme/catalog-api") an exact store lookup
+            requires. Falls back to matching the repo's last path segment,
+            mirroring how _resolve_id resolves a symbol name to a node id."""
+            if not name:
+                return None, "no repo named in the question"
+            if store.get_repo(name):
+                return name, None
+            matches = [r.id for r in store.list_repos() if r.id.rsplit("/", 1)[-1] == name]
+            if not matches:
+                return None, f"no indexed repo matching {name!r}"
+            extra = (f" ({len(matches)} matched {name!r}; used the first)"
+                     if len(matches) > 1 else "")
+            return matches[0], extra or None
+
         if route == DEFINITION:
             hits = find_definition(target, repo=repo) if target else []
             if hits:
@@ -778,27 +796,31 @@ def build_server(
                         blast=res, truncated=res.truncated)
 
         if route == OWNERS:
-            if not target:
-                return _out("Couldn't tell which repo to find owners for.")
-            res = who_knows(target, limit=k)
-            return _out(f"Likely owners / SMEs for {target!r}, ranked from git history.",
-                        owners=res)
+            rid, why = _resolve_repo(target)
+            if rid is None:
+                return _out(f"Couldn't tell which repo to find owners for — {why}.")
+            res = who_knows(rid, limit=k)
+            return _out(f"Likely owners / SMEs for {target!r}" + (why or "")
+                        + ", ranked from git history.", owners=res)
 
         if route == EXPLAIN:
             if target:
-                w = get_wiki(target)
-                if w.found:
-                    stale = " (STALE — the code changed since)" if w.stale else ""
-                    return _out(f"Curated wiki for {target!r}{stale} — ADVISORY prose, "
-                                "grounded in the graph; verify specifics against code.",
-                                wiki=w)
-                # No wiki page — a structured brief (real anatomy) beats a blind search
-                # for an "explain this repo" question.
-                b = get_repo_brief(target)
-                if b.found:
-                    return _out(f"No wiki for {target!r} yet — here is its grounded "
-                                "anatomy (top symbols, packages, languages) from the "
-                                "graph. Run `contextlake wiki` for prose.", brief=b)
+                rid, why = _resolve_repo(target)
+                if rid is not None:
+                    w = get_wiki(rid)
+                    if w.found:
+                        stale = " (STALE — the code changed since)" if w.stale else ""
+                        return _out(f"Curated wiki for {target!r}{stale}" + (why or "")
+                                    + " — ADVISORY prose, grounded in the graph; verify "
+                                    "specifics against code.", wiki=w)
+                    # No wiki page — a structured brief (real anatomy) beats a blind
+                    # search for an "explain this repo" question.
+                    b = get_repo_brief(rid)
+                    if b.found:
+                        return _out(f"No wiki for {target!r} yet" + (why or "")
+                                    + " — here is its grounded anatomy (top symbols, "
+                                    "packages, languages) from the graph. Run "
+                                    "`contextlake wiki` for prose.", brief=b)
             # not a repo we know: degrade to a semantic/keyword explanation search
             route = SEARCH
 

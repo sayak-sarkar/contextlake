@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`ask`'s `explain`/`owners` routes didn't resolve a repo by its short name,
+  contradicting the docs' own headline example.** `ask("explain the
+  catalog-api")` (verbatim from docs/serve.md) silently fell through to
+  `search` instead of returning wiki prose or a repo brief: repo ids are
+  always host-qualified (`gitlab.example.com/acme/catalog-api`), but the
+  router only extracts the trailing "catalog-api" out of the question, which
+  never matched the full stored id via `get_wiki`/`get_repo_brief`/
+  `who_knows`'s exact lookup. A person naturally refers to a repo by its
+  short name, so this needed to be resolved, not documented around. Added
+  `_resolve_repo`, mirroring the existing symbol-resolving `_resolve_id`:
+  falls back to matching the repo's last path segment when an exact id
+  lookup misses (`kb/server.py`).
+
 - **`contextlake audit --repos PATTERN` accepted the flag but silently ignored
   it, scanning every repo regardless.** docs/usage.md promises `--repos`
   works for "every mirror command" (audit included, per
