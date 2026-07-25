@@ -199,6 +199,17 @@ def test_parse_review_tolerant():
     assert noscore["parsed"] is False
 
 
+def test_parse_review_a_bool_score_abstains_instead_of_scoring_1_or_0():
+    """`bool` is an `int` subclass, so `float(True) == 1.0` -- the sibling
+    alternate-key recovery ladder already guards `not isinstance(val, bool)`;
+    the primary `obj["score"]` path must apply the same guard, not silently
+    accept a bool as a perfect (or zero) score."""
+    r_true = _parse_review('{"score": true, "issues": ["x"]}')
+    assert r_true["parsed"] is False and r_true["score"] == 0.0
+    r_false = _parse_review('{"score": false, "issues": ["x"]}')
+    assert r_false["parsed"] is False and r_false["score"] == 0.0
+
+
 def test_parse_review_recovers_alternate_json_keys():
     # Small local models often use a different key for the same concept -- recover
     # it rather than abstain, as long as the value is already a plausible 0..1 score.

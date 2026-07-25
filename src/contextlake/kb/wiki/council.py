@@ -87,6 +87,10 @@ def _parse_review(text: str) -> dict:
         obj = None
 
     raw = obj.get("score") if isinstance(obj, dict) else None
+    if isinstance(raw, bool):
+        raw = None  # bool is an int subclass -- float(True) == 1.0 would silently
+                    # accept it as a perfect score; _extract_score's own fallback
+                    # ladder already guards against this, this path must too
     try:
         score, scored = max(0.0, min(1.0, float(raw))), True
     except (TypeError, ValueError):

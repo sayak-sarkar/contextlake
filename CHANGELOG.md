@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Wiki review parsing: a JSON `"score": true`/`false` was silently accepted
+  as a perfect/zero score.** `bool` is an `int` subclass in Python, so
+  `float(True) == 1.0` raises nothing — the primary score-parsing path
+  lacked the same `not isinstance(val, bool)` guard its own sibling fallback
+  ladder (`_extract_score`) already applies. Now abstains (as any other
+  wrong-shaped score does) instead of fabricating a score from a bool
+  (`kb/wiki/council.py`).
 - **The most-active-branch scan could silently drop a real branch whose name
   merely contained the substring "HEAD"** (e.g. `release/HEAD-fix`), not just
   the `origin/HEAD` symbolic ref it was meant to filter — a substring check
