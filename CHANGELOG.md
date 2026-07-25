@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.48.1] - 2026-07-26
+
 ### Fixed
 
 - **`statediagram` extraction (v2.48.0) could emit a false transition, not just an
@@ -36,13 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the raw `GROUP BY repo_id` node-count query the fleet overview and site builder
   use to enumerate repos — and `"(shared)"` (every module imported fleet-wide) is
   now the single largest bucket, ranking first and potentially displacing a real
-  repo when the fleet exceeds `max_nodes`. A new `_repo_node_sizes()` helper filters
+  repo when the fleet exceeds `max_nodes`. A new `repo_node_sizes()` helper filters
   sentinel ids out at the one query all three call sites (`overview_subgraph`,
   `build_site`, `build_site_server`) and the dashboard's embedded graph pages share
   (`kb/visualize.py`, `kb/dashboard/server.py`). `"(packages)"`/`"(external)"` are
   now named constants (`PACKAGES_REPO`/`EXTERNAL_REPO` in `kb/model.py`) alongside
   `SHARED_REPO`, replacing the bare string literals at their four call sites.
-
 - **Graph views: a harmless but noisy console warning on every node, on first render.** Cytoscape's
   style sheet maps node width/height from a `deg` (degree) data field, but `deg` was only set
   client-side in a `.forEach()` that ran *after* the graph's first style pass — so every node
