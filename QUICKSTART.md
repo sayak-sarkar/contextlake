@@ -45,7 +45,7 @@ docker pull ghcr.io/sayak-sarkar/contextlake   # if you use the image
 Then confirm with `contextlake --version` and re-check your environment with
 `contextlake doctor`. Your existing store and config carry forward — the graph
 re-indexes incrementally on your next `index`/`sync`, so there is nothing to migrate by
-hand. See the [changelog](changelog.html) for what changed between versions.
+hand. See the [changelog](CHANGELOG.md) for what changed between versions.
 
 ### Install scenarios & flag cheatsheet
 
@@ -60,7 +60,7 @@ Real setups and the exact command for each. What the flags mean:
   beats a doomed compile.
 - **`--extra-index-url URL`** — also look for wheels at `URL` (e.g. the `llama-cpp-python`
   CPU-wheel index that PyPI doesn't mirror). See [Why the built-in LLM needs a prebuilt
-  wheel](knowledge-layer.html#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler).
+  wheel](docs/knowledge-layer.md#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler).
 - **`[extra]`** — an optional feature bundle: `[kb-full]` (recommended: graph + search +
   built-in embedder + `sqlite-vec` ANN), `[kb]` (graph + full-text only), `[kb-local]` /
   `[kb-vec]` (pick embedder / ANN yourself), `[llm-local]` (the built-in wiki model).
