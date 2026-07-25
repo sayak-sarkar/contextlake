@@ -45,6 +45,21 @@ jobs:
           ruff check src tests
           pytest --ignore=tests/kb -q
 
+      - name: Publish guard (release gate, fail-closed)
+        # The publish guard verifies no private/deployment-specific identifiers reach the
+        # published surface. It lives under tests/kb (skipped above) but needs no kb deps,
+        # so run it here explicitly. FAIL CLOSED: with no denylist configured it cannot
+        # verify, so a release must not proceed (previously the whole tests/kb suite was
+        # skipped at release time, so this check never gated a publish).
+        env:
+          CONTEXTLAKE_PUBLISH_DENYLIST: ${{ secrets.PUBLISH_DENYLIST }}
+        run: |
+          if [ -z "${CONTEXTLAKE_PUBLISH_DENYLIST}" ]; then
+            echo "::error::PUBLISH_DENYLIST secret is not set — the release gate cannot verify the published surface is clean. Refusing to publish."
+            exit 1
+          fi
+          pytest tests/kb/test_publish_guard.py -q
+
       - name: Build sdist + wheel
         run: |
           rm -rf dist

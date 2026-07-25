@@ -33,6 +33,7 @@ cd contextlake
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,kb]"   # the CLI + pytest/ruff + the knowledge layer the kb tests need
 # core-only (Python 3.9, no kb deps): pip install -e ".[dev]" and run pytest --ignore=tests/kb
+git config core.hooksPath .githooks   # enable the pre-commit publish guard (blocks private tokens)
 ```
 
 You'll also want `git` and an authenticated [`glab`](https://gitlab.com/gitlab-org/cli)
