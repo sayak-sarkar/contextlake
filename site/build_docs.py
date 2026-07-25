@@ -7,6 +7,7 @@ The eyebrows anchor each page to the Mirror -> Knowledge -> Serve spine."""
 import re
 import json
 import pathlib
+import subprocess
 import markdown
 
 HERE = pathlib.Path(__file__).resolve().parent   # the site/ dir (source + build output)
@@ -480,10 +481,67 @@ def _sections(html: str):
     return secs
 
 
+_GIT_DATE_CACHE = {}
+
+
+def git_date(relpath: str):
+    """The source file's last git commit date (YYYY-MM-DD), for sitemap lastmod + article
+    dateModified. Returns None if git/history is unavailable, so lastmod is simply omitted
+    rather than faked to the build date."""
+    if relpath in _GIT_DATE_CACHE:
+        return _GIT_DATE_CACHE[relpath]
+    d = None
+    try:
+        r = subprocess.run(["git", "log", "-1", "--format=%cs", "--", relpath],
+                           cwd=str(REPO), capture_output=True, text=True, timeout=10)
+        d = r.stdout.strip() or None
+    except Exception:
+        d = None
+    _GIT_DATE_CACHE[relpath] = d
+    return d
+
+
+def _ld_script(obj) -> str:
+    """Serialize a JSON-LD object safely for an inline <script>: json.dumps handles quoting
+    (never f-string interpolation of untrusted title/description), and </ is escaped so a
+    stray closing tag in the data can't break out of the script element."""
+    return ('<script type="application/ld+json">'
+            + json.dumps(obj, ensure_ascii=False).replace("</", "<\\/")
+            + "</script>")
+
+
+def docs_jsonld(nav_title: str, subtitle: str, url: str, moddate) -> str:
+    """Per-page structured data: a TechArticle (with dateModified) + a BreadcrumbList
+    (contextlake -> Docs -> this page; the sidebar group is a UI grouping, not a navigable
+    page, so it is left out to keep every crumb a distinct real URL), both under one @graph."""
+    article = {
+        "@type": "TechArticle",
+        "headline": nav_title,
+        "description": subtitle,
+        "url": url,
+        "inLanguage": "en",
+        "author": {"@type": "Person", "name": "Sayak Sarkar"},
+        "publisher": {"@type": "Organization", "name": "contextlake", "url": BASE},
+        "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": BASE},
+    }
+    if moddate:
+        article["dateModified"] = moddate
+    crumbs = [("contextlake", BASE), ("Docs", f"{BASE}docs"), (nav_title, url)]
+    breadcrumb = {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": i + 1, "name": name, "item": item}
+            for i, (name, item) in enumerate(crumbs)
+        ],
+    }
+    return _ld_script({"@context": "https://schema.org", "@graph": [article, breadcrumb]})
+
+
 def shell(meta, body, toc_html) -> str:
-    out, _, nav_title, h_title, eyebrow, subtitle, pebble, hand_links = meta
+    out, src, nav_title, h_title, eyebrow, subtitle, pebble, hand_links = meta
     links = hand_links  # curated per page (see PAGES); validated at import against _VALID_OUT
     url = f"{BASE}{linkify(out)}"
+    jsonld = docs_jsonld(nav_title, subtitle, url, git_date(src))
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -492,6 +550,7 @@ def shell(meta, body, toc_html) -> str:
 {THEME_INIT}
 <title>{nav_title} · contextlake docs</title>
 <meta name="description" content="{subtitle}">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="{url}">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="contextlake">
@@ -499,10 +558,12 @@ def shell(meta, body, toc_html) -> str:
 <meta property="og:description" content="{subtitle}">
 <meta property="og:url" content="{url}">
 <meta property="og:image" content="{BASE}og-card.jpg">
+<meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{nav_title} · contextlake docs">
 <meta name="twitter:description" content="{subtitle}">
 <meta name="twitter:image" content="{BASE}og-card.jpg">
+{jsonld}
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
@@ -658,12 +719,18 @@ LLMS_INTRO = """# contextlake
 """
 
 
+def _sm_url(loc: str, pr: str, mod) -> str:
+    lm = f"<lastmod>{mod}</lastmod>" if mod else ""
+    return f"<url><loc>{loc}</loc>{lm}<priority>{pr}</priority></url>"
+
+
 def gen_sitemap():
-    """sitemap.xml, generated from PAGES so it never goes stale by hand."""
-    urls = [f'<url><loc>{BASE}</loc><priority>1.0</priority></url>']
-    for out, *_ in PAGES:
+    """sitemap.xml, generated from PAGES so it never goes stale by hand. lastmod is the
+    source file's git commit date (the landing tracks site/index.html)."""
+    urls = [_sm_url(BASE, "1.0", git_date("site/index.html"))]
+    for out, src, *_ in PAGES:
         pr = "0.9" if out == "docs.html" else "0.6"
-        urls.append(f'<url><loc>{BASE}{linkify(out)}</loc><priority>{pr}</priority></url>')
+        urls.append(_sm_url(f"{BASE}{linkify(out)}", pr, git_date(src)))
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  '
            + "\n  ".join(urls) + "\n</urlset>\n")
@@ -683,8 +750,39 @@ def gen_llms():
     parts += ["## Source\n",
               "- [GitHub repository](https://github.com/sayak-sarkar/contextlake)",
               "- [PyPI package](https://pypi.org/project/contextlake/)", ""]
+    parts += ["## Optional\n",
+              f"- [Full documentation, one file]({BASE}llms-full.txt): every page's full text "
+              "concatenated for single-fetch ingestion.", ""]
     (OUT / "llms.txt").write_text("\n".join(parts), encoding="utf-8")
     print("  -> llms.txt")
+
+
+def gen_llms_full():
+    """llms-full.txt: the whole docs corpus in one file (intro + every page's source markdown),
+    so an LLM can ingest everything in a single fetch. Same sources as the rendered site."""
+    parts = [LLMS_INTRO.strip(), ""]
+    for out, src, nav_title, *_ in PAGES:
+        parts += ["\n---\n", f"# {nav_title}", f"Source: {BASE}{linkify(out)}", "",
+                  de_emdash((REPO / src).read_text(encoding="utf-8")).strip()]
+    (OUT / "llms-full.txt").write_text("\n".join(parts) + "\n", encoding="utf-8")
+    print("  -> llms-full.txt")
+
+
+def verify_jsonld():
+    """Build-time parse-gate: every inline ld+json block in every built page must be valid JSON
+    (catches the whole class of interpolation/escaping bugs offline, since we can't hit Google's
+    Rich Results Test here)."""
+    n = 0
+    for html_file in sorted(OUT.glob("*.html")):
+        text = html_file.read_text(encoding="utf-8")
+        for block in re.findall(r'(?s)<script type="application/ld\+json">(.*?)</script>', text):
+            block = block.replace("<\\/", "</")  # undo the script-safe escaping before parsing
+            try:
+                json.loads(block)
+                n += 1
+            except json.JSONDecodeError as e:
+                raise SystemExit(f"build_docs: invalid JSON-LD in {html_file.name}: {e}")
+    print(f"  -> verified {n} JSON-LD blocks parse")
 
 
 def main():
@@ -720,6 +818,8 @@ def main():
     print("  -> search-index.json")
     gen_sitemap()
     gen_llms()
+    gen_llms_full()
+    verify_jsonld()
     sync_assets()
 
 
