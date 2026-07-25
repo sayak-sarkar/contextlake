@@ -78,6 +78,11 @@
   }
   function render() {
     var q = input.value.trim();
+    if (!idx) {  // typed before the index fetch resolved: show loading, don't call query() on null
+      load(function () { render(); });
+      list.innerHTML = '<div class="cmdk-empty">Loading the index…</div>';
+      active = -1; input.removeAttribute("aria-activedescendant"); return;
+    }
     if (!q) { empty(); return; }
     var items = query(q), toks = q.toLowerCase().split(/\s+/).filter(Boolean);
     if (!items.length) { list.innerHTML = '<div class="cmdk-empty">No matches for &ldquo;' + esc(q) + '&rdquo;<span class="hint">Try a feature: graph, embed, wiki, serve, or owners.</span></div>'; active = -1; input.removeAttribute("aria-activedescendant"); return; }

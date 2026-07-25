@@ -117,7 +117,9 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .prose a:hover{border-bottom-color:var(--link)}
 /* outbound-link marker (build-time ↗ on http links): small, raised, no underline of its own */
 .prose a .ext-arrow{font-size:.7em;vertical-align:.35em;line-height:0;margin-left:1px;border:0;color:var(--link);opacity:.75}
-.prose code{font-family:var(--ff-m);font-size:.86em;background:var(--code-bg);color:var(--code-ink);padding:.15em .42em;border-radius:5px}
+/* inline code may break so a long token (path, identifier) can't push the page wider than a
+   phone viewport; inert on <pre> code (white-space:pre), which keeps its own horizontal scroll */
+.prose code{font-family:var(--ff-m);font-size:.86em;background:var(--code-bg);color:var(--code-ink);padding:.15em .42em;border-radius:5px;overflow-wrap:break-word}
 .prose pre{background:var(--pre-bg);color:var(--mist);padding:16px 18px;border-radius:12px;overflow:auto;border:1px solid var(--line-2);
   font-family:var(--ff-m);font-size:13.5px;line-height:1.55;box-shadow:0 8px 22px -14px rgba(14,42,51,.5);margin:1.1em 0}
 .prose pre code{background:none;color:inherit;padding:0;font-size:inherit}
