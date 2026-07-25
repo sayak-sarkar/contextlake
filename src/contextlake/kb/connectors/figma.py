@@ -81,7 +81,7 @@ def associate_designs(repo_id: str, *, links=(), site_hosts=DEFAULT_HOSTS):
 class FigmaConnector:
     """Talks to a configured Figma MCP. Host(s) and the MCP endpoint/command come
     from config, so the connector stays generic and hard-codes no credentials or
-    Figma-account specifics."""
+    account specifics."""
 
     def __init__(self, name: str, *, mcp_url: str | None = None,
                  mcp_command: str | None = None, hosts=DEFAULT_HOSTS,

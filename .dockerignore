@@ -16,6 +16,5 @@ htmlcov
 .gitlab_sync.ini
 .contextlake.ini
 .contextlake.kb.toml
-.publish-denylist
 .contextlake
 .env

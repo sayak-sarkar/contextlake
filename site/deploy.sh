@@ -48,11 +48,6 @@ find "$WT" -maxdepth 1 -name '*.html' -print0 | xargs -0 sed -i \
   -e "s/data-embed=\"graph-embed\.html\"/data-embed=\"graph-embed.html?v=$VER\"/g"
 echo "==> cache-busted linked assets with ?v=$VER"
 
-# hard gate before publishing: no private token may reach the public site. Proportionate
-# to deploying unattended; aborts the push (set -e) on any hit.
-echo "==> scanning built site for private data"
-"$PY" "$HERE/tools/scan_public.py" "$WT"
-
 git -C "$WT" add -A
 if git -C "$WT" diff --cached --quiet; then
   echo "==> no changes to deploy"

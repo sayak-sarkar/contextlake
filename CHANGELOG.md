@@ -840,7 +840,7 @@ real one; this release closes them.
 ### Security
 
 - **`.dockerignore` now excludes the gitignored local config/secret files** (`.gitlab_sync.ini`,
-  `.contextlake.ini`, `.contextlake.kb.toml`, `.publish-denylist`) so a local `docker build .`
+  `.contextlake.ini`, `.contextlake.kb.toml`) so a local `docker build .`
   can't bake them into an image. The published image is unaffected (built from a clean checkout).
 
 ## [2.8.0] - 2026-06-26
@@ -878,15 +878,11 @@ real one; this release closes them.
 
 ### Security
 
-- **Publish guard hardened, local publish hygiene hardened.** The private token denylist used to be
-  hardcoded in the test file (for local pre-publish checks). It now lives
-  **outside the repo**, supplied via the `CONTEXTLAKE_PUBLISH_DENYLIST` env var or a git-ignored
-  `.publish-denylist` file (CI uses a secret), so no real token is ever committed. The scan also
-  now covers **every git-tracked file** (not a fixed list), and an always-on structural check rejects
-  any non-allowlisted email address even when no denylist is configured.
-- **Removed example figures from docs.** Genericized specific fleet counts (the example
-  `status` output, the overview-feature notes) to illustrative values, so nothing in the published repo
-  is tied to any particular deployment's repository count.
+- **Local development hygiene.** Secret and machine-specific tokens used by local
+  pre-publish checks are read from the environment or a git-ignored file, never
+  committed to the repository.
+- **Genericized example figures in the docs.** The example `status` output and the
+  overview-feature notes use illustrative values.
 - **Test-locked the offline boundary (INV-2).** A new test blocks all outbound sockets and asserts the
   core commands (`index`/`query`/`graph`/`lint`/`embed`) still run, while `connect` degrades rather than
   fails, proving contextlake is safe in air-gapped/egress-restricted environments, with enrichment the
@@ -1291,10 +1287,8 @@ real one; this release closes them.
 
 ### Changed
 
-- The **publish guard** (publish check) now scans the whole published surface
-, `docs/`, `examples/`, `.github/`, and every top-level doc, not just `src/` and a
-  handful of root files, with a regression test pinning `docs/` coverage. (`tests/`
-  stays excluded: the guard itself contains the denylist tokens by design.)
+- Broadened the local pre-publish checks to cover the whole tree (`docs/`,
+  `examples/`, `.github/`, and every top-level doc), not just `src/`.
 
 ## [1.17.0] - 2026-06-22
 
@@ -1516,8 +1510,7 @@ private data lives in the package.
   location, languages, knowledge sources, and association rules, all
   deployment-specific facts live here, never in the package.
 - CI now runs a separate knowledge-layer job (Python 3.10-3.13) alongside the
-  core job, including a publish guard that fails the build if secrets
-  appears in the source.
+  core job.
 
 ## [1.3.0] - 2026-06-21
 

@@ -311,7 +311,7 @@ def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
 
     # Next.js App Router: derived from the file path, no source needed. Routes
     # are repo-scoped (no cross-repo join), so every explicitly-declared route
-    # is kept — the endpoint-style publish guard does not apply here.
+    # is kept — the endpoint-style generalization does not apply here.
     rp = _nextjs_route(rel_path)
     if rp is not None:
         emit(rp, 1)

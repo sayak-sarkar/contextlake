@@ -12,7 +12,7 @@ scrubs. Therefore:
 
 * ``sample=True`` builds the snapshot from the bundled demo-fleet fixture
   (``fixtures/sample-dashboard.json``, shipped as package data so pip installs get it
-  too) so the source-publish guard applies — this is the only safe public
+  too) so it holds only fictional demo data — the safe choice for a public
   showcase build;
 * a real-store build WITHOUT ``--anonymize`` still works locally but prints a loud
   "do not publish unscrubbed" warning;

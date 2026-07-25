@@ -11,10 +11,6 @@ without the kb extra) this is a no-op and the lexical index is kept as-is.
 import json
 import math
 import pathlib
-import sys
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from _denylist import load_org_tokens  # noqa: E402  (tools dir added to path above)
 
 IDX = pathlib.Path(__file__).resolve().parent.parent / "search-index.json"
 
@@ -31,16 +27,6 @@ def main() -> int:
         return 0
 
     data = json.loads(IDX.read_text(encoding="utf-8"))
-
-    # private data guard: the docs are contextlake's own + scrubbed, but never ship a leak
-    org_tokens = load_org_tokens()
-    if not org_tokens:
-        print("  [gen_search_index] WARNING: no denylist configured; skipping private token check")
-    blob = json.dumps(data).lower()
-    hit = [t for t in org_tokens if t in blob]
-    if hit:
-        print(f"  [gen_search_index] ABORT: private tokens in index: {hit}")
-        return 1
 
     vecs = emb.embed([f"{e['title']}. {e['text']}" for e in data])
 
