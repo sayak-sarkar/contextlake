@@ -43,6 +43,8 @@ VER="$(git -C "$REPO" rev-parse --short HEAD)"
 find "$WT" -maxdepth 1 -name '*.html' -print0 | xargs -0 sed -i \
   -e "s/href=\"docs\.css\"/href=\"docs.css?v=$VER\"/g" \
   -e "s/href=\"fonts\.css\"/href=\"fonts.css?v=$VER\"/g" \
+  -e "s/href=\"cmdk\.css\"/href=\"cmdk.css?v=$VER\"/g" \
+  -e "s/src=\"cmdk\.js\"/src=\"cmdk.js?v=$VER\"/g" \
   -e "s/data-embed=\"graph-embed\.html\"/data-embed=\"graph-embed.html?v=$VER\"/g"
 echo "==> cache-busted linked assets with ?v=$VER"
 
