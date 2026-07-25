@@ -39,10 +39,12 @@ def _is_sentinel_repo(repo_id: str) -> bool:
     return repo_id.startswith("(")
 
 
-def _repo_node_sizes(store: Store) -> dict[str, int]:
+def repo_node_sizes(store: Store) -> dict[str, int]:
     """``{repo_id: node_count}`` for real repos only -- a shared/packages/external
     sentinel node (e.g. every module imported fleet-wide) is not a repo and must
-    not be ranked, listed, or given a page as though it were one."""
+    not be ranked, listed, or given a page as though it were one. Public: shared
+    with ``kb/dashboard/server.py``, which reuses this exact query for the
+    dashboard's embedded graph pages."""
     sizes = dict(store.conn.execute(
         "SELECT repo_id, COUNT(*) FROM nodes GROUP BY repo_id").fetchall())
     return {r: c for r, c in sizes.items() if not _is_sentinel_repo(r)}
@@ -349,7 +351,7 @@ def overview_subgraph(store: Store, *, max_nodes: int = 5000,
     marked ``INFERRED`` (manifest-derived, a likely undercount — not ground truth).
     """
     from .arch.resolve import repo_dependency_edges, repo_event_flow_edges, repo_http_flow_edges
-    sizes = _repo_node_sizes(store)
+    sizes = repo_node_sizes(store)
     log("  resolving real cross-repo dependencies (package two-hop)…")
     # structural deps (depends_on) + runtime flow (HTTP + events); all INFERRED,
     # all repo→repo. Flow is empty until an index has run the flow extractors.
@@ -1071,7 +1073,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     for name in ("cytoscape.min.js", "app.css", "app.js"):
         (out / name).write_text(_read_static_raw(name), encoding="utf-8")
 
-    sizes = _repo_node_sizes(store)
+    sizes = repo_node_sizes(store)
     repos_with_nodes = sorted(r for r, c in sizes.items() if c)
     if repos:
         repos_with_nodes = [r for r in repos_with_nodes if _match_repo(r, repos)]
@@ -1209,7 +1211,7 @@ def build_site_server(store: Store, *, host: str = "127.0.0.1", port: int = 8765
     import urllib.parse
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-    sizes = _repo_node_sizes(store)
+    sizes = repo_node_sizes(store)
     repos_with_nodes = sorted(r for r, c in sizes.items() if c)
     pages = {r: f"repo-{repo_slug(r)}.html" for r in repos_with_nodes}
     slug_to_repo = {repo_slug(r): r for r in repos_with_nodes}
