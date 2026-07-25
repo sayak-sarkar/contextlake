@@ -156,6 +156,28 @@ def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
     assert "not downloaded" in out
 
 
+def test_doctor_warns_when_builtin_llm_runtime_missing(tmp_path, capsys, monkeypatch):
+    # doctor must not show a green wiki-LLM when the model file is present but the
+    # llama-cpp-python runtime is absent (it would fail at wiki time). Simulate the
+    # missing runtime by making find_spec('llama_cpp') return None.
+    real_find_spec = commands_mod.importlib.util.find_spec
+
+    def fake_find_spec(name, *a, **k):
+        return None if name == "llama_cpp" else real_find_spec(name, *a, **k)
+
+    monkeypatch.setattr(commands_mod.importlib.util, "find_spec", fake_find_spec)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+        f'[llm]\nenabled = true\nprovider = "builtin"\ncache_dir = "{tmp_path / "models"}"\n'
+    )
+    code = _run(["doctor", "--config", str(cfg)])
+    out = capsys.readouterr().out
+    assert "runtime not installed" in out
+    assert "contextlake[llm-local]" in out
+    assert code == 0  # optional tier: a missing wiki-LLM runtime is advisory, not a failure
+
+
 def test_doctor_reports_per_source_reachability(tmp_path, capsys, monkeypatch):
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"

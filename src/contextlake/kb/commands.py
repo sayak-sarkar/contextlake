@@ -6,6 +6,7 @@ tool runs without the ``[kb]`` extra installed.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
 import shutil
@@ -1368,10 +1369,11 @@ def cmd_serve(args) -> int:
         store.close()
 
 
-def _check(label: str, ok: bool, detail: str = "") -> bool:
-    mark = style.green("✓") if ok else style.red("✗")
+def _check(label: str, ok, detail: str = "") -> bool:
+    # tri-state: True -> ✓, False -> ✗, None -> ⚠ (present-but-degraded / optional-unavailable)
+    mark = style.yellow("⚠") if ok is None else (style.green("✓") if ok else style.red("✗"))
     print(f"  {mark} {label}" + (f" {style.dim('— ' + detail)}" if detail else ""))
-    return ok
+    return bool(ok)
 
 
 def _builtin_model_present(cache_dir, model_id: str) -> bool:
@@ -1482,9 +1484,15 @@ def cmd_doctor(args) -> int:
                 kw["cache_dir"] = llm.cache_dir
             bl = BuiltinLlm(**kw)
             present = _builtin_model_present(bl.cache_dir, bl.repo_id)
-            _check("wiki LLM", True,
-                   f"{llm.provider} · {bl.repo_id} · "
-                   f"{'downloaded' if present else 'not downloaded (run wiki to fetch)'}")
+            # the model file alone is not enough: wiki needs the llama-cpp-python runtime, which
+            # has no prebuilt wheel on some Pythons. Report ⚠ when the runtime is absent so doctor
+            # doesn't show a green ✓ for a tier that will fail at wiki time.
+            runtime = importlib.util.find_spec("llama_cpp") is not None
+            model_state = "downloaded" if present else "not downloaded (run wiki to fetch)"
+            _check("wiki LLM", True if runtime else None,
+                   f"{llm.provider} · {bl.repo_id} · {model_state}" if runtime
+                   else f"{llm.provider} · {bl.repo_id} · {model_state} · runtime not installed "
+                        "(pip install 'contextlake[llm-local]')")
         elif llm.provider == "anthropic":
             from .llm.base import default_api_key_env
 
