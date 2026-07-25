@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`statediagram` graph format.** `contextlake graph --repo <repo> --format statediagram` renders a
+  Mermaid entity state machine from guarded assignments to a status/state/stage field — `if
+  order.status == Created: order.status = Paid` becomes a labeled transition. Only *guarded*
+  transitions are emitted (the source state must be established by a preceding comparison on the
+  same field), so a diagram never claims a transition the code doesn't actually establish — an
+  honest undercount, never a guess. Regex-based, Python/JS·TS/C# (`kb/flow/state.py`), every edge
+  `INFERRED`, same stance as the existing HTTP/event flow extractors.
+
 ### Fixed
 
 - **A deleted (or access-revoked) upstream GitLab project is a clean `update` skip, not an

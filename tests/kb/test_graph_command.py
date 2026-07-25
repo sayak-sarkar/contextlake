@@ -655,6 +655,53 @@ def test_sequence_diagram_truncates_with_a_note_not_silently():
     assert "truncated" in out
 
 
+def _state_node(name, entity, repo="r"):
+    return Node(id=f"{entity}.{name}", repo=repo, kind="state", name=name,
+                qualified_name=f"{entity}.{name}", attrs={"entity": entity})
+
+
+def _state_edge(src, dst, method, line=1):
+    return Edge(src=src, dst=dst, relation="transitions_to", confidence=Confidence.INFERRED,
+                context=method, provenance=_seq_prov(line))
+
+
+def test_state_diagram_single_entity_renders_flat():
+    created, paid, shipped = (_state_node(n, "Order") for n in ("Created", "Paid", "Shipped"))
+    edges = [_state_edge(created.id, paid.id, "pay"), _state_edge(paid.id, shipped.id, "ship")]
+    payload = viz.to_payload([created, paid, shipped], edges)
+    out = viz.to_state_diagram(payload)
+    assert out.startswith("stateDiagram-v2")
+    assert "Created --> Paid : pay" in out
+    assert "Paid --> Shipped : ship" in out
+    assert "state Order {" not in out   # single entity -> flat, no composite wrapper
+
+
+def test_state_diagram_multiple_entities_get_composite_blocks():
+    o_created, o_paid = _state_node("Created", "Order"), _state_node("Paid", "Order")
+    i_draft, i_issued = _state_node("Draft", "Invoice"), _state_node("Issued", "Invoice")
+    edges = [_state_edge(o_created.id, o_paid.id, "pay"),
+             _state_edge(i_draft.id, i_issued.id, "issue")]
+    payload = viz.to_payload([o_created, o_paid, i_draft, i_issued], edges)
+    out = viz.to_state_diagram(payload)
+    assert "state Order {" in out and "state Invoice {" in out
+    assert "Created --> Paid : pay" in out
+    assert "Draft --> Issued : issue" in out
+
+
+def test_state_diagram_unreached_value_still_appears_unconnected():
+    known, reached = _state_node("Known", "Order"), _state_node("Reached", "Order")
+    orphan = _state_node("Orphan", "Order")  # a value the code never transitions to/from
+    payload = viz.to_payload([known, reached, orphan], [_state_edge(known.id, reached.id, "go")])
+    out = viz.to_state_diagram(payload)
+    assert "Orphan" in out
+    assert "Orphan -->" not in out and "--> Orphan" not in out
+
+
+def test_state_diagram_empty_view_says_so_not_silently():
+    out = viz.to_state_diagram(viz.to_payload([], []))
+    assert out.startswith("stateDiagram-v2") and "no state transitions" in out
+
+
 def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, capsys):
     # Regression: the truncation warning (and any payload-building log) used to land
     # on stdout, corrupting a redirected `--format json|mermaid|classdiagram` payload.

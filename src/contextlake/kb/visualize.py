@@ -555,6 +555,66 @@ def to_sequence_diagram(payload: dict, *, max_messages: int = _SEQUENCE_MAX_MESS
     return "\n".join(lines)
 
 
+def to_state_diagram(payload: dict) -> str:
+    """Render a Mermaid ``stateDiagram-v2`` from ``state`` nodes and
+    ``transitions_to`` edges (see :mod:`kb.flow.state` for the regex/AST-light,
+    guard-inferred extraction — every edge here is a high-confidence transition
+    the source code actually establishes, never a synthetic ``*`` start state).
+
+    Nodes are grouped by entity (the qualified name's ``Entity.Value`` prefix)
+    into one composite ``state Entity { ... }`` block each; a single-entity view
+    renders flat. A state value the code never transitions to/from (only ever
+    read, never assigned) still appears, unconnected — it's a known value, just
+    not one this extractor saw the code move to.
+
+    Best fed a ``--repo`` view (like ``classdiagram``): a ``--name``/``--node``
+    seed's BFS reaches state nodes via the file that declares them (a
+    ``contains`` edge, 2 hops from a class-named seed) but stops before a 3rd
+    hop would traverse *their own* ``transitions_to`` edges, so a seeded view
+    can show the states without their transitions. ``--repo``'s induced subgraph
+    has no such hop limit.
+    """
+    by_id = {n["id"]: n for n in payload["nodes"] if n.get("kind") == "state"}
+    if not by_id:
+        return "stateDiagram-v2\n  %% no state transitions in this view"
+
+    def entity_of(n: dict) -> str:
+        qn = n.get("qualified_name") or ""
+        return qn.rsplit(".", 1)[0] if "." in qn else "?"
+
+    by_entity: dict[str, list[str]] = {}
+    for nid, n in by_id.items():
+        by_entity.setdefault(entity_of(n), []).append(nid)
+
+    trans_by_entity: dict[str, list[tuple[str, str, str]]] = {e: [] for e in by_entity}
+    for e in payload["edges"]:
+        if e.get("relation") != "transitions_to":
+            continue
+        src, dst = e.get("src"), e.get("dst")
+        if src not in by_id or dst not in by_id:
+            continue
+        entity = entity_of(by_id[src])
+        trans_by_entity.setdefault(entity, []).append(
+            (by_id[src]["name"], by_id[dst]["name"], e.get("context") or "")
+        )
+
+    single = len(by_entity) == 1
+    lines = ["stateDiagram-v2"]
+    for entity, state_ids in by_entity.items():
+        body = [f"    {_mermaid_escape(frm)} --> {_mermaid_escape(to)} : {_mermaid_escape(label)}"
+                for frm, to, label in trans_by_entity.get(entity, [])]
+        mentioned = {s for frm, to, _ in trans_by_entity.get(entity, []) for s in (frm, to)}
+        body.extend(f"    {_mermaid_escape(by_id[nid]['name'])}"
+                    for nid in state_ids if by_id[nid]["name"] not in mentioned)
+        if single:
+            lines.extend(body)
+        else:
+            lines.append(f"  state {_mermaid_escape(entity)} {{")
+            lines.extend(f"  {line}" for line in body)
+            lines.append("  }")
+    return "\n".join(lines)
+
+
 def _cytoscape_elements(payload: dict) -> list[dict]:
     els = []
     for n in payload["nodes"]:

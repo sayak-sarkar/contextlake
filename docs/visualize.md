@@ -45,6 +45,14 @@ Output is chosen with `--format`:
   `--repo`/`--overview` — there's no single obvious ordering across unrelated seeds), and depth follows
   the view's own `--hops`. Recursion/cycles stop cleanly (a function already on the current call path
   isn't re-entered) instead of hanging.
+- **`statediagram`**, a **Mermaid entity state machine**: guarded assignments to a status/state/stage field
+  (`if order.status == Created: order.status = Paid`) become transitions, labeled with the method that
+  makes them. Only *guarded* transitions are emitted — the source state must be established by a preceding
+  comparison on the same field, so a diagram never claims a transition the code doesn't actually establish
+  (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake graph --repo
+  acme/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
+  declares them) but not their transitions past the view's `--hops` — use `--repo` for the full picture.
+  Multiple entities in view each get their own composite block; a single-entity view renders flat.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
@@ -69,9 +77,9 @@ contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pastea
 
 Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
 compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
-cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `--format classdiagram`, and
-`--format sequencediagram` aren't supported with `--c4` (the command exits with an error), and `--serve`
-doesn't apply either, the C4 view is a generated file, not a live server.
+cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
+and `statediagram` aren't supported with `--c4` (the command exits with an error), and `--serve` doesn't
+apply either, the C4 view is a generated file, not a live server.
 
 ## See also
 
