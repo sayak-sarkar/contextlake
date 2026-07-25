@@ -44,6 +44,13 @@
 .cmdk-opt mark{background:color-mix(in srgb,var(--sun) 34%,transparent);color:inherit;border-radius:2px;padding:0 1px}
 .cmdk-opt[aria-selected="true"] .arrow{opacity:1}
 .cmdk-opt .arrow{float:right;color:var(--link);opacity:0;transition:opacity .12s}
+/* a recent query is an action (re-runs the search), not a link — a <button> reset to read as a
+   lightweight history row: clock glyph + the query in muted body text, no bold result-title weight */
+.cmdk-recent{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;font:inherit;text-align:left}
+.cmdk-recent .rec-ic{width:15px;height:15px;color:var(--subtle);flex:none}
+.cmdk-recent .rec-q{flex:1;min-width:0;font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmdk-recent[aria-selected="true"] .rec-q{color:var(--ink)}
+.cmdk-recent .arrow{float:none;margin-left:auto}
 .cmdk-empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:14px}
 .cmdk-empty .hint{display:block;margin-top:6px;font-size:12.5px;color:var(--subtle)}
 .cmdk-foot{display:flex;align-items:center;gap:16px;padding:10px 16px;border-top:1px solid var(--line);
