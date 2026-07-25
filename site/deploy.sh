@@ -28,7 +28,7 @@ git -C "$WT" reset --hard origin/gh-pages --quiet
 
 # the deployable site = the page HTML + stylesheet + manifest/SEO + all assets
 # (build_docs.py / tools/ / .gitignore are source, not shipped)
-cp "$HERE"/*.html "$HERE"/docs.css "$HERE"/cmdk.css "$HERE"/cmdk.js "$HERE"/fonts.css "$HERE"/manifest.webmanifest "$HERE"/sitemap.xml "$HERE"/llms.txt "$HERE"/search-index.json "$WT"/
+cp "$HERE"/*.html "$HERE"/docs.css "$HERE"/cmdk.css "$HERE"/cmdk.js "$HERE"/fonts.css "$HERE"/manifest.webmanifest "$HERE"/sitemap.xml "$HERE"/llms.txt "$HERE"/llms-full.txt "$HERE"/search-index.json "$WT"/
 cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$HERE"/*.svg "$WT"/ 2>/dev/null || true
 cp -r "$HERE"/fonts "$WT"/
 
@@ -47,6 +47,11 @@ find "$WT" -maxdepth 1 -name '*.html' -print0 | xargs -0 sed -i \
   -e "s/src=\"cmdk\.js\"/src=\"cmdk.js?v=$VER\"/g" \
   -e "s/data-embed=\"graph-embed\.html\"/data-embed=\"graph-embed.html?v=$VER\"/g"
 echo "==> cache-busted linked assets with ?v=$VER"
+
+# hard gate before publishing: no private token may reach the public site. Proportionate
+# to deploying unattended; aborts the push (set -e) on any hit.
+echo "==> scanning built site for private data"
+"$PY" "$HERE/tools/scan_public.py" "$WT"
 
 git -C "$WT" add -A
 if git -C "$WT" diff --cached --quiet; then
