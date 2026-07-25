@@ -53,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their *edges* (`arch/resolve.py` has always read it from there, never from the shared node itself).
   **No migration needed**: existing stores self-correct as each repo is next reindexed; until then a
   shared node may still show a stale owning repo from before this fix.
+- **Dashboard: a shared node's breadcrumb no longer links to a repo that doesn't exist.** Search
+  for a symbol like an imported module, an HTTP endpoint, or an event topic and trace its blast
+  radius (reachable from any search result's "Blast" button) and its owning "repo" is a pseudo-repo
+  like `"(shared)"` (see the Finding #10 fix above) — the breadcrumb previously still tried to link
+  `Diagram`/`Wiki`/`Links` to `#/repo/(shared)`, which resolves to nothing. Now treated the same as
+  "repo unknown": those crumbs are omitted, matching the existing rule that an absent wiki/link is
+  never shown as a dead crumb (`kb/dashboard/static/dashboard.js`).
 - **An explicit `--config`/`--kb-config` path that doesn't exist is now a hard error, not a silent
   fall-through.** `load_kb_config` previously treated a missing config path exactly like an absent
   auto-discovered file (empty, keep going down the precedence chain) — so a typo'd or not-yet-created

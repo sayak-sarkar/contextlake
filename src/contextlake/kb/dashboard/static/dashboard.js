@@ -681,7 +681,13 @@
       // The impact payload now carries the seed's own repo (data.py), so "cross-repo
       // only" and the breadcrumb's repo-scoped links work in live mode too, not just
       // the static snapshot's precomputed symbol index.
-      var seedRepo = imp.repo || null;
+      //
+      // A seed that IS a shared node itself (an imported module, an HTTP endpoint, an
+      // event topic -- reachable from any search hit's "Blast" button) reports a
+      // pseudo-repo like "(shared)"/"(packages)"/"(external)", never a real repo id
+      // (see kb/model.py:SHARED_REPO). Treat that the same as "repo unknown": a
+      // #/repo/(shared) or #/arch/(shared) link would resolve to nothing.
+      var seedRepo = (imp.repo && imp.repo.charAt(0) !== "(") ? imp.repo : null;
       var crossKnown = seedRepo != null;
       if (!crossKnown) blastCfg.crossOnly = false;
       // The Diagram breadcrumb only needs the repo id (known now); Wiki/Links need a
