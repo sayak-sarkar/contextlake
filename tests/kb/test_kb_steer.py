@@ -199,3 +199,32 @@ def test_cmd_steer_keeps_foreign_kiro_and_skill_files(tmp_path, monkeypatch):
     assert (out / ".kiro" / "steering" / "my-rules.md").read_text() == "my kiro rules\n"
     assert (out / ".claude" / "skills" / "ship-safely" / "SKILL.md").read_text() == "my own skill\n"
     assert (out / ".kiro" / "steering" / "workspace.md").exists()  # ours added alongside
+
+
+def test_cmd_steer_keeps_a_locally_edited_skill_file_without_force(tmp_path, monkeypatch):
+    """A skill/workflow file has no END marker bounding "our" content (unlike
+    AGENTS.md's managed block), so MARKER-presence alone can't tell a still-
+    pristine contextlake-managed file from one the user edited since -- must
+    not silently discard the user's edit."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    out.mkdir()
+
+    # first run installs the pristine skill file
+    cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
+    p = out / ".claude" / "skills" / "ship-safely" / "SKILL.md"
+    original = p.read_text()
+    assert MARKER in original
+
+    # the user edits the generated file in place (still carries MARKER)
+    edited = original + "\n<!-- my own note, added after generation -->\n"
+    p.write_text(edited)
+
+    # re-running steer must NOT silently overwrite the user's edit
+    cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
+    assert p.read_text() == edited
+
+    # --force is the explicit opt-in to overwrite it
+    cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=True))
+    assert p.read_text() == original

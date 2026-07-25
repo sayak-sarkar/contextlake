@@ -869,8 +869,6 @@ def cmd_steer(args) -> int:
         END,
         LEGACY_BEGIN,
         LEGACY_END,
-        LEGACY_MARKER,
-        MARKER,
         mcp_server_entry,
         render_agents_md,
         render_claude_md,
@@ -924,20 +922,26 @@ def cmd_steer(args) -> int:
             _upsert_block(out / rel, content)
 
         # Skills/workflows are whole files in named dirs: write ours, refresh ours,
-        # but never clobber a same-named file the user already wrote (unless --force).
+        # but never clobber a same-named file the user already wrote OR has since
+        # edited (unless --force). Unlike the markdown steering files above, these
+        # have no END marker bounding "our" content, so a partial merge isn't
+        # possible -- MARKER presence alone can't tell a still-pristine
+        # contextlake-managed file from one the user has since modified. The safe
+        # default is to only refresh a file whose on-disk content is byte-identical
+        # to what we're about to write (a true no-op) or that doesn't exist yet;
+        # anything else -- foreign or locally edited -- is kept.
         skills = skill_files()
         skipped = 0
         for rel, content in skills.items():
             p = out / rel
-            if p.exists() and not force:
-                _content = p.read_text(errors="ignore")
-                if MARKER not in _content and LEGACY_MARKER not in _content:
-                    skipped += 1
-                    continue
+            if p.exists() and not force and p.read_text(errors="ignore") != content:
+                skipped += 1
+                continue
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
         log(f"  {style.ok(f'steering enhanced + {len(skills) // 2} skills')} "
-            + (f"({skipped} foreign skill file(s) kept)" if skipped else "written"))
+            + (f"({skipped} skill file(s) kept -- foreign or locally edited, "
+               "use --force to overwrite)" if skipped else "written"))
 
         def _merge_mcp_entry(rel: str, wrapper_key: str) -> None:
             """Merge our server entry into an MCP config file under `wrapper_key`,
