@@ -137,15 +137,19 @@ def test_doctor_reports_ok(tmp_path, capsys):
 
 def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
     store_dir = tmp_path / "kb"
+    # Point the model cache at an empty temp dir so the presence report is deterministic:
+    # otherwise doctor inspects the machine-global default (~/.contextlake/models) and a
+    # developer who has already fetched the models sees "downloaded", failing the assertion.
+    cache_dir = tmp_path / "models"
     cfg = tmp_path / "kb.toml"
     cfg.write_text(
         f'[kb]\nstore_dir = "{store_dir}"\n'
-        '[embeddings]\nenabled = true\nprovider = "builtin"\n'
-        '[llm]\nenabled = true\nprovider = "builtin"\n'
+        f'[embeddings]\nenabled = true\nprovider = "builtin"\ncache_dir = "{cache_dir}"\n'
+        f'[llm]\nenabled = true\nprovider = "builtin"\ncache_dir = "{cache_dir}"\n'
     )
     _run(["doctor", "--config", str(cfg)])
     out = capsys.readouterr().out
-    # filesystem-only presence report, no download in the test
+    # filesystem-only presence report against the empty cache -> not downloaded
     assert "built-in embedder model" in out
     assert "potion-base-8M" in out
     assert "Qwen2.5-0.5B-Instruct-GGUF" in out
