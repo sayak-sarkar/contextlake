@@ -120,7 +120,9 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     new ResizeObserver(function(){ cy.resize(); frameInitial(); }).observe(cyEl);
   }
 
-  cy.nodes().forEach(function(n){ n.data("deg", n.degree(false)); });
+  // deg is set server-side (visualize.py:_cytoscape_elements) so it's present from
+  // the very first style pass -- recomputing it here on the untouched initial graph
+  // would just reproduce the same numbers cytoscape.js's own degree() would give.
   document.getElementById("mode").textContent = META.mode || "graph";
   // In the fleet overview, repos with no detected cross-repo dependency are hidden
   // by default (they dominate and convey no structure) \u2014 kept in the graph and

@@ -616,6 +616,20 @@ def to_state_diagram(payload: dict) -> str:
 
 
 def _cytoscape_elements(payload: dict) -> list[dict]:
+    # Undirected degree per node, excluding self-loops -- mirrors app.js's own
+    # n.degree(false) exactly, computed once here so every node's `deg` is present
+    # from the first style pass (the "width"/"height" mapData(deg, ...) rule applies
+    # to every node). Without it, app.js only sets `deg` in a .forEach() AFTER the
+    # graph is first styled, so cytoscape logs a console warning for every node on
+    # initial render (harmless, but noisy) before silently correcting itself.
+    degree: dict[str, int] = {}
+    for e in payload["edges"]:
+        src, dst = e["src"], e["dst"]
+        if src == dst:
+            continue
+        degree[src] = degree.get(src, 0) + 1
+        degree[dst] = degree.get(dst, 0) + 1
+
     els = []
     for n in payload["nodes"]:
         attrs = n.get("attrs") or {}
@@ -624,7 +638,7 @@ def _cytoscape_elements(payload: dict) -> list[dict]:
             "repo": n.get("repo", ""), "qn": n.get("qualified_name") or "",
             "file": n.get("file") or "", "line": n.get("line"),
             "count": attrs.get("node_count"), "href": n.get("href") or "",
-            "lang": n.get("lang") or "",
+            "lang": n.get("lang") or "", "deg": degree.get(n["id"], 0),
         }
         parent = n.get("parent") or ""
         if parent:

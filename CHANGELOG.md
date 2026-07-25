@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Graph views: a harmless but noisy console warning on every node, on first render.** Cytoscape's
+  style sheet maps node width/height from a `deg` (degree) data field, but `deg` was only set
+  client-side in a `.forEach()` that ran *after* the graph's first style pass — so every node
+  logged "no mapping for property... try a `[deg]` selector" before silently correcting itself.
+  `deg` is now computed once server-side (`kb/visualize.py:_cytoscape_elements`, mirroring the
+  existing `weight`-always-present pattern for edges), present from the very first render.
+
 ## [2.48.0] - 2026-07-26
 
 ### Added
