@@ -2,8 +2,10 @@
 
 import os
 
+import pytest
+
 from contextlake.kb import config as kbcfg
-from contextlake.kb.config import KbConfig, apply_llm_overrides, load_kb_config
+from contextlake.kb.config import ConfigError, KbConfig, apply_llm_overrides, load_kb_config
 
 
 def test_apply_llm_overrides_enables_and_sets_provider_model():
@@ -77,6 +79,27 @@ def test_source_tool_and_arg_template_load(tmp_path, monkeypatch):
     c = load_kb_config(str(cfg))
     assert c.sources[0].tool == "search"
     assert c.sources[0].arg_template == {"query": "{terms}"}
+
+
+def test_missing_explicit_config_path_is_a_hard_error(tmp_path, monkeypatch):
+    """A --config path that doesn't exist must fail loudly, not silently fall
+    through the precedence chain to ~/.contextlake/kb.toml -- which can point at
+    a completely different (real, possibly production) store than intended."""
+    _isolate(monkeypatch, tmp_path)
+    with pytest.raises(ConfigError, match="not found"):
+        load_kb_config(str(tmp_path / "does-not-exist.toml"))
+
+
+def test_missing_explicit_config_path_does_not_fall_back_to_global(tmp_path, monkeypatch):
+    """The exact near-miss this guards against: a real global config exists (as
+    it would on the user's own machine) and a typo'd/not-yet-created --config
+    path must never silently resolve to it."""
+    _isolate(monkeypatch, tmp_path)
+    real_global = tmp_path / "real-global.toml"
+    real_global.write_text('[kb]\nstore_dir = "~/Work/contextlake-kb"\n')
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(real_global))
+    with pytest.raises(ConfigError):
+        load_kb_config(str(tmp_path / "typo-d.toml"))
 
 
 def test_legacy_global_kb_config_is_discovered(tmp_path, monkeypatch):

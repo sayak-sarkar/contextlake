@@ -53,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their *edges* (`arch/resolve.py` has always read it from there, never from the shared node itself).
   **No migration needed**: existing stores self-correct as each repo is next reindexed; until then a
   shared node may still show a stale owning repo from before this fix.
+- **An explicit `--config`/`--kb-config` path that doesn't exist is now a hard error, not a silent
+  fall-through.** `load_kb_config` previously treated a missing config path exactly like an absent
+  auto-discovered file (empty, keep going down the precedence chain) — so a typo'd or not-yet-created
+  `--config` path silently landed on the next file in the chain, typically the real
+  `~/.contextlake/kb.toml`, pointing at a completely different (possibly production) store than the
+  one intended. A missing explicit path now raises `ConfigError` with a clear message instead; the
+  auto-discovered files in the chain are unaffected (still silently optional, by design).
 
 ## [2.47.0] - 2026-07-25
 

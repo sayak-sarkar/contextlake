@@ -66,6 +66,7 @@ def test_cli_dispatches_source_list_through_kb_commands(tmp_path, gls_logs):
     from contextlake.kb import commands as kb
 
     cfg = tmp_path / "kb.toml"
+    cfg.write_text("")  # an explicit --config path must exist (kb/config.py:ConfigError)
     args = build_parser().parse_args(["source", "list", "--config", str(cfg)])
     for k, v in _DEFAULTS.items():
         if not hasattr(args, k):
@@ -134,6 +135,7 @@ def test_list_prints_name_type_pipeline_enabled(tmp_path, gls_logs):
 
 def test_list_empty_reports_none_configured(tmp_path, gls_logs):
     cfg = tmp_path / "kb.toml"
+    cfg.write_text("")  # an explicit --config path must exist (kb/config.py:ConfigError)
     rc = source_cmd.cmd_source(_args("list", str(cfg)))
     assert rc == 0
     assert "no sources" in gls_logs.text.lower()
@@ -150,6 +152,7 @@ def test_list_shows_effective_merged_config_not_just_the_write_target(
     monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(local_cfg))
 
     write_target = tmp_path / "kb.toml"  # deliberately has no sources of its own
+    write_target.write_text("")  # must still exist (kb/config.py:ConfigError)
     rc = source_cmd.cmd_source(_args("list", str(write_target)))
     assert rc == 0
     out = gls_logs.text
@@ -259,6 +262,7 @@ def test_test_no_probe_for_type_is_neutral_not_a_failure(tmp_path, gls_logs):
 
 def test_test_unknown_source_name_fails_cleanly(tmp_path, gls_logs):
     cfg = tmp_path / "kb.toml"
+    cfg.write_text("")  # an explicit --config path must exist (kb/config.py:ConfigError)
     rc = source_cmd.cmd_source(_args("test", str(cfg), name="ghost"))
     assert rc == 1
     assert "ghost" in gls_logs.text

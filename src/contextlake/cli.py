@@ -790,7 +790,12 @@ def main(argv=None):
             log(f"The '{args.command}' command needs the knowledge-layer extra: "
                 f"pip install 'contextlake[kb]'  ({e})")
             sys.exit(1)
-        sys.exit(kb_commands.dispatch(args.command, args))
+        from .kb.config import ConfigError
+        try:
+            sys.exit(kb_commands.dispatch(args.command, args))
+        except ConfigError as e:
+            log(str(e))
+            sys.exit(1)
 
     # Load configuration (honouring an explicit --config path if given), then
     # overlay any CLI overrides on top.

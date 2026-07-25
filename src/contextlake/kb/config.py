@@ -148,6 +148,10 @@ class KbConfig(BaseModel):
         return Path(expand_path(self.store_dir))
 
 
+class ConfigError(RuntimeError):
+    """An explicit --config path was invalid."""
+
+
 def _read_toml(path: str | None) -> dict:
     if not path:
         return {}
@@ -159,7 +163,22 @@ def _read_toml(path: str | None) -> dict:
 
 
 def load_kb_config(config_path: str | None = None) -> KbConfig:
-    """Load and merge KB config from the precedence chain."""
+    """Load and merge KB config from the precedence chain.
+
+    An explicit ``--config`` path that doesn't exist is a hard error, not a silent
+    no-op: without this, a typo'd or not-yet-created path falls through to the next
+    file in the precedence chain -- typically ``~/.contextlake/kb.toml``, which can
+    point at a completely different (possibly production) store than the one the
+    caller meant to target. The other, auto-discovered files in the chain are
+    legitimately optional and keep silently no-op'ing when absent.
+    """
+    if config_path and not Path(expand_path(config_path)).exists():
+        raise ConfigError(
+            f"--config path not found: {config_path}\n"
+            "Refusing to fall back to the next config in the precedence chain "
+            "(~/.contextlake/kb.toml or .contextlake.kb.toml), which may point at "
+            "a different store than the one you meant to use."
+        )
     merged: dict = {}
     # Legacy gitlab-sync files are read just below their contextlake counterparts,
     # so an existing setup keeps working while a new file takes precedence.
