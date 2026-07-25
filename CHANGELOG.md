@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`statediagram` extraction (v2.48.0) could emit a false transition, not just an
+  undercount.** An independent review of the guard→assignment regex found five
+  reproducible cases where the lazy gap between a guard and its assignment could
+  cross into an `else`/`elif` sibling branch, a different method, or past a second,
+  unrelated guard on the same field — asserting a transition the code doesn't
+  actually establish, contradicting this module's own "never a false transition"
+  contract. Also fixed: `self.status = other.status` (a field copy) synthesizing a
+  bogus state literally named `status`. The guard→assignment span is now rejected
+  if it contains a boundary keyword (`else`/`elif`/`def`/`class` for Python, a `}` /
+  `function`/`class` for JS/C#) or a second mention of the same receiver+field, and
+  a transition value matching the field name itself is dropped (`kb/flow/state.py`).
+- **Dataflow extraction (v2.48.0) read commented-out and docstring-quoted SQL as a
+  live `reads`/`writes` edge.** A `# DELETE FROM orders` left in a data-access file,
+  or a docstring like `"""...INSERT INTO audit_log..."""`, asserted a data
+  dependency that doesn't exist — the same "never a false edge" contract this
+  extractor documents. Line comments (`#`, `//`), block comments (`/* */`), and
+  triple-quoted strings are now blanked out (newlines preserved, so line numbers on
+  real matches don't shift) before scanning (`kb/flow/data.py`).
+- **The fleet architecture map and generated site could render a shared-node
+  sentinel (`"(shared)"`, `"(packages)"`) as though it were a repo.** Since Finding
+  #10 (v2.48.0) gave shared nodes their own stable `repo_id`, that id showed up in
+  the raw `GROUP BY repo_id` node-count query the fleet overview and site builder
+  use to enumerate repos — and `"(shared)"` (every module imported fleet-wide) is
+  now the single largest bucket, ranking first and potentially displacing a real
+  repo when the fleet exceeds `max_nodes`. A new `_repo_node_sizes()` helper filters
+  sentinel ids out at the one query all three call sites (`overview_subgraph`,
+  `build_site`, `build_site_server`) and the dashboard's embedded graph pages share
+  (`kb/visualize.py`, `kb/dashboard/server.py`). `"(packages)"`/`"(external)"` are
+  now named constants (`PACKAGES_REPO`/`EXTERNAL_REPO` in `kb/model.py`) alongside
+  `SHARED_REPO`, replacing the bare string literals at their four call sites.
+
 - **Graph views: a harmless but noisy console warning on every node, on first render.** Cytoscape's
   style sheet maps node width/height from a `deg` (degree) data field, but `deg` was only set
   client-side in a `.forEach()` that ran *after* the graph's first style pass — so every node
