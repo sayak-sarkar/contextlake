@@ -180,3 +180,41 @@ def test_kb_config_no_warn_on_known(tmp_path, monkeypatch):
     p = tmp_path / "kb.toml"
     p.write_text('[kb]\nstore_dir = "/x"\nindex_workers = 1\n[embeddings]\ntier = "builtin"\n')
     assert not [m for m in _load_capturing(p) if "unknown" in m.lower()]
+
+
+def test_local_llm_override_does_not_wipe_global_sibling_fields(tmp_path, monkeypatch):
+    """Finding #9: [llm] was replaced wholesale per file, so a local override of just
+    `model` silently reset `enabled`/`provider` to their pydantic defaults, disabling a
+    globally-enabled LLM tier. [kb]/[embeddings]/[llm] must deep-merge by key."""
+    _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(tmp_path / "global.toml"))
+    (tmp_path / "global.toml").write_text(
+        '[llm]\nenabled = true\nprovider = "anthropic"\nmodel = "global-model"\n'
+        "[kb]\nmax_file_bytes = 999\n"
+    )
+    local = tmp_path / "kb.toml"
+    local.write_text('[llm]\nmodel = "local-model"\n[kb]\nstore_dir = "~/local"\n')
+
+    c = load_kb_config(str(local))
+
+    assert c.llm.enabled is True, "global enabled=true must survive a local model-only override"
+    assert c.llm.provider == "anthropic"
+    assert c.llm.model == "local-model"  # the local override still wins on the field it set
+    assert c.max_file_bytes == 999, \
+        "global [kb] fields must survive a local store_dir-only override"
+
+
+def test_sources_and_rules_stay_wholesale_replaced(tmp_path, monkeypatch):
+    """The documented exception: list tables are NOT deep-merged."""
+    _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(tmp_path / "global.toml"))
+    (tmp_path / "global.toml").write_text(
+        '[[sources]]\ntype = "web"\nname = "global-src"\n'
+    )
+    local = tmp_path / "kb.toml"
+    local.write_text('[[sources]]\ntype = "files"\nname = "local-src"\n')
+
+    c = load_kb_config(str(local))
+
+    assert [s.name for s in c.sources] == ["local-src"], \
+        "local sources list must replace, not merge"

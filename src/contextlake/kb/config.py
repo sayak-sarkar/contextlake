@@ -5,11 +5,14 @@ maps, which glossary — live in a user TOML file loaded at runtime, never in th
 package. The repo ships only ``examples/kb.toml.example`` with placeholders.
 
 Precedence (later wins): built-in defaults -> ``~/.contextlake/kb.toml`` ->
-``.contextlake.kb.toml`` (cwd) -> an explicit ``--config`` path. ``sources`` and
-``rules`` lists are replaced wholesale by the highest-precedence file that sets
-them (predictable, no surprise merging). The former ``~/.gitlab-sync/`` paths are
-still read (just below their contextlake counterparts) so existing setups keep
-working after the rename.
+``.contextlake.kb.toml`` (cwd) -> an explicit ``--config`` path. The ``[kb]``,
+``[embeddings]``, and ``[llm]`` tables are deep-merged key-by-key, so a local file
+setting only one field (e.g. ``[llm] model = "..."``) does not wipe out sibling
+fields (``enabled``, ``provider``) set globally. ``sources`` and ``rules`` lists are
+replaced wholesale by the highest-precedence file that sets them (predictable, no
+surprise merging of list tables). The former ``~/.gitlab-sync/`` paths are still
+read (just below their contextlake counterparts) so existing setups keep working
+after the rename.
 """
 
 from __future__ import annotations
@@ -162,7 +165,15 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
     # so an existing setup keeps working while a new file takes precedence.
     for src in (LEGACY_GLOBAL_CONFIG, GLOBAL_CONFIG,
                 LEGACY_LOCAL_CONFIG, LOCAL_CONFIG, config_path):
-        merged.update(_read_toml(src))
+        for table, values in _read_toml(src).items():
+            if table in _SCALAR_TABLES:
+                # Deep-merge by key: a local file setting only `model` must not
+                # wipe out `enabled`/`provider` set globally under the same table.
+                merged.setdefault(table, {}).update(values)
+            else:
+                # sources/rules (and any unrecognised table) stay wholesale-replaced,
+                # per the documented precedence rule above.
+                merged[table] = values
 
     kb = merged.get("kb", {})
     _warn_unknown_config(kb, merged)
@@ -184,6 +195,9 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
 # `store` typo for `store_dir`, is how a whole run lands in the wrong place).
 _KB_KEYS = {"store_dir", "languages", "skip_generated", "max_file_bytes", "index_workers"}
 _TABLES = {"kb", "embeddings", "llm", "sources", "rules"}
+# Tables of scalar fields, deep-merged key-by-key across the precedence chain (see
+# load_kb_config). sources/rules are list tables and stay wholesale-replaced by design.
+_SCALAR_TABLES = {"kb", "embeddings", "llm"}
 
 
 def _warn_unknown_config(kb: dict, merged: dict) -> None:

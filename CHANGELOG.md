@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A local config file's `[llm]`/`[kb]`/`[embeddings]` table no longer wipes out
+  sibling fields set globally.** Those three tables are now deep-merged key-by-key
+  across the precedence chain; a `.contextlake.kb.toml` setting only `[llm] model`
+  used to silently disable a globally-enabled LLM tier (`enabled`/`provider` reverted
+  to their defaults) because the table was replaced wholesale. `sources`/`rules` keep
+  their documented wholesale-replace behavior (they are list tables, not scalar ones).
 - **Readable terminal output while a long run is in flight.** The live progress bar
   (stderr) and per-item status lines (stdout) share one terminal cursor, so every
   frame was left on screen with the next status line welded to its right edge. The
