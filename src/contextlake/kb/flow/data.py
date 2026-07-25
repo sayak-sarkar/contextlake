@@ -44,6 +44,9 @@ _MAX_SELECT_SPAN = 300
 # `"""...INSERT INTO audit_log..."""` docstring is exactly the kind of text a
 # data-access file accumulates. Blank these spans out before scanning (same
 # length, newlines preserved) so line numbers on the real matches don't shift.
+# `strip_code_noise` is public (not `_`-prefixed): `flow/web.py`'s flat-JSX
+# route extractor reuses it verbatim for the same reason (a commented-out
+# `<Route>` is not a registered route).
 _TRIPLE_QUOTED = re.compile(r"'''.*?'''|\"\"\".*?\"\"\"", re.DOTALL)
 _BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 _LINE_COMMENT = re.compile(r"^[ \t]*(?:#|//).*$", re.MULTILINE)
@@ -53,7 +56,7 @@ def _blank(matched: str) -> str:
     return "".join(c if c == "\n" else " " for c in matched)
 
 
-def _strip_noise(text: str) -> str:
+def strip_code_noise(text: str) -> str:
     text = _TRIPLE_QUOTED.sub(lambda m: _blank(m.group(0)), text)
     text = _BLOCK_COMMENT.sub(lambda m: _blank(m.group(0)), text)
     text = _LINE_COMMENT.sub(lambda m: _blank(m.group(0)), text)
@@ -68,7 +71,7 @@ def extract_data_refs(
     later, repo-wide, against actual table/view definitions.
     """
     text = source.decode("utf-8", "replace") if isinstance(source, (bytes, bytearray)) else source
-    text = _strip_noise(text)
+    text = strip_code_noise(text)
     file_id = make_id(repo_id, rel_path)
     reads: list[tuple[str, str, str, int]] = []
     writes: list[tuple[str, str, str, int]] = []

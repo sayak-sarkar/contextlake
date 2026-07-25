@@ -84,6 +84,43 @@ def test_react_router_object_form_extracted():
     assert _routes(extract_web_flow("r", "src/routes.ts", src, "typescript")[0]) == {"/x"}
 
 
+def test_react_router_jsx_nested_route_composes_onto_parent():
+    """A child <Route> only ever resolves under its parent in React Router v6
+    -- must not be emitted as an absolute root-level route it isn't."""
+    src = b'''
+      <Routes>
+        <Route path="/orders" element={<OrdersLayout />}>
+          <Route path="detail/:id" element={<Detail />} />
+        </Route>
+      </Routes>
+    '''
+    n, e = extract_web_flow("repoA", "src/App.tsx", src, "typescript")
+    assert _routes(n) == {"/orders", "/orders/detail/{}"}
+    assert "/detail/{}" not in _routes(n)
+
+
+def test_react_router_jsx_commented_out_route_is_not_emitted():
+    src = b'''
+      <Routes>
+        {/* <Route path="/old-disabled" element={<Old />} /> */}
+        <Route path="/home" element={<Home />} />
+      </Routes>
+    '''
+    n, _ = extract_web_flow("repoA", "src/App.js", src, "javascript")
+    assert _routes(n) == {"/home"}
+
+
+def test_react_router_jsx_line_commented_route_is_not_emitted():
+    src = b'''
+      <Routes>
+        // <Route path="/legacy" element={<Legacy />} />
+        <Route path="/home" element={<Home />} />
+      </Routes>
+    '''
+    n, _ = extract_web_flow("repoA", "src/App.js", src, "javascript")
+    assert _routes(n) == {"/home"}
+
+
 def test_web_skips_vendored_paths():
     src = b'<Route path="/demo" element={<Demo/>} />'
     p = "module-federation/apps/x/src/App.js"

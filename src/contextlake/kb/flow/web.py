@@ -28,6 +28,7 @@ from datetime import date
 
 from ..ids import make_id
 from ..model import Confidence, Edge, Node, Provenance
+from .data import strip_code_noise
 
 _WEB_LANGS = {"javascript", "typescript", "tsx"}
 _ROUTE_REL = "defines_route"
@@ -37,10 +38,51 @@ _DYN_SEG = re.compile(r"^(?::.+|\{.*\}|\[.*\]|\$.+)$")
 
 _NEXT_PAGE = re.compile(r"(?:^|/)page\.[jt]sx?$")
 
-# React Router v6 flat JSX: <Route ... path="..." ...> (self-closing or open tag).
-_ROUTE_JSX = re.compile(r"<Route\b[^>]*?\bpath\s*=\s*([\"'])(?P<path>[^\"']+)\1[^>]*?>", re.DOTALL)
+# React Router v6 flat JSX: a <Route> tag, either self-closing or an opening
+# tag paired with a later </Route> -- the pairing is what lets a nested
+# <Route>'s relative `path` compose onto its enclosing <Route>'s, the same way
+# _walk_route_objects composes the object-literal form's `children` (a nested
+# route only ever resolves under its parent in React Router v6).
+_ROUTE_OPEN = re.compile(r"<Route\b")
+_ROUTE_CLOSE = re.compile(r"</Route\s*>")
+_PATH_ATTR = re.compile(r"\bpath\s*=\s*([\"'])(?P<path>[^\"']+)\1")
 # a single simple element={<Name ...}; None when the element is a ternary/wrapper.
 _ELEMENT = re.compile(r"\belement\s*=\s*\{\s*<\s*([A-Z][A-Za-z0-9_]*)[\s/>]")
+
+
+def _scan_tag_end(text: str, start: int) -> tuple[str, bool, int] | None:
+    """From ``start`` (just after ``<Route``), find the tag's true end.
+
+    A naive ``[^>]*?>`` lazy scan stops at the FIRST ``>`` it finds -- but a
+    ``{...}`` attribute-expression value (``element={<Home/>}``) can contain
+    its own nested JSX with its own ``/>``, which is not this tag's own close.
+    Tracks ``{}`` depth (and skips over quoted strings, so a quoted ``{``/``}``
+    can't desync it) so only a top-level ``>`` ends the tag. Returns
+    ``(attrs, self_closing, index_after_tag)``, or ``None`` if the tag never
+    closes (truncated/malformed source -- give up rather than guess).
+    """
+    depth = 0
+    quote: str | None = None
+    i = start
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if quote:
+            if c == quote and text[i - 1] != "\\":
+                quote = None
+        elif c in ("\"", "'"):
+            quote = c
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth = max(0, depth - 1)
+        elif depth == 0 and c == ">":
+            if i > start and text[i - 1] == "/":
+                return text[start:i - 1], True, i + 1
+            return text[start:i], False, i + 1
+        i += 1
+    return None
+
 
 # cheap performance gates: only re-parse files that mention the routing API.
 _NG_PREFILTER = re.compile(r"\bRoutes\b|\bRouterModule\b|\bprovideRouter\b")
@@ -49,6 +91,53 @@ _REACT_OBJ_PREFILTER = re.compile(r"\bcreate(?:Browser|Hash|Memory)Router\b")
 
 def _vendored(rel_path: str) -> bool:
     return "node_modules" in rel_path or "module-federation" in rel_path
+
+
+def _jsx_flat_routes(text: str) -> list[tuple[str, int, str | None]]:
+    """``(route, line, context)`` for React Router v6 flat-JSX ``<Route>``
+    elements, composing a nested ``<Route>``'s relative ``path`` onto its
+    enclosing ``<Route>``'s (never emitting a nested route as an absolute
+    root-level one it isn't). Comments and string literals are blanked out
+    first via :func:`strip_code_noise` -- a ``{/* <Route .../> */}`` used to
+    disable a route, or an unrelated ``// <Route .../>`` line comment, is not
+    a registered route. Known residual gap, by design (stripping generic
+    string literals would also strip legitimate ``path="..."`` attribute
+    values, which are string literals too): JSX-shaped text sitting inside an
+    unrelated plain string (e.g. example prose in a help-text constant) can
+    still be matched.
+    """
+    text = strip_code_noise(text)
+    out: list[tuple[str, int, str | None]] = []
+    stack: list[str] = [""]  # composed prefixes; index 0 is the file root
+    pos, n = 0, len(text)
+    while pos < n:
+        om = _ROUTE_OPEN.search(text, pos)
+        cm = _ROUTE_CLOSE.search(text, pos)
+        if om and (not cm or om.start() < cm.start()):
+            scanned = _scan_tag_end(text, om.end())
+            if scanned is None:
+                break  # tag never closes -- truncated/malformed, stop rather than guess
+            attrs, self_closing, end = scanned
+            prefix = stack[-1]
+            path_m = _PATH_ATTR.search(attrs)
+            if path_m:
+                raw = f"{prefix}/{path_m.group('path')}" if prefix else path_m.group("path")
+                comp = _ELEMENT.search(attrs)
+                line = text.count("\n", 0, om.start()) + 1
+                out.append((normalize_route(raw), line, comp.group(1) if comp else None))
+                child_prefix = raw
+            else:
+                child_prefix = prefix  # pathless layout <Route element={<Layout/>}>: no segment
+            if not self_closing:
+                stack.append(child_prefix)
+            pos = end
+        elif cm:
+            if len(stack) > 1:
+                stack.pop()
+            pos = cm.end()
+        else:
+            break
+    return out
 
 
 def _is_route_param(seg: str) -> bool:
@@ -318,12 +407,10 @@ def extract_web_flow(repo_id: str, rel_path: str, source, lang: str,
 
     if not _vendored(rel_path):
         text = _text(source)
-        # React Router v6 flat JSX: <Route path=...> in the source.
-        for m in _ROUTE_JSX.finditer(text):
-            route = normalize_route(m.group("path"))
-            comp = _ELEMENT.search(m.group(0))
-            line = text.count("\n", 0, m.start()) + 1
-            emit(route, line, comp.group(1) if comp else None)
+        # React Router v6 flat JSX: <Route path=...> in the source, nested
+        # <Route>s composed onto their enclosing one.
+        for route, line, ctx in _jsx_flat_routes(text):
+            emit(route, line, ctx)
         # Angular route tables: re-parse (only prefiltered TS files) and walk the AST.
         if lang == "typescript" and _NG_PREFILTER.search(text):
             for route, line, ctx in _angular_routes(source):
