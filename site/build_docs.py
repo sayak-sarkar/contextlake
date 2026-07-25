@@ -228,6 +228,11 @@ PYPI_BTN = _btn("https://pypi.org/project/contextlake/", PYPI_MARK, "contextlake
 # a labeled GitHub button for the header, matching the landing (PyPI stays in the footer)
 GH_LABELED = ('<a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" '
               'rel="noopener" target="_blank">' + GH_MARK + "GitHub</a>")
+# footer social links: labeled (icon + text), mirroring the landing footer for a uniform look
+FOOT_GH = ('<a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank">'
+           + GH_MARK + "GitHub</a>")
+FOOT_PYPI = ('<a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank">'
+             + PYPI_MARK + "PyPI</a>")
 FOOT_MARK = ('<img src="mark.png" width="28" height="28" alt="" aria-hidden="true" '
              'style="width:28px;height:28px;vertical-align:middle;margin-right:8px">')
 
@@ -264,6 +269,9 @@ _LINK_TO_PAGE = {}
 for _out, _src, *_rest in PAGES:
     _LINK_TO_PAGE[_src] = _out
     _LINK_TO_PAGE[_src.split("/")[-1]] = _out
+    # a doc may also link directly to the built page name (`changelog.html`); map it to itself
+    # so such links stay on-site instead of falling through to a nonexistent GitHub blob.
+    _LINK_TO_PAGE[_out] = _out
     # README/PyPI links are absolute GitHub URLs (they must resolve on PyPI); map those
     # back to the local built page so the on-site nav stays on-site.
     _LINK_TO_PAGE[GH + _src] = _out
@@ -299,6 +307,24 @@ def rewrite_links(html: str) -> str:
             return f'href="{GH}{norm}{sep}{anchor}"'
         return m.group(0)
     return re.sub(r'href="([^"]+)"', repl, html)
+
+
+def mark_external(html: str) -> str:
+    """After links are resolved, in-prose links to an http(s) target are outbound. Give them
+    rel=noopener + target=_blank and a small ↗ so a reader can tell an outbound link from an
+    in-site one at a glance. Image links (badges) are left unmarked. Applied to the rendered
+    page only, never to the text harvested for the search index."""
+    def repl(m):
+        attrs, inner = m.group(1), m.group(2)
+        if 'href="http' not in attrs:
+            return m.group(0)
+        if "target=" not in attrs:
+            attrs += ' target="_blank"'
+        if "rel=" not in attrs:
+            attrs += ' rel="noopener"'
+        arrow = "" if "<img" in inner else '<span class="ext-arrow" aria-hidden="true">↗</span>'
+        return f"<a{attrs}>{inner}{arrow}</a>"
+    return re.sub(r"(?s)<a\b([^>]*)>(.*?)</a>", repl, html)
 
 
 def strip_first_h1(html: str) -> str:
@@ -511,8 +537,7 @@ def shell(meta, body, toc_html) -> str:
 <footer><div class="f-in">
   <span class="tagline">{FOOT_MARK}Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a>
-    <span class="social-row">{GH_BTN}{PYPI_BTN}</span>
+    <a href="./">Home</a><a href="changelog">Changelog</a>{FOOT_GH}{FOOT_PYPI}
   </nav>
 </div></footer>
 {THEME_JS}
@@ -678,7 +703,9 @@ def main():
         md_text = de_emdash((REPO / src).read_text(encoding="utf-8"))
         html = theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text)))
         html = strip_readme_frontmatter(html) if out == "docs.html" else strip_first_h1(html)
-        (OUT / out).write_text(shell(meta, html, md.toc), encoding="utf-8")
+        # the rendered page marks outbound links (↗ + new tab); the search index is built from
+        # `html` (pre-mark) so the ↗ glyph never leaks into snippets.
+        (OUT / out).write_text(shell(meta, mark_external(html), md.toc), encoding="utf-8")
         page_url, group, page_title = linkify(out), GROUP_OF.get(out, ""), meta[2]
         # page-level entry, then one entry per content section (heading + text, anchored)
         search.append({"url": page_url, "page": page_title, "title": page_title,
