@@ -78,11 +78,24 @@ def _repos(n: int) -> str:
     return f"{n} repository" if n == 1 else f"{n} repositories"
 
 
+def _md_safe(s: str) -> str:
+    """Neutralize text (a repo id, package name, ...) headed into the managed
+    markdown block: strip backticks so it can't break out of a code span, and
+    strip the literal BEGIN/END splice markers so a hostile value (e.g. an
+    npm/pypi dependency name pulled in verbatim by manifest.py) can never
+    reintroduce a marker mid-body and corrupt the next `contextlake steer` refresh.
+    """
+    s = (s or "").replace("`", "'")
+    for marker in (BEGIN, END, LEGACY_BEGIN, LEGACY_END):
+        s = s.replace(marker, "")
+    return s
+
+
 def _repo_lines(facts: dict, limit: int = 40) -> str:
     rows = facts["per_repo"][:limit]
     out = "\n".join(
-        f"- `{r['id']}` — {r['nodes']} symbols"
-        + (f" ({', '.join(r['langs'])})" if r["langs"] else "")
+        f"- `{_md_safe(r['id'])}` — {r['nodes']} symbols"
+        + (f" ({', '.join(_md_safe(lang) for lang in r['langs'])})" if r["langs"] else "")
         for r in rows
     )
     if len(facts["per_repo"]) > limit:
@@ -92,7 +105,7 @@ def _repo_lines(facts: dict, limit: int = 40) -> str:
 
 def render_agents_md(facts: dict, *, config_path: str | None = None) -> str:
     langs = ", ".join(facts["languages"]) or "—"
-    pkgs = ", ".join(f"`{p}`" for p in facts["top_packages"][:10]) or "—"
+    pkgs = ", ".join(f"`{_md_safe(p)}`" for p in facts["top_packages"][:10]) or "—"
     return f"""# AGENTS.md — Workspace guide for AI coding agents
 
 This directory mirrors **{_repos(facts['count'])}** in their original namespace

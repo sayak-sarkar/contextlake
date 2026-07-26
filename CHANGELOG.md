@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`contextlake steer` could silently corrupt a user's AGENTS.md/CLAUDE.md/etc. on a
+  later refresh, or crash mid-run leaving the workspace half-steered.** A repo id or
+  package name (the latter reachable verbatim via `manifest.py`'s unvalidated
+  package.json dependency-key parsing) carrying a backtick or the literal
+  `<!-- END contextlake -->` marker text broke out of its markdown code span or
+  smuggled a duplicate marker into the generated body; the next refresh's naive
+  first-occurrence `_upsert_block` splice then truncated/duplicated real content.
+  Now: names are sanitized before interpolation, and `_upsert_block` refuses to
+  splice (warns instead) if a marker pair doesn't cleanly bound a single block.
+  Separately, an existing `.mcp.json`/`.vscode/mcp.json` with a non-dict
+  `mcpServers`/`servers` value (e.g. `null`) crashed `_merge_mcp_entry` uncaught
+  after markdown/skill files were already written — now self-heals instead. Also: a
+  relative `--config` value is now resolved to absolute before being embedded in the
+  generated MCP entry, since it may be launched from `--out`, not the invocation
+  directory (`kb/steer/generate.py`, `kb/commands.py`).
+
 - **Mermaid diagrams (`to_mermaid`/`to_class_diagram`/`to_sequence_diagram`) could emit
   invalid or directive-injecting output from ordinary node/edge text.** `_mermaid_escape`
   only escaped `"`, `[`, `]`. Confirmed against a real Mermaid parser: a `|` in an edge's

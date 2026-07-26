@@ -2,6 +2,7 @@
 
 import json
 from argparse import Namespace
+from pathlib import Path
 
 from contextlake.kb.commands import cmd_steer
 from contextlake.kb.model import Node, Repo
@@ -86,6 +87,32 @@ def test_mcp_server_entry():
     assert mcp_server_entry("/c/kb.toml") == {
         "command": "contextlake", "args": ["serve", "--config", "/c/kb.toml"]}
     assert mcp_server_entry(None) == {"command": "contextlake", "args": ["serve"]}
+
+
+def test_render_agents_md_sanitizes_a_repo_id_and_package_name_that_embed_markers(tmp_path):
+    """A repo id or package name (the latter reachable verbatim via manifest.py's
+    unvalidated package.json dependency-key parsing) that carries a backtick or the
+    literal END marker text used to break out of its markdown code span or smuggle
+    the marker mid-body -- corrupting the *next* `steer` refresh's BEGIN/END splice.
+    """
+    store = SqliteStore(tmp_path / "index.sqlite")
+    check_schema(store)
+    poisoned_repo = f"team/evil`{END}"
+    poisoned_pkg = f"evil`pkg`{END}"
+    nodes = [
+        Node(id="e", repo=poisoned_repo, kind="class", name="X", lang="python"),
+        Node(id="ep", repo="(packages)", kind="package", name=poisoned_pkg),
+    ]
+    store.upsert_repo(Repo(id=poisoned_repo, path="/w/evil"))
+    write_shard(tmp_path, GraphShard(repo=poisoned_repo, head_commit="h",
+                                      nodes=nodes, edges=[]))
+    store.upsert_nodes(poisoned_repo, nodes)
+    try:
+        md = render_agents_md(workspace_facts(store, tmp_path), config_path=None)
+    finally:
+        store.close()
+    assert END not in md
+    assert "evil`pkg`" not in md and "evil`" + END not in md
 
 
 # --- command ---------------------------------------------------------------
@@ -228,3 +255,62 @@ def test_cmd_steer_keeps_a_locally_edited_skill_file_without_force(tmp_path, mon
     # --force is the explicit opt-in to overwrite it
     cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=True))
     assert p.read_text() == original
+
+
+def test_cmd_steer_refuses_to_splice_a_file_with_a_duplicated_begin_marker(tmp_path, monkeypatch):
+    """If a BEGIN or END marker somehow appears more than once (e.g. a pre-sanitizer
+    poisoned name once smuggled a duplicate END mid-body), splicing at the first
+    occurrence would corrupt the file. Must refuse and leave the file untouched
+    rather than guess which occurrence is the real boundary."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    out.mkdir()
+    malformed = f"intro\n{BEGIN}\nbody one\n{END}\nmiddle\n{BEGIN}\nbody two\n{END}\ntail\n"
+    (out / "AGENTS.md").write_text(malformed)
+
+    rc = cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
+    assert rc == 0  # the run as a whole still succeeds -- other files still refresh
+    assert (out / "AGENTS.md").read_text() == malformed  # untouched, not guessed at
+
+
+def test_merge_mcp_entry_self_heals_a_malformed_wrapper_key(tmp_path, monkeypatch):
+    """An existing .mcp.json with mcpServers set to something other than an object
+    (null, a list, ...) used to crash cmd_steer uncaught mid-run, leaving the
+    workspace half-steered (markdown/skills already written, MCP configs not)."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    out.mkdir()
+    (out / ".mcp.json").write_text('{"mcpServers": null}')
+
+    rc = cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False))
+    assert rc == 0
+    mcp = json.loads((out / ".mcp.json").read_text())
+    assert mcp["mcpServers"]["contextlake-kb"]["command"] == "contextlake"
+
+
+def test_cmd_steer_resolves_a_relative_config_path_to_absolute(tmp_path, monkeypatch):
+    """A relative --config value used to be embedded verbatim into the generated
+    .mcp.json / markdown, valid only from the directory `steer` happened to be
+    invoked from -- not from `out`, where an MCP client actually launches it."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir(parents=True)
+    _seed(store_dir).close()
+    cfg_dir = tmp_path / "elsewhere"
+    cfg_dir.mkdir()
+    cfg = cfg_dir / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    out = tmp_path / "ws"
+    out.mkdir()
+
+    monkeypatch.chdir(cfg_dir)
+    rc = cmd_steer(Namespace(config="kb.toml", out=str(out), workspace=None, force=False))
+    assert rc == 0
+
+    mcp = json.loads((out / ".mcp.json").read_text())
+    args = mcp["mcpServers"]["contextlake-kb"]["args"]
+    resolved = args[args.index("--config") + 1]
+    assert Path(resolved).is_absolute()
+    assert Path(resolved) == cfg.resolve()
