@@ -47,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TypeError: unsupported operand type(s) for -: 'float' and 'NoneType'`
   instead of degrading gracefully the way `search_code` already does. All
   three now return an empty result for an empty/whitespace-only query.
+- **`contextlake init --config <path>` no longer silently ignores `--config`.**
+  `init` is the one command that writes both generated files (mirror INI +
+  kb.toml) and previously always targeted the fixed defaults
+  (`~/.contextlake.ini` / `~/.contextlake/kb.toml`) regardless of `--config` —
+  every other command honors it correctly. `--config` now redirects the mirror
+  INI, with kb.toml written alongside it as a sibling.
 
 ## [2.50.0] - 2026-07-26
 

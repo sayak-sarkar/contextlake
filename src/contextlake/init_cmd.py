@@ -115,6 +115,18 @@ def cmd_init(args) -> int:
     interactive = _interactive() and not getattr(args, "yes", False)
     force = getattr(args, "force", False)
 
+    # --config redirects both generated files -- init is the one command that
+    # writes both the mirror INI and kb.toml, so an explicit --config (every
+    # other command's isolation flag) must not be silently ignored here: it
+    # targets the mirror INI (matching --config's documented meaning for
+    # mirror commands), with kb.toml written alongside it as a sibling, same
+    # relative layout as the real ~/.contextlake.ini + ~/.contextlake/kb.toml
+    # defaults.
+    config_path = getattr(args, "config", None)
+    mirror_config_file = os.path.expanduser(config_path) if config_path else CONFIG_FILE
+    kb_config_file = str(Path(mirror_config_file).parent / "kb.toml") if config_path \
+        else _KB_CONFIG
+
     log(style.bold("contextlake init") + " — let's set up your workspace.\n")
 
     # --- platform -----------------------------------------------------------
@@ -150,9 +162,9 @@ def cmd_init(args) -> int:
 
     # --- write --------------------------------------------------------------
     log("")
-    wrote_any = _write(CONFIG_FILE, _mirror_ini(work_dir, platform, group), force=force)
+    wrote_any = _write(mirror_config_file, _mirror_ini(work_dir, platform, group), force=force)
     if want_kb:
-        wrote_any |= _write(_KB_CONFIG, _kb_toml(enable_embeddings), force=force)
+        wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings), force=force)
 
     # --- optional data source ------------------------------------------------
     # Purely optional and skippable: default is "no", and --yes (non-interactive)
@@ -177,10 +189,10 @@ def cmd_init(args) -> int:
                 log(f"{style.warn('source')} Install contextlake[kb] to connect "
                     "a data source; skipping.")
             else:
-                config_edit.add_source(_KB_CONFIG, src)
+                config_edit.add_source(kb_config_file, src)
                 log("")
                 log(f"{style.ok('source')} Added {style.cyan(src_name)} "
-                    f"(type={src_type}) to {_KB_CONFIG}")
+                    f"(type={src_type}) to {kb_config_file}")
                 log(f"  Run {style.cyan('contextlake source list')} to review, or "
                     f"{style.cyan('contextlake source test ' + src_name)} "
                     "to check reachability.")

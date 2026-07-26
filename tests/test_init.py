@@ -34,6 +34,24 @@ def test_init_writes_both_configs(tmp_path, monkeypatch):
     assert "enabled = false" in kb  # embeddings off unless asked
 
 
+def test_init_config_flag_redirects_both_generated_files(tmp_path, monkeypatch):
+    """init is the one command that writes BOTH config files -- --config (every
+    other command's isolation flag) must redirect them, not be silently
+    ignored in favor of the real home-directory defaults."""
+    # Point the defaults at a decoy path so the test fails loudly (writing to
+    # the wrong place) if --config is still being ignored.
+    decoy = tmp_path / "decoy"
+    monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(decoy / ".contextlake.ini"))
+    monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(decoy / ".contextlake/kb.toml"))
+
+    custom = tmp_path / "isolated" / "myconfig.ini"
+    rc = init_cmd.cmd_init(_args(config=str(custom), platform="github", group="acme"))
+    assert rc == 0
+    assert "platform = github" in custom.read_text()
+    assert (custom.parent / "kb.toml").exists()
+    assert not decoy.exists()
+
+
 def test_init_gitlab_omits_platform_key(tmp_path, monkeypatch):
     # gitlab is the default, so the key is left out (cleaner config)
     _run(tmp_path, monkeypatch, platform="gitlab", group="acme")
