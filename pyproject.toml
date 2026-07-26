@@ -116,7 +116,9 @@ extend-exclude = ["site"]
 select = ["E", "F", "W", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
-# visualize.py inlines large base64 assets (the brand glyph, the empty-state image)
-# directly into the generated graph page so it stays fully self-contained and offline;
-# those data-URI lines exceed the line length by design and can't be wrapped.
-"src/contextlake/kb/visualize.py" = ["E501"]
+# kb/visualize/ inlines large base64 assets (the brand glyph, the empty-state image)
+# and the HTML page template directly into the generated graph page so it stays fully
+# self-contained and offline; those data-URI/template lines exceed the line length by
+# design and can't be wrapped. Split from a single visualize.py 2026-07-27, see
+# plan-kb-module-split.md.
+"src/contextlake/kb/visualize/*.py" = ["E501"]
