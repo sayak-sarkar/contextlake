@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Mirror repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=e7acffb">
-<link rel="stylesheet" href="docs.css?v=e7acffb">
-<link rel="stylesheet" href="cmdk.css?v=e7acffb">
+<link rel="stylesheet" href="fonts.css?v=372f194">
+<link rel="stylesheet" href="docs.css?v=372f194">
+<link rel="stylesheet" href="cmdk.css?v=372f194">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -73,6 +73,14 @@ contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span
 group-qualified path or its local path (case-insensitive). It scopes the whole
 pipeline: <code>fetch</code> narrows the cached project list, and <code>clone</code> / <code>update</code> / <code>branches</code>
 / <code>verify</code> / <code>status</code> / <code>bootstrap</code> all follow from that.</p>
+<p><strong>Preview with <code>-n</code> / <code>--dry-run</code>.</strong> Every mirror command accepts <code>-n</code> (the short form, matching the
+near-universal <code>rm</code>/<code>cp</code>/<code>make</code> convention) to show what would happen without cloning, updating, or
+switching a single branch:</p>
+<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>update<span class="w"> </span>-n
+<span class="c1"># DRY RUN: no repositories will be cloned, updated, or switched</span>
+</code></pre></div>
+
+<p>Pair it with <code>--repos</code> to preview a change scoped to just the repos you're about to touch.</p>
 <p><code>contextlake sync</code> runs the whole mirror pipeline end to end; each stage is also
 available as its own command:</p>
 <p align="center">
@@ -538,6 +546,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=e7acffb"></script>
+<script defer src="cmdk.js?v=372f194"></script>
 </body>
 </html>
