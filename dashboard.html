@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Dashboard · contextlake docs">
 <meta name="twitter:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Dashboard", "item": "https://sayak.in/contextlake/dashboard"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Dashboard", "item": "https://sayak.in/contextlake/dashboard"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=28561bd">
-<link rel="stylesheet" href="docs.css?v=28561bd">
-<link rel="stylesheet" href="cmdk.css?v=28561bd">
+<link rel="stylesheet" href="fonts.css?v=bd5a16c">
+<link rel="stylesheet" href="docs.css?v=bd5a16c">
+<link rel="stylesheet" href="cmdk.css?v=bd5a16c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -124,12 +124,26 @@ edges, the three confidence levels, and the Live vs. Static data source:</p>
 wiki, owners (ranked from git history), and connector links. Every symbol has a
 one-click <strong>Blast radius</strong>, and every fact carries its provenance.</p>
 <p><img class="ss ss-light" alt="A repo's anatomy: kinds and top symbols" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png" /><img class="ss ss-dark" alt="A repo's anatomy: kinds and top symbols" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy-dark.png" /></p>
-<h2 id="5-architecture-relationships">5. Architecture &amp; relationships<a class="anchor" href="#5-architecture-relationships" title="Link to this section">#</a></h2>
+<h2 id="5-diagrams">5. Diagrams<a class="anchor" href="#5-diagrams" title="Link to this section">#</a></h2>
+<p>A repo's <strong>Diagrams</strong> tab renders the same Mermaid text <code>contextlake graph --repo &lt;id&gt;
+--format &lt;fmt&gt;</code> produces, inline as SVG: <strong>Relations</strong> (the generic relation graph,
+always available), <strong>Classes</strong> (classes/interfaces/structs/enums and their methods),
+<strong>States</strong> (an entity's guarded state-machine transitions), <strong>Data model</strong> (SQL <code>table</code>/
+<code>view</code> definitions and their foreign keys), and <strong>Deployment</strong> (Terraform/HCL resources
+grouped by inferred category: network/compute/storage/database/security/module).</p>
+<p>No new extraction: each tab renders data <code>index</code> already collected. A format is only
+enabled when the repo actually has the relevant node kind (e.g. <strong>Classes</strong> stays
+disabled for a repo with no classes), this is read from the same anatomy census the
+repo page's Kinds card already shows, not a separate check. The raw Mermaid source sits
+below the rendered diagram with a one-click copy, for pasting into a PR or design doc.</p>
+<p>Live-only (not part of a <code>--site</code> export, same as MCP console/Settings below), Mermaid
+itself is lazy-loaded into the page only the first time this tab is opened.</p>
+<h2 id="6-architecture-relationships">6. Architecture &amp; relationships<a class="anchor" href="#6-architecture-relationships" title="Link to this section">#</a></h2>
 <p>The cross-repo dependency graph, a <strong>namespace</strong> mindmap and a <strong>dependency</strong> flow,
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).</p>
 <p><img class="ss ss-light" alt="The architecture graph: cross-repo dependencies" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png" /><img class="ss ss-dark" alt="The architecture graph: cross-repo dependencies" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture-dark.png" /></p>
-<h2 id="6-change-impact-blast-radius">6. Change impact (blast radius)<a class="anchor" href="#6-change-impact-blast-radius" title="Link to this section">#</a></h2>
+<h2 id="7-change-impact-blast-radius">7. Change impact (blast radius)<a class="anchor" href="#7-change-impact-blast-radius" title="Link to this section">#</a></h2>
 <p>Pick a symbol (from search or a repo's symbol list) and see what a change would touch,
 hop by hop, with the confidence of each path.</p>
 <p><img class="ss ss-light" alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png" /><img class="ss ss-dark" alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius-dark.png" /></p>
@@ -137,7 +151,7 @@ hop by hop, with the confidence of each path.</p>
 that symbol's repo-scoped architecture graph, curated wiki, and connector links (Jira/Confluence/GitLab).
 Wiki and Links only appear when the repo actually has one: an absent wiki or connector link is omitted
 from the trail, never shown as a dead crumb.</p>
-<h2 id="7-generate-a-wiki">7. Generate a wiki<a class="anchor" href="#7-generate-a-wiki" title="Link to this section">#</a></h2>
+<h2 id="8-generate-a-wiki">8. Generate a wiki<a class="anchor" href="#8-generate-a-wiki" title="Link to this section">#</a></h2>
 <p>No wiki for a repo yet? Its <strong>Wiki</strong> tab hands you the exact command (one click to copy):</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/catalog-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
@@ -147,7 +161,7 @@ The positional repo id scopes generation to just that repo. Once it's generated,
 renders right in the Wiki tab, grounded in the repo's real symbols, with a provenance
 footer citing the exact commit and source files.</p>
 <p>See <a href="knowledge-layer#curated-wiki">knowledge-layer.md → Curated wiki</a>.</p>
-<h2 id="8-mcp-console-settings">8. MCP console &amp; Settings<a class="anchor" href="#8-mcp-console-settings" title="Link to this section">#</a></h2>
+<h2 id="9-mcp-console-settings">9. MCP console &amp; Settings<a class="anchor" href="#9-mcp-console-settings" title="Link to this section">#</a></h2>
 <p>Two read-only panels, live-only (not part of a <code>--site</code> export; both describe this
 machine/process, not the graph itself):</p>
 <p><strong>MCP</strong>: the live tool catalog for <code>contextlake serve</code> against this store (introspected
@@ -166,10 +180,11 @@ it's a summary, not a form; edit <code>kb.toml</code> directly to change anythin
 <li><a href="#2-launch-it">2. Launch it</a></li>
 <li><a href="#3-the-fleet-overview">3. The fleet overview</a></li>
 <li><a href="#4-a-repo-up-close">4. A repo up close</a></li>
-<li><a href="#5-architecture-relationships">5. Architecture &amp; relationships</a></li>
-<li><a href="#6-change-impact-blast-radius">6. Change impact (blast radius)</a></li>
-<li><a href="#7-generate-a-wiki">7. Generate a wiki</a></li>
-<li><a href="#8-mcp-console-settings">8. MCP console &amp; Settings</a></li>
+<li><a href="#5-diagrams">5. Diagrams</a></li>
+<li><a href="#6-architecture-relationships">6. Architecture &amp; relationships</a></li>
+<li><a href="#7-change-impact-blast-radius">7. Change impact (blast radius)</a></li>
+<li><a href="#8-generate-a-wiki">8. Generate a wiki</a></li>
+<li><a href="#9-mcp-console-settings">9. MCP console &amp; Settings</a></li>
 </ul>
 </nav></aside>
 </div>
@@ -198,6 +213,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=28561bd"></script>
+<script defer src="cmdk.js?v=bd5a16c"></script>
 </body>
 </html>
