@@ -68,6 +68,15 @@ class _RootArgumentParser(argparse.ArgumentParser):
     layer already uses for unknown repo ids (see _repo_id_suggestions).
     """
 
+    # This is the only interception point argparse offers here: ArgumentError
+    # is always stringified before reaching error() (see
+    # ArgumentParser.parse_known_args's `except ArgumentError as err:
+    # self.error(str(err))`), so there is no structured object to match on
+    # instead. The message text itself is stable across supported Python
+    # versions (3.9-3.14: only 3.14 added an opt-in suggest_on_error variant
+    # of this same string, which we don't enable). If a translated locale
+    # ever changes the wording, this degrades gracefully to the fallback
+    # super().error() dump below -- never a crash, just the old UX.
     _BAD_COMMAND_RE = re.compile(r"^argument <command>: invalid choice: '([^']+)'")
 
     def error(self, message):

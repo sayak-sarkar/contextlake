@@ -79,9 +79,14 @@ def test_plain_sets_no_color_before_any_output(monkeypatch):
     # No subcommand: main() prints help and exits 0, but only *after* the
     # --plain -> NO_COLOR translation runs -- unlike --help, which argparse
     # itself intercepts before main()'s own code ever executes.
+    #
+    # main() sets os.environ directly (not via monkeypatch), but this delenv
+    # call still registers pytest's teardown to restore NO_COLOR to its
+    # pre-test state regardless of what main() does to it afterwards -- so a
+    # failed assert below can't leak NO_COLOR=1 into later tests the way a
+    # manual cleanup line at the end of the test (skipped on failure) would.
     monkeypatch.delenv("NO_COLOR", raising=False)
     with pytest.raises(SystemExit) as exc:
         main(["--plain"])
     assert exc.value.code == 0
     assert os.environ.get("NO_COLOR") == "1"
-    monkeypatch.delenv("NO_COLOR", raising=False)

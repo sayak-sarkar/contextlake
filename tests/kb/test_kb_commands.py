@@ -520,17 +520,24 @@ def test_owners_json_unknown_repo_reports_the_error_as_json_too(tmp_path, capsys
 
 
 def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
+    """A fixture repo indexed from a graph-shard JSON (not a real git checkout)
+    has no HEAD to compare against, so lint always reports it stale -- pinning
+    that deterministic outcome here doubles as documenting the exit-code
+    contract: --json mirrors the human path (exit 1 on an unclean graph, not
+    just on a malformed request), so a CI script checking $? sees the same
+    signal a human running `contextlake lint` would."""
     import json
 
     cfg = _kb_config(tmp_path)
     assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    assert _run(["lint", "--config", str(cfg), "--json"]) in (0, 1)
+    assert _run(["lint", "--config", str(cfg), "--json"]) == 1
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert set(payload) == {"repos", "checked", "stale", "dangling",
                             "stale_repos", "dangling_sample"}
+    assert payload["stale"] == 1
 
 
 def test_impact_json_unknown_target_reports_the_error_as_json_too(tmp_path, capsys):

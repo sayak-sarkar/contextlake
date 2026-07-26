@@ -33,7 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of guessing." Reuses `graph`'s already-proven pattern: logs move to
   stderr via `use_stderr()`, the payload is the only thing on stdout. Error
   cases (`unknown_repo`, `not_found`, `ambiguous`) are structured JSON too,
-  not just the success path.
+  not just the success path. Exit-code contract: `--json` mirrors the human
+  path exactly, including `lint --json` returning 1 on an unclean graph (not
+  just on a malformed request) — a CI script piping to `jq` still gets valid
+  JSON on a non-zero exit, so check `$?` deliberately rather than assuming
+  0 means "ran" instead of "clean".
 
 ### Fixed
 
