@@ -197,3 +197,51 @@ def test_code_search_returns_nodes(store_dir):
     res = kbdata.code_search(s, "CatalogService")
     assert res["semantic"] is False
     assert "CatalogService" in {n["name"] for n in res["results"]}
+
+
+def test_mcp_console_lists_the_real_tool_catalog(store_dir):
+    """The tool list is introspected from a real build_server() instance, so it
+    can never silently drift from what `contextlake serve` actually exposes."""
+    s, sd = store_dir
+    out = kbdata.mcp_console(s, sd)
+    assert out["tool_count"] > 0
+    names = {t["name"] for t in out["tools"]}
+    assert "graph_stats" in names and "blast_radius" in names
+    assert out["semantic_search_available"] is False  # no embeddings.sqlite in this fixture
+    entry = out["mcp_json"]["mcpServers"]["contextlake"]
+    assert entry == {"command": "contextlake", "args": ["serve"]}
+    assert out["vscode_mcp_json"]["servers"]["contextlake"] == entry
+
+
+def test_mcp_console_json_snippet_carries_an_explicit_config_path(store_dir):
+    s, sd = store_dir
+    cfg = sd / "my-kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{sd.as_posix()}"\n')
+    out = kbdata.mcp_console(s, sd, config_path=str(cfg))
+    args = out["mcp_json"]["mcpServers"]["contextlake"]["args"]
+    assert args == ["serve", "--config", str(cfg)]
+
+
+def test_settings_shape_and_derived_fields(store_dir):
+    s, sd = store_dir
+    out = kbdata.settings(s, sd)
+    assert out["store_size_bytes"] > 0                 # the shards/wiki written by the fixture
+    assert out["schema_version"]["running"] == out["schema_version"]["stored"]
+    assert out["mirror_root"] is not None               # both fixture repos share tmp_path
+    assert out["languages"]                             # defaults, non-empty
+    assert set(out["embeddings"]) == {"enabled", "provider", "model"}
+    assert set(out["llm"]) == {"enabled", "provider", "model"}
+    assert out["sources"] == []                         # no [[sources]] in the default config
+
+
+def test_settings_never_probes_connectors_live(store_dir, monkeypatch):
+    """Settings must reflect *configured* status only -- a network probe on every
+    dashboard page load would be a surprising side effect from a read-only view."""
+    from contextlake.kb import source_cmd
+
+    def _boom(*a, **kw):
+        raise AssertionError("settings() must not call verify_source")
+
+    monkeypatch.setattr(source_cmd, "verify_source", _boom)
+    s, sd = store_dir
+    kbdata.settings(s, sd)  # must not raise

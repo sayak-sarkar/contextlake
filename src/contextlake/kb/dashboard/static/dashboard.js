@@ -147,7 +147,17 @@
       if (repo) u += "&repo=" + encodeURIComponent(repo);
       return fetchJSON(u);
     },
-    symbols: function () { return MODE === "static" ? (SNAP.symbols || []) : null; }
+    symbols: function () { return MODE === "static" ? (SNAP.symbols || []) : null; },
+    // MCP console + Settings describe this machine/process, not the graph --
+    // there is nothing meaningful to snapshot into a portable --site export,
+    // so static mode rejects and asyncPanel's existing "live-only" empty
+    // state (same one semantic search already uses) takes over automatically.
+    mcp: function () {
+      return MODE === "static" ? Promise.reject(new Error("live only")) : fetchJSON("/api/mcp");
+    },
+    settings: function () {
+      return MODE === "static" ? Promise.reject(new Error("live only")) : fetchJSON("/api/settings");
+    }
   };
 
   // ---- context spine ----------------------------------------------------
@@ -782,6 +792,10 @@
     });
   }
   function statTile(n, cap) { return h("div", { class: "cl-stat" }, h("div", { class: "cl-stat__num" }, num(n)), h("div", { class: "cl-stat__cap" }, cap)); }
+  // Same tile, for a non-numeric value (e.g. "On"/"Off") -- statTile always
+  // runs its value through num()'s Number(n).toLocaleString(), which renders
+  // "NaN" for anything that isn't actually numeric.
+  function textTile(text, cap) { return h("div", { class: "cl-stat" }, h("div", { class: "cl-stat__num" }, text), h("div", { class: "cl-stat__cap" }, cap)); }
 
   // ---- Search -----------------------------------------------------------
   var searchState = { mode: "symbols", scope: "all", q: "" };
@@ -830,6 +844,94 @@
     if (searchState.q) runSearch();
   }
 
+  // ---- MCP console + Settings --------------------------------------------
+  // Both describe this machine/process (the running server, the active
+  // kb.toml) rather than the graph, so neither has anything meaningful to
+  // show from an offline --site snapshot -- same live-only treatment
+  // viewSearch already gives semantic mode.
+  function liveOnlyBlock(bodyId, title) {
+    renderInto(bodyId, stateBlock({
+      kind: "unavailable", title: title,
+      msg: "This static export has no running server behind it.",
+      cmd: "contextlake dashboard --serve",
+      action: genAction("Run live server", "contextlake dashboard --serve")
+    }));
+  }
+  function copyCard(title, text) {
+    var card = h("div", { class: "cl-card" });
+    var copyBtn = h("button", { class: "cl-btn", type: "button" }, h("span", { html: icon("ui-copy") }), " Copy");
+    copyBtn.addEventListener("click", function () {
+      try { navigator.clipboard.writeText(text); live("Copied " + title); }
+      catch (e) { /* clipboard blocked under file:// */ }
+      copyBtn.lastChild.nodeValue = " Copied";
+    });
+    card.appendChild(h("div", { class: "cl-row" }, h("strong", null, title), copyBtn));
+    card.appendChild(h("pre", { class: "cl-snippet" }, text));
+    return card;
+  }
+  function viewMcp() {
+    if (MODE === "static") { liveOnlyBlock("mcp-body", "MCP console is live-only"); return; }
+    asyncPanel("mcp-body", CL.data.mcp, function (d) {
+      var body = h("div", { class: "cl-panel__body" });
+      body.appendChild(h("div", { class: "cl-statgrid" },
+        statTile(d.tool_count, "Tools exposed"),
+        textTile(d.semantic_search_available ? "On" : "Off", "Semantic search")));
+      body.appendChild(copyCard(".mcp.json", JSON.stringify(d.mcp_json, null, 2)));
+      body.appendChild(copyCard(".vscode/mcp.json", JSON.stringify(d.vscode_mcp_json, null, 2)));
+      var tc = h("div", { class: "cl-card" }, h("strong", null, "Tool catalog (" + d.tool_count + ")"));
+      d.tools.forEach(function (t) {
+        tc.appendChild(h("div", { class: "cl-row" },
+          h("code", null, t.name),
+          h("span", { class: "cl-muted" }, (t.description || "").split("\n")[0])));
+      });
+      body.appendChild(tc);
+      return body;
+    });
+  }
+  function fmtBytes(n) {
+    if (n == null) return "—";
+    var units = ["B", "KB", "MB", "GB", "TB"], i = 0, v = n;
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return (i === 0 ? v : v.toFixed(1)) + " " + units[i];
+  }
+  function viewSettings() {
+    if (MODE === "static") { liveOnlyBlock("settings-body", "Settings is live-only"); return; }
+    asyncPanel("settings-body", CL.data.settings, function (d) {
+      var body = h("div", { class: "cl-panel__body" });
+      body.appendChild(h("div", { class: "cl-statgrid" },
+        textTile(fmtBytes(d.store_size_bytes), "Store size"),
+        statTile(d.schema_version.running, "Schema version"),
+        statTile(d.sources.length, "Connectors")));
+
+      var storeCard = h("div", { class: "cl-card" }, h("strong", null, "Store"));
+      storeCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Path"), h("code", null, d.store_dir)));
+      if (d.mirror_root) storeCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Mirror root"), h("code", null, d.mirror_root)));
+      body.appendChild(storeCard);
+
+      var embCard = h("div", { class: "cl-card" }, h("strong", null, "Embeddings"));
+      embCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Enabled"), h("span", null, d.embeddings.enabled ? "Yes" : "No")));
+      if (d.embeddings.enabled) {
+        embCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Provider"), h("code", null, d.embeddings.provider)));
+        if (d.embeddings.model) embCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Model"), h("code", null, d.embeddings.model)));
+      }
+      body.appendChild(embCard);
+
+      var llmCard = h("div", { class: "cl-card" }, h("strong", null, "LLM (wiki generation)"));
+      llmCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Enabled"), h("span", null, d.llm.enabled ? "Yes" : "No")));
+      if (d.llm.enabled) llmCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Provider"), h("code", null, d.llm.provider)));
+      body.appendChild(llmCard);
+
+      if (d.sources.length) {
+        body.appendChild(table(["Name", "Type", "Enabled"],
+          d.sources.map(function (s) { return [s.name, s.type, s.enabled ? "Yes" : "No"]; })));
+      } else {
+        body.appendChild(stateBlock({ kind: "empty", title: "No connectors configured", cmd: "contextlake source add <name> --type <type>" }));
+      }
+      body.appendChild(h("p", { class: "cl-muted" }, "Read-only — edit ", h("code", null, "kb.toml"), " directly to change any of this."));
+      return body;
+    });
+  }
+
   // ---- generic table (with pagination) ----------------------------------
   function num(n) {
     if (n == null) return "—";
@@ -865,7 +967,7 @@
   // ===================================================================== //
   // ROUTER + CHROME                                                        //
   // ===================================================================== //
-  var PANELS = ["fleet", "repo", "arch", "symbol", "health", "search"];
+  var PANELS = ["fleet", "repo", "arch", "symbol", "health", "search", "mcp", "settings"];
   // Track the last-rendered route so we only move focus to #app on an actual
   // route/lens CHANGE (navigation), never on in-view data re-renders — e.g. the
   // ground-truth filter, trust-bar segments and blast toggles all call
@@ -900,6 +1002,8 @@
       else if (lens === "symbol") viewSymbol(r.rest || ctx.nodeId);
       else if (lens === "health") viewHealth();
       else if (lens === "search") { if (r.query.q) searchState.q = r.query.q; viewSearch(searchState.q); }
+      else if (lens === "mcp") viewMcp();
+      else if (lens === "settings") viewSettings();
       refreshChrome(lens);
     }
   };

@@ -1932,13 +1932,17 @@ def cmd_dashboard(args) -> int:
         tmp = Path(tempfile.mkdtemp(prefix="contextlake-dash-sample-"))
         try:
             log("Serving the bundled demo fleet (fictional data, nothing local is read)…")
+            # No real kb.toml behind a demo fleet -- config_path stays None, so
+            # the Settings/MCP surfaces show defaults, same honesty as the rest
+            # of --sample (fictional data, never claims to read something real).
             serve_dashboard(materialize_sample_store(tmp), host=host, port=port,
                             open_browser=getattr(args, "open", False))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
         return 0
     serve_dashboard(store_dir, host=host, port=port,
-                    open_browser=getattr(args, "open", False))
+                    open_browser=getattr(args, "open", False),
+                    config_path=getattr(args, "config", None))
     return 0
 
 

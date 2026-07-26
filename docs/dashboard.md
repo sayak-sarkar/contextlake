@@ -109,7 +109,19 @@ footer citing the exact commit and source files.
 
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
+## 8. MCP console & Settings
+
+Two read-only panels, live-only (not part of a `--site` export — both describe this
+machine/process, not the graph itself):
+
+**MCP** — the live tool catalog for `contextlake serve` against this store (introspected
+from the real server, so it can never drift from what's actually exposed), plus a
+copyable `.mcp.json` / `.vscode/mcp.json` snippet for wiring an editor to it.
+
+**Settings** — the active `kb.toml` at a glance: store path/size/schema version, the
+mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing —
+it's a summary, not a form; edit `kb.toml` directly to change anything.
+
 ---
 
-Everything here is read-only and runs entirely on your machine. Sync and MCP-connection
-controls are planned for a future release.
+Everything here is read-only and runs entirely on your machine.

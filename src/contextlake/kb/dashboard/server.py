@@ -34,12 +34,18 @@ def _json_bytes(obj) -> bytes:
     return json.dumps(obj).encode("utf-8")
 
 
-def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: int = 8765):
+def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: int = 8765,
+                           config_path: str | None = None):
     """Build (but do not start) the dashboard HTTP server.
 
     Returned non-blocking so the CLI loop and tests drive ``serve_forever`` /
     ``shutdown`` themselves. ``store`` is used only to render the one-time graph
     overview at build time (main thread); every request opens its own store.
+
+    ``config_path`` is the ``--config`` the dashboard itself was started with
+    (``None`` under the normal precedence chain, or a synthesized sample fleet
+    that has no real kb.toml) -- threaded through to the MCP console / settings
+    routes so they describe the config actually in effect, not a re-guessed one.
     """
     from .. import visualize as viz
 
@@ -160,6 +166,10 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     return 200, _json_bytes(kbdata.repo_relationships(req, repo_id))
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
+            if path == "/api/mcp":
+                return 200, _json_bytes(kbdata.mcp_console(req, sd, config_path=config_path))
+            if path == "/api/settings":
+                return 200, _json_bytes(kbdata.settings(req, sd, config_path=config_path))
             return 404, b'{"error":"not found"}'
         finally:
             if req is not store:
@@ -205,7 +215,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
 
 
 def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
-                    open_browser: bool = False) -> None:
+                    open_browser: bool = False, config_path: str | None = None) -> None:
     """Serve the dashboard (blocking until Ctrl-C)."""
     from ... import style
     from ...logging_setup import log
@@ -213,7 +223,8 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
     store_dir = Path(store_dir)
     store = SqliteStore(store_dir / "index.sqlite")
     try:
-        srv = build_dashboard_server(store, store_dir, host=host, port=port)
+        srv = build_dashboard_server(store, store_dir, host=host, port=port,
+                                     config_path=config_path)
         log(style.ok(f"Dashboard on http://{host}:{port}  (Ctrl-C to stop)"))
         if open_browser:
             import webbrowser

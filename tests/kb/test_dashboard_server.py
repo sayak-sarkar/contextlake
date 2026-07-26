@@ -79,6 +79,63 @@ def test_shell_and_graph_routes(served):
     assert b"<html" in graph and b"cytoscape" in graph
 
 
+def test_mcp_console_endpoint(served):
+    body = json.loads(_get(served + "/api/mcp"))
+    assert body["tool_count"] > 0
+    names = {t["name"] for t in body["tools"]}
+    assert "graph_stats" in names and "who_knows" in names
+    assert body["mcp_json"]["mcpServers"]["contextlake"]["command"] == "contextlake"
+    assert body["vscode_mcp_json"]["servers"]["contextlake"]["command"] == "contextlake"
+
+
+def test_settings_endpoint(served):
+    body = json.loads(_get(served + "/api/settings"))
+    assert body["store_size_bytes"] > 0
+    assert body["schema_version"]["running"] == body["schema_version"]["stored"]
+    assert isinstance(body["languages"], list)
+    assert set(body["embeddings"]) == {"enabled", "provider", "model"}
+    assert body["sources"] == []
+
+
+@pytest.fixture
+def served_with_config(tmp_path):
+    """Like ``served``, but started with a real --config so /api/mcp and
+    /api/settings have a non-default kb.toml to reflect."""
+    s = SqliteStore(tmp_path / "index.sqlite")
+    s.upsert_repo(Repo(id="team/app", path=str(tmp_path), head_commit="h1"))
+
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{tmp_path.as_posix()}"\nlanguages = ["python", "go"]\n\n'
+        '[[sources]]\nname = "jira"\ntype = "atlassian"\nenabled = true\n'
+    )
+
+    port = _free_port()
+    srv = build_dashboard_server(s, tmp_path, host="127.0.0.1", port=port,
+                                 config_path=str(cfg))
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        srv.shutdown()
+        s.close()
+
+
+def test_settings_reflects_the_config_path_the_dashboard_was_started_with(served_with_config):
+    body = json.loads(_get(served_with_config + "/api/settings"))
+    assert body["languages"] == ["python", "go"]
+    assert body["sources"] == [{"name": "jira", "type": "atlassian", "enabled": True}]
+    assert body["mirror_root"] is not None
+
+
+def test_mcp_json_snippet_carries_the_config_path(served_with_config):
+    body = json.loads(_get(served_with_config + "/api/mcp"))
+    args = body["mcp_json"]["mcpServers"]["contextlake"]["args"]
+    assert "--config" in args
+    assert args[args.index("--config") + 1].endswith("kb.toml")
+
+
 def _free_port():
     s = socket.socket()
     s.bind(("127.0.0.1", 0))

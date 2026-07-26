@@ -2077,10 +2077,22 @@ footer citing the exact commit and source files.
 
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
+## 8. MCP console & Settings
+
+Two read-only panels, live-only (not part of a `--site` export, both describe this
+machine/process, not the graph itself):
+
+**MCP**, the live tool catalog for `contextlake serve` against this store (introspected
+from the real server, so it can never drift from what's actually exposed), plus a
+copyable `.mcp.json` / `.vscode/mcp.json` snippet for wiring an editor to it.
+
+**Settings**, the active `kb.toml` at a glance: store path/size/schema version, the
+mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing , 
+it's a summary, not a form; edit `kb.toml` directly to change anything.
+
 ---
 
-Everything here is read-only and runs entirely on your machine. Sync and MCP-connection
-controls are planned for a future release.
+Everything here is read-only and runs entirely on your machine.
 
 ---
 
@@ -2982,6 +2994,24 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **Dashboard: MCP console + Settings surfaces.** Two read-only, live-only panels
+  (not part of a `--site` export). **MCP** shows the live tool catalog for
+  `contextlake serve` against this store, introspected from a real
+  `server.build_server()` instance so it can never drift from what's actually
+  exposed, plus copyable `.mcp.json` / `.vscode/mcp.json` snippets (reusing
+  `steer.generate.mcp_server_entry`, the same entry `contextlake steer` writes).
+  **Settings** summarizes the active `kb.toml`: store path/size/schema version,
+  the mirror root (derived from indexed repo paths), configured connectors, and
+  the embedder/LLM tiers, no in-browser editing, edit `kb.toml` directly.
+  Connector rows show configured status only, never a live connectivity probe
+  (`contextlake source test <name>` already does that on demand; auto-probing
+  every connector on every dashboard page load would be a surprising network
+  side effect from a read-only view).
 
 ## [2.50.0] - 2026-07-26
 

@@ -11,6 +11,11 @@ Every function here reuses the exact logic behind an existing MCP tool (see
 * :func:`impact` — ``blast_radius`` (``impact.blast_radius``).
 * :func:`health` — ``graph_health`` (``commands.lint_result``).
 * :func:`code_search` — ``search_code`` (``store.search``).
+* :func:`mcp_console` — introspects a real ``server.build_server()`` instance
+  for the live tool catalog; reuses ``steer.generate.mcp_server_entry`` for the
+  client-config snippet. Live-only (not part of an offline ``--site`` export).
+* :func:`settings` — the active ``kb.toml`` via ``config.load_kb_config``, read
+  only. Live-only, same reason as above.
 
 All text is passed through ``sanitize_label`` (as the MCP boundary does) so hostile
 repo content can't inject into a browser. README / wiki Markdown is rendered to
@@ -28,6 +33,7 @@ facts only (anatomy, hashed owners, link kinds) — no README/wiki body.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from pathlib import Path
 
@@ -483,3 +489,109 @@ def semantic_search(store, q: str, *, vector_store=None, embedder=None,
         return out
     return {"query": sanitize_label(q), "semantic": True, "total": len(nodes),
             "results": [_node_out(n) for n in nodes]}
+
+
+# ---------------------------------------------------------------------------
+# MCP console + settings (live-only: describe this machine/process, not the
+# graph, so neither is part of an offline --site snapshot)
+# ---------------------------------------------------------------------------
+def mcp_console(store, store_dir, *, config_path: str | None = None) -> dict:
+    """Read-only MCP surface summary: the live tool catalog and copyable client
+    config snippets. Reuses the exact code ``contextlake serve``/``steer`` already
+    run — no new backend logic:
+
+    * The tool list is introspected from a real :func:`server.build_server`
+      instance (never started, no transport bound) so it can never drift from
+      what ``contextlake serve`` actually exposes for this store.
+    * ``semantic_search``/``hybrid_search`` are gated the same way ``cmd_serve``
+      gates them (an embedder configured + a vector store on disk); a real
+      embedder is built (cheap — construction doesn't load a model, matching
+      how ``cmd_embed`` treats it as a separate readiness probe) but the vector
+      store existence check alone decides whether to build the real one, since
+      introspection never queries it.
+    * The ``.mcp.json`` / ``.vscode/mcp.json`` snippets reuse
+      :func:`steer.generate.mcp_server_entry` — the identical entry ``contextlake
+      steer`` writes to disk.
+    """
+    from .. import server as mcp_server
+    from ..config import load_kb_config
+    from ..embeddings import build_embedder
+    from ..steer.generate import mcp_server_entry
+
+    cfg = load_kb_config(config_path)
+    embedder = build_embedder(cfg.embeddings)
+    vec_path = Path(store_dir) / "embeddings.sqlite"
+    semantic_available = embedder is not None and vec_path.exists()
+    vector_store = None
+    if semantic_available:
+        from ..embeddings.store import build_vector_store
+        vector_store = build_vector_store(vec_path, backend=cfg.embeddings.vector_backend)
+
+    mcp = mcp_server.build_server(store, embedder=embedder, vector_store=vector_store)
+    tools = sorted(mcp._tool_manager.list_tools(), key=lambda t: t.name)
+    entry = mcp_server_entry(config_path)
+    return {
+        "store_dir": sanitize_label(str(store_dir)),
+        "semantic_search_available": semantic_available,
+        "tool_count": len(tools),
+        # Docstrings are first-party (defined in server.py), so the usual 256-char
+        # untrusted-content cap would just mangle a legitimate multi-paragraph tool
+        # description -- still run through sanitize_label for control-char stripping,
+        # with headroom for a full docstring instead.
+        "tools": [{"name": sanitize_label(t.name),
+                  "description": sanitize_label(t.description, max_len=4000)}
+                 for t in tools],
+        "mcp_json": {"mcpServers": {"contextlake": entry}},
+        "vscode_mcp_json": {"servers": {"contextlake": entry}},
+    }
+
+
+def settings(store, store_dir, *, config_path: str | None = None) -> dict:
+    """Read-only summary of the active ``kb.toml``: store path/size/schema version,
+    the mirror root (derived from indexed repo paths, not a separate config read),
+    connector list, embedder, and LLM config. No in-browser editing — every field
+    here just reflects a config the user already wrote; point them at the file
+    (reported by ``store_dir``'s config precedence, same as every other command)
+    to change anything.
+
+    Connector rows show *configured* status only (name/type/enabled), not a live
+    connectivity probe — probing every connector on every dashboard page load
+    would be a real, surprising network side effect from a read-only view.
+    ``contextlake source test <name>`` already does that on demand.
+    """
+    from ..config import load_kb_config
+    from ..store.sqlite_store import SCHEMA_VERSION
+
+    cfg = load_kb_config(config_path)
+    sd = Path(store_dir)
+
+    size = 0
+    if sd.is_dir():
+        for p in sd.rglob("*"):
+            if p.is_file():
+                size += p.stat().st_size
+
+    repo_paths = [r.path for r in store.list_repos() if r.path]
+    mirror_root = None
+    if repo_paths:
+        try:
+            mirror_root = os.path.commonpath(repo_paths)
+        except ValueError:      # paths on different drives (Windows) — no common root
+            mirror_root = None
+
+    stored_schema = store.get_meta("schema_version")
+    return {
+        "store_dir": sanitize_label(str(sd)),
+        "store_size_bytes": size,
+        "schema_version": {
+            "running": SCHEMA_VERSION,
+            "stored": int(stored_schema) if stored_schema is not None else None,
+        },
+        "mirror_root": sanitize_label(mirror_root) if mirror_root else None,
+        "languages": list(cfg.languages),
+        "embeddings": {"enabled": cfg.embeddings.enabled, "provider": cfg.embeddings.provider,
+                      "model": cfg.embeddings.model},
+        "llm": {"enabled": cfg.llm.enabled, "provider": cfg.llm.provider, "model": cfg.llm.model},
+        "sources": [{"name": sanitize_label(s.name), "type": s.type, "enabled": s.enabled}
+                   for s in cfg.sources],
+    }
