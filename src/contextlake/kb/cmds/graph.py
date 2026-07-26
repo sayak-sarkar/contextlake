@@ -27,7 +27,7 @@ def cmd_graph(args) -> int:
     # _open_store loads config and may warn on an unknown key.
     fmt = getattr(args, "format", None) or "html"
     if (fmt in ("json", "dot", "mermaid", "classdiagram", "sequencediagram", "statediagram",
-               "erdiagram")
+               "erdiagram", "deployment")
             and not getattr(args, "output", None) and not getattr(args, "serve", False)):
         from ...logging_setup import use_stderr
         use_stderr()
@@ -65,11 +65,11 @@ def cmd_graph(args) -> int:
             from .. import c4 as c4mod
 
             if fmt in ("mermaid", "classdiagram", "sequencediagram", "statediagram",
-                      "erdiagram"):
+                      "erdiagram", "deployment"):
                 from ...logging_setup import use_stderr
                 use_stderr()
-                log("mermaid/classdiagram/sequencediagram/statediagram/erdiagram output is "
-                    "not supported for --c4; use --format dot or html.")
+                log("mermaid/classdiagram/sequencediagram/statediagram/erdiagram/deployment "
+                    "output is not supported for --c4; use --format dot or html.")
                 return 1
 
             group_depth = getattr(args, "group_depth", None) or 1
@@ -177,6 +177,8 @@ def cmd_graph(args) -> int:
             text = viz.to_state_diagram(payload)
         elif fmt == "erdiagram":
             text = viz.to_er_diagram(payload)
+        elif fmt == "deployment":
+            text = viz.to_deployment_diagram(payload)
         else:
             text = viz.to_html(payload, cdn=cdn, layout=layout)
 

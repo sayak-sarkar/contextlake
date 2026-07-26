@@ -9,11 +9,14 @@ from __future__ import annotations
 
 from .diagrams import (  # noqa: F401
     _CLASSIFIER_KINDS,
+    _RESOURCE_CATEGORIES,
     _SEQUENCE_MAX_MESSAGES,
     _cytoscape_elements,
     _dot_escape,
     _mermaid_escape,
+    _resource_category,
     to_class_diagram,
+    to_deployment_diagram,
     to_dot,
     to_er_diagram,
     to_json,

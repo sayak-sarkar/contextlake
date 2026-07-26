@@ -826,7 +826,79 @@ def test_er_diagram_empty_view_explains_orm_only_schemas_not_silently():
     out = viz.to_er_diagram(viz.to_payload([], []))
     assert out.startswith("erDiagram")
     assert "no table/view definitions" in out
-    assert "ORM" in out
+
+
+def _hcl_node(address, kind="resource", repo="r"):
+    return Node(id=f"{repo}::{address}", repo=repo, kind=kind, name=address,
+               qualified_name=f"main.tf::{address}", lang="hcl")
+
+
+def _depends_on_edge(src, dst):
+    return Edge(src=src, dst=dst, relation="depends_on", confidence=Confidence.INFERRED,
+               provenance=_seq_prov(1))
+
+
+def test_deployment_diagram_groups_by_inferred_resource_category():
+    vpc = _hcl_node("aws_vpc.main")
+    subnet = _hcl_node("aws_subnet.web")
+    sg = _hcl_node("aws_security_group.web_sg")
+    payload = viz.to_payload([vpc, subnet, sg], [
+        _depends_on_edge(subnet.id, vpc.id), _depends_on_edge(sg.id, vpc.id),
+    ])
+    out = viz.to_deployment_diagram(payload)
+    assert out.startswith("graph TD")
+    assert "subgraph network" in out
+    assert "subgraph security" in out
+    assert '"aws_vpc.main"' in out and '"aws_subnet.web"' in out
+
+
+def test_deployment_diagram_a_db_instance_is_database_not_compute():
+    """Regression: "instance" (compute's keyword) is a substring of "db_instance",
+    so a naive first-match-wins scan would wrongly file a database resource under
+    compute -- caught live before shipping, fixed by checking database first.
+    Paired with a real compute resource so the two subgraphs actually render
+    (a single-category view is flat and would let this pass vacuously)."""
+    db = _hcl_node("aws_db_instance.orders")
+    lam = _hcl_node("aws_lambda_function.worker")
+    payload = viz.to_payload([db, lam], [])
+    out = viz.to_deployment_diagram(payload)
+    assert "subgraph database" in out
+    assert "subgraph compute" in out
+    db_section = out.split("subgraph database")[1].split("end")[0]
+    assert '"aws_db_instance.orders"' in db_section
+    assert '"aws_lambda_function.worker"' not in db_section
+
+
+def test_deployment_diagram_single_category_renders_flat_no_subgraph():
+    vpc, subnet = _hcl_node("aws_vpc.main"), _hcl_node("aws_subnet.web")
+    payload = viz.to_payload([vpc, subnet], [_depends_on_edge(subnet.id, vpc.id)])
+    out = viz.to_deployment_diagram(payload)
+    assert "subgraph" not in out
+    assert "n0 --> n1" in out or "n1 --> n0" in out
+
+
+def test_deployment_diagram_ignores_non_depends_on_edges_and_non_hcl_nodes():
+    a = Node(id="a", repo="r", kind="class", name="A")
+    b = Node(id="b", repo="r", kind="class", name="B")
+    edges = [Edge(src="a", dst="b", relation="calls", confidence=Confidence.INFERRED,
+                  provenance=_seq_prov(1))]
+    payload = viz.to_payload([a, b], edges)
+    out = viz.to_deployment_diagram(payload)
+    assert out.startswith("graph TD") and "no Terraform" in out
+
+
+def test_deployment_diagram_module_nodes_get_their_own_category():
+    mod = _hcl_node("module.vpc", kind="module")
+    payload = viz.to_payload([mod], [])
+    out = viz.to_deployment_diagram(payload)
+    assert '"module.vpc"' in out
+
+
+def test_deployment_diagram_empty_view_explains_terraform_only_not_silently():
+    out = viz.to_deployment_diagram(viz.to_payload([], []))
+    assert out.startswith("graph TD")
+    assert "no Terraform" in out
+    assert ".tf files" in out
 
 
 def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, capsys):

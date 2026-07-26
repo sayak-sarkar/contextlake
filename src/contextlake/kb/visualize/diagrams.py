@@ -342,3 +342,91 @@ def _cytoscape_elements(payload: dict) -> list[dict]:
                              "verified_at": e.get("verified_at") or ""}})
     return els
 
+
+# Coarse resource-type category, for visual grouping only -- a heuristic keyword
+# match over common cloud-provider naming conventions (AWS/Azure/GCP today).
+# Never asserted as ground truth the way the underlying resource/depends_on
+# data is; an unrecognized type lands in "other", never silently dropped.
+#
+# Order matters: checked top to bottom, first match wins. database/storage/
+# security are listed before compute/network because their keywords are more
+# specific -- "instance" (compute) is a substring of "db_instance" (database),
+# so a generic "instance" match would wrongly claim database resources first
+# if compute were checked earlier. Verified live: aws_db_instance.db must land
+# in "database", not "compute".
+_RESOURCE_CATEGORIES = [
+    ("database", ("rds", "db_", "dynamodb", "redis", "elasticache", "sql",
+                  "cosmos", "database", "cache")),
+    ("storage", ("s3", "bucket", "ebs", "efs", "disk", "storage", "blob", "volume")),
+    ("security", ("security_group", "iam", "policy", "role", "kms", "acl",
+                  "secret", "certificate")),
+    ("network", ("vpc", "subnet", "route", "gateway", "nat", "eip", "network",
+                "vnet", "firewall", "dns", "zone")),
+    ("compute", ("instance", "ec2", "lambda", "ecs", "eks", "fargate", "function",
+                "vm", "compute", "container", "task", "cluster", "app_service")),
+]
+
+
+def _resource_category(type_name: str) -> str:
+    low = type_name.lower()
+    for category, keywords in _RESOURCE_CATEGORIES:
+        if any(kw in low for kw in keywords):
+            return category
+    return "other"
+
+
+def to_deployment_diagram(payload: dict) -> str:
+    """Render a Mermaid flowchart of Terraform/HCL resources grouped by a coarse
+    inferred category (network/compute/storage/database/security/other/module),
+    from ``kb/hcl.py``'s already-extracted ``resource``/``data``/``module`` nodes
+    and ``depends_on`` edges -- no new extraction pass, same spirit as
+    ``to_er_diagram`` over the SQL DDL extractor's data.
+
+    Category is a heuristic keyword match over the resource type prefix (e.g.
+    ``aws_security_group.web`` -> security), for visual grouping only.
+
+    Terraform-only today (HCL is the only IaC language ``kb/hcl.py`` parses);
+    a repo with no ``.tf`` files renders an honest empty diagram with guidance,
+    not a bug.
+    """
+    by_id = {n["id"]: n for n in payload["nodes"]
+            if n.get("kind") in ("resource", "data", "module")}
+    if not by_id:
+        return ("graph TD\n"
+                "  %% no Terraform resource/data/module definitions in this view --\n"
+                "  %% contextlake's HCL extractor reads .tf files; point --repo at a\n"
+                "  %% repo with Terraform configuration")
+
+    def category_of(n: dict) -> str:
+        if n["kind"] == "module":
+            return "module"
+        return _resource_category((n.get("name") or "").split(".", 1)[0])
+
+    by_category: dict[str, list[str]] = {}
+    for nid, n in by_id.items():
+        by_category.setdefault(category_of(n), []).append(nid)
+
+    alias = {nid: f"n{i}" for i, nid in enumerate(sorted(by_id))}
+    single = len(by_category) == 1
+    lines = ["graph TD"]
+    for category, nids in sorted(by_category.items()):
+        node_lines = [f'    {alias[nid]}["{_mermaid_escape(by_id[nid]["name"])}"]'
+                     for nid in sorted(nids)]
+        if single:
+            lines.extend(node_lines)
+        else:
+            lines.append(f"  subgraph {_mermaid_escape(category)}")
+            lines.extend(node_lines)
+            lines.append("  end")
+
+    seen: set[tuple[str, str]] = set()
+    for e in payload["edges"]:
+        if e.get("relation") != "depends_on":
+            continue
+        src, dst = e.get("src"), e.get("dst")
+        if src not in by_id or dst not in by_id or (src, dst) in seen:
+            continue
+        seen.add((src, dst))
+        lines.append(f"  {alias[src]} --> {alias[dst]}")
+    return "\n".join(lines)
+

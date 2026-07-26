@@ -5,6 +5,25 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`graph --format deployment`: a Mermaid flowchart of Terraform/HCL
+  `resource`/`data`/`module` definitions grouped by an inferred category**
+  (network/compute/storage/database/security/module/other), over data
+  `kb/hcl.py`'s existing extractor already collects (no new extraction pass,
+  same spirit as `erdiagram`). Category is a keyword heuristic over the
+  resource type prefix (`aws_security_group.web` -> security); more-specific
+  categories are checked before generic ones so e.g. `aws_db_instance` lands
+  in database, not compute, on the "instance" substring — caught live before
+  shipping via a real Mermaid render, not just code review. A single-category
+  view renders flat (no subgraph wrapper); `depends_on` edges (reconstructed
+  by `parse.py` from `var.`/`module.`/type-name interpolation references)
+  draw the connections. `--c4` continues to reject text-diagram formats
+  (`deployment` added to that list). A repo with no `.tf` files renders an
+  honest empty diagram with guidance, not a bug.
+
 ## [2.53.0] - 2026-07-26
 
 ### Added
