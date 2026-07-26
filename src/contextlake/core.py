@@ -785,8 +785,11 @@ def update_repository(local_path, work_dir, config):
         except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
             reason = classify_error(str(e))
             if reason == "missing-ref":
-                return ("skip", local_path,
-                        f"Upstream branch deleted: {current} (run branches to pick a new one)")
+                # The tracked branch is gone upstream -- almost always renamed,
+                # merged, or superseded by another default, never something a
+                # human needs to triage by hand. Auto-reselect instead of just
+                # telling the user to run `branches` themselves.
+                return _reselect_branch_after_deletion(full_path, local_path, current, config)
             if reason == "project-deleted":
                 return ("skip", local_path,
                         "Upstream project not found (deleted or access revoked) "
@@ -894,6 +897,54 @@ def _collect_branch_info(full_path, branch_timeout):
         count = int(count_res.stdout.strip()) if count_res.stdout.strip().isdigit() else 0
         branch_info.append({"name": branch, "count": count, "ts": _parse_iso(parts[1])})
     return branch_info
+
+
+def _reselect_branch_after_deletion(full_path, local_path, deleted_branch, config):
+    """The branch `update_repository` was tracking no longer exists on origin
+    (renamed, merged, or superseded by another default) -- auto-pick a new
+    most-active branch and switch to it, the same selection `branches` uses,
+    rather than leaving the repo stuck reporting the same dead branch on every
+    future run.
+
+    ``check_repository_safety`` already confirmed the repo is safe to touch
+    before the caller reached this fetch, so the checkout below isn't gated
+    on a working-branch-protection check: the tracked branch is definitionally
+    gone, there's nothing left to protect by staying on it.
+    """
+    fetch_timeout = _int(config, "fetch_timeout", "60")
+    branch_timeout = _int(config, "branch_timeout", "30")
+    pull_timeout = _int(config, "pull_timeout", "60")
+    strategy = config.get("branch_strategy", "hybrid")
+    dry_run = _is_truthy(config, "dry_run")
+    prefix = f"Upstream branch deleted: {deleted_branch}"
+
+    try:
+        _fetch_with_retry(["git", "fetch", "--all", "--quiet"], full_path, fetch_timeout, config)
+        branch_info = _collect_branch_info(full_path, branch_timeout)
+    except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
+        return ("skip", local_path,
+                f"{prefix} (auto-reselect failed: {_first_line(str(e))}; "
+                "run branches to pick one manually)")
+    if not branch_info:
+        return ("skip", local_path, f"{prefix} (no other branches found on origin)")
+
+    new_branch = select_most_active_branch(branch_info, strategy)
+    if dry_run:
+        return ("dry-run", local_path, f"{prefix} -- would switch to {new_branch}")
+
+    checkout = subprocess.run(
+        ["git", "checkout", "--quiet", new_branch],
+        capture_output=True, text=True, cwd=full_path, timeout=branch_timeout,
+    )
+    if checkout.returncode != 0:
+        return ("skip", local_path,
+                f"{prefix} (auto-checkout of {new_branch} failed: "
+                f"{_first_line(checkout.stderr)}; run branches to pick one manually)")
+    subprocess.run(
+        ["git", "merge", "--ff-only", "--quiet", f"origin/{new_branch}"],
+        capture_output=True, cwd=full_path, timeout=pull_timeout,
+    )
+    return ("switched", local_path, f"{prefix} -- auto-switched to {new_branch}")
 
 
 def switch_repository_branch(local_path, projects, work_dir, config):
@@ -1116,7 +1167,8 @@ def update_repositories(work_dir, config):
     max_workers = _int(config, "max_workers", "8")
     log(f"Found {len(local_repos)} local repositories")
 
-    buckets = {"updated": [], "unchanged": [], "skipped": [], "dry-run": [], "errors": []}
+    buckets = {"updated": [], "unchanged": [], "switched": [], "skipped": [], "dry-run": [],
+               "errors": []}
     total = len(local_repos)
     progress = style.Progress(total, label="update")
 
@@ -1130,6 +1182,9 @@ def update_repositories(work_dir, config):
             elif status == "nochange":
                 buckets["unchanged"].append(path)
                 log(_status(i, total, "nochange", path, message), inline=True)
+            elif status == "switched":
+                buckets["switched"].append(path)
+                log(_status(i, total, "switched", path, message), inline=True)
             elif status == "skip":
                 buckets["skipped"].append(path)
                 log(_status(i, total, "skip", path, message), inline=True)

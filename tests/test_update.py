@@ -53,10 +53,41 @@ def test_diverged_branch_is_skipped(tmp_path, base_config, fake_subprocess, monk
     assert "Diverged" in msg
 
 
-def test_deleted_upstream_branch_is_skipped(
+def test_deleted_upstream_branch_auto_switches_to_a_new_one(
     tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
 ):
-    """A deleted upstream branch is reported as a clean skip, not a fatal error."""
+    """A branch deleted upstream (renamed/merged/superseded) is not just reported
+    for the user to fix by hand -- update_repository auto-reselects and switches
+    to the most-active remaining branch, same selection `branches` would make."""
+    _safe(monkeypatch)
+    foreach = "origin/main|2026-06-10 12:00:00 +0000|abc0"
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="feature/gone")
+        if cmd[:3] == ["git", "fetch", "--all"]:
+            return FakeCompleted()  # the broader reselect fetch succeeds
+        if cmd[:2] == ["git", "fetch"]:
+            # the narrow per-branch fetch is the one that fails with missing-ref
+            return FakeCompleted(returncode=1, stderr="fatal: couldn't find remote ref feature/gone")  # noqa: E501
+        if "for-each-ref" in cmd:
+            return FakeCompleted(stdout=foreach)
+        if "rev-list" in cmd:
+            return FakeCompleted(stdout="10")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "switched"
+    assert "feature/gone" in msg and "main" in msg
+
+
+def test_deleted_upstream_branch_reselect_failure_still_skips_cleanly(
+    tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
+):
+    """If the broader reselect fetch ALSO fails (e.g. total network outage, not
+    just the one branch being gone), fall back to a clean skip with a manual
+    remediation hint rather than crashing or reporting a raw error."""
     _safe(monkeypatch)
 
     def handler(cmd, **kwargs):
@@ -70,26 +101,7 @@ def test_deleted_upstream_branch_is_skipped(
     status, _, msg = update_repository("a", str(tmp_path), base_config)
     assert status == "skip"
     assert "deleted" in msg.lower()
-
-
-def test_deleted_upstream_branch_carries_remediation_hint(
-    tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
-):
-    """H2: the one place a failure class is already distinguished in the code
-    (missing-ref) gets a one-line remediation hint pointing at the fix."""
-    _safe(monkeypatch)
-
-    def handler(cmd, **kwargs):
-        if _branch_main(cmd):
-            return FakeCompleted(stdout="feature/gone")
-        if cmd[:2] == ["git", "fetch"]:
-            return FakeCompleted(returncode=1, stderr="fatal: couldn't find remote ref feature/gone")  # noqa: E501
-        return FakeCompleted()
-
-    fake_subprocess.handler = handler
-    status, _, msg = update_repository("a", str(tmp_path), base_config)
-    assert status == "skip"
-    assert "branches" in msg.lower()  # points at the remediation (the branches verb)
+    assert "branches" in msg.lower()  # points at the manual remediation
 
 
 def test_deleted_upstream_project_is_skipped_not_errored(
@@ -287,6 +299,27 @@ def test_update_repositories_dryrun_line_has_dryrun_glyph(
     text = gls_logs.text
     assert "~" in text
     assert "✗" not in text
+
+
+def test_update_repositories_switched_line_has_switched_glyph_and_summary(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """A repo auto-switched onto a new branch (its old one deleted upstream)
+    renders with the 'switched' glyph and is counted in the run summary --
+    not silently folded into 'skipped' or misreported as a failure."""
+    make_local_repo(tmp_path, "r1")
+    monkeypatch.setattr(
+        core, "update_repository",
+        lambda p, wd, cfg: ("switched", "r1",
+                             "Upstream branch deleted: feature/gone -- auto-switched to main"),
+    )
+
+    update_repositories(str(tmp_path), base_config)
+
+    text = gls_logs.text
+    assert "↝" in text
+    assert "auto-switched to main" in text
+    assert "1 switched" in text  # the final summary line
 
 
 def test_empty_repo_reports_a_readable_reason_not_gits_usage_hint():

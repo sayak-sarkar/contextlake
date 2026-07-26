@@ -5,6 +5,20 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **`contextlake update` no longer just reports a deleted upstream branch and
+  waits for the user to run `branches` by hand.** A tracked branch missing on
+  origin almost always means it was renamed, merged, or superseded by another
+  default — not something that needs manual triage. `update` now auto-fetches
+  the full branch list and switches to the most-active remaining branch (the
+  same selection `branches` makes), reporting `switched` with both the old and
+  new branch name. Falls back to the previous clean-skip-with-hint behavior
+  only if the broader reselect fetch itself fails too (e.g. a real network
+  outage), or if no other branch exists (`core.py`).
+
 ## [2.49.0] - 2026-07-26
 
 ### Removed
