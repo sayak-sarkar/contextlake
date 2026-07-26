@@ -101,6 +101,30 @@ def test_cmd_hook_dispatch(tmp_path, action, monkeypatch, gls_logs):
         assert f"\033[32m✓\033[0m {tmp_path.name}" in raw
 
 
+def test_hook_install_warns_on_unresolved_repo_id(tmp_path, monkeypatch, gls_logs):
+    """A bad --config used to be silently swallowed by _canonical_repo_id's bare
+    except, install a hook wired to the bare directory name instead of the repo's
+    real stored id, and never tell the user -- so `hook install` reported a clean
+    success while quietly mis-wiring (or permanently inert-ing) the hook."""
+    from contextlake.cli import _DEFAULTS, build_parser
+    from contextlake.kb import commands as kb
+
+    repo = tmp_path / "widget-api"
+    _repo(repo)
+    monkeypatch.chdir(repo)
+
+    args = build_parser().parse_args(["hook", "install", "--config", "/does/not/exist.toml"])
+    for k, v in _DEFAULTS.items():
+        if not hasattr(args, k):
+            setattr(args, k, v)
+    assert kb.dispatch("hook", args) == 0  # the fallback still installs *something*
+
+    raw = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "Could not resolve this repo's stored id" in raw
+    hook = repo / ".git" / "hooks" / "post-commit"
+    assert f'--repo "{repo.name}"' in hook.read_text()  # fell back to the dir name, as before
+
+
 def test_cmd_hook_status_shows_dim_dot_when_not_installed(tmp_path, monkeypatch, gls_logs):
     """H3: the 'not installed' glyph must come from style.dim('·'), not a bare '·'."""
     monkeypatch.delenv("NO_COLOR", raising=False)

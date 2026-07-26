@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`contextlake hook install` could silently wire a hook to the wrong `repo_id`
+  and never say so.** `_canonical_repo_id` swallowed every exception from opening
+  the store (a bad `--config`, a corrupt/too-new store) with a bare `except:
+  pass` and fell back to the bare directory name — even for an already-indexed
+  repo, and even though `SqliteStore` itself never raises for a fresh/not-yet-
+  indexed store (it creates one on open), meaning anything landing in that catch
+  was a real problem, not the benign case the fallback was written for. One blast
+  radius: a bad `--config` produced a hook install reported as a clean success
+  but permanently inert (its own re-index invocation embeds the same bad config
+  and silently never runs). Another: a transient store error left a duplicate
+  `repo_id` row after the hook did fire. Now logs a warning explaining the
+  fallback instead of swallowing it silently (`kb/commands.py`).
+
 - **`contextlake steer` could silently corrupt a user's AGENTS.md/CLAUDE.md/etc. on a
   later refresh, or crash mid-run leaving the workspace half-steered.** A repo id or
   package name (the latter reachable verbatim via `manifest.py`'s unvalidated

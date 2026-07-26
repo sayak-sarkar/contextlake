@@ -1883,8 +1883,15 @@ def _canonical_repo_id(root: Path, args) -> str:
         for repo in store.list_repos():
             if repo.path and Path(repo.path).resolve() == rp:
                 return repo.id
-    except Exception:  # noqa: BLE001 - store is optional here; fall back to the dir name
-        pass
+    except Exception as e:  # noqa: BLE001 - store is optional here; fall back to the dir name
+        # A brand-new store (never indexed) doesn't raise here -- SqliteStore creates
+        # it on open -- so anything landing in this branch is a real problem (a bad
+        # --config path, a corrupt/too-new store) that would otherwise silently wire
+        # the hook to the wrong repo_id, or a hook that never fires again. Surface it
+        # instead of pretending the fallback to the bare dir name was expected.
+        log(style.warn(f"Could not resolve this repo's stored id ({e}); "
+                        f"falling back to the directory name {root.name!r}, which may "
+                        "not match how it's indexed."))
     finally:
         if store is not None:
             store.close()
