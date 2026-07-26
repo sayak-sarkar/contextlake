@@ -214,6 +214,9 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     glyph = style.ok() if failed == 0 else style.warn()
     log(f"{glyph} Workspace indexed: {st.repos} repos, {st.nodes} nodes, "
         f"{st.edges} edges ({skipped} unchanged, {failed} failed)")
+    if failed:
+        log("  See the log above for which repos failed. Re-run to retry -- "
+            "indexing is incremental, so only the unindexed/changed repos run again.")
     return 0 if failed == 0 else 1
 
 
@@ -599,8 +602,11 @@ def cmd_embed(args) -> int:
                     progress.advance(repo_id)
                 progress.done()
                 tail = f", {skipped} already up to date" if skipped else ""
-                log(style.summary_line("ok", f"Embed complete: {total} vector(s) written "
-                                             f"({vs.count()} total in store){tail}"))
+                if failed:
+                    tail += f", {failed} failed"
+                state = "warn" if failed else "ok"
+                log(style.summary_line(state, f"Embed complete: {total} vector(s) written "
+                                              f"({vs.count()} total in store){tail}"))
                 # Honest exit: if every repo we actually tried to embed failed (e.g. the
                 # embedder went unreachable mid-run), this is a failure, not success.
                 # Up-to-date repos that were skipped don't count as attempts.
@@ -609,6 +615,8 @@ def cmd_embed(args) -> int:
                     log(style.warn(
                         f"Embed failed for all {attempted} repo(s) — no vectors written"))
                     return 1
+                if failed:
+                    log("  See the log above for which repos failed. Re-run to retry.")
                 # Only a full, failure-free pass earns the new content-version stamp;
                 # a partial (--limit) or partly-failed pass must stay marked stale.
                 if limit is None and failed == 0:
@@ -787,8 +795,13 @@ def cmd_wiki(args) -> int:
                         f"(score {gate['score']})", inline=True)
                 progress.advance(ns)
             progress.done()
-            log(f"{style.ok()} Cluster wiki: {written} written, {rejected} rejected, "
-                f"{skipped} unchanged (skipped) → {wiki_dir}  (--force to regenerate)")
+            fail_tail = f", {failed} failed" if failed else ""
+            glyph = style.warn() if failed else style.ok()
+            log(f"{glyph} Cluster wiki: {written} written, {rejected} rejected, "
+                f"{skipped} unchanged (skipped){fail_tail} → {wiki_dir}  "
+                f"(--force to regenerate)")
+            if failed:
+                log("  See the log above for which namespaces failed. Re-run to retry.")
             # An explicit --namespace that matched no repos is a user error, not success.
             if namespace and not (written or rejected or skipped):
                 return 1
@@ -844,13 +857,17 @@ def cmd_wiki(args) -> int:
                     log(f"      - {issue}")
             progress.advance(repo_id)
         progress.done()
-        log(f"{style.ok()} Wiki: {written} written, {rejected} rejected, "
-            f"{skipped} unchanged (skipped) → {wiki_dir}  (--force to regenerate)")
+        fail_tail = f", {failed} failed" if failed else ""
+        glyph = style.warn() if failed else style.ok()
+        log(f"{glyph} Wiki: {written} written, {rejected} rejected, "
+            f"{skipped} unchanged (skipped){fail_tail} → {wiki_dir}  (--force to regenerate)")
         # Honest exit: failures with nothing written and nothing council-rejected
         # means the LLM was effectively unreachable for the whole run -> not success.
         if failed and not written and not rejected:
             log(style.warn(f"Wiki generation failed for all {failed} repo(s) — none written"))
             return 1
+        if failed:
+            log("  See the log above for which repos failed. Re-run to retry.")
         return 0
     finally:
         if vs is not None:

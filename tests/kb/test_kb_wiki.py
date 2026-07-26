@@ -513,6 +513,31 @@ def test_cmd_wiki_returns_nonzero_when_all_repos_fail(tmp_path, monkeypatch):
     assert not (store_dir / "wiki" / "r.md").exists()
 
 
+def test_cmd_wiki_summary_surfaces_a_partial_failure(tmp_path, monkeypatch, gls_logs):
+    """Before the fix, a repo that failed mid-run was silently dropped from the
+    summary line (still ✓, still 'success') as long as at least one other repo
+    in the batch succeeded -- indistinguishable from a fully clean run."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    repo_ids = ["r1", "r2"]
+    _setup_multi_repo(tmp_path, repo_ids)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    import contextlake.kb.wiki.generate as generate_mod
+    real = generate_mod.generate_page
+
+    def _flaky(llm, store_dir, repo_id, **kw):
+        if repo_id == "r2":
+            raise RuntimeError("llm unreachable for r2")
+        return real(llm, store_dir, repo_id, **kw)
+
+    monkeypatch.setattr(generate_mod, "generate_page", _flaky)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0  # not all failed
+    text = gls_logs.text
+    assert "⚠ Wiki: 1 written, 0 rejected, 0 unchanged (skipped), 1 failed" in text
+    assert "Re-run to retry" in text
+
+
 def test_cmd_wiki_skips_unchanged_and_force_regenerates(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = _setup_repo(tmp_path)

@@ -402,6 +402,40 @@ def test_index_workspace_reports_progress_and_drops_inline_bar_from_stdout(
         assert "█" not in line and "░" not in line
 
 
+def test_index_workspace_summary_points_at_the_log_on_partial_failure(
+    tmp_path, capsys, monkeypatch
+):
+    """A bare '(N failed)' count with no next step leaves the user to scroll
+    back through a long fleet-index run to find which repo broke."""
+    from contextlake.kb import parse as parse_mod
+
+    ws = tmp_path / "ws"
+    repo_ids = ["r1", "r2"]
+    for rid in repo_ids:
+        (ws / rid).mkdir(parents=True)
+        (ws / rid / ".git").mkdir()
+        (ws / rid / "a.py").write_text("def f():\n    pass\n")
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\nindex_workers = 1\n')
+
+    real = parse_mod.index_repo_dir
+
+    def _flaky(path, repo_id, **kw):
+        if repo_id == "r2":
+            raise RuntimeError("parse failed for r2")
+        return real(path, repo_id, **kw)
+
+    monkeypatch.setattr(parse_mod, "index_repo_dir", _flaky)
+
+    rc = _run(["index", "--config", str(cfg), "--workspace", str(ws)])
+    assert rc == 1
+
+    text = capsys.readouterr().out
+    assert "1 failed" in text
+    assert "Re-run to retry" in text
+
+
 def test_owners_unknown_repo_suggests_close_id(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
     # indexing the fixture creates repo id 'demo/app'

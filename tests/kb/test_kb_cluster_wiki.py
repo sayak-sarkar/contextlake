@@ -206,6 +206,31 @@ def test_cmd_wiki_namespaces_depth_generates_per_namespace(tmp_path, monkeypatch
     assert (wiki / "_clusters" / "acme__ship.md").exists()
 
 
+def test_cmd_wiki_namespaces_summary_surfaces_a_partial_failure(
+    tmp_path, monkeypatch, gls_logs
+):
+    """Same class of bug as the per-repo wiki summary: one namespace failing
+    mid-run must not read as a clean, fully-successful cluster-wiki pass."""
+    import contextlake.kb.wiki.cluster as cluster_mod
+    from contextlake.kb.commands import cmd_wiki
+
+    _setup_cluster_store(tmp_path, monkeypatch)
+    real = cluster_mod.generate_cluster_page
+
+    def _flaky(llm, brief, **kw):
+        if brief["namespace"] == "acme/ship":
+            raise RuntimeError("llm unreachable for acme/ship")
+        return real(llm, brief, **kw)
+
+    monkeypatch.setattr(cluster_mod, "generate_cluster_page", _flaky)
+
+    rc = cmd_wiki(_ns_args(tmp_path, namespaces=True, depth=2))
+    assert rc == 0  # not every namespace failed
+    text = gls_logs.text
+    assert "1 failed" in text
+    assert "Re-run to retry" in text
+
+
 # --- dashboard data layer -------------------------------------------------
 
 def test_dashboard_cluster_detail_and_index(tmp_path):

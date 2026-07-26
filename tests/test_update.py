@@ -322,6 +322,40 @@ def test_update_repositories_switched_line_has_switched_glyph_and_summary(
     assert "1 switched" in text  # the final summary line
 
 
+def test_update_repositories_summary_names_the_retry_command_on_failure(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """A bare 'Update complete: ... errors' with no next step leaves the user
+    to go re-read scrollback for which repo failed and what to do about it."""
+    make_local_repo(tmp_path, "r1")
+    monkeypatch.setattr(
+        core, "update_repository",
+        lambda p, wd, cfg: ("fail", "r1", "network unreachable"),
+    )
+
+    update_repositories(str(tmp_path), base_config)
+
+    text = gls_logs.text
+    assert "1 errors" in text
+    assert "Failed:" in text
+    assert "contextlake update --repos" in text
+
+
+def test_update_repositories_summary_notes_auto_switch_count(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    make_local_repo(tmp_path, "r1")
+    monkeypatch.setattr(
+        core, "update_repository",
+        lambda p, wd, cfg: ("switched", "r1", "auto-switched to main"),
+    )
+
+    update_repositories(str(tmp_path), base_config)
+
+    text = gls_logs.text
+    assert "1 repo(s) auto-switched" in text
+
+
 def test_empty_repo_reports_a_readable_reason_not_gits_usage_hint():
     """git's "ambiguous argument 'HEAD'" is a three-line usage dump; a status
     line must carry one readable sentence instead."""

@@ -158,3 +158,20 @@ def test_switch_repository_branches_failure_line_has_fail_glyph(
     text = gls_logs.text
     assert "✗" in text
     assert "checkout failed" in text
+
+
+def test_switch_repository_branches_summary_names_the_retry_command_on_failure(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    make_local_repo(tmp_path, "a")
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    monkeypatch.setattr(
+        core, "switch_repository_branch",
+        lambda p, proj, wd, cfg: ("error", "a", "checkout failed"),
+    )
+
+    switch_repository_branches(str(tmp_path), base_config, "g")
+
+    text = gls_logs.text
+    assert "Failed:" in text
+    assert "contextlake branches --repos" in text

@@ -28,8 +28,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   closes the other exposure vector). Errors clearly instead of hanging if
   stdin isn't actually piped.
 
+### Fixed
+
+- **`embed` and `wiki` (both per-repo and `--namespaces`) silently reported a
+  partial failure as a clean success.** If even one repo/namespace out of a
+  batch failed, the summary line kept its `✓` glyph and simply omitted the
+  failure from the count — indistinguishable from a fully successful run
+  unless you scrolled back through the whole log. Both now show `⚠` and the
+  failed count whenever `failed > 0`.
+
 ### Changed
 
+- **`update`, `branches`, `index --workspace`, `embed`, and `wiki` now name a
+  concrete next step when something failed**, instead of ending on a bare
+  summary line. `update`/`branches` list the failed repos and the exact retry
+  command (`contextlake update --repos <name>`); `index` points at the log
+  and notes re-runs are incremental; `embed`/`wiki` point at the log and
+  suggest re-running. `update` also notes how many repos were auto-switched
+  to a new branch. Mirrors `_bootstrap`'s existing ending, which already did
+  this well.
 - **Flags can no longer be silently abbreviated** (`--work-d` used to resolve
   to `--work-dir` via argparse's default `allow_abbrev=True`). Disabled on the
   root parser and every subcommand parser — an unrecognized long flag is now

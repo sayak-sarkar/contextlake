@@ -1198,6 +1198,14 @@ def update_repositories(work_dir, config):
 
     progress.done()
     log(style.ok(f"Update complete: {_summarize(buckets)}"))
+    if buckets["switched"]:
+        log(f"  {len(buckets['switched'])} repo(s) auto-switched to a new branch "
+            "(their tracked upstream branch was deleted) -- see the log above for "
+            "old -> new.")
+    if buckets["errors"]:
+        _report_list("Failed", buckets["errors"], limit=5)
+        log("  Re-run to retry, or narrow to just the failures: "
+            "contextlake update --repos <name>")
 
 
 def switch_repository_branches(work_dir, config, gitlab_group):
@@ -1242,6 +1250,10 @@ def switch_repository_branches(work_dir, config, gitlab_group):
 
     progress.done()
     log(style.ok(f"Branch switch complete: {_summarize(buckets)}"))
+    if buckets["errors"]:
+        _report_list("Failed", buckets["errors"], limit=5)
+        log("  Re-run to retry, or narrow to just the failures: "
+            "contextlake branches --repos <name>")
 
 
 def _report_list(label, items, limit=10):

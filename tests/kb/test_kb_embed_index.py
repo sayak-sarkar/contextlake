@@ -365,8 +365,9 @@ class _SpyProgress:
 def test_cmd_embed_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkeypatch, gls_logs):
     """Wire-through: Progress.advance fires once per pass target (success, failure,
     and incremental-skip branches alike) and done() once, on a separate channel
-    from the existing stdout detail/summary log() lines, which must render exactly
-    as before (byte-identical).
+    from the existing stdout detail log() lines, which must render exactly as
+    before (byte-identical) -- except the summary line, which now surfaces a
+    partial failure instead of silently reporting a bare "success".
 
     Asserts on gls_logs (not capsys) per the convention documented in
     tests/kb/test_source_cmd.py -- see test_kb_wiki.py's equivalent test.
@@ -430,4 +431,8 @@ def test_cmd_embed_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkey
     assert "r2: embed failed" in text
     assert "embed failed for r2" in text
     assert "r3: embedded" not in text                # skipped -> no detail line, as before
-    assert "✓ Embed complete: 1 vector(s) written" in text   # glyph-prefixed summary
+    # Before the fix, this line kept its ✓ glyph and silently dropped the failed
+    # repo from the summary -- a partial failure must not read as a clean success.
+    assert "⚠ Embed complete: 1 vector(s) written" in text
+    assert "1 failed" in text
+    assert "Re-run to retry" in text
