@@ -26,6 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `~/.contextlake/kb.toml` (languages, connectors, embedder/LLM settings) never
   leaks into the fleet billed as "fictional data, nothing local is read".
 
+### Fixed
+
+- **`index --workspace` no longer silently misattributes a corrupted nested
+  `.git` to an unrelated ancestor repo.** `git -C <path>` walks *up* the
+  filesystem tree past an incomplete/corrupted `.git` to find the nearest real
+  one, so a broken checkout could previously be indexed under a completely
+  different repo's remote and commit history, with `0 failed` reported —
+  found incidentally by the v2.50.0 post-release testing pass. Now verified
+  via `git rev-parse --show-toplevel` before any identity lookup is trusted;
+  a broken `.git` is skipped with a warning instead.
+- **`query`/`owners`/`impact --json` on an empty argument now emit a
+  structured JSON error** (`{"error": "missing_argument", "usage": "..."}`)
+  instead of a plain-text `usage: ...` line with a log timestamp — the
+  previous behavior broke `--json`'s "always valid JSON" contract on exactly
+  the case a script piping to `jq` most needs it to hold.
+
 ## [2.50.0] - 2026-07-26
 
 ### Added

@@ -496,6 +496,20 @@ def test_query_json_emits_a_clean_parseable_array(tmp_path, capsys):
     }]
 
 
+def test_query_json_empty_argument_is_still_valid_json(tmp_path, capsys):
+    """An empty query with --json must fail with a structured JSON error, not a
+    plain-text 'usage: ...' log line -- a CI script piping to jq would otherwise
+    break on the exact case it asked --json to protect it from."""
+    import json
+
+    cfg = _kb_config(tmp_path)
+    rc = _run(["query", "", "--config", str(cfg), "--json"])
+    captured = capsys.readouterr()
+    assert rc == 2
+    payload = json.loads(captured.out)
+    assert payload["error"] == "missing_argument"
+
+
 def test_owners_json_emits_a_clean_parseable_object(tmp_path, capsys):
     import json
 
@@ -526,6 +540,17 @@ def test_owners_json_unknown_repo_reports_the_error_as_json_too(tmp_path, capsys
     assert "demo/app" in payload["suggestions"]
 
 
+def test_owners_json_empty_argument_is_still_valid_json(tmp_path, capsys):
+    import json
+
+    cfg = _kb_config(tmp_path)
+    rc = _run(["owners", "", "--config", str(cfg), "--json"])
+    captured = capsys.readouterr()
+    assert rc == 2
+    payload = json.loads(captured.out)
+    assert payload["error"] == "missing_argument"
+
+
 def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
     """A fixture repo indexed from a graph-shard JSON (not a real git checkout)
     has no HEAD to compare against, so lint always reports it stale -- pinning
@@ -545,6 +570,17 @@ def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
     assert set(payload) == {"repos", "checked", "stale", "dangling",
                             "stale_repos", "dangling_sample"}
     assert payload["stale"] == 1
+
+
+def test_impact_json_empty_argument_is_still_valid_json(tmp_path, capsys):
+    import json
+
+    cfg = _kb_config(tmp_path)
+    rc = _run(["impact", "", "--config", str(cfg), "--json"])
+    captured = capsys.readouterr()
+    assert rc == 2
+    payload = json.loads(captured.out)
+    assert payload["error"] == "missing_argument"
 
 
 def test_impact_json_unknown_target_reports_the_error_as_json_too(tmp_path, capsys):

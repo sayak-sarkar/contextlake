@@ -1120,15 +1120,21 @@ def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
     return 0
 
 
+_QUERY_USAGE = 'contextlake query "<text>" [--kind K] [--repo R] [--limit N] [--as-of C]'
+
+
 def cmd_query(args) -> int:
     text = " ".join(getattr(args, "args", []) or []).strip()
-    if not text:
-        log("usage: contextlake query \"<text>\" [--kind K] [--repo R] [--limit N] [--as-of C]")
-        return 2
     as_json = getattr(args, "json", False)
     if as_json:
         from ..logging_setup import use_stderr
         use_stderr()
+    if not text:
+        if as_json:
+            print(json.dumps({"error": "missing_argument", "usage": _QUERY_USAGE}, indent=2))
+        else:
+            log(f"usage: {_QUERY_USAGE}")
+        return 2
     as_of = getattr(args, "as_of", None)
     if as_of:
         return _query_as_of(args, as_of, as_json=as_json)
@@ -1189,15 +1195,19 @@ def cmd_owners(args) -> int:
     from .ownership import compute_owners
 
     target = (getattr(args, "args", []) or [None])[0]
-    if not target:
-        log('usage: contextlake owners <repo|path> [--path SUBDIR] [--limit N]')
-        return 2
     subpath = getattr(args, "path", None)
     limit = getattr(args, "limit", None) or 10
     as_json = getattr(args, "json", False)
     if as_json:
         from ..logging_setup import use_stderr
         use_stderr()
+    if not target:
+        usage = "contextlake owners <repo|path> [--path SUBDIR] [--limit N]"
+        if as_json:
+            print(json.dumps({"error": "missing_argument", "usage": usage}, indent=2))
+        else:
+            log(f"usage: {usage}")
+        return 2
 
     # Resolve a working dir: a directory on disk, else a repo id looked up in the store.
     if Path(target).is_dir():
@@ -1244,9 +1254,6 @@ def cmd_impact(args) -> int:
     from .impact import blast_radius, resolve_target
 
     target = (getattr(args, "args", []) or [None])[0]
-    if not target:
-        log('usage: contextlake impact <node-id-or-symbol> [--repo R] [--hops N] [--limit N]')
-        return 2
     hops = getattr(args, "hops", None) or 3
     limit = getattr(args, "limit", None) or 100
     repo = getattr(args, "repo", None)
@@ -1254,6 +1261,13 @@ def cmd_impact(args) -> int:
     if as_json:
         from ..logging_setup import use_stderr
         use_stderr()
+    if not target:
+        usage = "contextlake impact <node-id-or-symbol> [--repo R] [--hops N] [--limit N]"
+        if as_json:
+            print(json.dumps({"error": "missing_argument", "usage": usage}, indent=2))
+        else:
+            log(f"usage: {usage}")
+        return 2
     store, _ = _open_store(args)
     try:
         node, candidates = resolve_target(store, target, repo=repo)
