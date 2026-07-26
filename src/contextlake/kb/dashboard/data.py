@@ -495,7 +495,7 @@ def semantic_search(store, q: str, *, vector_store=None, embedder=None,
 # MCP console + settings (live-only: describe this machine/process, not the
 # graph, so neither is part of an offline --site snapshot)
 # ---------------------------------------------------------------------------
-def mcp_console(store, store_dir, *, config_path: str | None = None) -> dict:
+def mcp_console(store, store_dir, *, config_path: str | None = None, sample: bool = False) -> dict:
     """Read-only MCP surface summary: the live tool catalog and copyable client
     config snippets. Reuses the exact code ``contextlake serve``/``steer`` already
     run — no new backend logic:
@@ -512,13 +512,19 @@ def mcp_console(store, store_dir, *, config_path: str | None = None) -> dict:
     * The ``.mcp.json`` / ``.vscode/mcp.json`` snippets reuse
       :func:`steer.generate.mcp_server_entry` — the identical entry ``contextlake
       steer`` writes to disk.
+
+    ``sample=True`` (the ``--sample`` demo fleet) skips the real config
+    precedence chain entirely and uses bare :class:`KbConfig` defaults --
+    ``load_kb_config(None)`` still merges the user's real
+    ``~/.contextlake/kb.toml`` regardless of ``config_path``, which would leak
+    real embedder settings into a surface billed as "nothing local is read".
     """
     from .. import server as mcp_server
-    from ..config import load_kb_config
+    from ..config import KbConfig, load_kb_config
     from ..embeddings import build_embedder
     from ..steer.generate import mcp_server_entry
 
-    cfg = load_kb_config(config_path)
+    cfg = KbConfig() if sample else load_kb_config(config_path)
     embedder = build_embedder(cfg.embeddings)
     vec_path = Path(store_dir) / "embeddings.sqlite"
     semantic_available = embedder is not None and vec_path.exists()
@@ -546,7 +552,7 @@ def mcp_console(store, store_dir, *, config_path: str | None = None) -> dict:
     }
 
 
-def settings(store, store_dir, *, config_path: str | None = None) -> dict:
+def settings(store, store_dir, *, config_path: str | None = None, sample: bool = False) -> dict:
     """Read-only summary of the active ``kb.toml``: store path/size/schema version,
     the mirror root (derived from indexed repo paths, not a separate config read),
     connector list, embedder, and LLM config. No in-browser editing — every field
@@ -558,11 +564,18 @@ def settings(store, store_dir, *, config_path: str | None = None) -> dict:
     connectivity probe — probing every connector on every dashboard page load
     would be a real, surprising network side effect from a read-only view.
     ``contextlake source test <name>`` already does that on demand.
+
+    ``sample=True`` (the ``--sample`` demo fleet) uses bare :class:`KbConfig`
+    defaults instead of resolving the real precedence chain --
+    ``load_kb_config(None)`` still merges the user's real
+    ``~/.contextlake/kb.toml`` regardless of ``config_path``, which would leak
+    real languages/embeddings/llm/connector config into a surface billed as
+    "fictional data, safe to share".
     """
-    from ..config import load_kb_config
+    from ..config import KbConfig, load_kb_config
     from ..store.sqlite_store import SCHEMA_VERSION
 
-    cfg = load_kb_config(config_path)
+    cfg = KbConfig() if sample else load_kb_config(config_path)
     sd = Path(store_dir)
 
     size = 0

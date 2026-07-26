@@ -35,17 +35,20 @@ def _json_bytes(obj) -> bytes:
 
 
 def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: int = 8765,
-                           config_path: str | None = None):
+                           config_path: str | None = None, sample: bool = False):
     """Build (but do not start) the dashboard HTTP server.
 
     Returned non-blocking so the CLI loop and tests drive ``serve_forever`` /
     ``shutdown`` themselves. ``store`` is used only to render the one-time graph
     overview at build time (main thread); every request opens its own store.
 
-    ``config_path`` is the ``--config`` the dashboard itself was started with
-    (``None`` under the normal precedence chain, or a synthesized sample fleet
-    that has no real kb.toml) -- threaded through to the MCP console / settings
-    routes so they describe the config actually in effect, not a re-guessed one.
+    ``config_path`` is the ``--config`` the dashboard itself was started with,
+    threaded through to the MCP console / settings routes so they describe the
+    config actually in effect. ``sample=True`` (the ``--sample`` demo fleet)
+    makes those same routes use bare config defaults instead of resolving the
+    real precedence chain -- ``load_kb_config(None)`` still merges the user's
+    real ``~/.contextlake/kb.toml`` regardless of ``config_path``, which would
+    leak real config into a surface billed as "nothing local is read".
     """
     from .. import visualize as viz
 
@@ -167,9 +170,11 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
             if path == "/api/mcp":
-                return 200, _json_bytes(kbdata.mcp_console(req, sd, config_path=config_path))
+                return 200, _json_bytes(
+                    kbdata.mcp_console(req, sd, config_path=config_path, sample=sample))
             if path == "/api/settings":
-                return 200, _json_bytes(kbdata.settings(req, sd, config_path=config_path))
+                return 200, _json_bytes(
+                    kbdata.settings(req, sd, config_path=config_path, sample=sample))
             return 404, b'{"error":"not found"}'
         finally:
             if req is not store:
@@ -215,7 +220,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
 
 
 def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
-                    open_browser: bool = False, config_path: str | None = None) -> None:
+                    open_browser: bool = False, config_path: str | None = None,
+                    sample: bool = False) -> None:
     """Serve the dashboard (blocking until Ctrl-C)."""
     from ... import style
     from ...logging_setup import log
@@ -224,7 +230,7 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
     store = SqliteStore(store_dir / "index.sqlite")
     try:
         srv = build_dashboard_server(store, store_dir, host=host, port=port,
-                                     config_path=config_path)
+                                     config_path=config_path, sample=sample)
         log(style.ok(f"Dashboard on http://{host}:{port}  (Ctrl-C to stop)"))
         if open_browser:
             import webbrowser

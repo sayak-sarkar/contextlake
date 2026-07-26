@@ -245,3 +245,41 @@ def test_settings_never_probes_connectors_live(store_dir, monkeypatch):
     monkeypatch.setattr(source_cmd, "verify_source", _boom)
     s, sd = store_dir
     kbdata.settings(s, sd)  # must not raise
+
+
+def test_settings_sample_mode_never_reads_the_real_ambient_config(store_dir, monkeypatch, tmp_path):
+    """``load_kb_config(None)`` merges ``~/.contextlake/kb.toml`` regardless of
+    ``config_path`` -- ``sample=True`` (the "safe to share" --sample demo fleet)
+    must bypass that precedence chain entirely, or a real connector/language
+    config sitting on the user's machine leaks into a surface billed as
+    "nothing local is read"."""
+    from contextlake.kb import config as kb_config
+
+    real_config = tmp_path / "real-ambient-kb.toml"
+    real_config.write_text(
+        '[kb]\nlanguages = ["cobol"]\n'
+        '[[sources]]\nname = "internal-gitlab"\ntype = "gitlab"\nenabled = true\n'
+    )
+    monkeypatch.setattr(kb_config, "GLOBAL_CONFIG", str(real_config))
+
+    s, sd = store_dir
+    real = kbdata.settings(s, sd)  # sanity: the ambient config really is picked up normally
+    assert real["languages"] == ["cobol"]
+    assert real["sources"] == [{"name": "internal-gitlab", "type": "gitlab", "enabled": True}]
+
+    out = kbdata.settings(s, sd, sample=True)
+    assert out["languages"] != ["cobol"]
+    assert out["sources"] == []
+
+
+def test_mcp_console_sample_mode_never_reads_the_real_ambient_config(
+        store_dir, monkeypatch, tmp_path):
+    from contextlake.kb import config as kb_config
+
+    real_config = tmp_path / "real-ambient-kb.toml"
+    real_config.write_text('[embeddings]\nenabled = true\nprovider = "builtin"\n')
+    monkeypatch.setattr(kb_config, "GLOBAL_CONFIG", str(real_config))
+
+    s, sd = store_dir
+    out = kbdata.mcp_console(s, sd, sample=True)
+    assert out["tool_count"] > 0  # still works, just skips the real embedder config

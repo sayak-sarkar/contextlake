@@ -3011,7 +3011,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Connector rows show configured status only, never a live connectivity probe
   (`contextlake source test <name>` already does that on demand; auto-probing
   every connector on every dashboard page load would be a surprising network
-  side effect from a read-only view).
+  side effect from a read-only view). Under `--sample`, both panels use bare
+  config defaults instead of the real precedence chain, so a real
+  `~/.contextlake/kb.toml` (languages, connectors, embedder/LLM settings) never
+  leaks into the fleet billed as "fictional data, nothing local is read".
 
 ## [2.50.0] - 2026-07-26
 
