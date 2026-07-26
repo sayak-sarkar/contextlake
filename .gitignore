@@ -40,3 +40,6 @@ coverage.xml
 # Local end-to-end testing sandbox: cloned public repos + isolated contextlake store.
 # Never committed (transient test data, can be large).
 playground/
+
+# Claude Code session state: agent worktrees, job scratch dirs. Local only.
+.claude/
