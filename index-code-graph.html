@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Index the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b21f111">
-<link rel="stylesheet" href="docs.css?v=b21f111">
-<link rel="stylesheet" href="cmdk.css?v=b21f111">
+<link rel="stylesheet" href="fonts.css?v=65b5a71">
+<link rel="stylesheet" href="docs.css?v=65b5a71">
+<link rel="stylesheet" href="cmdk.css?v=65b5a71">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -142,7 +142,7 @@ semantically searchable.</p>
 <p>It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a <strong>deliberate undercount</strong>.</p>
 <h3 id="entity-state-machines">Entity state machines<a class="anchor" href="#entity-state-machines" title="Link to this section">#</a></h3>
-<p>Guarded assignments to a status/state/stage field, <code>if order.status == Created: order.status = Paid</code> , 
+<p>Guarded assignments to a status/state/stage field (<code>if order.status == Created: order.status = Paid</code>)
 become <code>transitions_to</code> edges between <code>state</code> nodes, labeled with the method that makes the transition.
 Only <em>guarded</em> transitions are emitted: the source state must be established by a preceding comparison on
 the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
@@ -150,11 +150,11 @@ and C# (regex, every edge <code>INFERRED</code>). Render with <code>contextlake 
 (a Mermaid entity state machine), see <a href="visualize">Visualize</a>.</p>
 <p><code>transitions_to</code> is deliberately <strong>not</strong> in <code>impact</code>'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
-enum member is a language-level rename, not a graph-discoverable break), pass <code>--relation transitions_to</code>
+enum member is a language-level rename, not a graph-discoverable break); pass <code>--relation transitions_to</code>
 explicitly if you do want that walk.</p>
 <h3 id="intra-repo-dataflow-reads-and-writes">Intra-repo dataflow: reads and writes<a class="anchor" href="#intra-repo-dataflow-reads-and-writes" title="Link to this section">#</a></h3>
 <p>Application code querying a table or view it never explicitly imports still shows up in the graph: a
-literal <code>SELECT ... FROM</code> / <code>INSERT INTO</code> / <code>UPDATE ... SET</code> / <code>DELETE FROM</code> in a string (any language , 
+literal <code>SELECT ... FROM</code> / <code>INSERT INTO</code> / <code>UPDATE ... SET</code> / <code>DELETE FROM</code> in a string (any language,
 SQL text looks the same embedded anywhere) becomes a <code>reads</code> or <code>writes</code> edge from the file to the
 <code>table</code>/<code>view</code> node the SQL DDL extractor already found, resolved by name across the whole repo the same
 way an FK <code>references</code> edge is. A query against a table this repo never defines is an honest miss, not a
@@ -200,7 +200,7 @@ nested <code>children</code> compose into full paths and bare <code>{path:...}</
 <code>loadChildren</code> sub-trees, React <code>loader</code> / <code>lazy</code>, realtime / WebSocket channels, templates, and
 stylesheets.</p>
 <p><strong>Shared nodes aren't owned by one repo.</strong> An <code>endpoint</code>/<code>topic</code>/<code>module</code>/package node's id doesn't
-encode a repo, two repos that both import <code>requests</code>, call the same route, or publish to the same
+encode a repo: two repos that both import <code>requests</code>, call the same route, or publish to the same
 topic produce the identical node, which the store dedupes to one row. Its <code>repo</code> reads as a
 pseudo-repo (<code>"(shared)"</code>, <code>"(packages)"</code>) rather than any one real repo, by design: which repos
 actually touch it is a question the cross-repo edges answer, not the node itself.</p>
@@ -270,6 +270,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=b21f111"></script>
+<script defer src="cmdk.js?v=65b5a71"></script>
 </body>
 </html>

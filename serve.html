@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Serve (MCP) · contextlake docs">
 <meta name="twitter:description" content="Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serve (MCP)", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serve", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serve (MCP)", "item": "https://sayak.in/contextlake/serve"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serve (MCP)", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serve", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serve (MCP)", "item": "https://sayak.in/contextlake/serve"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b21f111">
-<link rel="stylesheet" href="docs.css?v=b21f111">
-<link rel="stylesheet" href="cmdk.css?v=b21f111">
+<link rel="stylesheet" href="fonts.css?v=65b5a71">
+<link rel="stylesheet" href="docs.css?v=65b5a71">
+<link rel="stylesheet" href="cmdk.css?v=65b5a71">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -78,7 +78,7 @@ server natively:</p>
   imports it, <strong><code>.windsurfrules</code></strong>, and <strong><code>.kiro/steering/</code></strong>.</li>
 <li>A merged <strong><code>.mcp.json</code></strong> entry for the <code>contextlake serve</code> server (Claude Code, Windsurf,
   Cursor, and other clients that read this file) and a merged <strong><code>.vscode/mcp.json</code></strong> entry for
-  VS Code, which uses a different top-level key (<code>servers</code>, not <code>mcpServers</code>), a distinct
+  VS Code, which uses a different top-level key (<code>servers</code>, not <code>mcpServers</code>): a distinct
   schema, so it gets its own file rather than reusing <code>.mcp.json</code>.</li>
 <li>A generic library of <strong>agent skills / workflows</strong> (<code>.claude/skills/</code>, <code>.windsurf/workflows/</code>):
   investigate-root-cause, plan-before-coding, surgical-change, review-before-landing,
@@ -104,7 +104,7 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>VS Code, in <code>.vscode/mcp.json</code> (note the <code>servers</code> key, a different schema from the
+<p>VS Code, in <code>.vscode/mcp.json</code> (note the <code>servers</code> key: a different schema from the
 <code>mcpServers</code> files above; <code>contextlake steer</code> writes this automatically):</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -120,7 +120,7 @@ the account/org level (<code>mcp.devin.ai</code>, with an API key and org header
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
 server the way it can for the clients above. Add <code>contextlake serve</code> there yourself, once, in
 Devin's own MCP settings. What <code>contextlake steer</code> <em>does</em> give Devin (and any agent that reads
-plain workspace context) is <code>AGENTS.md</code>, the portable part travels; the MCP wiring itself
+plain workspace context) is <code>AGENTS.md</code>: the portable part travels; the MCP wiring itself
 doesn't.</p>
 <h2 id="once-connected">Once connected<a class="anchor" href="#once-connected" title="Link to this section">#</a></h2>
 <p>Ask the agent things like <em>"where is <code>CatalogService</code> defined?"</em>, <em>"who calls <code>charge</code>?"</em>, or
@@ -161,6 +161,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=b21f111"></script>
+<script defer src="cmdk.js?v=65b5a71"></script>
 </body>
 </html>

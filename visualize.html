@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Visualize the graph · contextlake docs">
 <meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b21f111">
-<link rel="stylesheet" href="docs.css?v=b21f111">
-<link rel="stylesheet" href="cmdk.css?v=b21f111">
+<link rel="stylesheet" href="fonts.css?v=65b5a71">
+<link rel="stylesheet" href="docs.css?v=65b5a71">
+<link rel="stylesheet" href="cmdk.css?v=65b5a71">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -83,16 +83,16 @@ silently truncated.</p>
 <li><strong><code>sequencediagram</code></strong>, a <strong>Mermaid call-order trace</strong> from one seeded function, each caller's callees
   ordered by call-site line, the order they actually appear in the source: <code>contextlake graph --name
   process_order --format sequencediagram</code>. Needs exactly one seed (<code>--node</code>/<code>--name</code>/<code>--search</code>, not
-  <code>--repo</code>/<code>--overview</code>, there's no single obvious ordering across unrelated seeds), and depth follows
+  <code>--repo</code>/<code>--overview</code>; there's no single obvious ordering across unrelated seeds), and depth follows
   the view's own <code>--hops</code>. Recursion/cycles stop cleanly (a function already on the current call path
   isn't re-entered) instead of hanging.</li>
 <li><strong><code>statediagram</code></strong>, a <strong>Mermaid entity state machine</strong>: guarded assignments to a status/state/stage field
   (<code>if order.status == Created: order.status = Paid</code>) become transitions, labeled with the method that
-  makes them. Only <em>guarded</em> transitions are emitted, the source state must be established by a preceding
+  makes them. Only <em>guarded</em> transitions are emitted: the source state must be established by a preceding
   comparison on the same field, so a diagram never claims a transition the code doesn't actually establish
   (an honest undercount, not a guess). Best with <code>--repo</code>, like <code>classdiagram</code>: <code>contextlake graph --repo
   acme/app --format statediagram</code>. A <code>--name</code>/<code>--node</code> seed can reach the state nodes (via the file that
-  declares them) but not their transitions past the view's <code>--hops</code>, use <code>--repo</code> for the full picture.
+  declares them) but not their transitions past the view's <code>--hops</code>; use <code>--repo</code> for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.</li>
 <li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for Gephi / cytoscape / custom tooling.</li>
 </ul>
@@ -157,6 +157,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=b21f111"></script>
+<script defer src="cmdk.js?v=65b5a71"></script>
 </body>
 </html>

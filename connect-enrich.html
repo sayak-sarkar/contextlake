@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=b21f111">
-<link rel="stylesheet" href="docs.css?v=b21f111">
-<link rel="stylesheet" href="cmdk.css?v=b21f111">
+<link rel="stylesheet" href="fonts.css?v=65b5a71">
+<link rel="stylesheet" href="docs.css?v=65b5a71">
+<link rel="stylesheet" href="cmdk.css?v=65b5a71">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -76,7 +76,7 @@ and work alongside hand-editing if you mix approaches.</p>
 <p><strong><code>contextlake source add [--name NAME]</code></strong>: guided prompt to add a new connector. Asks for the connector
   type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to <code>kb.toml</code>. Pass
   <code>--type</code>, <code>--name</code>, and other flags to bypass the prompt (<code>--help</code> shows all). <code>--set KEY=VALUE</code>
-  (repeatable) writes any connector option <code>kb.toml</code> accepts, <code>token_env</code> included (see below), <code>--set
+  (repeatable) writes any connector option <code>kb.toml</code> accepts, <code>token_env</code> included (see below): <code>--set
   token_env=MY_TOKEN</code> is the flag form of that same pattern. <strong><code>--from-stdin KEY</code></strong> reads that one option's
   value from stdin instead of the command line, so a secret never lands in shell history: <code>printf '%s'
   "$TOKEN" | contextlake source add jira --type atlassian --from-stdin token</code>.</p>
@@ -255,6 +255,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=b21f111"></script>
+<script defer src="cmdk.js?v=65b5a71"></script>
 </body>
 </html>
