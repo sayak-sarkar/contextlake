@@ -894,6 +894,20 @@ def test_deployment_diagram_module_nodes_get_their_own_category():
     assert '"module.vpc"' in out
 
 
+def test_deployment_diagram_ignores_non_hcl_module_nodes():
+    """Regression: kind="module" isn't exclusive to Terraform -- kb/parse.py emits
+    kind="module" package nodes for every code language (lang="python"/"js"/etc).
+    A repo with both Terraform AND regular source files must not leak unrelated
+    source-module nodes into the deployment diagram."""
+    py_mod = Node(id="app_mod", repo="r", kind="module", name="app", lang="python")
+    vpc = _hcl_node("aws_vpc.main")
+    payload = viz.to_payload([py_mod, vpc], [])
+    out = viz.to_deployment_diagram(payload)
+    assert "app" not in out
+    assert '"aws_vpc.main"' in out
+    assert "subgraph" not in out  # single real (HCL) category -> flat
+
+
 def test_deployment_diagram_data_block_categorized_by_its_type_not_the_literal_data_prefix():
     """Regression: kb/hcl.py addresses a `data` block as `data.<type>.<name>`
     (_address_for_block), so naively splitting on the first dot yields the

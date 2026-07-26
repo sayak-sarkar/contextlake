@@ -165,6 +165,48 @@ def test_repo_relationships_bulk_matches_per_repo(store_dir):
             assert sorted(map(repr, bulk[rid][key])) == sorted(map(repr, per[key]))
 
 
+def test_diagram_classdiagram_renders_the_fixtures_class_node(store_dir):
+    # team/app's app_catalogservice node (kind="class") from the store_dir fixture
+    s, _ = store_dir
+    d = kbdata.diagram(s, "team/app", "classdiagram")
+    assert d["format"] == "classdiagram"
+    assert "CatalogService" in d["text"]
+    assert d["text"].startswith("classDiagram")
+
+
+def test_diagram_erdiagram_is_an_honest_empty_view_when_no_tables(store_dir):
+    # the fixture has no table/view nodes -- must say so, not look silently broken
+    s, _ = store_dir
+    d = kbdata.diagram(s, "team/app", "erdiagram")
+    assert d["text"].startswith("erDiagram")
+    assert "no table/view definitions" in d["text"]
+
+
+def test_diagram_deploymentdiagram_is_an_honest_empty_view_when_no_terraform(store_dir):
+    s, _ = store_dir
+    d = kbdata.diagram(s, "team/app", "deploymentdiagram")
+    assert d["text"].startswith("graph TD")
+    assert "no Terraform" in d["text"]
+
+
+def test_diagram_mermaid_generic_format_always_available(store_dir):
+    s, _ = store_dir
+    d = kbdata.diagram(s, "team/app", "mermaid")
+    assert d["text"].startswith("graph LR")
+    assert "CatalogService" in d["text"]
+
+
+def test_diagram_rejects_sequencediagram_and_unknown_formats():
+    s = SqliteStore(":memory:")
+    try:
+        for fmt in ("sequencediagram", "not-a-real-format"):
+            d = kbdata.diagram(s, "team/app", fmt)
+            assert d["error"] == "unknown format"
+            assert "text" not in d
+    finally:
+        s.close()
+
+
 def test_impact_blast_radius_and_name_fallback(store_dir):
     s, _ = store_dir
     by_id = kbdata.impact(s, "app_catalogservice")

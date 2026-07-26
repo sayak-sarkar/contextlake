@@ -356,6 +356,44 @@ def repo_relationships(store, repo_id: str) -> dict:
     }
 
 
+# Formats offered on a repo's Diagrams tab. sequencediagram is deliberately excluded:
+# it needs a single symbol seed (graph --node/--name/--search), not a repo-wide view,
+# so a repo-scoped payload would render its "needs exactly one seed" placeholder every
+# time -- see kb/visualize/diagrams.py::to_sequence_diagram's docstring.
+DIAGRAM_FORMATS = ("mermaid", "classdiagram", "statediagram", "erdiagram", "deploymentdiagram")
+
+
+def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500) -> dict:
+    """Render one of :data:`DIAGRAM_FORMATS` for a repo's internal graph.
+
+    Reuses the exact ``repo_subgraph`` -> ``to_payload`` -> renderer pipeline
+    ``contextlake graph --repo <repo> --format <fmt>`` already uses (no new
+    extraction, no new rendering logic) -- this is the CLI's own output, now also
+    reachable from the dashboard.
+    """
+    from .. import visualize as viz
+
+    if fmt not in DIAGRAM_FORMATS:
+        return {"repo": sanitize_label(repo_id), "format": fmt, "error": "unknown format"}
+
+    meta: dict = {"mode": "repo", "repo": repo_id}
+    nodes, edges = viz.repo_subgraph(store, repo_id, max_nodes=max_nodes, meta=meta)
+    payload = viz.to_payload(nodes, edges, meta)
+    renderer = {
+        "mermaid": viz.to_mermaid,
+        "classdiagram": viz.to_class_diagram,
+        "statediagram": viz.to_state_diagram,
+        "erdiagram": viz.to_er_diagram,
+        "deploymentdiagram": viz.to_deployment_diagram,
+    }[fmt]
+    return {
+        "repo": sanitize_label(repo_id),
+        "format": fmt,
+        "text": renderer(payload),
+        "truncated": bool(meta.get("truncated")),
+    }
+
+
 def repo_relationships_bulk(store, repo_ids) -> dict:
     """``repo_relationships`` for many repos with THREE edge scans total, not three per
     repo. ``repo_relationships`` rescans every edge each call, so building a snapshot for

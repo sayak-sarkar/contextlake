@@ -72,11 +72,29 @@ def test_repo_detail_and_rel_endpoints(served):
     assert set(rel) == {"dependencies", "http_flow", "event_flow"}
 
 
+def test_repo_diagram_endpoint(served):
+    body = json.loads(_get(served + "/api/repo/team/app/diagram?format=classdiagram"))
+    assert body["format"] == "classdiagram"
+    assert "CatalogService" in body["text"]
+    # default format (no ?format=) is the generic mermaid relation graph
+    default = json.loads(_get(served + "/api/repo/team/app/diagram"))
+    assert default["format"] == "mermaid"
+    unknown = json.loads(_get(served + "/api/repo/team/app/diagram?format=bogus"))
+    assert unknown["error"] == "unknown format"
+
+
 def test_shell_and_graph_routes(served):
     shell = _get(served + "/").lower()
     assert b"<html" in shell and b'id="app"' in shell
     graph = _get(served + "/graph/overview").lower()
     assert b"<html" in graph and b"cytoscape" in graph
+
+
+def test_mermaid_asset_served_for_diagrams_tab(served):
+    # vendored offline (kb/dashboard/static/), lazy-loaded client-side by
+    # dashboard.js only when the Diagrams tab is first opened
+    body = _get(served + "/mermaid.min.js")
+    assert len(body) > 1_000_000  # the full ~3.5MB bundle, not a stub/404 page
 
 
 def test_mcp_console_endpoint(served):

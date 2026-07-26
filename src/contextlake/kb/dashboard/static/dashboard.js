@@ -117,6 +117,14 @@
     health: function () {
       return MODE === "static" ? Promise.resolve(SNAP.health) : fetchJSON("/api/health");
     },
+    // Diagrams render existing graph data through kb/visualize/ (the same text
+    // `contextlake graph --format ...` produces) -- nothing to snapshot as a
+    // portable static export any more than MCP/Settings are, so static rejects
+    // and asyncPanel's existing live-only empty state takes over.
+    diagram: function (id, fmt) {
+      return MODE === "static" ? Promise.reject(new Error("live only"))
+        : fetchJSON("/api/repo/" + encPath(id) + "/diagram?format=" + encodeURIComponent(fmt));
+    },
     impact: function (seed, hops, limit) {
       if (MODE === "static") {
         var rec = (SNAP.impact && SNAP.impact[seed]) || null;
@@ -482,7 +490,7 @@
           h("button", { class: "cl-btn cl-btn--primary", type: "button", onclick: function () { go("#/arch/" + id); } },
             h("span", { html: icon("ui-arch") }), "View in architecture"))));
 
-      var tabs = ["anatomy", "readme", "wiki", "owners", "links"];
+      var tabs = ["anatomy", "readme", "wiki", "owners", "links", "diagrams"];
       var cur = tabs.indexOf(tab) >= 0 ? tab : "anatomy";
       var strip = h("div", { class: "cl-tabs", role: "tablist" });
       var pane = h("div", { class: "cl-panel__body" });
@@ -569,7 +577,117 @@
         });
         pane.appendChild(card);
       });
+    } else if (tab === "diagrams") {
+      renderDiagramsTab(pane, d, id);
     }
+  }
+
+  // ---- Diagrams (repo page) ----------------------------------------------
+  // Formats offered here mirror `contextlake graph --repo <id> --format <fmt>` --
+  // same payload, same renderers (kb/visualize/), nothing new extracted. Each
+  // renderer already degrades to an honest "no X in this view" placeholder, but
+  // `avail` still gates the tab itself so the switcher only offers formats that
+  // are actually meaningful for this repo (using kinds the anatomy tab already
+  // fetched). sequencediagram is deliberately absent: it needs a single symbol
+  // seed, not a repo-wide view (see kb/dashboard/data.py's DIAGRAM_FORMATS).
+  var DIAGRAM_FORMATS = [
+    { fmt: "mermaid", label: "Relations", avail: function () { return true; } },
+    { fmt: "classdiagram", label: "Classes",
+      avail: function (k) { return !!(k.class || k.interface || k.struct || k.enum); } },
+    { fmt: "statediagram", label: "States", avail: function (k) { return !!k.state; } },
+    { fmt: "erdiagram", label: "Data model", avail: function (k) { return !!(k.table || k.view); } },
+    { fmt: "deploymentdiagram", label: "Deployment",
+      avail: function (k) { return !!(k.resource || k.data); } }
+  ];
+  var mermaidLoadPromise = null;
+  function loadMermaid() {
+    if (window.mermaid) return Promise.resolve(window.mermaid);
+    if (mermaidLoadPromise) return mermaidLoadPromise;
+    mermaidLoadPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = "mermaid.min.js";
+      s.onload = function () {
+        // strict: no click/tooltip callbacks execute from rendered diagram text --
+        // repo content (symbol names, table names, ...) is untrusted input. Theme
+        // is (re-)applied per render in mermaidCard, not here, so a light/dark
+        // toggle takes effect on the next render without reloading the script.
+        window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+        resolve(window.mermaid);
+      };
+      s.onerror = function () { reject(new Error("failed to load mermaid.min.js")); };
+      document.head.appendChild(s);
+    });
+    return mermaidLoadPromise;
+  }
+  var mermaidRenderSeq = 0;
+  function mermaidCard(text) {
+    var svgBox = h("div", { class: "cl-mermaid" }, h("p", { class: "cl-muted" }, "Rendering…"));
+    var seq = ++mermaidRenderSeq;
+    loadMermaid()
+      .then(function (mermaid) {
+        // re-applied on every render (not just at load) so a diagram opened
+        // before a light/dark toggle still switches theme on the next render.
+        mermaid.initialize({ startOnLoad: false, securityLevel: "strict",
+          theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default" });
+        return mermaid.render("cl-mmd-" + seq, text);
+      })
+      .then(function (out) {
+        if (seq !== mermaidRenderSeq) return; // a newer render superseded this one
+        // out.svg is already DOMPurify-sanitized by mermaid itself (securityLevel
+        // "strict" above) -- this is mermaid's own documented safe integration
+        // point for untrusted diagram text (repo symbol/table/resource names).
+        clear(svgBox); svgBox.innerHTML = out.svg;
+      })
+      .catch(function (e) {
+        if (seq !== mermaidRenderSeq) return;
+        clear(svgBox);
+        svgBox.appendChild(stateBlock({
+          kind: "error", title: "Couldn't render this diagram",
+          msg: String((e && e.message) || e)
+        }));
+      });
+    return h("div", { class: "cl-panel__body" }, svgBox, copyCard("Mermaid source", text));
+  }
+  function renderDiagramsTab(pane, d, id) {
+    if (MODE === "static") { pane.appendChild(stateBlock({
+      kind: "unavailable", title: "Diagrams are live-only",
+      msg: "This static export has no running server behind it.",
+      cmd: "contextlake dashboard --serve",
+      action: genAction("Run live server", "contextlake dashboard --serve")
+    })); return; }
+    var kinds = (d.brief && d.brief.kinds) || {};
+    var available = {};
+    DIAGRAM_FORMATS.forEach(function (f) { available[f.fmt] = f.avail(kinds); });
+    var strip = h("div", { class: "cl-tabs", role: "tablist" });
+    var body = h("div", { class: "cl-panel__body" });
+
+    function renderFmt(fmt) {
+      strip.querySelectorAll(".cl-tab").forEach(function (btn) {
+        btn.setAttribute("aria-selected", String(btn.dataset.fmt === fmt));
+      });
+      clear(body); body.appendChild(skeleton(1));
+      CL.data.diagram(id, fmt).then(function (res) {
+        clear(body);
+        if (res.error) { body.appendChild(stateBlock({ kind: "error", title: "Unknown diagram format" })); return; }
+        body.appendChild(mermaidCard(res.text));
+      }).catch(function (e) {
+        clear(body);
+        body.appendChild(stateBlock({ kind: "error", title: "Couldn't load this diagram", msg: String(e) }));
+      });
+    }
+    DIAGRAM_FORMATS.forEach(function (f) {
+      var isAvail = available[f.fmt];
+      var btn = h("button", {
+        class: "cl-tab", role: "tab", type: "button", "aria-selected": "false",
+        dataset: { fmt: f.fmt }, disabled: !isAvail,
+        title: isAvail ? null : ("No " + f.label.toLowerCase() + " data in this repo")
+      }, f.label);
+      if (isAvail) btn.addEventListener("click", function () { renderFmt(f.fmt); });
+      strip.appendChild(btn);
+    });
+    pane.appendChild(strip); pane.appendChild(body);
+    var firstFmt = DIAGRAM_FORMATS.filter(function (f) { return available[f.fmt]; })[0] || DIAGRAM_FORMATS[0];
+    renderFmt(firstFmt.fmt);
   }
 
   // ---- Architecture -----------------------------------------------------

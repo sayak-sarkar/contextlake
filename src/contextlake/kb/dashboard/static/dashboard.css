@@ -487,6 +487,13 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
   background: var(--cl-surface-2); padding: var(--sp-3); border-radius: var(--cl-radius-sm);
   overflow-x: auto; margin: 0; }
 
+/* ---- Diagrams tab (repo page): format switcher + rendered Mermaid SVG --- */
+.cl-tab[disabled] { color: var(--cl-ink-faint, var(--cl-ink-muted)); opacity: .5;
+  cursor: not-allowed; }
+.cl-mermaid { background: var(--cl-surface); border: 1px solid var(--cl-line);
+  border-radius: var(--cl-radius); padding: var(--sp-4); overflow: auto; }
+.cl-mermaid svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+
 /* ---- Density ------------------------------------------------------------ */
 [data-density="compact"] { --sp-6: 16px; --sp-5: 14px; --sp-4: 10px; --fs-700: 1.7rem; }
 [data-density="compact"] .cl-table th, [data-density="compact"] .cl-table td { padding: 4px 10px; }

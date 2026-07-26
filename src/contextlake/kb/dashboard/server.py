@@ -59,6 +59,11 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     assets = {
         "dashboard.js": (_static("dashboard.js"), "application/javascript"),
         "dashboard.css": (_static("dashboard.css"), "text/css"),
+        # Lazy-loaded by dashboard.js only when the Diagrams tab is first opened
+        # (it's ~3.5MB, unlike dashboard.js/css above) -- still read eagerly here
+        # at server-build time like the others, that cost is server-side memory,
+        # not a browser fetch.
+        "mermaid.min.js": (_static("mermaid.min.js"), "application/javascript"),
     }
 
     # The cross-linked graph pages reuse the cytoscape visualizer. Build the fleet
@@ -167,6 +172,10 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 if rest.endswith("/rel"):
                     repo_id = urllib.parse.unquote(rest[:-len("/rel")])
                     return 200, _json_bytes(kbdata.repo_relationships(req, repo_id))
+                if rest.endswith("/diagram"):
+                    repo_id = urllib.parse.unquote(rest[:-len("/diagram")])
+                    fmt = (q.get("format") or ["mermaid"])[0]
+                    return 200, _json_bytes(kbdata.diagram(req, repo_id, fmt))
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
             if path == "/api/mcp":

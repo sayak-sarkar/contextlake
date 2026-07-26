@@ -73,7 +73,25 @@ one-click **Blast radius**, and every fact carries its provenance.
 
 ![A repo's anatomy: kinds and top symbols](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png)
 
-## 5. Architecture & relationships
+## 5. Diagrams
+
+A repo's **Diagrams** tab renders the same Mermaid text `contextlake graph --repo <id>
+--format <fmt>` produces, inline as SVG: **Relations** (the generic relation graph,
+always available), **Classes** (classes/interfaces/structs/enums and their methods),
+**States** (an entity's guarded state-machine transitions), **Data model** (SQL `table`/
+`view` definitions and their foreign keys), and **Deployment** (Terraform/HCL resources
+grouped by inferred category: network/compute/storage/database/security/module).
+
+No new extraction: each tab renders data `index` already collected. A format is only
+enabled when the repo actually has the relevant node kind (e.g. **Classes** stays
+disabled for a repo with no classes) — this is read from the same anatomy census the
+repo page's Kinds card already shows, not a separate check. The raw Mermaid source sits
+below the rendered diagram with a one-click copy, for pasting into a PR or design doc.
+
+Live-only (not part of a `--site` export, same as MCP console/Settings below) — Mermaid
+itself is lazy-loaded into the page only the first time this tab is opened.
+
+## 6. Architecture & relationships
 
 The cross-repo dependency graph, a **namespace** mindmap and a **dependency** flow,
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
@@ -81,7 +99,7 @@ confidence and provenance (never shown as ground truth).
 
 ![The architecture graph: cross-repo dependencies](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png)
 
-## 6. Change impact (blast radius)
+## 7. Change impact (blast radius)
 
 Pick a symbol (from search or a repo's symbol list) and see what a change would touch,
 hop by hop, with the confidence of each path.
@@ -93,7 +111,7 @@ that symbol's repo-scoped architecture graph, curated wiki, and connector links 
 Wiki and Links only appear when the repo actually has one: an absent wiki or connector link is omitted
 from the trail, never shown as a dead crumb.
 
-## 7. Generate a wiki
+## 8. Generate a wiki
 
 No wiki for a repo yet? Its **Wiki** tab hands you the exact command (one click to copy):
 
@@ -109,7 +127,7 @@ footer citing the exact commit and source files.
 
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
-## 8. MCP console & Settings
+## 9. MCP console & Settings
 
 Two read-only panels, live-only (not part of a `--site` export; both describe this
 machine/process, not the graph itself):

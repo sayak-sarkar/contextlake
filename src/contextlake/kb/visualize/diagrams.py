@@ -389,8 +389,12 @@ def to_deployment_diagram(payload: dict) -> str:
     a repo with no ``.tf`` files renders an honest empty diagram with guidance,
     not a bug.
     """
+    # "module" (and, in principle, "resource"/"data") aren't exclusive to HCL --
+    # kb/parse.py emits kind="module" package nodes for every code language. Gate
+    # on lang="hcl" too, or a repo with both Terraform AND regular source files
+    # would leak unrelated Python/JS/etc. module nodes into this diagram.
     by_id = {n["id"]: n for n in payload["nodes"]
-            if n.get("kind") in ("resource", "data", "module")}
+            if n.get("kind") in ("resource", "data", "module") and n.get("lang") == "hcl"}
     if not by_id:
         return ("graph TD\n"
                 "  %% no Terraform resource/data/module definitions in this view --\n"
