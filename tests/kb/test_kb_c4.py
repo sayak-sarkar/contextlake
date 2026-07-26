@@ -384,7 +384,7 @@ def test_graph_c4_erdiagram_rejected(tmp_path, capsys):
 def test_graph_c4_deployment_rejected(tmp_path, capsys):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--format", "deployment", "--config", str(cfg)])
+        main(["graph", "--c4", "--format", "deploymentdiagram", "--config", str(cfg)])
     assert e.value.code != 0
     err = capsys.readouterr().err
     assert "not supported for --c4" in err

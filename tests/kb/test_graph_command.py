@@ -894,6 +894,21 @@ def test_deployment_diagram_module_nodes_get_their_own_category():
     assert '"module.vpc"' in out
 
 
+def test_deployment_diagram_data_block_categorized_by_its_type_not_the_literal_data_prefix():
+    """Regression: kb/hcl.py addresses a `data` block as `data.<type>.<name>`
+    (_address_for_block), so naively splitting on the first dot yields the
+    literal string "data" -- which matches no keyword and would silently file
+    every data resource under "other" regardless of its real type."""
+    db = _hcl_node("data.aws_db_instance.orders", kind="data")
+    lam = _hcl_node("aws_lambda_function.worker")
+    payload = viz.to_payload([db, lam], [])
+    out = viz.to_deployment_diagram(payload)
+    assert "subgraph database" in out
+    assert "subgraph other" not in out
+    db_section = out.split("subgraph database")[1].split("end")[0]
+    assert '"data.aws_db_instance.orders"' in db_section
+
+
 def test_deployment_diagram_empty_view_explains_terraform_only_not_silently():
     out = viz.to_deployment_diagram(viz.to_payload([], []))
     assert out.startswith("graph TD")

@@ -81,7 +81,9 @@ references across files in a repo. `resource` nodes are semantically searchable.
 
 Resolution is repo-wide, so a block address defined identically in separate root-module directories (for
 example `environments/prod` and `environments/staging`) surfaces as an `AMBIGUOUS` edge; directory-scoped
-resolution is a future refinement.
+resolution is a future refinement. Render it with `contextlake graph --repo <repo> --format
+deploymentdiagram` (a Mermaid flowchart grouped by inferred category: network/compute/storage/
+database/security/module), see [Visualize](visualize.md).
 
 ### Databases: SQL DDL
 

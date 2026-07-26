@@ -284,7 +284,7 @@ def _root_hidden_flags(p):
     add("--retriever", choices=("fts", "semantic", "hybrid"))
     add("--direction", choices=["in", "out", "both"])
     add("--format", choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram",
-                             "statediagram", "erdiagram", "deployment", "json"])
+                             "statediagram", "erdiagram", "deploymentdiagram", "json"])
     add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"])
     add("--site", nargs="?", const="")
 
@@ -567,7 +567,7 @@ Examples:
   contextlake graph --node ID --format sequencediagram      call-order trace (Mermaid)
   contextlake graph --repo acme/app --format statediagram   entity state machine (Mermaid)
   contextlake graph --repo acme/app --format erdiagram       table/view ER diagram (Mermaid)
-  contextlake graph --repo acme/app --format deployment      Terraform resource diagram (Mermaid)
+  contextlake graph --repo acme/app --format deploymentdiagram   Terraform diagram (Mermaid)
   contextlake graph --serve                           live click-to-expand UI
   contextlake graph --site                            offline cross-linked site
   contextlake graph --c4 --group-depth 2              composed namespace (C4) diagram
@@ -584,7 +584,7 @@ Examples:
                    help="composed namespace (C4-style) diagram: repos bucketed into "
                         "namespace boundaries with aggregated cross-repo edges "
                         "(--format dot|html|json; not mermaid/classdiagram/"
-                        "sequencediagram/statediagram/erdiagram/deployment)")
+                        "sequencediagram/statediagram/erdiagram/deploymentdiagram)")
     p.add_argument("--c1", action="store_true", default=_S,
                    help="with --c4: add external-system boxes for HTTP calls that "
                         "never resolve to any indexed repo's exposed route "
@@ -603,15 +603,15 @@ Examples:
                    help="edge direction to follow (default both)")
     p.add_argument("--format", default=_S,
                    choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram",
-                           "statediagram", "erdiagram", "deployment", "json"],
+                           "statediagram", "erdiagram", "deploymentdiagram", "json"],
                    help="output format (default html; classdiagram = UML Mermaid; "
                         "sequencediagram = Mermaid call-order trace, needs --node/--name/--search; "
                         "statediagram = Mermaid entity state machine from guarded field "
                         "assignments, best with --repo (a --name/--node seed reaches "
                         "state nodes but not their transitions past --hops 2); "
                         "erdiagram = Mermaid table/view ER diagram from SQL DDL, no "
-                        "attribute data, empty for ORM-only schemas; deployment = Mermaid "
-                        "Terraform resource diagram grouped by inferred category "
+                        "attribute data, empty for ORM-only schemas; deploymentdiagram = "
+                        "Mermaid Terraform resource diagram grouped by inferred category "
                         "(network/compute/storage/database/security), Terraform-only)")
     p.add_argument("--layout", default=_S,
                    choices=["cose", "concentric", "breadthfirst", "circle", "grid"],

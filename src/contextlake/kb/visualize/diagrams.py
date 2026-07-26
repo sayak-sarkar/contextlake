@@ -400,7 +400,13 @@ def to_deployment_diagram(payload: dict) -> str:
     def category_of(n: dict) -> str:
         if n["kind"] == "module":
             return "module"
-        return _resource_category((n.get("name") or "").split(".", 1)[0])
+        name = n.get("name") or ""
+        # A `data` block's address is `data.<type>.<name>` (kb/hcl.py's
+        # _address_for_block), so the type prefix is the *second* dot-segment,
+        # not the first ("data" itself never matches any keyword).
+        if n["kind"] == "data" and name.startswith("data."):
+            name = name[len("data."):]
+        return _resource_category(name.split(".", 1)[0])
 
     by_category: dict[str, list[str]] = {}
     for nid, n in by_id.items():

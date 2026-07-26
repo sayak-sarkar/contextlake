@@ -61,10 +61,10 @@ Output is chosen with `--format`:
   so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL** — an
   ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
   text anywhere) renders an empty diagram with guidance, not a bug.
-- **`deployment`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module` definitions
-  grouped by an inferred category (network/compute/storage/database/security/module), from the HCL
-  extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake graph --repo acme/infra
-  --format deployment`. Category is a keyword heuristic over the resource type prefix (e.g.
+- **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
+  definitions grouped by an inferred category (network/compute/storage/database/security/module),
+  from the HCL extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake graph --repo
+  acme/infra --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
   `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
   type-name interpolation references draw the connections between resources. A single-category view
   renders flat (no subgraph wrapper). **Terraform-only** (HCL is the only IaC language the extractor
@@ -94,8 +94,8 @@ contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pastea
 Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
 compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
 cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
-`statediagram`, `erdiagram`, and `deployment` aren't supported with `--c4` (the command exits with an
-error), and `--serve` doesn't apply either, the C4 view is a generated file, not a live server.
+`statediagram`, `erdiagram`, and `deploymentdiagram` aren't supported with `--c4` (the command exits
+with an error), and `--serve` doesn't apply either, the C4 view is a generated file, not a live server.
 
 ### C1: external systems
 
