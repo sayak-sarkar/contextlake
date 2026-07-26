@@ -789,7 +789,7 @@ def verify_jsonld():
 
 def main():
     md = markdown.Markdown(
-        extensions=["tables", "fenced_code", "codehilite", "toc", "sane_lists", "md_in_html"],
+        extensions=["tables", "pymdownx.superfences", "codehilite", "toc", "sane_lists", "md_in_html"],
         extension_configs={
             "codehilite": {"guess_lang": False},
             "toc": {"permalink": "#", "permalink_class": "anchor",

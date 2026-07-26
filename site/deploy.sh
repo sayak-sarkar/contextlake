@@ -3,7 +3,7 @@
 #
 #   ./site/deploy.sh
 #
-# Requires: python with `markdown` installed, and push access to origin.
+# Requires: python with `markdown` and `pymdown-extensions` installed, and push access to origin.
 # Diagram/icon assets are regenerated separately via site/tools/*.py.
 set -euo pipefail
 
