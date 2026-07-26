@@ -274,12 +274,28 @@ def test_settings_sample_mode_never_reads_the_real_ambient_config(store_dir, mon
 
 def test_mcp_console_sample_mode_never_reads_the_real_ambient_config(
         store_dir, monkeypatch, tmp_path):
+    """A fixture store has no embeddings.sqlite, so semantic_available is false
+    either way -- that alone can't prove the fix, since build_embedder's input
+    never surfaces in the response. Assert on the input to build_embedder
+    directly instead."""
     from contextlake.kb import config as kb_config
+    from contextlake.kb import embeddings as kb_embeddings
 
     real_config = tmp_path / "real-ambient-kb.toml"
     real_config.write_text('[embeddings]\nenabled = true\nprovider = "builtin"\n')
     monkeypatch.setattr(kb_config, "GLOBAL_CONFIG", str(real_config))
 
+    seen_cfgs = []
+    real_build_embedder = kb_embeddings.build_embedder
+
+    def _spy(cfg):
+        seen_cfgs.append(cfg)
+        return real_build_embedder(cfg)
+
+    monkeypatch.setattr(kb_embeddings, "build_embedder", _spy)
+
     s, sd = store_dir
-    out = kbdata.mcp_console(s, sd, sample=True)
-    assert out["tool_count"] > 0  # still works, just skips the real embedder config
+    kbdata.mcp_console(s, sd, sample=True)
+    assert len(seen_cfgs) == 1
+    assert seen_cfgs[0].enabled is False  # bare KbConfig default, not the real ambient config
+    assert seen_cfgs[0].provider != "builtin"
