@@ -3046,6 +3046,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--work-d` expected a value. Now correctly reports `unrecognized arguments:
   --work-d`, the same message the no-trailing-token and subcommand-scope forms
   of this mistake already got right.
+- **Dashboard/graph architecture view: repo labels no longer overlap when a
+  namespace cluster expands.** The mindmap drill-in's grid layout only spaced
+  node *shapes* apart (`avoidOverlap`), not their label text, so adjacent
+  repos with longer names (`catalog-api`, `auth-service`, `shared-lib`) ran
+  into each other. Now accounts for label width
+  (`nodeDimensionsIncludeLabels`) and uses more generous cell spacing.
 
 ## [2.51.0] - 2026-07-26
 

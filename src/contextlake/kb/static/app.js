@@ -208,7 +208,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
         nodeRepulsion:function(){ return 14000; },
         idealEdgeLength:function(){ return 120; }, edgeElasticity:function(){ return 80; } };
     if(name === "concentric") return { name:"concentric", animate:false, padding:40,
-        minNodeSpacing:28, concentric:function(n){ return n.degree(false); },
+        minNodeSpacing:28, nodeDimensionsIncludeLabels:true,
+        concentric:function(n){ return n.degree(false); },
         levelWidth:function(){ return 2; } };
     if(name === "breadthfirst") return { name:"breadthfirst", animate:false, padding:40,
         spacingFactor:1.5, circle:false };
@@ -363,9 +364,14 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     // stays tight instead of a wide ring that collides with other namespaces. fit:false
     // is essential — a fitting sub-layout in the zoom path would re-fire "zoom" forever.
     var cx = nsNode.position("x"), cy0 = nsNode.position("y");
-    var cols = Math.max(1, Math.ceil(Math.sqrt(kids.length))), sp = 72;
+    // sp must clear a typical repo-name label's rendered width, not just the node's
+    // own glyph circle -- avoidOverlap alone only keeps the circles apart, so two
+    // adjacent long names (e.g. "catalog-api" / "auth-service") still ran into each
+    // other at the old 72px spacing.
+    var cols = Math.max(1, Math.ceil(Math.sqrt(kids.length))), sp = 130;
     var w = cols * sp, h = Math.ceil(kids.length / cols) * sp;
-    kids.layout({ name: "grid", animate: false, fit: false, avoidOverlap: true, condense: true,
+    kids.layout({ name: "grid", animate: false, fit: false, avoidOverlap: true,
+      nodeDimensionsIncludeLabels: true, condense: true,
       boundingBox: { x1: cx - w / 2, y1: cy0 + 56, w: w, h: h } }).run();
     return kids;
   }
