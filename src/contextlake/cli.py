@@ -14,7 +14,9 @@ Entry points (all equivalent):
 """
 
 import argparse
+import difflib
 import os
+import re
 import sys
 
 from . import __version__
@@ -58,6 +60,40 @@ _SCALAR_FLAGS = (
 # CLI verb aliases: the MCP tools call these capabilities who_knows / blast_radius,
 # so the CLI accepts the same vocabulary. Purely additive; the canonical verbs stay.
 _ALIASES = {"who-knows": "owners", "blast-radius": "impact"}
+
+
+class _RootArgumentParser(argparse.ArgumentParser):
+    """Replaces argparse's raw N-choice dump for a mistyped subcommand with a
+    concise 'did you mean' suggestion -- the same difflib pattern the knowledge
+    layer already uses for unknown repo ids (see _repo_id_suggestions).
+    """
+
+    _BAD_COMMAND_RE = re.compile(r"^argument <command>: invalid choice: '([^']+)'")
+
+    def error(self, message):
+        m = self._BAD_COMMAND_RE.match(message)
+        if m:
+            self.exit(2, self._unknown_command_text(m.group(1)))
+        super().error(message)
+
+    def _unknown_command_text(self, bad):
+        from . import style
+
+        choices = getattr(self, "_command_choices", {})
+        # Match against every name INCLUDING aliases -- a typo of "blast-radius"
+        # is lexically close to that alias, not to "impact" -- then translate
+        # the winner to the canonical verb for display, matching what --help
+        # teaches (a mistyped "blast-radiu" should suggest "impact").
+        matches = difflib.get_close_matches(bad, list(choices), n=1, cutoff=0.5)
+        suggestion = _ALIASES.get(matches[0], matches[0]) if matches else None
+
+        lines = [style.fail(f"Unknown command: {bad!r}")]
+        if suggestion:
+            lines.append("")
+            lines.append(f"Did you mean: {suggestion}?")
+        lines.append("")
+        lines.append(f"Run '{self.prog} --help' to see all commands.")
+        return "\n".join(lines) + "\n"
 
 # Verbs handled by the optional knowledge layer (the [kb] extra).
 _KB_COMMANDS = frozenset({
@@ -210,12 +246,13 @@ def _root_hidden_flags(p):
 
 def build_parser():
     """Build the argument parser. Kept separate from main() so it is testable."""
-    parser = argparse.ArgumentParser(
+    parser = _RootArgumentParser(
         prog="contextlake",
         description="A local context layer for AI tools: mirror your repositories, "
                     "index them into a knowledge graph, and serve it over MCP so agents "
                     "answer from real source instead of guessing.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
         epilog="""
 Get started:
   contextlake init                          guided setup: write your config (start here)
@@ -226,6 +263,9 @@ Get started:
   contextlake dashboard --serve --sample    explore a demo fleet, zero setup
 
 Run 'contextlake <command> --help' for that command's flags and examples.
+
+Docs:   https://sayak.in/contextlake
+Issues: https://github.com/sayak-sarkar/contextlake/issues
         """,
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -235,10 +275,14 @@ Run 'contextlake <command> --help' for that command's flags and examples.
 
     sub = parser.add_subparsers(dest="command", metavar="<command>",
                                 title="commands", required=False)
+    # sub.choices is mutated in place as add_parser() is called below, so this
+    # reference is fully populated by the time error() can ever run.
+    parser._command_choices = sub.choices
 
     def command(name, help_, *, aliases=(), epilog=None):
         p = sub.add_parser(name, help=help_, description=help_, aliases=list(aliases),
-                           epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
+                           epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter,
+                           allow_abbrev=False)
         _add_global(p)
         return p
 

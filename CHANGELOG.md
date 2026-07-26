@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A mistyped subcommand now suggests the closest real one** instead of
+  dumping argparse's raw 30-item choice list (`contextlake fetc` →
+  `Did you mean: fetch?`). Reuses the same `difflib`-based fuzzy match already
+  powering unknown-repo-id suggestions. Matches against every command
+  including aliases, then always displays the canonical verb — a typo of
+  `blast-radius` suggests `impact`, matching what `--help` teaches (`cli.py`).
+- **`--help` now links to the docs site and the issue tracker**
+  (`https://sayak.in/contextlake`, GitHub issues) so a stuck user isn't a
+  search engine query away from either.
+
 ### Changed
+
+- **Flags can no longer be silently abbreviated** (`--work-d` used to resolve
+  to `--work-dir` via argparse's default `allow_abbrev=True`). Disabled on the
+  root parser and every subcommand parser — an unrecognized long flag is now
+  a clear error instead of an undocumented shortcut that breaks the moment a
+  new flag creates an ambiguity.
 
 - **`contextlake update` no longer just reports a deleted upstream branch and
   waits for the user to run `branches` by hand.** A tracked branch missing on
