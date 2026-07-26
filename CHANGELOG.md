@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Mermaid diagrams (`to_mermaid`/`to_class_diagram`/`to_sequence_diagram`) could emit
+  invalid or directive-injecting output from ordinary node/edge text.** `_mermaid_escape`
+  only escaped `"`, `[`, `]`. Confirmed against a real Mermaid parser: a `|` in an edge's
+  `relation` broke the `-->|label|` delimiter (invalid diagram); a `}` in a class member's
+  signature closed the `class X { ... }` body early, letting text after it emit as new
+  top-level statements; a newline in a node's name became a genuine new line, rendering as
+  a real `Note over ...` annotation box rather than inert label text. Now also escapes `{`,
+  `}`, `|`, and newlines (`kb/visualize.py`).
+
 - **The dashboard's "Generate wiki" action copied a command that silently
   no-ops.** docs/dashboard.md documents `contextlake wiki <repo-id> --llm
   builtin`; the actual generated/copied command

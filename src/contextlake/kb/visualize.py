@@ -433,7 +433,18 @@ def to_dot(payload: dict) -> str:
 
 
 def _mermaid_escape(s: str) -> str:
-    return (s or "").replace('"', "&quot;").replace("[", "(").replace("]", ")")
+    return (
+        (s or "")
+        .replace('"', "&quot;")
+        .replace("[", "(")
+        .replace("]", ")")
+        .replace("{", "(")
+        .replace("}", ")")
+        .replace("|", "/")
+        .replace("\r\n", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
+    )
 
 
 def to_mermaid(payload: dict) -> str:

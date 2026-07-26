@@ -187,6 +187,63 @@ def test_dot_and_mermaid_export(store):
     assert viz.to_mermaid(p).startswith("graph LR")
 
 
+def test_mermaid_edge_label_pipe_does_not_break_delimiter_syntax():
+    # A literal "|" in a relation string used to slip straight through _mermaid_escape
+    # and break the `-->|label|` delimiter, producing invalid Mermaid (confirmed by
+    # feeding the old output through a real Mermaid parser).
+    payload = viz.to_payload(
+        [_node("n1", name="A"), _node("n2", name="B")],
+        [_edge("n1", "n2", relation="calls|injected")],
+    )
+    out = viz.to_mermaid(payload)
+    edge_line = next(line for line in out.splitlines() if "-->" in line)
+    # exactly the two delimiter pipes around the label survive -- none from the payload
+    assert edge_line.count("|") == 2
+    assert "calls/injected" in edge_line
+
+
+def test_class_diagram_signature_brace_does_not_close_the_class_body_early():
+    # A "}" in a member signature used to close the classDiagram body block early,
+    # letting anything after it (including a crafted "{") emit as new top-level
+    # Mermaid statements -- confirmed via a real Mermaid parser.
+    prov = Provenance(source_file="m.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="c1", repo="r", kind="class", name="MyClass"),
+        Node(id="m1", repo="r", kind="method", name="DoThing",
+             attrs={"signature": "(x: int) }\n  class Injected\n  Injected : +evil() {"}),
+    ]
+    edges = [Edge(src="c1", dst="m1", relation="contains",
+                   confidence=Confidence.EXTRACTED, provenance=prov)]
+    out = viz.to_class_diagram(viz.to_payload(nodes, edges))
+    # the class body's own closing "}" is the only one -- none smuggled in via the signature
+    assert out.count("}") == 1
+    # the injected "class Injected" text survives only as inert label content on one line
+    # (flattened by the newline-stripping fix), never as its own new top-level statement
+    assert not any(line.strip().startswith("class Injected") for line in out.splitlines())
+
+
+def test_sequence_diagram_node_name_newline_cannot_inject_a_note_directive():
+    # A newline embedded in a node name used to become a genuine new top-level line
+    # in the emitted Mermaid text -- confirmed rendering as a real Note box via a
+    # real Mermaid parser, not just garbled label text.
+    nodes = [Node(id="seed", repo="r", kind="function", name="Seed"),
+             Node(id="callee", repo="r", kind="function",
+                  name="Callee\nNote over p0,p1: INJECTED")]
+    prov = Provenance(source_file="m.py", source_line=1, verified_at=date(2026, 6, 21))
+    edges = [Edge(src="seed", dst="callee", relation="calls",
+                   confidence=Confidence.INFERRED, provenance=prov)]
+    payload = viz.to_payload(nodes, edges, meta={"seed_ids": ["seed"]})
+    out = viz.to_sequence_diagram(payload)
+    assert "\nNote over p0,p1: INJECTED\n" not in out
+    # "INJECTED" only ever appears inline as part of a real message/participant line,
+    # never as its own bare top-level "Note over ..." directive
+    assert all(
+        ":" in line or line.strip().startswith(("sequenceDiagram", "participant"))
+        for line in out.splitlines()
+        if "INJECTED" in line
+    )
+
+
 def test_html_is_offline_by_default(store):
     _hub(store, leaves=5)
     html = viz.to_html(_payload(store))
