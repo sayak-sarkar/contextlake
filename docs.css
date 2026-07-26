@@ -148,6 +148,18 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .tabs:not(.tabs-js) .tab::before{content:attr(data-label);display:block;font-family:var(--ff-m);font-size:11px;
   text-transform:uppercase;letter-spacing:.06em;color:var(--subtle);margin-bottom:4px}
 .prose blockquote{margin:1.1em 0;padding:2px 18px;border-left:3px solid var(--current);background:var(--callout-bg);border-radius:0 8px 8px 0;color:var(--callout-ink)}
+/* Typed callouts (Python-Markdown's built-in `admonition` extension: `!!! note "Title"`),
+   for the subset of notes that are a distinct kind of interruption -- an honest limitation,
+   a must-not-skip guarantee, a risk before you act -- rather than a generic aside (which
+   stays a plain blockquote, above). */
+.prose .admonition{margin:1.1em 0;padding:12px 18px;border-radius:0 10px 10px 0;border-left:3px solid var(--current);background:var(--callout-bg);color:var(--callout-ink)}
+.prose .admonition :is(p,ul,ol):last-child{margin-bottom:0}
+.prose .admonition-title{font-family:var(--ff-d);font-weight:600;color:var(--ink);margin:0 0 .35em;display:flex;align-items:center;gap:8px}
+.prose .admonition-title::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--current);flex:none}
+.prose .admonition.warning{border-left-color:var(--sun);background:color-mix(in srgb,var(--sun) 12%,var(--callout-bg))}
+.prose .admonition.warning .admonition-title::before{background:var(--sun)}
+.prose .admonition.important{border-left-color:var(--lake);background:color-mix(in srgb,var(--lake) 10%,var(--callout-bg))}
+.prose .admonition.important .admonition-title::before{background:var(--lake)}
 .prose table{border-collapse:collapse;width:100%;margin:1.1em 0;font-size:14px;display:block;overflow-x:auto}
 .prose th,.prose td{border:1px solid var(--line-2);padding:8px 12px;text-align:left;vertical-align:top}
 .prose th{background:var(--hover);font-weight:600;font-family:var(--ff-d)}
@@ -202,7 +214,19 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 .prose{animation-delay:.08s}
 @media (prefers-reduced-motion: reduce){ .doc-hero,.prose{animation:none} }
 .doc-eyebrow{font-family:var(--ff-m);font-size:11px;font-weight:600;letter-spacing:.09em;
-  text-transform:uppercase;color:var(--lake);margin-bottom:10px}
+  text-transform:uppercase;color:var(--lake);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.doc-eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+/* per-page-type accent: which of the four core learning-journey groups this page belongs to
+   (build_docs.py's GROUP_KIND) recolors just the eyebrow + its dot -- everything else on the
+   page (headings, body, pebble) stays identical, so the signal reads as "where am I", not noise. */
+.doc-hero[data-kind="start"] .doc-eyebrow{color:var(--current)}
+.doc-hero[data-kind="build"] .doc-eyebrow{color:var(--lake)}
+.doc-hero[data-kind="use"] .doc-eyebrow{color:#b8862b}
+.doc-hero[data-kind="understand"] .doc-eyebrow{color:#8a7550}
+:root[data-theme="dark"] .doc-hero[data-kind="use"] .doc-eyebrow{color:var(--sun)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .doc-hero[data-kind="use"] .doc-eyebrow{color:var(--sun)}}
+:root[data-theme="dark"] .doc-hero[data-kind="understand"] .doc-eyebrow{color:var(--shore)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .doc-hero[data-kind="understand"] .doc-eyebrow{color:var(--shore)}}
 .doc-hero h1{font-family:var(--ff-d);font-size:clamp(30px,4.2vw,40px);font-weight:700;
   letter-spacing:-.022em;line-height:1.12;margin:0}
 .doc-sub{font-size:16px;color:var(--muted);margin:.55em 0 0;max-width:40em;line-height:1.5}

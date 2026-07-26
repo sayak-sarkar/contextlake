@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3784e3e">
-<link rel="stylesheet" href="docs.css?v=3784e3e">
-<link rel="stylesheet" href="cmdk.css?v=3784e3e">
+<link rel="stylesheet" href="fonts.css?v=f0a1acc">
+<link rel="stylesheet" href="docs.css?v=f0a1acc">
+<link rel="stylesheet" href="cmdk.css?v=f0a1acc">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -45,7 +45,7 @@
   <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Get started</h2><nav aria-label="Get started"><a href="docs">Overview</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="usage">Mirror repositories</a><a href="knowledge-layer">Knowledge layer</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="model-providers">Model providers</a><a href="bootstrap">Bootstrap and keep fresh</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="serve">Serve (MCP)</a><a href="dashboard" class="active">Dashboard</a><a href="visualize">Visualize the graph</a><a href="ownership">Ownership and SMEs</a></nav><h2>Understand it</h2><nav aria-label="Understand it"><a href="internals">Architecture</a><a href="storage">Storage</a><a href="benchmarks">Benchmarks</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference">Command reference</a><a href="console-output">Reading the console output</a><a href="changelog">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Dashboard</span></nav>
-    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Layer 2 · the human UI</div><h1>The dashboard</h1><p class="doc-sub">A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Layer 2 · the human UI</div><h1>The dashboard</h1><p class="doc-sub">A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <p>The dashboard is the human window into everything contextlake builds: a <strong>local,
 offline-first, read-only</strong> single-page app over your knowledge store. No accounts, no
@@ -103,12 +103,15 @@ below works against a bundled, generic demo fleet, no setup, no real data:</p>
 <blockquote>
 <p>Browsing your whole fleet? Use <code>--serve</code>, it renders each repo on demand with no
 caps. A <code>--site</code> export is a fixed, shareable slice.</p>
+</blockquote>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p><strong>Before you share a <code>--site</code> export:</strong> a real-store export inlines repo names,
 git-author identities, and connector URLs, so it prints a "do not publish unscrubbed"
 warning. For anything you intend to share, build it with <strong><code>--anonymize</code></strong> (hashes author
 identities, drops external URLs + README/wiki prose) or <strong><code>--sample</code></strong> (the bundled,
 guaranteed-generic demo fleet).</p>
-</blockquote>
+</div>
 <h2 id="3-the-fleet-overview">3. The fleet overview<a class="anchor" href="#3-the-fleet-overview" title="Link to this section">#</a></h2>
 <p>Stat cards, a <strong>knowledge-confidence</strong> bar, and your repos grouped by namespace.</p>
 <p><img class="ss ss-light" alt="Fleet overview, cards layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" /><img class="ss ss-dark" alt="Fleet overview, cards layout" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards-dark.png" /></p>
@@ -131,6 +134,9 @@ always available), <strong>Classes</strong> (classes/interfaces/structs/enums an
 <strong>States</strong> (an entity's guarded state-machine transitions), <strong>Data model</strong> (SQL <code>table</code>/
 <code>view</code> definitions and their foreign keys), and <strong>Deployment</strong> (Terraform/HCL resources
 grouped by inferred category: network/compute/storage/database/security/module).</p>
+<p>A sixth format, <strong>Sequence</strong> (<code>--format sequencediagram</code>), needs a single symbol as its
+seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
+<strong>Call sequence</strong> card instead (§7).</p>
 <p>No new extraction: each tab renders data <code>index</code> already collected. A format is only
 enabled when the repo actually has the relevant node kind (e.g. <strong>Classes</strong> stays
 disabled for a repo with no classes), this is read from the same anatomy census the
@@ -142,10 +148,18 @@ itself is lazy-loaded into the page only the first time this tab is opened.</p>
 <p>The cross-repo dependency graph, a <strong>namespace</strong> mindmap and a <strong>dependency</strong> flow,
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).</p>
+<p>A repo page's tables add a fourth tab, <strong>Data flow</strong>: which files read or write which
+SQL tables/views inside that one repo. Unlike the other three, this isn't a repo→repo
+edge, dependency/HTTP-flow/event-flow join on a node shared across repos (a package,
+an endpoint, a topic), but a table/view definition is only ever known within the repo
+that defines it, so a file's read/write only ever resolves inside its own repo. Data
+flow is therefore always scoped to the repo you're looking at, never cross-repo.</p>
 <p><img class="ss ss-light" alt="The architecture graph: cross-repo dependencies" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png" /><img class="ss ss-dark" alt="The architecture graph: cross-repo dependencies" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture-dark.png" /></p>
 <h2 id="7-change-impact-blast-radius">7. Change impact (blast radius)<a class="anchor" href="#7-change-impact-blast-radius" title="Link to this section">#</a></h2>
 <p>Pick a symbol (from search or a repo's symbol list) and see what a change would touch,
-hop by hop, with the confidence of each path.</p>
+hop by hop, with the confidence of each path. A <strong>Call sequence</strong> card renders that same
+neighborhood as a Mermaid sequence diagram (<code>--format sequencediagram</code>, §5) seeded by
+the symbol you're on.</p>
 <p><img class="ss ss-light" alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png" /><img class="ss ss-dark" alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius-dark.png" /></p>
 <p>The breadcrumb keeps going from there: <strong>repo → symbol → Diagram → Wiki → Links</strong>, one click each to
 that symbol's repo-scoped architecture graph, curated wiki, and connector links (Jira/Confluence/GitLab).
@@ -213,6 +227,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3784e3e"></script>
+<script defer src="cmdk.js?v=f0a1acc"></script>
 </body>
 </html>
