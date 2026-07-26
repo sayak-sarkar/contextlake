@@ -528,10 +528,13 @@ def mcp_console(store, store_dir, *, config_path: str | None = None, sample: boo
     embedder = build_embedder(cfg.embeddings)
     vec_path = Path(store_dir) / "embeddings.sqlite"
     semantic_available = embedder is not None and vec_path.exists()
-    vector_store = None
-    if semantic_available:
-        from ..embeddings.store import build_vector_store
-        vector_store = build_vector_store(vec_path, backend=cfg.embeddings.vector_backend)
+    # build_server only checks `vector_store is not None` at tool-registration
+    # time -- the real object is queried later, inside a tool body, only when a
+    # client actually calls semantic_search/hybrid_search. A cheap sentinel is
+    # enough to make those two tools register for the catalog; opening a real
+    # embeddings.sqlite vector store here would cost a file open on every
+    # /api/mcp request just to list tool names.
+    vector_store = object() if semantic_available else None
 
     mcp = mcp_server.build_server(store, embedder=embedder, vector_store=vector_store)
     tools = sorted(mcp._tool_manager.list_tools(), key=lambda t: t.name)
