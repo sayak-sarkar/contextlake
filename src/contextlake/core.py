@@ -1197,7 +1197,8 @@ def update_repositories(work_dir, config):
             progress.advance(path)
 
     progress.done()
-    log(style.ok(f"Update complete: {_summarize(buckets)}"))
+    glyph = style.ok() if not buckets["errors"] else style.warn()
+    log(f"{glyph} Update complete: {_summarize(buckets)}")
     if buckets["switched"]:
         log(f"  {len(buckets['switched'])} repo(s) auto-switched to a new branch "
             "(their tracked upstream branch was deleted) -- see the log above for "
@@ -1249,7 +1250,8 @@ def switch_repository_branches(work_dir, config, gitlab_group):
             progress.advance(path)
 
     progress.done()
-    log(style.ok(f"Branch switch complete: {_summarize(buckets)}"))
+    glyph = style.ok() if not buckets["errors"] else style.warn()
+    log(f"{glyph} Branch switch complete: {_summarize(buckets)}")
     if buckets["errors"]:
         _report_list("Failed", buckets["errors"], limit=5)
         log("  Re-run to retry, or narrow to just the failures: "

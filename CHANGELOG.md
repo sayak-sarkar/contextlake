@@ -53,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`~/.contextlake.ini` / `~/.contextlake/kb.toml`) regardless of `--config` —
   every other command honors it correctly. `--config` now redirects the mirror
   INI, with kb.toml written alongside it as a sibling.
+- **`update`/`branches` no longer keep a green checkmark on their final
+  summary line when a repo failed.** `index`/`embed`/`wiki` already swap to
+  the warning glyph on partial failure; `update`/`branches` called
+  `style.ok()` unconditionally, so a failed run's summary still visually read
+  as success (the failure detail was only apparent further down).
 
 ## [2.50.0] - 2026-07-26
 

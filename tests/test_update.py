@@ -341,6 +341,25 @@ def test_update_repositories_summary_names_the_retry_command_on_failure(
     assert "contextlake update --repos" in text
 
 
+def test_update_repositories_summary_line_warns_on_partial_failure(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """The final 'Update complete: ...' summary must not keep its green
+    checkmark when a repo failed -- index/embed/wiki already swap to the warn
+    glyph on partial failure; update previously didn't."""
+    make_local_repo(tmp_path, "r1")
+    monkeypatch.setattr(
+        core, "update_repository",
+        lambda p, wd, cfg: ("fail", "r1", "network unreachable"),
+    )
+
+    update_repositories(str(tmp_path), base_config)
+
+    summary = [ln for ln in gls_logs.text.splitlines() if "Update complete" in ln][0]
+    assert "⚠" in summary
+    assert "✓" not in summary
+
+
 def test_update_repositories_summary_notes_auto_switch_count(
     tmp_path, base_config, monkeypatch, gls_logs
 ):

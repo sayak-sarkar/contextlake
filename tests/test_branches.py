@@ -175,3 +175,23 @@ def test_switch_repository_branches_summary_names_the_retry_command_on_failure(
     text = gls_logs.text
     assert "Failed:" in text
     assert "contextlake branches --repos" in text
+
+
+def test_switch_repository_branches_summary_line_warns_on_partial_failure(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """The final 'Branch switch complete: ...' summary must not keep its green
+    checkmark when a repo failed -- index/embed/wiki already swap to the warn
+    glyph on partial failure; branches previously didn't."""
+    make_local_repo(tmp_path, "a")
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    monkeypatch.setattr(
+        core, "switch_repository_branch",
+        lambda p, proj, wd, cfg: ("error", "a", "checkout failed"),
+    )
+
+    switch_repository_branches(str(tmp_path), base_config, "g")
+
+    summary = [ln for ln in gls_logs.text.splitlines() if "Branch switch complete" in ln][0]
+    assert "⚠" in summary
+    assert "✓" not in summary
