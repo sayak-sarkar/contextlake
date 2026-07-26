@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`graph --format erdiagram`: a Mermaid ER diagram of `table`/`view` definitions
+  and their foreign-key `references` edges**, over data the SQL DDL extractor
+  already collects (no new extraction pass). Entities render as bare boxes
+  (the extractor has no column data); a `REFERENCES` clause always points
+  child-row to parent-row, so cardinality (`||--o{`) is asserted from FK
+  semantics, not guessed. An ORM-only schema (SQLAlchemy/Entity Framework/
+  TypeORM, no literal `CREATE TABLE` text) renders an honest empty diagram
+  with guidance instead of looking broken.
+
 - **`wiki` now hints once per run when the builtin model is doing the council
   review.** The builtin 0.5B is a weak reviewer (near-constant high accept
   scores, mostly rubber-stamping): still functional, but a real backend

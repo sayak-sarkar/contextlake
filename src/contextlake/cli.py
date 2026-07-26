@@ -284,7 +284,7 @@ def _root_hidden_flags(p):
     add("--retriever", choices=("fts", "semantic", "hybrid"))
     add("--direction", choices=["in", "out", "both"])
     add("--format", choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram",
-                             "statediagram", "json"])
+                             "statediagram", "erdiagram", "json"])
     add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"])
     add("--site", nargs="?", const="")
 
@@ -566,6 +566,7 @@ Examples:
   contextlake graph --repo acme/app --format classdiagram   UML class diagram (Mermaid)
   contextlake graph --node ID --format sequencediagram      call-order trace (Mermaid)
   contextlake graph --repo acme/app --format statediagram   entity state machine (Mermaid)
+  contextlake graph --repo acme/app --format erdiagram       table/view ER diagram (Mermaid)
   contextlake graph --serve                           live click-to-expand UI
   contextlake graph --site                            offline cross-linked site
   contextlake graph --c4 --group-depth 2              composed namespace (C4) diagram
@@ -581,7 +582,7 @@ Examples:
                    help="composed namespace (C4-style) diagram: repos bucketed into "
                         "namespace boundaries with aggregated cross-repo edges "
                         "(--format dot|html|json; not mermaid/classdiagram/"
-                        "sequencediagram/statediagram)")
+                        "sequencediagram/statediagram/erdiagram)")
     p.add_argument("--kind", default=_S, help="filter seeds by node kind")
     p.add_argument("--repo", default=_S, help="filter seeds by repo")
     p.add_argument("--limit", type=int, default=_S, help="max seed nodes")
@@ -595,12 +596,14 @@ Examples:
                    help="edge direction to follow (default both)")
     p.add_argument("--format", default=_S,
                    choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram",
-                           "statediagram", "json"],
+                           "statediagram", "erdiagram", "json"],
                    help="output format (default html; classdiagram = UML Mermaid; "
                         "sequencediagram = Mermaid call-order trace, needs --node/--name/--search; "
                         "statediagram = Mermaid entity state machine from guarded field "
                         "assignments, best with --repo (a --name/--node seed reaches "
-                        "state nodes but not their transitions past --hops 2))")
+                        "state nodes but not their transitions past --hops 2); "
+                        "erdiagram = Mermaid table/view ER diagram from SQL DDL, no "
+                        "attribute data, empty for ORM-only schemas)")
     p.add_argument("--layout", default=_S,
                    choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
                    help="html: initial layout (default cose; switchable in the page)")

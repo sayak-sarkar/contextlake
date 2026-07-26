@@ -53,6 +53,14 @@ Output is chosen with `--format`:
   acme/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
   declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.
+- **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
+  `references` edges, from the SQL DDL extractor (see [Index & Code Graph](index-code-graph.md)):
+  `contextlake graph --repo acme/app --format erdiagram`. No attribute/column data (the extractor
+  only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
+  relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
+  so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL** — an
+  ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
+  text anywhere) renders an empty diagram with guidance, not a bug.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
@@ -78,8 +86,8 @@ contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pastea
 Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
 compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
 cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
-and `statediagram` aren't supported with `--c4` (the command exits with an error), and `--serve` doesn't
-apply either, the C4 view is a generated file, not a live server.
+`statediagram`, and `erdiagram` aren't supported with `--c4` (the command exits with an error), and
+`--serve` doesn't apply either, the C4 view is a generated file, not a live server.
 
 ## See also
 

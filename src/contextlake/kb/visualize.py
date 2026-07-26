@@ -646,6 +646,53 @@ def to_state_diagram(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def to_er_diagram(payload: dict) -> str:
+    """Render a Mermaid ``erDiagram`` from ``table``/``view`` nodes and
+    ``references`` (FK) edges (see :mod:`kb.sql` for the regex DDL extraction --
+    every edge here is ``INFERRED``, a likely undercount, never asserted as
+    ground truth).
+
+    No attribute blocks: the extractor captures ``CREATE TABLE``/``VIEW`` names
+    and FK targets, not column lists, so this shows entities and relationships
+    only. Table/view names come straight from ``kb.sql``'s ``_NAME`` regex
+    (``[A-Za-z_]\\w*``), always Mermaid-identifier-safe, so unlike the other
+    diagram formats this needs no ``_mermaid_escape`` on the identifiers.
+
+    ORM-defined schemas (SQLAlchemy / Entity Framework / TypeORM model classes,
+    no raw ``.sql`` DDL) produce nothing here -- this format only sees literal
+    ``CREATE TABLE``/``VIEW`` text, never ORM model classes, so a typical
+    ORM-only repo view is an honest empty diagram, not a bug.
+    """
+    by_id = {n["id"]: n for n in payload["nodes"] if n.get("kind") in ("table", "view")}
+    if not by_id:
+        return ("erDiagram\n"
+                "  %% no table/view definitions in this view -- contextlake's SQL extractor\n"
+                "  %% reads raw CREATE TABLE/VIEW DDL, not ORM model classes (SQLAlchemy/\n"
+                "  %% Entity Framework/TypeORM); point --repo at a repo with .sql files")
+
+    lines = ["erDiagram"]
+    seen: set[tuple[str, str]] = set()
+    for e in payload["edges"]:
+        if e.get("relation") != "references":
+            continue
+        src, dst = e.get("src"), e.get("dst")
+        if src not in by_id or dst not in by_id or (src, dst) in seen:
+            continue
+        seen.add((src, dst))
+        # A REFERENCES clause always points from the child (many rows) to the
+        # parent it names (one row) -- FK semantics, not a guess -- so the
+        # one/many cardinality here is asserted, unlike the edge's own
+        # INFERRED confidence (which is about whether the reference exists).
+        child, parent = by_id[src]["name"], by_id[dst]["name"]
+        lines.append(f"  {parent} ||--o{{ {child} : references")
+
+    mentioned = {n for pair in seen for n in pair}
+    for nid, n in by_id.items():
+        if nid not in mentioned:
+            lines.append(f"  {n['name']}")
+    return "\n".join(lines)
+
+
 def _cytoscape_elements(payload: dict) -> list[dict]:
     # Undirected degree per node, excluding self-loops -- mirrors app.js's own
     # n.degree(false) exactly, computed once here so every node's `deg` is present

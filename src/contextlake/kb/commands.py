@@ -1698,7 +1698,8 @@ def cmd_graph(args) -> int:
     # config warning). Redirect logs to stderr BEFORE opening the store, since
     # _open_store loads config and may warn on an unknown key.
     fmt = getattr(args, "format", None) or "html"
-    if (fmt in ("json", "dot", "mermaid", "classdiagram", "sequencediagram", "statediagram")
+    if (fmt in ("json", "dot", "mermaid", "classdiagram", "sequencediagram", "statediagram",
+               "erdiagram")
             and not getattr(args, "output", None) and not getattr(args, "serve", False)):
         from ..logging_setup import use_stderr
         use_stderr()
@@ -1728,11 +1729,12 @@ def cmd_graph(args) -> int:
         if getattr(args, "c4", False):
             from . import c4 as c4mod
 
-            if fmt in ("mermaid", "classdiagram", "sequencediagram", "statediagram"):
+            if fmt in ("mermaid", "classdiagram", "sequencediagram", "statediagram",
+                      "erdiagram"):
                 from ..logging_setup import use_stderr
                 use_stderr()
-                log("mermaid/classdiagram/sequencediagram/statediagram output is not "
-                    "supported for --c4; use --format dot or html.")
+                log("mermaid/classdiagram/sequencediagram/statediagram/erdiagram output is "
+                    "not supported for --c4; use --format dot or html.")
                 return 1
 
             group_depth = getattr(args, "group_depth", None) or 1
@@ -1835,6 +1837,8 @@ def cmd_graph(args) -> int:
             text = viz.to_sequence_diagram(payload)
         elif fmt == "statediagram":
             text = viz.to_state_diagram(payload)
+        elif fmt == "erdiagram":
+            text = viz.to_er_diagram(payload)
         else:
             text = viz.to_html(payload, cdn=cdn, layout=layout)
 

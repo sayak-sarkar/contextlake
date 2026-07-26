@@ -776,6 +776,59 @@ def test_state_diagram_empty_view_says_so_not_silently():
     assert out.startswith("stateDiagram-v2") and "no state transitions" in out
 
 
+def _sql_node(name, kind, repo="r"):
+    return Node(id=f"{repo}::{name}", repo=repo, kind=kind, name=name,
+                qualified_name=f"schema.sql::{name}")
+
+
+def _ref_edge(src, dst):
+    return Edge(src=src, dst=dst, relation="references", confidence=Confidence.INFERRED,
+               provenance=_seq_prov(1))
+
+
+def test_er_diagram_renders_fk_as_parent_to_child_cardinality():
+    customers, orders = _sql_node("customers", "table"), _sql_node("orders", "table")
+    payload = viz.to_payload([customers, orders], [_ref_edge(orders.id, customers.id)])
+    out = viz.to_er_diagram(payload)
+    assert out.startswith("erDiagram")
+    # a REFERENCES clause points child -> parent; FK semantics mean one parent row
+    # to many child rows, so the parent must be on the "one" side of the notation.
+    assert "customers ||--o{ orders : references" in out
+
+
+def test_er_diagram_includes_a_view_with_no_fk_as_a_bare_entity():
+    summary = _sql_node("order_summary", "view")
+    payload = viz.to_payload([summary], [])
+    out = viz.to_er_diagram(payload)
+    assert "order_summary" in out
+    assert "||--o{" not in out
+
+
+def test_er_diagram_ignores_non_reference_edges_and_non_table_nodes():
+    a = Node(id="a", repo="r", kind="class", name="A")
+    b = Node(id="b", repo="r", kind="class", name="B")
+    edges = [Edge(src="a", dst="b", relation="calls", confidence=Confidence.INFERRED,
+                  provenance=_seq_prov(1))]
+    payload = viz.to_payload([a, b], edges)
+    out = viz.to_er_diagram(payload)
+    assert out.startswith("erDiagram") and "no table/view definitions" in out
+
+
+def test_er_diagram_dedupes_a_repeated_fk_reference():
+    customers, orders = _sql_node("customers", "table"), _sql_node("orders", "table")
+    edges = [_ref_edge(orders.id, customers.id), _ref_edge(orders.id, customers.id)]
+    payload = viz.to_payload([customers, orders], edges)
+    out = viz.to_er_diagram(payload)
+    assert out.count("customers ||--o{ orders : references") == 1
+
+
+def test_er_diagram_empty_view_explains_orm_only_schemas_not_silently():
+    out = viz.to_er_diagram(viz.to_payload([], []))
+    assert out.startswith("erDiagram")
+    assert "no table/view definitions" in out
+    assert "ORM" in out
+
+
 def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, capsys):
     # Regression: the truncation warning (and any payload-building log) used to land
     # on stdout, corrupting a redirected `--format json|mermaid|classdiagram` payload.
