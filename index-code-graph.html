@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Index the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3cd50c1">
-<link rel="stylesheet" href="docs.css?v=3cd50c1">
-<link rel="stylesheet" href="cmdk.css?v=3cd50c1">
+<link rel="stylesheet" href="fonts.css?v=28561bd">
+<link rel="stylesheet" href="docs.css?v=28561bd">
+<link rel="stylesheet" href="cmdk.css?v=28561bd">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -134,7 +134,9 @@ parser registry is pluggable:</p>
 references across files in a repo. <code>resource</code> nodes are semantically searchable.</p>
 <p>Resolution is repo-wide, so a block address defined identically in separate root-module directories (for
 example <code>environments/prod</code> and <code>environments/staging</code>) surfaces as an <code>AMBIGUOUS</code> edge; directory-scoped
-resolution is a future refinement.</p>
+resolution is a future refinement. Render it with <code>contextlake graph --repo &lt;repo&gt; --format
+deploymentdiagram</code> (a Mermaid flowchart grouped by inferred category: network/compute/storage/
+database/security/module), see <a href="visualize">Visualize</a>.</p>
 <h3 id="databases-sql-ddl">Databases: SQL DDL<a class="anchor" href="#databases-sql-ddl" title="Link to this section">#</a></h3>
 <p><code>.sql</code> files build a referential graph: <code>table</code> / <code>view</code> / <code>procedure</code> definitions with <code>references</code> edges
 from foreign-key <code>REFERENCES</code> clauses, resolved across files in a repo. <code>table</code> and <code>view</code> nodes are
@@ -282,6 +284,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3cd50c1"></script>
+<script defer src="cmdk.js?v=28561bd"></script>
 </body>
 </html>

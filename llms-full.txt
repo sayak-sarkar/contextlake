@@ -1152,7 +1152,9 @@ references across files in a repo. `resource` nodes are semantically searchable.
 
 Resolution is repo-wide, so a block address defined identically in separate root-module directories (for
 example `environments/prod` and `environments/staging`) surfaces as an `AMBIGUOUS` edge; directory-scoped
-resolution is a future refinement.
+resolution is a future refinement. Render it with `contextlake graph --repo <repo> --format
+deploymentdiagram` (a Mermaid flowchart grouped by inferred category: network/compute/storage/
+database/security/module), see [Visualize](visualize.md).
 
 ### Databases: SQL DDL
 
@@ -2306,6 +2308,14 @@ Output is chosen with `--format`:
   so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL**, an
   ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
   text anywhere) renders an empty diagram with guidance, not a bug.
+- **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
+  definitions grouped by an inferred category (network/compute/storage/database/security/module),
+  from the HCL extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake graph --repo
+  acme/infra --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
+  `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
+  type-name interpolation references draw the connections between resources. A single-category view
+  renders flat (no subgraph wrapper). **Terraform-only** (HCL is the only IaC language the extractor
+  parses): a repo with no `.tf` files renders an empty diagram with guidance, not a bug.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
@@ -2331,8 +2341,8 @@ contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pastea
 Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
 compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
 cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
-`statediagram`, and `erdiagram` aren't supported with `--c4` (the command exits with an error), and
-`--serve` doesn't apply either, the C4 view is a generated file, not a live server.
+`statediagram`, `erdiagram`, and `deploymentdiagram` aren't supported with `--c4` (the command exits
+with an error), and `--serve` doesn't apply either, the C4 view is a generated file, not a live server.
 
 ### C1: external systems
 
@@ -3079,6 +3089,28 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **`graph --format deploymentdiagram`: a Mermaid flowchart of Terraform/HCL
+  `resource`/`data`/`module` definitions grouped by an inferred category**
+  (network/compute/storage/database/security/module/other), over data
+  `kb/hcl.py`'s existing extractor already collects (no new extraction pass,
+  same spirit as `erdiagram`). Category is a keyword heuristic over the
+  resource type prefix (`aws_security_group.web` -> security); more-specific
+  categories are checked before generic ones so e.g. `aws_db_instance` lands
+  in database, not compute, on the "instance" substring, caught live before
+  shipping via a real Mermaid render, not just code review. A `data` block's
+  address (`data.<type>.<name>`) is unwrapped before categorizing, so a data
+  source is grouped by its underlying resource type, not left in "other" on
+  the literal `data.` prefix. A single-category view renders flat (no
+  subgraph wrapper); `depends_on` edges (reconstructed by `parse.py` from
+  `var.`/`module.`/type-name interpolation references) draw the connections.
+  `--c4` continues to reject text-diagram formats (`deploymentdiagram` added
+  to that list). A repo with no `.tf` files renders an honest empty diagram
+  with guidance, not a bug.
 
 ## [2.53.0] - 2026-07-26
 

@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Visualize the graph · contextlake docs">
 <meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=3cd50c1">
-<link rel="stylesheet" href="docs.css?v=3cd50c1">
-<link rel="stylesheet" href="cmdk.css?v=3cd50c1">
+<link rel="stylesheet" href="fonts.css?v=28561bd">
+<link rel="stylesheet" href="docs.css?v=28561bd">
+<link rel="stylesheet" href="cmdk.css?v=28561bd">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -102,6 +102,14 @@ silently truncated.</p>
   so the parent is drawn on the "one" side of the notation. <strong>Only sees raw <code>.sql</code> DDL</strong>, an
   ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal <code>CREATE TABLE</code>
   text anywhere) renders an empty diagram with guidance, not a bug.</li>
+<li><strong><code>deploymentdiagram</code></strong>, a <strong>Mermaid flowchart</strong> of Terraform/HCL <code>resource</code>/<code>data</code>/<code>module</code>
+  definitions grouped by an inferred category (network/compute/storage/database/security/module),
+  from the HCL extractor (see <a href="index-code-graph">Index &amp; Code Graph</a>): <code>contextlake graph --repo
+  acme/infra --format deploymentdiagram</code>. Category is a keyword heuristic over the resource type prefix (e.g.
+  <code>aws_security_group.web</code> -&gt; security); <code>depends_on</code> edges reconstructed from <code>var.</code>/<code>module.</code>/
+  type-name interpolation references draw the connections between resources. A single-category view
+  renders flat (no subgraph wrapper). <strong>Terraform-only</strong> (HCL is the only IaC language the extractor
+  parses): a repo with no <code>.tf</code> files renders an empty diagram with guidance, not a bug.</li>
 <li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for Gephi / cytoscape / custom tooling.</li>
 </ul>
 <p>For interactive exploration of a large graph, <code>contextlake graph --serve</code> runs a local web UI where
@@ -122,8 +130,8 @@ contextlake<span class="w"> </span>graph<span class="w"> </span>--c4<span class=
 <p>Output is chosen with <code>--format</code>: <code>html</code> (default, an interactive page with namespace boundaries as
 compound nodes, written to <code>&lt;store&gt;/graphs/c4.html</code>), <code>dot</code> (Graphviz clustered DOT with <code>subgraph
 cluster_*</code> boundaries), or <code>json</code> (the raw payload). <code>--format mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>,
-<code>statediagram</code>, and <code>erdiagram</code> aren't supported with <code>--c4</code> (the command exits with an error), and
-<code>--serve</code> doesn't apply either, the C4 view is a generated file, not a live server.</p>
+<code>statediagram</code>, <code>erdiagram</code>, and <code>deploymentdiagram</code> aren't supported with <code>--c4</code> (the command exits
+with an error), and <code>--serve</code> doesn't apply either, the C4 view is a generated file, not a live server.</p>
 <h3 id="c1-external-systems">C1: external systems<a class="anchor" href="#c1-external-systems" title="Link to this section">#</a></h3>
 <p><code>--c4 --c1</code> adds a layer on top of the same view: one dashed box per distinct host an indexed repo
 calls over HTTP that never resolves to any indexed repo's exposed route, connected by a
@@ -180,6 +188,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=3cd50c1"></script>
+<script defer src="cmdk.js?v=28561bd"></script>
 </body>
 </html>
