@@ -145,6 +145,8 @@ def _add_global(p):
                    help="only warnings and errors")
     g.add_argument("--log-file", default=_S,
                    help="append a full timestamped log to this file")
+    g.add_argument("--plain", action="store_true", default=_S,
+                   help="no colour or glyphs, even on a TTY (same effect as NO_COLOR=1)")
 
 
 def _add_mirror(p, hidden=False):
@@ -159,7 +161,7 @@ def _add_mirror(p, hidden=False):
     add("--repos", metavar="PATTERN",
         help="mirror/index only repos matching this comma-separated glob/substring "
              "filter (e.g. 'team/api,billing,frontend/*') — great for a demo subset")
-    add("--dry-run", action="store_true", dest="dry_run",
+    add("-n", "--dry-run", action="store_true", dest="dry_run",
         help="show what would happen without cloning, updating, or switching branches")
     add("--clean-corrupted", action="store_true", dest="clean_corrupted",
         help="remove corrupted/incomplete directories before cloning (default: true)")
@@ -417,6 +419,11 @@ missing name: `remove` is a no-op (exit 0), `enable`/`disable` fail (exit 1).
     p.add_argument("--mcp", default=_S, help="MCP server URL (atlassian/figma/mcp)")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
                    help="extra connector option (repeatable)")
+    p.add_argument("--from-stdin", default=_S, metavar="KEY",
+                   help="add: read this option's value from stdin instead of the "
+                        "command line, so a secret never lands in shell history "
+                        "(e.g. printf '%%s' \"$TOKEN\" | contextlake source add jira "
+                        "--from-stdin token)")
 
     p = command("connect", "enrich the graph from configured sources "
                            "(GitLab MRs/issues, Atlassian, Figma)")
@@ -809,6 +816,11 @@ def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
     args.command = _ALIASES.get(args.command, args.command)
+
+    # --plain is a friendlier spelling of NO_COLOR=1 -- same code path, so
+    # every glyph/colour decision downstream stays in one place (style.py).
+    if getattr(args, "plain", False):
+        os.environ["NO_COLOR"] = "1"
 
     # Bare `contextlake` is a first keystroke, not an error: show the front door
     # (description, command list, getting-started examples) and exit clean.

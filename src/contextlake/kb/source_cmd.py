@@ -80,8 +80,29 @@ def _prompt_missing(src: dict) -> dict:
 
 # --- add -----------------------------------------------------------------
 
+def _read_stdin_value(key: str) -> str | None:
+    """The value for ``--from-stdin KEY``, or ``None`` (with an error already
+    logged) if stdin isn't actually piped -- reading from a TTY here would just
+    hang, which is a worse failure than a clear message."""
+    try:
+        if sys.stdin.isatty():
+            log(style.fail(f"--from-stdin {key} needs a piped value, e.g.: "
+                            f"printf '%s' \"$TOKEN\" | contextlake source add ... "
+                            f"--from-stdin {key}"))
+            return None
+    except (AttributeError, ValueError):
+        pass
+    return sys.stdin.readline().rstrip("\n")
+
+
 def cmd_source_add(args) -> int:
     src = _assemble_source(args)
+    stdin_key = getattr(args, "from_stdin", None)
+    if stdin_key:
+        value = _read_stdin_value(stdin_key)
+        if value is None:
+            return 2
+        src[stdin_key] = value
     if not src.get("type") or not src.get("name"):
         if _interactive():
             src = _prompt_missing(src)

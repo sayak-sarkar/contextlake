@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`--help` now links to the docs site and the issue tracker**
   (`https://sayak.in/contextlake`, GitHub issues) so a stuck user isn't a
   search engine query away from either.
+- **`-n`** as a short form of `--dry-run`, matching the near-universal
+  `rm`/`cp`/`make` convention.
+- **`--plain`** as a friendlier, discoverable spelling of `NO_COLOR=1` — same
+  code path, just a flag instead of an environment variable.
+- **`contextlake source add --from-stdin KEY`** reads a connector option's
+  value off a pipe instead of the command line, so a secret never lands in
+  shell history (`--set KEY=VALUE` already never echoes it to logs; this
+  closes the other exposure vector). Errors clearly instead of hanging if
+  stdin isn't actually piped.
 
 ### Changed
 

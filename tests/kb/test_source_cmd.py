@@ -115,6 +115,29 @@ def test_add_never_echoes_secret_set_value(tmp_path, gls_logs):
     assert "super-secret-value" not in gls_logs.text
 
 
+def test_add_from_stdin_reads_the_value_and_never_echoes_it(tmp_path, gls_logs, monkeypatch):
+    """--from-stdin keeps a secret out of shell history entirely -- it must
+    never appear as a CLI argument, only read off the pipe."""
+    monkeypatch.setattr(source_cmd.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(source_cmd.sys.stdin, "readline", lambda: "piped-secret-value\n")
+    cfg = tmp_path / "kb.toml"
+    rc = source_cmd.cmd_source(
+        _args("add", str(cfg), type="api", name="tickets", from_stdin="token"))
+    assert rc == 0
+    assert "piped-secret-value" not in gls_logs.text
+    assert _toml(cfg)["sources"][0]["token"] == "piped-secret-value"
+
+
+def test_add_from_stdin_on_a_tty_errors_instead_of_hanging(tmp_path, gls_logs, monkeypatch):
+    monkeypatch.setattr(source_cmd.sys.stdin, "isatty", lambda: True)
+    cfg = tmp_path / "kb.toml"
+    rc = source_cmd.cmd_source(
+        _args("add", str(cfg), type="api", name="tickets", from_stdin="token"))
+    assert rc != 0
+    assert not cfg.exists()
+    assert "--from-stdin" in gls_logs.text
+
+
 # --- list ----------------------------------------------------------------------
 
 def test_list_prints_name_type_pipeline_enabled(tmp_path, gls_logs):

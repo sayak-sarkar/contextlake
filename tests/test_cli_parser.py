@@ -57,3 +57,31 @@ def test_unknown_command_with_no_close_match_skips_the_suggestion_line(capsys):
     err = capsys.readouterr().err
     assert "Did you mean" not in err
     assert "Run 'contextlake --help'" in err
+
+
+def test_n_is_a_short_form_of_dry_run():
+    args = build_parser().parse_args(["sync", "-n"])
+    assert args.dry_run is True
+
+
+def test_plain_flag_is_available_globally():
+    root_args = build_parser().parse_args(["--plain", "status"])
+    assert root_args.plain is True
+    sub_args = build_parser().parse_args(["status", "--plain"])
+    assert sub_args.plain is True
+
+
+def test_plain_sets_no_color_before_any_output(monkeypatch):
+    import os
+
+    from contextlake.cli import main
+
+    # No subcommand: main() prints help and exits 0, but only *after* the
+    # --plain -> NO_COLOR translation runs -- unlike --help, which argparse
+    # itself intercepts before main()'s own code ever executes.
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    with pytest.raises(SystemExit) as exc:
+        main(["--plain"])
+    assert exc.value.code == 0
+    assert os.environ.get("NO_COLOR") == "1"
+    monkeypatch.delenv("NO_COLOR", raising=False)
