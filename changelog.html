@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=5dd182e">
-<link rel="stylesheet" href="docs.css?v=5dd182e">
-<link rel="stylesheet" href="cmdk.css?v=5dd182e">
+<link rel="stylesheet" href="fonts.css?v=dbfcba5">
+<link rel="stylesheet" href="docs.css?v=dbfcba5">
+<link rel="stylesheet" href="cmdk.css?v=dbfcba5">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -50,7 +50,7 @@
 <p>All notable changes to contextlake will be documented in this file.</p>
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/" target="_blank" rel="noopener">Keep a Changelog<span class="ext-arrow" aria-hidden="true">↗</span></a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target="_blank" rel="noopener">Semantic Versioning<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
-<h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
+<h2 id="2520-2026-07-26">[2.52.0] - 2026-07-26<a class="anchor" href="#2520-2026-07-26" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>ADR/decision-record surfacing.</strong> A repo's own decision docs under common
@@ -64,23 +64,19 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   history, so it's presented as a fact, not something to attribute or hedge
   on. No column data, no edges to other nodes: a decision doc mentioning a
   class by name isn't a verified reference the way an import is.</li>
-<li>
-<p><strong><code>graph --format erdiagram</code>: a Mermaid ER diagram of <code>table</code>/<code>view</code> definitions
+<li><strong><code>graph --format erdiagram</code>: a Mermaid ER diagram of <code>table</code>/<code>view</code> definitions
   and their foreign-key <code>references</code> edges</strong>, over data the SQL DDL extractor
   already collects (no new extraction pass). Entities render as bare boxes
   (the extractor has no column data); a <code>REFERENCES</code> clause always points
   child-row to parent-row, so cardinality (<code>||--o{</code>) is asserted from FK
   semantics, not guessed. An ORM-only schema (SQLAlchemy/Entity Framework/
   TypeORM, no literal <code>CREATE TABLE</code> text) renders an honest empty diagram
-  with guidance instead of looking broken.</p>
-</li>
-<li>
-<p><strong><code>wiki</code> now hints once per run when the builtin model is doing the council
+  with guidance instead of looking broken.</li>
+<li><strong><code>wiki</code> now hints once per run when the builtin model is doing the council
   review.</strong> The builtin 0.5B is a weak reviewer (near-constant high accept
   scores, mostly rubber-stamping): still functional, but a real backend
   (<code>--llm anthropic|openai|ollama|cli</code>) gates meaningfully. The note prints
-  once, before generation starts, not per repo.</p>
-</li>
+  once, before generation starts, not per repo.</li>
 </ul>
 <h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
 <ul>
@@ -2141,7 +2137,7 @@ critical configuration bug.</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#unreleased">[Unreleased]</a><ul>
+<li><a href="#2520-2026-07-26">[2.52.0] - 2026-07-26</a><ul>
 <li><a href="#added">Added</a></li>
 <li><a href="#fixed">Fixed</a></li>
 </ul>
@@ -2580,6 +2576,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=5dd182e"></script>
+<script defer src="cmdk.js?v=dbfcba5"></script>
 </body>
 </html>
