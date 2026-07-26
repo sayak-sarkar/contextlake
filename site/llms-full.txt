@@ -2987,9 +2987,81 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.48.2] - 2026-07-26
 
 ### Fixed
+
+- **The C4 diagram's namespace boundary tagging could mark a real edge as
+  internal when it wasn't, or as crossing a boundary when it wasn't.** Two bugs
+  in how repos were bucketed into namespaces for boundary purposes (shared with
+  the dashboard's display-grouping heuristic, `derive_groups`, but wrong for
+  boundary tagging specifically): (1) a repo whose id IS exactly a namespace
+  prefix (e.g. a repo literally named `acme` alongside `acme/pay/api`) fell into
+  the meaningless catch-all `"(ungrouped)"` bucket instead of the `acme`
+  boundary its own child repo joined, so a real edge between them wrongly
+  rendered as crossing a boundary; (2) `"(ungrouped)"` was treated as one shared
+  namespace, so two entirely unrelated single-segment repos that only
+  coincidentally had no deeper namespace got a real edge between them rendered
+  as internal, identical to a genuinely related same-namespace edge. C4
+  boundary tagging now uses its own bucketing rule, independent from
+  `derive_groups`: each repo's own path prefix (or its full id, if shorter than
+  `group_depth`) becomes its namespace, so a repo with no real namespace always
+  gets a namespace of exactly itself (`kb/c4.py`).
+
+- **Wiki council review parsing could drop a review's real issues or fabricate a
+  wrong score, on the malformed-JSON recovery path a small local model's output
+  regularly takes.** Three related bugs in `_parse_review`/`_extract_score`: (1)
+  the naive `text[first "{" : last "}"]` slice broke as soon as any trailing
+  prose contained its own brace, discarding a validly-parsed `issues` list along
+  with the JSON, now uses `json.JSONDecoder.raw_decode`, which stops at the
+  first complete object regardless of what follows; (2) when JSON parsing failed
+  outright, the fallback score-recovery regex scanned the *entire* raw text with
+  `re.search` (first match wins), so an unrelated "...rating is 1 star..." aside
+  earlier in a model's own issue text could win over the real, later `"score"`
+  field, now the literal JSON-quoted `"score": N` form is tried first, since it
+  can't be confused with ordinary prose; (3) the "N out of 10" fallback matched
+  anywhere in prose with no context check, so "3 out of 10 endpoints... are
+  undocumented" (a coverage-gap description) was misread as a 0.3 review score , 
+  now rejects a match immediately followed by a noun, the count-phrase shape
+  (`kb/wiki/council.py`).
+
+- **`contextlake hook install` could silently wire a hook to the wrong `repo_id`
+  and never say so.** `_canonical_repo_id` swallowed every exception from opening
+  the store (a bad `--config`, a corrupt/too-new store) with a bare `except:
+  pass` and fell back to the bare directory name, even for an already-indexed
+  repo, and even though `SqliteStore` itself never raises for a fresh/not-yet-
+  indexed store (it creates one on open), meaning anything landing in that catch
+  was a real problem, not the benign case the fallback was written for. One blast
+  radius: a bad `--config` produced a hook install reported as a clean success
+  but permanently inert (its own re-index invocation embeds the same bad config
+  and silently never runs). Another: a transient store error left a duplicate
+  `repo_id` row after the hook did fire. Now logs a warning explaining the
+  fallback instead of swallowing it silently (`kb/commands.py`).
+
+- **`contextlake steer` could silently corrupt a user's AGENTS.md/CLAUDE.md/etc. on a
+  later refresh, or crash mid-run leaving the workspace half-steered.** A repo id or
+  package name (the latter reachable verbatim via `manifest.py`'s unvalidated
+  package.json dependency-key parsing) carrying a backtick or the literal
+  `<!-- END contextlake -->` marker text broke out of its markdown code span or
+  smuggled a duplicate marker into the generated body; the next refresh's naive
+  first-occurrence `_upsert_block` splice then truncated/duplicated real content.
+  Now: names are sanitized before interpolation, and `_upsert_block` refuses to
+  splice (warns instead) if a marker pair doesn't cleanly bound a single block.
+  Separately, an existing `.mcp.json`/`.vscode/mcp.json` with a non-dict
+  `mcpServers`/`servers` value (e.g. `null`) crashed `_merge_mcp_entry` uncaught
+  after markdown/skill files were already written, now self-heals instead. Also: a
+  relative `--config` value is now resolved to absolute before being embedded in the
+  generated MCP entry, since it may be launched from `--out`, not the invocation
+  directory (`kb/steer/generate.py`, `kb/commands.py`).
+
+- **Mermaid diagrams (`to_mermaid`/`to_class_diagram`/`to_sequence_diagram`) could emit
+  invalid or directive-injecting output from ordinary node/edge text.** `_mermaid_escape`
+  only escaped `"`, `[`, `]`. Confirmed against a real Mermaid parser: a `|` in an edge's
+  `relation` broke the `-->|label|` delimiter (invalid diagram); a `}` in a class member's
+  signature closed the `class X { ... }` body early, letting text after it emit as new
+  top-level statements; a newline in a node's name became a genuine new line, rendering as
+  a real `Note over ...` annotation box rather than inert label text. Now also escapes `{`,
+  `}`, `|`, and newlines (`kb/visualize.py`).
 
 - **The dashboard's "Generate wiki" action copied a command that silently
   no-ops.** docs/dashboard.md documents `contextlake wiki <repo-id> --llm
