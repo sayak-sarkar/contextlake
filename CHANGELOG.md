@@ -5,7 +5,7 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.55.0] - 2026-07-27
 
 ### Added
 
@@ -32,10 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kb/parse.py` emits `kind="module"` package nodes for every code language —
   so a repo with both Terraform *and* regular source files was incorrectly
   drawing unrelated source-module nodes as deployment "module" entries. Now
-  gated on `lang="hcl"` too. Caught while writing the dashboard's Diagrams
-  tests against a fixture with an ordinary Python module node alongside a
-  Terraform resource — proven with the same revert-the-fix, watch-it-fail
-  discipline as the categorization bug this pairs with (v2.54.0).
+  gated on `lang="hcl"` too. This bug shipped in v2.54.0's `deploymentdiagram`
+  release; caught while writing this release's dashboard Diagrams tests
+  against a fixture with an ordinary Python module node alongside a Terraform
+  resource, and fixed here using the same revert-the-fix, watch-it-fail
+  discipline v2.54.0 used for its own data-block categorization bug.
 
 ## [2.54.0] - 2026-07-27
 
