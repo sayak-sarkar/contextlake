@@ -11,6 +11,7 @@ without the kb extra) this is a no-op and the lexical index is kept as-is.
 import json
 import math
 import pathlib
+import sys
 
 IDX = pathlib.Path(__file__).resolve().parent.parent / "search-index.json"
 
