@@ -59,6 +59,39 @@ def test_unknown_command_with_no_close_match_skips_the_suggestion_line(capsys):
     assert "Run 'contextlake --help'" in err
 
 
+def test_unrecognized_flag_followed_by_a_value_reports_the_flag_not_the_value(capsys):
+    """--work-d isn't a real root flag, so argparse never learns it takes a
+    value -- /tmp used to fall into the <command> positional slot instead and
+    fail as 'Unknown command: /tmp', hiding the actual problem (the
+    unrecognized --work-d) behind a confusing typo-suggestion message."""
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["--work-d", "/tmp", "doctor"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "unrecognized arguments: --work-d" in err
+    assert "Unknown command" not in err
+
+
+def test_unrecognized_flag_with_no_following_token_still_reports_correctly(capsys):
+    """Regression guard: the no-trailing-token case already worked before this
+    fix (no positional exists for the bad value to fall into) -- must keep
+    working identically."""
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--work-d", "doctor"])
+    err = capsys.readouterr().err
+    assert "unrecognized arguments: --work-d" in err
+
+
+def test_unrecognized_flag_inside_a_subcommand_still_reports_correctly(capsys):
+    """Regression guard: subcommand-scope unrecognized flags (a different code
+    path, argparse's own subparser error, not the root <command> positional)
+    already worked before this fix -- must keep working identically."""
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["index", "--work-d", "/tmp"])
+    err = capsys.readouterr().err
+    assert "unrecognized arguments: --work-d" in err
+
+
 def test_n_is_a_short_form_of_dry_run():
     args = build_parser().parse_args(["sync", "-n"])
     assert args.dry_run is True

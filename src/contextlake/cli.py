@@ -79,11 +79,44 @@ class _RootArgumentParser(argparse.ArgumentParser):
     # super().error() dump below -- never a crash, just the old UX.
     _BAD_COMMAND_RE = re.compile(r"^argument <command>: invalid choice: '([^']+)'")
 
+    def parse_known_args(self, args=None, namespace=None):
+        # Stashed so error() can tell "genuinely mistyped command" apart from
+        # "an unrecognized flag ate the token before the command" (see
+        # _preceding_unrecognized_flag) -- error() only gets the final message
+        # string, never the original argv, so this is the only way to recover it.
+        self._last_argv = list(sys.argv[1:] if args is None else args)
+        return super().parse_known_args(args, namespace)
+
     def error(self, message):
         m = self._BAD_COMMAND_RE.match(message)
         if m:
-            self.exit(2, self._unknown_command_text(m.group(1)))
+            bad = m.group(1)
+            flag = self._preceding_unrecognized_flag(bad)
+            if flag:
+                # `--work-d /tmp doctor`: --work-d isn't a real root flag, so
+                # argparse never learns it takes a value -- /tmp falls into the
+                # <command> positional slot instead and fails as an "invalid
+                # choice" before argparse ever reports the actual problem. The
+                # real issue is the unrecognized flag, not a mistyped command.
+                super().error(f"unrecognized arguments: {flag}")
+            self.exit(2, self._unknown_command_text(bad))
         super().error(message)
+
+    def _preceding_unrecognized_flag(self, bad):
+        """If ``bad`` failed as the ``<command>`` choice only because an
+        unrecognized flag immediately before it in argv consumed argparse's
+        attention, return that flag; else None."""
+        argv = getattr(self, "_last_argv", None) or []
+        try:
+            idx = argv.index(bad)
+        except ValueError:
+            return None
+        if idx == 0:
+            return None
+        prev = argv[idx - 1]
+        if prev.startswith("-") and prev not in self._option_string_actions:
+            return prev
+        return None
 
     def _unknown_command_text(self, bad):
         from . import style
