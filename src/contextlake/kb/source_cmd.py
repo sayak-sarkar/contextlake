@@ -96,7 +96,11 @@ def _read_stdin_value(key: str) -> str | None:
 
 
 def cmd_source_add(args) -> int:
-    src = _assemble_source(args)
+    try:
+        src = _assemble_source(args)
+    except ValueError as e:
+        log(style.fail(str(e)))
+        return 2
     stdin_key = getattr(args, "from_stdin", None)
     if stdin_key:
         value = _read_stdin_value(stdin_key)

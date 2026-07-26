@@ -3048,6 +3048,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the warning glyph on partial failure; `update`/`branches` called
   `style.ok()` unconditionally, so a failed run's summary still visually read
   as success (the failure detail was only apparent further down).
+- **A malformed `source add --set KEY` (no `=`) now fails cleanly** instead of
+  dumping an uncaught Python traceback, the error message itself was already
+  correct, it just wasn't caught.
+- **`--plain`'s `--help` text no longer overclaims.** It strips ANSI color
+  (same as `NO_COLOR=1`); the unicode status glyphs (✓⚠✗...) are hardcoded
+  literals with no ASCII fallback and always render, which the previous text
+  ("no colour or glyphs") didn't reflect.
 
 ## [2.50.0] - 2026-07-26
 

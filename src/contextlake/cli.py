@@ -155,7 +155,8 @@ def _add_global(p):
     g.add_argument("--log-file", default=_S,
                    help="append a full timestamped log to this file")
     g.add_argument("--plain", action="store_true", default=_S,
-                   help="no colour or glyphs, even on a TTY (same effect as NO_COLOR=1)")
+                   help="no colour, even on a TTY (same effect as NO_COLOR=1); "
+                        "unicode status glyphs (✓⚠✗...) still render")
 
 
 def _add_mirror(p, hidden=False):

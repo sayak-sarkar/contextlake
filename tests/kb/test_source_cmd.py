@@ -97,6 +97,19 @@ def test_add_applies_set_flags(tmp_path):
     assert src["text_field"] == "body"
 
 
+def test_add_malformed_set_flag_is_a_clean_error_not_a_traceback(tmp_path, gls_logs):
+    """--set expects KEY=VALUE; a value with no '=' used to raise ValueError
+    uncaught all the way out of cmd_source_add, printing a raw Python
+    traceback instead of the CLI's normal clean error style."""
+    cfg = tmp_path / "kb.toml"
+    rc = source_cmd.cmd_source(
+        _args("add", str(cfg), type="api", name="tickets", set=["no_equals_sign"]))
+    assert rc == 2
+    assert not cfg.exists()
+    assert "--set expects KEY=VALUE" in gls_logs.text
+    assert "Traceback" not in gls_logs.text
+
+
 def test_add_missing_required_fields_non_interactive_errors(tmp_path, gls_logs, monkeypatch):
     monkeypatch.setattr(source_cmd.sys.stdin, "isatty", lambda: False)
     cfg = tmp_path / "kb.toml"

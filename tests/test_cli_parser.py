@@ -71,6 +71,15 @@ def test_plain_flag_is_available_globally():
     assert sub_args.plain is True
 
 
+def test_plain_help_text_does_not_overclaim_glyph_suppression():
+    """--plain (and NO_COLOR) only strip ANSI color -- the unicode status
+    glyphs (check/warn/cross/...) are hardcoded literals with no ASCII
+    fallback and render either way. The help text must not claim otherwise."""
+    help_text = build_parser().format_help()
+    plain_line = next(ln for ln in help_text.splitlines() if "--plain" in ln)
+    assert "glyphs" not in plain_line
+
+
 def test_plain_sets_no_color_before_any_output(monkeypatch):
     import os
 
