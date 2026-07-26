@@ -27,7 +27,8 @@ def store(tmp_path):
 
 
 def test_schema_version_recorded(store):
-    assert store.get_meta("schema_version") == "1"
+    from contextlake.kb.store.sqlite_store import SCHEMA_VERSION
+    assert store.get_meta("schema_version") == str(SCHEMA_VERSION)
 
 
 def test_repo_round_trip(store):
@@ -107,6 +108,56 @@ def test_neighbors_direction_and_relation(store):
     # provenance + confidence survive the round trip
     assert out[0].provenance.verified_at == date(2026, 6, 21)
     assert out[0].confidence is Confidence.EXTRACTED
+
+
+def test_edge_attrs_round_trip(store):
+    store.upsert_nodes("team/api", [_node("a"), _node("b")])
+    e = Edge(src="a", dst="b", relation="calls_http", confidence=Confidence.INFERRED,
+             attrs={"raw_host": "api.example.com"},
+             provenance=Provenance(source_file="src/a.py", source_line=1,
+                                   verified_at=date(2026, 6, 21)))
+    store.upsert_edges("team/api", [e])
+    out = store.neighbors("a", direction="out")
+    assert out[0].attrs == {"raw_host": "api.example.com"}
+
+
+def test_edge_attrs_defaults_to_empty_dict_when_absent(store):
+    store.upsert_nodes("team/api", [_node("a"), _node("b")])
+    store.upsert_edges("team/api", [_edge("a", "b")])
+    out = store.neighbors("a", direction="out")
+    assert out[0].attrs == {}
+
+
+def test_additive_column_migration_on_a_pre_v2_52_store(tmp_path):
+    """A store created before edges.attrs existed must not crash on open or on
+    the first write -- CREATE TABLE IF NOT EXISTS is a no-op against a table
+    that already exists, so opening an old store needs an explicit ALTER TABLE,
+    not just a bumped SCHEMA_VERSION constant."""
+    path = tmp_path / "old.sqlite"
+    import sqlite3
+    conn = sqlite3.connect(str(path))
+    conn.executescript(
+        "CREATE TABLE edges (edge_id INTEGER PRIMARY KEY AUTOINCREMENT, repo_id TEXT, "
+        "src TEXT, dst TEXT, relation TEXT, confidence TEXT, context TEXT, "
+        "source_file TEXT, source_line INTEGER, verified_at TEXT, weight REAL, "
+        "cross_repo INTEGER DEFAULT 0);"
+        "CREATE TABLE nodes (node_id TEXT PRIMARY KEY, repo_id TEXT, kind TEXT, "
+        "name TEXT, qualified_name TEXT, file TEXT, line_start INTEGER, "
+        "line_end INTEGER, lang TEXT, attrs TEXT);"
+        "CREATE TABLE kb_meta (key TEXT PRIMARY KEY, value TEXT);"
+        "CREATE TABLE repos (repo_id TEXT PRIMARY KEY, path TEXT, host TEXT, "
+        "default_branch TEXT, head_commit TEXT, indexed_at TEXT, lang_stats TEXT);"
+    )
+    conn.commit()
+    conn.close()
+
+    s = SqliteStore(path)  # must not raise
+    try:
+        s.upsert_nodes("team/api", [_node("a"), _node("b")])
+        s.upsert_edges("team/api", [_edge("a", "b")])  # must not raise
+        assert s.neighbors("a", direction="out")[0].attrs == {}
+    finally:
+        s.close()
 
 
 def test_cross_repo_flag_and_stats(store):

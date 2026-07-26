@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from .arch.resolve import repo_external_system_edges
 from .security import sanitize_label
 from .visualize import _CONF_DOT, _dot_escape, to_payload
 from .wiki.cluster import cross_repo_edges
@@ -36,6 +37,17 @@ class C4Boundary:
 
 
 @dataclass
+class C4System:
+    """An external system box (the C1 layer): a raw host an indexed repo calls
+    over HTTP that never resolves to any indexed repo's exposed route. See
+    :func:`.arch.resolve.repo_external_system_edges` -- deliberately
+    unclassified, a third-party dependency and an unindexed internal service
+    look identical here."""
+    system_id: str
+    label: str
+
+
+@dataclass
 class C4Edge:
     src: str
     dst: str
@@ -50,6 +62,7 @@ class C4Model:
     boundaries: list[C4Boundary]
     edges: list[C4Edge]
     meta: dict
+    systems: list[C4System] = field(default_factory=list)
 
 
 def _c4_namespaces(repo_ids: list[str], depth: int) -> dict[str, list[str]]:
@@ -76,7 +89,21 @@ def _c4_namespaces(repo_ids: list[str], depth: int) -> dict[str, list[str]]:
     return groups
 
 
-def c4_model(store, *, group_depth: int = 1, repos: list[str] | None = None) -> C4Model:
+def _sys_node_id(host: str) -> str:
+    """Model-level id for a C1 external-system box.
+
+    Prefixed with ``sys:`` (mirroring ``_ns_node_id``'s ``ns:`` prefix for
+    boundary nodes) so a host can never collide with a real repo id -- and
+    pre-sanitized here, matching ``C4Container.repo_id``'s eager
+    ``sanitize_label`` (unlike ordinary ``C4Edge``s, which stay raw until a
+    renderer sanitizes both endpoints together; a system edge's ``dst`` is
+    built from this same helper, so it already matches by construction).
+    """
+    return sanitize_label(f"sys:{host}")
+
+
+def c4_model(store, *, group_depth: int = 1, repos: list[str] | None = None,
+            c1: bool = False) -> C4Model:
     """Build a namespace-boundary C4 model over ``store``.
 
     ``repos``, if given, is the pre-filtered repo-id list to include (otherwise
@@ -86,6 +113,14 @@ def c4_model(store, *, group_depth: int = 1, repos: list[str] | None = None) -> 
     collapsed by ``(src, dst, flavor)`` (summing ``weight``; confidence is
     always ``"INFERRED"`` today), and tagged ``boundary=True`` when its two
     endpoints resolve to different namespaces.
+
+    ``c1=True`` adds the C1 layer: one :class:`C4System` box per distinct host
+    an included repo calls that never resolves to any indexed repo's exposed
+    route (:func:`.arch.resolve.repo_external_system_edges`), plus a
+    ``flavor="external"`` edge from the calling repo to it. Always
+    ``boundary=True`` -- a system, by definition, is outside every namespace.
+    Off by default: this is additive data on top of the C2 model above, not a
+    separate view, so existing callers get identical output unless they opt in.
     """
     repo_ids = repos if repos is not None else [r.id for r in store.list_repos()]
     groups = _c4_namespaces(repo_ids, group_depth)
@@ -116,14 +151,27 @@ def c4_model(store, *, group_depth: int = 1, repos: list[str] | None = None) -> 
         for (src, dst, flavor), weight in collapsed.items()
     ]
 
+    systems: list[C4System] = []
+    if c1:
+        systems_by_id: dict[str, C4System] = {}
+        for e in repo_external_system_edges(store):
+            if e["src"] not in included:
+                continue
+            sys_id = _sys_node_id(e["system"])
+            systems_by_id.setdefault(sys_id, C4System(system_id=sys_id, label=e["system"]))
+            edges.append(C4Edge(src=e["src"], dst=sys_id, flavor="external",
+                                weight=int(e["weight"]), confidence="INFERRED", boundary=True))
+        systems = sorted(systems_by_id.values(), key=lambda s: s.label)
+
     container_count = sum(len(b.containers) for b in boundaries)
     meta = {
         "group_depth": group_depth,
         "container_count": container_count,
         "boundary_count": len(boundaries),
         "edge_count": len(edges),
+        "system_count": len(systems),
     }
-    return C4Model(boundaries=boundaries, edges=edges, meta=meta)
+    return C4Model(boundaries=boundaries, edges=edges, meta=meta, systems=systems)
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +217,14 @@ def to_c4_dot(model: C4Model) -> str:
             label = _dot_escape(container.label)
             lines.append(f'    {node_id} [label="{label}"];')
         lines.append("  }")
+
+    # C1 systems draw OUTSIDE every cluster (never inside a subgraph), dashed to
+    # read as "unclassified" -- could be a real third party or just an
+    # unindexed internal service, see C4System's docstring.
+    for system in sorted(model.systems, key=lambda s: s.system_id):
+        node_id = _dot_id(system.system_id)
+        label = _dot_escape(system.label)
+        lines.append(f'  {node_id} [label="{label}", style=dashed];')
 
     for edge in sorted(model.edges, key=lambda e: (e.src, e.dst, e.flavor)):
         src_id = _dot_id(edge.src)
@@ -227,6 +283,15 @@ def c4_payload(model: C4Model) -> dict:
                 "name": container.label, "qualified_name": None, "file": None,
                 "line": None, "lang": None, "signature": None, "parent": ns_id,
             })
+
+    # C1 systems sit outside every namespace compound (parent=None), same as a
+    # namespace node itself -- they're not a repo any more than a namespace is.
+    for system in model.systems:
+        nodes.append({
+            "id": system.system_id, "repo": None, "kind": "system",
+            "name": system.label, "qualified_name": None, "file": None,
+            "line": None, "lang": None, "signature": None, "parent": None,
+        })
 
     edges: list[dict] = []
     for edge in model.edges:

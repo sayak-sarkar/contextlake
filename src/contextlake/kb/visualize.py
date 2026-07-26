@@ -61,6 +61,10 @@ KIND_COLORS = {
     "endpoint": "#f08c3a", "topic": "#b07fd0",
     # C4 namespace boundary compound parent node (contextlake/kb/c4.py c4_payload)
     "namespace": "#3d5a80",
+    # C1 external-system box (kb/c4.py C4System) — deliberately muted/neutral:
+    # unclassified, could be a real third party or just an unindexed internal
+    # service, so it should never read as confidently "external" via color alone.
+    "system": "#6c757d",
 }
 DEFAULT_COLOR = "#c9c9c9"
 # Relation -> edge hue (within the brand family; greys for structural relations).

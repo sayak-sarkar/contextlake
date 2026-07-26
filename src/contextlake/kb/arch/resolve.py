@@ -12,6 +12,7 @@ Stdlib-only; one SQL query against the shared store.
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -99,3 +100,49 @@ def repo_event_flow_edges(store: Store) -> list[dict]:
     return [{"src": publisher, "dst": consumer, "relation": "flow",
              "confidence": "INFERRED", "weight": shared, "context": "event"}
             for publisher, consumer, shared in rows]
+
+
+# calls_http edges whose endpoint never joins ANY indexed repo's `exposes` edge
+# (the same join `_HTTP_FLOW` makes, inverted -- NOT IN instead of the JOIN) are
+# calls that leave the fleet: either genuinely external, or an internal service
+# simply not indexed yet (see kb/model.py's SYSTEM_REPO docstring). attrs is
+# fetched raw and parsed in Python (not SQLite json_extract) to match the rest
+# of the store's JSON-in-a-TEXT-column handling and avoid depending on the
+# JSON1 SQLite extension being compiled in.
+_UNRESOLVED_CALLS = """
+SELECT nc.repo_id AS caller, e.attrs AS attrs
+FROM edges e JOIN nodes nc ON nc.node_id = e.src
+WHERE e.relation = 'calls_http'
+  AND e.dst NOT IN (SELECT dst FROM edges WHERE relation = 'exposes')
+"""
+
+
+def repo_external_system_edges(store: Store) -> list[dict]:
+    """Repo → external-system edges: HTTP calls that never resolve to any
+    indexed repo's exposed route, grouped by the raw host the call named.
+
+    Each edge is ``caller --calls_external--> system`` (``system`` is the raw
+    host, e.g. ``api.stripe.com``, not a repo id), ``weight`` = number of
+    distinct calls to that host, marked ``INFERRED``. A call site with no
+    visible host (a relative path against a base-url client -- see
+    ``kb/flow/http.py:raw_host``) contributes nothing here: there is no
+    system to name, only an unresolved path, which is already visible as an
+    endpoint node with no ``exposes`` edge.
+
+    Deliberately unclassified: nothing here distinguishes a genuine
+    third-party dependency from an internal service this fleet simply hasn't
+    indexed yet (see ``kb/c4.py``'s C1 layer, the renderer for this).
+    """
+    rows = store.conn.execute(_UNRESOLVED_CALLS).fetchall()
+    counts: dict[tuple[str, str], int] = {}
+    for caller, raw_attrs in rows:
+        if not raw_attrs:
+            continue
+        host = json.loads(raw_attrs).get("raw_host")
+        if not host:
+            continue
+        key = (caller, host)
+        counts[key] = counts.get(key, 0) + 1
+    return [{"src": caller, "system": host, "relation": "calls_external",
+             "confidence": "INFERRED", "weight": n}
+            for (caller, host), n in counts.items()]

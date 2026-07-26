@@ -41,6 +41,15 @@ EXTERNAL_REPO = "(external)"
 """Sentinel for connector-fetched nodes with no repo at all (Figma designs, Atlassian
 issues, GitLab entities) -- see :data:`SHARED_REPO` for the family this belongs to."""
 
+SYSTEM_REPO = "(system)"
+"""Sentinel for a runtime dependency outside the indexed fleet: an HTTP/event call
+target no ``exposes``/``consumes_event`` edge from any indexed repo ever resolves to
+(``kb/arch/resolve.py``). Deliberately distinct from :data:`EXTERNAL_REPO` -- that one
+is connector-*fetched* content (a Figma design, a Jira issue); this one is discovered
+purely from the fleet's own outbound calls, with no connector involved and no guarantee
+the target is a real third party rather than simply an unindexed internal service (see
+``kb/c4.py``'s C1 layer, which renders these unclassified for exactly that reason)."""
+
 
 def is_sentinel_repo(repo_id: str) -> bool:
     """True for a pseudo-repo id (the :data:`SHARED_REPO` family) -- never a real
@@ -91,6 +100,7 @@ class Edge(BaseModel):
     provenance: Provenance
     context: str | None = None  # e.g. call | import | field | parameter_type | return_type
     weight: float = 1.0
+    attrs: dict = Field(default_factory=dict)
 
 
 class Repo(BaseModel):

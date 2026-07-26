@@ -1704,6 +1704,13 @@ def cmd_graph(args) -> int:
         from ..logging_setup import use_stderr
         use_stderr()
 
+    if getattr(args, "c1", False) and not getattr(args, "c4", False):
+        from ..logging_setup import use_stderr
+        use_stderr()
+        log("--c1 only applies to --c4 (it adds the C1 external-system layer "
+            "on top of that view); pass --c4 --c1 together.")
+        return 2
+
     store, store_dir = _open_store(args)
     # Generated artifacts live in a dedicated dir next to the store, never the cwd
     # or the user's home — keep generated content close to the knowledge base.
@@ -1746,16 +1753,19 @@ def cmd_graph(args) -> int:
                     repos_filter = [r.id for r in store.list_repos()
                                      if viz._match_repo(r.id, patterns)]
 
-            model = c4mod.c4_model(store, group_depth=group_depth, repos=repos_filter)
+            c1 = getattr(args, "c1", False)
+            model = c4mod.c4_model(store, group_depth=group_depth, repos=repos_filter, c1=c1)
 
             if fmt == "dot":
                 text = c4mod.to_c4_dot(model)
             elif fmt == "json":
                 text = viz.to_json(c4mod.c4_payload(model))
             else:
+                title = f"C4 - {len(model.boundaries)} namespaces"
+                if c1:
+                    title += f", {len(model.systems)} external system(s)"
                 text = viz.to_html(c4mod.c4_payload(model), cdn=getattr(args, "cdn", False),
-                                    layout="cose",
-                                    title=f"C4 - {len(model.boundaries)} namespaces")
+                                    layout="cose", title=title)
 
             out = getattr(args, "output", None)
             if fmt == "html" and not out:

@@ -2,8 +2,8 @@ from datetime import date
 
 import pytest
 
-from contextlake.kb.arch.resolve import repo_http_flow_edges
-from contextlake.kb.flow.http import _useful, extract_http_flow, normalize_path
+from contextlake.kb.arch.resolve import repo_external_system_edges, repo_http_flow_edges
+from contextlake.kb.flow.http import _useful, extract_http_flow, normalize_path, raw_host
 from contextlake.kb.ids import make_id
 from contextlake.kb.model import Confidence, Edge, Node, Provenance
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -25,6 +25,16 @@ def test_normalize_path_strips_host_and_collapses_params():
     assert normalize_path("/orders/{id}") == "/orders/{}"
     assert normalize_path("orders/:orderId/items") == "/orders/{}/items"
     assert normalize_path("/orders/${id}") == "/orders/{}"
+
+
+def test_raw_host_extracts_the_host_from_an_absolute_url():
+    assert raw_host("https://api.example.com/v1/charges") == "api.example.com"
+    assert raw_host("https://API.Example.COM/v1/x") == "api.example.com"  # lowercased
+
+
+def test_raw_host_is_none_for_a_relative_path():
+    assert raw_host("/v1/charges") is None
+    assert raw_host("orders/:orderId/items") is None
 
 
 def test_useful_guard_rejects_generic_paths():
@@ -51,6 +61,31 @@ def fetch():
     # endpoint nodes aren't owned by whichever repo happened to expose/call them
     # last (Finding #10) -- the same "/orders/{}" node is shared across repos
     assert {n.repo for n in nodes if n.kind == "endpoint"} == {"(shared)"}
+
+
+def test_extract_http_flow_captures_raw_host_on_calls_http_edges():
+    src = b'''
+@app.get("/orders/{id}")
+def get_order(id): ...
+
+def fetch():
+    return requests.post("https://oms.internal/orders")
+'''
+    nodes, edges = extract_http_flow("r", "api.py", src, "python")
+    calls = next(e for e in edges if e.relation == "calls_http")
+    assert calls.attrs == {"raw_host": "oms.internal"}
+    exposes = next(e for e in edges if e.relation == "exposes")
+    assert exposes.attrs == {}  # a served route has no "host it calls", ever
+
+
+def test_extract_http_flow_calls_http_with_no_host_has_no_raw_host_attr():
+    src = b'''
+def fetch(client):
+    return client.get("/v1/orders")
+'''
+    nodes, edges = extract_http_flow("r", "api.py", src, "python")
+    calls = next(e for e in edges if e.relation == "calls_http")
+    assert calls.attrs == {}  # base-url client call: no host visible at this site
 
 
 def test_extract_csharp_aspnet_and_httpclient():
@@ -103,6 +138,64 @@ def test_http_flow_two_hop_resolves_caller_to_exposer(store):
     assert e["src"] == "repoB" and e["dst"] == "repoA"
     assert e["relation"] == "flow" and e["context"] == "http"
     assert e["confidence"] == "INFERRED" and e["weight"] == 1
+
+
+def test_external_system_edges_finds_a_call_that_never_resolves(store):
+    ep = make_id("endpoint", "/v1/charges")
+    file_b = make_id("repoB", "Client.cs")
+    prov = Provenance(source_file="x", source_line=1, verified_at=date.today())
+    store.upsert_nodes("repoB", [Node(id=file_b, repo="repoB", kind="file", name="Client.cs")])
+    store.upsert_edges("repoB", [Edge(src=file_b, dst=ep, relation="calls_http",
+                                      confidence=Confidence.INFERRED, provenance=prov,
+                                      attrs={"raw_host": "api.stripe.com"})])
+    systems = repo_external_system_edges(store)
+    assert systems == [{"src": "repoB", "system": "api.stripe.com",
+                        "relation": "calls_external", "confidence": "INFERRED", "weight": 1}]
+
+
+def test_external_system_edges_excludes_a_resolved_call(store):
+    ep = make_id("endpoint", "/orders/{}")
+    file_a = make_id("repoA", "Ctrl.cs")
+    file_b = make_id("repoB", "Client.cs")
+    prov = Provenance(source_file="x", source_line=1, verified_at=date.today())
+    store.upsert_nodes("repoA", [
+        Node(id=file_a, repo="repoA", kind="file", name="Ctrl.cs"),
+        Node(id=ep, repo="repoA", kind="endpoint", name="/orders/{}")])
+    store.upsert_nodes("repoB", [Node(id=file_b, repo="repoB", kind="file", name="Client.cs")])
+    store.upsert_edges("repoA", [Edge(src=file_a, dst=ep, relation="exposes",
+                                      confidence=Confidence.INFERRED, provenance=prov)])
+    store.upsert_edges("repoB", [Edge(src=file_b, dst=ep, relation="calls_http",
+                                      confidence=Confidence.INFERRED, provenance=prov,
+                                      attrs={"raw_host": "internal-svc"})])
+    # resolved (repoA exposes it) -- must not show up as an external system,
+    # even though the caller happened to name a host too
+    assert repo_external_system_edges(store) == []
+
+
+def test_external_system_edges_ignores_a_call_with_no_host(store):
+    ep = make_id("endpoint", "/v1/orders")
+    file_b = make_id("repoB", "Client.cs")
+    prov = Provenance(source_file="x", source_line=1, verified_at=date.today())
+    store.upsert_nodes("repoB", [Node(id=file_b, repo="repoB", kind="file", name="Client.cs")])
+    store.upsert_edges("repoB", [Edge(src=file_b, dst=ep, relation="calls_http",
+                                      confidence=Confidence.INFERRED, provenance=prov)])
+    # no raw_host attr (a relative-path call) -- nothing to name as a system
+    assert repo_external_system_edges(store) == []
+
+
+def test_external_system_edges_aggregates_weight_across_distinct_calls(store):
+    file_b = make_id("repoB", "Client.cs")
+    prov = Provenance(source_file="x", source_line=1, verified_at=date.today())
+    store.upsert_nodes("repoB", [Node(id=file_b, repo="repoB", kind="file", name="Client.cs")])
+    store.upsert_edges("repoB", [
+        Edge(src=file_b, dst=make_id("endpoint", "/v1/charges"), relation="calls_http",
+             confidence=Confidence.INFERRED, provenance=prov, attrs={"raw_host": "api.stripe.com"}),
+        Edge(src=file_b, dst=make_id("endpoint", "/v1/refunds"), relation="calls_http",
+             confidence=Confidence.INFERRED, provenance=prov, attrs={"raw_host": "api.stripe.com"}),
+    ])
+    systems = repo_external_system_edges(store)
+    assert len(systems) == 1
+    assert systems[0]["system"] == "api.stripe.com" and systems[0]["weight"] == 2
 
 
 def test_http_flow_ignores_same_repo(store):

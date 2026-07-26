@@ -274,7 +274,7 @@ def _root_hidden_flags(p):
         add(flag)
     for flag in ("--no-audit", "--no-sync", "--no-connect", "--no-embed", "--no-enrich",
                  "--no-wiki", "--force", "--watch", "--overview", "--open", "--cdn",
-                 "--serve", "--anonymize", "--sample", "--c4"):
+                 "--serve", "--anonymize", "--sample", "--c4", "--c1"):
         add(flag, action="store_true")
     for flag in ("--interval", "--port", "--limit", "--hops", "--max-nodes",
                  "--max-fanout", "--group-depth"):
@@ -570,6 +570,7 @@ Examples:
   contextlake graph --serve                           live click-to-expand UI
   contextlake graph --site                            offline cross-linked site
   contextlake graph --c4 --group-depth 2              composed namespace (C4) diagram
+  contextlake graph --c4 --c1                         + external-system boxes (C1)
                 """)
     p.add_argument("args", nargs="*", metavar="query",
                    help="full-text seed (same as --search)")
@@ -583,6 +584,11 @@ Examples:
                         "namespace boundaries with aggregated cross-repo edges "
                         "(--format dot|html|json; not mermaid/classdiagram/"
                         "sequencediagram/statediagram/erdiagram)")
+    p.add_argument("--c1", action="store_true", default=_S,
+                   help="with --c4: add external-system boxes for HTTP calls that "
+                        "never resolve to any indexed repo's exposed route "
+                        "(unclassified -- could be a real third party or just an "
+                        "unindexed internal service). Requires --c4.")
     p.add_argument("--kind", default=_S, help="filter seeds by node kind")
     p.add_argument("--repo", default=_S, help="filter seeds by repo")
     p.add_argument("--limit", type=int, default=_S, help="max seed nodes")

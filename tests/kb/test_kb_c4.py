@@ -29,24 +29,31 @@ def _edge(rid, name, dst, relation):
 
 def _seed(store_dir):
     """3 repos under acme/pay + 1 outside; web->api HTTP (internal),
-    ship/api->web HTTP (boundary). Each repo also gets a shard for its brief."""
+    ship/api->web HTTP (boundary), web-> an unresolved external call (C1, off
+    by default -- c1=False callers never see it). Each repo also gets a shard
+    for its brief."""
     s = SqliteStore(store_dir / "index.sqlite")
     for rid in ("acme/pay/api", "acme/pay/web", "acme/pay/core", "acme/ship/api"):
         s.upsert_repo(Repo(id=rid, path=f"/repos/{rid}"))
     ep_e = make_id("endpoint", "/orders")
     ep_f = make_id("endpoint", "/ship")
+    ep_x = make_id("endpoint", "/v1/charges")  # never exposed by anyone
     # api exposes /orders
     s.upsert_nodes("acme/pay/api",
                    [_fnode("acme/pay/api", "ctrl"),
                     Node(id=ep_e, repo="acme/pay/api", kind="endpoint", name="/orders")])
     s.upsert_edges("acme/pay/api", [_edge("acme/pay/api", "ctrl", ep_e, "exposes")])
-    # web calls /orders (-> internal web->api) and exposes /ship
+    # web calls /orders (-> internal web->api), exposes /ship, and calls an
+    # external system (Stripe) that nothing in the fleet exposes
     s.upsert_nodes("acme/pay/web",
                    [_fnode("acme/pay/web", "app"),
                     Node(id=ep_f, repo="acme/pay/web", kind="endpoint", name="/ship")])
     s.upsert_edges("acme/pay/web",
                    [_edge("acme/pay/web", "app", ep_e, "calls_http"),
-                    _edge("acme/pay/web", "app", ep_f, "exposes")])
+                    _edge("acme/pay/web", "app", ep_f, "exposes"),
+                    Edge(src=make_id("acme/pay/web", "app"), dst=ep_x, relation="calls_http",
+                         confidence=Confidence.INFERRED, provenance=_PROV,
+                         attrs={"raw_host": "api.stripe.com"})])
     # ship/api calls /ship (-> boundary ship/api->web)
     s.upsert_nodes("acme/ship/api", [_fnode("acme/ship/api", "cl")])
     s.upsert_edges("acme/ship/api", [_edge("acme/ship/api", "cl", ep_f, "calls_http")])
@@ -76,6 +83,40 @@ def test_c4_model_buckets_namespaces_and_splits_edges(tmp_path):
     assert any(not e.boundary for e in model.edges)
     # weights preserved, confidence INFERRED
     assert all(e.confidence == "INFERRED" and e.weight >= 1 for e in model.edges)
+
+
+def test_c4_model_c1_off_by_default_has_no_systems(tmp_path):
+    """The seed data includes an unresolved external call (web -> Stripe), but
+    c1 defaults to False, so ordinary --c4 output must stay identical to
+    before this feature existed."""
+    store = _seed(tmp_path)
+    model = c4.c4_model(store, group_depth=2)
+    assert model.systems == []
+    assert not any(e.flavor == "external" for e in model.edges)
+    assert model.meta["system_count"] == 0
+
+
+def test_c4_model_c1_true_adds_the_external_system(tmp_path):
+    store = _seed(tmp_path)
+    model = c4.c4_model(store, group_depth=2, c1=True)
+    assert len(model.systems) == 1
+    sysbox = model.systems[0]
+    assert sysbox.label == "api.stripe.com"
+    ext_edges = [e for e in model.edges if e.flavor == "external"]
+    assert len(ext_edges) == 1
+    e = ext_edges[0]
+    assert e.src == "acme/pay/web" and e.dst == sysbox.system_id
+    assert e.boundary is True  # a system is never in any namespace
+    assert e.confidence == "INFERRED" and e.weight == 1
+    assert model.meta["system_count"] == 1
+
+
+def test_c4_model_c1_excludes_a_repo_filtered_out_by_repos(tmp_path):
+    store = _seed(tmp_path)
+    # scope to acme/ship only -- the caller of the external system (acme/pay/web)
+    # is excluded, so the system must not appear either
+    model = c4.c4_model(store, group_depth=2, repos=["acme/ship/api"], c1=True)
+    assert model.systems == []
 
 
 def test_c4_boundary_repo_that_is_the_exact_namespace_joins_it(tmp_path):
@@ -177,6 +218,43 @@ def test_c4_payload_edge_join_invariant(tmp_path):
     for e in payload["edges"]:
         assert e["src"] in node_ids, f"edge src {e['src']!r} has no matching node id"
         assert e["dst"] in node_ids, f"edge dst {e['dst']!r} has no matching node id"
+
+
+def test_to_c4_dot_c1_draws_the_system_outside_any_cluster(tmp_path):
+    store = _seed(tmp_path)
+    model = c4.c4_model(store, group_depth=2, c1=True)
+    dot = c4.to_c4_dot(model)
+    assert 'label="api.stripe.com", style=dashed' in dot
+    # the system's node declaration line must sit OUTSIDE every cluster block,
+    # i.e. before the first "subgraph cluster_" or after its matching close --
+    # simplest robust check: it's not indented at the 4-space cluster-body
+    # level the way a container node declaration is.
+    sys_line = next(ln for ln in dot.splitlines() if "api.stripe.com" in ln)
+    assert not sys_line.startswith("    ")
+    assert "external x1" in dot  # the calls_external edge's "<flavor> x<weight>" label
+
+
+def test_c4_payload_c1_system_node_has_no_parent(tmp_path):
+    store = _seed(tmp_path)
+    model = c4.c4_model(store, group_depth=2, c1=True)
+    payload = c4.c4_payload(model)
+    systems = [n for n in payload["nodes"] if n.get("kind") == "system"]
+    assert len(systems) == 1
+    assert systems[0]["parent"] is None
+    assert systems[0]["name"] == "api.stripe.com"
+
+
+def test_c4_payload_c1_edge_join_invariant(tmp_path):
+    """Same invariant as test_c4_payload_edge_join_invariant, with c1 on --
+    the system node id must exactly match what the calls_external edge's dst
+    resolves to after c4_payload's own sanitize_label pass (idempotency)."""
+    store = _seed(tmp_path)
+    model = c4.c4_model(store, group_depth=2, c1=True)
+    payload = c4.c4_payload(model)
+    node_ids = {n["id"] for n in payload["nodes"]}
+    ext_edges = [e for e in payload["edges"] if e["context"] == "external"]
+    assert len(ext_edges) == 1
+    assert ext_edges[0]["dst"] in node_ids
 
 
 # --- CLI wiring: `contextlake graph --c4` --------------------------------
@@ -320,3 +398,37 @@ def test_graph_c4_json_format(tmp_path, capsys):
     parsed = json.loads(capsys.readouterr().out)
     assert "nodes" in parsed and "edges" in parsed
     assert any(n.get("kind") == "namespace" for n in parsed["nodes"])
+
+
+def test_graph_c1_without_c4_is_rejected(tmp_path, capsys):
+    cfg = _seed_and_configure(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c1", "--config", str(cfg)])
+    assert e.value.code != 0
+    err = capsys.readouterr().err
+    assert "--c1" in err and "--c4" in err
+
+
+def test_graph_c4_c1_json_includes_the_system(tmp_path, capsys):
+    cfg = _seed_and_configure(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--c1", "--group-depth", "2", "--format", "json",
+              "--config", str(cfg)])
+    assert e.value.code == 0
+    import json
+    parsed = json.loads(capsys.readouterr().out)
+    assert any(n.get("kind") == "system" and n.get("name") == "api.stripe.com"
+              for n in parsed["nodes"])
+
+
+def test_graph_c4_without_c1_json_has_no_system(tmp_path, capsys):
+    """The seed data's unresolved external call must not leak into ordinary
+    --c4 output when --c1 isn't passed."""
+    cfg = _seed_and_configure(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--c4", "--group-depth", "2", "--format", "json",
+              "--config", str(cfg)])
+    assert e.value.code == 0
+    import json
+    parsed = json.loads(capsys.readouterr().out)
+    assert not any(n.get("kind") == "system" for n in parsed["nodes"])

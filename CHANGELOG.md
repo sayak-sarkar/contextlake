@@ -5,6 +5,26 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`graph --c4 --c1`: C1 external-system layer.** One dashed box per distinct
+  host an indexed repo calls over HTTP that never resolves to any indexed
+  repo's exposed route (`kb/arch/resolve.py:repo_external_system_edges`),
+  drawn outside every namespace boundary, connected by a `calls_external`
+  edge. Deliberately unclassified: a genuine third party and an unindexed
+  internal service look identical here (no `internal_domains` allowlist in
+  V1 — see `contextlake-planning/specs/spec-D-c1-system-context.md`). No new
+  extraction pass: `flow/http.py`'s `calls_http` edges now carry the raw
+  call-target host (`Edge.attrs["raw_host"]`, new `Edge.attrs` field,
+  `edges.attrs` store column, `SCHEMA_VERSION` 1→2 with an automatic
+  `ALTER TABLE` migration for existing stores — verified against a
+  pre-v2.52 store shape, no manual step needed). `--c1` requires `--c4`.
+  Verified live end-to-end (host captured → persisted → joined against
+  `exposes` → rendered, confirmed both the resolved and unresolved paths on
+  a real two-repo fleet).
+
 ## [2.52.0] - 2026-07-26
 
 ### Added

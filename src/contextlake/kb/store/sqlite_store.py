@@ -18,7 +18,7 @@ from pathlib import Path
 from ..model import Confidence, Edge, Node, Provenance, Repo
 from .base import Stats, Store
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS kb_meta (key TEXT PRIMARY KEY, value TEXT);
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS nodes (
 CREATE TABLE IF NOT EXISTS edges (
     edge_id INTEGER PRIMARY KEY AUTOINCREMENT, repo_id TEXT, src TEXT, dst TEXT,
     relation TEXT, confidence TEXT, context TEXT, source_file TEXT, source_line INTEGER,
-    verified_at TEXT, weight REAL, cross_repo INTEGER DEFAULT 0);
+    verified_at TEXT, weight REAL, cross_repo INTEGER DEFAULT 0, attrs TEXT);
 CREATE TABLE IF NOT EXISTS external (
     ext_id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, source_type TEXT,
     external_key TEXT, repo_id TEXT, relation TEXT, title TEXT, url TEXT,
@@ -64,8 +64,23 @@ class SqliteStore(Store):
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.executescript(_SCHEMA)
+        self._migrate_additive_columns()
         self._set_meta("schema_version", str(SCHEMA_VERSION))
         self.conn.commit()
+
+    def _migrate_additive_columns(self) -> None:
+        """Add columns introduced after a store already exists on disk.
+
+        ``CREATE TABLE IF NOT EXISTS`` above is a no-op against an existing
+        table -- it never widens one -- so a pre-v2.52 store opened by this
+        build would otherwise fail the very first ``INSERT`` that names a
+        column it doesn't have (``edges.attrs``, added for C1 system-context
+        edges). ``ALTER TABLE ... ADD COLUMN`` is safe/cheap in SQLite for a
+        nullable column: existing rows just read back NULL for it.
+        """
+        cols = {row["name"] for row in self.conn.execute("PRAGMA table_info(edges)")}
+        if "attrs" not in cols:
+            self.conn.execute("ALTER TABLE edges ADD COLUMN attrs TEXT")
 
     # -- meta -----------------------------------------------------------------
     def _set_meta(self, key: str, value: str) -> None:
@@ -252,12 +267,13 @@ class SqliteStore(Store):
             rows.append(
                 (repo_id, e.src, e.dst, e.relation, e.confidence.value, e.context,
                  e.provenance.source_file, e.provenance.source_line,
-                 e.provenance.verified_at.isoformat(), e.weight, cross)
+                 e.provenance.verified_at.isoformat(), e.weight, cross,
+                 json.dumps(e.attrs) if e.attrs else None)
             )
         self.conn.executemany(
             "INSERT INTO edges(repo_id, src, dst, relation, confidence, context, "
-            "source_file, source_line, verified_at, weight, cross_repo) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            "source_file, source_line, verified_at, weight, cross_repo, attrs) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
             rows,
         )
         self.conn.commit()
@@ -267,7 +283,7 @@ class SqliteStore(Store):
         return Edge(
             src=row["src"], dst=row["dst"], relation=row["relation"],
             confidence=Confidence(row["confidence"]), context=row["context"],
-            weight=row["weight"],
+            weight=row["weight"], attrs=json.loads(row["attrs"]) if row["attrs"] else {},
             provenance=Provenance(
                 source_file=row["source_file"], source_line=row["source_line"],
                 verified_at=date.fromisoformat(row["verified_at"]),

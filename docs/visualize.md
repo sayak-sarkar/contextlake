@@ -89,6 +89,23 @@ cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classd
 `statediagram`, and `erdiagram` aren't supported with `--c4` (the command exits with an error), and
 `--serve` doesn't apply either, the C4 view is a generated file, not a live server.
 
+### C1: external systems
+
+`--c4 --c1` adds a layer on top of the same view: one dashed box per distinct host an indexed repo
+calls over HTTP that never resolves to any indexed repo's exposed route, connected by a
+`calls_external x<weight>` edge, drawn outside every namespace boundary:
+
+```bash
+contextlake graph --c4 --c1 --group-depth 2 --open
+```
+
+**Deliberately unclassified.** contextlake can't tell a genuine third-party dependency (Stripe,
+GitHub's API) apart from an internal service this fleet simply hasn't indexed yet — both look
+identical here: an HTTP call whose target path matches no indexed repo's `exposes` route. Read the
+box labels yourself; you'll recognize your own internal hosts. `--c1` requires `--c4` (it has no
+meaning on its own) and needs no new extraction pass — the host was already captured at index time,
+just never used until this view asks for it.
+
 ## See also
 
 - [The dashboard](dashboard.md)

@@ -67,6 +67,26 @@ def normalize_path(raw: str) -> str:
     return "/" + "/".join(segs)
 
 
+_HOST_RE = re.compile(r"^https?://([^/]+)")
+
+
+def raw_host(raw: str) -> str | None:
+    """The host a ``calls_http`` target names, or ``None`` for a relative path
+    (``client.get('/v1/x')`` against some base-url client -- no host is ever
+    visible at this call site, so nothing can be said about it).
+
+    Kept separate from :func:`normalize_path`, which deliberately discards this
+    -- endpoint identity (the node/id two repos join on) must stay host-agnostic
+    so a caller reached over a load balancer's hostname still joins the same
+    server route. This is auxiliary data carried on the *edge* instead (see
+    :data:`contextlake.kb.model.SYSTEM_REPO`): once a ``calls_http`` edge fails
+    to join any indexed repo's ``exposes`` edge, the host is what lets the C1
+    view say *where* the call actually goes instead of just "unresolved."
+    """
+    m = _HOST_RE.match(raw.strip().strip("'\"`"))
+    return m.group(1).lower() if m else None
+
+
 def _useful(norm: str) -> bool:
     # require at least one real (>=2 char, non-param) segment so '/', '/{}' etc.
     # — which would match almost anything — never become shared endpoints
@@ -102,9 +122,15 @@ def extract_http_flow(repo_id: str, rel_path: str, source, lang: str,
                 method = (m.group(mspec) if isinstance(mspec, int) else mspec) or "*"
                 nodes.append(Node(id=ep_id, repo=SHARED_REPO, kind="endpoint",
                                   name=norm, qualified_name=norm))
+                attrs = {}
+                if relation == "calls_http":
+                    host = raw_host(path)
+                    if host:
+                        attrs["raw_host"] = host
                 edges.append(Edge(
                     src=file_id, dst=ep_id, relation=relation,
                     confidence=Confidence.INFERRED, context=method.upper(),
+                    attrs=attrs,
                     provenance=Provenance(source_file=rel_path,
                                           source_line=text.count("\n", 0, m.start()) + 1,
                                           verified_at=verified_at)))
