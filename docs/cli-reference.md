@@ -14,13 +14,13 @@ command's own page (linked below) covers it in depth.
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
-| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
-| `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`) |
-| `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`) |
+| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--json`) |
+| `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`, `--json`) |
+| `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`, `--json`) |
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
-| `lint` | Graph health audit: stale repos, dangling edges |
+| `lint` | Graph health audit: stale repos, dangling edges (`--json`) |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
 | `serve` | Expose the graph over MCP (stdio or `--transport http`) |

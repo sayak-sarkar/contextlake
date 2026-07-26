@@ -2299,6 +2299,7 @@ prolific author:
 ```bash
 contextlake owners acme/payments-api                 # top contributors for the whole repo
 contextlake owners acme/payments-api --path src/auth  # ...scoped to the auth module
+contextlake owners acme/payments-api --json           # machine-readable, for scripts/CI
 ```
 
 <p align="center">
@@ -2856,13 +2857,13 @@ command's own page (linked below) covers it in depth.
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
-| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
-| `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`) |
-| `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`) |
+| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--json`) |
+| `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`, `--json`) |
+| `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`, `--json`) |
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
-| `lint` | Graph health audit: stale repos, dangling edges |
+| `lint` | Graph health audit: stale repos, dangling edges (`--json`) |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
 | `serve` | Expose the graph over MCP (stdio or `--transport http`) |
@@ -2984,7 +2985,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A mistyped subcommand now suggests the closest real one** instead of
+  dumping argparse's raw 30-item choice list (`contextlake fetc` →
+  `Did you mean: fetch?`). Reuses the same `difflib`-based fuzzy match already
+  powering unknown-repo-id suggestions. Matches against every command
+  including aliases, then always displays the canonical verb, a typo of
+  `blast-radius` suggests `impact`, matching what `--help` teaches (`cli.py`).
+- **`--help` now links to the docs site and the issue tracker**
+  (`https://sayak.in/contextlake`, GitHub issues) so a stuck user isn't a
+  search engine query away from either.
+- **`-n`** as a short form of `--dry-run`, matching the near-universal
+  `rm`/`cp`/`make` convention.
+- **`--plain`** as a friendlier, discoverable spelling of `NO_COLOR=1`, same
+  code path, just a flag instead of an environment variable.
+- **`contextlake source add --from-stdin KEY`** reads a connector option's
+  value off a pipe instead of the command line, so a secret never lands in
+  shell history (`--set KEY=VALUE` already never echoes it to logs; this
+  closes the other exposure vector). Errors clearly instead of hanging if
+  stdin isn't actually piped.
+- **`--json` on `query`, `owners`, `impact`, and `lint`**, the four commands
+  whose entire job is answering a question had no machine-readable output,
+  despite contextlake's whole pitch being "agents answer from real source
+  instead of guessing." Reuses `graph`'s already-proven pattern: logs move to
+  stderr via `use_stderr()`, the payload is the only thing on stdout. Error
+  cases (`unknown_repo`, `not_found`, `ambiguous`) are structured JSON too,
+  not just the success path.
+
+### Fixed
+
+- **`embed` and `wiki` (both per-repo and `--namespaces`) silently reported a
+  partial failure as a clean success.** If even one repo/namespace out of a
+  batch failed, the summary line kept its `✓` glyph and simply omitted the
+  failure from the count, indistinguishable from a fully successful run
+  unless you scrolled back through the whole log. Both now show `⚠` and the
+  failed count whenever `failed > 0`.
+
 ### Changed
+
+- **`update`, `branches`, `index --workspace`, `embed`, and `wiki` now name a
+  concrete next step when something failed**, instead of ending on a bare
+  summary line. `update`/`branches` list the failed repos and the exact retry
+  command (`contextlake update --repos <name>`); `index` points at the log
+  and notes re-runs are incremental; `embed`/`wiki` point at the log and
+  suggest re-running. `update` also notes how many repos were auto-switched
+  to a new branch. Mirrors `_bootstrap`'s existing ending, which already did
+  this well.
+- **Flags can no longer be silently abbreviated** (`--work-d` used to resolve
+  to `--work-dir` via argparse's default `allow_abbrev=True`). Disabled on the
+  root parser and every subcommand parser, an unrecognized long flag is now
+  a clear error instead of an undocumented shortcut that breaks the moment a
+  new flag creates an ambiguity.
 
 - **`contextlake update` no longer just reports a deleted upstream branch and
   waits for the user to run `branches` by hand.** A tracked branch missing on

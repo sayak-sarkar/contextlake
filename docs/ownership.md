@@ -8,6 +8,7 @@ prolific author:
 ```bash
 contextlake owners acme/payments-api                 # top contributors for the whole repo
 contextlake owners acme/payments-api --path src/auth  # ...scoped to the auth module
+contextlake owners acme/payments-api --json           # machine-readable, for scripts/CI
 ```
 
 <p align="center">

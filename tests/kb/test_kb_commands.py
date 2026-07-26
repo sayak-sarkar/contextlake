@@ -469,6 +469,100 @@ def test_query_no_match_multiword_hints_semantic_search(tmp_path, capsys):
     assert "embed" in out and "semantic" in out.lower()
 
 
+def test_query_json_emits_a_clean_parseable_array(tmp_path, capsys):
+    """Before --json existed, piping query's plain-text output to jq failed
+    outright -- the only way to consume a hit programmatically."""
+    import json
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+
+    assert _run(["query", "CatalogService", "--config", str(cfg), "--json"]) == 0
+    captured = capsys.readouterr()  # --json redirects logs to stderr like graph does
+    assert captured.out.strip(), "payload must be on stdout"
+    hits = json.loads(captured.out)
+    assert hits == [{
+        "repo": "demo/app", "file": "src/catalog.py", "line": 1,
+        "kind": "class", "name": "CatalogService",
+        "qualified_name": "demo.app.order.CatalogService",
+    }]
+
+
+def test_owners_json_emits_a_clean_parseable_object(tmp_path, capsys):
+    import json
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+
+    assert _run(["owners", "demo/app", "--config", str(cfg), "--json"]) == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["repo"] == "demo/app"
+    assert payload["path"] is None
+    assert isinstance(payload["owners"], list)
+
+
+def test_owners_json_unknown_repo_reports_the_error_as_json_too(tmp_path, capsys):
+    import json
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+
+    rc = _run(["owners", "app", "--config", str(cfg), "--json"])
+    captured = capsys.readouterr()
+    assert rc == 1
+    payload = json.loads(captured.out)
+    assert payload["error"] == "unknown_repo"
+    assert "demo/app" in payload["suggestions"]
+
+
+def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
+    import json
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+
+    assert _run(["lint", "--config", str(cfg), "--json"]) in (0, 1)
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert set(payload) == {"repos", "checked", "stale", "dangling",
+                            "stale_repos", "dangling_sample"}
+
+
+def test_impact_json_unknown_target_reports_the_error_as_json_too(tmp_path, capsys):
+    import json
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+
+    rc = _run(["impact", "TotallyBogusSymbol", "--config", str(cfg), "--json"])
+    captured = capsys.readouterr()
+    assert rc == 1
+    payload = json.loads(captured.out)
+    assert payload == {"error": "not_found", "target": "TotallyBogusSymbol"}
+
+
+def test_impact_json_emits_a_clean_parseable_object(tmp_path, capsys):
+    import json
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+
+    rc = _run(["impact", "CatalogService", "--config", str(cfg), "--json"])
+    captured = capsys.readouterr()
+    assert rc == 0
+    payload = json.loads(captured.out)
+    assert payload["target"]["name"] == "CatalogService"
+    assert payload["hops"] == 3
+    assert isinstance(payload["affected"], list)
+
+
 def test_query_no_match_singleword_no_hint(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
     assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0

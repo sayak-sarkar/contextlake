@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shell history (`--set KEY=VALUE` already never echoes it to logs; this
   closes the other exposure vector). Errors clearly instead of hanging if
   stdin isn't actually piped.
+- **`--json` on `query`, `owners`, `impact`, and `lint`** — the four commands
+  whose entire job is answering a question had no machine-readable output,
+  despite contextlake's whole pitch being "agents answer from real source
+  instead of guessing." Reuses `graph`'s already-proven pattern: logs move to
+  stderr via `use_stderr()`, the payload is the only thing on stdout. Error
+  cases (`unknown_repo`, `not_found`, `ambiguous`) are structured JSON too,
+  not just the success path.
 
 ### Fixed
 

@@ -437,7 +437,9 @@ missing name: `remove` is a no-op (exit 0), `enable`/`disable` fail (exit 1).
     p.add_argument("--limit", type=int, default=_S, help="max nodes to embed per repo")
     _add_watch(p, "the embedder")
 
-    command("lint", "graph-health checks: stale repos and dangling edges")
+    p = command("lint", "graph-health checks: stale repos and dangling edges")
+    p.add_argument("--json", action="store_true", default=_S,
+                   help="machine-readable JSON on stdout instead of formatted text")
 
     p = command("wiki", "generate provenance-stamped wiki pages, gated by a review council")
     p.add_argument("args", nargs="*", metavar="repo",
@@ -510,6 +512,8 @@ Examples:
     p.add_argument("--limit", type=int, default=_S, help="max results (default 20)")
     p.add_argument("--as-of", dest="as_of", default=_S,
                    help="search a repo's snapshot at this indexed commit (needs --repo)")
+    p.add_argument("--json", action="store_true", default=_S,
+                   help="machine-readable JSON on stdout instead of formatted text")
 
     p = command("graph", "visualize a bounded subgraph (HTML/dot/mermaid/JSON)",
                 epilog="""
@@ -595,6 +599,8 @@ Examples:
     p.add_argument("args", nargs="*", metavar="repo-or-path", help="a repo id or a path")
     p.add_argument("--path", default=_S, help="restrict to a sub-path")
     p.add_argument("--limit", type=int, default=_S, help="max owners listed (default 10)")
+    p.add_argument("--json", action="store_true", default=_S,
+                   help="machine-readable JSON on stdout instead of formatted text")
 
     p = command("impact", "reverse blast radius: what could break if a node changes",
                 aliases=("blast-radius",))
@@ -603,6 +609,8 @@ Examples:
     p.add_argument("--repo", default=_S, help="disambiguate the symbol by repo")
     p.add_argument("--hops", type=int, default=_S, help="reverse depth (default 3)")
     p.add_argument("--limit", type=int, default=_S, help="max nodes listed (default 100)")
+    p.add_argument("--json", action="store_true", default=_S,
+                   help="machine-readable JSON on stdout instead of formatted text")
 
     p = command("ingest", "aggregate external documents (files/web/api/graphql/mcp sources) "
                           "into the graph")

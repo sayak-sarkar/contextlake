@@ -7,6 +7,7 @@ tool runs without the ``[kb]`` extra installed.
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -1042,19 +1043,30 @@ def lint_result(store, store_dir) -> dict:
 
 def cmd_lint(args) -> int:
     """Graph-health checks: stale repos (HEAD moved) and dangling edges."""
+    as_json = getattr(args, "json", False)
+    if as_json:
+        from ..logging_setup import use_stderr
+        use_stderr()
     store, store_dir = _open_store(args)
     try:
         if not store.list_repos():
+            if as_json:
+                print(json.dumps({"repos": 0, "checked": 0, "stale": 0, "dangling": 0,
+                                  "stale_repos": [], "dangling_sample": []}, indent=2))
+                return 0
             log("Nothing indexed yet — run index first.")
             return 0
         res = lint_result(store, store_dir)
+        clean = res["dangling"] == 0 and res["stale"] == 0
+        if as_json:
+            print(json.dumps(res, indent=2))
+            return 0 if clean else 1
         for rid in res["stale_repos"]:
             log(f"  stale: {rid} (HEAD moved or never finished — re-run index)")
         for d in res["dangling_sample"]:
             log(f"  dangling: {d['repo']}: {d['src']} -{d['relation']}-> {d['dst']}")
         if res["dangling"] > 20:
             log(f"  … and {res['dangling'] - 20} more dangling edge(s)")
-        clean = res["dangling"] == 0 and res["stale"] == 0
         glyph = style.ok() if clean else style.warn()
         log(f"{glyph} Lint: {res['repos']} repos, {res['checked']} edges checked — "
             f"{res['dangling']} dangling, {res['stale']} stale")
@@ -1068,7 +1080,12 @@ def _print_hit(n) -> None:
     log(f"  {style.cyan(n.repo)} · {loc} · {n.kind} · {style.bold(n.name)}")
 
 
-def _query_as_of(args, commit: str) -> int:
+def _hit_json(n) -> dict:
+    return {"repo": n.repo, "file": n.file, "line": n.line_start, "kind": n.kind,
+            "name": n.name, "qualified_name": n.qualified_name}
+
+
+def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
     """Search a repo's snapshot at an indexed commit (bi-temporal 'as of')."""
     from .store.shards import read_shard_at
 
@@ -1080,6 +1097,9 @@ def _query_as_of(args, commit: str) -> int:
     store_dir = load_kb_config(getattr(args, "config", None)).store_path
     shard = read_shard_at(store_dir, repo, commit)
     if shard is None:
+        if as_json:
+            print(json.dumps({"error": "no_snapshot", "repo": repo, "commit": commit}, indent=2))
+            return 1
         log(f"No indexed snapshot of {repo!r} at commit {commit!r}")
         return 1
     kind = getattr(args, "kind", None)
@@ -1089,6 +1109,9 @@ def _query_as_of(args, commit: str) -> int:
             or (n.qualified_name and text in n.qualified_name.lower()))
         and (kind is None or n.kind == kind)
     ][:getattr(args, "limit", None) or 20]
+    if as_json:
+        print(json.dumps([_hit_json(n) for n in hits], indent=2))
+        return 0
     if not hits:
         log(f"No matches for {text!r} in {repo} as of {commit}")
         return 0
@@ -1102,15 +1125,22 @@ def cmd_query(args) -> int:
     if not text:
         log("usage: contextlake query \"<text>\" [--kind K] [--repo R] [--limit N] [--as-of C]")
         return 2
+    as_json = getattr(args, "json", False)
+    if as_json:
+        from ..logging_setup import use_stderr
+        use_stderr()
     as_of = getattr(args, "as_of", None)
     if as_of:
-        return _query_as_of(args, as_of)
+        return _query_as_of(args, as_of, as_json=as_json)
     store, _ = _open_store(args)
     try:
         results = store.search(
             text, kind=getattr(args, "kind", None), repo=getattr(args, "repo", None),
             limit=getattr(args, "limit", None) or 20,
         )
+        if as_json:
+            print(json.dumps([_hit_json(n) for n in results], indent=2))
+            return 0
         if not results:
             log(f"No matches for {text!r}")
             # A multi-word phrase reads as a natural-language question; query is
@@ -1164,6 +1194,10 @@ def cmd_owners(args) -> int:
         return 2
     subpath = getattr(args, "path", None)
     limit = getattr(args, "limit", None) or 10
+    as_json = getattr(args, "json", False)
+    if as_json:
+        from ..logging_setup import use_stderr
+        use_stderr()
 
     # Resolve a working dir: a directory on disk, else a repo id looked up in the store.
     if Path(target).is_dir():
@@ -1174,6 +1208,11 @@ def cmd_owners(args) -> int:
         try:
             repo = store.get_repo(target)
             if not repo or not repo.path:
+                if as_json:
+                    print(json.dumps({"error": "unknown_repo", "target": target,
+                                      "suggestions": _repo_id_suggestions(store, target)},
+                                     indent=2))
+                    return 1
                 log(_unknown_repo_msg(store, target))
                 return 1
         finally:
@@ -1182,6 +1221,14 @@ def cmd_owners(args) -> int:
 
     owners = compute_owners(repo_path, subpath, limit=limit)
     scope = f"{label}:{subpath}" if subpath else label
+    if as_json:
+        print(json.dumps({
+            "repo": label, "path": subpath,
+            "owners": [{"name": o.name, "commits": o.commits, "lines": o.lines,
+                       "last_active": o.last_active, "share": o.share}
+                      for o in owners],
+        }, indent=2))
+        return 0
     if not owners:
         log(f"No commit history found for {scope}")
         return 0
@@ -1203,6 +1250,10 @@ def cmd_impact(args) -> int:
     hops = getattr(args, "hops", None) or 3
     limit = getattr(args, "limit", None) or 100
     repo = getattr(args, "repo", None)
+    as_json = getattr(args, "json", False)
+    if as_json:
+        from ..logging_setup import use_stderr
+        use_stderr()
     store, _ = _open_store(args)
     try:
         node, candidates = resolve_target(store, target, repo=repo)
@@ -1210,15 +1261,35 @@ def cmd_impact(args) -> int:
             by_repo: dict = {}
             for c in candidates:
                 by_repo.setdefault(c.repo, c)
+            if as_json:
+                print(json.dumps({
+                    "error": "ambiguous", "target": target,
+                    "candidates": [{"repo": r, "kind": c.kind, "name": c.name}
+                                  for r, c in by_repo.items()],
+                }, indent=2))
+                return 1
             log(f"{style.cyan(target)} is ambiguous — defined in {len(by_repo)} repos. "
                 f"Narrow it with --repo:")
             for r, c in list(by_repo.items())[:10]:
                 log(f"  --repo {r}   ({c.kind} {c.name})")
             return 1
         if node is None:
+            if as_json:
+                print(json.dumps({"error": "not_found", "target": target}, indent=2))
+                return 1
             log(f"No node matches {target!r} — index first, or try `query`")
             return 1
         hits, truncated = blast_radius(store, node.id, hops=hops, limit=limit)
+        if as_json:
+            print(json.dumps({
+                "target": {"id": node.id, "repo": node.repo, "kind": node.kind,
+                          "name": node.name},
+                "hops": hops, "truncated": truncated,
+                "affected": [{"hop": h.hop, "repo": h.repo, "kind": h.kind, "name": h.name,
+                             "via": h.via, "confidence": h.confidence.lower()}
+                            for h in hits],
+            }, indent=2))
+            return 0
         head = f"Impact of changing {style.cyan(node.name)} ({node.id})"
         if not hits:
             log(f"{head}: nothing depends on it within {hops} hop(s)")
