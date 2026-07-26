@@ -39,7 +39,7 @@ server natively:
   imports it, **`.windsurfrules`**, and **`.kiro/steering/`**.
 - A merged **`.mcp.json`** entry for the `contextlake serve` server (Claude Code, Windsurf,
   Cursor, and other clients that read this file) and a merged **`.vscode/mcp.json`** entry for
-  VS Code, which uses a different top-level key (`servers`, not `mcpServers`) — a distinct
+  VS Code, which uses a different top-level key (`servers`, not `mcpServers`): a distinct
   schema, so it gets its own file rather than reusing `.mcp.json`.
 - A generic library of **agent skills / workflows** (`.claude/skills/`, `.windsurf/workflows/`):
   investigate-root-cause, plan-before-coding, surgical-change, review-before-landing,
@@ -73,7 +73,7 @@ Windsurf, add the same server in its MCP config (Cascade's *MCP Servers* panel, 
 }
 ```
 
-VS Code, in `.vscode/mcp.json` (note the `servers` key — a different schema from the
+VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from the
 `mcpServers` files above; `contextlake steer` writes this automatically):
 
 ```json
@@ -89,10 +89,10 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key — a different schema fr
 
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file
-committed to the repo it's working in — so contextlake cannot self-register as a Devin MCP
+committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
 server the way it can for the clients above. Add `contextlake serve` there yourself, once, in
 Devin's own MCP settings. What `contextlake steer` *does* give Devin (and any agent that reads
-plain workspace context) is `AGENTS.md` — the portable part travels; the MCP wiring itself
+plain workspace context) is `AGENTS.md`: the portable part travels; the MCP wiring itself
 doesn't.
 
 ## Once connected

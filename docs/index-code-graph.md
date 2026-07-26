@@ -94,22 +94,22 @@ high-value defs and FK references and is a **deliberate undercount**.
 
 ### Entity state machines
 
-Guarded assignments to a status/state/stage field — `if order.status == Created: order.status = Paid` —
+Guarded assignments to a status/state/stage field (`if order.status == Created: order.status = Paid`)
 become `transitions_to` edges between `state` nodes, labeled with the method that makes the transition.
 Only *guarded* transitions are emitted: the source state must be established by a preceding comparison on
 the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
 and C# (regex, every edge `INFERRED`). Render with `contextlake graph --repo <repo> --format statediagram`
-(a Mermaid entity state machine) — see [Visualize](visualize.md).
+(a Mermaid entity state machine), see [Visualize](visualize.md).
 
 `transitions_to` is deliberately **not** in `impact`'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
-enum member is a language-level rename, not a graph-discoverable break) — pass `--relation transitions_to`
+enum member is a language-level rename, not a graph-discoverable break); pass `--relation transitions_to`
 explicitly if you do want that walk.
 
 ### Intra-repo dataflow: reads and writes
 
 Application code querying a table or view it never explicitly imports still shows up in the graph: a
-literal `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in a string (any language —
+literal `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in a string (any language,
 SQL text looks the same embedded anywhere) becomes a `reads` or `writes` edge from the file to the
 `table`/`view` node the SQL DDL extractor already found, resolved by name across the whole repo the same
 way an FK `references` edge is. A query against a table this repo never defines is an honest miss, not a
@@ -141,7 +141,7 @@ nested `children` compose into full paths and bare `{path:...}` config objects a
 > stylesheets.
 
 > **Shared nodes aren't owned by one repo.** An `endpoint`/`topic`/`module`/package node's id doesn't
-> encode a repo — two repos that both import `requests`, call the same route, or publish to the same
+> encode a repo: two repos that both import `requests`, call the same route, or publish to the same
 > topic produce the identical node, which the store dedupes to one row. Its `repo` reads as a
 > pseudo-repo (`"(shared)"`, `"(packages)"`) rather than any one real repo, by design: which repos
 > actually touch it is a question the cross-repo edges answer, not the node itself.

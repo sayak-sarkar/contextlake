@@ -42,16 +42,16 @@ Output is chosen with `--format`:
 - **`sequencediagram`**, a **Mermaid call-order trace** from one seeded function, each caller's callees
   ordered by call-site line, the order they actually appear in the source: `contextlake graph --name
   process_order --format sequencediagram`. Needs exactly one seed (`--node`/`--name`/`--search`, not
-  `--repo`/`--overview` — there's no single obvious ordering across unrelated seeds), and depth follows
+  `--repo`/`--overview`; there's no single obvious ordering across unrelated seeds), and depth follows
   the view's own `--hops`. Recursion/cycles stop cleanly (a function already on the current call path
   isn't re-entered) instead of hanging.
 - **`statediagram`**, a **Mermaid entity state machine**: guarded assignments to a status/state/stage field
   (`if order.status == Created: order.status = Paid`) become transitions, labeled with the method that
-  makes them. Only *guarded* transitions are emitted — the source state must be established by a preceding
+  makes them. Only *guarded* transitions are emitted: the source state must be established by a preceding
   comparison on the same field, so a diagram never claims a transition the code doesn't actually establish
   (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake graph --repo
   acme/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
-  declares them) but not their transitions past the view's `--hops` — use `--repo` for the full picture.
+  declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 

@@ -90,7 +90,7 @@ hop by hop, with the confidence of each path.
 
 The breadcrumb keeps going from there: **repo → symbol → Diagram → Wiki → Links**, one click each to
 that symbol's repo-scoped architecture graph, curated wiki, and connector links (Jira/Confluence/GitLab).
-Wiki and Links only appear when the repo actually has one — an absent wiki or connector link is omitted
+Wiki and Links only appear when the repo actually has one: an absent wiki or connector link is omitted
 from the trail, never shown as a dead crumb.
 
 ## 7. Generate a wiki
@@ -111,15 +111,15 @@ See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
 ## 8. MCP console & Settings
 
-Two read-only panels, live-only (not part of a `--site` export — both describe this
+Two read-only panels, live-only (not part of a `--site` export; both describe this
 machine/process, not the graph itself):
 
-**MCP** — the live tool catalog for `contextlake serve` against this store (introspected
+**MCP**: the live tool catalog for `contextlake serve` against this store (introspected
 from the real server, so it can never drift from what's actually exposed), plus a
 copyable `.mcp.json` / `.vscode/mcp.json` snippet for wiring an editor to it.
 
-**Settings** — the active `kb.toml` at a glance: store path/size/schema version, the
-mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing —
+**Settings**: the active `kb.toml` at a glance: store path/size/schema version, the
+mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing:
 it's a summary, not a form; edit `kb.toml` directly to change anything.
 
 ---

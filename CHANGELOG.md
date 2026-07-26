@@ -5,6 +5,24 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`wiki` now hints once per run when the builtin model is doing the council
+  review.** The builtin 0.5B is a weak reviewer (near-constant high accept
+  scores, mostly rubber-stamping): still functional, but a real backend
+  (`--llm anthropic|openai|ollama|cli`) gates meaningfully. The note prints
+  once, before generation starts, not per repo.
+
+### Fixed
+
+- **Docs house-style: em-dashes stripped from the remaining `docs/*.md`
+  pages** (`serve.md`, `cli-reference.md`, `index-code-graph.md`,
+  `visualize.md`, `dashboard.md`, `connect-enrich.md`) that had drifted since
+  the original 2026-07-24 pass, replaced context-aware with colons,
+  semicolons, commas, or parens per the surrounding sentence.
+
 ## [2.51.1] - 2026-07-26
 
 ### Fixed

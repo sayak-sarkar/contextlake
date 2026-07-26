@@ -33,7 +33,7 @@ The commands:
 - **`contextlake source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
   type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to `kb.toml`. Pass
   `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
-  (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below) — `--set
+  (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below): `--set
   token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
   value from stdin instead of the command line, so a secret never lands in shell history: `printf '%s'
   "$TOKEN" | contextlake source add jira --type atlassian --from-stdin token`.

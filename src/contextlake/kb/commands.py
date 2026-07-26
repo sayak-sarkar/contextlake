@@ -716,6 +716,12 @@ def cmd_wiki(args) -> int:
             log("LLM tier disabled — pass --llm builtin|ollama|openai "
                 "(or set [llm] enabled = true in kb.toml)")
             return 0
+        if llm.name == "builtin":
+            # The builtin 0.5B is a weak reviewer (near-constant ~0.95 scores, mostly
+            # rubber-stamping) -- still functional, but a real backend gates meaningfully.
+            log("Note: the builtin model is a weak council reviewer (tends to accept "
+                "almost everything). For meaningful accept/reject gating, configure a "
+                "real backend: --llm anthropic|openai|ollama|cli.")
         targets = _connect_targets(args, store)
         if not targets:
             wanted = [a for a in (getattr(args, "args", None) or []) if a]

@@ -1165,7 +1165,7 @@ high-value defs and FK references and is a **deliberate undercount**.
 
 ### Entity state machines
 
-Guarded assignments to a status/state/stage field, `if order.status == Created: order.status = Paid` , 
+Guarded assignments to a status/state/stage field (`if order.status == Created: order.status = Paid`)
 become `transitions_to` edges between `state` nodes, labeled with the method that makes the transition.
 Only *guarded* transitions are emitted: the source state must be established by a preceding comparison on
 the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
@@ -1174,13 +1174,13 @@ and C# (regex, every edge `INFERRED`). Render with `contextlake graph --repo <re
 
 `transitions_to` is deliberately **not** in `impact`'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
-enum member is a language-level rename, not a graph-discoverable break), pass `--relation transitions_to`
+enum member is a language-level rename, not a graph-discoverable break); pass `--relation transitions_to`
 explicitly if you do want that walk.
 
 ### Intra-repo dataflow: reads and writes
 
 Application code querying a table or view it never explicitly imports still shows up in the graph: a
-literal `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in a string (any language , 
+literal `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in a string (any language,
 SQL text looks the same embedded anywhere) becomes a `reads` or `writes` edge from the file to the
 `table`/`view` node the SQL DDL extractor already found, resolved by name across the whole repo the same
 way an FK `references` edge is. A query against a table this repo never defines is an honest miss, not a
@@ -1212,7 +1212,7 @@ nested `children` compose into full paths and bare `{path:...}` config objects a
 > stylesheets.
 
 > **Shared nodes aren't owned by one repo.** An `endpoint`/`topic`/`module`/package node's id doesn't
-> encode a repo, two repos that both import `requests`, call the same route, or publish to the same
+> encode a repo: two repos that both import `requests`, call the same route, or publish to the same
 > topic produce the identical node, which the store dedupes to one row. Its `repo` reads as a
 > pseudo-repo (`"(shared)"`, `"(packages)"`) rather than any one real repo, by design: which repos
 > actually touch it is a question the cross-repo edges answer, not the node itself.
@@ -1279,7 +1279,7 @@ The commands:
 - **`contextlake source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
   type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to `kb.toml`. Pass
   `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
-  (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below), `--set
+  (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below): `--set
   token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
   value from stdin instead of the command line, so a secret never lands in shell history: `printf '%s'
   "$TOKEN" | contextlake source add jira --type atlassian --from-stdin token`.
@@ -2074,7 +2074,7 @@ hop by hop, with the confidence of each path.
 
 The breadcrumb keeps going from there: **repo → symbol → Diagram → Wiki → Links**, one click each to
 that symbol's repo-scoped architecture graph, curated wiki, and connector links (Jira/Confluence/GitLab).
-Wiki and Links only appear when the repo actually has one, an absent wiki or connector link is omitted
+Wiki and Links only appear when the repo actually has one: an absent wiki or connector link is omitted
 from the trail, never shown as a dead crumb.
 
 ## 7. Generate a wiki
@@ -2095,15 +2095,15 @@ See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
 ## 8. MCP console & Settings
 
-Two read-only panels, live-only (not part of a `--site` export, both describe this
+Two read-only panels, live-only (not part of a `--site` export; both describe this
 machine/process, not the graph itself):
 
-**MCP**, the live tool catalog for `contextlake serve` against this store (introspected
+**MCP**: the live tool catalog for `contextlake serve` against this store (introspected
 from the real server, so it can never drift from what's actually exposed), plus a
 copyable `.mcp.json` / `.vscode/mcp.json` snippet for wiring an editor to it.
 
-**Settings**, the active `kb.toml` at a glance: store path/size/schema version, the
-mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing , 
+**Settings**: the active `kb.toml` at a glance: store path/size/schema version, the
+mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing:
 it's a summary, not a form; edit `kb.toml` directly to change anything.
 
 ---
@@ -2156,7 +2156,7 @@ server natively:
   imports it, **`.windsurfrules`**, and **`.kiro/steering/`**.
 - A merged **`.mcp.json`** entry for the `contextlake serve` server (Claude Code, Windsurf,
   Cursor, and other clients that read this file) and a merged **`.vscode/mcp.json`** entry for
-  VS Code, which uses a different top-level key (`servers`, not `mcpServers`), a distinct
+  VS Code, which uses a different top-level key (`servers`, not `mcpServers`): a distinct
   schema, so it gets its own file rather than reusing `.mcp.json`.
 - A generic library of **agent skills / workflows** (`.claude/skills/`, `.windsurf/workflows/`):
   investigate-root-cause, plan-before-coding, surgical-change, review-before-landing,
@@ -2190,7 +2190,7 @@ Windsurf, add the same server in its MCP config (Cascade's *MCP Servers* panel, 
 }
 ```
 
-VS Code, in `.vscode/mcp.json` (note the `servers` key, a different schema from the
+VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from the
 `mcpServers` files above; `contextlake steer` writes this automatically):
 
 ```json
@@ -2209,7 +2209,7 @@ the account/org level (`mcp.devin.ai`, with an API key and org header), not read
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
 server the way it can for the clients above. Add `contextlake serve` there yourself, once, in
 Devin's own MCP settings. What `contextlake steer` *does* give Devin (and any agent that reads
-plain workspace context) is `AGENTS.md`, the portable part travels; the MCP wiring itself
+plain workspace context) is `AGENTS.md`: the portable part travels; the MCP wiring itself
 doesn't.
 
 ## Once connected
@@ -2267,16 +2267,16 @@ Output is chosen with `--format`:
 - **`sequencediagram`**, a **Mermaid call-order trace** from one seeded function, each caller's callees
   ordered by call-site line, the order they actually appear in the source: `contextlake graph --name
   process_order --format sequencediagram`. Needs exactly one seed (`--node`/`--name`/`--search`, not
-  `--repo`/`--overview`, there's no single obvious ordering across unrelated seeds), and depth follows
+  `--repo`/`--overview`; there's no single obvious ordering across unrelated seeds), and depth follows
   the view's own `--hops`. Recursion/cycles stop cleanly (a function already on the current call path
   isn't re-entered) instead of hanging.
 - **`statediagram`**, a **Mermaid entity state machine**: guarded assignments to a status/state/stage field
   (`if order.status == Created: order.status = Paid`) become transitions, labeled with the method that
-  makes them. Only *guarded* transitions are emitted, the source state must be established by a preceding
+  makes them. Only *guarded* transitions are emitted: the source state must be established by a preceding
   comparison on the same field, so a diagram never claims a transition the code doesn't actually establish
   (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake graph --repo
   acme/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
-  declares them) but not their transitions past the view's `--hops`, use `--repo` for the full picture.
+  declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 
@@ -2891,7 +2891,7 @@ The match runs against every command name **and its aliases** (`blast-radius` fo
 for `owners`), then shows the canonical verb, matching what `--help` teaches.
 
 Flags never match on a partial name. `contextlake index --work-d /tmp` reports `unrecognized arguments:
---work-d` rather than silently guessing you meant `--workspace`, a partial flag is treated the same as an
+--work-d` rather than silently guessing you meant `--workspace`: a partial flag is treated the same as an
 unknown one, so a typo fails loudly instead of doing the wrong thing.
 
 ## Knowledge-layer commands
@@ -3034,6 +3034,24 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **`wiki` now hints once per run when the builtin model is doing the council
+  review.** The builtin 0.5B is a weak reviewer (near-constant high accept
+  scores, mostly rubber-stamping): still functional, but a real backend
+  (`--llm anthropic|openai|ollama|cli`) gates meaningfully. The note prints
+  once, before generation starts, not per repo.
+
+### Fixed
+
+- **Docs house-style: em-dashes stripped from the remaining `docs/*.md`
+  pages** (`serve.md`, `cli-reference.md`, `index-code-graph.md`,
+  `visualize.md`, `dashboard.md`, `connect-enrich.md`) that had drifted since
+  the original 2026-07-24 pass, replaced context-aware with colons,
+  semicolons, commas, or parens per the surrounding sentence.
 
 ## [2.51.1] - 2026-07-26
 

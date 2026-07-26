@@ -20,7 +20,7 @@ The match runs against every command name **and its aliases** (`blast-radius` fo
 for `owners`), then shows the canonical verb, matching what `--help` teaches.
 
 Flags never match on a partial name. `contextlake index --work-d /tmp` reports `unrecognized arguments:
---work-d` rather than silently guessing you meant `--workspace` — a partial flag is treated the same as an
+--work-d` rather than silently guessing you meant `--workspace`: a partial flag is treated the same as an
 unknown one, so a typo fails loudly instead of doing the wrong thing.
 
 ## Knowledge-layer commands

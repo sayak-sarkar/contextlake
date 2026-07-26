@@ -28,10 +28,9 @@ def _shard(store_dir):
 
 
 class _FakeLlm:
-    name = "fake"
-
-    def __init__(self, score=0.9):
+    def __init__(self, score=0.9, name="fake"):
         self._score = score
+        self.name = name
 
     def generate(self, prompt, *, system=None):
         if "Review lens" in prompt:
@@ -416,6 +415,31 @@ def test_cmd_wiki_writes_accepted_page(tmp_path, monkeypatch):
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     page = store_dir / "wiki" / "r.md"
     assert page.exists() and "CatalogService charges orders." in page.read_text()
+
+
+def test_cmd_wiki_hints_when_the_builtin_model_is_used(tmp_path, monkeypatch, gls_logs):
+    """The builtin 0.5B is a weak council reviewer (near-constant high scores,
+    mostly rubber-stamping) -- still usable, but a real backend gates
+    meaningfully. Point that out once per run rather than leaving it silent."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm",
+                        lambda cfg: _FakeLlm(score=0.95, name="builtin"))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert "weak council reviewer" in gls_logs.text
+    assert "--llm anthropic|openai|ollama|cli" in gls_logs.text
+
+
+def test_cmd_wiki_no_builtin_hint_for_a_real_backend(tmp_path, monkeypatch, gls_logs):
+    """Regression guard: a configured real backend (Ollama/OpenAI/Anthropic/CLI)
+    must not trigger the builtin-only hint -- it would be misleading noise."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert "weak council reviewer" not in gls_logs.text
 
 
 def test_cmd_wiki_builds_advisory_partition(tmp_path, monkeypatch):
