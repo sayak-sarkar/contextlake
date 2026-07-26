@@ -100,6 +100,29 @@ def test_switch_repository_branch_deleted_project_is_a_clean_skip(
     assert "deleted or access revoked" in result[2]
 
 
+def test_switch_repository_branch_empty_repo_is_a_clean_skip(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """A repo with no commits yet (git: "ambiguous argument 'HEAD'") has no branch
+    to switch to -- must be a skip, with the same _git_reason-derived message
+    update_repository now gives the identical condition, not a hardcoded string
+    that could drift out of sync with it."""
+    monkeypatch.setattr(core, "check_repository_safety", lambda *a, **k: (True, []))
+
+    def handler(cmd, **kwargs):
+        if "rev-parse" in cmd and "--abbrev-ref" in cmd:
+            return FakeCompleted(
+                returncode=128,
+                stderr="fatal: ambiguous argument 'HEAD': unknown revision or path not "
+                       "in the working tree.")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = switch_repository_branch("a", PROJECTS, str(tmp_path), base_config)
+    assert status == "skip"
+    assert msg == "No commits yet (empty repository)"
+
+
 def test_protected_working_branch_is_skipped(tmp_path, base_config, fake_subprocess, monkeypatch):
     monkeypatch.setattr(core, "check_repository_safety", lambda *a, **k: (True, []))
     monkeypatch.setattr(core, "is_safe_branch", lambda b, c: b in ("main", "master"))

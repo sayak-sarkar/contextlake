@@ -7,7 +7,8 @@ working directory, or (most importantly) your synced repositories.
 
 ## INV-1: generated artifacts never pollute a synced repo
 
-> **No contextlake-generated file is ever written inside a mirrored/synced repo working tree.**
+> [!IMPORTANT]
+> No contextlake-generated file is ever written inside a mirrored/synced repo working tree.
 
 The mirror (the GitLab-fleet clone directory) holds *your repos, untouched*. The knowledge layer
 contextlake builds from them lives entirely under the separate store. This is enforced by a
@@ -27,8 +28,9 @@ temporary two-repo mirror and asserts each repo's working tree is byte-identical
 
 ## INV-2: the offline boundary
 
-> **Code parse → graph → FTS → query → visualize → embed all run fully offline.
-> `connect` (enrichment) is the single, opt-in, online exception.**
+> [!IMPORTANT]
+> Code parse → graph → FTS → query → visualize → embed all run fully offline.
+> `connect` (enrichment) is the single, opt-in, online exception.
 
 Everything that builds and serves the knowledge layer works with no network: indexing,
 search, the graph/visualizer, linting, and embedding (the built-in model is cached

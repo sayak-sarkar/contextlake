@@ -57,6 +57,76 @@ def _esc(s):
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def architecture_overview(fname):
+    """The README hero diagram: sources -> contextlake -> AI tools, three columns
+    joined by arrows. Replaces a hand-made, non-transparent PNG with the same
+    generated/brand-palette/transparent treatment every other diagram here uses
+    (see docs/style-guide-formatting.md's "Generated, not hand-drawn" rule)."""
+    W, H = 900, 340
+    colW, gap = 210, 60
+    x1, x2, x3 = 40, 40 + colW + gap, 40 + 2 * (colW + gap)
+
+    def col_head(x, label):
+        return (f'<text x="{x + colW/2}" y="34" text-anchor="middle" font-size="13" '
+               f'font-weight="700" fill="{MUTED}" letter-spacing=".04em" '
+               f'font-family="{FF}">{label.upper()}</text>')
+
+    def chip(x, y, w, h, label, sub=None, fill=MIST, stroke=LINE, bold=False):
+        parts = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="10" '
+                f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>']
+        ty = y + h/2 + (-6 if sub else 5)
+        parts.append(f'<text x="{x + w/2}" y="{ty}" text-anchor="middle" font-size="14" '
+                     f'font-weight="{700 if bold else 600}" fill="{INK}" '
+                     f'font-family="{FM}">{_esc(label)}</text>')
+        if sub:
+            parts.append(f'<text x="{x + w/2}" y="{ty + 20}" text-anchor="middle" '
+                         f'font-size="10.5" fill="{MUTED}" font-family="{FF}">{_esc(sub)}</text>')
+        return "".join(parts)
+
+    def arrow(x1_, y1_, x2_, y2_):
+        return (f'<line x1="{x1_}" y1="{y1_}" x2="{x2_}" y2="{y2_}" stroke="{LAKE}" '
+               f'stroke-width="2" marker-end="url(#ar3)"/>')
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
+        f'width="{W}" height="{H}" role="img" font-family="{FF}" '
+        'aria-label="contextlake architecture. On the left, your repos: a GitLab group, '
+        'plus optional Figma, Jira, and other MCP connectors. In the centre, contextlake '
+        'indexes and mirrors them into a graph and embeddings, a wiki, and connectors. On '
+        'the right, it serves the result over MCP to your AI tools: Claude Code, Windsurf, '
+        'Kiro, Cursor, and Postman.">',
+        '<defs><marker id="ar3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" '
+        f'markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="{LAKE}"/></marker></defs>',
+        col_head(x1, "Your workspace"), col_head(x2, "contextlake"), col_head(x3, "Your AI tools"),
+    ]
+
+    # left column: repos + connectors
+    parts.append(chip(x1, 54, colW, 56, "Repos", "GitLab / GitHub / Bitbucket", bold=True))
+    for i, label in enumerate(("Figma", "Jira", "other MCP")):
+        parts.append(chip(x1, 128 + i * 46, colW, 36, label, fill="#fff", stroke=LINE))
+
+    # centre column: the contextlake hub + its four generated layers
+    hub_y = 54
+    parts.append(chip(x2, hub_y, colW, 56, "contextlake", "index + mirror",
+                       fill="#e4f5f1", stroke=CUR, bold=True))
+    for i, label in enumerate(("Graph", "Embeddings", "Wiki", "Connectors")):
+        parts.append(chip(x2, 128 + i * 46, colW, 36, label, fill="#fff", stroke=LINE))
+
+    # right column: AI tool consumers (served over MCP)
+    parts.append(chip(x3, 54, colW, 40, "Served over MCP", fill="#fff", stroke=LINE))
+    for i, label in enumerate(("Claude Code", "Windsurf", "Kiro", "Cursor", "Postman")):
+        parts.append(chip(x3, 110 + i * 40, colW, 32, label, fill=MIST, stroke=LINE))
+
+    # arrows between the hub row and each column's top chip
+    midy = 54 + 28
+    parts.append(arrow(x1 + colW, midy, x2 - 6, midy))
+    parts.append(arrow(x2 + colW, midy, x3 - 6, midy))
+
+    parts.append("</svg>")
+    (IMG / fname).write_text("\n".join(parts), encoding="utf-8")
+    print("wrote", fname, f"({W}x{H})")
+
+
 def taxonomy(fname):
     """The knowledge-graph vocabulary: node kinds + edge relations, colored
     EXACTLY as ``contextlake graph`` renders them (colors imported from the
@@ -188,6 +258,9 @@ def palette(fname):
     (IMG / fname).write_text("\n".join(parts), encoding="utf-8")
     print("wrote", fname, f"({W}x{H})")
 
+
+# the README hero: sources -> contextlake -> AI tools (replaces a hand-made PNG)
+architecture_overview("architecture.svg")
 
 # the knowledge-graph vocabulary taxonomy (knowledge-layer.md / internals.md)
 taxonomy("graph-vocabulary.svg")

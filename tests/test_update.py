@@ -53,6 +53,27 @@ def test_diverged_branch_is_skipped(tmp_path, base_config, fake_subprocess, monk
     assert "Diverged" in msg
 
 
+def test_empty_repo_is_skipped_not_errored(tmp_path, base_config, fake_subprocess, monkeypatch):
+    """A repo with no commits yet (git: "ambiguous argument 'HEAD'") must be a skip,
+    not an error -- nothing failed, there's just nothing to sync yet. Matches the
+    branch-switch path's classification of the identical condition (bug: they used
+    to disagree, this one reported 'error')."""
+    _safe(monkeypatch)
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(
+                returncode=128,
+                stderr="fatal: ambiguous argument 'HEAD': unknown revision or path not "
+                       "in the working tree.")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "skip"
+    assert msg == "No commits yet (empty repository)"
+
+
 def test_deleted_upstream_branch_auto_switches_to_a_new_one(
     tmp_path, base_config, fake_subprocess, monkeypatch, no_sleep
 ):

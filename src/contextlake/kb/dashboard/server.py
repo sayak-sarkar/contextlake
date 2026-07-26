@@ -156,6 +156,12 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 repo = (q.get("repo") or [None])[0]
                 return 200, _json_bytes(
                     kbdata.impact(req, nid, hops=hops, limit=limit, repo=repo))
+            if path == "/api/impact/diagram":
+                nid = (q.get("node") or q.get("id") or [None])[0]
+                if not nid:
+                    return 400, b'{"error":"node required"}'
+                hops = int((q.get("hops") or [2])[0])
+                return 200, _json_bytes(kbdata.sequence_diagram(req, nid, hops=hops))
             if path == "/api/search":
                 query_text = (q.get("q") or [""])[0]
                 if not query_text:
@@ -172,6 +178,9 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 if rest.endswith("/rel"):
                     repo_id = urllib.parse.unquote(rest[:-len("/rel")])
                     return 200, _json_bytes(kbdata.repo_relationships(req, repo_id))
+                if rest.endswith("/data-flow"):
+                    repo_id = urllib.parse.unquote(rest[:-len("/data-flow")])
+                    return 200, _json_bytes(kbdata.data_flow(req, repo_id))
                 if rest.endswith("/diagram"):
                     repo_id = urllib.parse.unquote(rest[:-len("/diagram")])
                     fmt = (q.get("format") or ["mermaid"])[0]
@@ -198,7 +207,13 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                # the client (browser tab, curl, etc.) went away mid-write -- nothing
+                # left to send it, and ThreadingHTTPServer already isolates this to its
+                # own request thread, so there's nothing to do but not print a traceback.
+                pass
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler name
             parsed = urllib.parse.urlparse(self.path)

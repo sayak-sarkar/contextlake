@@ -65,11 +65,26 @@ def test_search_and_impact_endpoints(served):
     assert imp["found"] and "checkout" in {h["name"] for h in imp["hits"]}
 
 
+def test_symbol_sequence_diagram_endpoint(served):
+    body = json.loads(_get(served + "/api/impact/diagram?node=caller"))
+    assert body["format"] == "sequencediagram"
+    assert "checkout" in body["text"] and "CatalogService" in body["text"]
+    missing = json.loads(_get(served + "/api/impact/diagram?node=does-not-exist"))
+    assert missing["error"] == "node not found"
+
+
 def test_repo_detail_and_rel_endpoints(served):
     detail = json.loads(_get(served + "/api/repo/team/app"))
     assert detail["brief"]["node_count"] == 2
     rel = json.loads(_get(served + "/api/repo/team/app/rel"))
     assert set(rel) == {"dependencies", "http_flow", "event_flow"}
+
+
+def test_repo_data_flow_endpoint(served):
+    # row-shape detail (file/line/table/relation) is unit-tested in test_dashboard_data.py;
+    # this only proves the route is wired to kb.dashboard.data.data_flow.
+    body = json.loads(_get(served + "/api/repo/team/app/data-flow"))
+    assert body == {"rows": [], "truncated": False}
 
 
 def test_repo_diagram_endpoint(served):
@@ -81,6 +96,31 @@ def test_repo_diagram_endpoint(served):
     assert default["format"] == "mermaid"
     unknown = json.loads(_get(served + "/api/repo/team/app/diagram?format=bogus"))
     assert unknown["error"] == "unknown format"
+
+
+def test_send_swallows_client_disconnect_errors(tmp_path):
+    # a client (browser tab, curl) disconnecting mid-write must not surface a traceback --
+    # ThreadingHTTPServer already isolates it to its own request thread, this only checks
+    # _send() itself doesn't propagate the write error.
+    s = SqliteStore(tmp_path / "index.sqlite")
+    try:
+        srv = build_dashboard_server(s, tmp_path, host="127.0.0.1", port=_free_port())
+        try:
+            handler = object.__new__(srv.RequestHandlerClass)
+
+            class _BrokenWfile:
+                def write(self, _data):
+                    raise BrokenPipeError()
+
+            handler.wfile = _BrokenWfile()
+            handler.send_response = lambda *a, **k: None
+            handler.send_header = lambda *a, **k: None
+            handler.end_headers = lambda: None
+            handler._send(200, "text/plain", b"hello")  # must not raise
+        finally:
+            srv.server_close()
+    finally:
+        s.close()
 
 
 def test_shell_and_graph_routes(served):

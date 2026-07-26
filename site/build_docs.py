@@ -200,6 +200,16 @@ NAV_GROUPS = [
     ("Reference", ["cli-reference.html", "console-output.html", "changelog.html"]),
 ]
 GROUP_OF = {out: g for g, outs in NAV_GROUPS for out in outs}
+# Per-page-type hero accent: the 4 core learning-journey groups each get one brand hue (reused
+# from the landing page's own step icons / CTA), so the hero eyebrow signals "where am I" at a
+# glance -- not a new illustration per page (that's new art, a hand-to-user decision, see
+# `planning/design/brand-image-prompts.md`), just an existing-palette accent already meaningful
+# elsewhere on the site. Meta groups (Writing style/Brand/Reference) aren't part of that journey,
+# so they keep the original default (lake) rather than a color chosen for the sake of having one.
+GROUP_KIND = {
+    "Get started": "start", "Build your knowledge base": "build",
+    "Use it": "use", "Understand it": "understand",
+}
 SUBTITLE_OF = {m[0]: m[5] for m in PAGES}
 TITLES = {out: nav for out, _, nav, *_ in PAGES}
 
@@ -240,6 +250,29 @@ FOOT_MARK = ('<img src="mark.png" width="28" height="28" alt="" aria-hidden="tru
 
 def de_emdash(text: str) -> str:
     return text.replace(" — ", ", ").replace("—", ", ")
+
+
+# GitHub's native alert syntax (`> [!NOTE]` etc.) is the markdown SOURCE OF TRUTH for callouts --
+# it degrades to a plain blockquote on any renderer that doesn't know it and renders as a native
+# alert box on github.com, so docs/*.md stay correct when browsed directly in the repo (and in
+# llms-full.txt, built from this same raw source). Python-Markdown's `admonition` extension syntax
+# (`!!! type`) is NOT GitHub-safe -- it renders as a literal `!!! type` paragraph followed by the
+# indented body as a CODE BLOCK -- so it's never written to the .md source, only produced here as
+# a pre-`md.convert` transform, the same seam `de_emdash` already uses.
+_GH_ALERT = re.compile(r"(?m)^> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\n((?:^>.*\n?)+)")
+
+
+def convert_github_alerts(text: str) -> str:
+    def repl(m):
+        kind = m.group(1).lower()
+        body = []
+        for line in m.group(2).splitlines():
+            content = line[1:]  # drop the leading '>'
+            if content.startswith(" "):
+                content = content[1:]  # the conventional "> text" single space
+            body.append(("    " + content) if content else "")
+        return f"!!! {kind}\n" + "\n".join(body) + "\n"
+    return _GH_ALERT.sub(repl, text)
 
 
 def theme_swap_dashboard_imgs(html: str) -> str:
@@ -368,8 +401,9 @@ def sidebar(active: str) -> str:
     return f'<aside class="side">{toggle}{body}</aside>'
 
 
-def hero(title: str, eyebrow: str, subtitle: str, pebble: str) -> str:
-    return (f'<header class="doc-hero">'
+def hero(title: str, eyebrow: str, subtitle: str, pebble: str, kind: str = "") -> str:
+    attr = f' data-kind="{kind}"' if kind else ""
+    return (f'<header class="doc-hero"{attr}>'
             f'<div class="doc-hero-text">'
             f'<div class="doc-eyebrow">{eyebrow}</div>'
             f'<h1>{title}</h1>'
@@ -591,7 +625,7 @@ def shell(meta, body, toc_html) -> str:
   {sidebar(out)}
   <main class="prose" id="doc">
     {breadcrumbs(out)}
-    {hero(h_title, eyebrow, subtitle, pebble)}
+    {hero(h_title, eyebrow, subtitle, pebble, GROUP_KIND.get(GROUP_OF.get(out), ""))}
     {body}
     {next_steps(links)}
   </main>
@@ -789,7 +823,8 @@ def verify_jsonld():
 
 def main():
     md = markdown.Markdown(
-        extensions=["tables", "pymdownx.superfences", "codehilite", "toc", "sane_lists", "md_in_html"],
+        extensions=["tables", "pymdownx.superfences", "codehilite", "toc", "sane_lists",
+                    "md_in_html", "admonition"],
         extension_configs={
             "codehilite": {"guess_lang": False},
             "toc": {"permalink": "#", "permalink_class": "anchor",
@@ -800,7 +835,7 @@ def main():
     for meta in PAGES:
         out, src = meta[0], meta[1]
         md.reset()
-        md_text = de_emdash((REPO / src).read_text(encoding="utf-8"))
+        md_text = convert_github_alerts(de_emdash((REPO / src).read_text(encoding="utf-8")))
         html = theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text)))
         html = strip_readme_frontmatter(html) if out == "docs.html" else strip_first_h1(html)
         # the rendered page marks outbound links (↗ + new tab); the search index is built from

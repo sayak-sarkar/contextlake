@@ -129,6 +129,7 @@ generations and the *amount of new code* generated, ranked by impact:
 if the first generation would already be correct without contextlake, the saving is ~0;
 and it can't rescue a model that ignores the context it was handed.
 
+> [!WARNING]
 > **This is a mechanism argument, not a measured number.** Everything labeled "measured"
 > on this page is retrieval/grounding tokens. Quantifying the generation saving honestly
 > means counting *total* output tokens across a real multi-attempt task, with and without

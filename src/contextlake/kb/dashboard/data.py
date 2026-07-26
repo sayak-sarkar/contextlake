@@ -8,6 +8,8 @@ Every function here reuses the exact logic behind an existing MCP tool (see
   ``who_knows`` (``ownership.compute_owners``) + ``get_repo_links``.
 * :func:`repo_relationships` — ``repo_dependencies`` / ``repo_flow`` /
   ``repo_event_flow`` (``arch.resolve``).
+* :func:`data_flow` — raw ``reads``/``writes`` edges (``kb/flow/data.py``), intra-repo
+  only; see its docstring for why this isn't a fourth ``repo_relationships`` key.
 * :func:`impact` — ``blast_radius`` (``impact.blast_radius``).
 * :func:`health` — ``graph_health`` (``commands.lint_result``).
 * :func:`code_search` — ``search_code`` (``store.search``).
@@ -356,10 +358,56 @@ def repo_relationships(store, repo_id: str) -> dict:
     }
 
 
+def data_flow(store, repo_id: str, *, limit: int = 500) -> dict:
+    """File -> table/view ``reads``/``writes`` edges for one repo (``kb/flow/data.py``,
+    shipped v2.48.0 but never surfaced anywhere until now -- no CLI, dashboard, or
+    ``visualize/`` consumer read these edges before this function).
+
+    Deliberately NOT folded into :func:`repo_relationships` as a fourth
+    ``dependencies``/``http_flow``/``event_flow``-style key: those three are
+    repo→repo aggregates from ``arch.resolve``, keyed on a shared node id that's
+    unconditionally synthesized (an endpoint/topic string needs no lookup against a
+    prior definition, so two independently-parsed repos land on the same node for
+    free). ``reads``/``writes`` instead *resolve* against a table/view actually
+    defined in the SAME repo (``kb/parse.py``'s per-repo-only ``by_id``), so no
+    cross-repo edge is ever created -- there is no repo→repo dataflow to aggregate,
+    only file→table within one repo. Forcing that into the repo-pair shape would
+    misrepresent it; this returns the honest row shape instead.
+
+    Bounded like every other payload function here (``diagram``'s ``max_nodes``,
+    ``impact``'s ``limit``) -- a data-access-heavy repo on the real fleet store could
+    otherwise return thousands of unpaginated rows.
+    """
+    rows = store.conn.execute(
+        """
+        SELECT e.relation, e.source_file, e.source_line, n.name, n.kind
+        FROM edges e JOIN nodes n ON n.node_id = e.dst
+        WHERE e.repo_id = ? AND e.relation IN ('reads', 'writes')
+        ORDER BY e.source_file, e.source_line
+        LIMIT ?
+        """,
+        (repo_id, limit + 1),
+    ).fetchall()
+    return {
+        "rows": [
+            {
+                "file": sanitize_label(file) if file else None,
+                "line": line,
+                "table": sanitize_label(name),
+                "kind": kind,
+                "relation": relation,
+            }
+            for relation, file, line, name, kind in rows[:limit]
+        ],
+        "truncated": len(rows) > limit,
+    }
+
+
 # Formats offered on a repo's Diagrams tab. sequencediagram is deliberately excluded:
 # it needs a single symbol seed (graph --node/--name/--search), not a repo-wide view,
 # so a repo-scoped payload would render its "needs exactly one seed" placeholder every
-# time -- see kb/visualize/diagrams.py::to_sequence_diagram's docstring.
+# time -- see kb/visualize/diagrams.py::to_sequence_diagram's docstring. It's served
+# separately, from sequence_diagram() below, seeded by the dashboard's symbol page.
 DIAGRAM_FORMATS = ("mermaid", "classdiagram", "statediagram", "erdiagram", "deploymentdiagram")
 
 
@@ -390,6 +438,38 @@ def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500) -> dict:
         "repo": sanitize_label(repo_id),
         "format": fmt,
         "text": renderer(payload),
+        "truncated": bool(meta.get("truncated")),
+    }
+
+
+def sequence_diagram(store, node_id: str, *, hops: int = 2, max_nodes: int = 500,
+                     max_fanout: int = 50) -> dict:
+    """Render the sequencediagram Mermaid format for one already-resolved seed symbol
+    (the id ``impact()`` returns as ``seed``, i.e. the dashboard's symbol/blast-radius
+    page).
+
+    Mirrors ``contextlake graph --node <id> --format sequencediagram``'s own
+    ``extract_subgraph -> to_payload -> to_sequence_diagram`` pipeline (``kb/cmds/
+    graph.py``) -- NOT ``diagram()``'s ``repo_subgraph`` pipeline: ``to_sequence_diagram``
+    needs a view with exactly one BFS seed (``meta["seed_ids"]`` of length 1), which a
+    repo-wide view can't supply (see ``DIAGRAM_FORMATS``'s docstring above).
+    """
+    from .. import visualize as viz
+
+    node = store.get_node(node_id)
+    if node is None:
+        return {"seed": sanitize_label(node_id), "format": "sequencediagram",
+                "error": "node not found"}
+
+    meta: dict = {}
+    nodes, edges = viz.extract_subgraph(store, [node.id], hops=hops, max_nodes=max_nodes,
+                                        max_fanout=max_fanout, direction="both", meta=meta)
+    meta.update(mode="neighborhood", seed_ids=[node.id], hops=hops)
+    payload = viz.to_payload(nodes, edges, meta)
+    return {
+        "seed": sanitize_label(node.id),
+        "format": "sequencediagram",
+        "text": viz.to_sequence_diagram(payload),
         "truncated": bool(meta.get("truncated")),
     }
 

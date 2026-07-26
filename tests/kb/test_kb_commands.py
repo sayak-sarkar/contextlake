@@ -76,6 +76,45 @@ def test_index_then_query_round_trip(tmp_path, capsys):
     assert "CatalogService" in out and "demo/app" in out
 
 
+def test_query_retriever_semantic_degrades_to_fts_without_embeddings(tmp_path, capsys):
+    # embeddings explicitly disabled (not just left unset -- load_kb_config still
+    # merges ~/.contextlake/kb.toml's [embeddings] table over an unset one, so this
+    # must override it, not just omit it) -- --retriever semantic must still find
+    # the symbol via an honest fts fallback, not error out or try to download a model.
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n\n[embeddings]\nenabled = false\n')
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+    assert _run(["query", "CatalogService", "--config", str(cfg),
+                "--retriever", "semantic"]) == 0
+    captured = capsys.readouterr()
+    assert "CatalogService" in captured.out
+    assert "showing fts results instead" in (captured.out + captured.err)
+
+
+def test_query_retriever_semantic_respects_kind_filter(tmp_path, capsys, monkeypatch):
+    # eval's --kind is a harmless no-op under semantic/hybrid (nothing renders it), but
+    # query prints results straight to the user -- `--kind function --retriever semantic`
+    # silently ignoring --kind would show a class result with no signal it was unfiltered.
+    # Bypasses the real embedder (network-touching, see the fts-degrade test above) by
+    # monkeypatching _semantic_results directly with both fixture node ids/kinds.
+    from contextlake.kb.cmds import query as query_mod
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+
+    monkeypatch.setattr(
+        query_mod, "_semantic_results",
+        lambda args, store, text, limit: ["demo_app_catalogservice", "demo_app_charge"])
+
+    capsys.readouterr()
+    assert _run(["query", "anything", "--config", str(cfg),
+                "--retriever", "semantic", "--kind", "function"]) == 0
+    out = capsys.readouterr().out
+    assert "charge" in out and "CatalogService" not in out
+
+
 def test_index_workspace_indexes_each_repo(tmp_path):
     ws = tmp_path / "ws"
     _bare_git_repo(ws / "r1")

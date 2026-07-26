@@ -5,6 +5,61 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.56.0] - 2026-07-27
+
+### Added
+
+- **Dashboard: a "Call sequence" card on the symbol/blast-radius page.** The one
+  `graph --format` Mermaid diagram the repo-level Diagrams tab (v2.55.0)
+  couldn't offer — `sequencediagram` needs a single symbol seed, not a
+  repo-wide view — is now reachable from where a seed already exists: the
+  symbol page. A new `/api/impact/diagram?node=<id>` endpoint reuses the same
+  `extract_subgraph -> to_payload -> to_sequence_diagram` pipeline `graph
+  --node <id> --format sequencediagram` already runs.
+- **`query --retriever {fts,semantic,hybrid}`.** Semantic/hybrid search was
+  previously only reachable via `contextlake eval`; `query` now accepts the
+  same flag and reuses `eval`'s exact retriever factories, degrading to an
+  honest fts fallback (never a crash, never a silent network call) when
+  embeddings aren't configured. Fixed in the same pass: `--kind` was silently
+  ignored under `--retriever semantic|hybrid` (plain fts already filtered by
+  it); it now filters there too.
+- **Dashboard: a "Data flow" tab.** Intra-repo `reads`/`writes` edges
+  (extracted since v2.48.0 but never surfaced anywhere — no CLI, dashboard,
+  or `visualize/` consumer read them before now) are now visible per repo:
+  which file reads or writes which SQL table/view, each with its
+  file:line and a citation. Deliberately not folded into the existing
+  `dependencies`/`http_flow`/`event_flow` relationship tables — those are
+  repo→repo aggregates on a node shared across repos by construction; a
+  table/view definition is only ever known within the repo that defines it,
+  so this is a different, honest row shape (file→table, always single-repo).
+- **Docs: typed callouts.** Python-Markdown's built-in `admonition` extension
+  (`note`/`warning`/`important`, no new dependency) replaces the handful of
+  existing bold-lead blockquotes that were really a distinct interruption —
+  a risk before you act, an honest limitation, a must-not-skip guarantee —
+  while generic asides stay plain blockquotes.
+- **Docs: per-page-type hero accent.** A doc page's hero eyebrow now
+  recolors by its nav group (Get started/Build your knowledge base/Use
+  it/Understand it), from the existing brand palette — a "where am I" signal
+  at a glance, not new illustration work.
+- **Landing page: the "Get started" terminal card** now matches the depth of
+  the rest of the fog→clarity system — a teal border/glow and a blinking
+  cursor after the last command (respects `prefers-reduced-motion`).
+
+### Fixed
+
+- **Dashboard server: a client disconnecting mid-response no longer logs a
+  traceback.** `_send()`'s `wfile.write` is now guarded against
+  `BrokenPipeError`/`ConnectionResetError` — a browser tab closed mid-load or
+  `curl` killed early is normal, not an error.
+- **Empty-repo classification consistency.** `core.py`'s
+  `update_repository()` classified a no-HEAD repo as `error`; the
+  branch-switch path (same file, identical condition) already classified it
+  as `skip`. Both now agree on `skip` — nothing failed, there's just nothing
+  to sync yet, and error tallies stay meaningful.
+- **`docs/img/architecture.png`** regenerated as transparent RGBA via the
+  existing `gen_diagrams.py` + cairosvg pipeline — was the one hand-made
+  diagram on the site that didn't adapt to dark mode.
+
 ## [2.55.0] - 2026-07-27
 
 ### Added

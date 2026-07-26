@@ -165,6 +165,63 @@ def test_repo_relationships_bulk_matches_per_repo(store_dir):
             assert sorted(map(repr, bulk[rid][key])) == sorted(map(repr, per[key]))
 
 
+def test_data_flow_lists_intra_repo_reads_and_writes(store_dir):
+    # A dedicated store, not the shared store_dir fixture: adding a table/view node to
+    # team/app there would break test_diagram_erdiagram_is_an_honest_empty_view_when_no_tables's
+    # "no table/view definitions in team/app" assumption below.
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_repo(Repo(id="team/app", path="/x", head_commit="h"))
+        s.upsert_nodes("team/app", [
+            Node(id="app_charge", repo="team/app", kind="function", name="charge",
+                 file="src/pay.py"),
+            Node(id="app_orders_table", repo="team/app", kind="table", name="orders",
+                 file="db/schema.sql"),
+        ])
+        s.upsert_edges("team/app", [
+            Edge(src="app_charge", dst="app_orders_table", relation="reads",
+                 confidence=Confidence.EXTRACTED,
+                 provenance=Provenance(source_file="src/pay.py", source_line=42,
+                                       verified_at=date(2026, 6, 21))),
+        ])
+        result = kbdata.data_flow(s, "team/app")
+        assert result == {"rows": [{"file": "src/pay.py", "line": 42, "table": "orders",
+                                    "kind": "table", "relation": "reads"}],
+                          "truncated": False}
+    finally:
+        s.close()
+
+
+def test_data_flow_is_honest_empty_when_no_dataflow_edges(store_dir):
+    s, _ = store_dir
+    assert kbdata.data_flow(s, "team/app") == {"rows": [], "truncated": False}
+
+
+def test_data_flow_reports_truncated_past_the_limit(store_dir):
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_repo(Repo(id="team/app", path="/x", head_commit="h"))
+        s.upsert_nodes("team/app", [
+            Node(id="app_orders_table", repo="team/app", kind="table", name="orders"),
+        ] + [
+            Node(id=f"app_reader_{i}", repo="team/app", kind="function", name=f"reader_{i}",
+                 file=f"src/r{i}.py")
+            for i in range(3)
+        ])
+        s.upsert_edges("team/app", [
+            Edge(src=f"app_reader_{i}", dst="app_orders_table", relation="reads",
+                 confidence=Confidence.EXTRACTED,
+                 provenance=Provenance(source_file=f"src/r{i}.py", source_line=1,
+                                       verified_at=date(2026, 6, 21)))
+            for i in range(3)
+        ])
+        result = kbdata.data_flow(s, "team/app", limit=2)
+        assert len(result["rows"]) == 2
+        assert result["truncated"] is True
+    finally:
+        s.close()
+
+
 def test_diagram_classdiagram_renders_the_fixtures_class_node(store_dir):
     # team/app's app_catalogservice node (kind="class") from the store_dir fixture
     s, _ = store_dir
@@ -205,6 +262,30 @@ def test_diagram_rejects_sequencediagram_and_unknown_formats():
             assert "text" not in d
     finally:
         s.close()
+
+
+def test_sequence_diagram_renders_the_seeds_outgoing_calls(store_dir):
+    # app_caller ("checkout") --calls--> app_catalogservice ("CatalogService") in the fixture
+    s, _ = store_dir
+    d = kbdata.sequence_diagram(s, "app_caller")
+    assert d["format"] == "sequencediagram"
+    assert d["text"].startswith("sequenceDiagram")
+    assert "checkout" in d["text"] and "CatalogService" in d["text"]
+
+
+def test_sequence_diagram_is_honest_empty_when_seed_has_no_outgoing_calls(store_dir):
+    # app_charge ("charge") is a leaf in the fixture -- no outgoing calls edges
+    s, _ = store_dir
+    d = kbdata.sequence_diagram(s, "app_charge")
+    assert d["text"].startswith("sequenceDiagram")
+    assert "no outgoing calls" in d["text"]
+
+
+def test_sequence_diagram_reports_error_for_unknown_node(store_dir):
+    s, _ = store_dir
+    d = kbdata.sequence_diagram(s, "does-not-exist")
+    assert d["error"] == "node not found"
+    assert "text" not in d
 
 
 def test_impact_blast_radius_and_name_fallback(store_dir):

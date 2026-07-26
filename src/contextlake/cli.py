@@ -548,6 +548,7 @@ Examples:
   contextlake query "CatalogService"
   contextlake query charge --kind function --repo billing-service
   contextlake query charge --repo billing-service --as-of a1b2c3
+  contextlake query "how do we charge a card" --retriever semantic
                 """)
     p.add_argument("args", nargs="*", metavar="text", help="the search text")
     p.add_argument("--kind", default=_S, help="filter by node kind")
@@ -555,6 +556,10 @@ Examples:
     p.add_argument("--limit", type=int, default=_S, help="max results (default 20)")
     p.add_argument("--as-of", dest="as_of", default=_S,
                    help="search a repo's snapshot at this indexed commit (needs --repo)")
+    p.add_argument("--retriever", choices=("fts", "semantic", "hybrid"), default=_S,
+                   help="fts (default, keyword) / semantic (embeddings) / hybrid "
+                        "(semantic seed + graph rerank) -- semantic and hybrid need "
+                        "`contextlake embed` to have run first, or this degrades to fts")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted text")
 

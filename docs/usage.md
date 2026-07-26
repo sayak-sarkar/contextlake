@@ -5,7 +5,8 @@ active branch, verify, and audit, with branch-safety guardrails and scheduling. 
 [Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for the knowledge
 layer see the [Knowledge layer](knowledge-layer.md) overview.
 
-> **Knowledge-layer commands** (`index`, `connect`, `embed`, `wiki`, `query`, `graph`, and so on) are
+> [!NOTE]
+> Knowledge-layer commands (`index`, `connect`, `embed`, `wiki`, `query`, `graph`, and so on) are
 > documented in the [Knowledge layer](knowledge-layer.md) overview and the
 > [command reference](cli-reference.md). This page covers the mirror and sync commands.
 

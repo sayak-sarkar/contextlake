@@ -524,7 +524,8 @@ active branch, verify, and audit, with branch-safety guardrails and scheduling. 
 [Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for the knowledge
 layer see the [Knowledge layer](knowledge-layer.md) overview.
 
-> **Knowledge-layer commands** (`index`, `connect`, `embed`, `wiki`, `query`, `graph`, and so on) are
+> [!NOTE]
+> Knowledge-layer commands (`index`, `connect`, `embed`, `wiki`, `query`, `graph`, and so on) are
 > documented in the [Knowledge layer](knowledge-layer.md) overview and the
 > [command reference](cli-reference.md). This page covers the mirror and sync commands.
 
@@ -1222,15 +1223,17 @@ The object-literal forms use a tree-sitter AST walk anchored on the route-table 
 `Routes`-typed declarator, or the array argument to `forRoot` / `provideRouter` / `create*Router`), so
 nested `children` compose into full paths and bare `{path:...}` config objects are never mis-read as routes.
 
+> [!NOTE]
 > **Skipped rather than guessed.** Not yet extracted: Luigi navigation configs, Angular lazy
 > `loadChildren` sub-trees, React `loader` / `lazy`, realtime / WebSocket channels, templates, and
 > stylesheets.
 
-> **Shared nodes aren't owned by one repo.** An `endpoint`/`topic`/`module`/package node's id doesn't
-> encode a repo: two repos that both import `requests`, call the same route, or publish to the same
-> topic produce the identical node, which the store dedupes to one row. Its `repo` reads as a
-> pseudo-repo (`"(shared)"`, `"(packages)"`) rather than any one real repo, by design: which repos
-> actually touch it is a question the cross-repo edges answer, not the node itself.
+> [!NOTE]
+> **Shared nodes aren't owned by one repo.** An `endpoint`/`topic`/`module`/package node's id
+> doesn't encode a repo: two repos that both import `requests`, call the same route, or publish
+> to the same topic produce the identical node, which the store dedupes to one row. Its `repo`
+> reads as a pseudo-repo (`"(shared)"`, `"(packages)"`) rather than any one real repo, by design:
+> which repos actually touch it is a question the cross-repo edges answer, not the node itself.
 
 ### Manifests and cross-repo dependencies
 
@@ -2047,6 +2050,7 @@ contextlake dashboard --serve --open         # live, against your store; opens y
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
 
+> [!WARNING]
 > **Before you share a `--site` export:** a real-store export inlines repo names,
 > git-author identities, and connector URLs, so it prints a "do not publish unscrubbed"
 > warning. For anything you intend to share, build it with **`--anonymize`** (hashes author
@@ -2088,6 +2092,10 @@ always available), **Classes** (classes/interfaces/structs/enums and their metho
 `view` definitions and their foreign keys), and **Deployment** (Terraform/HCL resources
 grouped by inferred category: network/compute/storage/database/security/module).
 
+A sixth format, **Sequence** (`--format sequencediagram`), needs a single symbol as its
+seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
+**Call sequence** card instead (§7).
+
 No new extraction: each tab renders data `index` already collected. A format is only
 enabled when the repo actually has the relevant node kind (e.g. **Classes** stays
 disabled for a repo with no classes), this is read from the same anatomy census the
@@ -2103,12 +2111,21 @@ The cross-repo dependency graph, a **namespace** mindmap and a **dependency** fl
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).
 
+A repo page's tables add a fourth tab, **Data flow**: which files read or write which
+SQL tables/views inside that one repo. Unlike the other three, this isn't a repo→repo
+edge, dependency/HTTP-flow/event-flow join on a node shared across repos (a package,
+an endpoint, a topic), but a table/view definition is only ever known within the repo
+that defines it, so a file's read/write only ever resolves inside its own repo. Data
+flow is therefore always scoped to the repo you're looking at, never cross-repo.
+
 ![The architecture graph: cross-repo dependencies](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png)
 
 ## 7. Change impact (blast radius)
 
 Pick a symbol (from search or a repo's symbol list) and see what a change would touch,
-hop by hop, with the confidence of each path.
+hop by hop, with the confidence of each path. A **Call sequence** card renders that same
+neighborhood as a Mermaid sequence diagram (`--format sequencediagram`, §5) seeded by
+the symbol you're on.
 
 ![Blast radius: what a change to a symbol would touch](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
 
@@ -2551,6 +2568,7 @@ generations and the *amount of new code* generated, ranked by impact:
 if the first generation would already be correct without contextlake, the saving is ~0;
 and it can't rescue a model that ignores the context it was handed.
 
+> [!WARNING]
 > **This is a mechanism argument, not a measured number.** Everything labeled "measured"
 > on this page is retrieval/grounding tokens. Quantifying the generation saving honestly
 > means counting *total* output tokens across a real multi-attempt task, with and without
@@ -2894,7 +2912,8 @@ working directory, or (most importantly) your synced repositories.
 
 ## INV-1: generated artifacts never pollute a synced repo
 
-> **No contextlake-generated file is ever written inside a mirrored/synced repo working tree.**
+> [!IMPORTANT]
+> No contextlake-generated file is ever written inside a mirrored/synced repo working tree.
 
 The mirror (the GitLab-fleet clone directory) holds *your repos, untouched*. The knowledge layer
 contextlake builds from them lives entirely under the separate store. This is enforced by a
@@ -2914,8 +2933,9 @@ temporary two-repo mirror and asserts each repo's working tree is byte-identical
 
 ## INV-2: the offline boundary
 
-> **Code parse → graph → FTS → query → visualize → embed all run fully offline.
-> `connect` (enrichment) is the single, opt-in, online exception.**
+> [!IMPORTANT]
+> Code parse → graph → FTS → query → visualize → embed all run fully offline.
+> `connect` (enrichment) is the single, opt-in, online exception.
 
 Everything that builds and serves the knowledge layer works with no network: indexing,
 search, the graph/visualizer, linting, and embedding (the built-in model is cached
@@ -2978,7 +2998,7 @@ unknown one, so a typo fails loudly instead of doing the wrong thing.
 | `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
 | `wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
-| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--json`) |
+| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`, `--json`) |
 | `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`, `--json`) |
 | `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
@@ -3107,6 +3127,61 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.56.0] - 2026-07-27
+
+### Added
+
+- **Dashboard: a "Call sequence" card on the symbol/blast-radius page.** The one
+  `graph --format` Mermaid diagram the repo-level Diagrams tab (v2.55.0)
+  couldn't offer, `sequencediagram` needs a single symbol seed, not a
+  repo-wide view, is now reachable from where a seed already exists: the
+  symbol page. A new `/api/impact/diagram?node=<id>` endpoint reuses the same
+  `extract_subgraph -> to_payload -> to_sequence_diagram` pipeline `graph
+  --node <id> --format sequencediagram` already runs.
+- **`query --retriever {fts,semantic,hybrid}`.** Semantic/hybrid search was
+  previously only reachable via `contextlake eval`; `query` now accepts the
+  same flag and reuses `eval`'s exact retriever factories, degrading to an
+  honest fts fallback (never a crash, never a silent network call) when
+  embeddings aren't configured. Fixed in the same pass: `--kind` was silently
+  ignored under `--retriever semantic|hybrid` (plain fts already filtered by
+  it); it now filters there too.
+- **Dashboard: a "Data flow" tab.** Intra-repo `reads`/`writes` edges
+  (extracted since v2.48.0 but never surfaced anywhere, no CLI, dashboard,
+  or `visualize/` consumer read them before now) are now visible per repo:
+  which file reads or writes which SQL table/view, each with its
+  file:line and a citation. Deliberately not folded into the existing
+  `dependencies`/`http_flow`/`event_flow` relationship tables, those are
+  repo→repo aggregates on a node shared across repos by construction; a
+  table/view definition is only ever known within the repo that defines it,
+  so this is a different, honest row shape (file→table, always single-repo).
+- **Docs: typed callouts.** Python-Markdown's built-in `admonition` extension
+  (`note`/`warning`/`important`, no new dependency) replaces the handful of
+  existing bold-lead blockquotes that were really a distinct interruption , 
+  a risk before you act, an honest limitation, a must-not-skip guarantee , 
+  while generic asides stay plain blockquotes.
+- **Docs: per-page-type hero accent.** A doc page's hero eyebrow now
+  recolors by its nav group (Get started/Build your knowledge base/Use
+  it/Understand it), from the existing brand palette, a "where am I" signal
+  at a glance, not new illustration work.
+- **Landing page: the "Get started" terminal card** now matches the depth of
+  the rest of the fog→clarity system, a teal border/glow and a blinking
+  cursor after the last command (respects `prefers-reduced-motion`).
+
+### Fixed
+
+- **Dashboard server: a client disconnecting mid-response no longer logs a
+  traceback.** `_send()`'s `wfile.write` is now guarded against
+  `BrokenPipeError`/`ConnectionResetError`, a browser tab closed mid-load or
+  `curl` killed early is normal, not an error.
+- **Empty-repo classification consistency.** `core.py`'s
+  `update_repository()` classified a no-HEAD repo as `error`; the
+  branch-switch path (same file, identical condition) already classified it
+  as `skip`. Both now agree on `skip`, nothing failed, there's just nothing
+  to sync yet, and error tallies stay meaningful.
+- **`docs/img/architecture.png`** regenerated as transparent RGBA via the
+  existing `gen_diagrams.py` + cairosvg pipeline, was the one hand-made
+  diagram on the site that didn't adapt to dark mode.
 
 ## [2.55.0] - 2026-07-27
 

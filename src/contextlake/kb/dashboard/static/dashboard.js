@@ -125,6 +125,19 @@
       return MODE === "static" ? Promise.reject(new Error("live only"))
         : fetchJSON("/api/repo/" + encPath(id) + "/diagram?format=" + encodeURIComponent(fmt));
     },
+    // sequencediagram needs a single symbol seed, not a whole repo, so it's served off
+    // /api/impact/diagram (same family as impact() below) rather than /api/repo/.../diagram.
+    sequenceDiagram: function (nodeId, hops) {
+      return MODE === "static" ? Promise.reject(new Error("live only"))
+        : fetchJSON("/api/impact/diagram?node=" + encodeURIComponent(nodeId) + "&hops=" + (hops || 2));
+    },
+    // File->table reads/writes, intra-repo only (kb/flow/data.py) -- a different row
+    // shape than rel()'s repo-pair edges, so it isn't folded into repo_relationships_bulk's
+    // static snapshot; live only, same precedent as diagram()/sequenceDiagram() above.
+    dataFlow: function (id) {
+      return MODE === "static" ? Promise.reject(new Error("live only"))
+        : fetchJSON("/api/repo/" + encPath(id) + "/data-flow");
+    },
     impact: function (seed, hops, limit) {
       if (MODE === "static") {
         var rec = (SNAP.impact && SNAP.impact[seed]) || null;
@@ -721,15 +734,38 @@
       return;
     }
     tablesWrap.appendChild(skeleton(2));
-    CL.data.rel(target).then(function (rel) {
+    // dataFlow is a separate, live-only fetch (different row shape -- file->table,
+    // not a repo-pair edge -- see CL.data.dataFlow's comment); a static-mode/offline
+    // rejection degrades that ONE tab to "unavailable", not the whole tables section.
+    Promise.all([CL.data.rel(target), CL.data.dataFlow(target).catch(function () { return null; })]).then(function (results) {
+      var rel = results[0], dataFlow = results[1];
+      var dataFlowRows = dataFlow ? dataFlow.rows : null;
       clear(tablesWrap);
-      var sub = ["dependencies", "http_flow", "event_flow"];
-      var names = { dependencies: "Dependencies", http_flow: "HTTP flow", event_flow: "Event flow" };
+      var sub = ["dependencies", "http_flow", "event_flow", "data_flow"];
+      var names = { dependencies: "Dependencies", http_flow: "HTTP flow", event_flow: "Event flow", data_flow: "Data flow" };
       var cur = "dependencies";
       var strip = h("div", { class: "cl-tabs", role: "tablist" });
       var pane = h("div", null);
+      function paintDataFlow() {
+        if (dataFlowRows === null) {
+          pane.appendChild(stateBlock({
+            kind: "unavailable", title: "Live server required",
+            msg: "Run the live dashboard to see file-level table reads/writes.",
+            cmd: "contextlake dashboard --serve"
+          }));
+          return;
+        }
+        if (!dataFlowRows.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No data flow detected in this repo" })); return; }
+        if (dataFlow.truncated) pane.appendChild(h("div", { class: "cl-truncbanner" }, "Showing first " + dataFlowRows.length + " -- narrow the repo or read the graph directly to see the rest."));
+        pane.appendChild(table(["File", "Line", "Table/view", "Relation", ""],
+          dataFlowRows.map(function (e) {
+            return [e.file || "?", e.line || "", e.table, e.relation,
+              citeButton({ claim: (e.file || "?") + " " + e.relation + " " + e.table, repo: target, source: "kb/flow/data.py (regex-extracted SQL)", confidence: "EXTRACTED" })];
+          }), [false, true, false, false, false]));
+      }
       function paint(k) {
         clear(pane);
+        if (k === "data_flow") { paintDataFlow(); return; }
         var rows = (rel[k] || []).filter(function (e) { return gtActive(e.confidence); });
         if (!rows.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No " + names[k].toLowerCase() + " for this scope" })); return; }
         var maxW = rows.reduce(function (a, e) { return Math.max(a, e.weight || 1); }, 1);
@@ -742,10 +778,15 @@
           rows.map(function (e) { return e.confidence === "AMBIGUOUS"; })));
       }
       sub.forEach(function (k) {
+        // data_flow with dataFlowRows === null means "unavailable" (static mode), not "zero" --
+        // a bare "(0)" would misreport a repo as having no data flow when it's just unfetched.
+        var label = names[k];
+        if (k === "data_flow" && dataFlowRows === null) { label += " (unavailable)"; }
+        else { label += " (" + (k === "data_flow" ? dataFlowRows.length : (rel[k] || []).length) + ")"; }
         strip.appendChild(h("button", {
           class: "cl-tab", role: "tab", type: "button", "aria-selected": String(k === cur),
           onclick: function () { strip.querySelectorAll(".cl-tab").forEach(function (t) { t.setAttribute("aria-selected", "false"); }); this.setAttribute("aria-selected", "true"); paint(k); }
-        }, names[k] + " (" + (rel[k] || []).length + ")"));
+        }, label));
       });
       tablesWrap.appendChild(strip); tablesWrap.appendChild(pane); paint(cur);
     }).catch(function () {
@@ -876,6 +917,33 @@
       body.appendChild(controls);
       body.appendChild(dynWrap);
       repaint();
+
+      // Call sequence: single-seed Mermaid sequenceDiagram (kb/visualize/diagrams.py
+      // ::to_sequence_diagram, served via data.py's sequence_diagram()) -- doesn't fit
+      // the repo-wide Diagrams tab (DIAGRAM_FORMATS deliberately excludes it), so it
+      // lives here, fetched once per seed via imp.seed (already resolved by impact()).
+      var seqWrap = h("div", { class: "cl-card" }, h("strong", null, "Call sequence"));
+      body.appendChild(seqWrap);
+      if (MODE === "static") {
+        seqWrap.appendChild(stateBlock({
+          kind: "unavailable", title: "Sequence diagram is live-only",
+          msg: "This static export has no running server behind it.",
+          cmd: "contextlake dashboard --serve",
+          action: genAction("Run live server", "contextlake dashboard --serve")
+        }));
+      } else {
+        var seqBody = h("div"); seqWrap.appendChild(seqBody);
+        seqBody.appendChild(skeleton(1));
+        CL.data.sequenceDiagram(imp.seed).then(function (res) {
+          clear(seqBody);
+          if (res.error) { seqBody.appendChild(stateBlock({ kind: "empty", title: "No call sequence for this symbol" })); return; }
+          seqBody.appendChild(mermaidCard(res.text));
+        }).catch(function (e) {
+          clear(seqBody);
+          seqBody.appendChild(stateBlock({ kind: "error", title: "Couldn't load call sequence", msg: String(e) }));
+        });
+      }
+
       return body;
     });
   }

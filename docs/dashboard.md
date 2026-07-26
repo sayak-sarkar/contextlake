@@ -41,6 +41,7 @@ contextlake dashboard --serve --open         # live, against your store; opens y
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
 
+> [!WARNING]
 > **Before you share a `--site` export:** a real-store export inlines repo names,
 > git-author identities, and connector URLs, so it prints a "do not publish unscrubbed"
 > warning. For anything you intend to share, build it with **`--anonymize`** (hashes author
@@ -82,6 +83,10 @@ always available), **Classes** (classes/interfaces/structs/enums and their metho
 `view` definitions and their foreign keys), and **Deployment** (Terraform/HCL resources
 grouped by inferred category: network/compute/storage/database/security/module).
 
+A sixth format, **Sequence** (`--format sequencediagram`), needs a single symbol as its
+seed rather than a whole repo, so it isn't offered here — it's on the symbol page's
+**Call sequence** card instead (§7).
+
 No new extraction: each tab renders data `index` already collected. A format is only
 enabled when the repo actually has the relevant node kind (e.g. **Classes** stays
 disabled for a repo with no classes) — this is read from the same anatomy census the
@@ -97,12 +102,21 @@ The cross-repo dependency graph, a **namespace** mindmap and a **dependency** fl
 one interactive graph, alongside dependency / HTTP-flow / event-flow tables, each with
 confidence and provenance (never shown as ground truth).
 
+A repo page's tables add a fourth tab, **Data flow**: which files read or write which
+SQL tables/views inside that one repo. Unlike the other three, this isn't a repo→repo
+edge — dependency/HTTP-flow/event-flow join on a node shared across repos (a package,
+an endpoint, a topic), but a table/view definition is only ever known within the repo
+that defines it, so a file's read/write only ever resolves inside its own repo. Data
+flow is therefore always scoped to the repo you're looking at, never cross-repo.
+
 ![The architecture graph: cross-repo dependencies](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png)
 
 ## 7. Change impact (blast radius)
 
 Pick a symbol (from search or a repo's symbol list) and see what a change would touch,
-hop by hop, with the confidence of each path.
+hop by hop, with the confidence of each path. A **Call sequence** card renders that same
+neighborhood as a Mermaid sequence diagram (`--format sequencediagram`, §5) seeded by
+the symbol you're on.
 
 ![Blast radius: what a change to a symbol would touch](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
 
