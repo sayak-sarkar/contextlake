@@ -21,6 +21,17 @@ def _kb_config(tmp_path) -> Path:
     return cfg
 
 
+def _bare_git_repo(path: Path) -> None:
+    """A real (structurally valid), remote-less, commit-less git repo -- unlike
+    a bare ``mkdir(".git")``, this is a state ``git`` itself recognizes as this
+    directory's own repo, which discover_repos's is_own_gitdir guard requires."""
+    import subprocess
+
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "-C", str(path), "init", "-q"], check=True,
+                   capture_output=True, text=True)
+
+
 def _run(argv):
     with pytest.raises(SystemExit) as e:
         main(argv)
@@ -67,9 +78,9 @@ def test_index_then_query_round_trip(tmp_path, capsys):
 
 def test_index_workspace_indexes_each_repo(tmp_path):
     ws = tmp_path / "ws"
-    (ws / "r1" / ".git").mkdir(parents=True)
+    _bare_git_repo(ws / "r1")
     (ws / "r1" / "a.py").write_text("def f():\n    pass\n")
-    (ws / "r2" / ".git").mkdir(parents=True)
+    _bare_git_repo(ws / "r2")
     (ws / "r2" / "b.py").write_text("class C:\n    def m(self):\n        pass\n")
     cfg = _kb_config(tmp_path)
 
@@ -329,9 +340,8 @@ def test_index_workspace_repos_filter(tmp_path):
     # filter still has to see "team/api"-shaped patterns via the local path).
     ws = tmp_path / "ws"
     for r in ("team/api", "team/web", "billing/core", "billing/reports"):
-        (ws / r).mkdir(parents=True)
+        _bare_git_repo(ws / r)
         (ws / r / "m.py").write_text("class X:\n    pass\n")
-        (ws / r / ".git").mkdir()
     cfg = _kb_config(tmp_path)
     assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
                  "--repos", "billing/*,team/api"]) == 0
@@ -342,9 +352,8 @@ def test_index_workspace_repos_filter(tmp_path):
 
 def test_index_workspace_repos_filter_no_match_fails(tmp_path, capsys):
     ws = tmp_path / "ws"
-    (ws / "team/api").mkdir(parents=True)
+    _bare_git_repo(ws / "team/api")
     (ws / "team/api" / "m.py").write_text("class X:\n    pass\n")
-    (ws / "team/api" / ".git").mkdir()
     cfg = _kb_config(tmp_path)
     assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
                  "--repos", "zzz-nope"]) == 1
@@ -372,8 +381,7 @@ def test_index_workspace_reports_progress_and_drops_inline_bar_from_stdout(
     ws = tmp_path / "ws"
     repo_ids = ["r1", "r2", "r3"]
     for rid in repo_ids:
-        (ws / rid).mkdir(parents=True)
-        (ws / rid / ".git").mkdir()
+        _bare_git_repo(ws / rid)
         (ws / rid / "a.py").write_text("def f():\n    pass\n")
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
@@ -412,8 +420,7 @@ def test_index_workspace_summary_points_at_the_log_on_partial_failure(
     ws = tmp_path / "ws"
     repo_ids = ["r1", "r2"]
     for rid in repo_ids:
-        (ws / rid).mkdir(parents=True)
-        (ws / rid / ".git").mkdir()
+        _bare_git_repo(ws / rid)
         (ws / rid / "a.py").write_text("def f():\n    pass\n")
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"

@@ -4,6 +4,7 @@ import subprocess
 
 from contextlake.kb.repo_identity import (
     canonical_repo_id,
+    is_own_gitdir,
     normalize_remote_url,
     resolve_repo_id,
 )
@@ -80,3 +81,27 @@ def test_resolve_repo_id_no_remote_no_commits_is_just_the_dirname(tmp_path):
     repo = tmp_path / "empty-repo"
     _init_repo(repo, commit=False)
     assert resolve_repo_id(str(repo)) == "empty-repo"
+
+
+def test_is_own_gitdir_true_for_a_real_repo_root(tmp_path):
+    repo = tmp_path / "clone"
+    _init_repo(repo, remote="https://example.com/acme/widgets.git")
+    assert is_own_gitdir(str(repo)) is True
+
+
+def test_is_own_gitdir_false_for_a_corrupted_git_that_walks_up_to_an_ancestor(tmp_path):
+    """The exact bug scenario: a real repo at the workspace root, and a nested
+    directory whose own .git is incomplete -- `git -C <nested>` silently walks
+    up and resolves to the ancestor's real repo instead of failing. Trusting
+    that resolution would misattribute the ancestor's identity/history to the
+    nested (broken) directory; is_own_gitdir must catch it."""
+    ancestor = tmp_path / "workspace"
+    _init_repo(ancestor, remote="https://example.com/acme/ancestor.git")
+    broken = ancestor / "nested" / "broken-checkout"
+    broken.mkdir(parents=True)
+    (broken / ".git").mkdir()
+    (broken / ".git" / "HEAD").write_text("not a real gitdir\n")
+    assert is_own_gitdir(str(broken)) is False
+    # Sanity: git really does walk up and resolve the ancestor's remote here --
+    # this is the trap is_own_gitdir exists to catch, not a hypothetical.
+    assert canonical_repo_id(str(broken)) == "example.com/acme/ancestor"

@@ -754,7 +754,8 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
     would otherwise collide on one canonical id; the more recently committed
     checkout wins and the other is skipped with a logged reason, never silently.
     """
-    from .repo_identity import resolve_repo_id
+    from .. import style
+    from .repo_identity import is_own_gitdir, resolve_repo_id
 
     base = Path(root)
     by_id: dict[str, str] = {}
@@ -765,6 +766,17 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
             dirnames[:] = []  # a repo: never descend past it
             if _VENDORED_REPO_MARKERS & set(here.relative_to(base).parts):
                 log(f"  skip vendored repo {rel}")
+                continue
+            if not is_own_gitdir(str(here)):
+                # .git exists but is incomplete/corrupted -- git itself would
+                # walk up to an unrelated ancestor repo for every subsequent
+                # git call against this path, silently misattributing its
+                # identity and history. Skip rather than index under the
+                # wrong repo entirely.
+                log(style.warn(
+                    f"  skip {rel}: .git is present but incomplete or corrupted "
+                    "(git cannot resolve it to this directory) -- re-clone or "
+                    "remove it"))
                 continue
             rid = resolve_repo_id(str(here))
             prior = by_id.get(rid)

@@ -17,7 +17,9 @@ import subprocess
 import urllib.parse
 from pathlib import Path
 
-__all__ = ["normalize_remote_url", "canonical_repo_id", "resolve_repo_id", "run_git"]
+__all__ = [
+    "normalize_remote_url", "canonical_repo_id", "is_own_gitdir", "resolve_repo_id", "run_git",
+]
 
 _GIT_TIMEOUT = 5.0
 # scp-like syntax: user@host:path (the form `git@gitlab.com:group/project.git` uses)
@@ -53,6 +55,26 @@ def run_git(path: str, *args: str) -> str:
     except (OSError, subprocess.SubprocessError):
         return ""
     return out.stdout.strip() if out.returncode == 0 else ""
+
+
+def is_own_gitdir(path: str) -> bool:
+    """Whether ``path`` is itself the root of a git worktree.
+
+    ``git -C <path> ...`` silently walks *up* the filesystem tree past an
+    incomplete or corrupted ``.git`` to find the nearest real one -- so any
+    git subcommand against a broken checkout would otherwise resolve to an
+    unrelated ancestor repository's remote and commit history instead of
+    failing. Every caller that trusts a discovered repo's identity must check
+    this first, before running ``remote get-url`` or anything else via
+    :func:`run_git`.
+    """
+    top = run_git(path, "rev-parse", "--show-toplevel")
+    if not top:
+        return False
+    try:
+        return Path(top).resolve() == Path(path).resolve()
+    except OSError:
+        return False
 
 
 def canonical_repo_id(path: str) -> str | None:

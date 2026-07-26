@@ -346,14 +346,14 @@ def test_cross_repo_dependency_via_shared_package(tmp_path):
 
 def test_discover_repos_finds_and_prunes(tmp_path):
     # A repo_id is now canonical (from the remote, or a dirname+root-commit
-    # fallback with no remote) -- not the path relative to root. These bare
-    # `.git` dirs have neither a real remote nor commits, so each falls back to
-    # its own directory name.
+    # fallback with no remote) -- not the path relative to root. These repos
+    # have neither a real remote nor commits, so each falls back to its own
+    # directory name.
     from contextlake.kb.parse import discover_repos
 
-    (tmp_path / "team" / "a" / ".git").mkdir(parents=True)
-    (tmp_path / "b" / ".git").mkdir(parents=True)
-    (tmp_path / "team" / "a" / "nested" / ".git").mkdir(parents=True)  # inside a repo -> skip
+    _empty_git_repo(tmp_path / "team" / "a")
+    _empty_git_repo(tmp_path / "b")
+    _empty_git_repo(tmp_path / "team" / "a" / "nested")  # inside a repo -> skip
     repos = dict(discover_repos(str(tmp_path)))
     assert set(repos) == {"a", "b"}  # nested repo not descended into
     assert repos["a"] == str(tmp_path / "team" / "a")
@@ -364,11 +364,26 @@ def test_discover_repos_skips_vendored_nested(tmp_path):
 
     # a normal repo, plus a nested vendored upstream repo (module-federation) found
     # because its parent (app-host) is not itself a repo. The vendored one is skipped.
-    (tmp_path / "app" / ".git").mkdir(parents=True)
-    (tmp_path / "app-host" / "module-federation" / "demo" / ".git").mkdir(parents=True)
+    _empty_git_repo(tmp_path / "app")
+    _empty_git_repo(tmp_path / "app-host" / "module-federation" / "demo")
     ids = {rid for rid, _ in discover_repos(str(tmp_path))}
     assert "app" in ids
     assert not any("module-federation" in rid for rid in ids)
+
+
+def test_discover_repos_skips_a_corrupted_git_instead_of_misattributing_it(tmp_path):
+    """The exact bug this guards against: a broken nested .git must never be
+    silently indexed under an unrelated ancestor repo's identity (git itself
+    walks up past an incomplete gitdir to find the nearest real one)."""
+    from contextlake.kb.parse import discover_repos
+
+    _git_repo(tmp_path / "workspace", remote="https://example.com/acme/ancestor.git")
+    broken = tmp_path / "workspace" / "nested" / "broken-checkout"
+    broken.mkdir(parents=True)
+    (broken / ".git").mkdir()
+    (broken / ".git" / "HEAD").write_text("not a real gitdir\n")
+    ids = {rid for rid, _ in discover_repos(str(tmp_path))}
+    assert ids == {"example.com/acme/ancestor"}  # the broken checkout never became a second node
 
 
 def _git_repo(path, *, remote=None, commit_message="init"):
@@ -385,6 +400,17 @@ def _git_repo(path, *, remote=None, commit_message="init"):
     run("commit", "-q", "-m", commit_message)
     if remote:
         run("remote", "add", "origin", remote)
+
+
+def _empty_git_repo(path):
+    """A real (structurally valid) git repo with no commits and no remote --
+    unlike a bare ``mkdir(".git")``, this is a state ``git`` itself recognizes
+    as this directory's own repo, which discover_repos now requires."""
+    import subprocess
+
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "-C", str(path), "init", "-q"], check=True,
+                   capture_output=True, text=True)
 
 
 def test_discover_repos_uses_canonical_remote_id_not_local_path(tmp_path):
