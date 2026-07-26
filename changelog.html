@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=bd5a16c">
-<link rel="stylesheet" href="docs.css?v=bd5a16c">
-<link rel="stylesheet" href="cmdk.css?v=bd5a16c">
+<link rel="stylesheet" href="fonts.css?v=3784e3e">
+<link rel="stylesheet" href="docs.css?v=3784e3e">
+<link rel="stylesheet" href="cmdk.css?v=3784e3e">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -50,7 +50,7 @@
 <p>All notable changes to contextlake will be documented in this file.</p>
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/" target="_blank" rel="noopener">Keep a Changelog<span class="ext-arrow" aria-hidden="true">↗</span></a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target="_blank" rel="noopener">Semantic Versioning<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
-<h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
+<h2 id="2550-2026-07-27">[2.55.0] - 2026-07-27<a class="anchor" href="#2550-2026-07-27" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard: a repo page's <code>Diagrams</code> tab.</strong> Five of the six <code>graph --format</code>
@@ -76,10 +76,11 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   <code>kb/parse.py</code> emits <code>kind="module"</code> package nodes for every code language , 
   so a repo with both Terraform <em>and</em> regular source files was incorrectly
   drawing unrelated source-module nodes as deployment "module" entries. Now
-  gated on <code>lang="hcl"</code> too. Caught while writing the dashboard's Diagrams
-  tests against a fixture with an ordinary Python module node alongside a
-  Terraform resource, proven with the same revert-the-fix, watch-it-fail
-  discipline as the categorization bug this pairs with (v2.54.0).</li>
+  gated on <code>lang="hcl"</code> too. This bug shipped in v2.54.0's <code>deploymentdiagram</code>
+  release; caught while writing this release's dashboard Diagrams tests
+  against a fixture with an ordinary Python module node alongside a Terraform
+  resource, and fixed here using the same revert-the-fix, watch-it-fail
+  discipline v2.54.0 used for its own data-block categorization bug.</li>
 </ul>
 <h2 id="2540-2026-07-27">[2.54.0] - 2026-07-27<a class="anchor" href="#2540-2026-07-27" title="Link to this section">#</a></h2>
 <h3 id="added_1">Added<a class="anchor" href="#added_1" title="Link to this section">#</a></h3>
@@ -2208,7 +2209,7 @@ critical configuration bug.</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#unreleased">[Unreleased]</a><ul>
+<li><a href="#2550-2026-07-27">[2.55.0] - 2026-07-27</a><ul>
 <li><a href="#added">Added</a></li>
 <li><a href="#fixed">Fixed</a></li>
 </ul>
@@ -2660,6 +2661,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=bd5a16c"></script>
+<script defer src="cmdk.js?v=3784e3e"></script>
 </body>
 </html>
