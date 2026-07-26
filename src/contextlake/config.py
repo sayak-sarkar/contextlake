@@ -7,17 +7,12 @@ import os
 
 from .logging_setup import log
 
-# Configuration file paths. The current (contextlake) files take precedence, but
-# the former gitlab-sync files are still read so existing setups keep working
-# without any change after the rename.
+# Configuration file paths.
 CONFIG_FILE = os.path.expanduser('~/.contextlake.ini')
 LOCAL_CONFIG_FILE = '.contextlake.ini'
-LEGACY_CONFIG_FILE = os.path.expanduser('~/.gitlab_sync.ini')
-LEGACY_LOCAL_CONFIG_FILE = '.gitlab_sync.ini'
 
-# INI section names, low-to-high precedence: the current section wins if a file
-# happens to carry both.
-SECTIONS = ('gitlab_sync', 'contextlake')
+# INI section name.
+SECTIONS = ('contextlake',)
 
 # Config values that name a filesystem location and so must have ~ and $VARS
 # expanded (the INI/CLI layers store them verbatim, unlike DEFAULT_CONFIG).
@@ -61,11 +56,7 @@ DEFAULT_CONFIG = {
 
 
 def _merge(config, path):
-    """Merge an INI file's config section into config, if present.
-
-    Accepts either the current ``[contextlake]`` section or the legacy
-    ``[gitlab_sync]`` one (current wins if both are present in one file).
-    """
+    """Merge an INI file's ``[contextlake]`` section into config, if present."""
     if not path or not os.path.exists(path):
         return
     parser = configparser.ConfigParser()
@@ -79,14 +70,10 @@ def load_config(config_path=None):
     """Load configuration with precedence: explicit --config > local > global > defaults.
 
     Sources are merged from lowest to highest precedence so the later (more
-    specific) source wins on conflicting keys. The legacy gitlab-sync files are
-    read just below their contextlake counterparts, so an existing setup keeps
-    working while a new contextlake file (if present) takes precedence.
+    specific) source wins on conflicting keys.
     """
     config = DEFAULT_CONFIG.copy()
-    _merge(config, LEGACY_CONFIG_FILE)        # legacy global (~/.gitlab_sync.ini)
     _merge(config, CONFIG_FILE)               # global (~/.contextlake.ini)
-    _merge(config, LEGACY_LOCAL_CONFIG_FILE)  # legacy local workspace config
     _merge(config, LOCAL_CONFIG_FILE)         # local workspace config
     _merge(config, config_path)               # explicit --config path
 
@@ -104,8 +91,7 @@ def load_config(config_path=None):
         # the exact paths searched (absolute) and whether each exists.
         log("WARNING: gitlab_group is still the placeholder 'your-gitlab-group' — "
             "no config with your group was found. Searched (low to high precedence):")
-        for path in (LEGACY_CONFIG_FILE, CONFIG_FILE, LEGACY_LOCAL_CONFIG_FILE,
-                     LOCAL_CONFIG_FILE, config_path):
+        for path in (CONFIG_FILE, LOCAL_CONFIG_FILE, config_path):
             if not path:
                 continue
             mark = "found" if os.path.exists(path) else "absent"

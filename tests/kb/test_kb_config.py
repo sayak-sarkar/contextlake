@@ -25,12 +25,10 @@ def test_apply_llm_overrides_noop_without_provider():
 
 
 def _isolate(monkeypatch, tmp_path):
-    """Point global/local config (current and legacy) at non-existent paths so
-    only the test's files load."""
+    """Point global/local config at non-existent paths so only the test's
+    files load."""
     monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(tmp_path / "nope-global.toml"))
     monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(tmp_path / "nope-local.toml"))
-    monkeypatch.setattr(kbcfg, "LEGACY_GLOBAL_CONFIG", str(tmp_path / "nope-legacy-global.toml"))
-    monkeypatch.setattr(kbcfg, "LEGACY_LOCAL_CONFIG", str(tmp_path / "nope-legacy-local.toml"))
     monkeypatch.chdir(tmp_path)
 
 
@@ -102,30 +100,9 @@ def test_missing_explicit_config_path_does_not_fall_back_to_global(tmp_path, mon
         load_kb_config(str(tmp_path / "typo-d.toml"))
 
 
-def test_legacy_global_kb_config_is_discovered(tmp_path, monkeypatch):
-    # Back-compat: an existing ~/.gitlab-sync/kb.toml (legacy global) is still
-    # read without passing --config.
-    _isolate(monkeypatch, tmp_path)
-    legacy = tmp_path / "legacy-kb.toml"
-    legacy.write_text('[kb]\nlanguages = ["go"]\n')
-    monkeypatch.setattr(kbcfg, "LEGACY_GLOBAL_CONFIG", str(legacy))
-    c = load_kb_config()
-    assert c.languages == ["go"]
-
-
-def test_default_store_dir_prefers_new_falls_back_to_legacy(tmp_path, monkeypatch):
-    new = tmp_path / "new" / "kb"
-    legacy = tmp_path / "legacy" / "kb"
-    monkeypatch.setattr(kbcfg, "DEFAULT_STORE_DIR", str(new))
-    monkeypatch.setattr(kbcfg, "LEGACY_STORE_DIR", str(legacy))
-    # neither exists -> new is the default
-    assert kbcfg.default_store_dir() == str(new)
-    # only the legacy store exists -> reuse it (no re-index needed)
-    legacy.mkdir(parents=True)
-    assert kbcfg.default_store_dir() == str(legacy)
-    # once the new store exists, prefer it
-    new.mkdir(parents=True)
-    assert kbcfg.default_store_dir() == str(new)
+def test_default_store_dir(monkeypatch):
+    monkeypatch.setattr(kbcfg, "DEFAULT_STORE_DIR", "~/some/kb")
+    assert kbcfg.default_store_dir() == "~/some/kb"
 
 
 def test_store_path_expands_tilde():

@@ -10,9 +10,7 @@ Precedence (later wins): built-in defaults -> ``~/.contextlake/kb.toml`` ->
 setting only one field (e.g. ``[llm] model = "..."``) does not wipe out sibling
 fields (``enabled``, ``provider``) set globally. ``sources`` and ``rules`` lists are
 replaced wholesale by the highest-precedence file that sets them (predictable, no
-surprise merging of list tables). The former ``~/.gitlab-sync/`` paths are still
-read (just below their contextlake counterparts) so existing setups keep working
-after the rename.
+surprise merging of list tables).
 """
 
 from __future__ import annotations
@@ -33,23 +31,11 @@ except ModuleNotFoundError:  # Python 3.10
 DEFAULT_STORE_DIR = "~/.contextlake/kb"
 GLOBAL_CONFIG = "~/.contextlake/kb.toml"
 LOCAL_CONFIG = ".contextlake.kb.toml"
-# Former gitlab-sync locations, still read so an existing store/config keeps working.
-LEGACY_STORE_DIR = "~/.gitlab-sync/kb"
-LEGACY_GLOBAL_CONFIG = "~/.gitlab-sync/kb.toml"
-LEGACY_LOCAL_CONFIG = ".gitlab-sync.kb.toml"
 DEFAULT_LANGUAGES = ["csharp", "typescript", "python"]
 
 
 def default_store_dir() -> str:
-    """The default knowledge-store location.
-
-    Prefer the current ``~/.contextlake/kb``; fall back to a pre-existing legacy
-    ``~/.gitlab-sync/kb`` store so an already-built index keeps working without a
-    re-index after the rename.
-    """
-    if not Path(expand_path(DEFAULT_STORE_DIR)).exists() \
-            and Path(expand_path(LEGACY_STORE_DIR)).exists():
-        return LEGACY_STORE_DIR
+    """The default knowledge-store location."""
     return DEFAULT_STORE_DIR
 
 
@@ -180,10 +166,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
             "a different store than the one you meant to use."
         )
     merged: dict = {}
-    # Legacy gitlab-sync files are read just below their contextlake counterparts,
-    # so an existing setup keeps working while a new file takes precedence.
-    for src in (LEGACY_GLOBAL_CONFIG, GLOBAL_CONFIG,
-                LEGACY_LOCAL_CONFIG, LOCAL_CONFIG, config_path):
+    for src in (GLOBAL_CONFIG, LOCAL_CONFIG, config_path):
         for table, values in _read_toml(src).items():
             if table in _SCALAR_TABLES:
                 # Deep-merge by key: a local file setting only `model` must not

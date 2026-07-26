@@ -13,11 +13,6 @@ Configuration is loaded in this precedence order:
 3. **Default values**: built-in defaults (lowest priority)
 4. **CLI arguments**: override all other settings
 
-> **Upgrading from `gitlab-sync`?** Your existing `~/.gitlab_sync.ini` / `.gitlab_sync.ini` (with its
-> `[gitlab_sync]` section) is still read, and the knowledge store at `~/.gitlab-sync/` is reused as-is,
-> nothing to migrate. New setups use `.contextlake.ini` and `~/.contextlake/`; the `gitlab-sync` command
-> also still works as a deprecated alias.
-
 An example `.contextlake.ini`:
 
 ```ini

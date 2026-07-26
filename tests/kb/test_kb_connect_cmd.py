@@ -37,7 +37,7 @@ class _Stub:
 
 
 def test_connect_persists_confirmed_links(tmp_path, monkeypatch, gls_logs):
-    monkeypatch.setenv("HOME", str(tmp_path))  # isolate ~/.gitlab-sync/kb.toml
+    monkeypatch.setenv("HOME", str(tmp_path))  # isolate ~/.contextlake/kb.toml
     store_dir = tmp_path / "kbstore"
     cfg = tmp_path / "kb.toml"
     cfg.write_text(_CONFIG.format(store=store_dir.as_posix()))

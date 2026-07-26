@@ -17,12 +17,6 @@ from ..store.shards import read_shard
 BEGIN = "<!-- BEGIN contextlake (managed; this block is refreshed by `contextlake steer`) -->"
 END = "<!-- END contextlake -->"
 MARKER = BEGIN  # presence marks contextlake-managed content
-# Legacy markers from the former gitlab-sync name, still recognized so an existing
-# managed block is refreshed in place (not duplicated) after the rename. Derived from
-# the current markers so they stay structurally identical.
-LEGACY_BEGIN = BEGIN.replace("contextlake", "gitlab-sync")
-LEGACY_END = END.replace("contextlake", "gitlab-sync")
-LEGACY_MARKER = LEGACY_BEGIN
 
 GUARDRAILS = """\
 ## Guardrails (non-negotiable)
@@ -86,7 +80,7 @@ def _md_safe(s: str) -> str:
     reintroduce a marker mid-body and corrupt the next `contextlake steer` refresh.
     """
     s = (s or "").replace("`", "'")
-    for marker in (BEGIN, END, LEGACY_BEGIN, LEGACY_END):
+    for marker in (BEGIN, END):
         s = s.replace(marker, "")
     return s
 

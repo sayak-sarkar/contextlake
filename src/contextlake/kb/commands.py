@@ -867,8 +867,6 @@ def cmd_steer(args) -> int:
     from .steer.generate import (
         BEGIN,
         END,
-        LEGACY_BEGIN,
-        LEGACY_END,
         mcp_server_entry,
         render_agents_md,
         render_claude_md,
@@ -894,14 +892,11 @@ def cmd_steer(args) -> int:
             path.write_text(block + "\n", encoding="utf-8")
             return True
         existing = path.read_text(encoding="utf-8", errors="ignore")
-        # Refresh an existing managed block in place — current markers first, then
-        # the legacy gitlab-sync ones, so a pre-rename block is replaced (not duplicated).
-        for begin, end in ((BEGIN, END), (LEGACY_BEGIN, LEGACY_END)):
-            if begin not in existing or end not in existing:
-                continue
-            if existing.count(begin) != 1 or existing.count(end) != 1:
+        # Refresh an existing managed block in place.
+        if BEGIN in existing and END in existing:
+            if existing.count(BEGIN) != 1 or existing.count(END) != 1:
                 return False
-            b, e = existing.index(begin), existing.index(end) + len(end)
+            b, e = existing.index(BEGIN), existing.index(END) + len(END)
             if e <= b:
                 return False
             path.write_text(existing[:b] + block + existing[e:], encoding="utf-8")

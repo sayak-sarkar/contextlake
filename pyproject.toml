@@ -79,9 +79,6 @@ llm-local = ["llama-cpp-python>=0.2", "huggingface_hub>=0.20"]
 
 [project.scripts]
 contextlake = "contextlake.cli:main"
-# Deprecated alias for the former package name (gitlab-sync); kept so existing
-# installs and scripts that call `gitlab-sync` keep working. Removed in a future major.
-gitlab-sync = "contextlake.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

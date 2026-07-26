@@ -30,12 +30,10 @@ from contextlake.kb import source_cmd
 @pytest.fixture(autouse=True)
 def _isolate_kb_config(tmp_path, monkeypatch):
     """`load_kb_config`'s precedence chain must never touch the real machine's
-    global/legacy config files or a stray cwd file -- point every fallback at a
-    path that does not exist so tests stay hermetic."""
+    global config files or a stray cwd file -- point every fallback at a path
+    that does not exist so tests stay hermetic."""
     monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(tmp_path / "no-global.toml"))
     monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(tmp_path / "no-local.toml"))
-    monkeypatch.setattr(kbcfg, "LEGACY_GLOBAL_CONFIG", str(tmp_path / "no-legacy-global.toml"))
-    monkeypatch.setattr(kbcfg, "LEGACY_LOCAL_CONFIG", str(tmp_path / "no-legacy-local.toml"))
 
 
 def _args(action, config, **kw):

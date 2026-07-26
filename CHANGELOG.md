@@ -5,6 +5,23 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.49.0] - 2026-07-26
+
+### Removed
+
+- **Dropped the `gitlab-sync` backward-compat layer** (the pre-rename project name).
+  This is a breaking change for anyone still relying on it — nothing else changes.
+  Specifically removed: the `gitlab-sync` console-script alias; reading a legacy
+  `~/.gitlab_sync.ini` / `.gitlab_sync.ini` file or its `[gitlab_sync]` INI
+  section; reading a legacy `~/.gitlab-sync/kb.toml` / `.gitlab-sync.kb.toml`
+  knowledge-layer config, and falling back to a pre-existing `~/.gitlab-sync/kb`
+  store when `~/.contextlake/kb` doesn't exist; recognizing the old
+  `<!-- BEGIN gitlab-sync ... -->` managed-block marker in `contextlake steer`
+  output. Use `contextlake` (not `gitlab-sync`), `.contextlake.ini` /
+  `~/.contextlake.ini`, and `~/.contextlake/kb.toml` / `~/.contextlake/kb`
+  going forward — migrate any existing legacy config/store to the current
+  names before upgrading past this release.
+
 ## [2.48.2] - 2026-07-26
 
 ### Fixed

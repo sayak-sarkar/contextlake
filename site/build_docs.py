@@ -53,8 +53,8 @@ PAGES = [
      "pebble-doc.png",
      [("knowledge-layer.html", "Knowledge layer"), ("index-code-graph.html", "Index the code graph")]),
     ("configuration.html", "docs/configuration.md", "Configuration", "Configuration",
-     "Get started", "Config-file precedence, the gitlab-sync upgrade note, and the full "
-     "settings reference for the mirror layer.",
+     "Get started", "Config-file precedence and the full settings reference for the "
+     "mirror layer.",
      "pebble-doc.png",
      [("quickstart.html", "Quickstart"), ("usage.html", "Mirror repositories")]),
     ("index-code-graph.html", "docs/index-code-graph.md", "Index the code graph",

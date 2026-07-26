@@ -6,10 +6,9 @@ from contextlake.config import DEFAULT_CONFIG, get_cache_paths, load_config
 
 
 def _isolate_globals(monkeypatch, tmp_path):
-    """Point both the current and legacy global config files at non-existent
-    paths so a test only ever sees the files it writes itself."""
+    """Point the global config file at a non-existent path so a test only ever
+    sees the files it writes itself."""
     monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(tmp_path / "none.ini"))
-    monkeypatch.setattr("contextlake.config.LEGACY_CONFIG_FILE", str(tmp_path / "none-legacy.ini"))
     monkeypatch.chdir(tmp_path)
 
 
@@ -31,31 +30,6 @@ def test_explicit_config_path_overrides_defaults(tmp_path, monkeypatch):
     assert config["max_workers"] == "3"
     # untouched keys still come from defaults
     assert config["clone_timeout"] == DEFAULT_CONFIG["clone_timeout"]
-
-
-def test_legacy_gitlab_sync_section_still_read(tmp_path, monkeypatch):
-    # Back-compat: a config file using the former [gitlab_sync] section must
-    # still load after the rename.
-    _isolate_globals(monkeypatch, tmp_path)
-    custom = tmp_path / "old.ini"
-    custom.write_text("[gitlab_sync]\ngitlab_group = legacy-group\nmax_workers = 5\n")
-
-    config = load_config(str(custom))
-    assert config["gitlab_group"] == "legacy-group"
-    assert config["max_workers"] == "5"
-
-
-def test_legacy_global_config_is_discovered(tmp_path, monkeypatch):
-    # Back-compat: an existing ~/.gitlab_sync.ini (the legacy global) is still
-    # discovered without passing --config.
-    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(tmp_path / "nonexistent.ini"))
-    monkeypatch.chdir(tmp_path)
-    legacy = tmp_path / "legacy_global.ini"
-    legacy.write_text("[gitlab_sync]\ngitlab_group = from-legacy-global\n")
-    monkeypatch.setattr("contextlake.config.LEGACY_CONFIG_FILE", str(legacy))
-
-    config = load_config()
-    assert config["gitlab_group"] == "from-legacy-global"
 
 
 def test_config_path_values_are_tilde_expanded(tmp_path, monkeypatch):
