@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=dbfcba5">
-<link rel="stylesheet" href="docs.css?v=dbfcba5">
-<link rel="stylesheet" href="cmdk.css?v=dbfcba5">
+<link rel="stylesheet" href="fonts.css?v=3cd50c1">
+<link rel="stylesheet" href="docs.css?v=3cd50c1">
+<link rel="stylesheet" href="cmdk.css?v=3cd50c1">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -124,6 +124,18 @@ compound nodes, written to <code>&lt;store&gt;/graphs/c4.html</code>), <code>dot
 cluster_*</code> boundaries), or <code>json</code> (the raw payload). <code>--format mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>,
 <code>statediagram</code>, and <code>erdiagram</code> aren't supported with <code>--c4</code> (the command exits with an error), and
 <code>--serve</code> doesn't apply either, the C4 view is a generated file, not a live server.</p>
+<h3 id="c1-external-systems">C1: external systems<a class="anchor" href="#c1-external-systems" title="Link to this section">#</a></h3>
+<p><code>--c4 --c1</code> adds a layer on top of the same view: one dashed box per distinct host an indexed repo
+calls over HTTP that never resolves to any indexed repo's exposed route, connected by a
+<code>calls_external x&lt;weight&gt;</code> edge, drawn outside every namespace boundary:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>graph<span class="w"> </span>--c4<span class="w"> </span>--c1<span class="w"> </span>--group-depth<span class="w"> </span><span class="m">2</span><span class="w"> </span>--open
+</code></pre></div>
+<p><strong>Deliberately unclassified.</strong> contextlake can't tell a genuine third-party dependency (Stripe,
+GitHub's API) apart from an internal service this fleet simply hasn't indexed yet, both look
+identical here: an HTTP call whose target path matches no indexed repo's <code>exposes</code> route. Read the
+box labels yourself; you'll recognize your own internal hosts. <code>--c1</code> requires <code>--c4</code> (it has no
+meaning on its own) and needs no new extraction pass, the host was already captured at index time,
+just never used until this view asks for it.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="dashboard">The dashboard</a></li>
@@ -135,7 +147,10 @@ cluster_*</code> boundaries), or <code>json</code> (the raw payload). <code>--fo
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#output-formats">Output formats</a></li>
-<li><a href="#composed-namespace-c4-diagram">Composed namespace C4 diagram</a></li>
+<li><a href="#composed-namespace-c4-diagram">Composed namespace C4 diagram</a><ul>
+<li><a href="#c1-external-systems">C1: external systems</a></li>
+</ul>
+</li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -165,6 +180,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=dbfcba5"></script>
+<script defer src="cmdk.js?v=3cd50c1"></script>
 </body>
 </html>
