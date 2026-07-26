@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -55,9 +55,8 @@ nothing to a fully-wired workspace in one command, and it's safe to re-run on a 
 
 <p><code>bootstrap</code> chains mirror repos → index → connect → embed → enrich → wiki → write editor steering,
 skipping anything not enabled:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
-
 <p><code>--llm builtin</code> powers the wiki stage with a zero-setup CPU model, so this single command builds the
 <strong>whole</strong> knowledge layer (graph, vectors, and wiki) for every repo. (<code>--llm ollama</code> | <code>openai</code> | <code>auto</code>
 for higher-quality prose; the pre-command form <code>contextlake --llm builtin bootstrap</code> also works.) Without
@@ -117,20 +116,18 @@ connector-enriched, wiki'd, editor-wired workspace in one command (skip enrich w
 <p><code>bootstrap</code> is incremental and branch-safe, so it's safe to run repeatedly, it re-mirrors, re-indexes only
 the repos whose HEAD moved, refreshes the knowledge layer, and rewrites the steering, without touching an
 in-progress working tree. Run it from cron:</p>
-<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
+<div class="highlight"><pre><span></span><code>*/30 * * * * contextlake bootstrap &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
 </code></pre></div>
-
 <p>or as a systemd user timer, see <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.service" target="_blank" rel="noopener"><code>examples/contextlake.service</code><span class="ext-arrow" aria-hidden="true">↗</span></a> and
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.timer" target="_blank" rel="noopener"><code>examples/contextlake.timer</code><span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
 <h2 id="re-index-on-commit-git-hook">Re-index on commit (git hook)<a class="anchor" href="#re-index-on-commit-git-hook" title="Link to this section">#</a></h2>
 <p>For continuous freshness without a schedule, install a git <code>post-commit</code> hook that re-indexes a repo the
 moment you commit to it:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w">                     </span><span class="c1"># the repo in the current directory</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w">                     </span><span class="c1"># the repo in the current directory</span>
 contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># every git repo under a mirror</span>
 contextlake<span class="w"> </span>hook<span class="w"> </span>status<span class="w">  </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># which repos are wired</span>
 contextlake<span class="w"> </span>hook<span class="w"> </span>uninstall<span class="w">                   </span><span class="c1"># remove it (any pre-existing hook is kept)</span>
 </code></pre></div>
-
 <p>The hook runs <code>contextlake index &lt;repo&gt;</code> detached (so the commit returns immediately) and re-uses the
 repo's stored id, so it updates the same graph node rather than a duplicate. Mirror-wide syncing (fetch
 new clones, prune) still belongs to <code>bootstrap</code> on a schedule; the hook keeps <em>local edits</em> current
@@ -181,6 +178,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -51,14 +51,13 @@
 command's own page (linked below) covers it in depth.</p>
 <h2 id="typos-and-abbreviations">Typos and abbreviations<a class="anchor" href="#typos-and-abbreviations" title="Link to this section">#</a></h2>
 <p>A mistyped command suggests the closest real one instead of dumping the full command list:</p>
-<div class="codehilite"><pre><span></span><code>$ contextlake fetc
+<div class="highlight"><pre><span></span><code>$ contextlake fetc
 ✗ Unknown command: &#39;fetc&#39;
 
 Did you mean: fetch?
 
 Run &#39;contextlake --help&#39; to see all commands.
 </code></pre></div>
-
 <p>The match runs against every command name <strong>and its aliases</strong> (<code>blast-radius</code> for <code>impact</code>, <code>who-knows</code>
 for <code>owners</code>), then shows the canonical verb, matching what <code>--help</code> teaches.</p>
 <p>Flags never match on a partial name. <code>contextlake index --work-d /tmp</code> reports <code>unrecognized arguments:
@@ -190,6 +189,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

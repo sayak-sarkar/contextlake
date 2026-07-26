@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -58,17 +58,14 @@ tiers actually do, see <a href="knowledge-layer">knowledge-layer.md</a>.</p>
 <p>The dashboard reads your indexed store. If you've already run <code>contextlake index</code> (or
 <code>contextlake bootstrap</code>), you're set. <strong>Just want to look around first?</strong> Every screen
 below works against a bundled, generic demo fleet, no setup, no real data:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--sample<span class="w">      </span><span class="c1"># a fictional &quot;acme&quot; fleet, served live</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--sample<span class="w">      </span><span class="c1"># a fictional &quot;acme&quot; fleet, served live</span>
 </code></pre></div>
-
 <p>To build against your own repos, index a workspace once:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">        </span><span class="c1"># or `contextlake bootstrap` for the full pipeline</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">        </span><span class="c1"># or `contextlake bootstrap` for the full pipeline</span>
 </code></pre></div>
-
 <h2 id="2-launch-it">2. Launch it<a class="anchor" href="#2-launch-it" title="Link to this section">#</a></h2>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--open<span class="w">         </span><span class="c1"># live, against your store; opens your browser</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--open<span class="w">         </span><span class="c1"># live, against your store; opens your browser</span>
 </code></pre></div>
-
 <table>
 <thead>
 <tr>
@@ -142,9 +139,8 @@ Wiki and Links only appear when the repo actually has one, an absent wiki or con
 from the trail, never shown as a dead crumb.</p>
 <h2 id="7-generate-a-wiki">7. Generate a wiki<a class="anchor" href="#7-generate-a-wiki" title="Link to this section">#</a></h2>
 <p>No wiki for a repo yet? Its <strong>Wiki</strong> tab hands you the exact command (one click to copy):</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/catalog-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/catalog-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
-
 <p><code>--llm</code> enables the LLM tier inline, <code>builtin</code> runs a small CPU model with no Ollama or
 API key (install the <code>llm-local</code> extra first); <code>ollama</code> / <code>openai</code> use those backends.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
@@ -202,6 +198,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

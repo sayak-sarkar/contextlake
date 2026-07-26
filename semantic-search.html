@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -96,14 +96,13 @@ graph-propagation ranking:</p>
 <h2 id="measuring-retrieval-quality">Measuring retrieval quality<a class="anchor" href="#measuring-retrieval-quality" title="Link to this section">#</a></h2>
 <p><code>contextlake eval</code> keeps retrieval falsifiable. Point it at a <strong>golden-query JSON file</strong>, each entry pairs
 a query with the node ids it should return:</p>
-<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;queries&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;CatalogService&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;demo_app_catalogservice&quot;</span><span class="p">]},</span>
 <span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;charge&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;charge&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;match&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;name&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function&quot;</span><span class="p">}</span>
 <span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
-
 <p>Then <code>contextlake eval --golden queries.json</code> reports <strong>precision@k / recall@k / MRR</strong> plus a <strong>cost</strong>
 dimension (estimated tokens per query, and precision per 1k tokens), so "route to the cheapest sufficient
 source" becomes a number, not a vibe. Score any retriever with <code>--retriever fts|semantic|hybrid</code>
@@ -152,6 +151,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

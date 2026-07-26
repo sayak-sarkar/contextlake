@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -185,7 +185,7 @@ each command in the <a href="usage">Usage guide</a> maps onto one group:</p>
 branch (see <a href="usage#branch-safety">Branch safety</a>).</p>
 <h3 id="directory-structure-mapping">Directory structure mapping<a class="anchor" href="#directory-structure-mapping" title="Link to this section">#</a></h3>
 <p>The tool maintains GitLab's exact directory structure:</p>
-<div class="codehilite"><pre><span></span><code>GitLab Path: your-gitlab-group/backend/services/api-gateway
+<div class="highlight"><pre><span></span><code>GitLab Path: your-gitlab-group/backend/services/api-gateway
 Local Path:  backend/services/api-gateway
 
 GitLab Path: your-gitlab-group/backend/pricing/quote-engine
@@ -194,7 +194,6 @@ Local Path:  backend/pricing/quote-engine
 GitLab Path: your-gitlab-group/frontend/platform/ui-toolkit
 Local Path:  frontend/platform/ui-toolkit
 </code></pre></div>
-
 <p>The <code>your-gitlab-group/</code> prefix is stripped when creating local paths.</p>
 <h3 id="performance-characteristics">Performance characteristics<a class="anchor" href="#performance-characteristics" title="Link to this section">#</a></h3>
 <p><strong>Typical Performance Metrics</strong> (based on a large workspace of several hundred repositories):</p>
@@ -245,25 +244,22 @@ Local Path:  frontend/platform/ui-toolkit
 </ul>
 <h3 id="git-integration">Git integration<a class="anchor" href="#git-integration" title="Link to this section">#</a></h3>
 <p>To avoid committing sensitive configuration to version control, add the configuration file to your <code>.gitignore</code>:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Add to .gitignore</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># Add to .gitignore</span>
 .contextlake.ini
 ~/.contextlake.ini
 </code></pre></div>
-
 <p>For team usage, consider including a sample configuration file:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Add .contextlake.ini.example to git</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># Add .contextlake.ini.example to git</span>
 cp<span class="w"> </span>.contextlake.ini<span class="w"> </span>.contextlake.ini.example
 git<span class="w"> </span>add<span class="w"> </span>.contextlake.ini.example
 
 <span class="c1"># Update .gitignore</span>
 <span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;.contextlake.ini&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>.gitignore
 </code></pre></div>
-
 <p>Team members can then:</p>
-<div class="codehilite"><pre><span></span><code>cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>.contextlake.ini
+<div class="highlight"><pre><span></span><code>cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>.contextlake.ini
 <span class="c1"># Edit with their personal settings</span>
 </code></pre></div>
-
 <h2 id="knowledge-layer-architecture">Knowledge-layer architecture<a class="anchor" href="#knowledge-layer-architecture" title="Link to this section">#</a></h2>
 <p>The optional <code>contextlake.kb</code> subsystem (the <code>[kb]</code> extra) layers a knowledge graph
 over the mirrored repos. Its pieces:</p>
@@ -352,6 +348,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

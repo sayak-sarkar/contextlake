@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -119,7 +119,7 @@ by what may leave your machine and what hardware you have.</p>
 <h2 id="configuring-the-wiki-llm">Configuring the wiki LLM<a class="anchor" href="#configuring-the-wiki-llm" title="Link to this section">#</a></h2>
 <p>Two lines is enough (passing <code>--llm</code> on the CLI implies <code>enabled = true</code>), or set both in
 <code>~/.contextlake/kb.toml</code>:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[llm]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[llm]</span>
 <span class="n">enabled</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 <span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span><span class="w">        </span><span class="c1"># auto | builtin | ollama | openai | anthropic | cli</span>
 <span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span><span class="w">    </span><span class="c1"># provider-specific model id (table below)</span>
@@ -129,7 +129,6 @@ by what may leave your machine and what hardware you have.</p>
 <span class="n">council_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="w">           </span><span class="c1"># review lenses that run (1-3); fewer = fewer calls per page</span>
 <span class="n">accept_score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.7</span><span class="w">         </span><span class="c1"># mean council score a page must clear to be written</span>
 </code></pre></div>
-
 <table>
 <thead>
 <tr>
@@ -176,18 +175,16 @@ do it for you:</p>
 </ol>
 <p>The maintainer also publishes a <strong>prebuilt CPU wheel index</strong> carrying wheels PyPI doesn't have yet, so
 pointing pip at it skips compilation entirely, no compiler needed:</p>
-<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>llama-cpp-python<span class="w"> </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>llama-cpp-python<span class="w"> </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
 </code></pre></div>
-
 <p><strong>Belt-and-suspenders: <code>--only-binary :all:</code>.</strong> On a compiler-less machine, add this flag so pip <em>refuses</em>
 to fall back to a source build for <strong>any</strong> package, you get a clean "no matching distribution" message
 instead of a wall of <code>cmake</code>/compiler errors. <code>:all:</code> is the all-packages token (its opposite is
 <code>--no-binary</code>). Combined with the CPU-wheel index, this installs the built-in LLM on a brand-new Python
 with no toolchain:</p>
-<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
 </code></pre></div>
-
 <p>The trade-off is deliberate: if a wheel genuinely doesn't exist for your platform, the command stops with
 an actionable error rather than attempting a build that can't succeed.</p>
 <p>On a mainstream Python (3.10-3.13) none of this applies: <code>pip install "contextlake[llm-local]"</code> finds a
@@ -198,30 +195,29 @@ binary with no Python compile step.</p>
 <p><a href="https://ollama.com" target="_blank" rel="noopener">Ollama<span class="ext-arrow" aria-hidden="true">↗</span></a> is a standalone local model server. It sidesteps the native Python build, and
 a 3B-8B model writes much better wiki pages than the 0.5B built-in.</p>
 <p><strong>A) Ollama inside WSL / Linux</strong> (simplest, <code>localhost</code> just works):</p>
-<div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://ollama.com/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh<span class="w">   </span><span class="c1"># installs + starts the daemon</span>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://ollama.com/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh<span class="w">   </span><span class="c1"># installs + starts the daemon</span>
 ollama<span class="w"> </span>pull<span class="w"> </span>qwen2.5:3b<span class="w">                            </span><span class="c1"># ~1.9GB, one-time</span>
 contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span>ollama<span class="w"> </span>--llm-model<span class="w"> </span>qwen2.5:3b<span class="w">   </span><span class="c1"># whole layer in one command</span>
 <span class="c1"># or per repo:  contextlake wiki &lt;repo&gt; --llm ollama --llm-model qwen2.5:3b</span>
 </code></pre></div>
-
 <p>contextlake defaults <code>base_url</code> to <code>http://127.0.0.1:11434</code>, so usually nothing else to set.</p>
 <p><strong>B) Ollama on Windows, contextlake in WSL</strong> (the cross-boundary case). WSL2 is a separate network
 namespace, so a Windows Ollama bound to <code>127.0.0.1</code> is <strong>not reachable from WSL</strong> (<code>localhost:11434</code> →
 connection refused). Two fixes:</p>
 <ul>
 <li><em>Easiest, mirrored networking.</em> In <code>%UserProfile%\.wslconfig</code> add:
-  <code>ini
-  [wsl2]
-  networkingMode=mirrored</code>
+  <div class="highlight"><pre><span></span><code><span class="k">[wsl2]</span>
+<span class="na">networkingMode</span><span class="o">=</span><span class="s">mirrored</span>
+</code></pre></div>
   then <code>wsl --shutdown</code> and reopen. Now <code>localhost</code> is shared, so the default <code>base_url =
   "http://127.0.0.1:11434"</code> works from WSL unchanged.</li>
 <li><em>Or expose Ollama and use the host IP.</em> On Windows set <code>OLLAMA_HOST=0.0.0.0</code> (System Environment
   Variables) and restart Ollama so it listens on all interfaces; allow it through the Windows firewall.
   From WSL, the Windows host is your <strong>default-route gateway</strong>, <em>not</em> the <code>nameserver</code> in
   <code>/etc/resolv.conf</code> (that is a DNS stub):
-  <code>bash
-  ip route show default | awk '{print $3}'   # e.g. 172.24.224.1  (NOT 10.255.255.254)
-  curl http://172.24.224.1:11434/api/tags    # confirm reachability</code>
+  <div class="highlight"><pre><span></span><code>ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>default<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $3}&#39;</span><span class="w">   </span><span class="c1"># e.g. 172.24.224.1  (NOT 10.255.255.254)</span>
+curl<span class="w"> </span>http://172.24.224.1:11434/api/tags<span class="w">    </span><span class="c1"># confirm reachability</span>
+</code></pre></div>
   Set <code>base_url = "http://172.24.224.1:11434"</code> in <code>[llm]</code> (your IP will differ).</li>
 </ul>
 <p>Pull the model on whichever side runs Ollama: <code>ollama pull qwen2.5:3b</code>.</p>
@@ -274,12 +270,11 @@ GPU generates in <em>seconds</em>, not minutes. So:</p>
 </ul>
 <p>If your local model is slow, raise the per-call timeout instead of letting every page fail silently:
 <code>timeout</code> in <code>[llm]</code> (seconds, default 300):</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[llm]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[llm]</span>
 <span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span>
 <span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span>
 <span class="n">timeout</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mi">1200</span><span class="w">        </span><span class="c1"># give a slow CPU room; default is 300s (5 min)</span>
 </code></pre></div>
-
 <p>Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (<code>export REQUESTS_CA_BUNDLE</code> / <code>SSL_CERT_FILE</code>; see <code>docs/releasing.md</code>). Don't switch the embedder
 model/dimension against an existing vector store without re-embedding from scratch, a guard refuses the
@@ -328,6 +323,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

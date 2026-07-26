@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -59,7 +59,7 @@ contextlake is covered in the <a href="quickstart">Quickstart</a>; the knowledge
 <li><strong>CLI arguments</strong>: override all other settings</li>
 </ol>
 <p>An example <code>.contextlake.ini</code>:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[contextlake]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
 <span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
 <span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
 <span class="na">cache_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">/tmp</span>
@@ -69,16 +69,14 @@ contextlake is covered in the <a href="quickstart">Quickstart</a>; the knowledge
 <span class="na">pull_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">60</span>
 <span class="na">max_workers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">8</span>
 </code></pre></div>
-
 <h2 id="overriding-on-the-command-line">Overriding on the command line<a class="anchor" href="#overriding-on-the-command-line" title="Link to this section">#</a></h2>
 <p>Any setting can be overridden per-invocation. The config file is the recommended home for persistent
 values; use flags for one-off overrides:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/path/to/workspace<span class="w"> </span>sync<span class="w">   </span><span class="c1"># override work_dir</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/path/to/workspace<span class="w"> </span>sync<span class="w">   </span><span class="c1"># override work_dir</span>
 contextlake<span class="w"> </span>--group<span class="w"> </span>my-gitlab-group<span class="w"> </span>sync<span class="w">          </span><span class="c1"># override the group</span>
 contextlake<span class="w"> </span>--config<span class="w"> </span>/path/to/custom.ini<span class="w"> </span>sync<span class="w">     </span><span class="c1"># use a different config file</span>
 contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/home/user/dev<span class="w"> </span>--group<span class="w"> </span>your-gitlab-group<span class="w"> </span>status<span class="w">  </span><span class="c1"># combine</span>
 </code></pre></div>
-
 <h2 id="settings-reference">Settings reference<a class="anchor" href="#settings-reference" title="Link to this section">#</a></h2>
 <table>
 <thead>
@@ -274,6 +272,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

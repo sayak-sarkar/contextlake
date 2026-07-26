@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -55,12 +55,11 @@ data lives in the package (your sites, keys, and rules go in a private config fi
 <p>This page orients you; each stage below has its own focused page.</p>
 <h2 id="install-the-extra">Install the extra<a class="anchor" href="#install-the-extra" title="Link to this section">#</a></h2>
 <p>The knowledge layer needs the <code>[kb]</code> extra (Python 3.10 or newer):</p>
-<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">        </span><span class="c1"># knowledge layer (parse + graph + serve)</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb]&quot;</span><span class="w">        </span><span class="c1"># knowledge layer (parse + graph + serve)</span>
 <span class="c1"># ...or everything for local semantic search in one step (no Ollama or API key):</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span><span class="w">   </span><span class="c1"># = kb + built-in CPU embedder + sqlite-vec ANN</span>
 contextlake<span class="w"> </span>doctor<span class="w">                   </span><span class="c1"># check the environment</span>
 </code></pre></div>
-
 <p><code>contextlake doctor</code> verifies the whole layer in one pass (FTS5, <code>git</code> / <code>glab</code> on PATH, the store's real
 counts, the built-in CPU embedder, and the ANN index) and exits non-zero if anything is wrong, so it
 doubles as a CI health gate:</p>
@@ -129,6 +128,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

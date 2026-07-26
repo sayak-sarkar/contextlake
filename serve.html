@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -69,9 +69,8 @@ run). Without that, the server starts fine and says so, the two tools are simply
 absent from the tool list, and everything above still works.</p>
 <h2 id="the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors<a class="anchor" href="#the-quick-way-let-contextlake-wire-your-editors" title="Link to this section">#</a></h2>
 <p>From your workspace root:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>steer<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>steer<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
 </code></pre></div>
-
 <p>This writes the per-tool steering files so agents pick up the workspace context and the MCP
 server natively:</p>
 <ul>
@@ -92,12 +91,11 @@ managed block is appended (and just that block is refreshed on re-runs). <code>.
 name is kept as-is; custom layers like <code>.devin/</code> are left untouched.</p>
 <h2 id="wiring-it-by-hand">Wiring it by hand<a class="anchor" href="#wiring-it-by-hand" title="Link to this section">#</a></h2>
 <p>Claude Code:</p>
-<div class="codehilite"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
+<div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
 </code></pre></div>
-
 <p>Windsurf, add the same server in its MCP config (Cascade's <em>MCP Servers</em> panel, or
 <code>~/.codeium/windsurf/mcp_config.json</code>):</p>
-<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;contextlake-kb&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contextlake&quot;</span><span class="p">,</span>
@@ -106,10 +104,9 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-
 <p>VS Code, in <code>.vscode/mcp.json</code> (note the <code>servers</code> key, a different schema from the
 <code>mcpServers</code> files above; <code>contextlake steer</code> writes this automatically):</p>
-<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;contextlake-kb&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contextlake&quot;</span><span class="p">,</span>
@@ -118,7 +115,6 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-
 <p><strong>Devin is different: there's no repo file to wire.</strong> Devin's MCP connections are configured at
 the account/org level (<code>mcp.devin.ai</code>, with an API key and org header), not read from a file
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
@@ -165,6 +161,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

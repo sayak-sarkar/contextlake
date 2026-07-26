@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -51,11 +51,10 @@
 straight from git history, no config, no index required. It ranks contributors by a <strong>recency-weighted</strong>
 blend of commit volume and lines changed, so someone active in that area lately outranks a long-departed
 prolific author:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w">                 </span><span class="c1"># top contributors for the whole repo</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w">                 </span><span class="c1"># top contributors for the whole repo</span>
 contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w"> </span>--path<span class="w"> </span>src/auth<span class="w">  </span><span class="c1"># ...scoped to the auth module</span>
 contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w"> </span>--json<span class="w">           </span><span class="c1"># machine-readable, for scripts/CI</span>
 </code></pre></div>
-
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-owners.png" alt="contextlake owners acme/catalog-api output: a recency-weighted SME ranking from git history: Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
 </p>
@@ -100,6 +99,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

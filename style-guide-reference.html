@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -124,7 +124,7 @@ micro-choices, so no contributor, and no agent, re-decides them.</p>
 </ul>
 <h3 id="a-code-example-the-four-part-unit">A code example, the four-part unit<a class="anchor" href="#a-code-example-the-four-part-unit" title="Link to this section">#</a></h3>
 <p>Instead of a bare block, write the full unit so the reader knows what it does and what success looks like:</p>
-<div class="codehilite"><pre><span></span><code>To build the graph for every repo under a folder, run <span class="sb">`index`</span> with <span class="sb">`--workspace`</span>:
+<div class="highlight"><pre><span></span><code>To build the graph for every repo under a folder, run <span class="sb">`index`</span> with <span class="sb">`--workspace`</span>:
 
 <span class="sb">```bash</span>
 contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work
@@ -133,9 +133,8 @@ contextlake<span class="w"> </span>index<span class="w"> </span>--workspace<span
 The run is incremental, so only repos whose HEAD moved are re-indexed. You should see a per-repo
 summary ending in a line like <span class="sb">`4 repos, 29 nodes, 28 edges`</span>.
 </code></pre></div>
-
 <h3 id="a-how-to-skeleton">A how-to skeleton<a class="anchor" href="#a-how-to-skeleton" title="Link to this section">#</a></h3>
-<div class="codehilite"><pre><span></span><code><span class="gh"># Wiring your editor</span>
+<div class="highlight"><pre><span></span><code><span class="gh"># Wiring your editor</span>
 
 Connect your editor to contextlake over MCP so your assistant answers from your indexed repos.
 
@@ -154,7 +153,6 @@ files the answer came from.
 <span class="gu">## See also</span>
 <span class="k">-</span><span class="w"> </span>[<span class="nt">Serve it to your editor</span>](<span class="na">serve.md</span>)
 </code></pre></div>
-
 <h2 id="a-to-z">A to Z<a class="anchor" href="#a-to-z" title="Link to this section">#</a></h2>
 <p>The house answer for contextlake's recurring word choices. When a term isn't here, defer to the Google
 developer documentation word list, then Merriam-Webster.</p>
@@ -246,6 +244,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

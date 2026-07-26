@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -49,13 +49,12 @@
     
 <p><code>contextlake graph</code> draws a <strong>bounded</strong> slice of the graph. The whole thing (hundreds of thousands of
 nodes) is far too large to render, so every view is scoped from a seed and capped:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">                 </span><span class="c1"># repos-as-nodes: the architecture map</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">                 </span><span class="c1"># repos-as-nodes: the architecture map</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--name<span class="w"> </span>CatalogService<span class="w"> </span>--kind<span class="w"> </span>class<span class="w">  </span><span class="c1"># a symbol&#39;s neighbourhood (default 2 hops)</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--node<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--hops<span class="w"> </span><span class="m">3</span><span class="w">              </span><span class="c1"># expand around an exact node id</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--search<span class="w"> </span><span class="s2">&quot;payment&quot;</span><span class="w"> </span>--open<span class="w">         </span><span class="c1"># seed from a full-text search</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--repo<span class="w"> </span>acme/catalog-api<span class="w">           </span><span class="c1"># one repo&#39;s internal code graph</span>
 </code></pre></div>
-
 <p><code>contextlake graph --repo &lt;repo&gt;</code> renders one repo's internal code graph to a single self-contained HTML
 page: nodes coloured by kind and sized by degree, edges by relation, with an in-page layout switcher,
 search, and a minimap; it opens straight from <code>file://</code>:</p>
@@ -109,10 +108,9 @@ runs fully offline and adds no new extraction pass. <code>--group-depth N</code>
 the namespace path the boundaries are drawn, and <code>--repos &lt;glob&gt;</code> scopes the diagram to matching repos.
 Because it only draws coupling the graph already resolved (weight-ranked), it doesn't invent links, and
 folding event-flow in alongside HTTP keeps it from telling an HTTP-only half story:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>graph<span class="w"> </span>--c4<span class="w"> </span>--group-depth<span class="w"> </span><span class="m">2</span><span class="w"> </span>--open<span class="w">       </span><span class="c1"># HTML, open in the browser</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>graph<span class="w"> </span>--c4<span class="w"> </span>--group-depth<span class="w"> </span><span class="m">2</span><span class="w"> </span>--open<span class="w">       </span><span class="c1"># HTML, open in the browser</span>
 contextlake<span class="w"> </span>graph<span class="w"> </span>--c4<span class="w"> </span>--format<span class="w"> </span>dot<span class="w"> </span>&gt;<span class="w"> </span>c4.dot<span class="w">        </span><span class="c1"># clustered DOT, copy-pasteable</span>
 </code></pre></div>
-
 <p>Output is chosen with <code>--format</code>: <code>html</code> (default, an interactive page with namespace boundaries as
 compound nodes, written to <code>&lt;store&gt;/graphs/c4.html</code>), <code>dot</code> (Graphviz clustered DOT with <code>subgraph
 cluster_*</code> boundaries), or <code>json</code> (the raw payload). <code>--format mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>,
@@ -159,6 +157,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

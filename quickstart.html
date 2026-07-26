@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -76,12 +76,11 @@ extra downloads or warnings. Plain <strong><code>[kb]</code></strong> is the gra
 <p>This gives you the <code>contextlake</code> command. (<code>python -m contextlake</code> and
 <code>python3 contextlake.py</code> work too.)</p>
 <h3 id="update-to-a-newer-version">Update to a newer version<a class="anchor" href="#update-to-a-newer-version" title="Link to this section">#</a></h3>
-<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                       </span><span class="c1"># if you installed with pipx</span>
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                       </span><span class="c1"># if you installed with pipx</span>
 pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span><span class="w">   </span><span class="c1"># if you installed with pip</span>
 uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># if you installed with uv</span>
 docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">   </span><span class="c1"># if you use the image</span>
 </code></pre></div>
-
 <p>Then confirm with <code>contextlake --version</code> and re-check your environment with
 <code>contextlake doctor</code>. Your existing store and config carry forward, the graph
 re-indexes incrementally on your next <code>index</code>/<code>sync</code>, so there is nothing to migrate by
@@ -135,14 +134,13 @@ hand. See the <a href="changelog">changelog</a> for what changed between version
 </table>
 <h3 id="uninstall">Uninstall<a class="anchor" href="#uninstall" title="Link to this section">#</a></h3>
 <p>Remove the tool:</p>
-<div class="codehilite"><pre><span></span><code>pipx<span class="w"> </span>uninstall<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># or:  pip uninstall contextlake</span>
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>uninstall<span class="w"> </span>contextlake<span class="w">                     </span><span class="c1"># or:  pip uninstall contextlake</span>
 docker<span class="w"> </span>rmi<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">    </span><span class="c1"># if you pulled the image</span>
 </code></pre></div>
-
 <p>That leaves your data in place. contextlake never writes inside your repositories, so
 uninstalling it can't touch your source. To also remove what it created locally , 
 all optional, delete only what you don't want to keep:</p>
-<div class="codehilite"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span>~/.contextlake<span class="w">        </span><span class="c1"># knowledge store, kb.toml config, graph/dashboard exports, wiki</span>
+<div class="highlight"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span>~/.contextlake<span class="w">        </span><span class="c1"># knowledge store, kb.toml config, graph/dashboard exports, wiki</span>
 rm<span class="w"> </span>-f<span class="w">  </span>~/.contextlake.ini<span class="w">    </span><span class="c1"># mirror config</span>
 <span class="c1"># your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:</span>
 <span class="c1"># rm -rf ~/work</span>
@@ -150,26 +148,23 @@ rm<span class="w"> </span>-f<span class="w">  </span>~/.contextlake.ini<span cla
 <span class="c1"># tools), remove just the contextlake ones to reclaim space:</span>
 rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/huggingface/hub/models--minishlab--potion-base-8M
 </code></pre></div>
-
 <p>(If you used project-local config, also remove <code>.contextlake.kb.toml</code> /
 <code>.contextlake.ini</code> from those project directories.)</p>
 <h2 id="3-configure">3. Configure<a class="anchor" href="#3-configure" title="Link to this section">#</a></h2>
 <p>The fast path, <code>contextlake init</code> writes both config files for you (interactive, or
 <code>--yes</code> for defaults):</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>init<span class="w">                       </span><span class="c1"># prompts for platform, group, workspace</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>init<span class="w">                       </span><span class="c1"># prompts for platform, group, workspace</span>
 contextlake<span class="w"> </span>init<span class="w"> </span>--platform<span class="w"> </span>github<span class="w"> </span>--group<span class="w"> </span>my-org<span class="w"> </span>--yes<span class="w">   </span><span class="c1"># non-interactive</span>
 </code></pre></div>
-
 <p>Prefer to write them by hand? <strong>Mirror config</strong>, <code>~/.contextlake.ini</code>:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[contextlake]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
 <span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
 <span class="c1"># platform = github          # gitlab (default) | github | bitbucket | gitea | codeberg</span>
 <span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
 </code></pre></div>
-
 <p><strong>Knowledge-layer config</strong>, <code>~/.contextlake/kb.toml</code> (copy
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/kb.toml.example" target="_blank" rel="noopener"><code>examples/kb.toml.example</code><span class="ext-arrow" aria-hidden="true">↗</span></a> and keep what you need):</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[kb]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[kb]</span>
 <span class="n">store_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/.contextlake/kb&quot;</span>
 
 <span class="c1"># Link each repo to its open GitLab merge requests + issues (uses your glab login):</span>
@@ -178,16 +173,14 @@ contextlake<span class="w"> </span>init<span class="w"> </span>--platform<span c
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gitlab&quot;</span>
 <span class="n">group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;your-gitlab-group&quot;</span>
 </code></pre></div>
-
 <p>Semantic search and the curated wiki need a model, enable <code>[embeddings]</code> / <code>[llm]</code>
 in <code>kb.toml</code> pointing at a local Ollama <strong>or any OpenAI-compatible endpoint</strong> (hosted
 key or a local server like LM Studio / Jan). The key is read from an env var, never
 stored in config. Everything here is optional; the graph and search work with no
 model at all.</p>
 <h2 id="4-bootstrap-one-command">4. Bootstrap, one command<a class="anchor" href="#4-bootstrap-one-command" title="Link to this section">#</a></h2>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
-
 <p>Both config files are read from the default locations above; pass <code>--config</code> /
 <code>--kb-config</code> only if you keep them elsewhere.</p>
 <p>This mirrors your repos and builds the <strong>entire</strong> knowledge layer in one command:
@@ -201,10 +194,9 @@ to build (<code>llama-cpp-python</code> has no prebuilt wheel for your Python, e
 compiler is installed), install the CPU wheel directly, no compiler needed. The
 <code>--only-binary :all:</code> flag makes pip refuse a source build, so you get a clean error
 instead of a compiler-error wall:</p>
-<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
 </code></pre></div>
-
 <p>Prefer <code>--llm ollama</code> or <code>--llm openai</code> for higher-quality prose; without any <code>--llm</code>
 (and without <code>[llm]</code> enabled in <code>kb.toml</code>) the wiki stage is skipped. Useful toggles:</p>
 <ul>
@@ -215,9 +207,8 @@ instead of a compiler-error wall:</p>
 <p><code>bootstrap</code> already wrote <code>.mcp.json</code>, <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.windsurfrules</code>,
 <code>.kiro/steering/</code>, and a <code>.claude/skills/</code> + <code>.windsurf/workflows/</code> library into your
 workspace. To register the server with <strong>Claude Code</strong> explicitly:</p>
-<div class="codehilite"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
+<div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
 </code></pre></div>
-
 <p><strong>Windsurf / Devin</strong> and <strong>Kiro</strong> pick up the generated config and rules
 automatically. Now ask your agent: <em>"where is <code>CatalogService</code> defined?"</em>, <em>"who calls
 <code>charge</code>?"</em>, <em>"which repos depend on <code>shared-core</code>?"</em>, it queries the graph and cites
@@ -227,9 +218,8 @@ strong operating playbook.</p>
 <p><code>bootstrap</code> is <strong>incremental and branch-safe</strong>, it re-indexes only repos whose HEAD
 moved and never touches an in-progress working tree, so it's safe to run on a
 schedule. Use cron:</p>
-<div class="codehilite"><pre><span></span><code>*/30 * * * * contextlake bootstrap &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
+<div class="highlight"><pre><span></span><code>*/30 * * * * contextlake bootstrap &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
 </code></pre></div>
-
 <p>or the systemd user units in <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/" target="_blank" rel="noopener"><code>examples/</code><span class="ext-arrow" aria-hidden="true">↗</span></a>. See the
 <a href="docs">README</a> for the full command reference and configuration.</p>
     <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="usage"><span>Mirror repositories</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="knowledge-layer"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
@@ -275,6 +265,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>

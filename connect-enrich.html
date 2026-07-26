@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=372f194">
-<link rel="stylesheet" href="docs.css?v=372f194">
-<link rel="stylesheet" href="cmdk.css?v=372f194">
+<link rel="stylesheet" href="fonts.css?v=1202158">
+<link rel="stylesheet" href="docs.css?v=1202158">
+<link rel="stylesheet" href="cmdk.css?v=1202158">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -94,12 +94,11 @@ and work alongside hand-editing if you mix approaches.</p>
 <li><strong><code>contextlake source remove SOURCE</code></strong>: delete a connector entry by name.</li>
 </ul>
 <p>An example workflow:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w">                </span><span class="c1"># interactive: what type? which workspace?</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w">                </span><span class="c1"># interactive: what type? which workspace?</span>
 contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span>list<span class="w">               </span><span class="c1"># show what you&#39;ve configured + status</span>
 contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span><span class="nb">test</span><span class="w"> </span>my-atlassian<span class="w">  </span><span class="c1"># does it work? what&#39;s in scope?</span>
 contextlake<span class="w"> </span>connect<span class="w">                   </span><span class="c1"># now link repos to their items</span>
 </code></pre></div>
-
 <p><code>init</code> can also prompt you to connect a source during first-run setup, and <code>doctor</code> reports per-source
 reachability as part of its environment check, so hand-editing is optional; the CLI guides you through the
 whole flow.</p>
@@ -113,10 +112,9 @@ graph (the repo's name and its top symbols by graph degree) and queries your con
 Rovo search, or any <code>mcp</code> source with a <code>tool</code> and <code>arg_template</code> configured) with those terms, then stores
 the returned documents in a searchable, embedded <code>@enrich:&lt;repo&gt;</code> partition, idempotent and re-runnable
 across the whole fleet or a single repo:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
 contextlake<span class="w"> </span>enrich<span class="w"> </span>acme/catalog-api<span class="w">         </span><span class="c1"># one repo</span>
 </code></pre></div>
-
 <p>Prerequisites: the code graph must be <strong>indexed first</strong> (<code>contextlake index</code>), and at least one
 term-searchable source must be configured: either an <code>mcp</code> source with <code>tool</code> and <code>arg_template</code> keys, or
 an <code>atlassian</code> source. Sources without these capabilities (e.g. a plain <code>files</code> or <code>web</code> source) are
@@ -129,46 +127,41 @@ context" section, grounded to the code graph's terms.</p>
 <p>Not everything lives in code. <code>contextlake ingest</code> pulls <strong>external documents</strong> into the same knowledge
 layer, they become <code>kind="document"</code> graph nodes and, when embeddings are on, their bodies are embedded so
 semantic search spans code <em>and</em> docs together:</p>
-<div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w">        </span><span class="c1"># zero-config: ingest a folder of files</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w">        </span><span class="c1"># zero-config: ingest a folder of files</span>
 </code></pre></div>
-
 <p>Sources follow a tiny seam, so common ones are <strong>built-in and config-only</strong> while anything heavier is a
 <strong>loosely-coupled plugin</strong>: bake in the common, plugin the rest:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># kb.toml, built-in &quot;files&quot; source (no code, no extra install)</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># kb.toml, built-in &quot;files&quot; source (no code, no extra install)</span>
 <span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;files&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;handbook&quot;</span>
 <span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/notes&quot;</span>
 <span class="n">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;*.txt&quot;</span><span class="p">]</span>
 </code></pre></div>
-
 <p><strong>Writing a plugin</strong> is just a class with <code>iter_documents()</code> and one entry point, no fork, no core
 dependency:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># in your plugin package&#39;s pyproject.toml</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># in your plugin package&#39;s pyproject.toml</span>
 <span class="k">[project.entry-points.</span><span class="s2">&quot;contextlake.sources&quot;</span><span class="k">]</span>
 <span class="n">confluence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg.sources:ConfluenceSource&quot;</span>
 </code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">contextlake.kb.sources</span><span class="w"> </span><span class="kn">import</span> <span class="n">Document</span>          <span class="c1"># the whole contract</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">contextlake.kb.sources</span><span class="w"> </span><span class="kn">import</span> <span class="n">Document</span>          <span class="c1"># the whole contract</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">ConfluenceSource</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">space</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">iter_documents</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">yield</span> <span class="n">Document</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;123&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Runbook&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://...&quot;</span><span class="p">)</span>
 </code></pre></div>
-
 <p><code>contextlake ingest</code> then discovers <code>type = "confluence"</code> automatically. Five sources ship built-in:
 <code>files</code>, <code>web</code>, <code>api</code>, <code>graphql</code>, and <code>mcp</code>. <strong><code>web</code></strong> fetches URLs and ingests their readable text
 (stdlib-only):</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;web&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;changelog&quot;</span>
 <span class="n">urls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;https://example.com/changelog&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;https://example.com/roadmap&quot;</span><span class="p">]</span>
 </code></pre></div>
-
 <p>An <strong><code>api</code></strong> source ships built-in too: GET a JSON endpoint and map its records to documents, with any
 bearer token read from an env var (never the config file):</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;api&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span>
 <span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.example.com/v1/articles&quot;</span>
@@ -176,10 +169,9 @@ bearer token read from an env var (never the config file):</p>
 <span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span><span class="w">            </span><span class="c1"># which key holds the document text</span>
 <span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">  </span><span class="c1"># bearer token comes from this env var</span>
 </code></pre></div>
-
 <p>A <strong><code>graphql</code></strong> source ships built-in too: POST a query (+ optional variables) and map records in
 the response to documents, the same way <code>api</code> maps a REST response:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;graphql&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
 <span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.example.com/graphql&quot;</span>
@@ -188,10 +180,9 @@ the response to documents, the same way <code>api</code> maps a REST response:</
 <span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span>
 <span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">     </span><span class="c1"># bearer token comes from this env var</span>
 </code></pre></div>
-
 <p>An <strong><code>mcp</code></strong> source ships built-in as well: contextlake connects as an MCP <em>client</em> (stdio or
 streamable-HTTP) to another MCP server, lists its resources, and ingests each:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mcp&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;team-kb&quot;</span>
 <span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;uvx&quot;</span><span class="w">                 </span><span class="c1"># stdio transport: a server to launch...</span>
@@ -199,13 +190,12 @@ streamable-HTTP) to another MCP server, lists its resources, and ingests each:</
 <span class="c1"># ...or an HTTP endpoint instead:</span>
 <span class="c1"># url = &quot;https://mcp.example.com/sse&quot;</span>
 </code></pre></div>
-
 <p>So contextlake both <em>serves</em> a knowledge graph over MCP and <em>consumes</em> other MCP servers' resources into
 it: the loop closes on the same seam.</p>
 <p>An <code>mcp</code> source may also declare a search <em>tool</em> (not just read its resources) and template
 codebase-derived terms into the tool's arguments. This is what powers query-driven enrichment in the
 <code>enrich</code> stage (above). Declare the tool name and an argument template with substitution placeholders:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mcp&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;team-search&quot;</span>
 <span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;uvx&quot;</span>
@@ -214,7 +204,6 @@ codebase-derived terms into the tool's arguments. This is what powers query-driv
 <span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;search&quot;</span><span class="w">                 </span><span class="c1"># the tool name on the server</span>
 <span class="n">arg_template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">query</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;{terms}&quot;</span><span class="w"> </span><span class="p">}</span><span class="w">  </span><span class="c1"># {terms} substituted with codebase-derived terms</span>
 </code></pre></div>
-
 <p>Both transports work with tool calling: <code>command</code> and <code>args</code> for stdio, or <code>url</code> for streamable-HTTP. The
 tool is called with the templated arguments during enrichment, returning documents grounded to the
 codebase's query context.</p>
@@ -266,6 +255,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=372f194"></script>
+<script defer src="cmdk.js?v=1202158"></script>
 </body>
 </html>
