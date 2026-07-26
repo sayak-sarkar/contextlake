@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Overview · contextlake docs">
 <meta name="twitter:description" content="A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b3442">
-<link rel="stylesheet" href="docs.css?v=65b3442">
-<link rel="stylesheet" href="cmdk.css?v=65b3442">
+<link rel="stylesheet" href="fonts.css?v=e7acffb">
+<link rel="stylesheet" href="docs.css?v=e7acffb">
+<link rel="stylesheet" href="cmdk.css?v=e7acffb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -291,7 +291,7 @@ and <code>serve</code>/<code>steer</code> in <strong><a href="serve">serve.md</a
 </tr>
 <tr>
 <td><code>ingest</code></td>
-<td>Aggregate external docs into the graph + semantic store (built-in <code>files</code>/<code>web</code>/<code>api</code>/<code>mcp</code> sources, or plugins)</td>
+<td>Aggregate external docs into the graph + semantic store (built-in <code>files</code>/<code>web</code>/<code>api</code>/<code>graphql</code>/<code>mcp</code> sources, or plugins)</td>
 </tr>
 <tr>
 <td><code>wiki [&lt;repo&gt;…]</code></td>
@@ -323,7 +323,7 @@ and <code>serve</code>/<code>steer</code> in <strong><a href="serve">serve.md</a
 </tr>
 <tr>
 <td><code>steer</code></td>
-<td>Write editor steering, <code>AGENTS.md</code>, <code>.mcp.json</code>, <code>.windsurfrules</code>, skills</td>
+<td>Write editor steering, <code>AGENTS.md</code>, <code>.mcp.json</code>, <code>.vscode/mcp.json</code>, <code>.windsurfrules</code>, skills</td>
 </tr>
 <tr>
 <td><code>lint</code> · <code>doctor</code> · <code>eval</code></td>
@@ -414,6 +414,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b3442"></script>
+<script defer src="cmdk.js?v=e7acffb"></script>
 </body>
 </html>

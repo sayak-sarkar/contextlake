@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Storage · contextlake docs">
 <meta name="twitter:description" content="Where contextlake keeps everything it generates, one store directory, never polluting your synced repos.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Storage", "description": "Where contextlake keeps everything it generates, one store directory, never polluting your synced repos.", "url": "https://sayak.in/contextlake/storage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-24"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Storage", "item": "https://sayak.in/contextlake/storage"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Storage", "description": "Where contextlake keeps everything it generates, one store directory, never polluting your synced repos.", "url": "https://sayak.in/contextlake/storage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Storage", "item": "https://sayak.in/contextlake/storage"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b3442">
-<link rel="stylesheet" href="docs.css?v=65b3442">
-<link rel="stylesheet" href="cmdk.css?v=65b3442">
+<link rel="stylesheet" href="fonts.css?v=e7acffb">
+<link rel="stylesheet" href="docs.css?v=e7acffb">
+<link rel="stylesheet" href="cmdk.css?v=e7acffb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -110,7 +110,8 @@ egress-restricted environment is safe by construction, only the enrichment step 
 connectivity, and its <em>cached</em> results stay queryable offline afterward.</p>
 <h2 id="the-one-deliberate-carve-out-steering-files">The one deliberate carve-out: steering files<a class="anchor" href="#the-one-deliberate-carve-out-steering-files" title="Link to this section">#</a></h2>
 <p><code>steer</code> (and the steering stage of <code>bootstrap</code>) writes editor-config files, <code>AGENTS.md</code>,
-<code>CLAUDE.md</code>, <code>.windsurfrules</code>, <code>.kiro/steering/</code>, <code>.mcp.json</code>, skills, that an IDE/agent must find
+<code>CLAUDE.md</code>, <code>.windsurfrules</code>, <code>.kiro/steering/</code>, <code>.mcp.json</code>, <code>.vscode/mcp.json</code>, skills, that an
+IDE/agent must find
 <strong>at the workspace root it opens</strong>, so these are written to the target you point <code>steer --out</code> at
 (bootstrap uses the mirror root, which is not itself a repo). They are still never written inside an
 individual synced repo tree under the mirror. When onboarding a <em>single</em> project you own, you choose
@@ -151,6 +152,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b3442"></script>
+<script defer src="cmdk.js?v=e7acffb"></script>
 </body>
 </html>

@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-23"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b3442">
-<link rel="stylesheet" href="docs.css?v=65b3442">
-<link rel="stylesheet" href="cmdk.css?v=65b3442">
+<link rel="stylesheet" href="fonts.css?v=e7acffb">
+<link rel="stylesheet" href="docs.css?v=e7acffb">
+<link rel="stylesheet" href="cmdk.css?v=e7acffb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -80,7 +80,7 @@ command's own page (linked below) covers it in depth.</p>
 </tr>
 <tr>
 <td><code>ingest</code></td>
-<td>Aggregate external docs into the graph + semantic store (built-in <code>files</code>/<code>web</code>/<code>api</code>/<code>mcp</code> sources, or plugins)</td>
+<td>Aggregate external docs into the graph + semantic store (built-in <code>files</code>/<code>web</code>/<code>api</code>/<code>graphql</code>/<code>mcp</code> sources, or plugins)</td>
 </tr>
 <tr>
 <td><code>wiki</code></td>
@@ -88,15 +88,15 @@ command's own page (linked below) covers it in depth.</p>
 </tr>
 <tr>
 <td><code>query</code></td>
-<td>Search the index (<code>--kind</code>, <code>--repo</code>, <code>--as-of &lt;commit&gt;</code>)</td>
+<td>Search the index (<code>--kind</code>, <code>--repo</code>, <code>--as-of &lt;commit&gt;</code>, <code>--json</code>)</td>
 </tr>
 <tr>
 <td><code>owners</code></td>
-<td>Likely owners / SMEs for a repo or path, ranked from git history (alias <code>who-knows</code>)</td>
+<td>Likely owners / SMEs for a repo or path, ranked from git history (alias <code>who-knows</code>, <code>--json</code>)</td>
 </tr>
 <tr>
 <td><code>impact</code></td>
-<td>Change-impact / blast radius: what depends on a symbol (alias <code>blast-radius</code>)</td>
+<td>Change-impact / blast radius: what depends on a symbol (alias <code>blast-radius</code>, <code>--json</code>)</td>
 </tr>
 <tr>
 <td><code>graph</code></td>
@@ -112,7 +112,7 @@ command's own page (linked below) covers it in depth.</p>
 </tr>
 <tr>
 <td><code>lint</code></td>
-<td>Graph health audit: stale repos, dangling edges</td>
+<td>Graph health audit: stale repos, dangling edges (<code>--json</code>)</td>
 </tr>
 <tr>
 <td><code>doctor</code></td>
@@ -174,6 +174,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b3442"></script>
+<script defer src="cmdk.js?v=e7acffb"></script>
 </body>
 </html>

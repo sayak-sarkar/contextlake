@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Ownership and SMEs · contextlake docs">
 <meta name="twitter:description" content="Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Ownership and SMEs", "description": "Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.", "url": "https://sayak.in/contextlake/ownership", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Ownership and SMEs", "item": "https://sayak.in/contextlake/ownership"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Ownership and SMEs", "description": "Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.", "url": "https://sayak.in/contextlake/ownership", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Ownership and SMEs", "item": "https://sayak.in/contextlake/ownership"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b3442">
-<link rel="stylesheet" href="docs.css?v=65b3442">
-<link rel="stylesheet" href="cmdk.css?v=65b3442">
+<link rel="stylesheet" href="fonts.css?v=e7acffb">
+<link rel="stylesheet" href="docs.css?v=e7acffb">
+<link rel="stylesheet" href="cmdk.css?v=e7acffb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -53,6 +53,7 @@ blend of commit volume and lines changed, so someone active in that area lately 
 prolific author:</p>
 <div class="codehilite"><pre><span></span><code>contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w">                 </span><span class="c1"># top contributors for the whole repo</span>
 contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w"> </span>--path<span class="w"> </span>src/auth<span class="w">  </span><span class="c1"># ...scoped to the auth module</span>
+contextlake<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w"> </span>--json<span class="w">           </span><span class="c1"># machine-readable, for scripts/CI</span>
 </code></pre></div>
 
 <p align="center">
@@ -99,6 +100,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b3442"></script>
+<script defer src="cmdk.js?v=e7acffb"></script>
 </body>
 </html>

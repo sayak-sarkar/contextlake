@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Changelog · contextlake docs">
 <meta name="twitter:description" content="Release history for contextlake.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Changelog", "description": "Release history for contextlake.", "url": "https://sayak.in/contextlake/changelog", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Changelog", "item": "https://sayak.in/contextlake/changelog"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Changelog", "description": "Release history for contextlake.", "url": "https://sayak.in/contextlake/changelog", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Changelog", "item": "https://sayak.in/contextlake/changelog"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b3442">
-<link rel="stylesheet" href="docs.css?v=65b3442">
-<link rel="stylesheet" href="cmdk.css?v=65b3442">
+<link rel="stylesheet" href="fonts.css?v=e7acffb">
+<link rel="stylesheet" href="docs.css?v=e7acffb">
+<link rel="stylesheet" href="cmdk.css?v=e7acffb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -50,9 +50,503 @@
 <p>All notable changes to contextlake will be documented in this file.</p>
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/" target="_blank" rel="noopener">Keep a Changelog<span class="ext-arrow" aria-hidden="true">↗</span></a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target="_blank" rel="noopener">Semantic Versioning<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
-<h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
-<h2 id="2440-2026-07-23">[2.44.0] - 2026-07-23<a class="anchor" href="#2440-2026-07-23" title="Link to this section">#</a></h2>
+<h2 id="2510-2026-07-26">[2.51.0] - 2026-07-26<a class="anchor" href="#2510-2026-07-26" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Dashboard: MCP console + Settings surfaces.</strong> Two read-only, live-only panels
+  (not part of a <code>--site</code> export). <strong>MCP</strong> shows the live tool catalog for
+  <code>contextlake serve</code> against this store, introspected from a real
+  <code>server.build_server()</code> instance so it can never drift from what's actually
+  exposed, plus copyable <code>.mcp.json</code> / <code>.vscode/mcp.json</code> snippets (reusing
+  <code>steer.generate.mcp_server_entry</code>, the same entry <code>contextlake steer</code> writes).
+  <strong>Settings</strong> summarizes the active <code>kb.toml</code>: store path/size/schema version,
+  the mirror root (derived from indexed repo paths), configured connectors, and
+  the embedder/LLM tiers, no in-browser editing, edit <code>kb.toml</code> directly.
+  Connector rows show configured status only, never a live connectivity probe
+  (<code>contextlake source test &lt;name&gt;</code> already does that on demand; auto-probing
+  every connector on every dashboard page load would be a surprising network
+  side effect from a read-only view). Under <code>--sample</code>, both panels use bare
+  config defaults instead of the real precedence chain, so a real
+  <code>~/.contextlake/kb.toml</code> (languages, connectors, embedder/LLM settings) never
+  leaks into the fleet billed as "fictional data, nothing local is read".</li>
+</ul>
+<h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>index --workspace</code> no longer silently misattributes a corrupted nested
+  <code>.git</code> to an unrelated ancestor repo.</strong> <code>git -C &lt;path&gt;</code> walks <em>up</em> the
+  filesystem tree past an incomplete/corrupted <code>.git</code> to find the nearest real
+  one, so a broken checkout could previously be indexed under a completely
+  different repo's remote and commit history, with <code>0 failed</code> reported , 
+  found incidentally by the v2.50.0 post-release testing pass. Now verified
+  via <code>git rev-parse --show-toplevel</code> before any identity lookup is trusted;
+  a broken <code>.git</code> is skipped with a warning instead.</li>
+<li><strong><code>query</code>/<code>owners</code>/<code>impact --json</code> on an empty argument now emit a
+  structured JSON error</strong> (<code>{"error": "missing_argument", "usage": "..."}</code>)
+  instead of a plain-text <code>usage: ...</code> line with a log timestamp, the
+  previous behavior broke <code>--json</code>'s "always valid JSON" contract on exactly
+  the case a script piping to <code>jq</code> most needs it to hold.</li>
+<li><strong>MCP <code>semantic_search</code>/<code>hybrid_search</code>/<code>ask</code> no longer crash on an empty
+  query.</strong> An empty string embeds to a zero vector, which crashed downstream
+  in the vector store's similarity scoring with a raw, uncaught
+  <code>TypeError: unsupported operand type(s) for -: 'float' and 'NoneType'</code>
+  instead of degrading gracefully the way <code>search_code</code> already does. All
+  three now return an empty result for an empty/whitespace-only query.</li>
+<li><strong><code>contextlake init --config &lt;path&gt;</code> no longer silently ignores <code>--config</code>.</strong>
+  <code>init</code> is the one command that writes both generated files (mirror INI +
+  kb.toml) and previously always targeted the fixed defaults
+  (<code>~/.contextlake.ini</code> / <code>~/.contextlake/kb.toml</code>) regardless of <code>--config</code> , 
+  every other command honors it correctly. <code>--config</code> now redirects the mirror
+  INI, with kb.toml written alongside it as a sibling.</li>
+<li><strong><code>update</code>/<code>branches</code> no longer keep a green checkmark on their final
+  summary line when a repo failed.</strong> <code>index</code>/<code>embed</code>/<code>wiki</code> already swap to
+  the warning glyph on partial failure; <code>update</code>/<code>branches</code> called
+  <code>style.ok()</code> unconditionally, so a failed run's summary still visually read
+  as success (the failure detail was only apparent further down).</li>
+<li><strong>A malformed <code>source add --set KEY</code> (no <code>=</code>) now fails cleanly</strong> instead of
+  dumping an uncaught Python traceback, the error message itself was already
+  correct, it just wasn't caught.</li>
+<li><strong><code>--plain</code>'s <code>--help</code> text no longer overclaims.</strong> It strips ANSI color
+  (same as <code>NO_COLOR=1</code>); the unicode status glyphs (✓⚠✗...) are hardcoded
+  literals with no ASCII fallback and always render, which the previous text
+  ("no colour or glyphs") didn't reflect.</li>
+</ul>
+<h2 id="2500-2026-07-26">[2.50.0] - 2026-07-26<a class="anchor" href="#2500-2026-07-26" title="Link to this section">#</a></h2>
+<h3 id="added_1">Added<a class="anchor" href="#added_1" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>A mistyped subcommand now suggests the closest real one</strong> instead of
+  dumping argparse's raw 30-item choice list (<code>contextlake fetc</code> →
+  <code>Did you mean: fetch?</code>). Reuses the same <code>difflib</code>-based fuzzy match already
+  powering unknown-repo-id suggestions. Matches against every command
+  including aliases, then always displays the canonical verb, a typo of
+  <code>blast-radius</code> suggests <code>impact</code>, matching what <code>--help</code> teaches (<code>cli.py</code>).</li>
+<li><strong><code>--help</code> now links to the docs site and the issue tracker</strong>
+  (<code>https://sayak.in/contextlake</code>, GitHub issues) so a stuck user isn't a
+  search engine query away from either.</li>
+<li><strong><code>-n</code></strong> as a short form of <code>--dry-run</code>, matching the near-universal
+  <code>rm</code>/<code>cp</code>/<code>make</code> convention.</li>
+<li><strong><code>--plain</code></strong> as a friendlier, discoverable spelling of <code>NO_COLOR=1</code>, same
+  code path, just a flag instead of an environment variable.</li>
+<li><strong><code>contextlake source add --from-stdin KEY</code></strong> reads a connector option's
+  value off a pipe instead of the command line, so a secret never lands in
+  shell history (<code>--set KEY=VALUE</code> already never echoes it to logs; this
+  closes the other exposure vector). Errors clearly instead of hanging if
+  stdin isn't actually piped.</li>
+<li><strong><code>--json</code> on <code>query</code>, <code>owners</code>, <code>impact</code>, and <code>lint</code></strong>, the four commands
+  whose entire job is answering a question had no machine-readable output,
+  despite contextlake's whole pitch being "agents answer from real source
+  instead of guessing." Reuses <code>graph</code>'s already-proven pattern: logs move to
+  stderr via <code>use_stderr()</code>, the payload is the only thing on stdout. Error
+  cases (<code>unknown_repo</code>, <code>not_found</code>, <code>ambiguous</code>) are structured JSON too,
+  not just the success path. Exit-code contract: <code>--json</code> mirrors the human
+  path exactly, including <code>lint --json</code> returning 1 on an unclean graph (not
+  just on a malformed request), a CI script piping to <code>jq</code> still gets valid
+  JSON on a non-zero exit, so check <code>$?</code> deliberately rather than assuming
+  0 means "ran" instead of "clean".</li>
+</ul>
+<h3 id="fixed_1">Fixed<a class="anchor" href="#fixed_1" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>embed</code> and <code>wiki</code> (both per-repo and <code>--namespaces</code>) silently reported a
+  partial failure as a clean success.</strong> If even one repo/namespace out of a
+  batch failed, the summary line kept its <code>✓</code> glyph and simply omitted the
+  failure from the count, indistinguishable from a fully successful run
+  unless you scrolled back through the whole log. Both now show <code>⚠</code> and the
+  failed count whenever <code>failed &gt; 0</code>.</li>
+</ul>
+<h3 id="changed">Changed<a class="anchor" href="#changed" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>update</code>, <code>branches</code>, <code>index --workspace</code>, <code>embed</code>, and <code>wiki</code> now name a
+  concrete next step when something failed</strong>, instead of ending on a bare
+  summary line. <code>update</code>/<code>branches</code> list the failed repos and the exact retry
+  command (<code>contextlake update --repos &lt;name&gt;</code>); <code>index</code> points at the log
+  and notes re-runs are incremental; <code>embed</code>/<code>wiki</code> point at the log and
+  suggest re-running. <code>update</code> also notes how many repos were auto-switched
+  to a new branch. Mirrors <code>_bootstrap</code>'s existing ending, which already did
+  this well.</li>
+<li>
+<p><strong>Flags can no longer be silently abbreviated</strong> (<code>--work-d</code> used to resolve
+  to <code>--work-dir</code> via argparse's default <code>allow_abbrev=True</code>). Disabled on the
+  root parser and every subcommand parser, an unrecognized long flag is now
+  a clear error instead of an undocumented shortcut that breaks the moment a
+  new flag creates an ambiguity.</p>
+</li>
+<li>
+<p><strong><code>contextlake update</code> no longer just reports a deleted upstream branch and
+  waits for the user to run <code>branches</code> by hand.</strong> A tracked branch missing on
+  origin almost always means it was renamed, merged, or superseded by another
+  default, not something that needs manual triage. <code>update</code> now auto-fetches
+  the full branch list and switches to the most-active remaining branch (the
+  same selection <code>branches</code> makes), reporting <code>switched</code> with both the old and
+  new branch name. Falls back to the previous clean-skip-with-hint behavior
+  only if the broader reselect fetch itself fails too (e.g. a real network
+  outage), or if no other branch exists (<code>core.py</code>).</p>
+</li>
+</ul>
+<h2 id="2490-2026-07-26">[2.49.0] - 2026-07-26<a class="anchor" href="#2490-2026-07-26" title="Link to this section">#</a></h2>
+<h3 id="removed">Removed<a class="anchor" href="#removed" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Dropped the <code>gitlab-sync</code> backward-compat layer</strong> (the pre-rename project name).
+  This is a breaking change for anyone still relying on it, nothing else changes.
+  Specifically removed: the <code>gitlab-sync</code> console-script alias; reading a legacy
+  <code>~/.gitlab_sync.ini</code> / <code>.gitlab_sync.ini</code> file or its <code>[gitlab_sync]</code> INI
+  section; reading a legacy <code>~/.gitlab-sync/kb.toml</code> / <code>.gitlab-sync.kb.toml</code>
+  knowledge-layer config, and falling back to a pre-existing <code>~/.gitlab-sync/kb</code>
+  store when <code>~/.contextlake/kb</code> doesn't exist; recognizing the old
+  <code>&lt;!-- BEGIN gitlab-sync ... --&gt;</code> managed-block marker in <code>contextlake steer</code>
+  output. Use <code>contextlake</code> (not <code>gitlab-sync</code>), <code>.contextlake.ini</code> /
+  <code>~/.contextlake.ini</code>, and <code>~/.contextlake/kb.toml</code> / <code>~/.contextlake/kb</code>
+  going forward, migrate any existing legacy config/store to the current
+  names before upgrading past this release.</li>
+</ul>
+<h2 id="2482-2026-07-26">[2.48.2] - 2026-07-26<a class="anchor" href="#2482-2026-07-26" title="Link to this section">#</a></h2>
+<h3 id="fixed_2">Fixed<a class="anchor" href="#fixed_2" title="Link to this section">#</a></h3>
+<ul>
+<li>
+<p><strong>The C4 diagram's namespace boundary tagging could mark a real edge as
+  internal when it wasn't, or as crossing a boundary when it wasn't.</strong> Two bugs
+  in how repos were bucketed into namespaces for boundary purposes (shared with
+  the dashboard's display-grouping heuristic, <code>derive_groups</code>, but wrong for
+  boundary tagging specifically): (1) a repo whose id IS exactly a namespace
+  prefix (e.g. a repo literally named <code>acme</code> alongside <code>acme/pay/api</code>) fell into
+  the meaningless catch-all <code>"(ungrouped)"</code> bucket instead of the <code>acme</code>
+  boundary its own child repo joined, so a real edge between them wrongly
+  rendered as crossing a boundary; (2) <code>"(ungrouped)"</code> was treated as one shared
+  namespace, so two entirely unrelated single-segment repos that only
+  coincidentally had no deeper namespace got a real edge between them rendered
+  as internal, identical to a genuinely related same-namespace edge. C4
+  boundary tagging now uses its own bucketing rule, independent from
+  <code>derive_groups</code>: each repo's own path prefix (or its full id, if shorter than
+  <code>group_depth</code>) becomes its namespace, so a repo with no real namespace always
+  gets a namespace of exactly itself (<code>kb/c4.py</code>).</p>
+</li>
+<li>
+<p><strong>Wiki council review parsing could drop a review's real issues or fabricate a
+  wrong score, on the malformed-JSON recovery path a small local model's output
+  regularly takes.</strong> Three related bugs in <code>_parse_review</code>/<code>_extract_score</code>: (1)
+  the naive <code>text[first "{" : last "}"]</code> slice broke as soon as any trailing
+  prose contained its own brace, discarding a validly-parsed <code>issues</code> list along
+  with the JSON, now uses <code>json.JSONDecoder.raw_decode</code>, which stops at the
+  first complete object regardless of what follows; (2) when JSON parsing failed
+  outright, the fallback score-recovery regex scanned the <em>entire</em> raw text with
+  <code>re.search</code> (first match wins), so an unrelated "...rating is 1 star..." aside
+  earlier in a model's own issue text could win over the real, later <code>"score"</code>
+  field, now the literal JSON-quoted <code>"score": N</code> form is tried first, since it
+  can't be confused with ordinary prose; (3) the "N out of 10" fallback matched
+  anywhere in prose with no context check, so "3 out of 10 endpoints... are
+  undocumented" (a coverage-gap description) was misread as a 0.3 review score , 
+  now rejects a match immediately followed by a noun, the count-phrase shape
+  (<code>kb/wiki/council.py</code>).</p>
+</li>
+<li>
+<p><strong><code>contextlake hook install</code> could silently wire a hook to the wrong <code>repo_id</code>
+  and never say so.</strong> <code>_canonical_repo_id</code> swallowed every exception from opening
+  the store (a bad <code>--config</code>, a corrupt/too-new store) with a bare <code>except:
+  pass</code> and fell back to the bare directory name, even for an already-indexed
+  repo, and even though <code>SqliteStore</code> itself never raises for a fresh/not-yet-
+  indexed store (it creates one on open), meaning anything landing in that catch
+  was a real problem, not the benign case the fallback was written for. One blast
+  radius: a bad <code>--config</code> produced a hook install reported as a clean success
+  but permanently inert (its own re-index invocation embeds the same bad config
+  and silently never runs). Another: a transient store error left a duplicate
+  <code>repo_id</code> row after the hook did fire. Now logs a warning explaining the
+  fallback instead of swallowing it silently (<code>kb/commands.py</code>).</p>
+</li>
+<li>
+<p><strong><code>contextlake steer</code> could silently corrupt a user's AGENTS.md/CLAUDE.md/etc. on a
+  later refresh, or crash mid-run leaving the workspace half-steered.</strong> A repo id or
+  package name (the latter reachable verbatim via <code>manifest.py</code>'s unvalidated
+  package.json dependency-key parsing) carrying a backtick or the literal
+  <code>&lt;!-- END contextlake --&gt;</code> marker text broke out of its markdown code span or
+  smuggled a duplicate marker into the generated body; the next refresh's naive
+  first-occurrence <code>_upsert_block</code> splice then truncated/duplicated real content.
+  Now: names are sanitized before interpolation, and <code>_upsert_block</code> refuses to
+  splice (warns instead) if a marker pair doesn't cleanly bound a single block.
+  Separately, an existing <code>.mcp.json</code>/<code>.vscode/mcp.json</code> with a non-dict
+  <code>mcpServers</code>/<code>servers</code> value (e.g. <code>null</code>) crashed <code>_merge_mcp_entry</code> uncaught
+  after markdown/skill files were already written, now self-heals instead. Also: a
+  relative <code>--config</code> value is now resolved to absolute before being embedded in the
+  generated MCP entry, since it may be launched from <code>--out</code>, not the invocation
+  directory (<code>kb/steer/generate.py</code>, <code>kb/commands.py</code>).</p>
+</li>
+<li>
+<p><strong>Mermaid diagrams (<code>to_mermaid</code>/<code>to_class_diagram</code>/<code>to_sequence_diagram</code>) could emit
+  invalid or directive-injecting output from ordinary node/edge text.</strong> <code>_mermaid_escape</code>
+  only escaped <code>"</code>, <code>[</code>, <code>]</code>. Confirmed against a real Mermaid parser: a <code>|</code> in an edge's
+  <code>relation</code> broke the <code>--&gt;|label|</code> delimiter (invalid diagram); a <code>}</code> in a class member's
+  signature closed the <code>class X { ... }</code> body early, letting text after it emit as new
+  top-level statements; a newline in a node's name became a genuine new line, rendering as
+  a real <code>Note over ...</code> annotation box rather than inert label text. Now also escapes <code>{</code>,
+  <code>}</code>, <code>|</code>, and newlines (<code>kb/visualize.py</code>).</p>
+</li>
+<li>
+<p><strong>The dashboard's "Generate wiki" action copied a command that silently
+  no-ops.</strong> docs/dashboard.md documents <code>contextlake wiki &lt;repo-id&gt; --llm
+  builtin</code>; the actual generated/copied command
+  (<code>kb/dashboard/static/dashboard.js</code>, shared by both <code>--serve</code> and <code>--site</code>)
+  was <code>contextlake wiki &lt;repo-id&gt;</code> with no <code>--llm</code> flag at all, and without
+  <code>--llm</code> (or <code>[llm]</code> enabled in <code>kb.toml</code>), the wiki stage does nothing.
+  Not just a docs mismatch: the copied command didn't work. Now appends
+  <code>--llm builtin</code>, matching the docs.</p>
+</li>
+<li>
+<p><strong><code>ask</code>'s <code>explain</code>/<code>owners</code> routes didn't resolve a repo by its short name,
+  contradicting the docs' own headline example.</strong> <code>ask("explain the
+  catalog-api")</code> (verbatim from docs/serve.md) silently fell through to
+  <code>search</code> instead of returning wiki prose or a repo brief: repo ids are
+  always host-qualified (<code>gitlab.example.com/acme/catalog-api</code>), but the
+  router only extracts the trailing "catalog-api" out of the question, which
+  never matched the full stored id via <code>get_wiki</code>/<code>get_repo_brief</code>/
+  <code>who_knows</code>'s exact lookup. A person naturally refers to a repo by its
+  short name, so this needed to be resolved, not documented around. Added
+  <code>_resolve_repo</code>, mirroring the existing symbol-resolving <code>_resolve_id</code>:
+  falls back to matching the repo's last path segment when an exact id
+  lookup misses (<code>kb/server.py</code>).</p>
+</li>
+<li>
+<p><strong><code>contextlake audit --repos PATTERN</code> accepted the flag but silently ignored
+  it, scanning every repo regardless.</strong> docs/usage.md promises <code>--repos</code>
+  works for "every mirror command" (audit included, per
+  docs/cli-reference.md's own mirror-tier list), but <code>scan_repo_metrics</code>
+  called <code>get_local_repos</code> directly and never consulted <code>repo_filter</code>, unlike
+  fetch/clone/update/branches/verify/status, which already route through the
+  same <code>match_repo_filter</code> check. Now filters the same way (<code>metrics.py</code>).
+  <code>repo_filter_patterns</code> (<code>core.py</code>) is promoted from <code>_repo_filter_patterns</code>
+  to a public name, reflecting that it was already a cross-module helper
+  (<code>kb/commands.py</code> also calls it).</p>
+</li>
+<li>
+<p><strong>Wiki review parsing: a JSON <code>"score": true</code>/<code>false</code> was silently accepted
+  as a perfect/zero score.</strong> <code>bool</code> is an <code>int</code> subclass in Python, so
+  <code>float(True) == 1.0</code> raises nothing, the primary score-parsing path
+  lacked the same <code>not isinstance(val, bool)</code> guard its own sibling fallback
+  ladder (<code>_extract_score</code>) already applies. Now abstains (as any other
+  wrong-shaped score does) instead of fabricating a score from a bool
+  (<code>kb/wiki/council.py</code>).</p>
+</li>
+<li><strong>The most-active-branch scan could silently drop a real branch whose name
+  merely contained the substring "HEAD"</strong> (e.g. <code>release/HEAD-fix</code>), not just
+  the <code>origin/HEAD</code> symbolic ref it was meant to filter, a substring check
+  (<code>"HEAD" in line</code>) over the whole <code>git for-each-ref</code> line, rather than an
+  exact match on the ref name. <code>select_most_active_branch</code>/<code>branches</code> could
+  then pick a less-active branch, or (if the affected branch was the only
+  one) report "No branches found" (<code>core.py</code>).</li>
+<li><strong><code>contextlake branches</code>' own fetch could report a deleted/access-revoked
+  upstream project as a generic error, inconsistent with <code>update</code>.</strong> A prior
+  fix classified this condition as a clean skip in <code>update_repository</code>'s
+  fetch path only; <code>switch_repository_branch</code>'s <code>git fetch --all</code> (the
+  <code>branches</code> command's own fetch, hitting the same origin) still reported it
+  as an undifferentiated <code>("error", ...)</code>. Now applies the same
+  <code>classify_error(...) == "project-deleted"</code> check (<code>core.py</code>).</li>
+</ul>
+<h2 id="2481-2026-07-26">[2.48.1] - 2026-07-26<a class="anchor" href="#2481-2026-07-26" title="Link to this section">#</a></h2>
+<h3 id="fixed_3">Fixed<a class="anchor" href="#fixed_3" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>statediagram</code> extraction (v2.48.0) could emit a false transition, not just an
+  undercount.</strong> An independent review of the guard→assignment regex found five
+  reproducible cases where the lazy gap between a guard and its assignment could
+  cross into an <code>else</code>/<code>elif</code> sibling branch, a different method, or past a second,
+  unrelated guard on the same field, asserting a transition the code doesn't
+  actually establish, contradicting this module's own "never a false transition"
+  contract. Also fixed: <code>self.status = other.status</code> (a field copy) synthesizing a
+  bogus state literally named <code>status</code>. The guard→assignment span is now rejected
+  if it contains a boundary keyword (<code>else</code>/<code>elif</code>/<code>def</code>/<code>class</code> for Python, a <code>}</code> /
+  <code>function</code>/<code>class</code> for JS/C#) or a second mention of the same receiver+field, and
+  a transition value matching the field name itself is dropped (<code>kb/flow/state.py</code>).</li>
+<li><strong>Dataflow extraction (v2.48.0) read commented-out and docstring-quoted SQL as a
+  live <code>reads</code>/<code>writes</code> edge.</strong> A <code># DELETE FROM orders</code> left in a data-access file,
+  or a docstring like <code>"""...INSERT INTO audit_log..."""</code>, asserted a data
+  dependency that doesn't exist, the same "never a false edge" contract this
+  extractor documents. Line comments (<code>#</code>, <code>//</code>), block comments (<code>/* */</code>), and
+  triple-quoted strings are now blanked out (newlines preserved, so line numbers on
+  real matches don't shift) before scanning (<code>kb/flow/data.py</code>). Trade-off, by design
+  (honest undercount over false positive): a real query written as a triple-quoted
+  string (<code>query = """SELECT * FROM orders"""</code>) is now missed too, same as the
+  existing undercount for ORM/string-concatenation queries.</li>
+<li><strong>The fleet architecture map and generated site could render a shared-node
+  sentinel (<code>"(shared)"</code>, <code>"(packages)"</code>) as though it were a repo.</strong> Since Finding
+  #10 (v2.48.0) gave shared nodes their own stable <code>repo_id</code>, that id showed up in
+  the raw <code>GROUP BY repo_id</code> node-count query the fleet overview and site builder
+  use to enumerate repos, and <code>"(shared)"</code> (every module imported fleet-wide) is
+  now the single largest bucket, ranking first and potentially displacing a real
+  repo when the fleet exceeds <code>max_nodes</code>. A new <code>repo_node_sizes()</code> helper filters
+  sentinel ids out at the one query all three call sites (<code>overview_subgraph</code>,
+  <code>build_site</code>, <code>build_site_server</code>) and the dashboard's embedded graph pages share
+  (<code>kb/visualize.py</code>, <code>kb/dashboard/server.py</code>). <code>"(packages)"</code>/<code>"(external)"</code> are
+  now named constants (<code>PACKAGES_REPO</code>/<code>EXTERNAL_REPO</code> in <code>kb/model.py</code>) alongside
+  <code>SHARED_REPO</code>, replacing the bare string literals at their four call sites.</li>
+<li><strong>Graph views: a harmless but noisy console warning on every node, on first render.</strong> Cytoscape's
+  style sheet maps node width/height from a <code>deg</code> (degree) data field, but <code>deg</code> was only set
+  client-side in a <code>.forEach()</code> that ran <em>after</em> the graph's first style pass, so every node
+  logged "no mapping for property... try a <code>[deg]</code> selector" before silently correcting itself.
+  <code>deg</code> is now computed once server-side (<code>kb/visualize.py:_cytoscape_elements</code>, mirroring the
+  existing <code>weight</code>-always-present pattern for edges), present from the very first render.</li>
+<li><strong>The release gate never actually ran the knowledge-layer test suite.</strong> <code>release.yml</code> installed
+  only the core package and ran <code>pytest --ignore=tests/kb</code>, mirroring CI's "core (no knowledge
+  layer)" job rather than its "knowledge-layer" job, so a broken <code>tests/kb/*</code> test could tag and
+  ship a release. Found the hard way cutting v2.48.0: a <code>tests/kb</code> test had been misplaced one
+  directory too high (outside <code>tests/kb/</code>), so it ran under the core-only gate and failed there
+  instead, catching the mistake by coincidence, not because the gate covered <code>tests/kb</code>. The
+  actual <code>tests/kb/*</code> suite still never ran in <code>release.yml</code>. Now installs the <code>[kb]</code> extra and
+  runs the full suite, matching CI's knowledge-layer job.</li>
+</ul>
+<h2 id="2480-2026-07-26">[2.48.0] - 2026-07-26<a class="anchor" href="#2480-2026-07-26" title="Link to this section">#</a></h2>
+<h3 id="added_2">Added<a class="anchor" href="#added_2" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>statediagram</code> graph format.</strong> <code>contextlake graph --repo &lt;repo&gt; --format statediagram</code> renders a
+  Mermaid entity state machine from guarded assignments to a status/state/stage field, <code>if
+  order.status == Created: order.status = Paid</code> becomes a labeled transition. Only <em>guarded</em>
+  transitions are emitted (the source state must be established by a preceding comparison on the
+  same field), so a diagram never claims a transition the code doesn't actually establish, an
+  honest undercount, never a guess. Regex-based, Python/JS·TS/C# (<code>kb/flow/state.py</code>), every edge
+  <code>INFERRED</code>, same stance as the existing HTTP/event flow extractors.</li>
+<li><strong>Intra-repo dataflow: <code>reads</code>/<code>writes</code> edges from code to the tables/views it queries.</strong> A literal
+  <code>SELECT ... FROM</code> / <code>INSERT INTO</code> / <code>UPDATE ... SET</code> / <code>DELETE FROM</code> in any file becomes a <code>reads</code>
+  or <code>writes</code> edge to the matching <code>table</code>/<code>view</code> node the SQL DDL extractor already found , 
+  resolved by name repo-wide, the same mechanism an FK <code>references</code> edge uses, so a query against a
+  table this repo never defines is an honest miss, not a guessed link (<code>kb/flow/data.py</code>).
+  <code>reads</code>/<code>writes</code> are now in <code>impact</code>'s default relation set, so <code>contextlake impact &lt;table&gt;</code>
+  answers "what code touches this table" without needing <code>--relation reads,writes</code> spelled out.</li>
+<li><strong>Dashboard: the symbol breadcrumb continues to Diagram / Wiki / Links.</strong> Viewing a symbol's blast
+  radius now shows <code>repo → symbol → Diagram → Wiki → Links</code>, one click each to that symbol's
+  repo-scoped architecture graph, curated wiki, and connector links, Wiki/Links only appear when the
+  repo actually has one, never as a dead crumb for data that doesn't exist.</li>
+</ul>
+<h3 id="fixed_4">Fixed<a class="anchor" href="#fixed_4" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>A deleted (or access-revoked) upstream GitLab project is a clean <code>update</code> skip, not an
+  error.</strong> Previously bucketed into the generic error count alongside real failures; now
+  classified like the existing deleted-branch case, so a project marked for deletion upstream
+  no longer inflates <code>N errors</code> in the run summary.</li>
+<li><strong>Dashboard: the symbol view's "Cross-repo only" toggle was silently dead in live mode.</strong> It
+  worked only against the static demo snapshot, because <code>/api/impact</code> never told the client which
+  repo the seed symbol lived in, the client tried to look it up in a symbol index that only exists
+  in static mode. <code>impact()</code> now returns the seed's own <code>repo</code> (<code>kb/dashboard/data.py</code>), fixing the
+  toggle in live mode and, incidentally, a symbol-view provenance chip that was citing the wrong
+  "repo" (actually the raw node id, via a <code>.split(":")</code> on an id that never had a colon in it).</li>
+<li><strong>Finding #10: shared nodes (<code>module</code>/<code>endpoint</code>/<code>topic</code>, and, found while fixing this , 
+  <code>package</code> and connector nodes) had their <code>repo_id</code> silently overwritten by whichever repo's index
+  run touched them last, and could be deleted out from under another repo entirely.</strong> Root cause:
+  <code>SqliteStore.upsert_nodes</code> stamped every node in a shard's batch with that shard's own <code>repo_id</code>,
+  ignoring each <code>Node</code>'s own <code>.repo</code> field, so a "requests" module imported by two repos flipped
+  owner on every reindex, and <code>clear_repo</code> on whichever repo it currently pointed at deleted the
+  node (and any other repo's still-live edges into it) as collateral damage. <code>upsert_nodes</code> now
+  writes each node's own <code>.repo</code>; extractors for <code>module</code>/<code>endpoint</code>/<code>topic</code> nodes now set it to a
+  new <code>"(shared)"</code> sentinel (<code>kb/model.py</code>), matching the existing <code>"(packages)"</code> / <code>"(external)"</code>
+  pattern for nodes no single repo owns, per-repo attribution for these already lives correctly on
+  their <em>edges</em> (<code>arch/resolve.py</code> has always read it from there, never from the shared node itself).
+  <strong>No schema migration needed, but self-correction requires an actual re-parse, not just re-running
+  <code>index</code></strong>: <code>index</code>'s incremental skip (a repo whose HEAD hasn't moved since its last index is left
+  untouched) means a shared node keeps a stale owning repo from before this fix until the repo that
+  currently owns it is actually re-parsed, a new commit landing, or <code>index --force</code>. Run <code>--force</code>
+  once after upgrading if you want existing shared nodes corrected immediately rather than opportunistically.</li>
+<li><strong>Dashboard: a shared node's breadcrumb no longer links to a repo that doesn't exist.</strong> Search
+  for a symbol like an imported module, an HTTP endpoint, or an event topic and trace its blast
+  radius (reachable from any search result's "Blast" button) and its owning "repo" is a pseudo-repo
+  like <code>"(shared)"</code> (see the Finding #10 fix above), the breadcrumb previously still tried to link
+  <code>Diagram</code>/<code>Wiki</code>/<code>Links</code> to <code>#/repo/(shared)</code>, which resolves to nothing. Now treated the same as
+  "repo unknown": those crumbs are omitted, matching the existing rule that an absent wiki/link is
+  never shown as a dead crumb (<code>kb/dashboard/static/dashboard.js</code>).</li>
+<li><strong>An explicit <code>--config</code>/<code>--kb-config</code> path that doesn't exist is now a hard error, not a silent
+  fall-through.</strong> <code>load_kb_config</code> previously treated a missing config path exactly like an absent
+  auto-discovered file (empty, keep going down the precedence chain), so a typo'd or not-yet-created
+  <code>--config</code> path silently landed on the next file in the chain, typically the real
+  <code>~/.contextlake/kb.toml</code>, pointing at a completely different (possibly production) store than the
+  one intended. A missing explicit path now raises <code>ConfigError</code> with a clear message instead; the
+  auto-discovered files in the chain are unaffected (still silently optional, by design).</li>
+</ul>
+<h2 id="2470-2026-07-25">[2.47.0] - 2026-07-25<a class="anchor" href="#2470-2026-07-25" title="Link to this section">#</a></h2>
+<h3 id="breaking">BREAKING<a class="anchor" href="#breaking" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>repo_id</code> is now canonical (derived from the repo's git remote), not the path
+  relative to <code>--workspace</code>.</strong> The old scheme meant the same physical repo got a
+  different id from a different index root, duplicate ids, broken path-based
+  owners/graph/impact views. The canonical id survives being re-cloned elsewhere or
+  indexed from a different workspace root. Two local checkouts of the same remote
+  (e.g. a stale pre-reorg clone left alongside its replacement, a real pattern
+  found in this project's own fleet) collapse to one repo, keeping whichever is
+  more recently committed; the dropped checkout is logged, never silently skipped.
+  A repo with no remote falls back to a stable <code>dirname@root-commit-hash</code> id.
+  <strong>Migration is automatic</strong>: the next <code>index</code>/<code>bootstrap</code> run on an existing store
+  detects any repo still under the old id, clears its old row/shard/vectors, and
+  re-derives it fresh under the canonical id, same as a first index, no manual
+  step. <strong>This re-parses every existing repo once</strong> (their content doesn't change,
+  only their id), and <strong>clears embeddings for migrated repos</strong>, re-run <code>embed</code>
+  afterward if semantic search is enabled. Verified against this project's real
+  678-repo store (detection pass, full scale) and a real multi-repo slice
+  (full detect-clear-reindex pipeline).</li>
+</ul>
+<h2 id="2460-2026-07-25">[2.46.0] - 2026-07-25<a class="anchor" href="#2460-2026-07-25" title="Link to this section">#</a></h2>
+<h3 id="added_3">Added<a class="anchor" href="#added_3" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>graphql</code> source type for <code>ingest</code>.</strong> POSTs a query (+ optional variables) to one
+  endpoint and maps records in the response to documents, the same shape as the
+  existing <code>api</code> source's REST mapping. Auth is a bearer token read from an env var
+  named in config, never stored.</li>
+<li><strong><code>.vscode/mcp.json</code> steering output.</strong> <code>contextlake steer</code> now writes VS Code's own
+  MCP config file (top-level <code>servers</code> key, a different schema from <code>.mcp.json</code>'s
+  <code>mcpServers</code>) alongside the existing steering files, merging in the <code>contextlake-kb</code>
+  server entry without disturbing any other servers already configured there.</li>
+<li><strong><code>sequencediagram</code> graph format.</strong> <code>contextlake graph --node/--name/--search ID
+  --format sequencediagram</code> renders a Mermaid call-order trace from one seed function,
+  walking <code>calls</code> edges depth-first and ordering each caller's callees by call-site
+  line. No new extraction was needed, every <code>calls</code> edge already carried its source
+  line, so this is a renderer over data already collected, not a new parser pass.</li>
+</ul>
+<h3 id="fixed_5">Fixed<a class="anchor" href="#fixed_5" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Docs corrected a false claim that Devin reads the same repo-committed MCP config
+  file as Windsurf.</strong> Devin's MCP connections are account/org-level (<code>mcp.devin.ai</code>,
+  API key + org header); contextlake cannot self-register there the way it can for
+  file-based clients. <code>docs/serve.md</code> now says so plainly instead of grouping Devin
+  with Windsurf's wiring instructions.</li>
+<li><strong>Deterministic lowest-line dedup for repeated <code>calls</code>/<code>inherits</code> references.</strong> A
+  call site hit twice from the same caller could surface an arbitrary (not
+  necessarily first) line, since tree-sitter's capture order isn't guaranteed to
+  match source order. References are now sorted by line before resolution.</li>
+</ul>
+<h2 id="2451-2026-07-25">[2.45.1] - 2026-07-25<a class="anchor" href="#2451-2026-07-25" title="Link to this section">#</a></h2>
+<h3 id="fixed_6">Fixed<a class="anchor" href="#fixed_6" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>A local config file's <code>[llm]</code>/<code>[kb]</code>/<code>[embeddings]</code> table no longer wipes out
+  sibling fields set globally.</strong> Those three tables are now deep-merged key-by-key
+  across the precedence chain; a <code>.contextlake.kb.toml</code> setting only <code>[llm] model</code>
+  used to silently disable a globally-enabled LLM tier (<code>enabled</code>/<code>provider</code> reverted
+  to their defaults) because the table was replaced wholesale. <code>sources</code>/<code>rules</code> keep
+  their documented wholesale-replace behavior (they are list tables, not scalar ones).</li>
+<li><strong>Readable terminal output while a long run is in flight.</strong> The live progress bar
+  (stderr) and per-item status lines (stdout) share one terminal cursor, so every
+  frame was left on screen with the next status line welded to its right edge. The
+  bar is now erased before each log line and repainted after, and it erases to
+  end-of-line instead of padding out to the terminal width.</li>
+<li>Per-item status lines are clamped to one row on a terminal (long ids elide from
+  the middle, the reason stays whole) so they cannot wrap through the bar. Piped and
+  redirected output is left unclamped, where full ids matter and there is no bar.</li>
+<li>Git's three-line "ambiguous argument 'HEAD'" usage hint is reported as
+  <code>No commits yet (empty repository)</code> instead of being dumped into the status line.</li>
+<li>No ETA is shown until there is enough signal, and it is derived from the cumulative
+  rate: a single early completion used to produce confidently wrong estimates that
+  swung between seconds and tens of minutes.</li>
+<li><code>Update complete:</code> / <code>Clone complete:</code> / <code>Branch switch complete:</code> no longer lose
+  the space before their counts.</li>
+</ul>
+<h2 id="2450-2026-07-25">[2.45.0] - 2026-07-25<a class="anchor" href="#2450-2026-07-25" title="Link to this section">#</a></h2>
+<h3 id="fixed_7">Fixed<a class="anchor" href="#fixed_7" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>doctor</code> flags a missing wiki-LLM runtime.</strong> When the built-in wiki LLM is
+  configured but <code>llama-cpp-python</code> isn't installed, <code>doctor</code> now reports
+  <code>⚠ … runtime not installed</code> with the install hint, instead of a green <code>✓</code> that only
+  checked for the model file, so the report matches what <code>wiki</code> will actually do.</li>
+<li><strong>Dashboard favicon.</strong> The dashboard shell ships an inline SVG favicon, so browsers
+  no longer log a <code>/favicon.ico</code> 404 (and the tab gets an icon).</li>
+</ul>
+<h3 id="changed_1">Changed<a class="anchor" href="#changed_1" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Moonlit-navy dark theme</strong> for the dashboard and the graph visualizer.</li>
+<li>Renamed the demo running example to a generic "Catalog" service across the sample
+  fixture, examples, and docs.</li>
+<li>Stripped em-dashes from user-facing copy (house style).</li>
+</ul>
+<h2 id="2440-2026-07-23">[2.44.0] - 2026-07-23<a class="anchor" href="#2440-2026-07-23" title="Link to this section">#</a></h2>
+<h3 id="added_4">Added<a class="anchor" href="#added_4" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Composed namespace C4 diagram.</strong> <code>contextlake graph --c4 [--group-depth N]</code>
   renders a C4-Context/Container view over already-extracted graph data: namespaces
@@ -66,7 +560,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   percent, elapsed, ETA, rate) on stderr, degrading to periodic summaries when not a
   TTY, so stdout redirects (e.g. <code>&gt;&gt; run.log</code>) stay clean of bar/<code>\r</code> artifacts.</li>
 </ul>
-<h3 id="changed">Changed<a class="anchor" href="#changed" title="Link to this section">#</a></h3>
+<h3 id="changed_2">Changed<a class="anchor" href="#changed_2" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Consistent CLI presentation across every command.</strong> One status vocabulary
   (<code>✓</code> ok, <code>⚠</code> warn, <code>✗</code> fail, <code>⊘</code> skip, <code>=</code> unchanged, <code>↝</code> switched, <code>~</code> dry-run) now
@@ -79,7 +573,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   <code>wiki</code>, <code>connect</code>, <code>ingest</code>, <code>enrich</code>) no longer flicker a right-aligned clock.</li>
 </ul>
 <h2 id="2430-2026-07-22">[2.43.0] - 2026-07-22<a class="anchor" href="#2430-2026-07-22" title="Link to this section">#</a></h2>
-<h3 id="added_1">Added<a class="anchor" href="#added_1" title="Link to this section">#</a></h3>
+<h3 id="added_5">Added<a class="anchor" href="#added_5" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Fleet / namespace-level wiki.</strong> <code>contextlake wiki --namespace &lt;prefix&gt;</code> (or
   <code>--namespaces --depth N</code>) generates a cluster wiki page for a whole group of repos,
@@ -91,7 +585,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   the graph shows no coupling. Cluster pages are served over MCP by passing a namespace
   to <code>get_wiki</code>, and shown per group in the dashboard's fleet overview.</li>
 </ul>
-<h3 id="changed_1">Changed<a class="anchor" href="#changed_1" title="Link to this section">#</a></h3>
+<h3 id="changed_3">Changed<a class="anchor" href="#changed_3" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>query</code> now points at semantic search when a natural-language phrase finds no
   keyword matches.</strong> A multi-word query with no FTS hit gets a one-line hint (run
@@ -99,7 +593,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   a bare "No matches"; a single-token symbol lookup stays quiet.</li>
 </ul>
 <h2 id="2420-2026-07-21">[2.42.0] - 2026-07-21<a class="anchor" href="#2420-2026-07-21" title="Link to this section">#</a></h2>
-<h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
+<h3 id="fixed_8">Fixed<a class="anchor" href="#fixed_8" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Indexing config keys are now honored.</strong> <code>[kb] skip_generated</code>, <code>max_file_bytes</code>,
   and <code>index_workers</code> were documented but silently ignored (the loader read only
@@ -110,7 +604,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   a full repo, flooding the global graph with upstream-demo nodes. Such repos are now
   skipped, and each skip is logged.</li>
 </ul>
-<h3 id="added_2">Added<a class="anchor" href="#added_2" title="Link to this section">#</a></h3>
+<h3 id="added_6">Added<a class="anchor" href="#added_6" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Unknown config keys are warned, not silently ignored.</strong> An unrecognized <code>[kb]</code> key
   or config table (e.g. <code>store</code> for <code>store_dir</code>) now logs a warning instead of being
@@ -121,7 +615,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   a bare error or a silently empty view.</li>
 </ul>
 <h2 id="2410-2026-07-21">[2.41.0] - 2026-07-21<a class="anchor" href="#2410-2026-07-21" title="Link to this section">#</a></h2>
-<h3 id="added_3">Added<a class="anchor" href="#added_3" title="Link to this section">#</a></h3>
+<h3 id="added_7">Added<a class="anchor" href="#added_7" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>React Router data-router (object form) extraction.</strong> <code>createBrowserRouter</code>,
   <code>createHashRouter</code>, and <code>createMemoryRouter</code> route arrays now surface as <code>route</code>
@@ -133,7 +627,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   <code>loader</code>/<code>lazy</code> and <code>createRoutesFromElements</code>.</li>
 </ul>
 <h2 id="2400-2026-07-20">[2.40.0] - 2026-07-20<a class="anchor" href="#2400-2026-07-20" title="Link to this section">#</a></h2>
-<h3 id="added_4">Added<a class="anchor" href="#added_4" title="Link to this section">#</a></h3>
+<h3 id="added_8">Added<a class="anchor" href="#added_8" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Angular route extraction (tree-sitter AST).</strong> Angular <code>Routes</code> tables now
   surface as <code>route</code> nodes, joining the Next.js and React Router extraction from
@@ -146,7 +640,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   future release). Only TypeScript files that mention Angular routing are re-parsed.</li>
 </ul>
 <h2 id="2390-2026-07-20">[2.39.0] - 2026-07-20<a class="anchor" href="#2390-2026-07-20" title="Link to this section">#</a></h2>
-<h3 id="added_5">Added<a class="anchor" href="#added_5" title="Link to this section">#</a></h3>
+<h3 id="added_9">Added<a class="anchor" href="#added_9" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Web-topology: frontend route extraction.</strong> Indexing now surfaces frontend
   <strong>routes</strong> as embeddable, repo-scoped <code>route</code> nodes from <strong>Next.js App Router</strong>
@@ -162,7 +656,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   previously the HTTP extractor only knew Express/FastAPI/ASP.NET and missed them.</li>
 </ul>
 <h2 id="2380-2026-07-20">[2.38.0] - 2026-07-20<a class="anchor" href="#2380-2026-07-20" title="Link to this section">#</a></h2>
-<h3 id="added_6">Added<a class="anchor" href="#added_6" title="Link to this section">#</a></h3>
+<h3 id="added_10">Added<a class="anchor" href="#added_10" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake source</code> command family for managing connectors.</strong> <code>source add|list|remove|test|enable|disable</code>
   let you manage knowledge-source connectors (Atlassian, Figma, GitLab) without hand-editing <code>kb.toml</code>.
@@ -193,7 +687,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   what they need by chaining the right stages.</li>
 </ul>
 <h2 id="2370-2026-07-08">[2.37.0] - 2026-07-08<a class="anchor" href="#2370-2026-07-08" title="Link to this section">#</a></h2>
-<h3 id="added_7">Added<a class="anchor" href="#added_7" title="Link to this section">#</a></h3>
+<h3 id="added_11">Added<a class="anchor" href="#added_11" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>pom.xml</code> is now indexed</strong> into the cross-repo dependency graph (Maven ecosystem):
   the project's <code>groupId:artifactId</code> becomes a <code>publishes</code> edge and each <code>&lt;dependency&gt;</code>
@@ -216,7 +710,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   (extending and implementing base classes). The grammar (<code>tree-sitter-kotlin</code>) ships
   in the <code>[kb]</code> extra.</li>
 </ul>
-<h3 id="fixed_1">Fixed<a class="anchor" href="#fixed_1" title="Link to this section">#</a></h3>
+<h3 id="fixed_9">Fixed<a class="anchor" href="#fixed_9" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Tolerant wiki review-score parsing.</strong> The council reviewer now recovers a numeric
   score from prose or alternate-JSON review responses before abstaining, so capable
@@ -225,7 +719,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   genuinely score-less prose still abstains.</li>
 </ul>
 <h2 id="2360-2026-07-08">[2.36.0] - 2026-07-08<a class="anchor" href="#2360-2026-07-08" title="Link to this section">#</a></h2>
-<h3 id="added_8">Added<a class="anchor" href="#added_8" title="Link to this section">#</a></h3>
+<h3 id="added_12">Added<a class="anchor" href="#added_12" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Selectable LLM backends for the wiki and council tier.</strong> <code>provider = "anthropic"</code>
   (native Messages API, stdlib-only) and <code>provider = "cli"</code> (shell out to a local
@@ -250,7 +744,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   model-load bar, and the <code>✓ written</code> / <code>⚠ rejected by council</code> / <code>unparseable review</code> wiki lines.</li>
 </ul>
 <h2 id="2350-2026-07-08">[2.35.0] - 2026-07-08<a class="anchor" href="#2350-2026-07-08" title="Link to this section">#</a></h2>
-<h3 id="added_9">Added<a class="anchor" href="#added_9" title="Link to this section">#</a></h3>
+<h3 id="added_13">Added<a class="anchor" href="#added_13" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Rust, Ruby, PHP, and Scala are now indexed</strong> too. Rust (functions, structs, enums,
   traits, <code>use</code> imports, calls); Ruby (classes, modules, methods, calls, <code>&lt;</code> inheritance);
@@ -285,7 +779,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   while measuring wiki quality: a 1.5B–3B Ollama model on a <strong>CPU-only</strong> host (~0.85–1.7
   tok/s, no GPU) exceeds 300s per page.</li>
 </ul>
-<h3 id="changed_2">Changed<a class="anchor" href="#changed_2" title="Link to this section">#</a></h3>
+<h3 id="changed_4">Changed<a class="anchor" href="#changed_4" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Quieter, less alarming model downloads.</strong> Downloading the built-in model (LLM or
   embedder) used to print two Hugging Face notices, a <code>local_dir_use_symlinks</code>
@@ -300,7 +794,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   tells you the exact idempotent command to re-run once the connection is back, nothing
   is lost, the mirror just resumes.</li>
 </ul>
-<h3 id="fixed_2">Fixed<a class="anchor" href="#fixed_2" title="Link to this section">#</a></h3>
+<h3 id="fixed_10">Fixed<a class="anchor" href="#fixed_10" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Wiki reviews without a usable score now abstain instead of scoring zero.</strong> Small
   local models (e.g. the built-in 0.5B) sometimes return a review the council can't score
@@ -324,7 +818,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   GPU vs API).</li>
 </ul>
 <h2 id="2340-2026-07-07">[2.34.0] - 2026-07-07<a class="anchor" href="#2340-2026-07-07" title="Link to this section">#</a></h2>
-<h3 id="added_10">Added<a class="anchor" href="#added_10" title="Link to this section">#</a></h3>
+<h3 id="added_14">Added<a class="anchor" href="#added_14" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>bootstrap --llm PROVIDER</code> (and <code>--llm-model</code>).</strong> <code>bootstrap</code> already ran the
   wiki stage, but it had no way to turn on the LLM tier, so on a fresh setup the wiki
@@ -335,7 +829,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   and everything lands in one place. The pre-command form (<code>--llm builtin bootstrap</code>)
   kept working throughout; this adds the natural post-command form.</li>
 </ul>
-<h3 id="changed_3">Changed<a class="anchor" href="#changed_3" title="Link to this section">#</a></h3>
+<h3 id="changed_5">Changed<a class="anchor" href="#changed_5" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Clearer built-in-LLM install error.</strong> When the <code>llm-local</code> extra is missing, the
   error now also gives the prebuilt-CPU-wheel fallback (<code>pip install llama-cpp-python
@@ -344,7 +838,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   failed. Same fallback documented in QUICKSTART + the knowledge-layer model-providers
   section.</li>
 </ul>
-<h3 id="fixed_3">Fixed<a class="anchor" href="#fixed_3" title="Link to this section">#</a></h3>
+<h3 id="fixed_11">Fixed<a class="anchor" href="#fixed_11" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>find_callers</code> and <code>blast_radius</code> accept a bare symbol name.</strong> Agents call these
   MCP tools with a name (e.g. <code>CatalogService</code>), but they only accepted an internal
@@ -364,7 +858,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 </ul>
 <h2 id="2332-2026-07-06">[2.33.2] - 2026-07-06<a class="anchor" href="#2332-2026-07-06" title="Link to this section">#</a></h2>
 <h2 id="2331-2026-07-06">[2.33.1] - 2026-07-06<a class="anchor" href="#2331-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="fixed_4">Fixed<a class="anchor" href="#fixed_4" title="Link to this section">#</a></h3>
+<h3 id="fixed_12">Fixed<a class="anchor" href="#fixed_12" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>init</code> now recommends the extra that matches your choice.</strong> If you enable
   semantic search during <code>contextlake init</code>, the "Next" hint recommends
@@ -387,7 +881,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   written inside your repositories.</li>
 </ul>
 <h2 id="2330-2026-07-06">[2.33.0] - 2026-07-06<a class="anchor" href="#2330-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="added_11">Added<a class="anchor" href="#added_11" title="Link to this section">#</a></h3>
+<h3 id="added_15">Added<a class="anchor" href="#added_15" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>--repos</code>, mirror and index just a subset.</strong> Every mirror command, plus
   <code>bootstrap</code> and <code>index --workspace</code>, now accepts <code>--repos PATTERN</code>, a comma-separated
@@ -398,7 +892,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   try-before-fleet run, <code>contextlake bootstrap --repos "…"</code> goes from nothing to a
   wired workspace over just the chosen repos.</li>
 </ul>
-<h3 id="changed_4">Changed<a class="anchor" href="#changed_4" title="Link to this section">#</a></h3>
+<h3 id="changed_6">Changed<a class="anchor" href="#changed_6" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>embed</code> now vectorizes only meaningful nodes</strong>, code definitions (class /
   function / method / interface / struct / enum) and HTTP endpoints, and skips file,
@@ -409,7 +903,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   golden-query harness; semantic search returns cleaner definition hits. Found while
   dogfooding a full multi-repo <code>bootstrap</code>.</li>
 </ul>
-<h3 id="added_12">Added<a class="anchor" href="#added_12" title="Link to this section">#</a></h3>
+<h3 id="added_16">Added<a class="anchor" href="#added_16" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>ask</code> answers "what extends X?"</strong> A new <code>subclasses</code> route makes the inheritance
   graph queryable in natural language: <code>ask("what extends BaseController")</code>,
@@ -418,7 +912,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   facts, not a fuzzy search. (Surfaced by dogfooding <code>ask</code> on a real 800-node codebase,
   where inheritance questions previously fell through to semantic search.)</li>
 </ul>
-<h3 id="fixed_5">Fixed<a class="anchor" href="#fixed_5" title="Link to this section">#</a></h3>
+<h3 id="fixed_13">Fixed<a class="anchor" href="#fixed_13" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Text-format graph output is no longer log-polluted.</strong> Streaming a large graph to
   stdout as <code>--format json</code> / <code>dot</code> / <code>mermaid</code> / <code>classdiagram</code> could prepend a
@@ -429,7 +923,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   package.</li>
 </ul>
 <h2 id="2300-2026-07-06">[2.30.0] - 2026-07-06<a class="anchor" href="#2300-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="added_13">Added<a class="anchor" href="#added_13" title="Link to this section">#</a></h3>
+<h3 id="added_17">Added<a class="anchor" href="#added_17" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Class diagrams, <code>graph --format classdiagram</code>.</strong> Now that the graph carries
   inheritance, <code>contextlake graph --repo &lt;r&gt; --format classdiagram</code> renders a Mermaid
@@ -439,7 +933,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   dropped so it reads as a class view, not the flat relation graph. Paste it straight
   into a PR or design doc. (Payloads now also carry each node's <code>signature</code>.)</li>
 </ul>
-<h3 id="added_14">Added<a class="anchor" href="#added_14" title="Link to this section">#</a></h3>
+<h3 id="added_18">Added<a class="anchor" href="#added_18" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Inheritance graph, <code>inherits</code> edges.</strong> The code parser now extracts class
   inheritance and interface implementation across all four languages (Python bases,
@@ -451,7 +945,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   class diagrams.</li>
 </ul>
 <h2 id="2280-2026-07-06">[2.28.0] - 2026-07-06<a class="anchor" href="#2280-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="changed_5">Changed<a class="anchor" href="#changed_5" title="Link to this section">#</a></h3>
+<h3 id="changed_7">Changed<a class="anchor" href="#changed_7" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>ask</code>'s explain route degrades usefully.</strong> When a question like "explain the
   catalog-api" hits a repo with no generated wiki, <code>ask</code> now returns that repo's
@@ -461,7 +955,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   found no defects.)</li>
 </ul>
 <h2 id="2270-2026-07-06">[2.27.0] - 2026-07-06<a class="anchor" href="#2270-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="added_15">Added<a class="anchor" href="#added_15" title="Link to this section">#</a></h3>
+<h3 id="added_19">Added<a class="anchor" href="#added_19" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>ask</code>, one MCP tool, natural language, auto-routed.</strong> A small-context IDE agent
   no longer has to pick among twenty graph tools: <code>ask("who calls charge_order")</code>,
@@ -475,7 +969,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   specific tools, which remain first-class.</li>
 </ul>
 <h2 id="2260-2026-07-06">[2.26.0] - 2026-07-06<a class="anchor" href="#2260-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="added_16">Added<a class="anchor" href="#added_16" title="Link to this section">#</a></h3>
+<h3 id="added_20">Added<a class="anchor" href="#added_20" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake init</code>, guided first-run setup.</strong> One command writes a valid mirror
   config (and, opt-in, the knowledge-layer config) instead of hand-authoring TOML/INI:
@@ -485,7 +979,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   Never writes a token to disk; refuses to overwrite existing config without <code>--force</code>.</li>
 </ul>
 <h2 id="2250-2026-07-02">[2.25.0] - 2026-07-02<a class="anchor" href="#2250-2026-07-02" title="Link to this section">#</a></h2>
-<h3 id="added_17">Added<a class="anchor" href="#added_17" title="Link to this section">#</a></h3>
+<h3 id="added_21">Added<a class="anchor" href="#added_21" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The wiki is now searchable prose.</strong> Accepted wiki pages are split into sections
   and stored in an isolated <code>@wiki:&lt;repo&gt;</code> partition (mirroring <code>@connect</code>/<code>@ingest</code>);
@@ -496,7 +990,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   zero LLM calls (freshness-skipped pages included).</li>
 </ul>
 <h2 id="2240-2026-07-02">[2.24.0] - 2026-07-02<a class="anchor" href="#2240-2026-07-02" title="Link to this section">#</a></h2>
-<h3 id="added_18">Added<a class="anchor" href="#added_18" title="Link to this section">#</a></h3>
+<h3 id="added_22">Added<a class="anchor" href="#added_22" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Multi-platform mirroring: GitHub, Bitbucket, and Gitea (Codeberg / Forgejo)
   join GitLab.</strong> Set <code>platform = github</code> (or <code>bitbucket</code> / <code>gitea</code> / <code>codeberg</code> /
@@ -511,7 +1005,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   including the <code>glab</code> fallback.</li>
 </ul>
 <h2 id="2230-2026-07-02">[2.23.0] - 2026-07-02<a class="anchor" href="#2230-2026-07-02" title="Link to this section">#</a></h2>
-<h3 id="added_19">Added<a class="anchor" href="#added_19" title="Link to this section">#</a></h3>
+<h3 id="added_23">Added<a class="anchor" href="#added_23" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Semantic search now embeds real code content.</strong> Each node's vector carries its
   captured signature and docstring alongside the name/path metadata, so
@@ -522,7 +1016,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   re-embedded once automatically (with a message saying why); incremental behavior
   then resumes.</li>
 </ul>
-<h3 id="changed_6">Changed<a class="anchor" href="#changed_6" title="Link to this section">#</a></h3>
+<h3 id="changed_8">Changed<a class="anchor" href="#changed_8" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Built-in embedder guidance is now measured, not assumed.</strong> A four-model
   bake-off on the enriched text (potion-8M/32M vs ONNX bge-small and quantized
@@ -531,7 +1025,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   upgrade and keep the 30MB <code>potion-base-8M</code> as the zero-config default.</li>
 </ul>
 <h2 id="2220-2026-07-02">[2.22.0] - 2026-07-02<a class="anchor" href="#2220-2026-07-02" title="Link to this section">#</a></h2>
-<h3 id="added_20">Added<a class="anchor" href="#added_20" title="Link to this section">#</a></h3>
+<h3 id="added_24">Added<a class="anchor" href="#added_24" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>glab</code> is now fully optional.</strong> With a <code>GITLAB_TOKEN</code> (a <code>read_api</code> +
   <code>read_repository</code> PAT), <code>clone_method=auto</code> clones with plain <code>git</code>, passing the
@@ -540,7 +1034,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   Enumeration already used the token-native HTTP client, so the whole mirror now runs
   with just <code>git</code> + a token; without a token the glab-then-git behavior is unchanged.</li>
 </ul>
-<h3 id="changed_7">Changed<a class="anchor" href="#changed_7" title="Link to this section">#</a></h3>
+<h3 id="changed_9">Changed<a class="anchor" href="#changed_9" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The share card is built from the approved hero art</strong> (Pebble in the wide misty
   lake) with real typography, Space Grotesk wordmark, Inter tagline, gold Get
@@ -555,7 +1049,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 <p>The product-review hardening release: an end-to-end review as a brand-new
 <code>pip install</code> user surfaced the gaps between the advertised experience and the
 real one; this release closes them.</p>
-<h3 id="fixed_6">Fixed<a class="anchor" href="#fixed_6" title="Link to this section">#</a></h3>
+<h3 id="fixed_14">Fixed<a class="anchor" href="#fixed_14" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>dashboard --sample</code> works from a pip install and under <code>--serve</code>.</strong> The demo-fleet
   fixture used to live at the repo root (absent from every wheel, so <code>--sample</code> crashed
@@ -573,7 +1067,7 @@ real one; this release closes them.</p>
   <code>✓ Bootstrap complete</code> over an empty knowledge base.</li>
 <li><strong>MCP <code>serverInfo</code> reports contextlake's version</strong> instead of the MCP SDK's.</li>
 </ul>
-<h3 id="added_21">Added<a class="anchor" href="#added_21" title="Link to this section">#</a></h3>
+<h3 id="added_25">Added<a class="anchor" href="#added_25" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Per-command help.</strong> Every verb is a real argparse subcommand: <code>contextlake sync --help</code>
   shows only sync's flags with worked examples, bare <code>contextlake</code> prints the front door
@@ -588,7 +1082,7 @@ real one; this release closes them.</p>
 <li><strong>A Docker install block</strong> for the published <code>ghcr.io/sayak-sarkar/contextlake</code> image,
   which now carries OCI source labels linking it back to the repository.</li>
 </ul>
-<h3 id="changed_8">Changed<a class="anchor" href="#changed_8" title="Link to this section">#</a></h3>
+<h3 id="changed_10">Changed<a class="anchor" href="#changed_10" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The CLI introduces itself as what it is</strong>, a local context layer that mirrors,
   indexes, and serves real source over MCP, rather than "GitLab Workspace
@@ -603,20 +1097,20 @@ real one; this release closes them.</p>
   classifier and keyword sets state the supported Python range and positioning.</li>
 </ul>
 <h2 id="2201-2026-07-01">[2.20.1] - 2026-07-01<a class="anchor" href="#2201-2026-07-01" title="Link to this section">#</a></h2>
-<h3 id="fixed_7">Fixed<a class="anchor" href="#fixed_7" title="Link to this section">#</a></h3>
+<h3 id="fixed_15">Fixed<a class="anchor" href="#fixed_15" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README doc links now resolve on the PyPI project page.</strong> They were relative
   (<code>docs/…​.md</code>), which 404s on PyPI (it renders the README but doesn't host the repo files);
   they're now absolute GitHub URLs. The docs-site build still rewrites them back to local pages.</li>
 </ul>
-<h3 id="added_22">Added<a class="anchor" href="#added_22" title="Link to this section">#</a></h3>
+<h3 id="added_26">Added<a class="anchor" href="#added_26" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>CLI and rendered-wiki screenshots</strong> in the docs. The knowledge-layer guide now shows real
   terminal output for <code>doctor</code>, <code>index</code>, <code>query</code>, <code>owners</code>, <code>impact</code>, and a single-repo graph,
   plus a curated wiki rendered in the dashboard, all captured from a generic demo fleet.</li>
 </ul>
 <h2 id="2200-2026-06-30">[2.20.0] - 2026-06-30<a class="anchor" href="#2200-2026-06-30" title="Link to this section">#</a></h2>
-<h3 id="added_23">Added<a class="anchor" href="#added_23" title="Link to this section">#</a></h3>
+<h3 id="added_27">Added<a class="anchor" href="#added_27" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard fleet layout switcher, Cards / List / Table.</strong> The fleet overview now
   offers three densities (rich cards, dense rows, an aligned sortable-look table), each
@@ -633,7 +1127,7 @@ real one; this release closes them.</p>
   walkthrough with screenshots (fleet layouts, repo anatomy, the architecture graph, blast
   radius, and generating a wiki), linked from the README and knowledge-layer docs.</li>
 </ul>
-<h3 id="fixed_8">Fixed<a class="anchor" href="#fixed_8" title="Link to this section">#</a></h3>
+<h3 id="fixed_16">Fixed<a class="anchor" href="#fixed_16" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>wiki</code> / <code>embed</code> / <code>connect &lt;repo&gt;</code> now scope to the named repo(s).</strong> The positional repo
   id was ignored, so these silently ran across the entire indexed fleet; an unknown id now
@@ -649,7 +1143,7 @@ real one; this release closes them.</p>
   live server" state, not a scary error.</li>
 <li>Replaced the crude inline otter illustration in empty states with the <strong>Pebble</strong> mascot art.</li>
 </ul>
-<h3 id="changed_9">Changed<a class="anchor" href="#changed_9" title="Link to this section">#</a></h3>
+<h3 id="changed_11">Changed<a class="anchor" href="#changed_11" title="Link to this section">#</a></h3>
 <ul>
 <li>Dashboard stat / confidence numbers are <strong>thousands-formatted</strong> (<code>1,013,948</code>).</li>
 <li>Static-export per-repo relationships are built from a <strong>single bucketed edge scan</strong>
@@ -658,7 +1152,7 @@ real one; this release closes them.</p>
   than a single repo, so the dashboard's sample mode reads like a real fleet.</li>
 </ul>
 <h2 id="2192-2026-06-28">[2.19.2] - 2026-06-28<a class="anchor" href="#2192-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_9">Fixed<a class="anchor" href="#fixed_9" title="Link to this section">#</a></h3>
+<h3 id="fixed_17">Fixed<a class="anchor" href="#fixed_17" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>impact &lt;symbol&gt;</code> no longer silently resolves an ambiguous name to the wrong repo.</strong>
   A bare name (e.g. <code>Node</code>, <code>Order</code>) was resolved via a full-text search and the top hit
@@ -671,7 +1165,7 @@ real one; this release closes them.</p>
   identically.</li>
 </ul>
 <h2 id="2191-2026-06-28">[2.19.1] - 2026-06-28<a class="anchor" href="#2191-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_10">Fixed<a class="anchor" href="#fixed_10" title="Link to this section">#</a></h3>
+<h3 id="fixed_18">Fixed<a class="anchor" href="#fixed_18" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard: the command palette (and the provenance drawer and pin chip) no longer render
   stuck-open.</strong> Their <code>[hidden]</code> attribute was being overridden by a CSS <code>display:</code> value, so
@@ -680,7 +1174,7 @@ real one; this release closes them.</p>
   actually removed from layout when closed.</li>
 </ul>
 <h2 id="2190-2026-06-28">[2.19.0] - 2026-06-28<a class="anchor" href="#2190-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_24">Added<a class="anchor" href="#added_24" title="Link to this section">#</a></h3>
+<h3 id="added_28">Added<a class="anchor" href="#added_28" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake dashboard</code>, a local knowledge-system dashboard UI.</strong> A self-contained,
   offline-first single-page app over your store: fleet overview (domain-grouped), per-repo
@@ -693,7 +1187,7 @@ real one; this release closes them.</p>
   showcase from the bundled fixture. Read-only in v1 (sync/MCP controls planned).</li>
 </ul>
 <h2 id="2180-2026-06-28">[2.18.0] - 2026-06-28<a class="anchor" href="#2180-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_25">Added<a class="anchor" href="#added_25" title="Link to this section">#</a></h3>
+<h3 id="added_29">Added<a class="anchor" href="#added_29" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Built-in <code>mcp</code> source for <code>ingest</code>.</strong> contextlake now connects as an MCP <em>client</em>
   (stdio via <code>command</code>/<code>args</code>, or streamable-HTTP via <code>url</code>) to another MCP server, lists
@@ -701,7 +1195,7 @@ real one; this release closes them.</p>
   knowledge graph over MCP and consumes other servers' resources, on the same source seam.</li>
 </ul>
 <h2 id="2170-2026-06-28">[2.17.0] - 2026-06-28<a class="anchor" href="#2170-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_26">Added<a class="anchor" href="#added_26" title="Link to this section">#</a></h3>
+<h3 id="added_30">Added<a class="anchor" href="#added_30" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Built-in <code>api</code> source for <code>ingest</code>.</strong> GET a JSON endpoint and map its records to
   documents, <code>items</code> (dotted path to the record list), <code>id_field</code>/<code>title_field</code>/<code>text_field</code>,
@@ -709,7 +1203,7 @@ real one; this release closes them.</p>
   lives in config). Standard library only.</li>
 </ul>
 <h2 id="2160-2026-06-28">[2.16.0] - 2026-06-28<a class="anchor" href="#2160-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_27">Added<a class="anchor" href="#added_27" title="Link to this section">#</a></h3>
+<h3 id="added_31">Added<a class="anchor" href="#added_31" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Built-in <code>web</code> source for <code>ingest</code>.</strong> Fetch one or more URLs and ingest their readable
   text (<code>[[sources]] type="web"</code>, <code>urls = [...]</code>) into the graph + semantic store. Standard
@@ -717,7 +1211,7 @@ real one; this release closes them.</p>
   network is touched only when a <code>web</code> source is configured.</li>
 </ul>
 <h2 id="2150-2026-06-28">[2.15.0] - 2026-06-28<a class="anchor" href="#2150-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_28">Added<a class="anchor" href="#added_28" title="Link to this section">#</a></h3>
+<h3 id="added_32">Added<a class="anchor" href="#added_32" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake ingest</code>, aggregate external documents (RAG) into the knowledge layer.</strong>
   Documents become <code>kind="document"</code> graph nodes and, when embeddings are on, their bodies
@@ -730,7 +1224,7 @@ real one; this release closes them.</p>
   common, plugin the rest.</li>
 </ul>
 <h2 id="2140-2026-06-28">[2.14.0] - 2026-06-28<a class="anchor" href="#2140-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_29">Added<a class="anchor" href="#added_29" title="Link to this section">#</a></h3>
+<h3 id="added_33">Added<a class="anchor" href="#added_33" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake impact &lt;symbol&gt;</code>, change-impact / blast radius from the shell.</strong> Lists
   what calls or depends on a node (reverse-reachability over the graph, <code>--hops</code> deep,
@@ -739,7 +1233,7 @@ real one; this release closes them.</p>
   the <code>blast_radius</code> MCP tool (one implementation in <code>kb/impact.py</code>).</li>
 </ul>
 <h2 id="2130-2026-06-28">[2.13.0] - 2026-06-28<a class="anchor" href="#2130-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_30">Added<a class="anchor" href="#added_30" title="Link to this section">#</a></h3>
+<h3 id="added_34">Added<a class="anchor" href="#added_34" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Ownership / SME lookup from commit history.</strong> New <code>contextlake owners &lt;repo&gt;</code>
   (optionally <code>--path SUBDIR</code>) ranks likely owners / subject-matter experts straight
@@ -748,7 +1242,7 @@ real one; this release closes them.</p>
   prolific author. Exposed to agents over MCP as the <code>who_knows(repo, path?, limit?)</code> tool.</li>
 </ul>
 <h2 id="2120-2026-06-28">[2.12.0] - 2026-06-28<a class="anchor" href="#2120-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_31">Added<a class="anchor" href="#added_31" title="Link to this section">#</a></h3>
+<h3 id="added_35">Added<a class="anchor" href="#added_35" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>connect --watch</code> and <code>embed --watch</code>.</strong> The live-refresh loop that <code>index</code> already
   had now covers the connector and embedding passes too, <code>connect --watch</code> re-links and
@@ -760,14 +1254,14 @@ real one; this release closes them.</p>
   multiple of 8; applied when the vector table is first created (re-embed to change it).</li>
 </ul>
 <h2 id="2110-2026-06-28">[2.11.0] - 2026-06-28<a class="anchor" href="#2110-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="changed_10">Changed<a class="anchor" href="#changed_10" title="Link to this section">#</a></h3>
+<h3 id="changed_12">Changed<a class="anchor" href="#changed_12" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake index</code> with no arguments now indexes the current directory</strong> instead of
   doing nothing, so <code>cd my-repo &amp;&amp; contextlake index</code> just works. Pass <code>--source PATH</code> or
   <code>--workspace DIR</code> to index elsewhere.</li>
 </ul>
 <h2 id="2100-2026-06-28">[2.10.0] - 2026-06-28<a class="anchor" href="#2100-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="added_32">Added<a class="anchor" href="#added_32" title="Link to this section">#</a></h3>
+<h3 id="added_36">Added<a class="anchor" href="#added_36" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Incremental <code>embed</code>.</strong> <code>embed</code> now re-embeds only repos whose indexed HEAD has moved
   since they were last embedded (tracked per-repo in the vector store), so a scheduled
@@ -778,7 +1272,7 @@ real one; this release closes them.</p>
   directory). A small, dependency-free subset of gitignore syntax; ignored files are
   counted and reported, never silently dropped.</li>
 </ul>
-<h3 id="changed_11">Changed<a class="anchor" href="#changed_11" title="Link to this section">#</a></h3>
+<h3 id="changed_13">Changed<a class="anchor" href="#changed_13" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Colorful output now reaches <code>status</code> and <code>fetch</code>.</strong> <code>status</code> prints a right-aligned,
   glyph-coded summary (<code>✓</code> synchronized, <code>⚠</code> missing/extra), and <code>fetch</code> styles its header and
@@ -786,7 +1280,7 @@ real one; this release closes them.</p>
   Still plain and <code>NO_COLOR</code>-friendly when not a TTY.</li>
 </ul>
 <h2 id="291-2026-06-26">[2.9.1] - 2026-06-26<a class="anchor" href="#291-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="changed_12">Changed<a class="anchor" href="#changed_12" title="Link to this section">#</a></h3>
+<h3 id="changed_14">Changed<a class="anchor" href="#changed_14" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README overhaul</strong> (this also fixes the instruction shown on PyPI): corrected the primary install
   to <code>pip install contextlake</code> (the old <code>pip install .</code> only works from a clone), led with the value
@@ -795,7 +1289,7 @@ real one; this release closes them.</p>
   identically on GitHub and PyPI (no SVG-only assets). Removed em-dashes across the prose docs.</li>
 </ul>
 <h2 id="290-2026-06-26">[2.9.0] - 2026-06-26<a class="anchor" href="#290-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="added_33">Added<a class="anchor" href="#added_33" title="Link to this section">#</a></h3>
+<h3 id="added_37">Added<a class="anchor" href="#added_37" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Graph readability overhaul, the dense-graph pain points are fixed.</strong> Three long-standing
   complaints addressed in the shared visualizer (<code>graph --serve</code>, <code>--site</code>, and every embedded graph):</li>
@@ -814,7 +1308,7 @@ real one; this release closes them.</p>
     node paints), plus a collapsible key for edge-confidence line styles and per-language repo
     lettermarks, so the iconography is self-explanatory. All still offline/self-contained.</li>
 </ul>
-<h3 id="changed_13">Changed<a class="anchor" href="#changed_13" title="Link to this section">#</a></h3>
+<h3 id="changed_15">Changed<a class="anchor" href="#changed_15" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Captured docstrings + signatures now feed the wiki and <code>get_repo_brief</code>.</strong> <code>repo_brief</code>'s top
   symbols carry their <code>doc</code> + <code>signature</code>, so the LLM-wiki is synthesized from real docstrings (not
@@ -827,7 +1321,7 @@ real one; this release closes them.</p>
   across the llm/ and embeddings/ providers and the connector, into one stdlib-only <code>kb/_util</code>. No
   behaviour change.</li>
 </ul>
-<h3 id="fixed_11">Fixed<a class="anchor" href="#fixed_11" title="Link to this section">#</a></h3>
+<h3 id="fixed_19">Fixed<a class="anchor" href="#fixed_19" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Safety gate now fails <em>closed</em> on an indeterminate git state.</strong> <code>has_uncommitted_changes</code> and the
   branch/HEAD reads in the sync core swallowed errors and returned a permissive default, so a failed,
@@ -844,11 +1338,11 @@ real one; this release closes them.</p>
 <h3 id="security">Security<a class="anchor" href="#security" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>.dockerignore</code> now excludes the gitignored local config/secret files</strong> (<code>.gitlab_sync.ini</code>,
-  <code>.contextlake.ini</code>, <code>.contextlake.kb.toml</code>, <code>.publish-denylist</code>) so a local <code>docker build .</code>
+  <code>.contextlake.ini</code>, <code>.contextlake.kb.toml</code>) so a local <code>docker build .</code>
   can't bake them into an image. The published image is unaffected (built from a clean checkout).</li>
 </ul>
 <h2 id="280-2026-06-26">[2.8.0] - 2026-06-26<a class="anchor" href="#280-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="added_34">Added<a class="anchor" href="#added_34" title="Link to this section">#</a></h3>
+<h3 id="added_38">Added<a class="anchor" href="#added_38" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Definitions now capture their docstring + signature</strong> (on node <code>attrs</code>: <code>doc</code>, <code>signature</code>),
   <strong>surfaced through the MCP <code>NodeOut</code></strong> (<code>get_node</code> / <code>find_definition</code> / neighbors etc. now return
@@ -859,7 +1353,7 @@ real one; this release closes them.</p>
   <strong>JSDoc</strong> (<code>/** */</code>), and <strong>C# XML</strong> (<code>///</code>) leading doc-comments (plain comments are ignored).</li>
 </ul>
 <h2 id="270-2026-06-26">[2.7.0] - 2026-06-26<a class="anchor" href="#270-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="added_35">Added<a class="anchor" href="#added_35" title="Link to this section">#</a></h3>
+<h3 id="added_39">Added<a class="anchor" href="#added_39" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>MCP: <code>repo_event_flow(repo, direction, limit)</code></strong>, repo→repo <strong>event</strong> flow (who publishes events
   that whom consumes), from the topic two-hop (<code>publishes_event ⨝ consumes_event</code>). Completes the
@@ -879,21 +1373,17 @@ real one; this release closes them.</p>
 <h2 id="260-2026-06-26">[2.6.0] - 2026-06-26<a class="anchor" href="#260-2026-06-26" title="Link to this section">#</a></h2>
 <h3 id="security_1">Security<a class="anchor" href="#security_1" title="Link to this section">#</a></h3>
 <ul>
-<li><strong>Publish guard hardened, local publish hygiene hardened.</strong> The private token denylist used to be
-  hardcoded in the test file (for local pre-publish checks). It now lives
-  <strong>outside the repo</strong>, supplied via the <code>CONTEXTLAKE_PUBLISH_DENYLIST</code> env var or a git-ignored
-  <code>.publish-denylist</code> file (CI uses a secret), so no real token is ever committed. The scan also
-  now covers <strong>every git-tracked file</strong> (not a fixed list), and an always-on structural check rejects
-  any non-allowlisted email address even when no denylist is configured.</li>
-<li><strong>Removed example figures from docs.</strong> Genericized specific fleet counts (the example
-  <code>status</code> output, the overview-feature notes) to illustrative values, so nothing in the published repo
-  is tied to any particular deployment's repository count.</li>
+<li><strong>Local development hygiene.</strong> Secret and machine-specific tokens used by local
+  pre-publish checks are read from the environment or a git-ignored file, never
+  committed to the repository.</li>
+<li><strong>Genericized example figures in the docs.</strong> The example <code>status</code> output and the
+  overview-feature notes use illustrative values.</li>
 <li><strong>Test-locked the offline boundary (INV-2).</strong> A new test blocks all outbound sockets and asserts the
   core commands (<code>index</code>/<code>query</code>/<code>graph</code>/<code>lint</code>/<code>embed</code>) still run, while <code>connect</code> degrades rather than
   fails, proving contextlake is safe in air-gapped/egress-restricted environments, with enrichment the
   single opt-in online step. Documented in <code>docs/storage.md</code>.</li>
 </ul>
-<h3 id="added_36">Added<a class="anchor" href="#added_36" title="Link to this section">#</a></h3>
+<h3 id="added_40">Added<a class="anchor" href="#added_40" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>eval</code> now scores any retriever and reports a cost dimension.</strong> Retrievers are built by factories
   (<code>make_fts_retriever</code> / <code>make_semantic_retriever</code> / <code>make_hybrid_retriever</code>) that close over their
@@ -904,21 +1394,21 @@ real one; this release closes them.</p>
   <code>examples/fixtures/golden-queries.json</code>.</li>
 </ul>
 <h2 id="251-2026-06-26">[2.5.1] - 2026-06-26<a class="anchor" href="#251-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_12">Fixed<a class="anchor" href="#fixed_12" title="Link to this section">#</a></h3>
+<h3 id="fixed_20">Fixed<a class="anchor" href="#fixed_20" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README logo now renders on PyPI.</strong> The header glyph used a repo-relative <code>src</code>, which PyPI can't
   resolve (it doesn't host the repo files), so it showed as a broken image on the project page. Pointed
   it at the absolute <code>raw.githubusercontent.com</code> URL (correct <code>image/svg+xml</code> content-type, verified
   through PyPI's own <code>readme_renderer</code>). Badges were already absolute.</li>
 </ul>
-<h3 id="changed_14">Changed<a class="anchor" href="#changed_14" title="Link to this section">#</a></h3>
+<h3 id="changed_16">Changed<a class="anchor" href="#changed_16" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Docs reconciled with the shipped MCP surface.</strong> <code>docs/knowledge-layer.md</code> now lists the cross-repo
   tools (<code>repo_dependencies</code>, <code>repo_flow</code>, <code>blast_radius</code>, <code>get_wiki</code>) alongside the existing graph
   tools, and the README command table documents <code>eval</code> (the golden-query retrieval-quality harness).</li>
 </ul>
 <h2 id="250-2026-06-26">[2.5.0] - 2026-06-26<a class="anchor" href="#250-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="added_37">Added<a class="anchor" href="#added_37" title="Link to this section">#</a></h3>
+<h3 id="added_41">Added<a class="anchor" href="#added_41" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>[kb-full]</code> one-step install for local semantic search</strong>, <code>pip install "contextlake[kb-full]"</code>
   pulls the knowledge layer + the built-in CPU embedder (<code>kb-local</code>) + the sqlite-vec ANN backend
@@ -955,7 +1445,7 @@ real one; this release closes them.</p>
   <code>truncated</code> when capped), an impact slice for agents, made correct by the AMBIGUOUS-edge change
   below so the hottest symbols aren't missed.</li>
 </ul>
-<h3 id="changed_15">Changed<a class="anchor" href="#changed_15" title="Link to this section">#</a></h3>
+<h3 id="changed_17">Changed<a class="anchor" href="#changed_17" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>embed</code>'s "disabled" message is now actionable.</strong> Instead of the dead-end "Embeddings are
   disabled", it names the exact next step, install <code>contextlake[kb-full]</code> (when the embedder is
@@ -979,7 +1469,7 @@ real one; this release closes them.</p>
   blast-radius isn't undercounted. Names matching more than the cap are too generic to be signal and
   are still skipped. AMBIGUOUS edges render dotted in the visualizer.</li>
 </ul>
-<h3 id="added_38">Added<a class="anchor" href="#added_38" title="Link to this section">#</a></h3>
+<h3 id="added_42">Added<a class="anchor" href="#added_42" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake eval --golden FILE.json</code>, a retrieval-quality harness.</strong> Score a labelled
   <code>query → expected-nodes</code> set against the index and get <strong>precision@k / recall@k / MRR / hit-rate</strong>
@@ -995,7 +1485,7 @@ real one; this release closes them.</p>
   config-variable topics are an honest undercount, never a false link. Re-run <code>index</code> to populate.</li>
 </ul>
 <h2 id="240-2026-06-25">[2.4.0] - 2026-06-25<a class="anchor" href="#240-2026-06-25" title="Link to this section">#</a></h2>
-<h3 id="added_39">Added<a class="anchor" href="#added_39" title="Link to this section">#</a></h3>
+<h3 id="added_43">Added<a class="anchor" href="#added_43" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>MCP: repo-level architecture tools <code>repo_dependencies</code> / <code>repo_flow</code>.</strong> Surface the cross-repo
   wedge to AI agents: <code>repo_dependencies(repo, direction)</code> returns the package two-hop
@@ -1021,7 +1511,7 @@ real one; this release closes them.</p>
   params → <code>{}</code>, trivially-generic paths dropped) so unrelated repos don't falsely link. Re-run
   <code>index</code> / <code>bootstrap</code> to populate. Event/messaging flow (SNS/SQS/EventBridge/Kafka) is the next slice.</li>
 </ul>
-<h3 id="changed_16">Changed<a class="anchor" href="#changed_16" title="Link to this section">#</a></h3>
+<h3 id="changed_18">Changed<a class="anchor" href="#changed_18" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>MCP: result budgeting on <code>get_neighbors</code> / <code>find_callers</code> / <code>find_dependents</code>.</strong> They now take a
   <code>limit</code> (default 50), order EXTRACTED-first, and return <code>{..., total, truncated}</code> instead of an
@@ -1032,7 +1522,7 @@ real one; this release closes them.</p>
   the command happened to run. Pass <code>--output</code> / <code>--site DIR</code> to override.</li>
 </ul>
 <h2 id="230-2026-06-24">[2.3.0] - 2026-06-24<a class="anchor" href="#230-2026-06-24" title="Link to this section">#</a></h2>
-<h3 id="added_40">Added<a class="anchor" href="#added_40" title="Link to this section">#</a></h3>
+<h3 id="added_44">Added<a class="anchor" href="#added_44" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Two interlocking overview views, a <code>Namespace</code> mindmap and a <code>Dependencies</code> graph.</strong> The fleet
   overview now has a mode toggle over one graph. <strong>Namespace</strong> (default) collapses the whole repo fleet
@@ -1044,7 +1534,7 @@ real one; this release closes them.</p>
 <li><strong>Inspector lists a node's relationships</strong>, each neighbour clickable to navigate to it (in-view
   hop-to-hop). Tapping a node/edge reframes the canvas onto the selection so it stays legible.</li>
 </ul>
-<h3 id="changed_17">Changed<a class="anchor" href="#changed_17" title="Link to this section">#</a></h3>
+<h3 id="changed_19">Changed<a class="anchor" href="#changed_19" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Graph visualizer reworked into an enterprise app shell.</strong> The floating translucent cards are
   replaced by a real layout, a top bar (brand, mode, search), a collapsible left sidebar (view
@@ -1062,7 +1552,7 @@ real one; this release closes them.</p>
   like the vendored cytoscape), so the source is lint/<code>node --check</code>-able. Output is still one
   self-contained offline HTML.</li>
 </ul>
-<h3 id="fixed_13">Fixed<a class="anchor" href="#fixed_13" title="Link to this section">#</a></h3>
+<h3 id="fixed_21">Fixed<a class="anchor" href="#fixed_21" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Truncation is now visible in the UI.</strong> A bounded subgraph that was clipped used to read as
   complete; a persistent status-bar banner now says "showing N of M, truncated" (honest counts only).</li>
@@ -1075,7 +1565,7 @@ real one; this release closes them.</p>
   zoom/pan). Dark-mode faded opacity and <code>prefers-reduced-motion</code> gating for JS animations.</li>
 </ul>
 <h2 id="220-2026-06-23">[2.2.0] - 2026-06-23<a class="anchor" href="#220-2026-06-23" title="Link to this section">#</a></h2>
-<h3 id="added_41">Added<a class="anchor" href="#added_41" title="Link to this section">#</a></h3>
+<h3 id="added_45">Added<a class="anchor" href="#added_45" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>Post-sync repo audit (<code>contextlake audit</code>, also auto-runs after <code>sync</code>/<code>bootstrap</code>).</strong> Scans every
@@ -1120,7 +1610,7 @@ real one; this release closes them.</p>
 </li>
 </ul>
 <h2 id="216-2026-06-23">[2.1.6] - 2026-06-23<a class="anchor" href="#216-2026-06-23" title="Link to this section">#</a></h2>
-<h3 id="fixed_14">Fixed<a class="anchor" href="#fixed_14" title="Link to this section">#</a></h3>
+<h3 id="fixed_22">Fixed<a class="anchor" href="#fixed_22" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Quadratic indexing slowdown at scale (the real fix for "indexing got slower the more repos I
   had").</strong> Each node was refreshed in the full-text index with a per-row <code>DELETE FROM node_fts WHERE
@@ -1130,7 +1620,7 @@ real one; this release closes them.</p>
   Re-indexing a repo into a 23k-node store dropped from <strong>6.5s to 0.11s (≈59×)</strong> and is now flat
   regardless of store size; the FTS contents are byte-for-byte identical.</li>
 </ul>
-<h3 id="added_42">Added<a class="anchor" href="#added_42" title="Link to this section">#</a></h3>
+<h3 id="added_46">Added<a class="anchor" href="#added_46" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Parallel repository indexing.</strong> <code>contextlake index --workspace</code> (and <code>bootstrap</code>) now parse
   repositories across worker processes (CPU-bound work), persisting to SQLite serially from the
@@ -1140,7 +1630,7 @@ real one; this release closes them.</p>
   fix above in place, a full warm re-index of a 33-repo subtree dropped from ~8.8s (serial) to ~3.1s
   (8 workers, ≈2.9×); the parse speedup grows with both repo count and core count.</li>
 </ul>
-<h3 id="changed_18">Changed<a class="anchor" href="#changed_18" title="Link to this section">#</a></h3>
+<h3 id="changed_20">Changed<a class="anchor" href="#changed_20" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Indexing skips generated/derived files and oversized blobs (configurable, logged).</strong> The code
   graph no longer indexes machine-generated files (<code>*.designer.cs</code>, <code>*.min.js</code>, <code>AssemblyInfo.cs</code>,
@@ -1151,7 +1641,7 @@ real one; this release closes them.</p>
   legacy repo this dropped ~26% of files / 4k generated nodes (22.5s → 16.6s).</li>
 </ul>
 <h2 id="215-2026-06-23">[2.1.5] - 2026-06-23<a class="anchor" href="#215-2026-06-23" title="Link to this section">#</a></h2>
-<h3 id="added_43">Added<a class="anchor" href="#added_43" title="Link to this section">#</a></h3>
+<h3 id="added_47">Added<a class="anchor" href="#added_47" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Built-in, zero-config CPU models for the knowledge base, no Ollama and no API key.</strong>
   The embeddings and wiki tiers now accept <code>provider = "auto"</code> (the new default), which uses a
@@ -1167,7 +1657,7 @@ real one; this release closes them.</p>
   models</strong>, so <code>docker run … contextlake bootstrap</code> works with zero config / offline.</li>
 </ul>
 <h2 id="214-2026-06-22">[2.1.4] - 2026-06-22<a class="anchor" href="#214-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_19">Changed<a class="anchor" href="#changed_19" title="Link to this section">#</a></h3>
+<h3 id="changed_21">Changed<a class="anchor" href="#changed_21" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>bootstrap</code>'s "knowledge layer not installed" message is now actionable.</strong> It prints the exact
   Python interpreter in use and flags the common cause, running the bare <code>./contextlake.py</code>
@@ -1175,7 +1665,7 @@ real one; this release closes them.</p>
   command for that interpreter and the venv alternative (<code>./.venv/bin/contextlake bootstrap</code>).</li>
 </ul>
 <h2 id="213-2026-06-22">[2.1.3] - 2026-06-22<a class="anchor" href="#213-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_20">Changed<a class="anchor" href="#changed_20" title="Link to this section">#</a></h3>
+<h3 id="changed_22">Changed<a class="anchor" href="#changed_22" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Sync is far more resilient to flaky networks and moved branches.</strong> <code>update</code> and <code>branches</code>
   now <strong>retry transient proxy/network drops</strong> (e.g. <code>unexpected eof</code>, <code>connection reset</code>) with
@@ -1187,19 +1677,19 @@ real one; this release closes them.</p>
   "errors" are real and few.</li>
 </ul>
 <h2 id="212-2026-06-22">[2.1.2] - 2026-06-22<a class="anchor" href="#212-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_44">Added<a class="anchor" href="#added_44" title="Link to this section">#</a></h3>
+<h3 id="added_48">Added<a class="anchor" href="#added_48" title="Link to this section">#</a></h3>
 <ul>
 <li>The release workflow now also <strong>publishes a GitHub Release</strong> on each <code>vX.Y.Z</code> tag, with notes
   pulled from this changelog and the built sdist + wheel attached.</li>
 </ul>
-<h3 id="changed_21">Changed<a class="anchor" href="#changed_21" title="Link to this section">#</a></h3>
+<h3 id="changed_23">Changed<a class="anchor" href="#changed_23" title="Link to this section">#</a></h3>
 <ul>
 <li>Adopt the SPDX <strong><code>license = "MIT"</code></strong> form (PEP 639) and drop the deprecated <code>License ::</code>
   classifier, silences the setuptools deprecation warnings emitted during the build. Building
   from source now needs <code>setuptools &gt;= 77</code>.</li>
 </ul>
 <h2 id="211-2026-06-22">[2.1.1] - 2026-06-22<a class="anchor" href="#211-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_45">Added<a class="anchor" href="#added_45" title="Link to this section">#</a></h3>
+<h3 id="added_49">Added<a class="anchor" href="#added_49" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Maintainer release runbook</strong> at <code>docs/releasing.md</code> (versioning → tag → build → publish to
   PyPI, with first-token and TLS-proxy troubleshooting) and a <code>release</code> extra
@@ -1209,7 +1699,7 @@ real one; this release closes them.</p>
   using PyPI Trusted Publishing (OIDC), no stored API token.</li>
 </ul>
 <h2 id="210-2026-06-22">[2.1.0] - 2026-06-22<a class="anchor" href="#210-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_46">Added<a class="anchor" href="#added_46" title="Link to this section">#</a></h3>
+<h3 id="added_50">Added<a class="anchor" href="#added_50" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Cleaner terminal output: the timestamp moves to the right edge.</strong> On an interactive
   terminal each line now shows the message on the left with a dim <code>HH:MM:SS</code> clock flushed
@@ -1219,7 +1709,7 @@ real one; this release closes them.</p>
   <strong>log file keep the full <code>[YYYY-MM-DD HH:MM:SS]</code> prefix</strong> unchanged, so the audit trail is
   untouched.</li>
 </ul>
-<h3 id="changed_22">Changed<a class="anchor" href="#changed_22" title="Link to this section">#</a></h3>
+<h3 id="changed_24">Changed<a class="anchor" href="#changed_24" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Branch name alone no longer causes an <code>update</code> to be skipped.</strong> A repo with a clean
   working tree is now fetched and fast-forwarded on whatever branch it is checked out on, 
@@ -1230,7 +1720,7 @@ real one; this release closes them.</p>
   any branch outside <code>safe_branches</code> was skipped outright.</li>
 </ul>
 <h2 id="201-2026-06-22">[2.0.1] - 2026-06-22<a class="anchor" href="#201-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_23">Changed<a class="anchor" href="#changed_23" title="Link to this section">#</a></h3>
+<h3 id="changed_25">Changed<a class="anchor" href="#changed_25" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Clearer config-not-found warning.</strong> When <code>gitlab_group</code> is still the placeholder, the
   warning now lists the exact files searched (absolute paths, with <code>[found]</code>/<code>[absent]</code>) and
@@ -1238,7 +1728,7 @@ real one; this release closes them.</p>
   placed next to the example in the repo but run from elsewhere is no longer a silent miss.</li>
 </ul>
 <h2 id="200-2026-06-22">[2.0.0] - 2026-06-22<a class="anchor" href="#200-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_24">Changed<a class="anchor" href="#changed_24" title="Link to this section">#</a></h3>
+<h3 id="changed_26">Changed<a class="anchor" href="#changed_26" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Renamed the project <code>gitlab-sync</code> → <code>contextlake</code>.</strong> The tool grew from a GitLab
   mirror into a local <em>context layer</em> for AI tools, and the name now reflects that. This
@@ -1260,12 +1750,12 @@ real one; this release closes them.</p>
   repository is renamed on GitHub (the old URL auto-redirects).</li>
 </ul>
 <h2 id="1181-2026-06-22">[1.18.1] - 2026-06-22<a class="anchor" href="#1181-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_25">Changed<a class="anchor" href="#changed_25" title="Link to this section">#</a></h3>
+<h3 id="changed_27">Changed<a class="anchor" href="#changed_27" title="Link to this section">#</a></h3>
 <ul>
 <li>Confirmed the mascot's name, <strong>Pebble</strong> the otter, in <code>BRANDING.md</code> and the mascot spec.</li>
 </ul>
 <h2 id="1180-2026-06-22">[1.18.0] - 2026-06-22<a class="anchor" href="#1180-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_47">Added<a class="anchor" href="#added_47" title="Link to this section">#</a></h3>
+<h3 id="added_51">Added<a class="anchor" href="#added_51" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Brand identity, <code>contextlake</code>.</strong> A <code>BRANDING.md</code> guide establishes the project's
   name, voice, color palette (cool lake teals + a warm "spark" of fresh context),
@@ -1276,15 +1766,13 @@ real one; this release closes them.</p>
   the package/command rename is a separate, later step.</li>
 </ul>
 <h2 id="1171-2026-06-22">[1.17.1] - 2026-06-22<a class="anchor" href="#1171-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_26">Changed<a class="anchor" href="#changed_26" title="Link to this section">#</a></h3>
+<h3 id="changed_28">Changed<a class="anchor" href="#changed_28" title="Link to this section">#</a></h3>
 <ul>
-<li>The <strong>publish guard</strong> (publish check) now scans the whole published surface
-, <code>docs/</code>, <code>examples/</code>, <code>.github/</code>, and every top-level doc, not just <code>src/</code> and a
-  handful of root files, with a regression test pinning <code>docs/</code> coverage. (<code>tests/</code>
-  stays excluded: the guard itself contains the denylist tokens by design.)</li>
+<li>Broadened the local pre-publish checks to cover the whole tree (<code>docs/</code>,
+  <code>examples/</code>, <code>.github/</code>, and every top-level doc), not just <code>src/</code>.</li>
 </ul>
 <h2 id="1170-2026-06-22">[1.17.0] - 2026-06-22<a class="anchor" href="#1170-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_27">Changed<a class="anchor" href="#changed_27" title="Link to this section">#</a></h3>
+<h3 id="changed_29">Changed<a class="anchor" href="#changed_29" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Documentation refactored for readability.</strong> The README is now a lean ~180-line
   landing page (down from ~1,300); detailed command, configuration, branch-safety,
@@ -1294,13 +1782,13 @@ real one; this release closes them.</p>
   repetitive install/security prose.</li>
 </ul>
 <h2 id="1160-2026-06-22">[1.16.0] - 2026-06-22<a class="anchor" href="#1160-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_48">Added<a class="anchor" href="#added_48" title="Link to this section">#</a></h3>
+<h3 id="added_52">Added<a class="anchor" href="#added_52" title="Link to this section">#</a></h3>
 <ul>
 <li>A <strong>"Commands at a glance"</strong> reference table in the README covering all 17
   commands, and <code>docs/internals.md</code>, a deep-dive on the core-sync internals plus a
   new <strong>knowledge-layer architecture</strong> section.</li>
 </ul>
-<h3 id="changed_28">Changed<a class="anchor" href="#changed_28" title="Link to this section">#</a></h3>
+<h3 id="changed_30">Changed<a class="anchor" href="#changed_30" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Slimmed the README</strong> (~1,320 → ~860 lines): the deep Technical Documentation /
   architecture moved into <code>docs/internals.md</code>, and the inline version history now
@@ -1308,11 +1796,11 @@ real one; this release closes them.</p>
   no code or layout changes, which already follow standard src-layout conventions.)</li>
 </ul>
 <h2 id="1150-2026-06-22">[1.15.0] - 2026-06-22<a class="anchor" href="#1150-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_49">Added<a class="anchor" href="#added_49" title="Link to this section">#</a></h3>
+<h3 id="added_53">Added<a class="anchor" href="#added_53" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>QUICKSTART.md</strong>, a short install → <code>bootstrap</code> → wire-your-editor guide.</li>
 </ul>
-<h3 id="changed_29">Changed<a class="anchor" href="#changed_29" title="Link to this section">#</a></h3>
+<h3 id="changed_31">Changed<a class="anchor" href="#changed_31" title="Link to this section">#</a></h3>
 <ul>
 <li><code>steer</code> now <strong>enhances existing files instead of skipping them</strong>: an existing
   <code>AGENTS.md</code> / <code>CLAUDE.md</code> / <code>.windsurfrules</code> / <code>.kiro/steering</code> keeps the user's
@@ -1321,7 +1809,7 @@ real one; this release closes them.</p>
   custom layers like <code>.devin/</code> are never touched. Nothing the user wrote is deleted.</li>
 </ul>
 <h2 id="1140-2026-06-22">[1.14.0] - 2026-06-22<a class="anchor" href="#1140-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_50">Added<a class="anchor" href="#added_50" title="Link to this section">#</a></h3>
+<h3 id="added_54">Added<a class="anchor" href="#added_54" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>GitLab knowledge connector</strong>: links each repo to its open merge requests and
   issues (read through the authenticated <code>glab</code>), on the same connector seam as
@@ -1334,7 +1822,7 @@ real one; this release closes them.</p>
   knowledge layer always-fresh without disturbing in-progress work.</li>
 </ul>
 <h2 id="1130-2026-06-22">[1.13.0] - 2026-06-22<a class="anchor" href="#1130-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_51">Added<a class="anchor" href="#added_51" title="Link to this section">#</a></h3>
+<h3 id="added_55">Added<a class="anchor" href="#added_55" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Agent skills/workflows library</strong>: <code>steer</code> now also installs a built-in, generic
   library of operating skills (investigate-root-cause, plan-before-coding,
@@ -1344,7 +1832,7 @@ real one; this release closes them.</p>
   a strong operating playbook. Managed/idempotent like the other steering files.</li>
 </ul>
 <h2 id="1120-2026-06-22">[1.12.0] - 2026-06-22<a class="anchor" href="#1120-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_52">Added<a class="anchor" href="#added_52" title="Link to this section">#</a></h3>
+<h3 id="added_56">Added<a class="anchor" href="#added_56" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>bootstrap</code> command</strong>, one-command turnkey setup that chains mirror →
   index → connect → embed → wiki → steer, skipping unconfigured/disabled stages and
@@ -1353,7 +1841,7 @@ real one; this release closes them.</p>
   teammate goes from nothing to a fully-wired workspace in one step.</li>
 </ul>
 <h2 id="1110-2026-06-22">[1.11.0] - 2026-06-22<a class="anchor" href="#1110-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="added_53">Added<a class="anchor" href="#added_53" title="Link to this section">#</a></h3>
+<h3 id="added_57">Added<a class="anchor" href="#added_57" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Steering-layer generation</strong> (<code>steer</code> command): writes workspace-specific
   steering files so local AI tools pick up the knowledge graph natively, 
@@ -1363,7 +1851,7 @@ real one; this release closes them.</p>
   dependencies; it only overwrites files it manages (or with <code>--force</code>).</li>
 </ul>
 <h2 id="1100-2026-06-21">[1.10.0] - 2026-06-21<a class="anchor" href="#1100-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_54">Added<a class="anchor" href="#added_54" title="Link to this section">#</a></h3>
+<h3 id="added_58">Added<a class="anchor" href="#added_58" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>OpenAI-compatible providers</strong> for the embeddings and wiki tiers: set
   <code>provider = "openai"</code> to use any OpenAI-compatible API, a hosted key or a local
@@ -1375,20 +1863,20 @@ real one; this release closes them.</p>
   model; only semantic search needs embeddings).</li>
 </ul>
 <h2 id="191-2026-06-21">[1.9.1] - 2026-06-21<a class="anchor" href="#191-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="fixed_15">Fixed<a class="anchor" href="#fixed_15" title="Link to this section">#</a></h3>
+<h3 id="fixed_23">Fixed<a class="anchor" href="#fixed_23" title="Link to this section">#</a></h3>
 <ul>
 <li><code>serve</code> over the stdio transport wrote human-facing log lines to stdout, which is
   the MCP JSON-RPC channel, corrupting the protocol stream (clients saw spurious
   parse errors). On stdio, logs now go to stderr.</li>
 </ul>
-<h3 id="changed_30">Changed<a class="anchor" href="#changed_30" title="Link to this section">#</a></h3>
+<h3 id="changed_32">Changed<a class="anchor" href="#changed_32" title="Link to this section">#</a></h3>
 <ul>
 <li><code>index --workspace</code> is quieter by default: the per-repo "parsed/resolved" detail
   is now debug-level (show it with <code>-v</code>), leaving the clean per-repo progress bar.</li>
 <li>Added a <code>ROADMAP.md</code> listing future good-to-haves.</li>
 </ul>
 <h2 id="190-2026-06-21">[1.9.0] - 2026-06-21<a class="anchor" href="#190-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_55">Added<a class="anchor" href="#added_55" title="Link to this section">#</a></h3>
+<h3 id="added_59">Added<a class="anchor" href="#added_59" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Curated wiki tier</strong> (<code>wiki</code> command): a pluggable, local-first LLM client
   (Ollama) synthesizes a provenance-stamped Markdown page per repo, grounded
@@ -1402,7 +1890,7 @@ real one; this release closes them.</p>
   indexed commit (time-travel) without a schema overhaul.</li>
 </ul>
 <h2 id="180-2026-06-21">[1.8.0] - 2026-06-21<a class="anchor" href="#180-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_56">Added<a class="anchor" href="#added_56" title="Link to this section">#</a></h3>
+<h3 id="added_60">Added<a class="anchor" href="#added_60" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Incremental workspace indexing</strong>: <code>index --workspace</code> now re-indexes only the
   repos whose git HEAD moved since their last index (skipping unchanged ones), with
@@ -1417,7 +1905,7 @@ real one; this release closes them.</p>
   dependencies.</li>
 </ul>
 <h2 id="170-2026-06-21">[1.7.0] - 2026-06-21<a class="anchor" href="#170-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_57">Added<a class="anchor" href="#added_57" title="Link to this section">#</a></h3>
+<h3 id="added_61">Added<a class="anchor" href="#added_61" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Hybrid retrieval</strong> (<code>hybrid_search</code> MCP tool): seeds Personalized PageRank with
   the embedding hits and propagates relevance across the graph (HippoRAG-style), so
@@ -1429,7 +1917,7 @@ real one; this release closes them.</p>
   exact pure-Python cosine scan otherwise, same interface either way.</li>
 </ul>
 <h2 id="160-2026-06-21">[1.6.0] - 2026-06-21<a class="anchor" href="#160-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_58">Added<a class="anchor" href="#added_58" title="Link to this section">#</a></h3>
+<h3 id="added_62">Added<a class="anchor" href="#added_62" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Semantic-search tier (optional, local-first)</strong>: a pluggable embeddings
   provider (<code>Embedder</code> interface + config-driven factory; a stdlib-only Ollama
@@ -1439,7 +1927,7 @@ real one; this release closes them.</p>
   embeddings status.</li>
 </ul>
 <h2 id="150-2026-06-21">[1.5.0] - 2026-06-21<a class="anchor" href="#150-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="added_59">Added<a class="anchor" href="#added_59" title="Link to this section">#</a></h3>
+<h3 id="added_63">Added<a class="anchor" href="#added_63" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Figma knowledge connector</strong>: links repos to the design files they reference,
   classifying <code>figma.com</code> URLs (file/design/proto/board) to a stable file key and
@@ -1448,7 +1936,7 @@ real one; this release closes them.</p>
   Runs alongside Atlassian sources under <code>connect</code>. Connector-agnostic helpers were
   extracted to a shared module so new connectors stay small.</li>
 </ul>
-<h3 id="fixed_16">Fixed<a class="anchor" href="#fixed_16" title="Link to this section">#</a></h3>
+<h3 id="fixed_24">Fixed<a class="anchor" href="#fixed_24" title="Link to this section">#</a></h3>
 <ul>
 <li><code>link_scrape</code> association rules expressed as a <code>patterns</code> list (as in the example
   config) were silently ignored; both a singular <code>pattern</code> and a <code>patterns</code> list
@@ -1460,7 +1948,7 @@ Python ≥ 3.10) that turns the mirrored repositories into a queryable knowledge
 graph served to AI agents over MCP. The core sync tool is unchanged and the extra
 is entirely opt-in. Everything is generic and config-driven, no
 private data lives in the package.</p>
-<h3 id="added_60">Added<a class="anchor" href="#added_60" title="Link to this section">#</a></h3>
+<h3 id="added_64">Added<a class="anchor" href="#added_64" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Knowledge-graph store and CLI</strong>: <code>index</code>, <code>query</code>, <code>serve</code>, and <code>doctor</code>
   commands backed by a SQLite + FTS5 cross-repo index with per-repo JSON shards.
@@ -1487,14 +1975,13 @@ private data lives in the package.</p>
   location, languages, knowledge sources, and association rules, all
   deployment-specific facts live here, never in the package.</li>
 <li>CI now runs a separate knowledge-layer job (Python 3.10-3.13) alongside the
-  core job, including a publish guard that fails the build if secrets
-  appears in the source.</li>
+  core job.</li>
 </ul>
 <h2 id="130-2026-06-21">[1.3.0] - 2026-06-21<a class="anchor" href="#130-2026-06-21" title="Link to this section">#</a></h2>
 <p>This release stabilizes the core and makes the tool installable. It repairs
 several regressions introduced by the earlier modularization and fixes a
 critical configuration bug.</p>
-<h3 id="fixed_17">Fixed<a class="anchor" href="#fixed_17" title="Link to this section">#</a></h3>
+<h3 id="fixed_25">Fixed<a class="anchor" href="#fixed_25" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Critical:</strong> repositories were keyed by their full <code>&lt;group&gt;/...</code> path while
   local clones mirror the tree <em>below</em> the group, so every repo was misreported
@@ -1527,7 +2014,7 @@ critical configuration bug.</p>
 <li>Corrupted (non-git) target directories are detected and re-cloned again
   (honouring <code>--clean-corrupted</code>); cloning prefers <code>glab</code> for authentication.</li>
 </ul>
-<h3 id="added_61">Added<a class="anchor" href="#added_61" title="Link to this section">#</a></h3>
+<h3 id="added_65">Added<a class="anchor" href="#added_65" title="Link to this section">#</a></h3>
 <ul>
 <li>Installable package with a <code>gitlab-sync</code> console entry point, <code>python -m
   gitlab_sync</code>, and the bare <code>python3 gitlab_sync.py</code> script (src layout).</li>
@@ -1540,13 +2027,13 @@ critical configuration bug.</p>
 <li>A pytest test suite (68 tests) with fakes for <code>git</code>/<code>glab</code>, and GitHub Actions
   CI running ruff + pytest on Python 3.9-3.14.</li>
 </ul>
-<h3 id="changed_31">Changed<a class="anchor" href="#changed_31" title="Link to this section">#</a></h3>
+<h3 id="changed_33">Changed<a class="anchor" href="#changed_33" title="Link to this section">#</a></h3>
 <ul>
 <li>Code modularized into a <code>gitlab_sync</code> package: <code>cli.py</code>, <code>core.py</code>,
   <code>config.py</code>, <code>safety.py</code>, <code>logging_setup.py</code>.</li>
 </ul>
 <h2 id="120-2026-06-16">[1.2.0] - 2026-06-16<a class="anchor" href="#120-2026-06-16" title="Link to this section">#</a></h2>
-<h3 id="added_62">Added<a class="anchor" href="#added_62" title="Link to this section">#</a></h3>
+<h3 id="added_66">Added<a class="anchor" href="#added_66" title="Link to this section">#</a></h3>
 <ul>
 <li>Branch safety checks to protect working branches from sync conflicts</li>
 <li>Workspace protection requiring clean workspace before operations</li>
@@ -1561,12 +2048,12 @@ critical configuration bug.</p>
 <li>Adaptive worker pool for dynamic parallelism</li>
 <li>Comprehensive branch safety documentation in README</li>
 </ul>
-<h3 id="changed_32">Changed<a class="anchor" href="#changed_32" title="Link to this section">#</a></h3>
+<h3 id="changed_34">Changed<a class="anchor" href="#changed_34" title="Link to this section">#</a></h3>
 <ul>
 <li>Updated README with branch safety section including scenarios and examples</li>
 </ul>
 <h2 id="110-2026-05-24">[1.1.0] - 2026-05-24<a class="anchor" href="#110-2026-05-24" title="Link to this section">#</a></h2>
-<h3 id="added_63">Added<a class="anchor" href="#added_63" title="Link to this section">#</a></h3>
+<h3 id="added_67">Added<a class="anchor" href="#added_67" title="Link to this section">#</a></h3>
 <ul>
 <li>INI-based configuration file support</li>
 <li>Local and global config file support</li>
@@ -1578,13 +2065,13 @@ critical configuration bug.</p>
 <li>Adaptive worker pool for dynamic parallelism</li>
 <li>Enhanced error classification for better retry strategies</li>
 </ul>
-<h3 id="changed_33">Changed<a class="anchor" href="#changed_33" title="Link to this section">#</a></h3>
+<h3 id="changed_35">Changed<a class="anchor" href="#changed_35" title="Link to this section">#</a></h3>
 <ul>
 <li>Removed all hardcoded company/personal identifiers</li>
 <li>Configuration files can be excluded from version control</li>
 </ul>
 <h2 id="100-2026-05-10">[1.0.0] - 2026-05-10<a class="anchor" href="#100-2026-05-10" title="Link to this section">#</a></h2>
-<h3 id="added_64">Added<a class="anchor" href="#added_64" title="Link to this section">#</a></h3>
+<h3 id="added_68">Added<a class="anchor" href="#added_68" title="Link to this section">#</a></h3>
 <ul>
 <li>Full synchronization pipeline</li>
 <li>Branch management with automatic active branch detection</li>
@@ -1597,361 +2084,406 @@ critical configuration bug.</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#unreleased">[Unreleased]</a></li>
-<li><a href="#2440-2026-07-23">[2.44.0] - 2026-07-23</a><ul>
+<li><a href="#2510-2026-07-26">[2.51.0] - 2026-07-26</a><ul>
 <li><a href="#added">Added</a></li>
+<li><a href="#fixed">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2500-2026-07-26">[2.50.0] - 2026-07-26</a><ul>
+<li><a href="#added_1">Added</a></li>
+<li><a href="#fixed_1">Fixed</a></li>
 <li><a href="#changed">Changed</a></li>
 </ul>
 </li>
-<li><a href="#2430-2026-07-22">[2.43.0] - 2026-07-22</a><ul>
-<li><a href="#added_1">Added</a></li>
+<li><a href="#2490-2026-07-26">[2.49.0] - 2026-07-26</a><ul>
+<li><a href="#removed">Removed</a></li>
+</ul>
+</li>
+<li><a href="#2482-2026-07-26">[2.48.2] - 2026-07-26</a><ul>
+<li><a href="#fixed_2">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2481-2026-07-26">[2.48.1] - 2026-07-26</a><ul>
+<li><a href="#fixed_3">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2480-2026-07-26">[2.48.0] - 2026-07-26</a><ul>
+<li><a href="#added_2">Added</a></li>
+<li><a href="#fixed_4">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2470-2026-07-25">[2.47.0] - 2026-07-25</a><ul>
+<li><a href="#breaking">BREAKING</a></li>
+</ul>
+</li>
+<li><a href="#2460-2026-07-25">[2.46.0] - 2026-07-25</a><ul>
+<li><a href="#added_3">Added</a></li>
+<li><a href="#fixed_5">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2451-2026-07-25">[2.45.1] - 2026-07-25</a><ul>
+<li><a href="#fixed_6">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2450-2026-07-25">[2.45.0] - 2026-07-25</a><ul>
+<li><a href="#fixed_7">Fixed</a></li>
 <li><a href="#changed_1">Changed</a></li>
 </ul>
 </li>
-<li><a href="#2420-2026-07-21">[2.42.0] - 2026-07-21</a><ul>
-<li><a href="#fixed">Fixed</a></li>
-<li><a href="#added_2">Added</a></li>
-</ul>
-</li>
-<li><a href="#2410-2026-07-21">[2.41.0] - 2026-07-21</a><ul>
-<li><a href="#added_3">Added</a></li>
-</ul>
-</li>
-<li><a href="#2400-2026-07-20">[2.40.0] - 2026-07-20</a><ul>
+<li><a href="#2440-2026-07-23">[2.44.0] - 2026-07-23</a><ul>
 <li><a href="#added_4">Added</a></li>
+<li><a href="#changed_2">Changed</a></li>
 </ul>
 </li>
-<li><a href="#2390-2026-07-20">[2.39.0] - 2026-07-20</a><ul>
+<li><a href="#2430-2026-07-22">[2.43.0] - 2026-07-22</a><ul>
 <li><a href="#added_5">Added</a></li>
+<li><a href="#changed_3">Changed</a></li>
 </ul>
 </li>
-<li><a href="#2380-2026-07-20">[2.38.0] - 2026-07-20</a><ul>
+<li><a href="#2420-2026-07-21">[2.42.0] - 2026-07-21</a><ul>
+<li><a href="#fixed_8">Fixed</a></li>
 <li><a href="#added_6">Added</a></li>
 </ul>
 </li>
-<li><a href="#2370-2026-07-08">[2.37.0] - 2026-07-08</a><ul>
+<li><a href="#2410-2026-07-21">[2.41.0] - 2026-07-21</a><ul>
 <li><a href="#added_7">Added</a></li>
-<li><a href="#fixed_1">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2400-2026-07-20">[2.40.0] - 2026-07-20</a><ul>
+<li><a href="#added_8">Added</a></li>
+</ul>
+</li>
+<li><a href="#2390-2026-07-20">[2.39.0] - 2026-07-20</a><ul>
+<li><a href="#added_9">Added</a></li>
+</ul>
+</li>
+<li><a href="#2380-2026-07-20">[2.38.0] - 2026-07-20</a><ul>
+<li><a href="#added_10">Added</a></li>
+</ul>
+</li>
+<li><a href="#2370-2026-07-08">[2.37.0] - 2026-07-08</a><ul>
+<li><a href="#added_11">Added</a></li>
+<li><a href="#fixed_9">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2360-2026-07-08">[2.36.0] - 2026-07-08</a><ul>
-<li><a href="#added_8">Added</a></li>
+<li><a href="#added_12">Added</a></li>
 <li><a href="#documentation">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2350-2026-07-08">[2.35.0] - 2026-07-08</a><ul>
-<li><a href="#added_9">Added</a></li>
-<li><a href="#changed_2">Changed</a></li>
-<li><a href="#fixed_2">Fixed</a></li>
+<li><a href="#added_13">Added</a></li>
+<li><a href="#changed_4">Changed</a></li>
+<li><a href="#fixed_10">Fixed</a></li>
 <li><a href="#documentation_1">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2340-2026-07-07">[2.34.0] - 2026-07-07</a><ul>
-<li><a href="#added_10">Added</a></li>
-<li><a href="#changed_3">Changed</a></li>
-<li><a href="#fixed_3">Fixed</a></li>
+<li><a href="#added_14">Added</a></li>
+<li><a href="#changed_5">Changed</a></li>
+<li><a href="#fixed_11">Fixed</a></li>
 <li><a href="#documentation_2">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2332-2026-07-06">[2.33.2] - 2026-07-06</a></li>
 <li><a href="#2331-2026-07-06">[2.33.1] - 2026-07-06</a><ul>
-<li><a href="#fixed_4">Fixed</a></li>
+<li><a href="#fixed_12">Fixed</a></li>
 <li><a href="#documentation_3">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2330-2026-07-06">[2.33.0] - 2026-07-06</a><ul>
-<li><a href="#added_11">Added</a></li>
-<li><a href="#changed_4">Changed</a></li>
-<li><a href="#added_12">Added</a></li>
-<li><a href="#fixed_5">Fixed</a></li>
+<li><a href="#added_15">Added</a></li>
+<li><a href="#changed_6">Changed</a></li>
+<li><a href="#added_16">Added</a></li>
+<li><a href="#fixed_13">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2300-2026-07-06">[2.30.0] - 2026-07-06</a><ul>
-<li><a href="#added_13">Added</a></li>
-<li><a href="#added_14">Added</a></li>
-</ul>
-</li>
-<li><a href="#2280-2026-07-06">[2.28.0] - 2026-07-06</a><ul>
-<li><a href="#changed_5">Changed</a></li>
-</ul>
-</li>
-<li><a href="#2270-2026-07-06">[2.27.0] - 2026-07-06</a><ul>
-<li><a href="#added_15">Added</a></li>
-</ul>
-</li>
-<li><a href="#2260-2026-07-06">[2.26.0] - 2026-07-06</a><ul>
-<li><a href="#added_16">Added</a></li>
-</ul>
-</li>
-<li><a href="#2250-2026-07-02">[2.25.0] - 2026-07-02</a><ul>
 <li><a href="#added_17">Added</a></li>
-</ul>
-</li>
-<li><a href="#2240-2026-07-02">[2.24.0] - 2026-07-02</a><ul>
 <li><a href="#added_18">Added</a></li>
 </ul>
 </li>
-<li><a href="#2230-2026-07-02">[2.23.0] - 2026-07-02</a><ul>
-<li><a href="#added_19">Added</a></li>
-<li><a href="#changed_6">Changed</a></li>
-</ul>
-</li>
-<li><a href="#2220-2026-07-02">[2.22.0] - 2026-07-02</a><ul>
-<li><a href="#added_20">Added</a></li>
+<li><a href="#2280-2026-07-06">[2.28.0] - 2026-07-06</a><ul>
 <li><a href="#changed_7">Changed</a></li>
 </ul>
 </li>
-<li><a href="#2210-2026-07-02">[2.21.0] - 2026-07-02</a><ul>
-<li><a href="#fixed_6">Fixed</a></li>
-<li><a href="#added_21">Added</a></li>
-<li><a href="#changed_8">Changed</a></li>
+<li><a href="#2270-2026-07-06">[2.27.0] - 2026-07-06</a><ul>
+<li><a href="#added_19">Added</a></li>
 </ul>
 </li>
-<li><a href="#2201-2026-07-01">[2.20.1] - 2026-07-01</a><ul>
-<li><a href="#fixed_7">Fixed</a></li>
+<li><a href="#2260-2026-07-06">[2.26.0] - 2026-07-06</a><ul>
+<li><a href="#added_20">Added</a></li>
+</ul>
+</li>
+<li><a href="#2250-2026-07-02">[2.25.0] - 2026-07-02</a><ul>
+<li><a href="#added_21">Added</a></li>
+</ul>
+</li>
+<li><a href="#2240-2026-07-02">[2.24.0] - 2026-07-02</a><ul>
 <li><a href="#added_22">Added</a></li>
 </ul>
 </li>
-<li><a href="#2200-2026-06-30">[2.20.0] - 2026-06-30</a><ul>
+<li><a href="#2230-2026-07-02">[2.23.0] - 2026-07-02</a><ul>
 <li><a href="#added_23">Added</a></li>
-<li><a href="#fixed_8">Fixed</a></li>
+<li><a href="#changed_8">Changed</a></li>
+</ul>
+</li>
+<li><a href="#2220-2026-07-02">[2.22.0] - 2026-07-02</a><ul>
+<li><a href="#added_24">Added</a></li>
 <li><a href="#changed_9">Changed</a></li>
 </ul>
 </li>
-<li><a href="#2192-2026-06-28">[2.19.2] - 2026-06-28</a><ul>
-<li><a href="#fixed_9">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#2191-2026-06-28">[2.19.1] - 2026-06-28</a><ul>
-<li><a href="#fixed_10">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#2190-2026-06-28">[2.19.0] - 2026-06-28</a><ul>
-<li><a href="#added_24">Added</a></li>
-</ul>
-</li>
-<li><a href="#2180-2026-06-28">[2.18.0] - 2026-06-28</a><ul>
+<li><a href="#2210-2026-07-02">[2.21.0] - 2026-07-02</a><ul>
+<li><a href="#fixed_14">Fixed</a></li>
 <li><a href="#added_25">Added</a></li>
-</ul>
-</li>
-<li><a href="#2170-2026-06-28">[2.17.0] - 2026-06-28</a><ul>
-<li><a href="#added_26">Added</a></li>
-</ul>
-</li>
-<li><a href="#2160-2026-06-28">[2.16.0] - 2026-06-28</a><ul>
-<li><a href="#added_27">Added</a></li>
-</ul>
-</li>
-<li><a href="#2150-2026-06-28">[2.15.0] - 2026-06-28</a><ul>
-<li><a href="#added_28">Added</a></li>
-</ul>
-</li>
-<li><a href="#2140-2026-06-28">[2.14.0] - 2026-06-28</a><ul>
-<li><a href="#added_29">Added</a></li>
-</ul>
-</li>
-<li><a href="#2130-2026-06-28">[2.13.0] - 2026-06-28</a><ul>
-<li><a href="#added_30">Added</a></li>
-</ul>
-</li>
-<li><a href="#2120-2026-06-28">[2.12.0] - 2026-06-28</a><ul>
-<li><a href="#added_31">Added</a></li>
-</ul>
-</li>
-<li><a href="#2110-2026-06-28">[2.11.0] - 2026-06-28</a><ul>
 <li><a href="#changed_10">Changed</a></li>
 </ul>
 </li>
-<li><a href="#2100-2026-06-28">[2.10.0] - 2026-06-28</a><ul>
-<li><a href="#added_32">Added</a></li>
+<li><a href="#2201-2026-07-01">[2.20.1] - 2026-07-01</a><ul>
+<li><a href="#fixed_15">Fixed</a></li>
+<li><a href="#added_26">Added</a></li>
+</ul>
+</li>
+<li><a href="#2200-2026-06-30">[2.20.0] - 2026-06-30</a><ul>
+<li><a href="#added_27">Added</a></li>
+<li><a href="#fixed_16">Fixed</a></li>
 <li><a href="#changed_11">Changed</a></li>
 </ul>
 </li>
-<li><a href="#291-2026-06-26">[2.9.1] - 2026-06-26</a><ul>
+<li><a href="#2192-2026-06-28">[2.19.2] - 2026-06-28</a><ul>
+<li><a href="#fixed_17">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2191-2026-06-28">[2.19.1] - 2026-06-28</a><ul>
+<li><a href="#fixed_18">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#2190-2026-06-28">[2.19.0] - 2026-06-28</a><ul>
+<li><a href="#added_28">Added</a></li>
+</ul>
+</li>
+<li><a href="#2180-2026-06-28">[2.18.0] - 2026-06-28</a><ul>
+<li><a href="#added_29">Added</a></li>
+</ul>
+</li>
+<li><a href="#2170-2026-06-28">[2.17.0] - 2026-06-28</a><ul>
+<li><a href="#added_30">Added</a></li>
+</ul>
+</li>
+<li><a href="#2160-2026-06-28">[2.16.0] - 2026-06-28</a><ul>
+<li><a href="#added_31">Added</a></li>
+</ul>
+</li>
+<li><a href="#2150-2026-06-28">[2.15.0] - 2026-06-28</a><ul>
+<li><a href="#added_32">Added</a></li>
+</ul>
+</li>
+<li><a href="#2140-2026-06-28">[2.14.0] - 2026-06-28</a><ul>
+<li><a href="#added_33">Added</a></li>
+</ul>
+</li>
+<li><a href="#2130-2026-06-28">[2.13.0] - 2026-06-28</a><ul>
+<li><a href="#added_34">Added</a></li>
+</ul>
+</li>
+<li><a href="#2120-2026-06-28">[2.12.0] - 2026-06-28</a><ul>
+<li><a href="#added_35">Added</a></li>
+</ul>
+</li>
+<li><a href="#2110-2026-06-28">[2.11.0] - 2026-06-28</a><ul>
 <li><a href="#changed_12">Changed</a></li>
 </ul>
 </li>
-<li><a href="#290-2026-06-26">[2.9.0] - 2026-06-26</a><ul>
-<li><a href="#added_33">Added</a></li>
+<li><a href="#2100-2026-06-28">[2.10.0] - 2026-06-28</a><ul>
+<li><a href="#added_36">Added</a></li>
 <li><a href="#changed_13">Changed</a></li>
-<li><a href="#fixed_11">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#291-2026-06-26">[2.9.1] - 2026-06-26</a><ul>
+<li><a href="#changed_14">Changed</a></li>
+</ul>
+</li>
+<li><a href="#290-2026-06-26">[2.9.0] - 2026-06-26</a><ul>
+<li><a href="#added_37">Added</a></li>
+<li><a href="#changed_15">Changed</a></li>
+<li><a href="#fixed_19">Fixed</a></li>
 <li><a href="#security">Security</a></li>
 </ul>
 </li>
 <li><a href="#280-2026-06-26">[2.8.0] - 2026-06-26</a><ul>
-<li><a href="#added_34">Added</a></li>
+<li><a href="#added_38">Added</a></li>
 </ul>
 </li>
 <li><a href="#270-2026-06-26">[2.7.0] - 2026-06-26</a><ul>
-<li><a href="#added_35">Added</a></li>
+<li><a href="#added_39">Added</a></li>
 </ul>
 </li>
 <li><a href="#260-2026-06-26">[2.6.0] - 2026-06-26</a><ul>
 <li><a href="#security_1">Security</a></li>
-<li><a href="#added_36">Added</a></li>
+<li><a href="#added_40">Added</a></li>
 </ul>
 </li>
 <li><a href="#251-2026-06-26">[2.5.1] - 2026-06-26</a><ul>
-<li><a href="#fixed_12">Fixed</a></li>
-<li><a href="#changed_14">Changed</a></li>
-</ul>
-</li>
-<li><a href="#250-2026-06-26">[2.5.0] - 2026-06-26</a><ul>
-<li><a href="#added_37">Added</a></li>
-<li><a href="#changed_15">Changed</a></li>
-<li><a href="#added_38">Added</a></li>
-</ul>
-</li>
-<li><a href="#240-2026-06-25">[2.4.0] - 2026-06-25</a><ul>
-<li><a href="#added_39">Added</a></li>
+<li><a href="#fixed_20">Fixed</a></li>
 <li><a href="#changed_16">Changed</a></li>
 </ul>
 </li>
-<li><a href="#230-2026-06-24">[2.3.0] - 2026-06-24</a><ul>
-<li><a href="#added_40">Added</a></li>
-<li><a href="#changed_17">Changed</a></li>
-<li><a href="#fixed_13">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#220-2026-06-23">[2.2.0] - 2026-06-23</a><ul>
+<li><a href="#250-2026-06-26">[2.5.0] - 2026-06-26</a><ul>
 <li><a href="#added_41">Added</a></li>
+<li><a href="#changed_17">Changed</a></li>
+<li><a href="#added_42">Added</a></li>
 </ul>
 </li>
-<li><a href="#216-2026-06-23">[2.1.6] - 2026-06-23</a><ul>
-<li><a href="#fixed_14">Fixed</a></li>
-<li><a href="#added_42">Added</a></li>
+<li><a href="#240-2026-06-25">[2.4.0] - 2026-06-25</a><ul>
+<li><a href="#added_43">Added</a></li>
 <li><a href="#changed_18">Changed</a></li>
 </ul>
 </li>
-<li><a href="#215-2026-06-23">[2.1.5] - 2026-06-23</a><ul>
-<li><a href="#added_43">Added</a></li>
-</ul>
-</li>
-<li><a href="#214-2026-06-22">[2.1.4] - 2026-06-22</a><ul>
-<li><a href="#changed_19">Changed</a></li>
-</ul>
-</li>
-<li><a href="#213-2026-06-22">[2.1.3] - 2026-06-22</a><ul>
-<li><a href="#changed_20">Changed</a></li>
-</ul>
-</li>
-<li><a href="#212-2026-06-22">[2.1.2] - 2026-06-22</a><ul>
+<li><a href="#230-2026-06-24">[2.3.0] - 2026-06-24</a><ul>
 <li><a href="#added_44">Added</a></li>
-<li><a href="#changed_21">Changed</a></li>
+<li><a href="#changed_19">Changed</a></li>
+<li><a href="#fixed_21">Fixed</a></li>
 </ul>
 </li>
-<li><a href="#211-2026-06-22">[2.1.1] - 2026-06-22</a><ul>
+<li><a href="#220-2026-06-23">[2.2.0] - 2026-06-23</a><ul>
 <li><a href="#added_45">Added</a></li>
 </ul>
 </li>
-<li><a href="#210-2026-06-22">[2.1.0] - 2026-06-22</a><ul>
+<li><a href="#216-2026-06-23">[2.1.6] - 2026-06-23</a><ul>
+<li><a href="#fixed_22">Fixed</a></li>
 <li><a href="#added_46">Added</a></li>
+<li><a href="#changed_20">Changed</a></li>
+</ul>
+</li>
+<li><a href="#215-2026-06-23">[2.1.5] - 2026-06-23</a><ul>
+<li><a href="#added_47">Added</a></li>
+</ul>
+</li>
+<li><a href="#214-2026-06-22">[2.1.4] - 2026-06-22</a><ul>
+<li><a href="#changed_21">Changed</a></li>
+</ul>
+</li>
+<li><a href="#213-2026-06-22">[2.1.3] - 2026-06-22</a><ul>
 <li><a href="#changed_22">Changed</a></li>
 </ul>
 </li>
-<li><a href="#201-2026-06-22">[2.0.1] - 2026-06-22</a><ul>
+<li><a href="#212-2026-06-22">[2.1.2] - 2026-06-22</a><ul>
+<li><a href="#added_48">Added</a></li>
 <li><a href="#changed_23">Changed</a></li>
 </ul>
 </li>
-<li><a href="#200-2026-06-22">[2.0.0] - 2026-06-22</a><ul>
+<li><a href="#211-2026-06-22">[2.1.1] - 2026-06-22</a><ul>
+<li><a href="#added_49">Added</a></li>
+</ul>
+</li>
+<li><a href="#210-2026-06-22">[2.1.0] - 2026-06-22</a><ul>
+<li><a href="#added_50">Added</a></li>
 <li><a href="#changed_24">Changed</a></li>
+</ul>
+</li>
+<li><a href="#201-2026-06-22">[2.0.1] - 2026-06-22</a><ul>
+<li><a href="#changed_25">Changed</a></li>
+</ul>
+</li>
+<li><a href="#200-2026-06-22">[2.0.0] - 2026-06-22</a><ul>
+<li><a href="#changed_26">Changed</a></li>
 <li><a href="#note">Note</a></li>
 </ul>
 </li>
 <li><a href="#1181-2026-06-22">[1.18.1] - 2026-06-22</a><ul>
-<li><a href="#changed_25">Changed</a></li>
-</ul>
-</li>
-<li><a href="#1180-2026-06-22">[1.18.0] - 2026-06-22</a><ul>
-<li><a href="#added_47">Added</a></li>
-</ul>
-</li>
-<li><a href="#1171-2026-06-22">[1.17.1] - 2026-06-22</a><ul>
-<li><a href="#changed_26">Changed</a></li>
-</ul>
-</li>
-<li><a href="#1170-2026-06-22">[1.17.0] - 2026-06-22</a><ul>
 <li><a href="#changed_27">Changed</a></li>
 </ul>
 </li>
-<li><a href="#1160-2026-06-22">[1.16.0] - 2026-06-22</a><ul>
-<li><a href="#added_48">Added</a></li>
-<li><a href="#changed_28">Changed</a></li>
-</ul>
-</li>
-<li><a href="#1150-2026-06-22">[1.15.0] - 2026-06-22</a><ul>
-<li><a href="#added_49">Added</a></li>
-<li><a href="#changed_29">Changed</a></li>
-</ul>
-</li>
-<li><a href="#1140-2026-06-22">[1.14.0] - 2026-06-22</a><ul>
-<li><a href="#added_50">Added</a></li>
-</ul>
-</li>
-<li><a href="#1130-2026-06-22">[1.13.0] - 2026-06-22</a><ul>
+<li><a href="#1180-2026-06-22">[1.18.0] - 2026-06-22</a><ul>
 <li><a href="#added_51">Added</a></li>
 </ul>
 </li>
-<li><a href="#1120-2026-06-22">[1.12.0] - 2026-06-22</a><ul>
+<li><a href="#1171-2026-06-22">[1.17.1] - 2026-06-22</a><ul>
+<li><a href="#changed_28">Changed</a></li>
+</ul>
+</li>
+<li><a href="#1170-2026-06-22">[1.17.0] - 2026-06-22</a><ul>
+<li><a href="#changed_29">Changed</a></li>
+</ul>
+</li>
+<li><a href="#1160-2026-06-22">[1.16.0] - 2026-06-22</a><ul>
 <li><a href="#added_52">Added</a></li>
-</ul>
-</li>
-<li><a href="#1110-2026-06-22">[1.11.0] - 2026-06-22</a><ul>
-<li><a href="#added_53">Added</a></li>
-</ul>
-</li>
-<li><a href="#1100-2026-06-21">[1.10.0] - 2026-06-21</a><ul>
-<li><a href="#added_54">Added</a></li>
-</ul>
-</li>
-<li><a href="#191-2026-06-21">[1.9.1] - 2026-06-21</a><ul>
-<li><a href="#fixed_15">Fixed</a></li>
 <li><a href="#changed_30">Changed</a></li>
 </ul>
 </li>
-<li><a href="#190-2026-06-21">[1.9.0] - 2026-06-21</a><ul>
-<li><a href="#added_55">Added</a></li>
-</ul>
-</li>
-<li><a href="#180-2026-06-21">[1.8.0] - 2026-06-21</a><ul>
-<li><a href="#added_56">Added</a></li>
-</ul>
-</li>
-<li><a href="#170-2026-06-21">[1.7.0] - 2026-06-21</a><ul>
-<li><a href="#added_57">Added</a></li>
-</ul>
-</li>
-<li><a href="#160-2026-06-21">[1.6.0] - 2026-06-21</a><ul>
-<li><a href="#added_58">Added</a></li>
-</ul>
-</li>
-<li><a href="#150-2026-06-21">[1.5.0] - 2026-06-21</a><ul>
-<li><a href="#added_59">Added</a></li>
-<li><a href="#fixed_16">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#140-2026-06-21">[1.4.0] - 2026-06-21</a><ul>
-<li><a href="#added_60">Added</a></li>
-</ul>
-</li>
-<li><a href="#130-2026-06-21">[1.3.0] - 2026-06-21</a><ul>
-<li><a href="#fixed_17">Fixed</a></li>
-<li><a href="#added_61">Added</a></li>
+<li><a href="#1150-2026-06-22">[1.15.0] - 2026-06-22</a><ul>
+<li><a href="#added_53">Added</a></li>
 <li><a href="#changed_31">Changed</a></li>
 </ul>
 </li>
-<li><a href="#120-2026-06-16">[1.2.0] - 2026-06-16</a><ul>
-<li><a href="#added_62">Added</a></li>
+<li><a href="#1140-2026-06-22">[1.14.0] - 2026-06-22</a><ul>
+<li><a href="#added_54">Added</a></li>
+</ul>
+</li>
+<li><a href="#1130-2026-06-22">[1.13.0] - 2026-06-22</a><ul>
+<li><a href="#added_55">Added</a></li>
+</ul>
+</li>
+<li><a href="#1120-2026-06-22">[1.12.0] - 2026-06-22</a><ul>
+<li><a href="#added_56">Added</a></li>
+</ul>
+</li>
+<li><a href="#1110-2026-06-22">[1.11.0] - 2026-06-22</a><ul>
+<li><a href="#added_57">Added</a></li>
+</ul>
+</li>
+<li><a href="#1100-2026-06-21">[1.10.0] - 2026-06-21</a><ul>
+<li><a href="#added_58">Added</a></li>
+</ul>
+</li>
+<li><a href="#191-2026-06-21">[1.9.1] - 2026-06-21</a><ul>
+<li><a href="#fixed_23">Fixed</a></li>
 <li><a href="#changed_32">Changed</a></li>
 </ul>
 </li>
-<li><a href="#110-2026-05-24">[1.1.0] - 2026-05-24</a><ul>
+<li><a href="#190-2026-06-21">[1.9.0] - 2026-06-21</a><ul>
+<li><a href="#added_59">Added</a></li>
+</ul>
+</li>
+<li><a href="#180-2026-06-21">[1.8.0] - 2026-06-21</a><ul>
+<li><a href="#added_60">Added</a></li>
+</ul>
+</li>
+<li><a href="#170-2026-06-21">[1.7.0] - 2026-06-21</a><ul>
+<li><a href="#added_61">Added</a></li>
+</ul>
+</li>
+<li><a href="#160-2026-06-21">[1.6.0] - 2026-06-21</a><ul>
+<li><a href="#added_62">Added</a></li>
+</ul>
+</li>
+<li><a href="#150-2026-06-21">[1.5.0] - 2026-06-21</a><ul>
 <li><a href="#added_63">Added</a></li>
+<li><a href="#fixed_24">Fixed</a></li>
+</ul>
+</li>
+<li><a href="#140-2026-06-21">[1.4.0] - 2026-06-21</a><ul>
+<li><a href="#added_64">Added</a></li>
+</ul>
+</li>
+<li><a href="#130-2026-06-21">[1.3.0] - 2026-06-21</a><ul>
+<li><a href="#fixed_25">Fixed</a></li>
+<li><a href="#added_65">Added</a></li>
 <li><a href="#changed_33">Changed</a></li>
 </ul>
 </li>
+<li><a href="#120-2026-06-16">[1.2.0] - 2026-06-16</a><ul>
+<li><a href="#added_66">Added</a></li>
+<li><a href="#changed_34">Changed</a></li>
+</ul>
+</li>
+<li><a href="#110-2026-05-24">[1.1.0] - 2026-05-24</a><ul>
+<li><a href="#added_67">Added</a></li>
+<li><a href="#changed_35">Changed</a></li>
+</ul>
+</li>
 <li><a href="#100-2026-05-10">[1.0.0] - 2026-05-10</a><ul>
-<li><a href="#added_64">Added</a></li>
+<li><a href="#added_68">Added</a></li>
 </ul>
 </li>
 </ul>
@@ -1982,6 +2514,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b3442"></script>
+<script defer src="cmdk.js?v=e7acffb"></script>
 </body>
 </html>

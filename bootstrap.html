@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Bootstrap and keep fresh · contextlake docs">
 <meta name="twitter:description" content="Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Bootstrap and keep fresh", "description": "Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.", "url": "https://sayak.in/contextlake/bootstrap", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-23"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Bootstrap and keep fresh", "item": "https://sayak.in/contextlake/bootstrap"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Bootstrap and keep fresh", "description": "Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.", "url": "https://sayak.in/contextlake/bootstrap", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Bootstrap and keep fresh", "item": "https://sayak.in/contextlake/bootstrap"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b3442">
-<link rel="stylesheet" href="docs.css?v=65b3442">
-<link rel="stylesheet" href="cmdk.css?v=65b3442">
+<link rel="stylesheet" href="fonts.css?v=e7acffb">
+<link rel="stylesheet" href="docs.css?v=e7acffb">
+<link rel="stylesheet" href="cmdk.css?v=e7acffb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -68,7 +68,10 @@ knowledge base in a single, easy-to-access location.</p>
 pass <code>--config</code> / <code>--kb-config</code> to point elsewhere. The valid <code>[kb]</code> keys are <code>store_dir</code>, <code>languages</code>,
 <code>skip_generated</code>, <code>max_file_bytes</code>, and <code>index_workers</code> (plus the <code>[embeddings]</code>, <code>[llm]</code>, <code>[sources]</code>,
 <code>[rules]</code> tables); an unrecognized key or table is warned and ignored, so a typo like <code>store</code> (for
-<code>store_dir</code>) is surfaced rather than silently dropping the run into the wrong place. Skip stages with
+<code>store_dir</code>) is surfaced rather than silently dropping the run into the wrong place. Likewise, an explicit
+<code>--kb-config</code> path that doesn't exist is a hard error rather than a silent fall-through to the next file
+in the precedence chain (<code>~/.contextlake/kb.toml</code>), which could point at a completely different store than
+the one you meant to target. Skip stages with
 <code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code> / <code>--no-enrich</code>. For an isolated CLI, install with
 <code>pipx install "contextlake[kb]"</code>, or run ad-hoc with <code>uvx</code>.</p>
 <h2 id="command-composition">Command composition<a class="anchor" href="#command-composition" title="Link to this section">#</a></h2>
@@ -178,6 +181,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b3442"></script>
+<script defer src="cmdk.js?v=e7acffb"></script>
 </body>
 </html>

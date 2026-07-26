@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b3442">
-<link rel="stylesheet" href="docs.css?v=65b3442">
-<link rel="stylesheet" href="cmdk.css?v=65b3442">
+<link rel="stylesheet" href="fonts.css?v=e7acffb">
+<link rel="stylesheet" href="docs.css?v=e7acffb">
+<link rel="stylesheet" href="cmdk.css?v=e7acffb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -149,8 +149,9 @@ dependency:</p>
         <span class="k">yield</span> <span class="n">Document</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;123&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Runbook&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://...&quot;</span><span class="p">)</span>
 </code></pre></div>
 
-<p><code>contextlake ingest</code> then discovers <code>type = "confluence"</code> automatically. Four sources ship built-in:
-<code>files</code>, <code>web</code>, <code>api</code>, and <code>mcp</code>. <strong><code>web</code></strong> fetches URLs and ingests their readable text (stdlib-only):</p>
+<p><code>contextlake ingest</code> then discovers <code>type = "confluence"</code> automatically. Five sources ship built-in:
+<code>files</code>, <code>web</code>, <code>api</code>, <code>graphql</code>, and <code>mcp</code>. <strong><code>web</code></strong> fetches URLs and ingests their readable text
+(stdlib-only):</p>
 <div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
 <span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;web&quot;</span>
 <span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;changelog&quot;</span>
@@ -166,6 +167,18 @@ bearer token read from an env var (never the config file):</p>
 <span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;data.articles&quot;</span><span class="w">        </span><span class="c1"># dotted path to the record list</span>
 <span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span><span class="w">            </span><span class="c1"># which key holds the document text</span>
 <span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">  </span><span class="c1"># bearer token comes from this env var</span>
+</code></pre></div>
+
+<p>A <strong><code>graphql</code></strong> source ships built-in too: POST a query (+ optional variables) and map records in
+the response to documents, the same way <code>api</code> maps a REST response:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[[sources]]</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;graphql&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;issues&quot;</span>
+<span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.example.com/graphql&quot;</span>
+<span class="n">query</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;{ repository { issues { nodes { id title body } } } }&quot;</span>
+<span class="n">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;repository.issues.nodes&quot;</span><span class="w">   </span><span class="c1"># dotted path into the response, rooted at `data`</span>
+<span class="n">text_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;body&quot;</span>
+<span class="n">token_env</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;EXAMPLE_API_TOKEN&quot;</span><span class="w">     </span><span class="c1"># bearer token comes from this env var</span>
 </code></pre></div>
 
 <p>An <strong><code>mcp</code></strong> source ships built-in as well: contextlake connects as an MCP <em>client</em> (stdio or
@@ -245,6 +258,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b3442"></script>
+<script defer src="cmdk.js?v=e7acffb"></script>
 </body>
 </html>
