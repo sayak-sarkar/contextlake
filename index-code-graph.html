@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b5a71">
-<link rel="stylesheet" href="docs.css?v=65b5a71">
-<link rel="stylesheet" href="cmdk.css?v=65b5a71">
+<link rel="stylesheet" href="fonts.css?v=5dd182e">
+<link rel="stylesheet" href="docs.css?v=5dd182e">
+<link rel="stylesheet" href="cmdk.css?v=5dd182e">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -140,7 +140,18 @@ resolution is a future refinement.</p>
 from foreign-key <code>REFERENCES</code> clauses, resolved across files in a repo. <code>table</code> and <code>view</code> nodes are
 semantically searchable.</p>
 <p>It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
-high-value defs and FK references and is a <strong>deliberate undercount</strong>.</p>
+high-value defs and FK references and is a <strong>deliberate undercount</strong>. Render it with
+<code>contextlake graph --repo &lt;repo&gt; --format erdiagram</code> (a Mermaid ER diagram), see <a href="visualize">Visualize</a>.</p>
+<h3 id="architecture-decisions-adrs">Architecture decisions (ADRs)<a class="anchor" href="#architecture-decisions-adrs" title="Link to this section">#</a></h3>
+<p>A repo's own decision records, under common conventions (<code>docs/adr/</code>, <code>docs/decisions/</code>,
+<code>decisions/</code>, <code>adr/</code>, one file per decision), become first-class <code>adr</code> nodes in that repo's shard,
+title from the file's first <code>#</code> heading (or the filename otherwise). Unlike connector-sourced
+content (<code>enrich</code>/<code>connect</code>, external systems reached over the network), an ADR is authored, checked
+into the repo's own git history: a recorded fact, not something to attribute or hedge on. <code>adr</code> nodes
+are semantically searchable, and their content feeds into <a href="generate-wiki">wiki generation</a> as a
+grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
+data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
+way an import or call site is, so nothing is inferred from that mention.</p>
 <h3 id="entity-state-machines">Entity state machines<a class="anchor" href="#entity-state-machines" title="Link to this section">#</a></h3>
 <p>Guarded assignments to a status/state/stage field (<code>if order.status == Created: order.status = Paid</code>)
 become <code>transitions_to</code> edges between <code>state</code> nodes, labeled with the method that makes the transition.
@@ -235,6 +246,7 @@ getting a silent best-guess.</p>
 <li><a href="#languages">Languages</a></li>
 <li><a href="#infrastructure-terraform-hcl">Infrastructure: Terraform / HCL</a></li>
 <li><a href="#databases-sql-ddl">Databases: SQL DDL</a></li>
+<li><a href="#architecture-decisions-adrs">Architecture decisions (ADRs)</a></li>
 <li><a href="#entity-state-machines">Entity state machines</a></li>
 <li><a href="#intra-repo-dataflow-reads-and-writes">Intra-repo dataflow: reads and writes</a></li>
 <li><a href="#web-topology-endpoints-and-routes">Web topology: endpoints and routes</a></li>
@@ -270,6 +282,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b5a71"></script>
+<script defer src="cmdk.js?v=5dd182e"></script>
 </body>
 </html>

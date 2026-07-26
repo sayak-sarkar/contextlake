@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b5a71">
-<link rel="stylesheet" href="docs.css?v=65b5a71">
-<link rel="stylesheet" href="cmdk.css?v=65b5a71">
+<link rel="stylesheet" href="fonts.css?v=5dd182e">
+<link rel="stylesheet" href="docs.css?v=5dd182e">
+<link rel="stylesheet" href="cmdk.css?v=5dd182e">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -94,6 +94,14 @@ silently truncated.</p>
   acme/app --format statediagram</code>. A <code>--name</code>/<code>--node</code> seed can reach the state nodes (via the file that
   declares them) but not their transitions past the view's <code>--hops</code>; use <code>--repo</code> for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.</li>
+<li><strong><code>erdiagram</code></strong>, a <strong>Mermaid ER diagram</strong> of <code>table</code>/<code>view</code> definitions and their foreign-key
+  <code>references</code> edges, from the SQL DDL extractor (see <a href="index-code-graph">Index &amp; Code Graph</a>):
+  <code>contextlake graph --repo acme/app --format erdiagram</code>. No attribute/column data (the extractor
+  only captures <code>CREATE TABLE</code>/<code>VIEW</code> names and FK targets), so entities render as bare boxes with
+  relationship lines, not column lists. A <code>REFERENCES</code> clause always points child-row to parent-row,
+  so the parent is drawn on the "one" side of the notation. <strong>Only sees raw <code>.sql</code> DDL</strong>, an
+  ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal <code>CREATE TABLE</code>
+  text anywhere) renders an empty diagram with guidance, not a bug.</li>
 <li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for Gephi / cytoscape / custom tooling.</li>
 </ul>
 <p>For interactive exploration of a large graph, <code>contextlake graph --serve</code> runs a local web UI where
@@ -114,8 +122,8 @@ contextlake<span class="w"> </span>graph<span class="w"> </span>--c4<span class=
 <p>Output is chosen with <code>--format</code>: <code>html</code> (default, an interactive page with namespace boundaries as
 compound nodes, written to <code>&lt;store&gt;/graphs/c4.html</code>), <code>dot</code> (Graphviz clustered DOT with <code>subgraph
 cluster_*</code> boundaries), or <code>json</code> (the raw payload). <code>--format mermaid</code>, <code>classdiagram</code>, <code>sequencediagram</code>,
-and <code>statediagram</code> aren't supported with <code>--c4</code> (the command exits with an error), and <code>--serve</code> doesn't
-apply either, the C4 view is a generated file, not a live server.</p>
+<code>statediagram</code>, and <code>erdiagram</code> aren't supported with <code>--c4</code> (the command exits with an error), and
+<code>--serve</code> doesn't apply either, the C4 view is a generated file, not a live server.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="dashboard">The dashboard</a></li>
@@ -157,6 +165,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b5a71"></script>
+<script defer src="cmdk.js?v=5dd182e"></script>
 </body>
 </html>

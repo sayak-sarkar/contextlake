@@ -1161,7 +1161,20 @@ from foreign-key `REFERENCES` clauses, resolved across files in a repo. `table` 
 semantically searchable.
 
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
-high-value defs and FK references and is a **deliberate undercount**.
+high-value defs and FK references and is a **deliberate undercount**. Render it with
+`contextlake graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
+
+### Architecture decisions (ADRs)
+
+A repo's own decision records, under common conventions (`docs/adr/`, `docs/decisions/`,
+`decisions/`, `adr/`, one file per decision), become first-class `adr` nodes in that repo's shard,
+title from the file's first `# ` heading (or the filename otherwise). Unlike connector-sourced
+content (`enrich`/`connect`, external systems reached over the network), an ADR is authored, checked
+into the repo's own git history: a recorded fact, not something to attribute or hedge on. `adr` nodes
+are semantically searchable, and their content feeds into [wiki generation](generate-wiki.md) as a
+grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
+data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
+way an import or call site is, so nothing is inferred from that mention.
 
 ### Entity state machines
 
@@ -1602,6 +1615,13 @@ clear and verifiable.
 
 The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
 provenance footer citing the exact commit and source files it was built from.
+
+## Recorded decisions
+
+A repo's own ADR/decision docs (see [Index & Code Graph](index-code-graph.md#architecture-decisions-adrs))
+are authored facts, not connector content, so they don't need attribution the way "External context"
+does: each becomes a "Recorded decisions" section citing the decision's title, file, and body directly.
+No `enrich`/`connect` step needed, these are picked up automatically whenever the repo is indexed.
 
 ## See also
 
@@ -2278,6 +2298,14 @@ Output is chosen with `--format`:
   acme/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
   declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.
+- **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
+  `references` edges, from the SQL DDL extractor (see [Index & Code Graph](index-code-graph.md)):
+  `contextlake graph --repo acme/app --format erdiagram`. No attribute/column data (the extractor
+  only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
+  relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
+  so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL**, an
+  ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
+  text anywhere) renders an empty diagram with guidance, not a bug.
 - **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
@@ -2303,8 +2331,8 @@ contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pastea
 Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
 compound nodes, written to `<store>/graphs/c4.html`), `dot` (Graphviz clustered DOT with `subgraph
 cluster_*` boundaries), or `json` (the raw payload). `--format mermaid`, `classdiagram`, `sequencediagram`,
-and `statediagram` aren't supported with `--c4` (the command exits with an error), and `--serve` doesn't
-apply either, the C4 view is a generated file, not a live server.
+`statediagram`, and `erdiagram` aren't supported with `--c4` (the command exits with an error), and
+`--serve` doesn't apply either, the C4 view is a generated file, not a live server.
 
 ## See also
 
@@ -3038,6 +3066,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **ADR/decision-record surfacing.** A repo's own decision docs under common
+  conventions (`docs/adr/`, `docs/decisions/`, `decisions/`, `adr/`) become
+  first-class `adr` nodes in that repo's shard during `index`, no separate
+  command, no `@enrich:`/`@ingest:` side-channel. Title comes from the file's
+  first `# ` heading, or the filename otherwise. Semantically searchable
+  (`adr` added to `EMBEDDABLE_KINDS`) and cited in `wiki` generation as a
+  grounded "Recorded decisions" section, distinct from connector-sourced
+  "External context", an ADR is authored, checked into the repo's own git
+  history, so it's presented as a fact, not something to attribute or hedge
+  on. No column data, no edges to other nodes: a decision doc mentioning a
+  class by name isn't a verified reference the way an import is.
+- **`graph --format erdiagram`: a Mermaid ER diagram of `table`/`view` definitions
+  and their foreign-key `references` edges**, over data the SQL DDL extractor
+  already collects (no new extraction pass). Entities render as bare boxes
+  (the extractor has no column data); a `REFERENCES` clause always points
+  child-row to parent-row, so cardinality (`||--o{`) is asserted from FK
+  semantics, not guessed. An ORM-only schema (SQLAlchemy/Entity Framework/
+  TypeORM, no literal `CREATE TABLE` text) renders an honest empty diagram
+  with guidance instead of looking broken.
 
 - **`wiki` now hints once per run when the builtin model is doing the council
   review.** The builtin 0.5B is a weak reviewer (near-constant high accept

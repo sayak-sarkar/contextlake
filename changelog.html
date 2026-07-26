@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=65b5a71">
-<link rel="stylesheet" href="docs.css?v=65b5a71">
-<link rel="stylesheet" href="cmdk.css?v=65b5a71">
+<link rel="stylesheet" href="fonts.css?v=5dd182e">
+<link rel="stylesheet" href="docs.css?v=5dd182e">
+<link rel="stylesheet" href="cmdk.css?v=5dd182e">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -53,11 +53,34 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
-<li><strong><code>wiki</code> now hints once per run when the builtin model is doing the council
+<li><strong>ADR/decision-record surfacing.</strong> A repo's own decision docs under common
+  conventions (<code>docs/adr/</code>, <code>docs/decisions/</code>, <code>decisions/</code>, <code>adr/</code>) become
+  first-class <code>adr</code> nodes in that repo's shard during <code>index</code>, no separate
+  command, no <code>@enrich:</code>/<code>@ingest:</code> side-channel. Title comes from the file's
+  first <code>#</code> heading, or the filename otherwise. Semantically searchable
+  (<code>adr</code> added to <code>EMBEDDABLE_KINDS</code>) and cited in <code>wiki</code> generation as a
+  grounded "Recorded decisions" section, distinct from connector-sourced
+  "External context", an ADR is authored, checked into the repo's own git
+  history, so it's presented as a fact, not something to attribute or hedge
+  on. No column data, no edges to other nodes: a decision doc mentioning a
+  class by name isn't a verified reference the way an import is.</li>
+<li>
+<p><strong><code>graph --format erdiagram</code>: a Mermaid ER diagram of <code>table</code>/<code>view</code> definitions
+  and their foreign-key <code>references</code> edges</strong>, over data the SQL DDL extractor
+  already collects (no new extraction pass). Entities render as bare boxes
+  (the extractor has no column data); a <code>REFERENCES</code> clause always points
+  child-row to parent-row, so cardinality (<code>||--o{</code>) is asserted from FK
+  semantics, not guessed. An ORM-only schema (SQLAlchemy/Entity Framework/
+  TypeORM, no literal <code>CREATE TABLE</code> text) renders an honest empty diagram
+  with guidance instead of looking broken.</p>
+</li>
+<li>
+<p><strong><code>wiki</code> now hints once per run when the builtin model is doing the council
   review.</strong> The builtin 0.5B is a weak reviewer (near-constant high accept
   scores, mostly rubber-stamping): still functional, but a real backend
   (<code>--llm anthropic|openai|ollama|cli</code>) gates meaningfully. The note prints
-  once, before generation starts, not per repo.</li>
+  once, before generation starts, not per repo.</p>
+</li>
 </ul>
 <h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
 <ul>
@@ -2557,6 +2580,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=65b5a71"></script>
+<script defer src="cmdk.js?v=5dd182e"></script>
 </body>
 </html>
