@@ -1161,7 +1161,20 @@ from foreign-key `REFERENCES` clauses, resolved across files in a repo. `table` 
 semantically searchable.
 
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
-high-value defs and FK references and is a **deliberate undercount**.
+high-value defs and FK references and is a **deliberate undercount**. Render it with
+`contextlake graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
+
+### Architecture decisions (ADRs)
+
+A repo's own decision records, under common conventions (`docs/adr/`, `docs/decisions/`,
+`decisions/`, `adr/`, one file per decision), become first-class `adr` nodes in that repo's shard,
+title from the file's first `# ` heading (or the filename otherwise). Unlike connector-sourced
+content (`enrich`/`connect`, external systems reached over the network), an ADR is authored, checked
+into the repo's own git history: a recorded fact, not something to attribute or hedge on. `adr` nodes
+are semantically searchable, and their content feeds into [wiki generation](generate-wiki.md) as a
+grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
+data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
+way an import or call site is, so nothing is inferred from that mention.
 
 ### Entity state machines
 
@@ -1602,6 +1615,13 @@ clear and verifiable.
 
 The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
 provenance footer citing the exact commit and source files it was built from.
+
+## Recorded decisions
+
+A repo's own ADR/decision docs (see [Index & Code Graph](index-code-graph.md#architecture-decisions-adrs))
+are authored facts, not connector content, so they don't need attribution the way "External context"
+does: each becomes a "Recorded decisions" section citing the decision's title, file, and body directly.
+No `enrich`/`connect` step needed, these are picked up automatically whenever the repo is indexed.
 
 ## See also
 
@@ -3047,6 +3067,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ADR/decision-record surfacing.** A repo's own decision docs under common
+  conventions (`docs/adr/`, `docs/decisions/`, `decisions/`, `adr/`) become
+  first-class `adr` nodes in that repo's shard during `index`, no separate
+  command, no `@enrich:`/`@ingest:` side-channel. Title comes from the file's
+  first `# ` heading, or the filename otherwise. Semantically searchable
+  (`adr` added to `EMBEDDABLE_KINDS`) and cited in `wiki` generation as a
+  grounded "Recorded decisions" section, distinct from connector-sourced
+  "External context", an ADR is authored, checked into the repo's own git
+  history, so it's presented as a fact, not something to attribute or hedge
+  on. No column data, no edges to other nodes: a decision doc mentioning a
+  class by name isn't a verified reference the way an import is.
 - **`graph --format erdiagram`: a Mermaid ER diagram of `table`/`view` definitions
   and their foreign-key `references` edges**, over data the SQL DDL extractor
   already collects (no new extraction pass). Entities render as bare boxes

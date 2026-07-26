@@ -80,6 +80,9 @@ def repo_brief(store_dir, repo_id: str) -> dict | None:
                          "signature": (n.attrs or {}).get("signature")} for n in top],
         "packages": [n.name for n in nodes if n.kind == "package"][:20],
         "files": sorted({n.file for n in nodes if n.file})[:20],
+        "decisions": [{"title": n.name, "file": n.file,
+                       "doc": (n.attrs or {}).get("doc")}
+                      for n in nodes if n.kind == "adr"][:20],
         "external": external_context(store_dir, repo_id),
     }
 
@@ -103,6 +106,13 @@ def render_prompt(brief: dict) -> str:
         lines.append("Depends on packages: " + ", ".join(brief["packages"]))
     if brief["files"]:
         lines.append("Notable files: " + ", ".join(brief["files"]))
+    if brief.get("decisions"):
+        lines.append("")
+        lines.append("Recorded decisions (from the repo's own ADR/decision docs, "
+                     "authored facts, not to be reworded as speculation):")
+        for d in brief["decisions"]:
+            doc = (d.get("doc") or "")[:200]
+            lines.append(f"  - {d['title']} ({d.get('file') or '?'}): \"{doc}\"")
     if brief.get("external"):
         lines.append("")
         lines.append("External context (from connected sources):")
@@ -117,10 +127,13 @@ def render_prompt(brief: dict) -> str:
             "attribute each such statement to its source (name the source/link). "
             "Never present external claims as facts about the code without attribution."
         )
+    sections = "Overview, Key components, Dependencies"
+    if brief.get("decisions"):
+        sections += ", Decisions"
     lines += [
         "",
-        "Write a wiki page in Markdown with sections: Overview, Key components, "
-        "Dependencies. Ground every statement in the facts above; do not speculate.",
+        f"Write a wiki page in Markdown with sections: {sections}. Ground every "
+        "statement in the facts above; do not speculate.",
     ]
     return "\n".join(lines)
 

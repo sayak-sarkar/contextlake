@@ -22,6 +22,7 @@ from pathlib import Path
 import tree_sitter as ts
 
 from ..logging_setup import log
+from .adr import is_adr_path, parse_adr
 from .flow.data import extract_data_refs
 from .flow.events import extract_event_flow
 from .flow.http import extract_http_flow
@@ -650,10 +651,14 @@ def index_repo_dir(
             is_hcl = index_hcl and ext in HCL_EXTS
             is_sql = index_sql and ext in SQL_EXTS
             is_man = is_manifest(fn)
-            if not is_code and not is_hcl and not is_sql and not is_man:
-                continue
             fpath = Path(dirpath) / fn
             rel = str(fpath.relative_to(root))
+            # ADR/decision-record markdown (docs/adr/, decisions/, ...) needs the
+            # relative path to test, so rel is computed before the skip check below
+            # rather than after it, unlike every other kind here.
+            is_adr = ext == ".md" and is_adr_path(rel)
+            if not is_code and not is_hcl and not is_sql and not is_man and not is_adr:
+                continue
             if ignore and match_ignore(rel, ignore):
                 n_ignored += 1
                 continue
@@ -662,7 +667,7 @@ def index_repo_dir(
             if is_code and skip_generated and _is_generated_name(fn):
                 n_generated += 1
                 continue
-            if is_code or is_hcl or is_sql:
+            if is_code or is_hcl or is_sql or is_adr:
                 try:
                     if fpath.stat().st_size > max_file_bytes:
                         n_oversize += 1
@@ -686,6 +691,9 @@ def index_repo_dir(
                     nodes, sql_refs = parse_sql(repo_id, rel, source)
                     edges = []
                     all_sql_refs.extend(sql_refs)
+                elif is_adr:
+                    nodes = parse_adr(repo_id, rel, source)
+                    edges = []
                 elif is_code:
                     nodes, edges, calls, inh = parse_source(repo_id, rel, source,
                                                             LANG_BY_EXT[ext])

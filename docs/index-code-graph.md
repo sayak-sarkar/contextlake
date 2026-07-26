@@ -90,7 +90,20 @@ from foreign-key `REFERENCES` clauses, resolved across files in a repo. `table` 
 semantically searchable.
 
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
-high-value defs and FK references and is a **deliberate undercount**.
+high-value defs and FK references and is a **deliberate undercount**. Render it with
+`contextlake graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
+
+### Architecture decisions (ADRs)
+
+A repo's own decision records, under common conventions (`docs/adr/`, `docs/decisions/`,
+`decisions/`, `adr/`, one file per decision), become first-class `adr` nodes in that repo's shard,
+title from the file's first `# ` heading (or the filename otherwise). Unlike connector-sourced
+content (`enrich`/`connect`, external systems reached over the network), an ADR is authored, checked
+into the repo's own git history: a recorded fact, not something to attribute or hedge on. `adr` nodes
+are semantically searchable, and their content feeds into [wiki generation](generate-wiki.md) as a
+grounded "Recorded decisions" section, cited alongside the repo's other extracted facts. No column
+data, no edges to other graph nodes: an ADR mentioning a class by name isn't a verified reference the
+way an import or call site is, so nothing is inferred from that mention.
 
 ### Entity state machines
 

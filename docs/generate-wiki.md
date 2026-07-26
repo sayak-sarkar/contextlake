@@ -51,6 +51,13 @@ clear and verifiable.
 The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
 provenance footer citing the exact commit and source files it was built from.
 
+## Recorded decisions
+
+A repo's own ADR/decision docs (see [Index & Code Graph](index-code-graph.md#architecture-decisions-adrs))
+are authored facts, not connector content, so they don't need attribution the way "External context"
+does: each becomes a "Recorded decisions" section citing the decision's title, file, and body directly.
+No `enrich`/`connect` step needed, these are picked up automatically whenever the repo is indexed.
+
 ## See also
 
 - [Model providers](model-providers.md)

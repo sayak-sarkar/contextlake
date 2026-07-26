@@ -45,10 +45,12 @@ def node_text(node) -> str:
 # across repos, which otherwise get re-embedded once per referencing repo (wasted compute,
 # an inflated "written" count) and dilute results with low-signal hits. Dependents/flow
 # tools cover those. Low-signal HCL kinds (variable, output, data, module, local) and
-# SQL procedures (low signal without a signature) stay out.
+# SQL procedures (low signal without a signature) stay out. `adr` (kb/adr.py) carries
+# its full body under the `doc` attr, same as a docstring, so node_text() below already
+# picks it up with no extra wiring.
 EMBEDDABLE_KINDS = frozenset(
     {"class", "function", "method", "interface", "struct", "enum", "endpoint",
-     "route", "resource", "table", "view"})
+     "route", "resource", "table", "view", "adr"})
 
 
 def embed_repo(store_dir, vector_store, embedder, repo_id, *,

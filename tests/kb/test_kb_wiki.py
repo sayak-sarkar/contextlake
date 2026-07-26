@@ -149,6 +149,51 @@ def test_repo_brief_external_empty_without_enrich_partition(tmp_path):
     assert brief["external"] == []
 
 
+def _shard_with_adr(store_dir):
+    nodes = [
+        Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py"),
+        Node(id="adr1", repo="r", kind="adr", name="Use PostgreSQL",
+            qualified_name="docs/adr/0001-use-postgres.md", file="docs/adr/0001-use-postgres.md",
+            attrs={"doc": "Because it's boring and reliable."}),
+    ]
+    write_shard(store_dir, GraphShard(repo="r", head_commit="abc123", nodes=nodes, edges=[]))
+
+
+def test_repo_brief_includes_decisions_from_adr_nodes(tmp_path):
+    _shard_with_adr(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    assert brief["decisions"] == [{
+        "title": "Use PostgreSQL", "file": "docs/adr/0001-use-postgres.md",
+        "doc": "Because it's boring and reliable.",
+    }]
+
+
+def test_repo_brief_decisions_empty_without_any_adr_nodes(tmp_path):
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    assert brief["decisions"] == []
+
+
+def test_render_prompt_with_decisions_cites_them_and_adds_a_section(tmp_path):
+    _shard_with_adr(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    prompt = render_prompt(brief)
+    assert "Recorded decisions" in prompt
+    assert "Use PostgreSQL (docs/adr/0001-use-postgres.md)" in prompt
+    assert "boring and reliable" in prompt
+    assert "Decisions" in prompt.splitlines()[-1]  # appended to the sections instruction
+
+
+def test_render_prompt_without_decisions_is_unchanged(tmp_path):
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    prompt = render_prompt(brief)
+    assert "Recorded decisions" not in prompt
+    assert prompt.strip().endswith(
+        "Write a wiki page in Markdown with sections: Overview, Key components, "
+        "Dependencies. Ground every statement in the facts above; do not speculate.")
+
+
 def test_render_prompt_with_external_context_is_cited_and_attributed(tmp_path):
     _shard(tmp_path)
     _enrich_shard(tmp_path, "r", [("atlassian", "Runbook", "https://x/1", "how to page")])

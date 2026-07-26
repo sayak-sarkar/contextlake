@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **ADR/decision-record surfacing.** A repo's own decision docs under common
+  conventions (`docs/adr/`, `docs/decisions/`, `decisions/`, `adr/`) become
+  first-class `adr` nodes in that repo's shard during `index` — no separate
+  command, no `@enrich:`/`@ingest:` side-channel. Title comes from the file's
+  first `# ` heading, or the filename otherwise. Semantically searchable
+  (`adr` added to `EMBEDDABLE_KINDS`) and cited in `wiki` generation as a
+  grounded "Recorded decisions" section, distinct from connector-sourced
+  "External context" — an ADR is authored, checked into the repo's own git
+  history, so it's presented as a fact, not something to attribute or hedge
+  on. No column data, no edges to other nodes: a decision doc mentioning a
+  class by name isn't a verified reference the way an import is.
 - **`graph --format erdiagram`: a Mermaid ER diagram of `table`/`view` definitions
   and their foreign-key `references` edges**, over data the SQL DDL extractor
   already collects (no new extraction pass). Entities render as bare boxes
