@@ -243,7 +243,7 @@ def test_cmd_embed_content_version_forces_one_full_reembed(tmp_path, monkeypatch
 
 def test_cmd_embed_watch_reruns_the_pass(tmp_path, monkeypatch):
     """`embed --watch` routes the embed pass through _watch_loop and re-runs it."""
-    from contextlake.kb import commands as cmds
+    import contextlake.kb.cmds.embed as embed_mod
 
     monkeypatch.setenv("HOME", str(tmp_path))
     cfg = _setup_embed_repo(tmp_path, "h1")
@@ -256,7 +256,11 @@ def test_cmd_embed_watch_reruns_the_pass(tmp_path, monkeypatch):
         passes.append(run_once())
         return 2
 
-    monkeypatch.setattr(cmds, "_watch_loop", fake_watch)
+    # Patch cmd_embed's own imported name for _watch_loop (kb/cmds/embed.py), not
+    # the commands.py shim's copy -- cmd_embed calls the bare name it imported
+    # directly from kb/cmds/_common.py, so patching a different module's copy of
+    # the same function (even the shim's) never reaches this call site.
+    monkeypatch.setattr(embed_mod, "_watch_loop", fake_watch)
     base = dict(config=str(cfg), workspace=None, source=None, repo=None,
                 limit=None, force=False, interval=0)
     assert cmd_embed(Namespace(**base, watch=True)) == 0

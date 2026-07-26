@@ -94,7 +94,7 @@ def test_connect_skips_disabled_sources(tmp_path, monkeypatch):
 def test_connect_returns_nonzero_when_all_sources_fail(tmp_path, monkeypatch):
     """Every source call failing (e.g. an unreachable connector) is a non-zero
     exit, not a silent 'Connect complete: 0 links'."""
-    import contextlake.kb.commands as cmds
+    import contextlake.kb.cmds.connect as cmds
 
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = tmp_path / "kbstore"
@@ -106,6 +106,9 @@ def test_connect_returns_nonzero_when_all_sources_fail(tmp_path, monkeypatch):
     def boom_enricher(repo_id, keys, links):
         raise RuntimeError("atlassian unreachable")
 
+    # Patch cmd_connect's own module (kb/cmds/connect.py), where _build_enrichers
+    # is defined and called directly -- not contextlake.kb.commands (the shim's
+    # separate re-exported copy), which cmd_connect never looks up at call time.
     monkeypatch.setattr(cmds, "_build_enrichers", lambda sources: ([boom_enricher], ["site-a"]))
     monkeypatch.setattr(refs, "extract_issue_keys", lambda path, pattern, **k: ["PROJ-1"])
     monkeypatch.setattr(refs, "scrape_links", lambda path, patterns, **k: [])
