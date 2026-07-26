@@ -285,6 +285,42 @@ def test_parse_review_still_recovers_genuine_labeled_prose_scores():
     assert r["score"] == 0.9 and r["parsed"] is True
 
 
+def test_parse_review_trailing_prose_brace_does_not_break_json_extraction():
+    # A trailing aside containing its own "{"/"}" used to make text.rindex("}")
+    # overshoot past the real JSON's closing brace, breaking json.loads entirely
+    # and silently discarding the real, valid issues list along with it.
+    text = ('{"score": 0.55, "issues": ["the `Config` class is underexplained", '
+            '"missing error handling notes"]}\n'
+            "Let me know if you want more detail on the `{Options}` object.")
+    r = _parse_review(text)
+    assert r == {
+        "score": 0.55,
+        "issues": ["the `Config` class is underexplained", "missing error handling notes"],
+        "parsed": True,
+    }
+
+
+def test_parse_review_prefers_the_real_quoted_score_over_an_unrelated_aside():
+    # Malformed via an unescaped inner quote, so json.loads fails outright and the
+    # fallback regex scan kicks in. The real, later "score": 0.2 field must win over
+    # an unrelated "...rating is 1 star..." aside that happens to appear earlier.
+    text = ('{"issues": ["the docs completeness rating is 1 star out of 5, that"s low"], '
+            '"score": 0.2}')
+    r = _parse_review(text)
+    assert r["score"] == 0.2 and r["parsed"] is True
+
+
+def test_parse_review_does_not_read_a_count_of_things_as_a_fraction_score():
+    # "3 out of 10 endpoints ... undocumented" describes a coverage gap, a count of
+    # endpoints -- not a 0.3 review score, and no "score"/"rating" keyword is present
+    # anywhere in the text to even loosely suggest it's meant as one.
+    r = _parse_review(
+        "I could not produce JSON. Roughly speaking, 3 out of 10 endpoints in this "
+        "repo are undocumented, which is a real gap."
+    )
+    assert r["parsed"] is False
+
+
 def test_parse_review_still_abstains_on_garbage():
     assert _parse_review("")["parsed"] is False
     assert _parse_review("asdf1234 !!!")["parsed"] is False

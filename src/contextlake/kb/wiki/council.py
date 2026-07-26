@@ -29,6 +29,14 @@ REVIEW_SYSTEM = (
 # Fallback keys a small model might use instead of the requested "score".
 _ALT_SCORE_KEYS = ("rating", "overall", "overall_score", "quality")
 
+# The literal JSON-quoted key the system prompt requests, e.g. `"score": 0.95`. Tried
+# first (before the looser fallbacks below) because it's the least ambiguous signal
+# available even when the JSON around it fails to parse for an unrelated reason (an
+# unescaped inner quote elsewhere) -- unlike a bare labeled/fraction match, it can't
+# be confused with an unrelated "rating is N" aside sitting earlier in the model's own
+# issue text, since that aside is never itself quoted as a JSON `"score"` key.
+_QUOTED_SCORE_RE = re.compile(r'"score"\s*:\s*([01](?:\.\d+)?)\b')
+
 # A score explicitly labeled "score"/"rating", e.g. "Score: 0.7 - thin." or the JSON
 # form `"score": 0.95` (small models often emit JSON with unescaped inner quotes elsewhere,
 # so json.loads fails and we recover the score from the raw text). A closing quote and
@@ -38,8 +46,12 @@ _ALT_SCORE_KEYS = ("rating", "overall", "overall_score", "quality")
 _LABELED_SCORE_RE = re.compile(
     r'(?i)\b(?:score|rating)\b["\s]*(?:[:=]|\bis\b)\s*([01](?:\.\d+)?)\b')
 
-# An "N/10" or "N out of 10" style rating, e.g. "I'd rate this 8/10.".
-_FRACTION_10_RE = re.compile(r"(?i)\b([0-9](?:\.\d+)?)\s*(?:/|out of)\s*10\b")
+# An "N/10" or "N out of 10" style rating, e.g. "I'd rate this 8/10.". The trailing
+# negative lookahead rejects a "10" immediately followed by a noun ("10 endpoints",
+# "10 reviewers") -- that shape is a count being described, not a rating, and would
+# otherwise be misread as a fabricated score (e.g. "3 out of 10 endpoints ... are
+# undocumented" is a coverage gap, not a 0.3 review score).
+_FRACTION_10_RE = re.compile(r"(?i)\b([0-9](?:\.\d+)?)\s*(?:/|out of)\s*10\b(?!\s+[a-zA-Z])")
 
 
 def _extract_score(obj, text: str) -> float | None:
@@ -63,6 +75,11 @@ def _extract_score(obj, text: str) -> float | None:
                 if 0.0 <= val <= 1.0:
                     return val
         return None
+    match = _QUOTED_SCORE_RE.search(text)
+    if match:
+        val = float(match.group(1))
+        if 0.0 <= val <= 1.0:
+            return val
     match = _LABELED_SCORE_RE.search(text)
     if match:
         val = float(match.group(1))
@@ -82,7 +99,11 @@ def _parse_review(text: str) -> dict:
     # the wrong shape (small local models do both). One flaky review must not sink an
     # otherwise well-reviewed page; its issues are still surfaced.
     try:
-        obj = json.loads(text[text.index("{"):text.rindex("}") + 1])
+        # raw_decode parses the first complete JSON value starting at "{" and
+        # stops there, ignoring anything after it -- unlike slicing to the LAST
+        # "}" in the text, which breaks as soon as any trailing prose (or an
+        # earlier unrelated aside) contains its own brace.
+        obj, _ = json.JSONDecoder().raw_decode(text[text.index("{"):])
     except (ValueError, json.JSONDecodeError):
         obj = None
 

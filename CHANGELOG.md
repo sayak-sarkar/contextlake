@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Wiki council review parsing could drop a review's real issues or fabricate a
+  wrong score, on the malformed-JSON recovery path a small local model's output
+  regularly takes.** Three related bugs in `_parse_review`/`_extract_score`: (1)
+  the naive `text[first "{" : last "}"]` slice broke as soon as any trailing
+  prose contained its own brace, discarding a validly-parsed `issues` list along
+  with the JSON — now uses `json.JSONDecoder.raw_decode`, which stops at the
+  first complete object regardless of what follows; (2) when JSON parsing failed
+  outright, the fallback score-recovery regex scanned the *entire* raw text with
+  `re.search` (first match wins), so an unrelated "...rating is 1 star..." aside
+  earlier in a model's own issue text could win over the real, later `"score"`
+  field — now the literal JSON-quoted `"score": N` form is tried first, since it
+  can't be confused with ordinary prose; (3) the "N out of 10" fallback matched
+  anywhere in prose with no context check, so "3 out of 10 endpoints... are
+  undocumented" (a coverage-gap description) was misread as a 0.3 review score —
+  now rejects a match immediately followed by a noun, the count-phrase shape
+  (`kb/wiki/council.py`).
+
 - **`contextlake hook install` could silently wire a hook to the wrong `repo_id`
   and never say so.** `_canonical_repo_id` swallowed every exception from opening
   the store (a bad `--config`, a corrupt/too-new store) with a bare `except:
