@@ -3063,7 +3063,7 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.52.0] - 2026-07-26
 
 ### Added
 
@@ -3086,7 +3086,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   semantics, not guessed. An ORM-only schema (SQLAlchemy/Entity Framework/
   TypeORM, no literal `CREATE TABLE` text) renders an honest empty diagram
   with guidance instead of looking broken.
-
 - **`wiki` now hints once per run when the builtin model is doing the council
   review.** The builtin 0.5B is a weak reviewer (near-constant high accept
   scores, mostly rubber-stamping): still functional, but a real backend
