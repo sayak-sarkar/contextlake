@@ -57,6 +57,20 @@ def test_semantic_search_ranks_and_maps_to_nodes(tmp_path):
         store.close()
 
 
+def test_semantic_search_empty_query_returns_empty_not_crash(tmp_path):
+    """embedder.embed([""])[0] used to reach vector_store.search()'s scoring and
+    crash with a raw TypeError instead of degrading gracefully, the way
+    search_code already handles an empty query."""
+    store, vs = _store_with_vectors(tmp_path)
+    try:
+        server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
+        res = asyncio.run(_call(server, "semantic_search", {"query": "   "}))
+        assert _unwrap(res.structuredContent) == []
+    finally:
+        vs.close()
+        store.close()
+
+
 def test_semantic_search_absent_without_embedder(tmp_path):
     store = SqliteStore(tmp_path / "kb.sqlite")
     try:

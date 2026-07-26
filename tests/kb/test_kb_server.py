@@ -382,6 +382,34 @@ def test_ask_falls_back_to_search(server):
     assert "note" in out and out["note"]
 
 
+def test_ask_empty_question_with_embedder_configured_does_not_crash(tmp_path):
+    """An empty/whitespace question falling through to the SEARCH route used to
+    call embedder.embed([""])[0] unconditionally -- embedding an empty string
+    crashed downstream in vector_store.search()'s scoring (float - None) instead
+    of degrading gracefully like search_code already does."""
+    from contextlake.kb.embeddings.store import VectorStore
+
+    class _FakeEmbedder:
+        name = "fake"
+
+        def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+
+    store = SqliteStore(tmp_path / "kb.sqlite")
+    _seed(store)
+    vs = VectorStore(tmp_path / "embeddings.sqlite")
+    vs.upsert([("a", "team/api", [1.0, 0.0]), ("b", "team/api", [0.0, 1.0])])
+    try:
+        srv = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
+        res = asyncio.run(_call(srv, "ask", {"question": "   "}))
+        out = res.structuredContent
+        assert out["route"] == "search"
+        assert out["nodes"] == []
+    finally:
+        vs.close()
+        store.close()
+
+
 def test_ask_handles_unresolvable_symbol(server):
     # a callers question about a symbol that isn't indexed must not raise
     res = asyncio.run(_call(server, "ask", {"question": "who calls NotARealSymbol"}))

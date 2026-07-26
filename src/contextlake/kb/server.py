@@ -666,6 +666,8 @@ def build_server(
             queries where exact names are unknown. Results are ranked by similarity.
             Hits of kind 'wiki'/'document' are ADVISORY prose (LLM-generated or
             ingested), not extracted code facts — verify against the cited file."""
+            if not query.strip():
+                return []  # matches search_code's empty-query handling, not a crash
             vec = embedder.embed([query])[0]
             out: list[NodeOut] = []
             for node_id, _score in vector_store.search(vec, k=k, repo=repo):
@@ -681,6 +683,8 @@ def build_server(
             dependents) that a pure semantic match would miss."""
             from .embeddings.hybrid import hybrid_search as _hybrid
 
+            if not query.strip():
+                return []  # matches search_code's empty-query handling, not a crash
             out: list[NodeOut] = []
             for node_id, _score in _hybrid(store, vector_store, embedder, query, k=k, repo=repo):
                 n = store.get_node(node_id)
@@ -828,7 +832,7 @@ def build_server(
         # `route` has already been reassigned to SEARCH above where we fell through,
         # so _out records it correctly.
         route = SEARCH
-        if embedder is not None and vector_store is not None:
+        if question.strip() and embedder is not None and vector_store is not None:
             vec = embedder.embed([question])[0]
             out: list[NodeOut] = []
             for nid, _s in vector_store.search(vec, k=k, repo=repo):

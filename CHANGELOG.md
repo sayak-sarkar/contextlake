@@ -41,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of a plain-text `usage: ...` line with a log timestamp — the
   previous behavior broke `--json`'s "always valid JSON" contract on exactly
   the case a script piping to `jq` most needs it to hold.
+- **MCP `semantic_search`/`hybrid_search`/`ask` no longer crash on an empty
+  query.** An empty string embeds to a zero vector, which crashed downstream
+  in the vector store's similarity scoring with a raw, uncaught
+  `TypeError: unsupported operand type(s) for -: 'float' and 'NoneType'`
+  instead of degrading gracefully the way `search_code` already does. All
+  three now return an empty result for an empty/whitespace-only query.
 
 ## [2.50.0] - 2026-07-26
 

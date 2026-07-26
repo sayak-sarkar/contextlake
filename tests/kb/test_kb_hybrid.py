@@ -107,3 +107,22 @@ def test_hybrid_search_tool(tmp_path):
     finally:
         vs.close()
         store.close()
+
+
+def test_hybrid_search_tool_empty_query_returns_empty_not_crash(tmp_path):
+    """Same class of bug as semantic_search: embedding an empty query used to
+    reach the scoring path and crash with a raw TypeError instead of returning
+    an empty result the way search_code already does."""
+    store, vs = _setup(tmp_path)
+    try:
+        server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
+
+        async def go():
+            async with connect(server) as client:
+                return await client.call_tool("hybrid_search", {"query": "  "})
+
+        res = asyncio.run(go())
+        assert _unwrap(res.structuredContent) == []
+    finally:
+        vs.close()
+        store.close()
