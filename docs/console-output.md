@@ -36,6 +36,10 @@ repositories from GitLab`, `▶ Audit repositories (health & age)`) so a long ru
 than one undifferentiated scroll, and every long-running command ends with a one-line, glyph-prefixed
 summary (`✓ Embed complete: ...`, `✓ Lint: ...`, and so on) you can skim straight to.
 
+**`--plain`** (same effect as setting `NO_COLOR=1`) strips ANSI color, even on a TTY, useful when piping
+into a tool that doesn't expect escape codes. It doesn't touch the glyphs themselves, `✓`/`⚠`/`✗` and the
+rest still print; only the color wrapped around them is gone.
+
 ## The stdout / stderr split
 
 The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like) stay on stdout. That

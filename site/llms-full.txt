@@ -550,6 +550,17 @@ group-qualified path or its local path (case-insensitive). It scopes the whole
 pipeline: `fetch` narrows the cached project list, and `clone` / `update` / `branches`
 / `verify` / `status` / `bootstrap` all follow from that.
 
+**Preview with `-n` / `--dry-run`.** Every mirror command accepts `-n` (the short form, matching the
+near-universal `rm`/`cp`/`make` convention) to show what would happen without cloning, updating, or
+switching a single branch:
+
+```bash
+contextlake update -n
+# DRY RUN: no repositories will be cloned, updated, or switched
+```
+
+Pair it with `--repos` to preview a change scoped to just the repos you're about to touch.
+
 `contextlake sync` runs the whole mirror pipeline end to end; each stage is also
 available as its own command:
 
@@ -1267,7 +1278,12 @@ The commands:
 
 - **`contextlake source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
   type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to `kb.toml`. Pass
-  `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all).
+  `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
+  (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below), `--set
+  token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
+  value from stdin instead of the command line, so a secret never lands in shell history: `printf '%s'
+  "$TOKEN" | contextlake source add jira --type atlassian --from-stdin token`.
+
 - **`contextlake source list`**: show all configured connectors (the effective merged config from
   `~/.contextlake/kb.toml`, `.contextlake/kb.toml` if present, and the built-in defaults), with
   reachability status.
@@ -2858,6 +2874,26 @@ Source: https://sayak.in/contextlake/cli-reference
 Every command has scoped help via `contextlake <command> --help`. This page is the at-a-glance map; each
 command's own page (linked below) covers it in depth.
 
+## Typos and abbreviations
+
+A mistyped command suggests the closest real one instead of dumping the full command list:
+
+```
+$ contextlake fetc
+✗ Unknown command: 'fetc'
+
+Did you mean: fetch?
+
+Run 'contextlake --help' to see all commands.
+```
+
+The match runs against every command name **and its aliases** (`blast-radius` for `impact`, `who-knows`
+for `owners`), then shows the canonical verb, matching what `--help` teaches.
+
+Flags never match on a partial name. `contextlake index --work-d /tmp` reports `unrecognized arguments:
+--work-d` rather than silently guessing you meant `--workspace`, a partial flag is treated the same as an
+unknown one, so a typo fails loudly instead of doing the wrong thing.
+
 ## Knowledge-layer commands
 
 | Command | What it does |
@@ -2932,6 +2968,10 @@ Multi-stage commands (`bootstrap` and `sync`) also print `▶ <Phase>` section h
 repositories from GitLab`, `▶ Audit repositories (health & age)`) so a long run reads as sections rather
 than one undifferentiated scroll, and every long-running command ends with a one-line, glyph-prefixed
 summary (`✓ Embed complete: ...`, `✓ Lint: ...`, and so on) you can skim straight to.
+
+**`--plain`** (same effect as setting `NO_COLOR=1`) strips ANSI color, even on a TTY, useful when piping
+into a tool that doesn't expect escape codes. It doesn't touch the glyphs themselves, `✓`/`⚠`/`✗` and the
+rest still print; only the color wrapped around them is gone.
 
 ## The stdout / stderr split
 

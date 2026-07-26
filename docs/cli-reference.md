@@ -3,6 +3,26 @@
 Every command has scoped help via `contextlake <command> --help`. This page is the at-a-glance map; each
 command's own page (linked below) covers it in depth.
 
+## Typos and abbreviations
+
+A mistyped command suggests the closest real one instead of dumping the full command list:
+
+```
+$ contextlake fetc
+✗ Unknown command: 'fetc'
+
+Did you mean: fetch?
+
+Run 'contextlake --help' to see all commands.
+```
+
+The match runs against every command name **and its aliases** (`blast-radius` for `impact`, `who-knows`
+for `owners`), then shows the canonical verb, matching what `--help` teaches.
+
+Flags never match on a partial name. `contextlake index --work-d /tmp` reports `unrecognized arguments:
+--work-d` rather than silently guessing you meant `--workspace` — a partial flag is treated the same as an
+unknown one, so a typo fails loudly instead of doing the wrong thing.
+
 ## Knowledge-layer commands
 
 | Command | What it does |

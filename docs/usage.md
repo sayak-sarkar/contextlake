@@ -31,6 +31,17 @@ group-qualified path or its local path (case-insensitive). It scopes the whole
 pipeline: `fetch` narrows the cached project list, and `clone` / `update` / `branches`
 / `verify` / `status` / `bootstrap` all follow from that.
 
+**Preview with `-n` / `--dry-run`.** Every mirror command accepts `-n` (the short form, matching the
+near-universal `rm`/`cp`/`make` convention) to show what would happen without cloning, updating, or
+switching a single branch:
+
+```bash
+contextlake update -n
+# DRY RUN: no repositories will be cloned, updated, or switched
+```
+
+Pair it with `--repos` to preview a change scoped to just the repos you're about to touch.
+
 `contextlake sync` runs the whole mirror pipeline end to end; each stage is also
 available as its own command:
 
