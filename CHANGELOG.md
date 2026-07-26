@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The C4 diagram's namespace boundary tagging could mark a real edge as
+  internal when it wasn't, or as crossing a boundary when it wasn't.** Two bugs
+  in how repos were bucketed into namespaces for boundary purposes (shared with
+  the dashboard's display-grouping heuristic, `derive_groups`, but wrong for
+  boundary tagging specifically): (1) a repo whose id IS exactly a namespace
+  prefix (e.g. a repo literally named `acme` alongside `acme/pay/api`) fell into
+  the meaningless catch-all `"(ungrouped)"` bucket instead of the `acme`
+  boundary its own child repo joined, so a real edge between them wrongly
+  rendered as crossing a boundary; (2) `"(ungrouped)"` was treated as one shared
+  namespace, so two entirely unrelated single-segment repos that only
+  coincidentally had no deeper namespace got a real edge between them rendered
+  as internal, identical to a genuinely related same-namespace edge. C4
+  boundary tagging now uses its own bucketing rule, independent from
+  `derive_groups`: each repo's own path prefix (or its full id, if shorter than
+  `group_depth`) becomes its namespace, so a repo with no real namespace always
+  gets a namespace of exactly itself (`kb/c4.py`).
+
 - **Wiki council review parsing could drop a review's real issues or fabricate a
   wrong score, on the malformed-JSON recovery path a small local model's output
   regularly takes.** Three related bugs in `_parse_review`/`_extract_score`: (1)

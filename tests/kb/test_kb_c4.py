@@ -78,6 +78,61 @@ def test_c4_model_buckets_namespaces_and_splits_edges(tmp_path):
     assert all(e.confidence == "INFERRED" and e.weight >= 1 for e in model.edges)
 
 
+def test_c4_boundary_repo_that_is_the_exact_namespace_joins_it(tmp_path):
+    """A repo literally named "acme" (the same namespace "acme/pay/api" sits
+    under) used to fall into a meaningless shared "(ungrouped)" bucket instead
+    of the "acme" boundary its own child repo joins -- so a real edge between
+    them wrongly rendered as crossing a namespace boundary."""
+    s = SqliteStore(tmp_path / "index.sqlite")
+    for rid in ("acme", "acme/pay/api"):
+        s.upsert_repo(Repo(id=rid, path=f"/repos/{rid}"))
+    ep = make_id("endpoint", "/x")
+    s.upsert_nodes("acme", [_fnode("acme", "root"),
+                            Node(id=ep, repo="acme", kind="endpoint", name="/x")])
+    s.upsert_edges("acme", [_edge("acme", "root", ep, "exposes")])
+    s.upsert_nodes("acme/pay/api", [_fnode("acme/pay/api", "cl")])
+    s.upsert_edges("acme/pay/api", [_edge("acme/pay/api", "cl", ep, "calls_http")])
+    s.close()
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    model = c4.c4_model(store, group_depth=1)
+    ns = {b.namespace: {c.repo_id for c in b.containers} for b in model.boundaries}
+    assert ns.get("acme") == {"acme", "acme/pay/api"}
+    edge = next(e for e in model.edges if e.flavor == "http")
+    assert edge.boundary is False
+
+
+def test_c4_boundary_two_unrelated_ungrouped_repos_are_not_one_namespace(tmp_path):
+    """Two repos that only coincidentally share no real namespace (both single-
+    segment, both shallower than group_depth) used to be lumped into one shared
+    "(ungrouped)" bucket for boundary purposes -- so a real edge between two
+    entirely unrelated repos rendered as internal, identical to a genuinely
+    related same-namespace edge."""
+    s = SqliteStore(tmp_path / "index.sqlite")
+    for rid in ("solo1", "solo2", "acme/pay/api", "acme/billing/svc"):
+        s.upsert_repo(Repo(id=rid, path=f"/repos/{rid}"))
+    solo_ep = make_id("endpoint", "/solo")
+    acme_ep = make_id("endpoint", "/acme")
+    s.upsert_nodes("solo1", [_fnode("solo1", "cl")])
+    s.upsert_edges("solo1", [_edge("solo1", "cl", solo_ep, "calls_http")])
+    s.upsert_nodes("solo2", [_fnode("solo2", "root"),
+                             Node(id=solo_ep, repo="solo2", kind="endpoint", name="/solo")])
+    s.upsert_edges("solo2", [_edge("solo2", "root", solo_ep, "exposes")])
+    s.upsert_nodes("acme/pay/api", [_fnode("acme/pay/api", "cl")])
+    s.upsert_edges("acme/pay/api", [_edge("acme/pay/api", "cl", acme_ep, "calls_http")])
+    s.upsert_nodes("acme/billing/svc",
+                   [_fnode("acme/billing/svc", "root"),
+                    Node(id=acme_ep, repo="acme/billing/svc", kind="endpoint", name="/acme")])
+    s.upsert_edges("acme/billing/svc", [_edge("acme/billing/svc", "root", acme_ep, "exposes")])
+    s.close()
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    model = c4.c4_model(store, group_depth=1)
+    by_endpoints = {(e.src, e.dst): e for e in model.edges}
+    assert by_endpoints[("solo1", "solo2")].boundary is True
+    assert by_endpoints[("acme/pay/api", "acme/billing/svc")].boundary is False
+
+
 def test_to_c4_dot_emits_clusters_and_labeled_edges(tmp_path):
     store = _seed(tmp_path)
     model = c4.c4_model(store, group_depth=2)

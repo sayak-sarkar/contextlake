@@ -1,7 +1,8 @@
 """C4-style namespace boundary model over the fleet's repo graph.
 
-Buckets every included repo into a namespace boundary (by path-prefix depth, the
-same heuristic ``derive_groups`` uses for the dashboard's domain grid), then
+Buckets every included repo into a namespace boundary (by path-prefix depth --
+similar to, but not the same heuristic as, ``derive_groups``'s dashboard domain
+grid; see ``_c4_namespaces`` for why boundary tagging needs its own rule), then
 aggregates the real repo-to-repo edges (``cross_repo_edges``: dependency / HTTP
 flow / event flow) into one edge per ``(src, dst, flavor)``, tagging each as
 ``internal`` (both endpoints share a namespace) or ``boundary`` (they don't).
@@ -15,7 +16,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .dashboard.data import derive_groups
 from .security import sanitize_label
 from .visualize import _CONF_DOT, _dot_escape, to_payload
 from .wiki.cluster import cross_repo_edges
@@ -52,30 +52,53 @@ class C4Model:
     meta: dict
 
 
+def _c4_namespaces(repo_ids: list[str], depth: int) -> dict[str, list[str]]:
+    """Bucket ``repo_ids`` into c4 namespace boundaries by path-prefix depth.
+
+    Deliberately its own logic, not a reuse of ``derive_groups`` (the
+    dashboard's display-grouping heuristic): that function's shared
+    ``"(ungrouped)"`` bucket is fine for a dashboard grid (a graceful catch-all
+    for many unrelated small repos) but wrong for *boundary tagging*, where two
+    only-coincidentally-ungrouped repos must never be treated as sharing a
+    namespace. Here, a repo's own path prefix (or its own full id, when that id
+    has fewer than ``depth`` segments) becomes its namespace -- so a repo with
+    no namespace beyond ``depth`` gets a namespace of exactly itself (any edge
+    touching it is always a boundary edge), and a repo that IS the exact
+    namespace another repo sits under (e.g. a repo literally named ``acme``
+    alongside ``acme/pay/api``) correctly joins that namespace instead of a
+    meaningless shared catch-all.
+    """
+    depth = max(1, int(depth))
+    groups: dict[str, list[str]] = {}
+    for r in repo_ids:
+        key = "/".join(r.split("/")[:depth])
+        groups.setdefault(key, []).append(r)
+    return groups
+
+
 def c4_model(store, *, group_depth: int = 1, repos: list[str] | None = None) -> C4Model:
     """Build a namespace-boundary C4 model over ``store``.
 
     ``repos``, if given, is the pre-filtered repo-id list to include (otherwise
-    every ``store.list_repos()``). Repos are bucketed into boundaries via
-    ``derive_groups`` at ``group_depth`` (``"(ungrouped)"`` is a valid boundary
-    for repos shallower than the depth). ``cross_repo_edges(store)`` is then
-    filtered to edges whose both endpoints are in the included repo set,
+    every ``store.list_repos()``). Repos are bucketed into boundaries by
+    path-prefix depth (see ``_c4_namespaces``). ``cross_repo_edges(store)`` is
+    then filtered to edges whose both endpoints are in the included repo set,
     collapsed by ``(src, dst, flavor)`` (summing ``weight``; confidence is
     always ``"INFERRED"`` today), and tagged ``boundary=True`` when its two
     endpoints resolve to different namespaces.
     """
     repo_ids = repos if repos is not None else [r.id for r in store.list_repos()]
-    groups = derive_groups(repo_ids, group_depth)
+    groups = _c4_namespaces(repo_ids, group_depth)
 
     namespace_of: dict[str, str] = {}
     boundaries: list[C4Boundary] = []
-    for g in groups:
-        namespace = g["group"]
-        containers = [C4Container(repo_id=rid, label=rid, namespace=namespace)
-                      for rid in g["repos"]]
+    for key, repo_group in sorted(groups.items()):
+        namespace = sanitize_label(key)
+        containers = [C4Container(repo_id=sanitize_label(rid), label=rid, namespace=namespace)
+                      for rid in sorted(repo_group)]
         boundaries.append(C4Boundary(namespace=namespace, label=namespace,
                                       containers=containers))
-        for rid in g["repos"]:
+        for rid in repo_group:
             namespace_of[rid] = namespace
 
     included = set(namespace_of)
@@ -179,7 +202,7 @@ def c4_payload(model: C4Model) -> dict:
     its boundary's node id, so cytoscape draws it nested inside the boundary.
 
     Node/edge id canonicalization: ``C4Container.repo_id`` already went
-    through ``sanitize_label`` inside ``derive_groups`` (``c4_model``), but
+    through ``sanitize_label`` inside ``c4_model``, but
     ``C4Edge.src``/``dst`` come straight from ``cross_repo_edges`` and are
     raw/unsanitized. Cytoscape joins an edge to its endpoints by exact string
     match on node id, so a raw edge endpoint that differs from its sanitized
