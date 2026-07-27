@@ -13,6 +13,7 @@ from .atlassian import (
     DEFAULT_MCP_URL,
     AtlassianConnector,
     associate,
+    associate_symbols,
     external_node,
     host_of,
 )
@@ -167,15 +168,25 @@ def reconcile(nodes, edges, confirmed):
     return out_nodes, out_edges
 
 
-def enrich_repo(connector, sites, repo_id, *, issue_keys=(), links=()):
+def enrich_repo(connector, sites, repo_id, *, issue_keys=(), links=(), symbol_keys=None):
     """Associate reference signals, live-verify issue keys, and reconcile.
 
     ``sites`` is ``{site_url: cloudId}`` (from ``connector.discover_sites()``).
+    ``symbol_keys`` is ``{symbol_node_id: issue_key}`` (see :mod:`symbol_refs`) --
+    per-symbol candidates, merged in alongside the repo-level ones and verified
+    in the same batched JQL call, so a symbol's issue key is confirmed/dropped
+    exactly like a branch-derived one.
     """
     site_hosts = [h for h in (host_of(u) for u in sites) if h]
     nodes, edges = associate(repo_id, issue_keys=issue_keys, links=links, site_hosts=site_hosts)
+    if symbol_keys:
+        sym_nodes, sym_edges = associate_symbols(symbol_keys)
+        by_id = {n.id: n for n in nodes}
+        by_id.update({n.id: n for n in sym_nodes})
+        nodes = list(by_id.values())
+        edges = edges + sym_edges
     confirmed: dict[str, dict] = {}
-    keys = list(issue_keys)
+    keys = list(dict.fromkeys([*issue_keys, *(symbol_keys or {}).values()]))
     if keys:
         for cloud_id in sites.values():
             confirmed.update(connector.verify_issues(cloud_id, keys))

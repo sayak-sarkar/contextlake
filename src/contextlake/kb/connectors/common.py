@@ -31,12 +31,21 @@ def repo_node(repo_id: str) -> Node:
     return Node(id=make_id("repo", repo_id), repo=repo_id, kind="repo", name=repo_id)
 
 
+def edge_from(src_id: str, ext: Node, relation: str, source_file: str, *,
+             confidence: Confidence = Confidence.INFERRED,
+             verified_at: date | None = None) -> Edge:
+    """A ``src_id`` -> external-knowledge edge (e.g. tracked_by / documented_by /
+    designed_in). ``src_id`` is any existing node id -- a repo (see
+    :func:`link_edge`) or a symbol, for per-symbol attribution."""
+    return Edge(
+        src=src_id, dst=ext.id, relation=relation, confidence=confidence,
+        provenance=Provenance(source_file=source_file, verified_at=verified_at or date.today()),
+    )
+
+
 def link_edge(repo_id: str, ext: Node, relation: str, source_file: str, *,
               confidence: Confidence = Confidence.INFERRED,
               verified_at: date | None = None) -> Edge:
     """A repo -> external-knowledge edge (e.g. tracked_by / documented_by / designed_in)."""
-    return Edge(
-        src=make_id("repo", repo_id), dst=ext.id, relation=relation,
-        confidence=confidence,
-        provenance=Provenance(source_file=source_file, verified_at=verified_at or date.today()),
-    )
+    return edge_from(make_id("repo", repo_id), ext, relation, source_file,
+                     confidence=confidence, verified_at=verified_at)

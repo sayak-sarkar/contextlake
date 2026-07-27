@@ -7,6 +7,7 @@ import sys
 from contextlake.kb.connectors.atlassian import (
     AtlassianConnector,
     associate,
+    associate_symbols,
     claims,
     classify_link,
     external_node,
@@ -198,6 +199,23 @@ def test_associate_claims_only_own_links_and_classifies():
     assert all(e.confidence == Confidence.INFERRED for e in edges)
 
 
+def test_associate_symbols_creates_ambiguous_symbol_sourced_edges():
+    nodes, edges = associate_symbols({"symbol-1": "PROJ-1", "symbol-2": "PROJ-2"})
+    assert {n.kind for n in nodes} == {"issue"}
+    assert len(edges) == 2
+    by_src = {e.src: e for e in edges}
+    assert by_src["symbol-1"].dst == external_node("issue", "PROJ-1").id
+    assert by_src["symbol-1"].relation == "tracked_by"
+    assert all(e.confidence == Confidence.AMBIGUOUS for e in edges)
+
+
+def test_associate_symbols_dedupes_shared_issue():
+    nodes, edges = associate_symbols({"s1": "PROJ-1", "s2": "PROJ-1"})
+    assert sum(1 for n in nodes if n.kind == "issue") == 1  # same issue, one node
+    assert len(edges) == 2  # but each symbol keeps its own edge
+    assert {e.src for e in edges} == {"s1", "s2"}
+
+
 def test_associate_dedupes_repo_and_edges():
     nodes, edges = associate(
         "group/app",
@@ -257,6 +275,38 @@ def test_enrich_repo_combines_jql_and_doc_links():
     )
     assert {n.name for n in nodes if n.kind == "issue"} == {"PROJ-1", "PROJ-2"}
     assert any(n.kind == "repo" for n in nodes)
+
+
+def test_enrich_repo_verifies_and_promotes_symbol_keys():
+    """A per-symbol candidate goes through the SAME live JQL batch + reconcile
+    promotion as a branch-derived repo-level key."""
+    conn = _StubConnector({"PROJ-1": {"summary": "Real", "status": "Open", "url": "u"}})
+    sites = {"https://example.atlassian.net": "cloud-1"}
+    nodes, edges = enrich_repo(
+        conn, sites, "g/app",
+        symbol_keys={"symbol-1": "PROJ-1", "symbol-2": "NOPE-9"},
+    )
+    symbol_edges = [e for e in edges if e.src in ("symbol-1", "symbol-2")]
+    assert len(symbol_edges) == 1  # NOPE-9 dropped, unconfirmed
+    assert symbol_edges[0].src == "symbol-1"
+    assert symbol_edges[0].confidence == Confidence.INFERRED  # promoted from AMBIGUOUS
+    issue = next(n for n in nodes if n.kind == "issue")
+    assert issue.attrs["summary"] == "Real"
+
+
+def test_enrich_repo_dedupes_keys_shared_by_repo_and_symbol_into_one_jql_call():
+    calls = []
+
+    class _CountingStub(_StubConnector):
+        def verify_issues(self, cloud_id, keys, batch=100):
+            calls.append(list(keys))
+            return super().verify_issues(cloud_id, keys, batch)
+
+    conn = _CountingStub({"PROJ-1": {"summary": "S", "status": "Open", "url": "u"}})
+    sites = {"https://example.atlassian.net": "cloud-1"}
+    enrich_repo(conn, sites, "g/app", issue_keys=["PROJ-1"],
+               symbol_keys={"symbol-1": "PROJ-1"})
+    assert calls == [["PROJ-1"]]  # deduped into one key, not queried twice
 
 
 # --- enrich_repo_figma: deeper enrichment merges real metadata --------------

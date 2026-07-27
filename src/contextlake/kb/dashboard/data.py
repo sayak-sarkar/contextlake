@@ -180,6 +180,20 @@ def _safe_url(url):
     return None
 
 
+def _link_entry(n, e, *, anonymize: bool = False) -> dict:
+    attrs = getattr(n, "attrs", None) or {}
+    title = attrs.get("title") or attrs.get("summary")
+    url = None if anonymize else _safe_url(attrs.get("url"))
+    return {
+        "kind": sanitize_label(n.kind),
+        "name": sanitize_label(n.name),
+        "url": sanitize_label(url) if url else None,
+        "title": sanitize_label(title) if title else None,
+        "status": sanitize_label(attrs["status"]) if attrs.get("status") else None,
+        "confidence": _conf(e),
+    }
+
+
 def _links_for(store, repo_id: str, *, anonymize: bool = False) -> dict:
     """External cross-links grouped by relation (reuses ``get_repo_links`` logic)."""
     from ..ids import make_id
@@ -191,18 +205,22 @@ def _links_for(store, repo_id: str, *, anonymize: bool = False) -> dict:
         n = store.get_node(e.dst)
         if not n:
             continue
-        attrs = getattr(n, "attrs", None) or {}
-        title = attrs.get("title") or attrs.get("summary")
-        url = None if anonymize else _safe_url(attrs.get("url"))
-        grouped.setdefault(e.relation, []).append({
-            "kind": sanitize_label(n.kind),
-            "name": sanitize_label(n.name),
-            "url": sanitize_label(url) if url else None,
-            "title": sanitize_label(title) if title else None,
-            "status": sanitize_label(attrs["status"]) if attrs.get("status") else None,
-            "confidence": _conf(e),
-        })
+        grouped.setdefault(e.relation, []).append(_link_entry(n, e, anonymize=anonymize))
     return grouped
+
+
+def _symbol_tickets(store, node_id: str, *, anonymize: bool = False) -> list[dict]:
+    """A symbol's OWN ``tracked_by`` links (per-symbol ticket attribution --
+    see ``connectors/symbol_refs.py``), distinct from ``_links_for``'s
+    repo-level links. Empty when the symbol has none, which is the normal
+    case today (attribution needs a configured Atlassian source + a
+    docstring/blame-derived issue key that a live JQL call confirmed)."""
+    out = []
+    for e in store.neighbors(node_id, relation="tracked_by", direction="out"):
+        n = store.get_node(e.dst)
+        if n:
+            out.append(_link_entry(n, e, anonymize=anonymize))
+    return out
 
 
 def _readme_html(store, repo_id: str) -> str | None:
@@ -510,7 +528,7 @@ def repo_relationships_bulk(store, repo_ids) -> dict:
 
 
 def impact(store, node_id: str, hops: int = 3, limit: int = 100,
-           repo: str | None = None) -> dict:
+           repo: str | None = None, *, anonymize: bool = False) -> dict:
     """Reverse blast radius for a node (reuses ``impact.blast_radius``).
 
     Resolves a node id OR a bare symbol name via the shared ``resolve_target`` (exact
@@ -536,6 +554,7 @@ def impact(store, node_id: str, hops: int = 3, limit: int = 100,
         "hops": hops,
         "total": len(hits),
         "truncated": truncated,
+        "ticket": _symbol_tickets(store, node.id, anonymize=anonymize),
         "hits": [{
             "id": sanitize_label(h.id), "repo": sanitize_label(h.repo),
             "kind": sanitize_label(h.kind), "name": sanitize_label(h.name),

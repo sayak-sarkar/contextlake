@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-symbol ticket attribution.** `tracked_by` edges could previously only
+  originate from a repo node (a branch name or a doc link, with no way to say
+  *which* symbol an issue relates to). Two new candidate sources — a symbol's
+  own docstring, and the git-blame commit message on its defining line (one
+  batched `git blame` per file, not per symbol) — each a bare-key regex
+  match, so both are AMBIGUOUS candidates fed through the exact same live-JQL
+  `verify_issues`/`reconcile` pipeline that already promotes branch-derived
+  keys to INFERRED. New `connectors/symbol_refs.py` (pure logic) +
+  `AtlassianConnector.associate_symbols()`. Closes the approved-spec
+  divergence flagged when dashboard cross-linking shipped (breadcrumb ends
+  in repo-level "Links" instead of a per-symbol "Ticket"): the symbol/blast-
+  radius page's breadcrumb now gets a real **Ticket** crumb when a symbol
+  has one, opening the tracker URL directly. Built and tested against a
+  spawned mock/real git repo (no live Jira credentials this session); real-
+  workspace verification is still needed before this is production-proven.
 - **Slack connector.** A new `slack.py` connector (mirroring the Figma/Atlassian
   shape) classifies `slack.com` permalinks in a repo's docs (`/archives/<channel>`
   and `/archives/<channel>/p<ts>`) into channel/message links, wired into

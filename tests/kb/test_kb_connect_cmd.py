@@ -91,6 +91,45 @@ def test_connect_skips_disabled_sources(tmp_path, monkeypatch):
     assert built == []  # the disabled source's connector is never constructed
 
 
+def test_connect_attributes_ticket_to_symbol_via_docstring(tmp_path, monkeypatch, gls_logs):
+    """End-to-end: a symbol's own docstring carries an issue key -> a
+    symbol-SOURCED tracked_by edge is verified and stored, not just a
+    repo-level one."""
+    from contextlake.kb.model import Node
+    from contextlake.kb.store.shards import GraphShard, write_shard
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_CONFIG.format(store=store_dir.as_posix()))
+    repo = tmp_path / "app"
+    repo.mkdir()
+
+    symbol = Node(id="sym-checkout", repo="group/app", kind="function", name="checkout",
+                 file="billing.py", line_start=10,
+                 attrs={"doc": "Handles checkout. See PROJ-1 for the refund edge case."})
+    write_shard(store_dir, GraphShard(repo="group/app", head_commit="abc123", nodes=[symbol]))
+
+    monkeypatch.setattr(orch, "build_atlassian", lambda src: _Stub())
+    monkeypatch.setattr(refs, "extract_issue_keys", lambda path, pattern, **k: [])
+    monkeypatch.setattr(refs, "scrape_links", lambda path, patterns, **k: [])
+
+    args = Namespace(config=str(cfg), workspace=None, source=str(repo), repo="group/app")
+    assert cmd_connect(args) == 0
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        check_schema(store)
+        ticket_edges = [e for e in store.neighbors("sym-checkout", direction="out")
+                        if e.relation == "tracked_by"]
+        assert len(ticket_edges) == 1
+        assert ticket_edges[0].confidence.value == "INFERRED"  # promoted, JQL-confirmed
+        issue = store.get_node(ticket_edges[0].dst)
+        assert issue.kind == "issue" and issue.name == "PROJ-1"
+    finally:
+        store.close()
+
+
 def test_connect_returns_nonzero_when_all_sources_fail(tmp_path, monkeypatch):
     """Every source call failing (e.g. an unreachable connector) is a non-zero
     exit, not a silent 'Connect complete: 0 links'."""
@@ -103,7 +142,7 @@ def test_connect_returns_nonzero_when_all_sources_fail(tmp_path, monkeypatch):
     repo = tmp_path / "app"
     repo.mkdir()
 
-    def boom_enricher(repo_id, keys, links):
+    def boom_enricher(repo_id, keys, links, symbol_keys):
         raise RuntimeError("atlassian unreachable")
 
     # Patch cmd_connect's own module (kb/cmds/connect.py), where _build_enrichers

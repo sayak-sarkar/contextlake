@@ -145,7 +145,8 @@ def _symbol_index(store, patterns, *, cap: int = 2000) -> list[dict]:
     return out
 
 
-def _impact_index(store, symbols: list[dict], *, cap: int = 400) -> dict:
+def _impact_index(store, symbols: list[dict], *, cap: int = 400,
+                  anonymize: bool = False) -> dict:
     """Reverse blast-radius precompute keyed by (sanitized) node id, for the offline
     Blast-Radius panel. Computed at the widest setting so the client narrows by
     filtering hops/relations; bounded to the symbol-index set."""
@@ -155,7 +156,7 @@ def _impact_index(store, symbols: list[dict], *, cap: int = 400) -> dict:
             break
         if s["kind"] not in _IMPACT_KINDS:
             continue
-        imp = kbdata.impact(store, s["_raw"], hops=3, limit=100)
+        imp = kbdata.impact(store, s["_raw"], hops=3, limit=100, anonymize=anonymize)
         if imp.get("found") and imp.get("hits"):
             out[s["id"]] = imp
     return out
@@ -187,7 +188,7 @@ def _snapshot(store, store_dir: Path, *, repos=None, anonymize: bool = False,
     # One bucketed edge scan for all repos, not one full scan per repo (O(repos x edges)).
     relationships = kbdata.repo_relationships_bulk(store, detail_ids)
     symbols = _symbol_index(store, patterns)
-    impact = _impact_index(store, symbols)
+    impact = _impact_index(store, symbols, anonymize=anonymize)
     for s in symbols:
         s.pop("_raw", None)
     return {

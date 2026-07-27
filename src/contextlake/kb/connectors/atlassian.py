@@ -15,12 +15,12 @@ from .._util import chunks
 from ..ids import make_id
 from ..mcp_client import call_tool
 from ..model import EXTERNAL_REPO, Confidence, Edge, Node
-from .common import claims, host_of, link_edge, repo_node
+from .common import claims, edge_from, host_of, link_edge, repo_node
 
 __all__ = [
-    "AtlassianConnector", "DEFAULT_MCP_URL", "associate", "claims", "classify_link",
-    "external_node", "host_of", "issue_summary", "link_edge", "parse_search_issues",
-    "repo_node",
+    "AtlassianConnector", "DEFAULT_MCP_URL", "associate", "associate_symbols", "claims",
+    "classify_link", "external_node", "host_of", "issue_summary", "link_edge",
+    "parse_search_issues", "repo_node",
 ]
 
 DEFAULT_MCP_URL = "https://mcp.atlassian.com/v1/mcp/authv2"
@@ -168,4 +168,24 @@ def associate(repo_id: str, *, issue_keys=(), links=(), site_hosts=()):
         relation = "tracked_by" if kind == "issue" else "documented_by"
         _add(external_node(kind, key, url=url), relation, "docs", Confidence.INFERRED)
 
+    return list(nodes.values()), list(edges.values())
+
+
+def associate_symbols(symbol_keys: dict[str, str],
+                      *, source: str = "symbol") -> tuple[list[Node], list[Edge]]:
+    """Build symbol -> issue nodes/edges from per-symbol candidate keys (no
+    network). ``symbol_keys`` is ``{symbol_node_id: issue_key}`` (see
+    :mod:`symbol_refs`) -- a bare-key regex match, same trust tier as a
+    branch-name-derived key, so every edge is AMBIGUOUS pending the same live
+    JQL verification the repo-level candidates already go through.
+    """
+    nodes: dict[str, Node] = {}
+    edges: dict[tuple[str, str, str], Edge] = {}
+    for symbol_id, key in symbol_keys.items():
+        node = external_node("issue", key)
+        nodes.setdefault(node.id, node)
+        edges.setdefault(
+            (symbol_id, node.id, "tracked_by"),
+            edge_from(symbol_id, node, "tracked_by", source, confidence=Confidence.AMBIGUOUS),
+        )
     return list(nodes.values()), list(edges.values())

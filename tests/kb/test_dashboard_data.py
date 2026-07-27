@@ -62,11 +62,15 @@ def store_dir(tmp_path):
         Node(id="issue_42", repo="team/app", kind="issue", name="PROJ-42",
              attrs={"url": "https://tracker.example.com/PROJ-42", "title": "Fix charge",
                     "status": "open"}),
+        Node(id="issue_99", repo="team/app", kind="issue", name="PROJ-99",
+             attrs={"url": "https://tracker.example.com/PROJ-99",
+                    "title": "Charge refund edge case", "status": "open"}),
     ]
     app_edges = [
         _edge("app_caller", "app_catalogservice", "calls"),
         _edge("app_mod", "libpkg", "depends_on"),
         _edge(make_id("repo", "team/app"), "issue_42", "tracked_by"),
+        _edge("app_charge", "issue_99", "tracked_by"),  # per-symbol attribution
     ]
     # team/lib — publishes the package team/app depends on.
     lib_nodes = [
@@ -305,6 +309,32 @@ def test_impact_carries_the_seeds_own_repo(store_dir):
     s, _ = store_dir
     imp = kbdata.impact(s, "app_catalogservice")
     assert imp["repo"]
+
+
+def test_impact_carries_the_seeds_own_ticket(store_dir):
+    """Per-symbol ticket attribution: a symbol-SOURCED tracked_by edge shows up
+    on that symbol's own impact payload, distinct from the repo-level Links."""
+    s, _ = store_dir
+    imp = kbdata.impact(s, "app_charge")
+    assert imp["ticket"] == [{
+        "kind": "issue", "name": "PROJ-99",
+        "url": "https://tracker.example.com/PROJ-99",
+        "title": "Charge refund edge case", "status": "open",
+        "confidence": "EXTRACTED",
+    }]
+
+
+def test_impact_ticket_empty_for_symbol_without_one(store_dir):
+    s, _ = store_dir
+    imp = kbdata.impact(s, "app_catalogservice")
+    assert imp["ticket"] == []
+
+
+def test_impact_ticket_anonymize_strips_url(store_dir):
+    s, _ = store_dir
+    imp = kbdata.impact(s, "app_charge", anonymize=True)
+    assert imp["ticket"][0]["url"] is None
+    assert imp["ticket"][0]["name"] == "PROJ-99"  # non-URL fields survive
 
 
 def test_health_shape(store_dir):

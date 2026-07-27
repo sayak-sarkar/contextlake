@@ -34,9 +34,10 @@ def _rule_patterns(rules) -> tuple[str | None, list[str]]:
 
 
 def _build_enrichers(sources):
-    """Turn configured sources into callables ``fn(repo_id, keys, links)`` that
-    return ``(nodes, edges)``. Atlassian sources discover their sites up front;
-    Figma sources need no discovery. Returns ``(enrichers, names)``."""
+    """Turn configured sources into callables ``fn(repo_id, keys, links, symbol_keys)``
+    that return ``(nodes, edges)``. Atlassian sources discover their sites up front
+    and are the only ones that use ``symbol_keys`` (per-symbol ticket attribution);
+    every other source ignores it. Returns ``(enrichers, names)``."""
     from ..connectors.orchestrate import (
         build_atlassian,
         build_figma,
@@ -61,15 +62,16 @@ def _build_enrichers(sources):
             if not sites:
                 continue
             enrichers.append(
-                lambda repo_id, keys, links, c=conn, st=sites:
-                enrich_repo(c, st, repo_id, issue_keys=keys, links=links)
+                lambda repo_id, keys, links, symbol_keys, c=conn, st=sites:
+                enrich_repo(c, st, repo_id, issue_keys=keys, links=links,
+                           symbol_keys=symbol_keys)
             )
             names.append(s.name)
         elif s.type == "figma":
             conn = build_figma(s)
             log(f"  source {s.name!r} (figma): ready")
             enrichers.append(
-                lambda repo_id, keys, links, c=conn:
+                lambda repo_id, keys, links, symbol_keys, c=conn:
                 enrich_repo_figma(c, repo_id, links=links)
             )
             names.append(s.name)
@@ -77,25 +79,47 @@ def _build_enrichers(sources):
             conn = build_gitlab(s)
             log(f"  source {s.name!r} (gitlab): ready")
             enrichers.append(
-                lambda repo_id, keys, links, c=conn: enrich_repo_gitlab(c, repo_id)
+                lambda repo_id, keys, links, symbol_keys, c=conn:
+                enrich_repo_gitlab(c, repo_id)
             )
             names.append(s.name)
         elif s.type == "slack":
             conn = build_slack(s)
             log(f"  source {s.name!r} (slack): ready")
             enrichers.append(
-                lambda repo_id, keys, links, c=conn:
+                lambda repo_id, keys, links, symbol_keys, c=conn:
                 enrich_repo_slack(c, repo_id, links=links)
             )
             names.append(s.name)
     return enrichers, names
 
 
+def _symbol_keys_for(store_dir, repo_id: str, path: str, pattern: str | None) -> dict:
+    """Per-symbol candidate issue keys for one repo: docstring matches first
+    (explicit, cheap), then git blame for any symbol a docstring didn't
+    already resolve (implicit, one batched ``git blame`` per file). Empty
+    without a configured pattern -- there's nothing to regex-match against.
+    """
+    if not pattern:
+        return {}
+    from ..connectors.symbol_refs import keys_from_blame, keys_from_docstrings
+    from ..store.shards import read_shard
+
+    shard = read_shard(store_dir, repo_id)
+    if shard is None:
+        return {}
+    symbols = shard.nodes
+    out = keys_from_docstrings(symbols, pattern)
+    remaining = [n for n in symbols if n.id not in out]
+    out.update(keys_from_blame(path, remaining, pattern))
+    return out
+
+
 def cmd_connect(args) -> int:
     from ..connectors.orchestrate import connect_partition
     from ..references import extract_issue_keys, scrape_links
 
-    store, _ = _open_store(args)
+    store, store_dir = _open_store(args)
     try:
         cfg = load_kb_config(getattr(args, "config", None))
         sources = [s for s in cfg.sources
@@ -128,13 +152,14 @@ def cmd_connect(args) -> int:
             for repo_id, path in targets:
                 keys = extract_issue_keys(path, branch_key) if branch_key else []
                 links = scrape_links(path, link_patterns) if link_patterns else []
-                if not keys and not links and not has_gitlab:
+                symbol_keys = _symbol_keys_for(store_dir, repo_id, path, branch_key)
+                if not keys and not links and not symbol_keys and not has_gitlab:
                     continue  # GitLab sources fetch by repo, so don't skip when one exists
                 merged_nodes, merged_edges = {}, {}
                 for name, enrich in zip(names, enrichers):
                     attempts += 1
                     try:
-                        nodes, edges = enrich(repo_id, keys, links)
+                        nodes, edges = enrich(repo_id, keys, links, symbol_keys)
                     except Exception as e:  # noqa: BLE001 - one source/repo must not abort the run
                         log(f"  {repo_id}: source {name!r} failed ({e})", inline=True)
                         src_failed += 1

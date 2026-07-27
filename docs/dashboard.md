@@ -120,10 +120,14 @@ the symbol you're on.
 
 ![Blast radius: what a change to a symbol would touch](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
 
-The breadcrumb keeps going from there: **repo → symbol → Diagram → Wiki → Links**, one click each to
-that symbol's repo-scoped architecture graph, curated wiki, and connector links (Jira/Confluence/GitLab).
-Wiki and Links only appear when the repo actually has one: an absent wiki or connector link is omitted
-from the trail, never shown as a dead crumb.
+The breadcrumb keeps going from there: **repo → symbol → Diagram → Wiki → Links → Ticket**, one click
+each to that symbol's repo-scoped architecture graph, curated wiki, and connector links
+(Jira/Confluence/GitLab). Wiki, Links, and Ticket only appear when they actually apply: an absent wiki,
+connector link, or per-symbol ticket is omitted from the trail, never shown as a dead crumb. **Ticket** is
+distinct from the repo-level Links crumb: it's an issue attributed to *this specific symbol* (from its own
+docstring or the git-blame commit message on its defining line — see
+[Connect and enrich](connect-enrich.md#connectors)), live-JQL confirmed the same way a branch-derived key
+is. Clicking it opens the real tracker URL directly, not another dashboard view.
 
 ## 8. Generate a wiki
 

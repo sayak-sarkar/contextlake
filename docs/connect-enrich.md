@@ -12,7 +12,10 @@ queries connected sources with codebase-derived terms and stores what comes back
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
   prunes false positives and fetches each issue's summary/status), and Atlassian URLs in docs are
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
-  authenticated.
+  authenticated. **Per-symbol attribution**: an issue key found in a specific symbol's own docstring, or
+  in the git-blame commit message on its defining line, becomes a `tracked_by` edge sourced from that
+  *symbol* (not just the repo) — confirmed by the same batched JQL call and shown as the dashboard blast
+  radius page's **Ticket** breadcrumb, distinct from the repo-level **Links** crumb.
 - **Figma**: links repos to the design files they reference, classifying `figma.com` URLs to a stable file
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.

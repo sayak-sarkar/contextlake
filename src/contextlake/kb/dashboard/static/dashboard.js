@@ -182,7 +182,7 @@
   };
 
   // ---- context spine ----------------------------------------------------
-  var ctx = { domain: null, repoId: null, nodeId: null, symbolExtras: null };
+  var ctx = { domain: null, repoId: null, nodeId: null, symbolExtras: null, symbolTicket: null };
 
   // ---- confidence + provenance components -------------------------------
   function confLabel(c) { return (CONF[c] || [c])[0]; }
@@ -811,7 +811,7 @@
       }));
       return;
     }
-    ctx.nodeId = seed; ctx.symbolRepo = null; ctx.symbolExtras = null; refreshChrome();
+    ctx.nodeId = seed; ctx.symbolRepo = null; ctx.symbolExtras = null; ctx.symbolTicket = null; refreshChrome();
     // Always load the payload at the widest hops (3) so the slider/relation/cross
     // controls are pure client-side filters: narrowing re-paints in place (no re-fetch,
     // no skeleton flash, no rebuilt slider). Static already returns the hops=3
@@ -863,6 +863,7 @@
       // fetch to know whether either actually exists for this repo, so they append
       // once that resolves rather than blocking on it.
       ctx.symbolRepo = seedRepo;
+      ctx.symbolTicket = (imp.ticket && imp.ticket.length) ? imp.ticket : null;
       refreshChrome("symbol");
       loadSymbolCrumbExtras(seedRepo, seed);
 
@@ -1196,9 +1197,14 @@
 
   function refreshChrome(lens) {
     var ol = clear($("#cl-crumbs"));
-    function crumb(label, hash, current) {
+    // openUrl (optional): an external link crumb (e.g. a confirmed Jira ticket)
+    // opens its real URL in a new tab instead of an internal #/ navigation.
+    function crumb(label, hash, current, openUrl) {
       var li = h("li");
-      li.appendChild(h("button", { class: "cl-crumb", type: "button", "aria-current": current ? "page" : null, onclick: function () { if (hash) go(hash); } }, label));
+      li.appendChild(h("button", { class: "cl-crumb", type: "button", "aria-current": current ? "page" : null, onclick: function () {
+        if (openUrl) { window.open(openUrl, "_blank", "noopener"); return; }
+        if (hash) go(hash);
+      } }, label));
       ol.appendChild(li);
     }
     crumb("Lake", "#/fleet", lens === "fleet");
@@ -1229,6 +1235,15 @@
           if (extras.links) crumb("Links", "#/repo/" + ctx.symbolRepo + "?tab=links", false);
         }
       }
+      // Ticket: per-symbol attribution (docstring/git-blame issue key, live-JQL
+      // confirmed -- see connectors/symbol_refs.py), distinct from the repo-level
+      // Links crumb above. Arrives with the impact payload itself, no extra
+      // fetch needed. Opens the real tracker URL directly, same as clicking
+      // through a search-result citation.
+      if (ctx.symbolTicket && ctx.symbolTicket.length) {
+        var tk = ctx.symbolTicket[0];
+        crumb("Ticket" + (tk.name ? " " + tk.name : ""), null, false, tk.url || null);
+      }
     }
     // pinned chip
     var pin = $("#cl-pinchip");
@@ -1236,7 +1251,7 @@
       pin.hidden = false; clear(pin);
       pin.appendChild(h("span", { html: icon("ui-pin") }));
       pin.appendChild(document.createTextNode(ctx.repoId));
-      pin.onclick = function () { ctx.repoId = null; ctx.nodeId = null; ctx.symbolRepo = null; ctx.symbolExtras = null; refreshChrome(); live("Context cleared"); };
+      pin.onclick = function () { ctx.repoId = null; ctx.nodeId = null; ctx.symbolRepo = null; ctx.symbolExtras = null; ctx.symbolTicket = null; refreshChrome(); live("Context cleared"); };
       pin.setAttribute("aria-label", "Clear pinned " + ctx.repoId);
     } else pin.hidden = true;
   }
