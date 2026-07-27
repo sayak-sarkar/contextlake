@@ -134,8 +134,8 @@ PAGES = [
      [("internals.html", "Architecture"), ("comparison.html", "How contextlake compares")]),
     ("comparison.html", "docs/comparison.md", "How contextlake compares",
      "How contextlake compares",
-     "Under the hood", "Where contextlake's fleet-mirror model differs from other local, "
-     "MCP-served code-graph tools, an honest look, not a feature matrix.",
+     "Under the hood", "What the continuously mirrored fleet gets you that other local, "
+     "MCP-served code-graph tools don't have.",
      "pebble-doc.png",
      [("internals.html", "Architecture"), ("benchmarks.html", "Benchmarks")]),
     ("cli-reference.html", "docs/cli-reference.md", "Command reference",
