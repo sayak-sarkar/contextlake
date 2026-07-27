@@ -95,6 +95,22 @@
       if (!r.ok) throw new Error("HTTP " + r.status); return r.json();
     });
   }
+  // Mutating routes (sync/add-repo/MCP lifecycle) only exist when the server was
+  // started with --allow-mutations; window.__CL_TOKEN__ is minted per-launch and
+  // wired into this served script at build time -- never persisted, never logged.
+  var MUTATIONS = !!window.__CL_MUTATIONS__;
+  function postJSON(url, body) {
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Contextlake-Token": window.__CL_TOKEN__ || "" },
+      body: JSON.stringify(body || {})
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+        return j;
+      });
+    });
+  }
   var CL = {};
   CL.data = {
     overview: function () {
@@ -178,6 +194,14 @@
     },
     settings: function () {
       return MODE === "static" ? Promise.reject(new Error("live only")) : fetchJSON("/api/settings");
+    },
+    // Mutating actions: live + --allow-mutations only. Never available in static
+    // mode (there's no server to send them to) -- callers gate on MUTATIONS first.
+    syncRepo: function (id) { return postJSON("/api/repo/" + encPath(id) + "/sync"); },
+    addRepo: function (url) { return postJSON("/api/repo/add", { url: url }); },
+    mcpServe: function (action, opts) {
+      var body = Object.assign({ action: action }, opts || {});
+      return postJSON("/api/mcp/serve", body);
     }
   };
 
@@ -407,12 +431,29 @@
           }
         }, h("span", { html: icon(m[2]) }), m[1]));
       });
-      body.appendChild(h("div", { class: "cl-row cl-fleettools" },
-        h("span", { class: "cl-fleettools__label" }, "Layout"), seg));
+      var tools = h("div", { class: "cl-row cl-fleettools" },
+        h("span", { class: "cl-fleettools__label" }, "Layout"), seg);
+      if (MUTATIONS) tools.appendChild(addRepoButton());
+      body.appendChild(tools);
       body.appendChild(bandsWrap);
       renderBands();
       return body;
     });
+  }
+  function addRepoButton() {
+    var btn = h("button", { class: "cl-btn", type: "button" },
+      h("span", { html: icon("ui-add") }), "Add repo");
+    btn.addEventListener("click", function () {
+      var url = window.prompt("Git URL to clone (HTTPS, SSH, or user@host:path):");
+      if (!url) return;
+      if (!window.confirm("Clone " + url + " and index it?")) return;
+      btn.disabled = true; btn.textContent = "Cloning…";
+      CL.data.addRepo(url).then(function (r) {
+        live("Added " + r.repo); go("#/repo/" + r.repo);
+      }).catch(function (e) { window.alert("Add repo failed: " + e.message); })
+        .then(function () { btn.disabled = false; btn.textContent = "Add repo"; });
+    });
+    return btn;
   }
   // Split a namespaced repo id into its basename (last segment) and parent path so the
   // name the user reads is never eaten by the long namespace prefix.
@@ -481,6 +522,19 @@
   }
 
   // ---- Repo detail ------------------------------------------------------
+  function syncRepoButton(id) {
+    var btn = h("button", { class: "cl-btn", type: "button" }, h("span", { html: icon("ui-refresh") }), "Sync now");
+    btn.addEventListener("click", function () {
+      if (!window.confirm("git pull and reindex " + id + "?")) return;
+      btn.disabled = true; btn.textContent = "Syncing…";
+      CL.data.syncRepo(id).then(function (r) {
+        live(r.changed === false ? "Already up to date" : "Synced " + id);
+        go("#/repo/" + id);
+      }).catch(function (e) { window.alert("Sync failed: " + e.message); })
+        .then(function () { btn.disabled = false; btn.textContent = "Sync now"; });
+    });
+    return btn;
+  }
   function viewRepo(id, tab) {
     if (!id) {
       renderInto("repo-body", stateBlock({
@@ -500,6 +554,7 @@
         h("div", { class: "cl-row" },
           h("button", { class: "cl-btn", type: "button", onclick: function () { ctx.repoId = id; refreshChrome(); live("Pinned " + id); } },
             h("span", { html: icon("ui-pin") }), "Pin"),
+          MUTATIONS ? syncRepoButton(id) : null,
           h("button", { class: "cl-btn cl-btn--primary", type: "button", onclick: function () { go("#/arch/" + id); } },
             h("span", { html: icon("ui-arch") }), "View in architecture"))));
 
@@ -1072,8 +1127,45 @@
           h("span", { class: "cl-muted" }, (t.description || "").split("\n")[0])));
       });
       body.appendChild(tc);
+      if (MUTATIONS) body.appendChild(mcpServerCard(d.http_server || { running: false }));
       return body;
     });
+  }
+  // The HTTP-transport MCP server this card controls is a *separate* process from
+  // the one serving this dashboard -- typically an editor spawns `contextlake serve`
+  // itself over stdio, which this card cannot see or manage. This is specifically
+  // for `contextlake serve --transport http`, tracked via a pidfile next to the store.
+  function mcpServerCard(status) {
+    var card = h("div", { class: "cl-card" },
+      h("strong", null, "HTTP-transport MCP server"),
+      h("p", { class: "cl-muted" },
+        "A separate ", h("code", null, "contextlake serve --transport http"),
+        " process this dashboard can start/stop -- not the stdio server your editor spawns."));
+    var row = h("div", { class: "cl-row" },
+      h("span", null, "Status"),
+      h("span", null, status.running
+        ? ("Running — pid " + status.pid + " on " + status.host + ":" + status.port)
+        : "Stopped"));
+    card.appendChild(row);
+    var actions = h("div", { class: "cl-actions" });
+    function act(label, action, confirmMsg) {
+      var btn = h("button", { class: "cl-btn", type: "button" }, label);
+      btn.addEventListener("click", function () {
+        if (!window.confirm(confirmMsg)) return;
+        btn.disabled = true;
+        CL.data.mcpServe(action).then(function () { viewMcp(); })
+          .catch(function (e) { window.alert("Failed: " + e.message); btn.disabled = false; });
+      });
+      actions.appendChild(btn);
+    }
+    if (status.running) {
+      act("Stop", "stop", "Stop the HTTP MCP server (pid " + status.pid + ")?");
+      act("Restart", "restart", "Restart the HTTP MCP server?");
+    } else {
+      act("Start", "start", "Start an HTTP-transport MCP server on 127.0.0.1:8766?");
+    }
+    card.appendChild(actions);
+    return card;
   }
   function fmtBytes(n) {
     if (n == null) return "—";

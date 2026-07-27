@@ -1,8 +1,9 @@
 # The dashboard: a guided tour
 
 The dashboard is the human window into everything contextlake builds: a **local,
-offline-first, read-only** single-page app over your knowledge store. No accounts, no
-cloud, no build step, one command and it opens in your browser.
+offline-first** single-page app over your knowledge store. No accounts, no cloud, no
+build step, one command and it opens in your browser. Read-only by default; see
+[§10](#10-mutating-routes---allow-mutations) for the opt-in write actions.
 
 > New here? Skim [QUICKSTART](../QUICKSTART.md) first. For what the graph/wiki/search
 > tiers actually do, see [knowledge-layer.md](knowledge-layer.md).
@@ -37,6 +38,8 @@ contextlake dashboard --serve --open         # live, against your store; opens y
 | `--anonymize` | For a real-store `--site`: hash authors, drop URLs + prose (shareable). |
 | `--open` | Open the result in your browser. |
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
+| `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §10). Loopback host only; refused with `--sample`. |
+| `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
@@ -160,6 +163,28 @@ copyable `.mcp.json` / `.vscode/mcp.json` snippet for wiring an editor to it.
 mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing:
 it's a summary, not a form; edit `kb.toml` directly to change anything.
 
+## 10. Mutating routes (`--allow-mutations`)
+
+Everything above is read-only. `contextlake dashboard --serve --allow-mutations`
+additionally exposes three write actions, each behind an explicit confirm dialog in
+the browser: **Sync now** on a repo page (`git pull --ff-only` + reindex), **Add
+repo** on the fleet overview (clone a URL into `--workspace` + index it), and
+**Start / Stop / Restart** for a separate `contextlake serve --transport http`
+process on the MCP console tab (not the stdio server your editor spawns -- this
+dashboard can't see or manage that one).
+
+Refused outright with `--sample` (the demo fleet is fictional -- nothing on disk to
+sync/clone) and with any `--host` other than `127.0.0.1`/`localhost` (mutating
+routes are loopback-only by design). A random per-launch token is minted at
+startup and wired into the served page; every `POST` must carry it in an
+`X-Contextlake-Token` header matching exactly, and the request's `Host` header
+must name this host:port -- both close the classic localhost-server holes (a
+form-encoded POST from any open browser tab, and DNS rebinding around the
+loopback bind, respectively). A mutation takes the store's single-writer lock
+for its own duration only, so a concurrent CLI command sees a clean `409`
+instead of an interleaved write.
+
 ---
 
-Everything here is read-only and runs entirely on your machine.
+Everything here runs entirely on your machine, and is read-only unless you opt into
+`--allow-mutations` (§10).

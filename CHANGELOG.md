@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dashboard mutating routes (`--allow-mutations`).** The dashboard was
+  strictly read-only (v1). `contextlake dashboard --serve --allow-mutations`
+  now additionally exposes three write actions, each behind an explicit
+  confirm in the browser: **Sync now** on a repo page (`git pull --ff-only` +
+  reindex), **Add repo** on the fleet overview (clone a URL + index it), and
+  **Start/Stop/Restart** for a separate `contextlake serve --transport http`
+  process from the MCP console tab. Security-reviewed before shipping (a
+  `BaseHTTPRequestHandler` answering POST on localhost is a classic
+  CSRF-to-RCE shape): refused outright with `--sample` or a non-loopback
+  `--host`; a random per-launch token (custom `X-Contextlake-Token` header,
+  so a cross-origin POST can't complete the preflight it would trigger) plus
+  a `Host` header check (blocks DNS rebinding around the loopback bind) gate
+  every mutating request; `git clone`'s URL is scheme-allowlisted
+  (`https://`/`ssh://`/`user@host:path`, rejecting flag-injection and the
+  `ext::` arbitrary-command transport) and always passed after a literal
+  `--`; each mutation takes the store's single-writer lock for its own
+  duration only, so a concurrent CLI command sees a clean `409` instead of an
+  interleaved write. New `kb/dashboard/mutations.py`. Verified against a real
+  git repo (not mocks) end-to-end, including a live curl pass against the
+  playground store. See [dashboard.md §10](docs/dashboard.md#10-mutating-routes---allow-mutations).
+
 - **Per-symbol ticket attribution.** `tracked_by` edges could previously only
   originate from a repo node (a branch name or a doc link, with no way to say
   *which* symbol an issue relates to). Two new candidate sources — a symbol's

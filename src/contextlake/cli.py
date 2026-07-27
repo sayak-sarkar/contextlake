@@ -721,6 +721,13 @@ Examples:
     p.add_argument("--sample", action="store_true", default=_S,
                    help="use the bundled demo fleet instead of your local store "
                         "(fictional data; works with --serve and --site)")
+    p.add_argument("--allow-mutations", dest="allow_mutations", action="store_true",
+                   default=_S,
+                   help="--serve: also expose sync/add-repo/MCP-server actions "
+                        "(loopback host only; refused with --sample)")
+    p.add_argument("--workspace", default=_S,
+                   help="--allow-mutations: where 'add repo' clones new repos "
+                        "(default: alongside the store)")
     _add_net(p)
 
     parser.set_defaults(**_DEFAULTS)

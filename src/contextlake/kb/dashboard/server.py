@@ -11,18 +11,33 @@ thread, and the server threads each request). It serves:
   ``visualize.to_html(assets="inline", live=True)``) plus the ``/neighbors`` endpoint
   the graph page fetches for click-to-expand.
 
-Read-only (v1): no clone/sync/MCP-management routes.
+Read-only by default. ``allow_mutations=True`` (``--allow-mutations`` on the CLI,
+loopback-only) additionally exposes ``POST /api/repo/<id>/sync``, ``POST
+/api/repo/add``, and ``POST /api/mcp/serve`` (start/stop/restart the HTTP-transport
+MCP server) -- see :mod:`.mutations`. A ``BaseHTTPRequestHandler`` answering POST on
+localhost is a classic CSRF-to-RCE shape (any page a browser has open can fire a
+form-encoded POST at it, no preflight required), so every mutating request must
+carry the per-process token minted at server-build time in a custom header --
+requiring a custom header is what forces the preflight a cross-origin page can't
+complete -- and the ``Host`` header must name this exact host:port, which blocks DNS
+rebinding around the loopback bind.
 """
 
 from __future__ import annotations
 
+import hmac
 import json
+import secrets
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from ..lock import StoreBusy, StoreLock
 from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
+from . import mutations as kbmut
+
+TOKEN_HEADER = "X-Contextlake-Token"
 
 
 def _static(name: str) -> str:
@@ -35,7 +50,8 @@ def _json_bytes(obj) -> bytes:
 
 
 def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: int = 8765,
-                           config_path: str | None = None, sample: bool = False):
+                           config_path: str | None = None, sample: bool = False,
+                           allow_mutations: bool = False, workspace: str | None = None):
     """Build (but do not start) the dashboard HTTP server.
 
     Returned non-blocking so the CLI loop and tests drive ``serve_forever`` /
@@ -49,15 +65,30 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     real precedence chain -- ``load_kb_config(None)`` still merges the user's
     real ``~/.contextlake/kb.toml`` regardless of ``config_path``, which would
     leak real config into a surface billed as "nothing local is read".
+
+    ``allow_mutations`` additionally wires ``POST /api/repo/<id>/sync``, ``POST
+    /api/repo/add`` and ``POST /api/mcp/serve`` (see module docstring for the
+    auth model). The caller (``cmd_dashboard``) refuses this combined with a
+    non-loopback ``host`` or with ``sample`` -- there is no real fleet to mutate
+    behind the bundled demo data. ``workspace`` is where ``add_repo`` clones new
+    repos; defaults to ``store_dir.parent`` when not given.
     """
     from .. import visualize as viz
 
     store_dir = Path(store_dir)
     store_factory, store_path = type(store), getattr(store, "path", None)
+    ws_dir = Path(workspace) if workspace else store_dir.parent
+    token = secrets.token_urlsafe(32) if allow_mutations else None
+    host_header_ok = {f"{host}:{port}", f"localhost:{port}"}
 
     shell = _static("dashboard.html")
+    js = _static("dashboard.js")
+    if allow_mutations:
+        js = f'window.__CL_TOKEN__={json.dumps(token)};\nwindow.__CL_MUTATIONS__=true;\n' + js
+    else:
+        js = "window.__CL_MUTATIONS__=false;\n" + js
     assets = {
-        "dashboard.js": (_static("dashboard.js"), "application/javascript"),
+        "dashboard.js": (js, "application/javascript"),
         "dashboard.css": (_static("dashboard.css"), "text/css"),
         # Lazy-loaded by dashboard.js only when the Diagrams tab is first opened
         # (it's ~3.5MB, unlike dashboard.js/css above) -- still read eagerly here
@@ -188,15 +219,71 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
             if path == "/api/mcp":
-                return 200, _json_bytes(
-                    kbdata.mcp_console(req, sd, config_path=config_path, sample=sample))
+                out = kbdata.mcp_console(req, sd, config_path=config_path, sample=sample)
+                mcp_status = kbmut.mcp_status(sd) if allow_mutations else {"running": False}
+                out["mutations"] = allow_mutations
+                out["http_server"] = mcp_status
+                return 200, _json_bytes(out)
             if path == "/api/settings":
-                return 200, _json_bytes(
-                    kbdata.settings(req, sd, config_path=config_path, sample=sample))
+                out = kbdata.settings(req, sd, config_path=config_path, sample=sample)
+                out["mutations"] = allow_mutations
+                return 200, _json_bytes(out)
+            if path == "/api/capabilities":
+                return 200, _json_bytes({"mutations": allow_mutations})
             return 404, b'{"error":"not found"}'
         finally:
             if req is not store:
                 req.close()
+
+    def _mutate(path: str, body: bytes) -> tuple[int, bytes]:
+        """POST /api/* mutating routes. Caller has already checked the token and
+        Host header; this only dispatches and holds the store's single-writer
+        lock for the duration of the one mutation (never for the server's whole
+        lifetime -- a CLI command run alongside the dashboard must still work)."""
+        try:
+            payload = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            return 400, b'{"error":"invalid JSON body"}'
+        lock = StoreLock(store_dir, f"dashboard-mutate {path}")
+        try:
+            lock.acquire()
+        except StoreBusy as e:
+            h = e.holder
+            return 409, _json_bytes({
+                "error": "store is busy",
+                "holder": {"pid": h.get("pid"), "command": h.get("command"),
+                          "host": h.get("host")},
+            })
+        try:
+            req = _open_store()
+            try:
+                if path.startswith("/api/repo/") and path.endswith("/sync"):
+                    repo_id = urllib.parse.unquote(path[len("/api/repo/"):-len("/sync")])
+                    return 200, _json_bytes(kbmut.sync_repo(req, store_dir, repo_id))
+                if path == "/api/repo/add":
+                    url = (payload.get("url") or "").strip()
+                    if not url:
+                        return 400, b'{"error":"url required"}'
+                    return 200, _json_bytes(kbmut.add_repo(req, store_dir, ws_dir, url))
+                if path == "/api/mcp/serve":
+                    action = payload.get("action")
+                    if action == "start":
+                        return 200, _json_bytes(kbmut.mcp_start(
+                            store_dir, host=payload.get("host") or "127.0.0.1",
+                            port=int(payload.get("port") or 8766), config_path=config_path))
+                    if action == "stop":
+                        return 200, _json_bytes(kbmut.mcp_stop(store_dir))
+                    if action == "restart":
+                        return 200, _json_bytes(kbmut.mcp_restart(
+                            store_dir, host=payload.get("host") or "127.0.0.1",
+                            port=int(payload.get("port") or 8766), config_path=config_path))
+                    return 400, b'{"error":"action must be start, stop, or restart"}'
+                return 404, b'{"error":"not found"}'
+            finally:
+                if req is not store:
+                    req.close()
+        finally:
+            lock.release()
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_a):  # keep request logs off the console
@@ -240,12 +327,35 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 return
             self._send(404, "text/plain", b"not found")
 
+        def do_POST(self) -> None:  # noqa: N802 - stdlib handler name
+            if not allow_mutations:
+                self._send(404, "text/plain", b"not found")
+                return
+            # DNS rebinding: an attacker domain that resolves to 127.0.0.1 would
+            # otherwise sail straight past the loopback bind, since the browser's
+            # same-origin check is about the domain, not the resolved address.
+            # Requiring the Host header to literally name this host:port closes
+            # that gap without needing a real TLS cert on localhost.
+            if (self.headers.get("Host") or "") not in host_header_ok:
+                self._send(403, "text/plain", b"forbidden")
+                return
+            given = self.headers.get(TOKEN_HEADER) or ""
+            if not token or not hmac.compare_digest(given, token):
+                self._send(403, "text/plain", b"forbidden")
+                return
+            parsed = urllib.parse.urlparse(self.path)
+            length = int(self.headers.get("Content-Length") or 0)
+            body = self.rfile.read(min(length, 1_000_000)) if length else b""
+            code, resp = _mutate(parsed.path, body)
+            self._send(code, "application/json", resp)
+
     return ThreadingHTTPServer((host, port), Handler)
 
 
 def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
                     open_browser: bool = False, config_path: str | None = None,
-                    sample: bool = False) -> None:
+                    sample: bool = False, allow_mutations: bool = False,
+                    workspace: str | None = None) -> None:
     """Serve the dashboard (blocking until Ctrl-C)."""
     from ... import style
     from ...logging_setup import log
@@ -254,8 +364,14 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
     store = SqliteStore(store_dir / "index.sqlite")
     try:
         srv = build_dashboard_server(store, store_dir, host=host, port=port,
-                                     config_path=config_path, sample=sample)
+                                     config_path=config_path, sample=sample,
+                                     allow_mutations=allow_mutations, workspace=workspace)
         log(style.ok(f"Dashboard on http://{host}:{port}  (Ctrl-C to stop)"))
+        if allow_mutations:
+            log(style.warn("Mutating routes enabled (--allow-mutations): sync/add-repo/"
+                           "MCP-server actions can write to this store from the browser. "
+                           "The per-launch auth token is wired into the served page only "
+                           "-- it isn't printed here or logged anywhere."))
         if open_browser:
             import webbrowser
             webbrowser.open(f"http://{host}:{port}")

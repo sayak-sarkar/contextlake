@@ -4,15 +4,19 @@ Starts the server on an ephemeral port in a thread, hits the endpoints, shuts it
 """
 
 import json
+import os
+import re
 import socket
+import subprocess
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import date
 
 import pytest
 
-from contextlake.kb.dashboard.server import build_dashboard_server
+from contextlake.kb.dashboard.server import TOKEN_HEADER, build_dashboard_server
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -192,6 +196,178 @@ def test_mcp_json_snippet_carries_the_config_path(served_with_config):
     args = body["mcp_json"]["mcpServers"]["contextlake"]["args"]
     assert "--config" in args
     assert args[args.index("--config") + 1].endswith("kb.toml")
+
+
+# --- mutating routes (--allow-mutations) ------------------------------------
+
+def _git(repo, *args):
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+
+
+def _init_git_repo(path):
+    path.mkdir(parents=True, exist_ok=True)
+    _git(path, "init", "-q")
+    _git(path, "config", "user.email", "t@example.com")
+    _git(path, "config", "user.name", "T")
+    (path / "a.py").write_text("def a():\n    pass\n")
+    _git(path, "add", ".")
+    _git(path, "commit", "-q", "-m", "init")
+    return path
+
+
+@pytest.fixture
+def served_with_mutations(tmp_path):
+    """Like ``served``, but --allow-mutations, over a real git clone (mutating
+    routes actually pull/index), with the per-launch token pulled out of the
+    served JS the same way a real browser would pick it up. The store's repo
+    path is a *clone* of ``origin`` -- ``origin`` is what the test commits new
+    changes into, mirroring an upstream remote the clone can ``pull`` from."""
+    origin = _init_git_repo(tmp_path / "origin")
+    clone = tmp_path / "clone"
+    subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True, capture_output=True)
+    head = subprocess.run(["git", "-C", str(clone), "rev-parse", "HEAD"],
+                          capture_output=True, text=True).stdout.strip()
+
+    store_dir = tmp_path / "store"
+    store_dir.mkdir()
+    s = SqliteStore(store_dir / "index.sqlite")
+    s.upsert_repo(Repo(id="acme/origin", path=str(clone), head_commit=head))
+    s.mark_indexed("acme/origin", head, "2026-01-01T00:00:00Z")
+
+    port = _free_port()
+    srv = build_dashboard_server(s, store_dir, host="127.0.0.1", port=port,
+                                 allow_mutations=True, workspace=str(tmp_path / "ws"))
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    base = f"http://127.0.0.1:{port}"
+    try:
+        js = _get(base + "/dashboard.js").decode("utf-8")
+        token = re.search(r'__CL_TOKEN__=("(?:[^"\\]|\\.)*")', js).group(1)
+        token = json.loads(token)
+        yield base, port, token, origin
+    finally:
+        srv.shutdown()
+        s.close()
+
+
+def _post(url, body, *, token=None, host=None):
+    # A custom "Host" header in `headers` makes http.client skip its own default
+    # Host and send this value instead, on the SAME real TCP connection the URL's
+    # netloc resolves to -- exactly the DNS-rebinding shape the server guards
+    # against (attacker domain resolves to 127.0.0.1; only the Host header lies).
+    headers = {"Content-Type": "application/json"}
+    if token is not None:
+        headers[TOKEN_HEADER] = token
+    if host is not None:
+        headers["Host"] = host
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
+                                 headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        body_bytes = e.read()
+        try:
+            return e.code, json.loads(body_bytes or b"{}")
+        except json.JSONDecodeError:
+            return e.code, {}
+
+
+def test_post_disabled_without_allow_mutations(served):
+    status, _body = _post(served + "/api/repo/team/app/sync", {}, token="whatever")
+    assert status == 404
+
+
+def test_post_requires_token(served_with_mutations):
+    base, _port, _token, _origin = served_with_mutations
+    status, _ = _post(base + "/api/repo/acme/origin/sync", {})
+    assert status == 403
+
+
+def test_post_rejects_wrong_token(served_with_mutations):
+    base, _port, _token, _origin = served_with_mutations
+    status, _ = _post(base + "/api/repo/acme/origin/sync", {}, token="not-the-real-token")
+    assert status == 403
+
+
+def test_post_rejects_mismatched_host_header(served_with_mutations):
+    base, port, token, _origin = served_with_mutations
+    status, _ = _post(base + "/api/repo/acme/origin/sync", {}, token=token, host="evil.example.com")
+    assert status == 403
+
+
+def test_sync_route_pulls_and_reindexes(served_with_mutations):
+    base, _port, token, origin = served_with_mutations
+    (origin / "b.py").write_text("def b():\n    pass\n")
+    _git(origin, "add", ".")
+    _git(origin, "commit", "-q", "-m", "add b")
+
+    status, body = _post(base + "/api/repo/acme/origin/sync", {}, token=token)
+    assert status == 200
+    assert body["ok"] is True
+    assert body["changed"] is True
+
+
+def test_add_repo_route_end_to_end(served_with_mutations, tmp_path):
+    base, _port, token, _origin = served_with_mutations
+    second = _init_git_repo(tmp_path / "second-origin")
+    status, body = _post(base + "/api/repo/add", {"url": str(second)}, token=token)
+    # A bare local path is rejected by validate_clone_url (see test_kb_dashboard_mutations.py) --
+    # this proves the *route* enforces the same policy the unit tests cover directly.
+    assert status == 200
+    assert body["ok"] is False
+    assert "unsupported URL" in body["error"]
+
+
+def test_add_repo_route_requires_url(served_with_mutations):
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + "/api/repo/add", {}, token=token)
+    assert status == 400
+
+
+def test_mcp_serve_route_requires_known_action(served_with_mutations):
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + "/api/mcp/serve", {"action": "explode"}, token=token)
+    assert status == 400
+
+
+def test_mutation_returns_409_when_store_is_locked(served_with_mutations, tmp_path):
+    # StoreLock treats same-pid re-entry as the same writer, not a live peer (a
+    # single process's own threads must never deadlock each other) -- so a real
+    # "busy" test needs a lock file recording a DIFFERENT, genuinely-alive pid.
+    # The test runner's parent process fits: alive, and never equal to our own.
+    base, _port, token, _origin = served_with_mutations
+    lock_path = tmp_path / "store" / ".contextlake.lock"
+    lock_path.write_text(json.dumps({
+        "pid": os.getppid(), "command": "some-other-writer",
+        "host": socket.gethostname(), "started": int(time.time()),
+    }))
+    try:
+        status, body = _post(base + "/api/repo/acme/origin/sync", {}, token=token)
+        assert status == 409
+        assert body["error"] == "store is busy"
+    finally:
+        lock_path.unlink(missing_ok=True)
+
+
+def test_mcp_console_reports_mutations_capability(served_with_mutations):
+    base, _port, _token, _origin = served_with_mutations
+    body = json.loads(_get(base + "/api/mcp"))
+    assert body["mutations"] is True
+    assert body["http_server"] == {"running": False}
+
+
+def test_settings_reports_mutations_disabled_by_default(served):
+    body = json.loads(_get(served + "/api/settings"))
+    assert body["mutations"] is False
+
+
+def test_capabilities_endpoint(served, served_with_mutations):
+    off = json.loads(_get(served + "/api/capabilities"))
+    assert off == {"mutations": False}
+    base, _port, _token, _origin = served_with_mutations
+    on = json.loads(_get(base + "/api/capabilities"))
+    assert on == {"mutations": True}
 
 
 def _free_port():

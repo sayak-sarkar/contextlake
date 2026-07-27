@@ -36,6 +36,17 @@ def cmd_dashboard(args) -> int:
 
     host = getattr(args, "host", None) or "127.0.0.1"
     port = getattr(args, "port", None) or 8765
+    allow_mutations = getattr(args, "allow_mutations", False)
+    if allow_mutations:
+        if sample:
+            log(style.fail("--allow-mutations refused with --sample: the demo fleet "
+                          "is fictional, there's nothing on disk for it to sync/clone."))
+            return 1
+        if host not in ("127.0.0.1", "localhost"):
+            log(style.fail(f"--allow-mutations refused with --host {host!r}: mutating "
+                          "routes are loopback-only (a non-local bind would expose "
+                          "them to the network)."))
+            return 1
     if sample:
         # The advertised zero-setup preview: serve the bundled demo fleet from an
         # ephemeral store, never the user's real data.
@@ -58,6 +69,8 @@ def cmd_dashboard(args) -> int:
         return 0
     serve_dashboard(store_dir, host=host, port=port,
                     open_browser=getattr(args, "open", False),
-                    config_path=getattr(args, "config", None))
+                    config_path=getattr(args, "config", None),
+                    allow_mutations=allow_mutations,
+                    workspace=getattr(args, "workspace", None))
     return 0
 

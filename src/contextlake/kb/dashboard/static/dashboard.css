@@ -470,6 +470,8 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
   background: var(--cl-surface); color: var(--cl-ink); cursor: pointer; font: inherit; font-size: var(--fs-300); }
 .cl-btn--primary { background: var(--cl-lake); border-color: var(--cl-lake); color: #fff; }
 .cl-btn[aria-pressed="true"] { border-color: var(--cl-lake); color: var(--cl-primary); }
+.cl-btn:disabled { opacity: 0.55; cursor: default; }
+.cl-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }
 
 /* ---- Footer ------------------------------------------------------------- */
 .cl-footer { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap;
