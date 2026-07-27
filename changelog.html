@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=0fd43db">
-<link rel="stylesheet" href="docs.css?v=0fd43db">
-<link rel="stylesheet" href="cmdk.css?v=0fd43db">
+<link rel="stylesheet" href="fonts.css?v=d3b4ea5">
+<link rel="stylesheet" href="docs.css?v=d3b4ea5">
+<link rel="stylesheet" href="cmdk.css?v=d3b4ea5">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -53,7 +53,30 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
-<li><strong>Per-symbol ticket attribution.</strong> <code>tracked_by</code> edges could previously only
+<li>
+<p><strong>Dashboard mutating routes (<code>--allow-mutations</code>).</strong> The dashboard was
+  strictly read-only (v1). <code>contextlake dashboard --serve --allow-mutations</code>
+  now additionally exposes three write actions, each behind an explicit
+  confirm in the browser: <strong>Sync now</strong> on a repo page (<code>git pull --ff-only</code> +
+  reindex), <strong>Add repo</strong> on the fleet overview (clone a URL + index it), and
+  <strong>Start/Stop/Restart</strong> for a separate <code>contextlake serve --transport http</code>
+  process from the MCP console tab. Security-reviewed before shipping (a
+  <code>BaseHTTPRequestHandler</code> answering POST on localhost is a classic
+  CSRF-to-RCE shape): refused outright with <code>--sample</code> or a non-loopback
+  <code>--host</code>; a random per-launch token (custom <code>X-Contextlake-Token</code> header,
+  so a cross-origin POST can't complete the preflight it would trigger) plus
+  a <code>Host</code> header check (blocks DNS rebinding around the loopback bind) gate
+  every mutating request; <code>git clone</code>'s URL is scheme-allowlisted
+  (<code>https://</code>/<code>ssh://</code>/<code>user@host:path</code>, rejecting flag-injection and the
+  <code>ext::</code> arbitrary-command transport) and always passed after a literal
+  <code>--</code>; each mutation takes the store's single-writer lock for its own
+  duration only, so a concurrent CLI command sees a clean <code>409</code> instead of an
+  interleaved write. New <code>kb/dashboard/mutations.py</code>. Verified against a real
+  git repo (not mocks) end-to-end, including a live curl pass against the
+  playground store. See <a href="dashboard#10-mutating-routes---allow-mutations">dashboard.md §10</a>.</p>
+</li>
+<li>
+<p><strong>Per-symbol ticket attribution.</strong> <code>tracked_by</code> edges could previously only
   originate from a repo node (a branch name or a doc link, with no way to say
   <em>which</em> symbol an issue relates to). Two new candidate sources, a symbol's
   own docstring, and the git-blame commit message on its defining line (one
@@ -67,7 +90,8 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   radius page's breadcrumb now gets a real <strong>Ticket</strong> crumb when a symbol
   has one, opening the tracker URL directly. Built and tested against a
   spawned mock/real git repo (no live Jira credentials this session); real-
-  workspace verification is still needed before this is production-proven.</li>
+  workspace verification is still needed before this is production-proven.</p>
+</li>
 <li><strong>Slack connector.</strong> A new <code>slack.py</code> connector (mirroring the Figma/Atlassian
   shape) classifies <code>slack.com</code> permalinks in a repo's docs (<code>/archives/&lt;channel&gt;</code>
   and <code>/archives/&lt;channel&gt;/p&lt;ts&gt;</code>) into channel/message links, wired into
@@ -2771,6 +2795,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=0fd43db"></script>
+<script defer src="cmdk.js?v=d3b4ea5"></script>
 </body>
 </html>
