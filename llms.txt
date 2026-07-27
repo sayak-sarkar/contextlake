@@ -32,6 +32,7 @@
 
 - [Architecture](https://sayak.in/contextlake/internals): How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.
 - [Storage](https://sayak.in/contextlake/storage): Where contextlake keeps everything it generates, one store directory, never polluting your synced repos.
+- [How contextlake compares](https://sayak.in/contextlake/comparison): What the continuously mirrored fleet gets you that other local, MCP-served code-graph tools don't have.
 - [Benchmarks](https://sayak.in/contextlake/benchmarks): An honest, measured look at the token, cost, and correctness impact of connecting the contextlake MCP to your AI coding tools, new-code grounding first, plus search, maintenance, and the caveats.
 
 ## Writing style
