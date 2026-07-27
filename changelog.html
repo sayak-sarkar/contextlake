@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=c5c2fed">
-<link rel="stylesheet" href="docs.css?v=c5c2fed">
-<link rel="stylesheet" href="cmdk.css?v=c5c2fed">
+<link rel="stylesheet" href="fonts.css?v=0fd43db">
+<link rel="stylesheet" href="docs.css?v=0fd43db">
+<link rel="stylesheet" href="cmdk.css?v=0fd43db">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -53,6 +53,21 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
+<li><strong>Per-symbol ticket attribution.</strong> <code>tracked_by</code> edges could previously only
+  originate from a repo node (a branch name or a doc link, with no way to say
+  <em>which</em> symbol an issue relates to). Two new candidate sources, a symbol's
+  own docstring, and the git-blame commit message on its defining line (one
+  batched <code>git blame</code> per file, not per symbol), each a bare-key regex
+  match, so both are AMBIGUOUS candidates fed through the exact same live-JQL
+  <code>verify_issues</code>/<code>reconcile</code> pipeline that already promotes branch-derived
+  keys to INFERRED. New <code>connectors/symbol_refs.py</code> (pure logic) +
+  <code>AtlassianConnector.associate_symbols()</code>. Closes the approved-spec
+  divergence flagged when dashboard cross-linking shipped (breadcrumb ends
+  in repo-level "Links" instead of a per-symbol "Ticket"): the symbol/blast-
+  radius page's breadcrumb now gets a real <strong>Ticket</strong> crumb when a symbol
+  has one, opening the tracker URL directly. Built and tested against a
+  spawned mock/real git repo (no live Jira credentials this session); real-
+  workspace verification is still needed before this is production-proven.</li>
 <li><strong>Slack connector.</strong> A new <code>slack.py</code> connector (mirroring the Figma/Atlassian
   shape) classifies <code>slack.com</code> permalinks in a repo's docs (<code>/archives/&lt;channel&gt;</code>
   and <code>/archives/&lt;channel&gt;/p&lt;ts&gt;</code>) into channel/message links, wired into
@@ -2756,6 +2771,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=c5c2fed"></script>
+<script defer src="cmdk.js?v=0fd43db"></script>
 </body>
 </html>

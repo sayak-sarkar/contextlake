@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=c5c2fed">
-<link rel="stylesheet" href="docs.css?v=c5c2fed">
-<link rel="stylesheet" href="cmdk.css?v=c5c2fed">
+<link rel="stylesheet" href="fonts.css?v=0fd43db">
+<link rel="stylesheet" href="docs.css?v=0fd43db">
+<link rel="stylesheet" href="cmdk.css?v=0fd43db">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -161,10 +161,14 @@ hop by hop, with the confidence of each path. A <strong>Call sequence</strong> c
 neighborhood as a Mermaid sequence diagram (<code>--format sequencediagram</code>, §5) seeded by
 the symbol you're on.</p>
 <p><img class="ss ss-light" alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png" /><img class="ss ss-dark" alt="Blast radius: what a change to a symbol would touch" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius-dark.png" /></p>
-<p>The breadcrumb keeps going from there: <strong>repo → symbol → Diagram → Wiki → Links</strong>, one click each to
-that symbol's repo-scoped architecture graph, curated wiki, and connector links (Jira/Confluence/GitLab).
-Wiki and Links only appear when the repo actually has one: an absent wiki or connector link is omitted
-from the trail, never shown as a dead crumb.</p>
+<p>The breadcrumb keeps going from there: <strong>repo → symbol → Diagram → Wiki → Links → Ticket</strong>, one click
+each to that symbol's repo-scoped architecture graph, curated wiki, and connector links
+(Jira/Confluence/GitLab). Wiki, Links, and Ticket only appear when they actually apply: an absent wiki,
+connector link, or per-symbol ticket is omitted from the trail, never shown as a dead crumb. <strong>Ticket</strong> is
+distinct from the repo-level Links crumb: it's an issue attributed to <em>this specific symbol</em> (from its own
+docstring or the git-blame commit message on its defining line, see
+<a href="connect-enrich#connectors">Connect and enrich</a>), live-JQL confirmed the same way a branch-derived key
+is. Clicking it opens the real tracker URL directly, not another dashboard view.</p>
 <h2 id="8-generate-a-wiki">8. Generate a wiki<a class="anchor" href="#8-generate-a-wiki" title="Link to this section">#</a></h2>
 <p>No wiki for a repo yet? Its <strong>Wiki</strong> tab hands you the exact command (one click to copy):</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>wiki<span class="w"> </span>acme/catalog-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
@@ -228,6 +232,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=c5c2fed"></script>
+<script defer src="cmdk.js?v=0fd43db"></script>
 </body>
 </html>

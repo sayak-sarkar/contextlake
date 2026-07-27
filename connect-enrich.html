@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=c5c2fed">
-<link rel="stylesheet" href="docs.css?v=c5c2fed">
-<link rel="stylesheet" href="cmdk.css?v=c5c2fed">
+<link rel="stylesheet" href="fonts.css?v=0fd43db">
+<link rel="stylesheet" href="docs.css?v=0fd43db">
+<link rel="stylesheet" href="cmdk.css?v=0fd43db">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -57,7 +57,10 @@ queries connected sources with codebase-derived terms and stores what comes back
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
   prunes false positives and fetches each issue's summary/status), and Atlassian URLs in docs are
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
-  authenticated.</li>
+  authenticated. <strong>Per-symbol attribution</strong>: an issue key found in a specific symbol's own docstring, or
+  in the git-blame commit message on its defining line, becomes a <code>tracked_by</code> edge sourced from that
+  <em>symbol</em> (not just the repo), confirmed by the same batched JQL call and shown as the dashboard blast
+  radius page's <strong>Ticket</strong> breadcrumb, distinct from the repo-level <strong>Links</strong> crumb.</li>
 <li><strong>Figma</strong>: links repos to the design files they reference, classifying <code>figma.com</code> URLs to a stable file
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.</li>
@@ -262,6 +265,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=c5c2fed"></script>
+<script defer src="cmdk.js?v=0fd43db"></script>
 </body>
 </html>

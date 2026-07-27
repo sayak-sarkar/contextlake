@@ -1287,7 +1287,10 @@ queries connected sources with codebase-derived terms and stores what comes back
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
   prunes false positives and fetches each issue's summary/status), and Atlassian URLs in docs are
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
-  authenticated.
+  authenticated. **Per-symbol attribution**: an issue key found in a specific symbol's own docstring, or
+  in the git-blame commit message on its defining line, becomes a `tracked_by` edge sourced from that
+  *symbol* (not just the repo), confirmed by the same batched JQL call and shown as the dashboard blast
+  radius page's **Ticket** breadcrumb, distinct from the repo-level **Links** crumb.
 - **Figma**: links repos to the design files they reference, classifying `figma.com` URLs to a stable file
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
   frame/page names) is merged in on top of the URL-slug title, which is always the fallback.
@@ -2149,10 +2152,14 @@ the symbol you're on.
 
 ![Blast radius: what a change to a symbol would touch](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/blast-radius.png)
 
-The breadcrumb keeps going from there: **repo → symbol → Diagram → Wiki → Links**, one click each to
-that symbol's repo-scoped architecture graph, curated wiki, and connector links (Jira/Confluence/GitLab).
-Wiki and Links only appear when the repo actually has one: an absent wiki or connector link is omitted
-from the trail, never shown as a dead crumb.
+The breadcrumb keeps going from there: **repo → symbol → Diagram → Wiki → Links → Ticket**, one click
+each to that symbol's repo-scoped architecture graph, curated wiki, and connector links
+(Jira/Confluence/GitLab). Wiki, Links, and Ticket only appear when they actually apply: an absent wiki,
+connector link, or per-symbol ticket is omitted from the trail, never shown as a dead crumb. **Ticket** is
+distinct from the repo-level Links crumb: it's an issue attributed to *this specific symbol* (from its own
+docstring or the git-blame commit message on its defining line, see
+[Connect and enrich](connect-enrich.md#connectors)), live-JQL confirmed the same way a branch-derived key
+is. Clicking it opens the real tracker URL directly, not another dashboard view.
 
 ## 8. Generate a wiki
 
@@ -3209,6 +3216,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-symbol ticket attribution.** `tracked_by` edges could previously only
+  originate from a repo node (a branch name or a doc link, with no way to say
+  *which* symbol an issue relates to). Two new candidate sources, a symbol's
+  own docstring, and the git-blame commit message on its defining line (one
+  batched `git blame` per file, not per symbol), each a bare-key regex
+  match, so both are AMBIGUOUS candidates fed through the exact same live-JQL
+  `verify_issues`/`reconcile` pipeline that already promotes branch-derived
+  keys to INFERRED. New `connectors/symbol_refs.py` (pure logic) +
+  `AtlassianConnector.associate_symbols()`. Closes the approved-spec
+  divergence flagged when dashboard cross-linking shipped (breadcrumb ends
+  in repo-level "Links" instead of a per-symbol "Ticket"): the symbol/blast-
+  radius page's breadcrumb now gets a real **Ticket** crumb when a symbol
+  has one, opening the tracker URL directly. Built and tested against a
+  spawned mock/real git repo (no live Jira credentials this session); real-
+  workspace verification is still needed before this is production-proven.
 - **Slack connector.** A new `slack.py` connector (mirroring the Figma/Atlassian
   shape) classifies `slack.com` permalinks in a repo's docs (`/archives/<channel>`
   and `/archives/<channel>/p<ts>`) into channel/message links, wired into
