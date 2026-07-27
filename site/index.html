@@ -545,12 +545,15 @@
   .uc .uc-cmd .p{color:var(--subtle)}
 
   /* why not: two grounded comparison cards */
-  .wn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
-  @media(max-width:720px){.wn-grid{grid-template-columns:1fr}}
+  .wn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:920px){.wn-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.wn-grid{grid-template-columns:1fr}}
   .wn{padding:26px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2)}
   .wn h3{font-size:15px;margin:0 0 12px;font-family:var(--ff-m);color:var(--ink);font-weight:600}
   .wn p{color:var(--muted);font-size:14.5px;margin:0;line-height:1.65}
   .wn p b{color:var(--ink);font-weight:600}
+  .wn p+p{margin-top:10px}
+  .wn .doclink{display:inline-block;margin-top:12px;font-size:14px}
 
   /* contribute */
   .contrib-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center}
@@ -976,6 +979,11 @@
       <div class="wn">
         <h3>vs. a hosted vector DB</h3>
         <p>A hosted vector database means standing up infra and usually shipping your code to a third party. contextlake is <b>offline and graph-first</b>: exact edges instead of fuzzy nearness, token-cheap for agents, and semantic vectors are an opt-in <b>local</b> layer, not a dependency. Your source and your context stay on your disk.</p>
+      </div>
+      <div class="wn">
+        <h3>vs. other local code-graph tools</h3>
+        <p>Tools like Graphify and GitNexus index <b>a codebase</b>, on demand, one at a time. contextlake mirrors and continuously keeps fresh <b>a whole fleet</b> of repos, on their real branches, with a graph, search, and a wiki that stay in sync across all of them, automatically.</p>
+        <a class="doclink" href="comparison">How contextlake compares &rarr;</a>
       </div>
     </div>
   </div>

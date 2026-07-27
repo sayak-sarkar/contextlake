@@ -131,7 +131,13 @@ PAGES = [
      "Under the hood", "Where contextlake keeps everything it generates, one store "
      "directory, never polluting your synced repos.",
      "pebble-doc.png",
-     [("internals.html", "Architecture"), ("usage.html", "Mirror repositories")]),
+     [("internals.html", "Architecture"), ("comparison.html", "How contextlake compares")]),
+    ("comparison.html", "docs/comparison.md", "How contextlake compares",
+     "How contextlake compares",
+     "Under the hood", "Where contextlake's fleet-mirror model differs from other local, "
+     "MCP-served code-graph tools, an honest look, not a feature matrix.",
+     "pebble-doc.png",
+     [("internals.html", "Architecture"), ("benchmarks.html", "Benchmarks")]),
     ("cli-reference.html", "docs/cli-reference.md", "Command reference",
      "contextlake command reference",
      "Reference", "Every contextlake command at a glance, with links to the page that "
@@ -193,7 +199,7 @@ NAV_GROUPS = [
                                    "connect-enrich.html", "semantic-search.html",
                                    "generate-wiki.html", "model-providers.html", "bootstrap.html"]),
     ("Use it", ["serve.html", "dashboard.html", "visualize.html", "ownership.html"]),
-    ("Understand it", ["internals.html", "storage.html", "benchmarks.html"]),
+    ("Understand it", ["internals.html", "storage.html", "comparison.html", "benchmarks.html"]),
     ("Writing style", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
                        "style-guide-formatting.html", "style-guide-reference.html"]),
     ("Brand", ["brand.html"]),
