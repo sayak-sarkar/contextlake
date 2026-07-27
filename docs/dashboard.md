@@ -139,6 +139,8 @@ The positional repo id scopes generation to just that repo. Once it's generated,
 renders right in the Wiki tab, grounded in the repo's real symbols, with a provenance
 footer citing the exact commit and source files.
 
+![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
 ## 9. MCP console & Settings

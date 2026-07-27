@@ -51,6 +51,8 @@ clear and verifiable.
 The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
 provenance footer citing the exact commit and source files it was built from.
 
+![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+
 ## Recorded decisions
 
 A repo's own ADR/decision docs (see [Index & Code Graph](index-code-graph.md#architecture-decisions-adrs))
