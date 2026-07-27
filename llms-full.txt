@@ -331,10 +331,21 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 <div class="tab" data-label="pip"><pre><code>pip install "contextlake[kb-full]"</code></pre></div>
 <div class="tab" data-label="uv"><pre><code>uv tool install "contextlake[kb-full]"</code></pre></div>
 <div class="tab" data-label="Docker"><pre><code>docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor</code></pre></div>
+<div class="tab" data-label="Binary"><pre><code># download the contextlake-&lt;os&gt;-&lt;arch&gt; asset for your platform from
+# https://github.com/sayak-sarkar/contextlake/releases/latest, then:
+chmod +x contextlake-*
+./contextlake-* doctor</code></pre></div>
 </div>
 
 `pipx` is recommended (isolated, on your PATH). The lighter `[kb]` extra is graph + search
 without the built-in embedder; `[kb-full]` is batteries-included. From a clone: `pip install ".[kb-full]"`.
+
+No Python on the machine at all? The **Binary** tab needs nothing preinstalled: it's a
+self-contained launcher (built with [PyApp](https://ofek.dev/pyapp/)) that bootstraps a
+private Python + `contextlake[kb-full]` into its own cache on first run (needs network
+once; every run after that is instant, no reinstall). It doesn't include the optional
+`llm-local` wiki backend (that needs a C++ toolchain to build), `ollama`/`openai`/
+`anthropic`/`cli` all still work as wiki LLM providers.
 
 **`[kb-full]`** is the batteries-included install: the knowledge layer plus the
 built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend, so
@@ -3186,6 +3197,24 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **Single-binary releases via [PyApp](https://ofek.dev/pyapp/).** A new
+  tag-triggered `binaries.yml` workflow builds a self-contained launcher per
+  platform (`contextlake-linux-x86_64`, `contextlake-macos-arm64`,
+  `contextlake-windows-x86_64.exe`) and attaches them to the GitHub Release.
+  Each binary embeds `contextlake[kb-full]`'s project metadata and bootstraps
+  a private Python + the package into its own cache on first run (network
+  needed once; every run after is instant), for the audience that has
+  nothing preinstalled, not even Python. Deliberately a separate workflow
+  from `release.yml`, so a binary-build failure can never block the PyPI
+  publish. `uvx` / `uv tool install` remain the recommended path for anyone
+  who already has `uv`. Does not bundle the optional `llm-local` wiki
+  backend (needs a C++ toolchain to build); `ollama`/`openai`/`anthropic`/
+  `cli` remain available as wiki LLM providers.
 
 ## [2.56.0] - 2026-07-27
 

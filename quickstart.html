@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Quickstart · contextlake docs">
 <meta name="twitter:description" content="Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Quickstart", "description": "Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.", "url": "https://sayak.in/contextlake/quickstart", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Quickstart", "item": "https://sayak.in/contextlake/quickstart"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Quickstart", "description": "Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.", "url": "https://sayak.in/contextlake/quickstart", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Quickstart", "item": "https://sayak.in/contextlake/quickstart"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=d022914">
-<link rel="stylesheet" href="docs.css?v=d022914">
-<link rel="stylesheet" href="cmdk.css?v=d022914">
+<link rel="stylesheet" href="fonts.css?v=fd31f48">
+<link rel="stylesheet" href="docs.css?v=fd31f48">
+<link rel="stylesheet" href="cmdk.css?v=fd31f48">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -64,10 +64,20 @@ in a few minutes. Everything beyond the mirror is optional and off by default.</
 <div class="tab" data-label="pip"><pre><code>pip install "contextlake[kb-full]"</code></pre></div>
 <div class="tab" data-label="uv"><pre><code>uv tool install "contextlake[kb-full]"</code></pre></div>
 <div class="tab" data-label="Docker"><pre><code>docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor</code></pre></div>
+<div class="tab" data-label="Binary"><pre><code># download the contextlake-&lt;os&gt;-&lt;arch&gt; asset for your platform from
+# https://github.com/sayak-sarkar/contextlake/releases/latest, then:
+chmod +x contextlake-*
+./contextlake-* doctor</code></pre></div>
 </div>
 
 <p><code>pipx</code> is recommended (isolated, on your PATH). The lighter <code>[kb]</code> extra is graph + search
 without the built-in embedder; <code>[kb-full]</code> is batteries-included. From a clone: <code>pip install ".[kb-full]"</code>.</p>
+<p>No Python on the machine at all? The <strong>Binary</strong> tab needs nothing preinstalled: it's a
+self-contained launcher (built with <a href="https://ofek.dev/pyapp/" target="_blank" rel="noopener">PyApp<span class="ext-arrow" aria-hidden="true">↗</span></a>) that bootstraps a
+private Python + <code>contextlake[kb-full]</code> into its own cache on first run (needs network
+once; every run after that is instant, no reinstall). It doesn't include the optional
+<code>llm-local</code> wiki backend (that needs a C++ toolchain to build), <code>ollama</code>/<code>openai</code>/
+<code>anthropic</code>/<code>cli</code> all still work as wiki LLM providers.</p>
 <p><strong><code>[kb-full]</code></strong> is the batteries-included install: the knowledge layer plus the
 built-in CPU embedder (no Ollama, no API key) and the fast <code>sqlite-vec</code> backend, so
 semantic search and the <code>ask</code> tool work the moment you turn embeddings on, with no
@@ -265,6 +275,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=d022914"></script>
+<script defer src="cmdk.js?v=fd31f48"></script>
 </body>
 </html>
