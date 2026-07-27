@@ -1621,6 +1621,8 @@ clear and verifiable.
 The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
 provenance footer citing the exact commit and source files it was built from.
 
+![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+
 ## Recorded decisions
 
 A repo's own ADR/decision docs (see [Index & Code Graph](index-code-graph.md#architecture-decisions-adrs))
@@ -2147,6 +2149,8 @@ API key (install the `llm-local` extra first); `ollama` / `openai` use those bac
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders right in the Wiki tab, grounded in the repo's real symbols, with a provenance
 footer citing the exact commit and source files.
+
+![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
