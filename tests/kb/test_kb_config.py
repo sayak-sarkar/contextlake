@@ -117,9 +117,10 @@ def test_shipped_example_parses(tmp_path, monkeypatch):
         / "examples" / "kb.toml.example"
     )
     c = load_kb_config(str(example))
-    assert len(c.sources) == 4  # two atlassian + gitlab + figma
+    assert len(c.sources) == 5  # two atlassian + gitlab + figma + slack
     assert any(s.type == "figma" for s in c.sources)
     assert any(s.type == "gitlab" for s in c.sources)
+    assert any(s.type == "slack" for s in c.sources)
 
 
 def test_kb_config_wires_indexing_keys(tmp_path, monkeypatch):

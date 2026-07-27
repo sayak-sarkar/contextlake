@@ -16,8 +16,11 @@ from contextlake.kb.connectors.atlassian import (
     repo_node,
 )
 from contextlake.kb.connectors.orchestrate import (
+    build_slack,
     connect_partition,
     enrich_repo,
+    enrich_repo_figma,
+    enrich_repo_slack,
     reconcile,
 )
 from contextlake.kb.model import Confidence
@@ -254,3 +257,83 @@ def test_enrich_repo_combines_jql_and_doc_links():
     )
     assert {n.name for n in nodes if n.kind == "issue"} == {"PROJ-1", "PROJ-2"}
     assert any(n.kind == "repo" for n in nodes)
+
+
+# --- enrich_repo_figma: deeper enrichment merges real metadata --------------
+
+class _FigmaMetaStub:
+    hosts = ("figma.com",)
+
+    def __init__(self, meta):
+        self._meta = meta
+
+    def fetch_metadata(self, file_key, **kw):
+        return self._meta
+
+
+def test_enrich_repo_figma_merges_real_metadata():
+    conn = _FigmaMetaStub({"name": "Design System"})
+    nodes, edges = enrich_repo_figma(
+        conn, "g/app", links=["https://www.figma.com/design/Xy9/Flow"])
+    design = next(n for n in nodes if n.kind == "design")
+    assert design.attrs["verified"] is True
+    assert design.attrs["name"] == "Design System"
+    assert design.attrs["title"] == "Flow"  # URL-slug title survives alongside it
+    assert len(edges) == 1
+
+
+def test_enrich_repo_figma_unreachable_leaves_slug_only():
+    conn = _FigmaMetaStub(None)  # unreachable/unconfigured
+    nodes, _ = enrich_repo_figma(
+        conn, "g/app", links=["https://www.figma.com/design/Xy9/Flow"])
+    design = next(n for n in nodes if n.kind == "design")
+    assert "verified" not in design.attrs
+    assert design.attrs["title"] == "Flow"
+
+
+# --- Slack: build + enrich orchestration ------------------------------------
+
+class _SlackMetaStub:
+    hosts = ("slack.com",)
+
+    def __init__(self, reachable):
+        self._reachable = reachable
+
+    def verify(self, channel, **kw):
+        return self._reachable
+
+
+def test_enrich_repo_slack_flags_verified_channel():
+    conn = _SlackMetaStub(True)
+    nodes, edges = enrich_repo_slack(
+        conn, "g/app", links=["https://acme.slack.com/archives/C1"])
+    channel = next(n for n in nodes if n.kind == "channel")
+    assert channel.attrs["verified"] is True
+    assert len(edges) == 1 and edges[0].relation == "referenced_in"
+
+
+def test_enrich_repo_slack_unreachable_is_not_flagged():
+    conn = _SlackMetaStub(False)
+    nodes, _ = enrich_repo_slack(
+        conn, "g/app", links=["https://acme.slack.com/archives/C1"])
+    channel = next(n for n in nodes if n.kind == "channel")
+    assert "verified" not in channel.attrs
+
+
+class _SourceCfgStub:
+    def __init__(self, **kw):
+        self.name = kw.pop("name", "s")
+        self.mcp = kw.pop("mcp", None)
+        self.model_extra = kw
+
+
+def test_build_slack_reads_source_cfg():
+    src = _SourceCfgStub(name="slack-1", mcp="https://mcp.example/slack",
+                         hosts=["acme.slack.com"], verify_tool="custom_tool",
+                         auth_dir="~/auth/slack", timeout=30)
+    conn = build_slack(src)
+    assert conn.name == "slack-1"
+    assert conn.mcp_url == "https://mcp.example/slack"
+    assert conn.hosts == ("acme.slack.com",)
+    assert conn.verify_tool == "custom_tool"
+    assert conn.timeout == 30

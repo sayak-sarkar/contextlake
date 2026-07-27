@@ -134,6 +134,14 @@ name = "design"
 # from WSL only with mirrored networking (.wslconfig networkingMode=mirrored) or a
 # netsh portproxy + firewall allow rule. Verification degrades gracefully if unset.
 
+[[sources]]
+type = "slack"
+name = "team"
+# mcp = "https://mcp.example/slack"     # a hosted Slack MCP endpoint
+# mcp_command = "slack-mcp --stdio"     # or a local stdio MCP command
+# verify_tool = "conversations_info"    # tool name varies by server; override if yours differs
+# Verification degrades gracefully if unset -- links are still classified and stored.
+
 # --- Association rules (0..N) -----------------------------------------------
 # Link external knowledge to repos. Rule TYPES are generic; the patterns/maps
 # are yours.
@@ -148,4 +156,4 @@ file = "~/.contextlake/key-map.toml"   # maps issue/space keys -> repo paths
 [[rules]]
 type = "link_scrape"
 # scans README/docs for these URL patterns
-patterns = ["https://*.atlassian.net/wiki/", "https://www.figma.com/"]
+patterns = ["https://*.atlassian.net/wiki/", "https://www.figma.com/", "https://*.slack.com/archives/"]

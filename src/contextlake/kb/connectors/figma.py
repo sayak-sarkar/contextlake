@@ -3,8 +3,9 @@
 A Figma URL in a repo's docs is an explicit, trustworthy reference, so association
 needs no verification pass (unlike issue keys harvested from branch names). The
 connector claims ``figma.com`` URLs, classifies them to a stable file key, and
-emits ``repo --designed_in--> design`` edges. Optional metadata enrichment (the
-human-readable file name) is fetched best-effort over a configured Figma MCP.
+emits ``repo --designed_in--> design`` edges. If a Figma MCP is configured, real
+metadata (a name and/or top structural frame/page names) is fetched best-effort
+and merged in, on top of the URL-slug title that's always the fallback.
 """
 
 from __future__ import annotations
@@ -28,10 +29,31 @@ _FILE_RX = re.compile(r"/(?:file|design|proto|board)/([A-Za-z0-9]+)")
 _SLUG_RX = re.compile(r"/(?:file|design|proto|board)/[A-Za-z0-9]+/([^/?#]+)")
 _NODE_RX = re.compile(r"[?&]node-id=([A-Za-z0-9:%_-]+)")
 
+# Figma's own get_metadata response is XML text (gated on edit access); some
+# third-party Figma MCP servers instead return a simplified dict. Both are
+# tolerated: a bare ``name`` attribute out of the dict, or the first few
+# ``name="..."`` attributes out of the XML (top-level frames/pages), so a
+# reachable design contributes real structural content beyond the URL slug.
+_XML_NAME_RX = re.compile(r'\bname="([^"]+)"')
+
 __all__ = [
     "DEFAULT_HOSTS", "FigmaConnector", "associate_designs", "classify_figma_link",
-    "design_node", "title_of",
+    "design_node", "parse_metadata", "title_of",
 ]
+
+
+def parse_metadata(result, *, max_names: int = 8) -> dict:
+    """A design's real name + top structural node names out of a
+    ``get_metadata`` result (no network). Tolerates a dict or an XML string;
+    returns ``{}`` for anything else, so a malformed/unexpected response never
+    breaks enrichment."""
+    if isinstance(result, dict):
+        name = result.get("name")
+        return {"name": name} if name else {}
+    if isinstance(result, str):
+        names = _XML_NAME_RX.findall(result)[:max_names]
+        return {"structure": names} if names else {}
+    return {}
 
 
 def classify_figma_link(url: str) -> str | None:
@@ -103,22 +125,27 @@ class FigmaConnector:
             return parts[0], parts[1:], env
         return "npx", ["-y", "mcp-remote@latest", self.mcp_url or ""], env
 
-    def verify(self, file_key: str, *, node_id: str | None = None) -> bool:
-        """Best-effort liveness check: is this design file reachable via the MCP?
-
-        Returns ``False`` when no MCP is configured or the call fails (Figma's
-        ``get_metadata`` is gated on edit access and returns XML, so this only
-        confirms reachability — the file name comes from the URL slug, not here).
-        Never raises: verification must not break the association graph.
-        """
+    def fetch_metadata(self, file_key: str, *, node_id: str | None = None):
+        """Best-effort: the design's raw ``get_metadata`` result, or ``None`` if
+        unreachable/unconfigured. Never raises: enrichment must not break the
+        association graph. See :func:`parse_metadata` for turning this into
+        real structural content (Figma's own response is XML, gated on edit
+        access; some third-party servers return a simplified dict instead)."""
         if not (self.mcp_url or self.mcp_command):
-            return False
+            return None
         cmd, args, env = self._spawn()
         payload = {"fileKey": file_key}
         if node_id:
             payload["nodeId"] = node_id
         try:
-            res = call_tool(cmd, args, "get_metadata", payload, timeout=self.timeout, env=env)
-        except Exception:  # noqa: BLE001 - verification is best-effort
-            return False
-        return bool(res)
+            return call_tool(cmd, args, "get_metadata", payload, timeout=self.timeout, env=env)
+        except Exception:  # noqa: BLE001 - enrichment is best-effort
+            return None
+
+    def verify(self, file_key: str, *, node_id: str | None = None) -> bool:
+        """Best-effort liveness check: is this design file reachable via the MCP?
+
+        Returns ``False`` when no MCP is configured or the call fails. Never
+        raises: verification must not break the association graph.
+        """
+        return bool(self.fetch_metadata(file_key, node_id=node_id))

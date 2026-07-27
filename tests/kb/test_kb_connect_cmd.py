@@ -139,6 +139,9 @@ class _FigmaStub:
     name = "design"
     hosts = ("figma.com",)
 
+    def fetch_metadata(self, file_key, **kw):
+        return {"name": "Design System"}
+
     def verify(self, file_key, **kw):
         return True
 
@@ -168,5 +171,56 @@ def test_connect_persists_figma_designs(tmp_path, monkeypatch):
         assert designs and designs[0].kind == "design"
         assert designs[0].attrs.get("title") == "Flow"  # name from the URL slug
         assert designs[0].attrs.get("verified") is True  # best-effort liveness flag
+        assert designs[0].attrs.get("name") == "Design System"  # real metadata, deeper enrichment
+    finally:
+        store.close()
+
+
+_SLACK_CONFIG = """
+[kb]
+store_dir = "{store}"
+
+[[sources]]
+type = "slack"
+name = "team"
+
+[[rules]]
+type = "link_scrape"
+patterns = ["https://acme.slack.com/"]
+"""
+
+
+class _SlackStub:
+    name = "team"
+    hosts = ("slack.com",)
+
+    def verify(self, channel, **kw):
+        return True
+
+
+def test_connect_persists_slack_channels(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_SLACK_CONFIG.format(store=store_dir.as_posix()))
+    repo = tmp_path / "app"
+    repo.mkdir()
+
+    monkeypatch.setattr(orch, "build_slack", lambda src: _SlackStub())
+    monkeypatch.setattr(refs, "extract_issue_keys", lambda *a, **k: [])
+    monkeypatch.setattr(
+        refs, "scrape_links",
+        lambda *a, **k: ["https://acme.slack.com/archives/C0123ABCD"],
+    )
+
+    args = Namespace(config=str(cfg), workspace=None, source=str(repo), repo="group/app")
+    assert cmd_connect(args) == 0
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        check_schema(store)
+        channels = store.nodes_by_name("C0123ABCD")
+        assert channels and channels[0].kind == "channel"
+        assert channels[0].attrs.get("verified") is True
     finally:
         store.close()

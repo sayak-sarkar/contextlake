@@ -9,6 +9,7 @@ from contextlake.kb.connectors.figma import (
     associate_designs,
     classify_figma_link,
     design_node,
+    parse_metadata,
     title_of,
 )
 from contextlake.kb.model import Confidence
@@ -110,3 +111,35 @@ def test_verify_true_via_mock(tmp_path):
     c = FigmaConnector("f", mcp_command="placeholder")
     c._spawn = lambda: (sys.executable, _server(tmp_path), None)
     assert c.verify("ABC123") is True
+
+
+def test_fetch_metadata_none_without_mcp():
+    assert FigmaConnector("f").fetch_metadata("ABC123") is None
+
+
+def test_fetch_metadata_via_mock(tmp_path):
+    c = FigmaConnector("f", mcp_command="placeholder")
+    c._spawn = lambda: (sys.executable, _server(tmp_path), None)
+    assert c.fetch_metadata("ABC123") == {"name": "Design System", "key": "ABC123"}
+
+
+# --- deeper enrichment: real metadata, not just a reachability flag ---------
+
+def test_parse_metadata_from_dict():
+    assert parse_metadata({"name": "Design System", "key": "X"}) == {"name": "Design System"}
+    assert parse_metadata({"key": "X"}) == {}  # no name -> nothing to add
+
+
+def test_parse_metadata_from_xml_string():
+    xml = '<frame name="Login"><group name="Form"/></frame><frame name="Dashboard"/>'
+    assert parse_metadata(xml) == {"structure": ["Login", "Form", "Dashboard"]}
+
+
+def test_parse_metadata_xml_bounded_by_max_names():
+    xml = "".join(f'<node name="N{i}"/>' for i in range(20))
+    assert len(parse_metadata(xml, max_names=8)["structure"]) == 8
+
+
+def test_parse_metadata_unrecognized_shape_is_empty():
+    assert parse_metadata(None) == {}
+    assert parse_metadata(42) == {}

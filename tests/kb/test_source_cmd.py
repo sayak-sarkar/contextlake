@@ -320,6 +320,28 @@ def test_verify_source_figma_without_mcp_configured(tmp_path):
     assert "mcp" in detail.lower()
 
 
+def test_verify_source_slack_without_mcp_configured(tmp_path):
+    from contextlake.kb.config import SourceCfg
+
+    ok, detail = source_cmd.verify_source(SourceCfg(type="slack", name="team"))
+    assert ok is False
+    assert "mcp" in detail.lower()
+
+
+def test_verify_source_slack_without_channel_configured(monkeypatch):
+    import contextlake.kb.connectors.orchestrate as orch
+    from contextlake.kb.config import SourceCfg
+
+    class _Stub:
+        mcp_url = "https://mcp.example/slack"
+        mcp_command = None
+
+    monkeypatch.setattr(orch, "build_slack", lambda src: _Stub())
+    ok, detail = source_cmd.verify_source(SourceCfg(type="slack", name="team"))
+    assert ok is False
+    assert "channel" in detail.lower()
+
+
 def test_verify_source_unknown_type(tmp_path):
     from contextlake.kb.config import SourceCfg
 

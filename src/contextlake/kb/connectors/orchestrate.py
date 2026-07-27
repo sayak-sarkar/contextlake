@@ -62,6 +62,22 @@ def build_gitlab(src):
     )
 
 
+def build_slack(src):
+    """Construct a Slack connector from a SourceCfg."""
+    from .slack import DEFAULT_HOSTS, DEFAULT_VERIFY_TOOL, SlackConnector
+
+    extra = getattr(src, "model_extra", None) or {}
+    return SlackConnector(
+        src.name,
+        mcp_url=src.mcp,
+        mcp_command=extra.get("mcp_command"),
+        hosts=extra.get("hosts", DEFAULT_HOSTS),
+        verify_tool=extra.get("verify_tool", DEFAULT_VERIFY_TOOL),
+        auth_dir=extra.get("auth_dir"),
+        timeout=extra.get("timeout", 120),
+    )
+
+
 def enrich_repo_gitlab(connector, repo_id):
     """Link a repo to its open merge requests and issues (live fetch)."""
     from .gitlab import associate_gitlab
@@ -73,15 +89,38 @@ def enrich_repo_gitlab(connector, repo_id):
 def enrich_repo_figma(connector, repo_id, *, links=()):
     """Associate figma.com links to design nodes (names come from the URL slug).
 
-    If a Figma MCP is configured, each design is additionally checked for
-    reachability and flagged ``verified``; this is best-effort and never blocks
-    the association graph.
+    If a Figma MCP is configured, each design's real metadata is fetched
+    best-effort and merged in (a real name and/or top structural frame/page
+    names, see :func:`figma.parse_metadata`) alongside a ``verified`` flag.
+    Never blocks the association graph: an unreachable/misconfigured MCP just
+    leaves the design as URL-slug-only, same as before.
     """
-    from .figma import associate_designs
+    from .figma import associate_designs, parse_metadata
 
     nodes, edges = associate_designs(repo_id, links=links, site_hosts=connector.hosts)
     for n in nodes:
-        if n.kind == "design" and connector.verify(n.name):
+        if n.kind != "design":
+            continue
+        meta = connector.fetch_metadata(n.name)
+        if meta is None:
+            continue
+        n.attrs["verified"] = True
+        n.attrs.update(parse_metadata(meta))
+    return nodes, edges
+
+
+def enrich_repo_slack(connector, repo_id, *, links=()):
+    """Associate slack.com links to channel/message nodes (from the URL itself).
+
+    If a Slack MCP is configured, each channel is additionally checked for
+    reachability and flagged ``verified``; this is best-effort and never blocks
+    the association graph.
+    """
+    from .slack import associate_slack
+
+    nodes, edges = associate_slack(repo_id, links=links, site_hosts=connector.hosts)
+    for n in nodes:
+        if n.kind == "channel" and connector.verify(n.name):
             n.attrs["verified"] = True
     return nodes, edges
 

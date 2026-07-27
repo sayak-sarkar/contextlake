@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Slack connector.** A new `slack.py` connector (mirroring the Figma/Atlassian
+  shape) classifies `slack.com` permalinks in a repo's docs (`/archives/<channel>`
+  and `/archives/<channel>/p<ts>`) into channel/message links, wired into
+  `connect`/`contextlake source` alongside the existing three connectors.
+  Reachability is checked best-effort over a configured Slack MCP; there's no
+  single spec-mandated tool name across Slack MCP servers, so the verification
+  tool is configurable (`verify_tool`, default `conversations_info`) rather
+  than assumed. Built without live Slack credentials this session (tested
+  against a spawned mock MCP server); real-workspace verification is still
+  needed before this is considered production-proven.
+- **Deeper Figma enrichment.** `FigmaConnector.fetch_metadata()` (used by
+  `connect`) now merges a design's *real* metadata (a name and/or top
+  structural frame/page names, parsed from either a simplified dict or
+  Figma's own XML `get_metadata` response) into the design node, on top of
+  the URL-slug title that was previously the only source of a name.
 - **Single-binary releases via [PyApp](https://ofek.dev/pyapp/).** A new
   tag-triggered `binaries.yml` workflow builds a self-contained launcher per
   platform (`contextlake-linux-x86_64`, `contextlake-macos-arm64`,

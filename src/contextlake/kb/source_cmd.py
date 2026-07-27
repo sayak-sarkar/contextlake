@@ -29,7 +29,7 @@ from .config import load_kb_config
 # Connector sources feed `connect` (external reference enrichment); every other
 # type -- built-in ingest sources and third-party plugin types alike -- feeds
 # `ingest` (RAG documents).
-_CONNECT_TYPES = {"atlassian", "figma", "gitlab"}
+_CONNECT_TYPES = {"atlassian", "figma", "gitlab", "slack"}
 
 
 def _pipeline_for(source_type: str) -> str:
@@ -72,7 +72,7 @@ def _prompt_missing(src: dict) -> dict:
 
     if not src.get("type"):
         src["type"] = _ask(
-            "Source type (atlassian/figma/gitlab/files/web/api/graphql/mcp)", "files")
+            "Source type (atlassian/figma/gitlab/slack/files/web/api/graphql/mcp)", "files")
     if not src.get("name"):
         src["name"] = _ask("Source name", src["type"])
     return src
@@ -228,6 +228,23 @@ def _verify_figma(src) -> tuple[bool, str]:
     return False, f"MCP configured, but design file {file_key!r} was not reachable"
 
 
+def _verify_slack(src) -> tuple[bool, str]:
+    from .connectors.orchestrate import build_slack
+
+    conn = build_slack(src)
+    if not (conn.mcp_url or conn.mcp_command):
+        return False, "no Slack MCP configured (set `mcp` or `mcp_command`)"
+    extra = getattr(src, "model_extra", None) or {}
+    channel = extra.get("channel")
+    if not channel:
+        return False, ("Slack MCP configured, but no `channel` to test reachability "
+                        "against (add one via `--set channel=CHANNEL_ID`)")
+    ok = conn.verify(channel)
+    if ok:
+        return True, f"channel {channel!r} reachable"
+    return False, f"MCP configured, but channel {channel!r} was not reachable"
+
+
 def _verify_mcp(src, timeout: float | None = None) -> tuple[bool, str]:
     import asyncio
 
@@ -264,6 +281,8 @@ def verify_source(src, timeout: float | None = None) -> tuple[bool, str]:
             return _verify_atlassian(src, timeout=timeout)
         if src.type == "figma":
             return _verify_figma(src)
+        if src.type == "slack":
+            return _verify_slack(src)
         if src.type == "mcp":
             return _verify_mcp(src, timeout=timeout)
         return False, f"no reachability check for type {src.type!r}"
@@ -275,7 +294,7 @@ def verify_source(src, timeout: float | None = None) -> tuple[bool, str]:
 # tell "probed and unreachable" (a real test failure) apart from "no probe
 # available for this type" (the source may be perfectly valid; there's simply
 # nothing here to dial).
-_PROBED_TYPES = {"atlassian", "figma", "mcp"}
+_PROBED_TYPES = {"atlassian", "figma", "slack", "mcp"}
 
 
 def cmd_source_test(args) -> int:

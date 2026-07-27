@@ -41,9 +41,11 @@ def _build_enrichers(sources):
         build_atlassian,
         build_figma,
         build_gitlab,
+        build_slack,
         enrich_repo,
         enrich_repo_figma,
         enrich_repo_gitlab,
+        enrich_repo_slack,
     )
 
     enrichers, names = [], []
@@ -78,6 +80,14 @@ def _build_enrichers(sources):
                 lambda repo_id, keys, links, c=conn: enrich_repo_gitlab(c, repo_id)
             )
             names.append(s.name)
+        elif s.type == "slack":
+            conn = build_slack(s)
+            log(f"  source {s.name!r} (slack): ready")
+            enrichers.append(
+                lambda repo_id, keys, links, c=conn:
+                enrich_repo_slack(c, repo_id, links=links)
+            )
+            names.append(s.name)
     return enrichers, names
 
 
@@ -89,10 +99,10 @@ def cmd_connect(args) -> int:
     try:
         cfg = load_kb_config(getattr(args, "config", None))
         sources = [s for s in cfg.sources
-                   if s.type in ("atlassian", "figma", "gitlab") and s.enabled]
+                   if s.type in ("atlassian", "figma", "gitlab", "slack") and s.enabled]
         if not sources:
             log('No connector sources configured '
-                '(add [[sources]] type="atlassian"/"figma"/"gitlab")')
+                '(add [[sources]] type="atlassian"/"figma"/"gitlab"/"slack")')
             return 0
         has_gitlab = any(s.type == "gitlab" for s in sources)
         branch_key, link_patterns = _rule_patterns(cfg.rules)
