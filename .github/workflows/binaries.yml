@@ -45,8 +45,9 @@ jobs:
           PYAPP_PROJECT_FEATURES: kb-full
           PYAPP_EXEC_SPEC: "contextlake.cli:main"
         run: |
-          tag="${PYAPP_PROJECT_VERSION#v}"
-          echo "PYAPP_PROJECT_VERSION=$tag" >> "$GITHUB_ENV"
+          # GITHUB_ENV only takes effect for LATER steps -- cargo install runs in
+          # this same step, so the strip must be a plain shell export, not that.
+          export PYAPP_PROJECT_VERSION="${PYAPP_PROJECT_VERSION#v}"
           cargo install pyapp --root pyapp-out --force
 
       - name: Rename to the release asset name
@@ -57,7 +58,7 @@ jobs:
           mkdir -p out
           cp "$src" "out/${{ matrix.asset_name }}"
 
-      - name: Smoke test (--version only; a full bootstrap needs network + PyPI propagation)
+      - name: Sanity check (binary exists/executable; not a real --version -- that needs this tag already live on PyPI)
         shell: bash
         run: |
           chmod +x "out/${{ matrix.asset_name }}" || true
@@ -88,6 +89,10 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" out/* --clobber
           else
+            # release.yml creates the same tag's release too -- if it wins that race
+            # between this check and the create call below, fall back to upload
+            # rather than fail on a 422 (release already exists).
             gh release create "$GITHUB_REF_NAME" out/* \
-              --title "contextlake ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." --verify-tag
+              --title "contextlake ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." --verify-tag \
+              || gh release upload "$GITHUB_REF_NAME" out/* --clobber
           fi
