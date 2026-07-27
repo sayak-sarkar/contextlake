@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.58.0] - 2026-07-27
+
+### Changed
+
+- **Empty-repo classification: new `note` state, distinct from `skip`.** A repo with zero commits
+  (`update`/`branches` can't resolve `HEAD` -- there's no history to read yet) previously reported as
+  `skip` (`⊘`), which reads as "something that would normally happen didn't." It isn't that: it
+  describes what the repo *is*, not something withheld. `update_repository()`/
+  `switch_repository_branch()` now return `"note"` instead of `"skip"` for this case, with a
+  friendlier message (`"New repo -- no commits yet"`, was `"No commits yet (empty repository)"`).
+  New neutral glyph `•` (`style.note()`), a new `update`/`branches` summary bucket (`empty`, was
+  folded into `skipped`). **Behavior change for anything parsing CLI output**: the returned status
+  string changed from `"skip"` to `"note"` for this specific condition. `docs/console-output.md`
+  documents the new glyph and the skip-vs-note distinction.
+
 ## [2.57.0] - 2026-07-27
 
 ### Added

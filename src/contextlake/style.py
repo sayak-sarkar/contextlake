@@ -144,6 +144,13 @@ def skip(label: str = "", **kw) -> str:
     return f"{dim('⊘', **kw)} {label}".rstrip()
 
 
+def note(label: str = "", **kw) -> str:
+    """A neutral, non-actionable observation about a repo's own state (e.g.
+    "fresh, no commits yet") -- distinct from ``skip`` (something that would
+    normally happen didn't) and never counted as an error or a warning."""
+    return f"{dim('•', **kw)} {label}".rstrip()
+
+
 def nochange(label: str = "", **kw) -> str:
     return f"{dim('=', **kw)} {label}".rstrip()
 
@@ -161,6 +168,7 @@ _STATE_ACCESSORS = {
     "warn": warn,
     "fail": fail,
     "skip": skip,
+    "note": note,
     "nochange": nochange,
     "switched": switched,
     "dryrun": dryrun,

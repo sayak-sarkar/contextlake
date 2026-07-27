@@ -31,6 +31,13 @@ the outcome without reading the rest of the line:
 | `↝` | switched | cyan |
 | `~` | dry-run | yellow |
 
+An eighth glyph, **`•` note**, is currently only emitted by `update` and `branches`: it means something
+different from `⊘` skip. Skip means something that would normally happen didn't (an unsafe working tree,
+a diverged branch, an archived project) -- there was a reason to hold back. Note is not that: it
+describes what the repo *is*, not something that was withheld. The one case today is a freshly-created
+repo with no commits yet (`update`/`branches` can't resolve `HEAD` there because there is no history to
+read) -- nothing failed and nothing was skipped, there's simply nothing to sync yet.
+
 Multi-stage commands (`bootstrap` and `sync`) also print `▶ <Phase>` section headers (e.g. `▶ Mirror
 repositories from GitLab`, `▶ Audit repositories (health & age)`) so a long run reads as sections rather
 than one undifferentiated scroll, and every long-running command ends with a one-line, glyph-prefixed

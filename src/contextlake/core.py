@@ -729,7 +729,7 @@ def _git_reason(text, limit=120):
     first = _first_line(text, limit=limit)
     lowered = first.lower()
     if "ambiguous argument 'head'" in lowered or "unknown revision" in lowered:
-        return "No commits yet (empty repository)"
+        return "New repo -- no commits yet"
     return first
 
 
@@ -765,17 +765,19 @@ def update_repository(local_path, work_dir, config):
 
         # _run_git raises on a non-zero exit, so a failed branch read surfaces as a
         # clean per-repo error instead of an empty string that fetches branch "".
-        # A repo with no commits yet has no HEAD to resolve -- classified as a skip,
-        # not an error (nothing failed, there's just nothing to sync yet), the same
-        # way the branch-switch path below already treats the identical condition.
+        # A repo with no commits yet has no HEAD to resolve -- this describes what
+        # the repo currently IS, not something that failed, so it's a "note", not
+        # an error or even a skip (nothing was skipped; there's nothing to sync
+        # yet). Same classification the branch-switch path below already applies
+        # to the identical condition.
         try:
             curr_res = _run_git(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"], full_path, 30
             )
         except Exception as e:  # noqa: BLE001 - only empty-repo is special-cased here
             reason = _git_reason(str(e))
-            if reason == "No commits yet (empty repository)":
-                return ("skip", local_path, reason)
+            if reason == "New repo -- no commits yet":
+                return ("note", local_path, reason)
             raise
         current = curr_res.stdout.strip()
         if current == "HEAD":
@@ -999,11 +1001,10 @@ def switch_repository_branch(local_path, projects, work_dir, config):
             )
         except Exception as e:  # noqa: BLE001
             # A freshly-cloned repo with no commits has no HEAD to resolve
-            # (git: "ambiguous argument 'HEAD'"). There is no branch to switch
-            # to, so skip it cleanly instead of reporting it as an error --
-            # same classification + message _git_reason gives update_repository
-            # for the identical condition.
-            return ("skip", local_path, _git_reason(str(e)))
+            # (git: "ambiguous argument 'HEAD'"). This describes the repo's own
+            # state, not a failure, so it's a "note" -- same classification +
+            # message update_repository gives the identical condition.
+            return ("note", local_path, _git_reason(str(e)))
         current = curr_res.stdout.strip()
 
         if protect and not is_safe_branch(current, config):
@@ -1119,7 +1120,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
     total = len(to_clone)
     progress = style.Progress(total, label="clone")
 
-    _CLONE_STATES = {"ok": "ok", "skip": "skip", "dry-run": "dryrun"}
+    _CLONE_STATES = {"ok": "ok", "skip": "skip", "note": "note", "dry-run": "dryrun"}
 
     def handle(result):
         nonlocal done
@@ -1178,8 +1179,8 @@ def update_repositories(work_dir, config):
     max_workers = _int(config, "max_workers", "8")
     log(f"Found {len(local_repos)} local repositories")
 
-    buckets = {"updated": [], "unchanged": [], "switched": [], "skipped": [], "dry-run": [],
-               "errors": []}
+    buckets = {"updated": [], "unchanged": [], "switched": [], "skipped": [], "empty": [],
+               "dry-run": [], "errors": []}
     total = len(local_repos)
     progress = style.Progress(total, label="update")
 
@@ -1199,6 +1200,9 @@ def update_repositories(work_dir, config):
             elif status == "skip":
                 buckets["skipped"].append(path)
                 log(_status(i, total, "skip", path, message), inline=True)
+            elif status == "note":
+                buckets["empty"].append(path)
+                log(_status(i, total, "note", path, message), inline=True)
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
                 log(_status(i, total, "dryrun", path, message), inline=True)
@@ -1232,7 +1236,8 @@ def switch_repository_branches(work_dir, config, gitlab_group):
     local_repos = get_local_repos(work_dir)
     max_workers = _int(config, "max_workers", "8")
 
-    buckets = {"switched": [], "already": [], "skipped": [], "dry-run": [], "errors": []}
+    buckets = {"switched": [], "already": [], "skipped": [], "empty": [], "dry-run": [],
+               "errors": []}
     total = len(local_repos)
     progress = style.Progress(total, label="branches")
 
@@ -1252,6 +1257,9 @@ def switch_repository_branches(work_dir, config, gitlab_group):
             elif status == "skip":
                 buckets["skipped"].append(path)
                 log(_status(i, total, "skip", path, message), inline=True)
+            elif status == "note":
+                buckets["empty"].append(path)
+                log(_status(i, total, "note", path, message), inline=True)
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
                 log(_status(i, total, "dryrun", path, message), inline=True)

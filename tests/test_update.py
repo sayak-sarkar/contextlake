@@ -53,11 +53,14 @@ def test_diverged_branch_is_skipped(tmp_path, base_config, fake_subprocess, monk
     assert "Diverged" in msg
 
 
-def test_empty_repo_is_skipped_not_errored(tmp_path, base_config, fake_subprocess, monkeypatch):
-    """A repo with no commits yet (git: "ambiguous argument 'HEAD'") must be a skip,
-    not an error -- nothing failed, there's just nothing to sync yet. Matches the
-    branch-switch path's classification of the identical condition (bug: they used
-    to disagree, this one reported 'error')."""
+def test_empty_repo_is_a_note_not_skipped_or_errored(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """A repo with no commits yet (git: "ambiguous argument 'HEAD'") describes what
+    the repo IS, not something that failed or was withheld -- a "note", distinct
+    from both "error" and "skip". Matches the branch-switch path's classification
+    of the identical condition (bug: they used to disagree, this one reported
+    'error'; later both agreed on 'skip', now both agree on 'note')."""
     _safe(monkeypatch)
 
     def handler(cmd, **kwargs):
@@ -70,8 +73,8 @@ def test_empty_repo_is_skipped_not_errored(tmp_path, base_config, fake_subproces
 
     fake_subprocess.handler = handler
     status, _, msg = update_repository("a", str(tmp_path), base_config)
-    assert status == "skip"
-    assert msg == "No commits yet (empty repository)"
+    assert status == "note"
+    assert msg == "New repo -- no commits yet"
 
 
 def test_deleted_upstream_branch_auto_switches_to_a_new_one(
@@ -404,7 +407,7 @@ def test_empty_repo_reports_a_readable_reason_not_gits_usage_hint():
         "working tree.\nUse '--' to separate paths from revisions, like this:\n"
         "'git <command> [<revision>...] -- [<file>...]'"
     )
-    assert core._git_reason(raw) == "No commits yet (empty repository)"
+    assert core._git_reason(raw) == "New repo -- no commits yet"
 
 
 def test_git_reason_falls_back_to_a_clamped_first_line():
