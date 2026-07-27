@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fd31f48">
-<link rel="stylesheet" href="docs.css?v=fd31f48">
-<link rel="stylesheet" href="cmdk.css?v=fd31f48">
+<link rel="stylesheet" href="fonts.css?v=c5c2fed">
+<link rel="stylesheet" href="docs.css?v=c5c2fed">
+<link rel="stylesheet" href="cmdk.css?v=c5c2fed">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -53,6 +53,21 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
+<li><strong>Slack connector.</strong> A new <code>slack.py</code> connector (mirroring the Figma/Atlassian
+  shape) classifies <code>slack.com</code> permalinks in a repo's docs (<code>/archives/&lt;channel&gt;</code>
+  and <code>/archives/&lt;channel&gt;/p&lt;ts&gt;</code>) into channel/message links, wired into
+  <code>connect</code>/<code>contextlake source</code> alongside the existing three connectors.
+  Reachability is checked best-effort over a configured Slack MCP; there's no
+  single spec-mandated tool name across Slack MCP servers, so the verification
+  tool is configurable (<code>verify_tool</code>, default <code>conversations_info</code>) rather
+  than assumed. Built without live Slack credentials this session (tested
+  against a spawned mock MCP server); real-workspace verification is still
+  needed before this is considered production-proven.</li>
+<li><strong>Deeper Figma enrichment.</strong> <code>FigmaConnector.fetch_metadata()</code> (used by
+  <code>connect</code>) now merges a design's <em>real</em> metadata (a name and/or top
+  structural frame/page names, parsed from either a simplified dict or
+  Figma's own XML <code>get_metadata</code> response) into the design node, on top of
+  the URL-slug title that was previously the only source of a name.</li>
 <li><strong>Single-binary releases via <a href="https://ofek.dev/pyapp/" target="_blank" rel="noopener">PyApp<span class="ext-arrow" aria-hidden="true">↗</span></a>.</strong> A new
   tag-triggered <code>binaries.yml</code> workflow builds a self-contained launcher per
   platform (<code>contextlake-linux-x86_64</code>, <code>contextlake-macos-arm64</code>,
@@ -2741,6 +2756,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=fd31f48"></script>
+<script defer src="cmdk.js?v=c5c2fed"></script>
 </body>
 </html>

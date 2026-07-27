@@ -1281,7 +1281,7 @@ queries connected sources with codebase-derived terms and stores what comes back
 
 ## Connectors
 
-`connect` enriches the graph with external context. Three connectors ship, sharing one seam:
+`connect` enriches the graph with external context. Four connectors ship, sharing one seam:
 
 - **Atlassian**: links each repo to the Jira issues and Confluence pages it references. Issue keys
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
@@ -1289,9 +1289,14 @@ queries connected sources with codebase-derived terms and stores what comes back
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
   authenticated.
 - **Figma**: links repos to the design files they reference, classifying `figma.com` URLs to a stable file
-  key.
+  key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
+  frame/page names) is merged in on top of the URL-slug title, which is always the fallback.
 - **GitLab**: links each repo to its open **merge requests and issues** (read through your authenticated
   `glab`).
+- **Slack**: links repos to the channels and messages that discuss them, classifying `slack.com` permalinks
+  (`/archives/<channel>` and `/archives/<channel>/p<ts>`) into channel/message links. Reachability is
+  checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
+  MCP servers, so the verification tool name is configurable (`verify_tool`, default `conversations_info`).
 
 Adding another connector is a small, self-contained module, and its output lands in an isolated graph
 partition, so re-indexing a repo's code never disturbs its external links. Configure connectors by copying
@@ -1479,8 +1484,10 @@ codebase's query context.
 **Additional `[[sources]]` keys.** Beyond the per-type keys above, connector and ingest sources also
 accept: `auth_dir`, an isolated OAuth-cache directory (set a distinct one per Atlassian org so their
 `mcp-remote` caches never collide); `mcp_command`, a local stdio MCP command to launch instead of a remote
-endpoint (e.g. `"figma-mcp --stdio"`); `group`, a GitLab group prefixed to each repo's path to form the
-project id; and `per_page`, the API page size (default `50`).
+endpoint (e.g. `"figma-mcp --stdio"` or `"slack-mcp --stdio"`); `hosts`, the list of hostnames a Figma/Slack
+source claims links for (defaults to `["figma.com"]`/`["slack.com"]`); `verify_tool`, the Slack MCP tool
+name used for reachability checks (default `conversations_info`); `group`, a GitLab group prefixed to each
+repo's path to form the project id; and `per_page`, the API page size (default `50`).
 
 ## See also
 
@@ -3202,6 +3209,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Slack connector.** A new `slack.py` connector (mirroring the Figma/Atlassian
+  shape) classifies `slack.com` permalinks in a repo's docs (`/archives/<channel>`
+  and `/archives/<channel>/p<ts>`) into channel/message links, wired into
+  `connect`/`contextlake source` alongside the existing three connectors.
+  Reachability is checked best-effort over a configured Slack MCP; there's no
+  single spec-mandated tool name across Slack MCP servers, so the verification
+  tool is configurable (`verify_tool`, default `conversations_info`) rather
+  than assumed. Built without live Slack credentials this session (tested
+  against a spawned mock MCP server); real-workspace verification is still
+  needed before this is considered production-proven.
+- **Deeper Figma enrichment.** `FigmaConnector.fetch_metadata()` (used by
+  `connect`) now merges a design's *real* metadata (a name and/or top
+  structural frame/page names, parsed from either a simplified dict or
+  Figma's own XML `get_metadata` response) into the design node, on top of
+  the URL-slug title that was previously the only source of a name.
 - **Single-binary releases via [PyApp](https://ofek.dev/pyapp/).** A new
   tag-triggered `binaries.yml` workflow builds a self-contained launcher per
   platform (`contextlake-linux-x86_64`, `contextlake-macos-arm64`,

@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Connect and enrich · contextlake docs">
 <meta name="twitter:description" content="Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connect and enrich", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connect-enrich", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connect and enrich", "item": "https://sayak.in/contextlake/connect-enrich"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connect and enrich", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connect-enrich", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connect and enrich", "item": "https://sayak.in/contextlake/connect-enrich"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=fd31f48">
-<link rel="stylesheet" href="docs.css?v=fd31f48">
-<link rel="stylesheet" href="cmdk.css?v=fd31f48">
+<link rel="stylesheet" href="fonts.css?v=c5c2fed">
+<link rel="stylesheet" href="docs.css?v=c5c2fed">
+<link rel="stylesheet" href="cmdk.css?v=c5c2fed">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -51,7 +51,7 @@
 grounded facts from those sources into the knowledge layer. <code>connect</code> links repos to items; <code>enrich</code>
 queries connected sources with codebase-derived terms and stores what comes back.</p>
 <h2 id="connectors">Connectors<a class="anchor" href="#connectors" title="Link to this section">#</a></h2>
-<p><code>connect</code> enriches the graph with external context. Three connectors ship, sharing one seam:</p>
+<p><code>connect</code> enriches the graph with external context. Four connectors ship, sharing one seam:</p>
 <ul>
 <li><strong>Atlassian</strong>: links each repo to the Jira issues and Confluence pages it references. Issue keys
   harvested from branch/commit names are confirmed against the live tracker (one batched JQL call per site
@@ -59,9 +59,14 @@ queries connected sources with codebase-derived terms and stores what comes back
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
   authenticated.</li>
 <li><strong>Figma</strong>: links repos to the design files they reference, classifying <code>figma.com</code> URLs to a stable file
-  key.</li>
+  key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
+  frame/page names) is merged in on top of the URL-slug title, which is always the fallback.</li>
 <li><strong>GitLab</strong>: links each repo to its open <strong>merge requests and issues</strong> (read through your authenticated
   <code>glab</code>).</li>
+<li><strong>Slack</strong>: links repos to the channels and messages that discuss them, classifying <code>slack.com</code> permalinks
+  (<code>/archives/&lt;channel&gt;</code> and <code>/archives/&lt;channel&gt;/p&lt;ts&gt;</code>) into channel/message links. Reachability is
+  checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
+  MCP servers, so the verification tool name is configurable (<code>verify_tool</code>, default <code>conversations_info</code>).</li>
 </ul>
 <p>Adding another connector is a small, self-contained module, and its output lands in an isolated graph
 partition, so re-indexing a repo's code never disturbs its external links. Configure connectors by copying
@@ -210,8 +215,10 @@ codebase's query context.</p>
 <p><strong>Additional <code>[[sources]]</code> keys.</strong> Beyond the per-type keys above, connector and ingest sources also
 accept: <code>auth_dir</code>, an isolated OAuth-cache directory (set a distinct one per Atlassian org so their
 <code>mcp-remote</code> caches never collide); <code>mcp_command</code>, a local stdio MCP command to launch instead of a remote
-endpoint (e.g. <code>"figma-mcp --stdio"</code>); <code>group</code>, a GitLab group prefixed to each repo's path to form the
-project id; and <code>per_page</code>, the API page size (default <code>50</code>).</p>
+endpoint (e.g. <code>"figma-mcp --stdio"</code> or <code>"slack-mcp --stdio"</code>); <code>hosts</code>, the list of hostnames a Figma/Slack
+source claims links for (defaults to <code>["figma.com"]</code>/<code>["slack.com"]</code>); <code>verify_tool</code>, the Slack MCP tool
+name used for reachability checks (default <code>conversations_info</code>); <code>group</code>, a GitLab group prefixed to each
+repo's path to form the project id; and <code>per_page</code>, the API page size (default <code>50</code>).</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="index-code-graph">Index the code graph</a></li>
@@ -255,6 +262,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=fd31f48"></script>
+<script defer src="cmdk.js?v=c5c2fed"></script>
 </body>
 </html>
