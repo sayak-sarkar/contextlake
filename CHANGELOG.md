@@ -5,6 +5,24 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Single-binary releases via [PyApp](https://ofek.dev/pyapp/).** A new
+  tag-triggered `binaries.yml` workflow builds a self-contained launcher per
+  platform (`contextlake-linux-x86_64`, `contextlake-macos-arm64`,
+  `contextlake-windows-x86_64.exe`) and attaches them to the GitHub Release.
+  Each binary embeds `contextlake[kb-full]`'s project metadata and bootstraps
+  a private Python + the package into its own cache on first run (network
+  needed once; every run after is instant) — for the audience that has
+  nothing preinstalled, not even Python. Deliberately a separate workflow
+  from `release.yml`, so a binary-build failure can never block the PyPI
+  publish. `uvx` / `uv tool install` remain the recommended path for anyone
+  who already has `uv`. Does not bundle the optional `llm-local` wiki
+  backend (needs a C++ toolchain to build); `ollama`/`openai`/`anthropic`/
+  `cli` remain available as wiki LLM providers.
+
 ## [2.56.0] - 2026-07-27
 
 ### Added

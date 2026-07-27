@@ -19,10 +19,21 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 <div class="tab" data-label="pip"><pre><code>pip install "contextlake[kb-full]"</code></pre></div>
 <div class="tab" data-label="uv"><pre><code>uv tool install "contextlake[kb-full]"</code></pre></div>
 <div class="tab" data-label="Docker"><pre><code>docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor</code></pre></div>
+<div class="tab" data-label="Binary"><pre><code># download the contextlake-&lt;os&gt;-&lt;arch&gt; asset for your platform from
+# https://github.com/sayak-sarkar/contextlake/releases/latest, then:
+chmod +x contextlake-*
+./contextlake-* doctor</code></pre></div>
 </div>
 
 `pipx` is recommended (isolated, on your PATH). The lighter `[kb]` extra is graph + search
 without the built-in embedder; `[kb-full]` is batteries-included. From a clone: `pip install ".[kb-full]"`.
+
+No Python on the machine at all? The **Binary** tab needs nothing preinstalled: it's a
+self-contained launcher (built with [PyApp](https://ofek.dev/pyapp/)) that bootstraps a
+private Python + `contextlake[kb-full]` into its own cache on first run (needs network
+once; every run after that is instant, no reinstall). It doesn't include the optional
+`llm-local` wiki backend (that needs a C++ toolchain to build) — `ollama`/`openai`/
+`anthropic`/`cli` all still work as wiki LLM providers.
 
 **`[kb-full]`** is the batteries-included install: the knowledge layer plus the
 built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend — so

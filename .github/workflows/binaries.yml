@@ -1,0 +1,93 @@
+name: binaries
+
+# Build single-file executables (via PyApp: a Rust launcher that bootstraps a
+# real Python + contextlake[kb-full] on first run, no separate Python install
+# needed) and attach them to the GitHub Release for the same tag.
+#
+# Deliberately a SEPARATE workflow from release.yml: PyPI publish is the primary,
+# load-bearing release path, so a binary-build failure here must never block it.
+# uvx / `uv tool install contextlake[kb-full]` remains the recommended install
+# for anyone who already has uv; these binaries only exist for the have-nothing-
+# installed audience.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: contextlake-linux-x86_64
+          - os: macos-latest
+            asset_name: contextlake-macos-arm64
+          - os: windows-latest
+            asset_name: contextlake-windows-x86_64.exe
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build the launcher (embeds contextlake[kb-full] metadata; installs at first run)
+        shell: bash
+        env:
+          PYAPP_PROJECT_NAME: contextlake
+          PYAPP_PROJECT_VERSION: ${{ github.ref_name }}
+          PYAPP_PROJECT_FEATURES: kb-full
+          PYAPP_EXEC_SPEC: "contextlake.cli:main"
+        run: |
+          tag="${PYAPP_PROJECT_VERSION#v}"
+          echo "PYAPP_PROJECT_VERSION=$tag" >> "$GITHUB_ENV"
+          cargo install pyapp --root pyapp-out --force
+
+      - name: Rename to the release asset name
+        shell: bash
+        run: |
+          src="pyapp-out/bin/pyapp"
+          [ -f "$src.exe" ] && src="$src.exe"
+          mkdir -p out
+          cp "$src" "out/${{ matrix.asset_name }}"
+
+      - name: Smoke test (--version only; a full bootstrap needs network + PyPI propagation)
+        shell: bash
+        run: |
+          chmod +x "out/${{ matrix.asset_name }}" || true
+          file "out/${{ matrix.asset_name }}" || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: out/${{ matrix.asset_name }}
+
+  attach:
+    name: attach to GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # upload release assets (create the release if binaries.yml wins the race)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: Upload binaries to the tag's release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" out/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" out/* \
+              --title "contextlake ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." --verify-tag
+          fi

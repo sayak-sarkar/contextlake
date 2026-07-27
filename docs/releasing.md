@@ -148,6 +148,29 @@ e.g. `docker build --network=host --build-arg ... ` after baking
 The image is **public by default for public repos**; check the package's visibility
 under the repo's *Packages* once published.
 
+## Single-binary releases (PyApp)
+
+The same tag push also triggers [`.github/workflows/binaries.yml`](../.github/workflows/binaries.yml),
+a **separate** workflow from `release.yml` so a binary-build failure there can never
+block the PyPI publish. It builds one launcher per platform (Linux x86_64, macOS
+arm64, Windows x86_64) via [PyApp](https://ofek.dev/pyapp/) — a small Rust binary
+that embeds `contextlake[kb-full]`'s project metadata (`PYAPP_PROJECT_NAME`,
+`PYAPP_PROJECT_VERSION` from the tag, `PYAPP_PROJECT_FEATURES=kb-full`,
+`PYAPP_EXEC_SPEC=contextlake.cli:main`) and bootstraps a private Python + the
+package into its own cache the first time it runs — nothing needs to be
+preinstalled, not even Python. Binaries are uploaded as assets on the same
+GitHub Release `release.yml` creates (whichever workflow finishes first creates
+the release; the other edits/uploads onto it).
+
+To reproduce a build locally (needs a Rust toolchain — `rustup` on any platform):
+
+```bash
+PYAPP_PROJECT_NAME=contextlake PYAPP_PROJECT_VERSION=2.56.0 \
+  PYAPP_PROJECT_FEATURES=kb-full PYAPP_EXEC_SPEC="contextlake.cli:main" \
+  cargo install pyapp --root pyapp-out
+./pyapp-out/bin/pyapp doctor   # first run bootstraps; every run after is instant
+```
+
 ## Troubleshooting
 
 **`SSLError: CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate`**
