@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=06d8d8d">
-<link rel="stylesheet" href="docs.css?v=06d8d8d">
-<link rel="stylesheet" href="cmdk.css?v=06d8d8d">
+<link rel="stylesheet" href="fonts.css?v=3a8b83a">
+<link rel="stylesheet" href="docs.css?v=3a8b83a">
+<link rel="stylesheet" href="cmdk.css?v=3a8b83a">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -109,6 +109,12 @@ the outcome without reading the rest of the line:</p>
 </tr>
 </tbody>
 </table>
+<p>An eighth glyph, <strong><code>•</code> note</strong>, is currently only emitted by <code>update</code> and <code>branches</code>: it means something
+different from <code>⊘</code> skip. Skip means something that would normally happen didn't (an unsafe working tree,
+a diverged branch, an archived project) -- there was a reason to hold back. Note is not that: it
+describes what the repo <em>is</em>, not something that was withheld. The one case today is a freshly-created
+repo with no commits yet (<code>update</code>/<code>branches</code> can't resolve <code>HEAD</code> there because there is no history to
+read) -- nothing failed and nothing was skipped, there's simply nothing to sync yet.</p>
 <p>Multi-stage commands (<code>bootstrap</code> and <code>sync</code>) also print <code>▶ &lt;Phase&gt;</code> section headers (e.g. <code>▶ Mirror
 repositories from GitLab</code>, <code>▶ Audit repositories (health &amp; age)</code>) so a long run reads as sections rather
 than one undifferentiated scroll, and every long-running command ends with a one-line, glyph-prefixed
@@ -200,6 +206,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=06d8d8d"></script>
+<script defer src="cmdk.js?v=3a8b83a"></script>
 </body>
 </html>
