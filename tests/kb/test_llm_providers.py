@@ -78,7 +78,7 @@ class _FakeCompleted:
 def test_cli_generate_feeds_stdin_and_returns_stdout(monkeypatch):
     seen = {}
 
-    def fake_run(argv, input=None, capture_output=None, text=None, timeout=None):
+    def fake_run(argv, input=None, capture_output=None, text=None, timeout=None, env=None):
         seen["argv"] = argv
         seen["input"] = input
         seen["timeout"] = timeout
@@ -89,7 +89,7 @@ def test_cli_generate_feeds_stdin_and_returns_stdout(monkeypatch):
     out = llm.generate("Question?", system="Be brief.")
 
     assert out == "the answer"
-    assert seen["argv"] == ["claude", "-p"]            # preset for `claude`
+    assert seen["argv"] == ["claude", "-p", "--safe-mode"]   # preset for `claude`
     assert seen["input"] == "Be brief.\n\nQuestion?"    # system prepended
     assert seen["timeout"] == 99
 
@@ -137,6 +137,58 @@ def test_cli_generate_missing_binary_raises(monkeypatch):
     import pytest
     with pytest.raises(RuntimeError):
         CliLlm(command="nope").generate("hi")
+
+
+def test_cli_strips_its_own_api_key_from_the_child_env(monkeypatch):
+    """The whole point of provider=cli is reusing a subscription instead of an API
+    key -- but the CLI itself (e.g. `claude -p`) treats its own API key env var as
+    an auth override that takes precedence over the subscription login. A key set
+    for an unrelated reason (testing a different [llm] provider, another tool)
+    must not silently flip this provider onto pay-per-token auth."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-should-not-reach-the-child")
+    seen = {}
+
+    def fake_run(argv, **k):
+        seen["env"] = k.get("env")
+        return _FakeCompleted(stdout="ok")
+
+    monkeypatch.setattr(cli_mod.subprocess, "run", fake_run)
+    CliLlm(command="claude").generate("hi")
+    assert "ANTHROPIC_API_KEY" not in seen["env"]
+
+
+def test_cli_leaves_unrelated_env_vars_and_unknown_commands_alone(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-...")
+    monkeypatch.setenv("SOME_OTHER_VAR", "keep-me")
+    seen = {}
+
+    def fake_run(argv, **k):
+        seen["env"] = k.get("env")
+        return _FakeCompleted(stdout="ok")
+
+    monkeypatch.setattr(cli_mod.subprocess, "run", fake_run)
+    # An unrecognised command's auth model is unknown -- nothing is stripped.
+    CliLlm(command="my-own-cli").generate("hi")
+    assert seen["env"]["ANTHROPIC_API_KEY"] == "sk-..."
+    assert seen["env"]["SOME_OTHER_VAR"] == "keep-me"
+
+
+def test_cli_matches_preset_and_auth_vars_by_basename(monkeypatch):
+    """`command` can be path-qualified (e.g. a shim or a non-PATH install) --
+    the preset args and the auth-var strip must still key off `claude`, not
+    fail closed on the full path."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-should-not-reach-the-child")
+    seen = {}
+
+    def fake_run(argv, **k):
+        seen["argv"] = argv
+        seen["env"] = k.get("env")
+        return _FakeCompleted(stdout="ok")
+
+    monkeypatch.setattr(cli_mod.subprocess, "run", fake_run)
+    CliLlm(command="/usr/local/bin/claude").generate("hi")
+    assert seen["argv"] == ["/usr/local/bin/claude", "-p", "--safe-mode"]
+    assert "ANTHROPIC_API_KEY" not in seen["env"]
 
 
 def test_build_llm_returns_cli():

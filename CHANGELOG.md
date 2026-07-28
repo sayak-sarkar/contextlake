@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.58.1] - 2026-07-28
+
+### Fixed
+
+- **`[llm] provider = "cli"` no longer leaks the CLI's own API-key env var into the child process.**
+  The whole point of this provider is reusing a subscription (`claude -p` / `gemini` / `codex`)
+  instead of an API key contextlake would have to hold -- but `claude` and `gemini` both treat their
+  own key (`ANTHROPIC_API_KEY`; `GEMINI_API_KEY`/`GOOGLE_API_KEY`) as an auth override that takes
+  precedence over the subscription login and must be unset to fall back to it. A key set anywhere in
+  the shell for an unrelated reason (testing the `anthropic`/`openai` provider directly, another tool)
+  silently flipped `cli` onto pay-per-token auth instead -- found live while testing (`claude -p`
+  failed with "Credit balance is too low" the moment `ANTHROPIC_API_KEY` was exported, worked once it
+  was unset; the `gemini` behavior is confirmed from its own auth docs, not live-tested here).
+  `CliLlm.generate()` now strips the matching var(s) from the subprocess environment only, per
+  recognised command (matched by basename, so a path-qualified `command` still strips) -- an
+  unrecognised `command` (a user's own CLI) strips nothing, since its auth model isn't known.
+  `OPENAI_API_KEY` is stripped for `codex` too as a defensive precaution, though its docs describe
+  API-key auth as a separate explicitly-opted-into login mode rather than an env-var override.
+
 ## [2.58.0] - 2026-07-27
 
 ### Changed

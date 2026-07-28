@@ -35,7 +35,14 @@ by what may leave your machine and what hardware you have.
   contextlake shells out to it (`command`, default `claude`; `args` overrides the per-CLI preset) and feeds
   the prompt on stdin. No API key touches contextlake; data goes to whatever provider that CLI uses. Reuses
   your subscription, offline-adjacent (still a network call by that tool), and mirrors how contextlake
-  already shells out to `git` and `glab`.
+  already shells out to `git` and `glab`. For the three recognised commands, contextlake strips that CLI's
+  own API-key env var(s) (`ANTHROPIC_API_KEY` for `claude`, `OPENAI_API_KEY` for `codex`, `GEMINI_API_KEY` /
+  `GOOGLE_API_KEY` for `gemini`) from the child process only -- otherwise a key set anywhere in your shell
+  for an unrelated reason (e.g. testing the `anthropic` provider) can silently override the CLI's
+  subscription login and bill a pay-per-token account you never meant to use here. Confirmed by live repro
+  for `claude` and by its own docs for `gemini`; `codex`'s docs describe API-key auth as a separate,
+  explicitly-opted-into mode rather than an environment-variable override, so the strip is a defensive
+  precaution there rather than a confirmed-necessary fix.
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
