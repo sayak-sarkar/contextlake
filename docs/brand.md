@@ -5,7 +5,7 @@ the friendly tour. The full decision-grade spec, every hex, ratio, and construct
 [BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md).
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/mark.png" alt="The contextlake mark: a flat, front-facing otter head cradling a glowing teal context-pebble over a deepwater keyline." width="160">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/mark.png" alt="The contextlake mark: Pebble, a painterly warm-brown otter, cradling a glowing teal context-pebble." width="160">
 </p>
 
 ## What contextlake is
@@ -40,7 +40,7 @@ oceans, waves, fishing, or drowning, and never "data lake".
 
 ## Pebble
 
-Pebble is contextlake's mascot: a small, friendly, dark blue-grey river otter who surfaces from the lake
+Pebble is contextlake's mascot: a small, friendly, warm brown river otter who surfaces from the lake
 cradling a glowing translucent context-pebble in both forepaws, offering it forward. The one-beat read is
 "I went down, I found the real thing, here it is." Calm, competent, never frantic. Pebble is the
 anti-hallucination promise made friendly.
@@ -63,9 +63,10 @@ gold discipline) is in the [spec](https://github.com/sayak-sarkar/contextlake/bl
 
 ## The mark and wordmark
 
-The logo is a dual-element identity: a flat, front-facing otter-head mark cradling the context-pebble over
-a deepwater keyline, plus the `contextlake` wordmark set in Space Grotesk Bold, lowercase, one color. The
-mark carries the brand at small sizes and as an avatar; the wordmark carries it in reading contexts.
+The logo is Pebble, rendered painterly, cradling the context-pebble, plus the `contextlake` wordmark set
+in Space Grotesk Bold, lowercase, one color. The mark carries the brand at small sizes and as an avatar;
+the wordmark carries it in reading contexts. (Below about 32px, browser favicon sizes, a simplified
+silhouette stands in for the painterly mark since fine shading doesn't survive that much downsampling.)
 
 ## The full spec
 

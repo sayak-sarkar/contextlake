@@ -2,10 +2,14 @@
 
 **Status:** Final / decision-grade. This document is the single source of truth for the contextlake visual and verbal identity. It supersedes all earlier brand files. Build directly from it into `BRANDING.md`, the `/brand` site page, and image-model prompts.
 
-**Asset status (updated as the system shipped):** the three legacy assets that encoded the old brand have been corrected. `docs/branding/mascot.md` is rewritten to Section 5; `docs/branding/wordmark.svg` is re-exported single-color (Section 2.4); `docs/branding/glyph.svg` is demoted to a decorative lake-cross-section motif with the gold droplet removed (it is NOT the logo). The primary flat otter-head mark now ships at `docs/branding/mark.svg` (primary) and `docs/branding/mark-dark.svg` (reversed for dark backgrounds), traced from the approved reference and snapped to the palette. A simplified glyph for small sizes (favicon, nav) ships as `docs/branding/glyph-mark.svg`.
+**Asset status (updated as the system shipped):** `docs/branding/mascot.md` is rewritten to Section 5.
+The identity is consolidated on one painterly register (Section 2, 2026-07-28) — the earlier flat
+vector mark (`docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg`) is retired and
+kept only for history, not referenced by any current spec or build. `docs/branding/wordmark.svg` is
+re-exported single-color (Section 2.4). `docs/branding/mark.png` is now a painterly crop (Section 2.1).
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/mark.png" alt="The contextlake mark: a flat, front-facing otter head cradling a glowing teal context-pebble over a deepwater keyline." width="180">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/mark.png" alt="The contextlake mark: Pebble, a painterly warm-brown otter, cradling a glowing teal context-pebble." width="180">
 </p>
 
 ---
@@ -93,39 +97,52 @@ One controlling metaphor. It is a system, not a one-off pun. Do not invent new a
 
 ## 2. Logo & mark system
 
-The contextlake logo is a **dual-element identity**: a flat, front-facing **otter-head mark** cradling the context-pebble over a **deepwater keyline**, plus the **`contextlake` wordmark** in live Space Grotesk. The mark carries the brand at small sizes and as an avatar; the wordmark carries it in reading contexts.
+**Consolidated to one register (2026-07-28).** contextlake previously ran a dual-element identity: a
+flat, front-facing vector otter-head mark (fur `#2F5A63`, deepwater keyline) alongside the painterly
+mascot. That flat mark is **retired** — it was a separate, incorrectly-colored design (a cool
+blue-grey/slate fill that never matched the shipped painterly art) rather than a deliberate second
+register, and it is no longer used anywhere. The identity is now **one Pebble, rendered painterly, at
+every size the format allows**, plus the **`contextlake` wordmark** in live Space Grotesk.
 
-### 2.1 Master construction grid
+The retired flat-mark assets (`docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg`,
+`pebble-logo-flat.png`, `pebble-logo-flat-cut.png`) are kept in the repo for history but are not
+referenced by any build, page, or spec — do not resurrect them as "the logo."
 
-Built to a **1000 × 1000 master artboard** (units = mu, scale by ratio). Lock the proportions; never re-proportion by eye.
+### 2.1 The mark
 
-- **Optical box:** head fills a centered **820 × 760 mu** field (90 mu margin L/R, 120 mu T/B). This is internal padding, not clear space (§2.6).
-- **Head silhouette:** rounded near-symmetrical "soft-shield", wide cheeks, two low rounded ear-arcs at the top corners, soft-rounded chin. Top-corner ear radius **160 mu**; chin radius **220 mu**. **Minimum outer-contour radius = 60 mu** anywhere (survives downscaling).
-- **Strokes (only two weights):** outer keyline **40 mu** (4% of artboard); interior strokes (ear-inner, muzzle seam, brow) **28 mu**. Constant relative to mark height.
-- **Eyes:** two solid deepwater dots, diameter **70 mu**, centers at **y = 410 mu**, **300 mu** apart, symmetric about center. Level, forward gaze.
-- **Nose:** single rounded deepwater wedge, width **150 mu**, base at **y = 540 mu**, centered.
+The mark is a painterly Pebble crop: front-facing or three-quarter head-and-shoulders, cradling the
+context-pebble, on the standard palette background (rounded-square container, solid **deepwater
+`#0E2A33`**, never transparent — a transparent mark vanishes on dark browser tab strips and dark UI
+chrome). Source: the same painterly generation pipeline as the mascot (§5), cropped/composed for a
+square or near-square frame. Current canonical source asset: `docs/img/icon-512.png`; the small
+nav/footer embed (`docs/branding/mark.png`) is a resize of the same source, not a separate artwork.
+
+**One exception, for practical legibility, not aesthetics:** below about 48px, painterly shading
+degrades to a muddy blob (fine gradients and soft edges don't survive that much downsampling). At
+**16–32px only** (browser favicon, tab strip), contextlake ships a **simplified silhouette** derived
+from Pebble's outline — solid shapes, no gradients, the pebble rendered as a single glowing dot — so
+the mark stays legible instead of turning into noise. This is a rendering necessity, not a second
+brand register: it's a simplified silhouette of the one painterly character, not an independent flat
+logo with its own construction rules or color system. Built by `site/tools/gen_small_mark.py`; see §2.3.
 
 ### 2.2 The context-pebble inside the mark
 
-- Cradled at lower-center, read as held just below the muzzle. **Bounding diameter = 300 mu** (≈ 30% of mark width, ≈ 37% of head width). This diameter is the brand reference unit **"p"**.
-- Center at **x = 500, y = 720 mu**. Shape: soft, slightly-irregular rounded ovoid, a polished stone, never a perfect circle, never an angular gem.
-- **Fill:** flat **current `#2BB3A3`** core; thin inner crescent of **mist `#EAF4F4`** at upper-left for translucency; one **sun `#E7B53C`** glint, diameter **55 mu**, at 10–11 o'clock (a single solid dot). **No internal facet lines, star-dots, or node-graph** inside the pebble at logo scale.
-- Pebble keyline: **deepwater `#0E2A33` at 40 mu** (flips to mist on dark, §2.10).
+Same object as the painterly mascot's context-pebble (§5.4): translucent, glowing, teal-to-lake falloff
+with a single gold glint, cradled in both forepaws. At mark scale it may simplify (fewer internal
+gradient steps) but never changes shape, color family, or the "one glint" rule. No facet lines,
+star-dots, or node-graph inside it at any scale.
 
-**Intentional divergence (stated, not accidental):** the flat mark shrinks the pebble to **~37% of head width** for 16px legibility. The painterly mascot keeps the pebble at **45–55%** of head width (§5). One object, two register-appropriate scales.
+### 2.3 Small-size favicon simplification (16–32px only)
 
-### 2.3 Flat-mark color (default / positive)
-
-| Element | Color | Hex |
-|---|---|---|
-| Outer keyline + interior strokes + eyes + nose | deepwater | `#0E2A33` |
-| Otter head fill | **fur-mid** (shared with painterly mascot) | `#2F5A63` |
-| Inner ears + muzzle patch + cheek catch-light | mist | `#EAF4F4` |
-| Pebble core | current | `#2BB3A3` |
-| Pebble translucent crescent | mist | `#EAF4F4` |
-| Pebble glint | sun / gold | `#E7B53C` |
-
-**One otter, one body family.** The flat mark's body is **`#2F5A63`**, the painterly mascot's mid-fur tone (§5.3), not a separate "otter-slate" value. The earlier invented `#2B4D58` is **deleted**; do not use it. The body reads against its **deepwater keyline** on light grounds, and against a **mist keyline/rim** on dark grounds (§2.10), the mark never relies on body-vs-background contrast. Flat fills + the two stroke weights only: no gradients, no painterly shading.
+- **Container:** rounded-square (iOS squircle), corner radius ≈ 22% of edge, solid **deepwater
+  `#0E2A33`** background (never pure black, never transparent).
+- **Silhouette:** a simplified Pebble outline in a light, brand-palette tone against the deepwater
+  field, with the context-pebble as a single glowing dot (current `#2BB3A3` → sun `#E7B53C` accent).
+  No fur texture, no shading gradient, no facets — legibility at 16px is the only goal.
+- Ship layered: 16/32/48/64px (this simplified tier) plus 180/192/512px (the full painterly crop,
+  §2.1) and a maskable 512 with 10% safe padding (Android adaptive icons).
+- The favicon never renders a legible knowledge-graph; graph semantics live only in large illustration
+  and product UI.
 
 ### 2.4 Wordmark
 
@@ -138,63 +155,46 @@ Built to a **1000 × 1000 master artboard** (units = mu, scale by ratio). Lock t
 
 ### 2.5 Lockups
 
-Mark full height = **"M"**; pebble diameter = **"p" (= 0.30M)**.
+Mark bounding-box height = **"M"**.
 
-- **A. Horizontal (primary).** Mark left, wordmark right. Wordmark **cap-height = 0.52M**; baseline set so the wordmark optical center aligns to the mark's (`y = 500 mu`). Gap mark-edge → first glyph **= 0.5M (≈ 1.67p)**. Use: site header, README banner, PyPI, wide social profile.
-- **B. Stacked (secondary).** Mark centered above, wordmark centered below. Wordmark **cap-height = 0.34M**; width ≤ **1.6M**. Vertical gap mark-chin → wordmark cap-line **= 0.28M**. Centerlines coincide. Use: square/portrait, splash, sticker, docs hero.
+- **A. Horizontal (primary).** Mark left, wordmark right, vertically centered on the mark. Gap between
+  mark and first glyph ≈ **0.5M**. Use: site header, README banner, PyPI, wide social profile.
+- **B. Stacked (secondary).** Mark centered above, wordmark centered below, width ≤ **1.6M**. Use:
+  square/portrait, splash, sticker, docs hero.
 - **Mark-only** (avatar/favicon) and **wordmark-only** (inline in nav/body) are both sanctioned standalone.
 
 **Locked:** never swap the arrangement (no wordmark-left) and never invent lockups beyond these.
 
 ### 2.6 Clear space
 
-**= 1p** (one pebble diameter = 0.30M) on all four sides, measured from the outermost ink of whichever element is present. Nothing, type, rule, edge, other logo, enters this zone. **1p is the floor; prefer 1.5p** in open layouts.
+Clear space ≈ **20% of mark height** on all four sides, measured from the outermost ink of whichever
+element is present. Nothing (type, rule, edge, other logo) enters this zone.
 
 ### 2.7 Minimum sizes
 
-| Asset | Digital min | Print min |
-|---|---|---|
-| Horizontal lockup | **120 px** wide | 30 mm |
-| Stacked lockup | **96 px** wide | 24 mm |
-| Wordmark alone | **84 px** wide | 22 mm |
-| Mark alone | **16 px** (favicon floor) | 6 mm |
+| Asset | Digital min |
+|---|---|
+| Horizontal lockup | **120 px** wide |
+| Stacked lockup | **96 px** wide |
+| Wordmark alone | **84 px** wide |
+| Mark alone, full painterly crop | **48 px** |
+| Mark alone, simplified favicon tier (§2.3) | **16 px** |
 
-Below these, drop the wordmark and show mark-only; below 16px do not render the mark, use the wordmark or a single deepwater dot.
+Below the horizontal/stacked minimums, drop the wordmark and show mark-only.
 
-### 2.8 Favicon / app-icon (LOD system, ship all tiers)
+### 2.8 Misuse (do not)
 
-The mark is a **level-of-detail system**, not one artwork shrunk. `<link rel="icon">` selects by size.
-
-- **Container:** rounded-square (iOS squircle), **corner radius = 22.4% of edge**. Background **solid deepwater `#0E2A33`** (never pure black, never transparent, a transparent deepwater-keylined mark vanishes on dark browser tab strips).
-- **Browser favicon:** ship a **theme-aware `favicon.svg`** via `prefers-color-scheme`, deepwater keyline on light, mist keyline on dark, plus ICO/PNG fallbacks at 16/32/48.
-
-**Three LOD tiers:**
-
-- **≥ 48 px, full reversed flat mark:** fur-mid `#2F5A63` body, mist inner shapes + mist keyline, full pebble with glint.
-- **32 px, simplified:** drop the muzzle seam and cheek catch-light. Thicken the separating rim/keyline to a **true 2px mist** band. Render the **eyes as mist knockouts** (deepwater-on-fur-mid is ~1.65:1 and will not read). Keep nose, pebble core + glint.
-- **16 px, inverted silhouette tier (legibility-locked):** a **mist `#EAF4F4` otter-head silhouette** on the deepwater field (head/bg = 13.41:1), **deepwater `#0E2A33` eyes knocking out** of the mist head (13.41:1), and the pebble as a single **current `#2BB3A3`** glow-blob (5.78:1 on deepwater; the one element that survives unchanged, lean on it as the anchor). **No keyline** at 16px (a 40 mu line is sub-pixel and smears). No glint, no facets.
-
-> The earlier "fur-mid head on deepwater with a 1px rim" composition fails at 16px (head and eyes both ~1.65:1, rim sub-pixel). The 16px tier is **inverted to a light-on-dark silhouette** so every element clears AA. The dark-head composition is valid only at **≥ 32px**, where the 2px mist rim has room to render.
-
-Export: layered SVG + raster 16/32/48/180 (Apple touch)/512 PNG, plus a **maskable 512** with 10% safe padding (Android adaptive). **The favicon never renders a legible knowledge-graph**, graph semantics live only in large illustration.
-
-### 2.9 Mark-construction rules (locked)
-
-- **Gaze** of the flat MARK is always level and forward (logo convention). (Painterly Pebble in scenes directs gaze toward content/CTA, see §5.6. This carve-out resolves the apparent conflict.)
-- **No facets / nodes / star-dots** inside the pebble at logo scale.
-- **No water droplets** on the face.
-- **Keyline is deepwater `#0E2A33`, never `#000000`**, anywhere.
-- The flat mark carries **no gradients, shading, drop shadows, or inner-glow**, flat fills + two stroke weights only.
-
-### 2.10 Monochrome & reversed variants
-
-- **Monochrome (one-color deepwater) on light:** entire mark `#0E2A33`; forms separated by knockout, not fill, head solid deepwater; eyes/nose knockout to background; pebble **outline-only** (40 mu stroke, empty interior). A **mist `#EAF4F4`** inversion serves dark single-color contexts. For stamping, embossing, single-color print, laser.
-- **Reversed (full-color on dark):** keyline + eyes + nose → **mist `#EAF4F4`**; body → **fur-mid `#2F5A63`** held off the dark ground by the mist rim; pebble core → **current `#2BB3A3`**, glint → **sun `#E7B53C`**; wordmark → **mist `#EAF4F4`**. On busy/mid-tone photography, place the lockup in a deepwater container (radius 22.4%) or a 1.5p mist plate; never float the positive mark on a mid-tone.
-- **Contrast:** wordmark pairs (deepwater on mist, mist on deepwater) exceed 12:1. The otter/pebble **fills** are logo elements under **WCAG 2.2 SC 1.4.11's logo exemption**; regardless, a deepwater keyline (light) or mist keyline/rim (dark) always separates the silhouette from its ground, including at the 16px tier.
-
-### 2.11 Misuse (do not)
-
-1. Recolor any element outside the token system (§3). 2. Use pure-black `#000000` keyline or background anywhere. 3. Add gradients, shadows, glows, bevels, or painterly shading to the flat mark. 4. Place a node-graph, star-dots, or facets inside the pebble. 5. Add water droplets/sweat, or redirect the mark's gaze off-page. 6. Rotate, skew, stretch, condense, or outline-warp mark or wordmark. 7. Re-typeset the wordmark in any font but Space Grotesk Bold, or change its lowercase one-word casing. 8. Split `contextlake` into two words, colors, or lines. 9. AI-generate or hand-redraw the wordmark lettering. 10. Violate clear space (1p) or go below §2.7 minimums. 11. Drop the painterly mascot into the favicon/app-icon container (the icon uses the flat mark). 12. Place the positive mark on a busy mid-tone without a plate. 13. Swap the lockup arrangement or invent lockups beyond §2.5.
+1. Recolor Pebble or the pebble outside the palette in §3/§5.
+2. Use pure-black `#000000` anywhere; deepwater `#0E2A33` is the darkest allowed value.
+3. Place a node-graph, star-dots, or facets inside the pebble at any scale.
+4. Add water droplets/sweat to the face, or redirect painterly gaze off-page (§5.6).
+5. Rotate, skew, stretch, condense, or outline-warp the mark or wordmark.
+6. Re-typeset the wordmark in any font but Space Grotesk Bold, or change its lowercase one-word casing.
+7. Split `contextlake` into two words, colors, or lines.
+8. AI-generate or hand-redraw the wordmark lettering.
+9. Violate clear space (§2.6) or go below the §2.7 minimums.
+10. Reintroduce a flat vector mark as an alternate "logo register" — retired per §2, not to be revived.
+11. Swap the lockup arrangement or invent lockups beyond §2.5.
 
 ---
 
@@ -405,10 +405,19 @@ This section is canon. Pebble and the context-pebble are fixed; their silhouette
 
 ### 5.1 Who Pebble is
 
-Pebble is a small, friendly, innocent-faced **dark blue-grey river otter** who surfaces from the contextlake cradling a glowing translucent **context-pebble** in both forepaws, offering it forward. Read in one beat: *"I went down, I found the real thing, here it is."* Calm, competent, never frantic. Pebble is the embodiment of the anti-hallucination promise, it returns with real context, not a guess.
+Pebble is a small, friendly, innocent-faced **warm brown river otter** who surfaces from the contextlake cradling a glowing translucent **context-pebble** in both forepaws, offering it forward. Read in one beat: *"I went down, I found the real thing, here it is."* Calm, competent, never frantic. Pebble is the embodiment of the anti-hallucination promise, it returns with real context, not a guess.
+
+**A note on "brown," measured, not eyeballed (2026-07-28):** sampling actual pixels from shipped art
+(`docs/img/pebble-peek.png`, `docs/img/icon-512.png`) shows the crown/back sit in the scene's ambient
+cool lake-light and read as a dark, cool-cast charcoal in shadow (`#1C2D33`–`#2A393E`) — that's
+**lighting, not fur color**. The muzzle, cheeks, and paws, which catch more direct light, read as clearly
+warm tan/cream (`#D9CA99`–`#FBE7AB`), and mid-tone fur in better light reads as genuine warm umber-brown
+(`~#A0876A`). Pebble's fur is brown; do not flatten the whole body to one cool-grey value the way the
+now-retired flat mark did (§2) — that drift is exactly how this doc ended up saying "dark blue-grey" in
+the first place. See §5.3 for the corrected ramp.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter cradling a glowing translucent context-pebble in both forepaws, offering it forward." width="240">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly warm brown river otter cradling a glowing translucent context-pebble in both forepaws, offering it forward." width="240">
 </p>
 
 ### 5.2 Silhouette & proportions (locked)
@@ -424,18 +433,20 @@ Recognizable as a **solid rounded silhouette at 10% size**, the pebble glow as t
 - **Tail:** thick tapered, a seated stabilizer; never focal.
 - **Whiskers:** 2–3 fine low-contrast strokes per side; optional, omit at small sizes.
 
-### 5.3 Fur & body color (Tier-3 illustration ramp: locked hex)
+### 5.3 Fur & body color (illustration ramp: measured from shipped art, corrected 2026-07-28)
 
 | Zone | Hex | Role |
 |---|---|---|
-| Primary fur (back, head, tail) | `#23424B` | the body read |
-| Mid fur / form transition | `#2F5A63` | rounded-volume midtone (**= the flat mark's body**, §2.3) |
-| Belly, chest, muzzle, brow | `#6E8E92` | mist-lifted underside |
-| Inner-ear / paw-pad | `#8A9C8F` | warm-cool neutral |
+| Crown, back, tail (in the scene's ambient cool light) | `#1C2D33` – `#2A393E` | darkest fur value; a cool-cast **shadow**, not the material color (§5.1) |
+| Body mid-tone, better-lit fur | `~#A0876A` | the true warm umber-brown read |
+| Muzzle, cheeks, chin, paws | `#D9CA99` – `#FBE7AB` | warm cream-tan, the lightest fur |
 | Nose | `#0E2A33` (deepwater) | the darkest allowed point |
 | Eye | `#0E2A33` iris + single `#EAF4F4` catch-light | n/a |
 
-`#2F5A63` is the bridge between registers: the painterly mid-fur and the flat mark's body are the same value, so one otter reads across both styles. Wet-fur sheen is soft `#EAF4F4` painterly highlights at low opacity, **never discrete water droplets**.
+Wet-fur sheen is soft `#EAF4F4` painterly highlights at low opacity, **never discrete water droplets**.
+Do not render the crown/back as a flat, uniform slate/teal fill — that was the retired flat mark's error
+(§2): the cool cast belongs to shadow modeling under the brand's lake-light, layered over warm-brown fur,
+not a fur color in its own right.
 
 ### 5.4 The context-pebble (locked, the most controlled element)
 
@@ -444,7 +455,9 @@ Recognizable as a **solid rounded silhouette at 10% size**, the pebble glow as t
 - **Inner glow (identical in both registers):** **core `current #2BB3A3` → falloff to `lake #137A8B` → thin `mist #EAF4F4` rim** where it meets dark fur. The glow is the brightest value in any composition.
 - **Gold glint:** exactly **one** small warm highlight in **sun `#E7B53C`** near the upper third (one point or short streak). One glint, never a constellation.
 - **Cast glow:** the pebble casts soft teal light onto Pebble's paws/chest/chin, proof it really glows.
-- **Scale:** painterly pebble diameter ≈ **45–55%** of head width (co-subject, never larger than the head). (The flat mark intentionally shrinks it to ~37% for 16px legibility, §2.2.)
+- **Scale:** pebble diameter ≈ **45–55%** of head width (co-subject, never larger than the head) at
+  mascot scale; the mark (§2.1) and its 16–32px favicon simplification (§2.3) may shrink it further for
+  legibility, same object, smaller reference frame.
 
 **Hard pebble rule:** NOT an amber sphere with star-dots (Dragon Ball), NOT a faceted crystal/gem, NOT a gold nugget, NOT a node-graph inside. The "knowledge graph" semantic lives in large illustration and product UI only, never inside the carried pebble.
 
@@ -465,7 +478,9 @@ Recognizable as a **solid rounded silhouette at 10% size**, the pebble glow as t
 - **Peeking / corner accent:** peeking from a screen edge, gaze turned inward. Strictly small, decorative.
 - **Resting-on-pebble (idle/empty states):** seated beside/leaning on the pebble at rest, glow dimmed.
 
-**Gaze rule (resolves the logo conflict):** in every painterly pose, **gaze points toward the content, the CTA, or the pebble, never off-page or viewer-locked.** (The flat MARK, by contrast, uses a level forward gaze per §2.9, a logo convention, not a scene.)
+**Gaze rule:** in every pose, **gaze points toward the content, the CTA, or the pebble, never off-page
+or viewer-locked** — including the mark (§2.1), which is a cropped painterly pose, not a separate logo
+convention.
 
 ### 5.7 Inverse-density rule (how much Pebble)
 
@@ -477,16 +492,21 @@ Pebble's presence is **inversely proportional to surface information-density.**
 
 **One Pebble per view, never two.** Pebble is punctuation, not wallpaper. If a screen already has a bright focal point, Pebble steps back.
 
-### 5.8 Dual-register rendering
+### 5.8 One register, one exception
 
-- **Painterly Pebble** (rich, dimensional, subsurface glow, soft volumetric light, **no hard black outlines**, forms separate by value and rim light): hero, OG/social, large illustration, onboarding.
-- **Flat Pebble / logo mark** (bold front-facing otter-head, clean sticker/stamp fills, **deepwater `#0E2A33` keyline, never black**): logo, favicon, app icon, small UI.
+Pebble renders **painterly** everywhere: rich, dimensional, subsurface glow, soft volumetric light, no
+hard black outlines, forms separated by value and rim light. Hero, OG/social, large illustration,
+onboarding, the mark (§2.1), app icons, README banners — all the same rendering.
 
-Both share the §3/§5 palette, that shared palette unifies the split. This split is intentional and standard; do not "reconcile" the two into one render style.
+The **only** exception is the 16–32px favicon tier (§2.3), a simplified silhouette used purely because
+painterly shading doesn't survive that much downsampling — a technical necessity, not a second brand
+register. There is no separate "flat mark" style to keep in sync; there is one Pebble and one small-size
+simplification of it.
 
 ### 5.9 Hard do / don'ts
 
-**Do:** keep the pebble glow the single brightest point; cast its teal glow onto Pebble; aim painterly gaze at content/CTA/pebble; use deepwater `#0E2A33` as the darkest value; keep painterly Pebble outline-free and the flat mark's keyline deepwater.
+**Do:** keep the pebble glow the single brightest point; cast its teal glow onto Pebble; aim gaze at
+content/CTA/pebble; use deepwater `#0E2A33` as the darkest value; keep Pebble outline-free.
 
 **Don't:** ❌ node-graph/star-dots inside the pebble · ❌ amber sphere, faceted gem, or gold-nugget pebble · ❌ water droplets/sweat on the face · ❌ hard black outlines on painterly art; no `#000` anywhere · ❌ off-page or viewer-locked painterly stare · ❌ more than one gold glint; no second eye-sparkle · ❌ anxious/shocked/angry/sleepy/silly expressions · ❌ two-Pebble compositions; no Pebble over a live graph · ❌ AI-generated wordmark.
 
@@ -495,14 +515,10 @@ Both share the §3/§5 palette, that shared palette unifies the split. This spli
 Use the base prompt + locked phrase blocks. Keep locked phrases verbatim; vary only **[POSE]** and **[CONTEXT]**.
 
 **Reusable base prompt**
-> Mascot illustration of **Pebble**, a cute innocent-faced **dark blue-grey river otter** with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle, large soft dark eyes with a single upper-left catch-light, small rounded ears. Fur in deep blue-grey teal tones (`#23424B` back, `#2F5A63` midtone, `#6E8E92` mist-lifted belly), deepwater `#0E2A33` nose, no pure black. Pebble is **[POSE]**, cradling in both forepaws a **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint (`#E7B53C`)**; the pebble is lit from within and casts a soft teal glow onto Pebble's paws and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**. Calm, trustworthy, friendly-but-precise mood. **[STYLE BLOCK]**. Gaze directed toward the context-pebble / the viewer's content. Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore `#D7C5A0`, gold `#E7B53C`.
-
-**[STYLE BLOCK], painterly:** Rich dimensional painterly illustration, soft volumetric subsurface lighting, gentle rim light in mist `#EAF4F4`, NO hard outlines, forms separated by value and color, soft depth-of-field lake background.
-
-**[STYLE BLOCK], flat/logo:** Flat bold vector mascot mark, clean filled shapes, front-facing otter head, single deepwater `#0E2A33` keyline outline (never black), sticker/stamp style, legible at small sizes, flat background.
+> Mascot illustration of **Pebble**, a cute innocent-faced **warm brown river otter** with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle, large soft dark eyes with a single upper-left catch-light, small rounded ears. Umber-brown fur (`~#A0876A` mid-tone), warm cream-tan muzzle/cheeks/paws (`#D9CA99`–`#FBE7AB`); the crown and back may fall into a cool-shadowed charcoal (`#1C2D33`–`#2A393E`) under the scene's ambient lake-light — that's lighting, never a flat slate/grey fur color. Deepwater `#0E2A33` nose, no pure black. Pebble is **[POSE]**, cradling in both forepaws a **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint (`#E7B53C`)**; the pebble is lit from within and casts a soft teal glow onto Pebble's paws and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**. Calm, trustworthy, friendly-but-precise mood. Rich dimensional painterly illustration, soft volumetric subsurface lighting, gentle rim light in mist `#EAF4F4`, NO hard outlines, forms separated by value and color, soft depth-of-field lake background. Gaze directed toward the context-pebble / the viewer's content. Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore `#D7C5A0`, gold `#E7B53C`.
 
 **Locked phrases (paste verbatim):**
-- `cute innocent-faced dark blue-grey river otter`
+- `cute innocent-faced warm brown river otter`
 - `smooth polished translucent agate sea-glass context-pebble`
 - `cool teal-green inner glow (#2BB3A3 core to lake #137A8B falloff) and exactly one small warm-gold glint (#E7B53C)`
 - `lit from within, casts a soft teal glow onto Pebble's paws and chin`
@@ -510,12 +526,12 @@ Use the base prompt + locked phrase blocks. Keep locked phrases verbatim; vary o
 - `gaze toward the context / content`
 
 **Mandatory negative prompt (always include):**
-> amber sphere, glowing orb with star dots, dragon ball, faceted crystal, cut gem, gold nugget, network graph inside the stone, glowing nodes inside, water droplets on face, sweat drops, tears, anxious expression, shocked face, angry, sleepy, hard black outlines, pure black, neon, text, watermark, two otters, realistic otter anatomy, off-page stare.
+> amber sphere, glowing orb with star dots, dragon ball, faceted crystal, cut gem, gold nugget, network graph inside the stone, glowing nodes inside, water droplets on face, sweat drops, tears, anxious expression, shocked face, angry, sleepy, hard black outlines, pure black, neon, text, watermark, two otters, realistic otter anatomy, off-page stare, flat uniform slate/blue-grey fur.
 
 **Slot examples**
-- Hero: `[POSE]` = *surfacing at the waterline, presenting the pebble forward* · `[CONTEXT]` = *soft sunrise mist, calm reflective water* · painterly.
-- Loading/working: `[POSE]` = *diving downward wearing a small snorkel* · `[CONTEXT]` = *deeper teal underwater light* · painterly. (Pebble may be empty-pawed.)
-- Favicon/app icon: `[POSE]` = *front-facing head-and-shoulders only, pebble centered below the chin* · flat.
+- Hero: `[POSE]` = *surfacing at the waterline, presenting the pebble forward* · `[CONTEXT]` = *soft sunrise mist, calm reflective water*.
+- Loading/working: `[POSE]` = *diving downward wearing a small snorkel* · `[CONTEXT]` = *deeper teal underwater light*. (Pebble may be empty-pawed.)
+- Mark / app icon: `[POSE]` = *front-facing head-and-shoulders only, pebble centered below the chin* · `[CONTEXT]` = *tight crop, solid deepwater background*.
 
 **Wordmark production law (locked):** any asset containing "contextlake" is a **two-step composite**, generate the painterly background **without text**, then overlay the wordmark/tagline in real Space Grotesk. **Never ship a single AI generation with baked-in lettering.**
 
@@ -523,18 +539,18 @@ Use the base prompt + locked phrase blocks. Keep locked phrases verbatim; vary o
 
 ## 6. Illustration, imagery & motion
 
-### 6.1 Dual register: when to use which
+### 6.1 One register, and where the 16–32px exception applies
 
-| | **RICH, dimensional painterly** | **FLAT, bold sticker/stamp** |
-|---|---|---|
-| **Use for** | Mascot poses, hero, OG/social, large spot illustration, docs section headers ≥320px | Logo mark, favicon, app icon, in-product glyphs, README badges, anything ≤64px |
-| **Rendering** | Soft volumetric shading (2–4 light planes), subsurface pebble glow, atmospheric depth, painterly edges | 2–3 flat fills per shape, one keyline, no gradients except the single 2-stop pebble glow |
-| **Outline** | None; form read by value/light | One deepwater `#0E2A33` keyline, **never black**; weight 6–8% of mark height |
-| **Min safe size** | 200px tall (below, switch to FLAT) | 16px |
-| **Corner language** | Organic, water-smoothed | Geometric-rounded; corner radius ≥ 12% of shape width |
-| **Format** | PNG → WebP/AVIF | SVG → PNG only for fixed icon slots |
+Pebble is painterly everywhere: mascot poses, hero, OG/social, large spot illustration, docs section
+headers, the mark, app icons, README badges. Rendering is soft volumetric shading (2–4 light planes),
+subsurface pebble glow, atmospheric depth, painterly edges, no outline (form reads by value/light).
+Format: PNG → WebP/AVIF.
 
-The split coheres because both draw the same 6-primitive palette and the same pebble silhouette. The pebble glow (`#2BB3A3` core → `#137A8B` falloff → mist rim, one `#E7B53C` glint ≤4% of pebble area) must read identically in both. **Both registers:** no node-graph inside the pebble, no face droplets, no hard black on painterly art, painterly gaze toward content/CTA.
+**The one exception:** below about 48px (browser favicon tab-strip sizes, 16–32px), painterly shading
+turns to mud on downsample. That tier alone uses the simplified silhouette from §2.3 — solid shapes, no
+gradient, corner radius ≥ 12% of shape width, SVG/PNG. It shares the same pebble-glow palette
+(`#2BB3A3` core → `#137A8B` falloff → mist rim, one `#E7B53C` glint) so it still reads as the same
+character, just simplified for legibility, not a second illustration style to maintain in parallel.
 
 ### 6.2 Scene composition: the layered Pebble technique
 
@@ -587,24 +603,27 @@ The product *is* a node-graph, so the graph screen is the highest "floating-node
 
 ### 7.1 Surface rules
 
-| Surface | Register | Asset(s) | Format | Background | Rules |
-|---|---|---|---|---|---|
-| **Landing hero** | RICH (animated) | Layered scene (§6.2) + motion (§6.3) | WebP/AVIF + PNG fallback, layers separate | painterly lake, dark-first | Gaze → CTA; ≥8% clear margin; static pose is the no-JS/reduced-motion baseline |
-| **Landing sections** | FLAT glyphs; ≤1 RICH spot/page | flat lake-cross-section motif, flat mark | inline SVG | mist `#EAF4F4` or deepwater | Never stack two painterly scenes on one page |
-| **Docs** | FLAT-led | flat mark in header, flat inline glyphs; optional single RICH banner ≥320px tall per top-level section | SVG inline; banner WebP | mist light, deepwater code blocks | Below 320px tall, use flat |
-| **Graph / tool UI** | FLAT only | flat otter-head mark in nav, flat status/type glyphs | **inline SVG, bundled, zero external fetch** | deepwater dark-first | Ships offline: never load painterly raster or remote assets at runtime. Carries the §7.2 second brand signal |
-| **README, GitHub** | RICH banner + FLAT badges | hero banner (1280×640 safe), shields badges | PNG/WebP via raw URL; SVG badges | reads on GitHub light **and** dark | Use `<picture>` with light/dark sources; never transparent-on-white only |
-| **README, PyPI** | RICH banner, **absolute URLs only** | same banner | PNG (PyPI strips some SVG; no relative paths) | PyPI light | All `src` absolute `https://`; one banner, no animation |
-| **OG / social** | RICH | 1200×630 card | JPG/PNG, exact 1200×630 | painterly, text-safe | Wordmark in real Space Grotesk; title in central 80% safe area |
-| **Favicon** | FLAT | otter-head + pebble only | theme-aware SVG + ICO/PNG @16/32/48 | solid deepwater (never transparent) | LOD per §2.8; never a legible graph at this size |
-| **App icon (PWA/touch)** | FLAT | full-bleed otter-head | PNG @180/192/512 + maskable 512 | deepwater `#0E2A33` solid | Maskable variant with 10% safe padding (Android) |
-| **ghcr.io / PyPI avatar** | FLAT | flat mark | PNG 512×512 | deepwater solid | Square, no wordmark (registries crop to circle) |
+Pebble is painterly on every surface (§5.8); the table below is asset format/placement, not a register
+choice. The 16–32px favicon simplification (§2.3) is the only surface using the simplified silhouette.
+
+| Surface | Asset(s) | Format | Background | Rules |
+|---|---|---|---|---|
+| **Landing hero** | Layered scene (§6.2) + motion (§6.3) | WebP/AVIF + PNG fallback, layers separate | painterly lake, dark-first | Gaze → CTA; ≥8% clear margin; static pose is the no-JS/reduced-motion baseline |
+| **Landing sections** | mark or a supporting painterly spot, ≤1 per page | PNG/WebP | mist `#EAF4F4` or deepwater | Never stack two painterly scenes on one page |
+| **Docs** | mark in header; optional single banner ≥320px tall per top-level section | PNG/WebP | mist light, deepwater code blocks | — |
+| **Graph / tool UI (in-product nav)** | a small bundled glyph (currently a hand-drawn inline SVG, `kb/dashboard/static/dashboard.html`) — painterly raster doesn't inline cheaply at nav-icon size | inline SVG or bundled data-URI, zero external fetch | deepwater dark-first | Ships offline: never load remote assets at runtime. Carries the §7.2 second brand signal |
+| **README, GitHub** | hero banner (1280×640 safe), shields badges | PNG/WebP via raw URL; SVG badges | reads on GitHub light **and** dark | Use `<picture>` with light/dark sources; never transparent-on-white only |
+| **README, PyPI** | same banner, **absolute URLs only** | PNG (PyPI strips some SVG; no relative paths) | PyPI light | All `src` absolute `https://`; one banner, no animation |
+| **OG / social** | 1200×630 card | JPG/PNG, exact 1200×630 | painterly, text-safe | Wordmark in real Space Grotesk; title in central 80% safe area |
+| **Favicon** | mark (§2.1) ≥48px; simplified silhouette (§2.3) at 16–32px | theme-aware SVG + ICO/PNG @16/32/48 | solid deepwater (never transparent) | never a legible graph at this size |
+| **App icon (PWA/touch)** | full painterly mark | PNG @180/192/512 + maskable 512 | deepwater `#0E2A33` solid | Maskable variant with 10% safe padding (Android) |
+| **ghcr.io / PyPI avatar** | mark | PNG 512×512 | deepwater solid | Square, no wordmark (registries crop to circle) |
 
 ### 7.2 Cross-surface invariants
 
-- **Distinctiveness guard (defeats cliché-(b)):** product chrome must **always carry a second persistent brand signal** so the most-seen screen never reduces to "near-black field + one green accent." Use **lake-blue `#137A8B` structure** alongside the teal, the **gold freshness/active dot**, and the **small flat mark always present in nav**. Reinforce "**never neon**" so `#2BB3A3` reads teal, not acid.
-- The wordmark is always real Space Grotesk, one word, one color, never AI-generated; the flat mark's keyline is always deepwater `#0E2A33`.
-- The product UI and any shipped artifact fetch **no external runtime assets**, bundle inline SVG.
+- **Distinctiveness guard (defeats cliché-(b)):** product chrome must **always carry a second persistent brand signal** so the most-seen screen never reduces to "near-black field + one green accent." Use **lake-blue `#137A8B` structure** alongside the teal, the **gold freshness/active dot**, and the **small mark always present in nav**. Reinforce "**never neon**" so `#2BB3A3` reads teal, not acid.
+- The wordmark is always real Space Grotesk, one word, one color, never AI-generated.
+- The product UI and any shipped artifact fetch **no external runtime assets**, bundle inline SVG or a data-URI.
 - **`shore #D7C5A0`** has exactly one job: a painterly warm-neutral (sand/light, illustration dividers). Never a UI color; never a page background (guards cliché-(a)).
 - **Spacing / grid / elevation scale:** out of brand-layer scope; define a token set (e.g. 4px base, 4/8/12/16/24/32/48/64) at the build phase for `BRANDING.md` → site.
 
@@ -612,13 +631,12 @@ The product *is* a node-graph, so the graph screen is the highest "floating-node
 
 | Asset | Current state | Action | Size / format |
 |---|---|---|---|
-| **Primary flat otter mark** | **Shipped**: `docs/branding/mark.svg` + `mark-dark.svg` | the primary mark (traced + palette-snapped); reversed variant for dark | optimized SVG |
-| `docs/branding/glyph.svg` | lake-cross-section + gold droplet (off-metaphor) | **Demote** to optional background motif; **remove gold droplet**; never use as the logo | inline SVG |
-| `docs/branding/wordmark.svg` | shipped two-tone, weight 700 | **Re-export** single-color (deepwater on light / mist on dark), outline to paths | SVG |
-| `docs/branding/mascot.md` | superseded old canon (teal otter, amber/faceted pebble, droplets) | **Rewrite** to Section 5 the same day this lands | markdown |
-| `docs/img/pebble-hero.png` | 440×440, fused, too small to animate | **Regenerate** as the layered set: `scene-bg`, `pebble-dry`, `waterline`, `orb-bloom`, each ≥2000px long edge | WebP/AVIF + PNG, transparent where noted |
-| `docs/img/pebble-mark.png` | 192×192 painterly bust used as a mark | **Replace** mark usage with the flat mark; keep the bust as a RICH spot, rename `pebble-bust.png` | PNG/WebP |
-| `docs/img/icon-32/180/192/512.png` | painterly otter on lighter-teal field | **Re-export** flat mark on solid deepwater per §2.8 LOD tiers | PNG, deepwater-solid |
+| **The mark** | **Shipped**: painterly crop, `docs/branding/mark.png` (resize of `docs/img/icon-512.png`) | keep in sync with the painterly source; see §2.1 | PNG |
+| `docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg` | retired flat-mark assets | **Kept for history only** — not referenced by any build, page, or spec; do not revive as the logo | n/a |
+| `docs/branding/wordmark.svg` | shipped single-color, weight 700 | keep in sync with §2.4; `<desc>` should not claim a flat otter-head mark is primary | SVG |
+| `docs/branding/mascot.md` | rewritten to Section 5, then re-corrected 2026-07-28 (brown fur, one register) | keep in sync with §5 | markdown |
+| `docs/img/icon-16/32/48/64.png` | simplified silhouette (`site/tools/gen_small_mark.py`) | **Recolor** the silhouette off mist-teal toward the brand's warm-brown direction so the small-favicon tier doesn't read as a leftover cool otter; not yet done | PNG, deepwater-solid bg |
+| `docs/img/icon-180/192/512.png` | painterly mark (`site/tools/gen_icons_final.py`) | **Keep** — already the target state | PNG, deepwater-solid bg |
 | `favicon.svg` | missing | **Create** theme-aware flat favicon (`prefers-color-scheme`) | SVG + ICO/PNG @16/32/48 |
 | Maskable app icon | missing | **Create** full-bleed deepwater, 10% safe padding | PNG 512×512 |
 | `docs/img/og.jpg` (1200×630) | correct spec | **Keep**; verify wordmark is real Space Grotesk overlay | JPG/PNG 1200×630 |

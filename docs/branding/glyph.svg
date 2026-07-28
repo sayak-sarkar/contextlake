@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="lake cross-section motif">
   <title>lake cross-section motif</title>
-  <desc>A decorative background motif: a lake in cross-section, bright shallows fading to dark deep with gentle surface ripples. This is NOT the contextlake logo. The primary mark is the flat otter-head mark in BRANDING.md section 2; this motif is for backgrounds and section dividers only.</desc>
+  <desc>A decorative background motif: a lake in cross-section, bright shallows fading to dark deep with gentle surface ripples. This is NOT the contextlake logo. The primary mark is the painterly Pebble crop in BRANDING.md section 2; this motif is for backgrounds and section dividers only.</desc>
   <defs>
     <clipPath id="tile"><rect x="2" y="2" width="60" height="60" rx="14"/></clipPath>
   </defs>

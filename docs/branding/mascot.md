@@ -7,11 +7,16 @@
 
 ## Who Pebble is
 
-**Pebble** is a small, friendly, innocent-faced **dark blue-grey river otter** who surfaces
+**Pebble** is a small, friendly, innocent-faced **warm brown river otter** who surfaces
 from the contextlake cradling a glowing translucent **context-pebble** in both forepaws,
 offering it forward. Read in one beat: "I went down, I found the real thing, here it is."
 Calm, competent, never frantic. Pebble embodies the anti-hallucination promise: it returns
 with real context, not a guess.
+
+The crown and back sit in the scene's ambient cool lake-light and can read as a dark, cool-cast
+charcoal in shadow — that's lighting, not fur color. The muzzle, cheeks, and paws catch more direct
+light and read as warm cream-tan; mid-tone fur in better light reads as genuine umber-brown. See
+BRANDING.md section 5.1/5.3 for the measured hex ramp.
 
 ## Silhouette and proportions
 
@@ -23,18 +28,19 @@ with real context, not a guess.
 - Small 4-digit forepaws always cradling the pebble from below (cup, never grip).
 - Recognizable as a solid silhouette at 10% size, with the pebble glow as the single brightest point.
 
-## Fur and body color (illustration ramp)
+## Fur and body color (illustration ramp, measured from shipped art)
 
 | Zone | Hex |
 | --- | --- |
-| Primary fur (back, head, tail) | `#23424B` |
-| Mid fur / form transition (also the flat mark body) | `#2F5A63` |
-| Belly, chest, muzzle, brow | `#6E8E92` |
-| Inner-ear / paw-pad | `#8A9C8F` |
+| Crown, back, tail (cool-shadowed) | `#1C2D33` – `#2A393E` |
+| Body mid-tone (warm umber-brown) | `~#A0876A` |
+| Muzzle, cheeks, chin, paws | `#D9CA99` – `#FBE7AB` |
 | Nose, eye iris | `#0E2A33` (deepwater, the darkest allowed point) |
 | Eye catch-light | `#EAF4F4` |
 
-Wet-fur sheen is soft mist highlights at low opacity, never discrete water droplets.
+Wet-fur sheen is soft mist highlights at low opacity, never discrete water droplets. The dark crown/back
+values are the scene's ambient lake-light casting a cool shadow, not the fur's material color — never
+render the body as a flat, uniform slate/blue-grey fill.
 
 ## The context-pebble (the most controlled element)
 
@@ -63,12 +69,12 @@ Presenting (hero, front-facing at the waterline, both paws forward), diving / sn
 corner accent (small, decorative), resting-on-pebble (idle, glow dimmed). **Gaze always
 points toward the content, the CTA, or the pebble, never off-page.**
 
-## Dual register
+## One register
 
-- **Painterly Pebble:** rich, dimensional, subsurface glow, soft volumetric light, no hard
-  outlines (forms separate by value and rim light). For hero, OG/social, large illustration, onboarding.
-- **Flat Pebble / logo mark:** bold front-facing otter-head, clean sticker/stamp fills,
-  deepwater `#0E2A33` keyline (never black). For logo, favicon, app icon, small UI. See BRANDING.md section 2.
+Pebble renders painterly everywhere (hero, OG/social, illustration, onboarding, the mark, app icons).
+The one exception is the 16-32px favicon tier, a simplified silhouette used purely because painterly
+shading doesn't survive that much downsampling — see BRANDING.md section 2.3. It is a technical
+simplification of the one character, not a second logo register.
 
 ## Do / don't
 
@@ -84,10 +90,12 @@ points toward the content, the CTA, or the pebble, never off-page.**
 Generate the painterly background without text, then overlay the wordmark in real Space
 Grotesk. Never ship a single AI generation with baked-in lettering. Vary only [POSE] and [CONTEXT].
 
-> Mascot illustration of **Pebble**, a cute innocent-faced **dark blue-grey river otter**
+> Mascot illustration of **Pebble**, a cute innocent-faced **warm brown river otter**
 > with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle,
-> large soft dark eyes with a single upper-left catch-light, small rounded ears. Fur in deep
-> blue-grey teal tones (`#23424B` back, `#2F5A63` midtone, `#6E8E92` mist-lifted belly),
+> large soft dark eyes with a single upper-left catch-light, small rounded ears. Umber-brown
+> fur (`~#A0876A` mid-tone), warm cream-tan muzzle/cheeks/paws (`#D9CA99`-`#FBE7AB`); crown
+> and back may fall into a cool-shadowed charcoal (`#1C2D33`-`#2A393E`) under the scene's
+> ambient lake-light -- that's lighting, never a flat slate/grey fur color.
 > deepwater `#0E2A33` nose, no pure black. Pebble is **[POSE]**, cradling in both forepaws a
 > **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner
 > glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint
@@ -97,21 +105,20 @@ Grotesk. Never ship a single AI generation with baked-in lettering. Vary only [P
 > Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore
 > `#D7C5A0`, gold `#E7B53C`.
 
-**[STYLE BLOCK] painterly:** Rich dimensional painterly illustration, soft volumetric
+**[STYLE BLOCK]:** Rich dimensional painterly illustration, soft volumetric
 subsurface lighting, gentle rim light in mist `#EAF4F4`, no hard outlines, forms separated by
-value and color, soft depth-of-field lake background.
-
-**[STYLE BLOCK] flat/logo:** Flat bold vector mascot mark, clean filled shapes, front-facing
-otter head, single deepwater `#0E2A33` keyline outline (never black), sticker/stamp style,
-legible at small sizes, flat background.
+value and color, soft depth-of-field lake background. (This is the only register; there is no
+separate flat/logo style block, see BRANDING.md section 2.)
 
 **Negative prompt (always include):** amber sphere, glowing orb with star dots, dragon ball,
 faceted crystal, cut gem, gold nugget, network graph inside the stone, glowing nodes inside,
 water droplets on face, sweat drops, tears, anxious expression, shocked face, angry, sleepy,
 hard black outlines, pure black, neon, text, watermark, two otters, realistic otter anatomy,
+flat uniform slate/blue-grey fur,
 off-page stare.
 
 **Slot examples:** Hero = [POSE] surfacing at the waterline presenting the pebble forward,
-[CONTEXT] soft sunrise mist on calm reflective water, painterly. Loading = [POSE] diving
-downward wearing a small snorkel, [CONTEXT] deeper teal underwater light, painterly. Favicon
-= [POSE] front-facing head-and-shoulders only, pebble centered below the chin, flat.
+[CONTEXT] soft sunrise mist on calm reflective water. Loading = [POSE] diving
+downward wearing a small snorkel, [CONTEXT] deeper teal underwater light. Mark/app icon
+= [POSE] front-facing head-and-shoulders only, pebble centered below the chin, [CONTEXT] tight
+crop, solid deepwater background.
