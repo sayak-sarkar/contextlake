@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.58.3] - 2026-07-29
+
+### Fixed
+
+- **Pinned `mcp` to `<2` in the `kb` extra.** The v2.58.2 release gate failed in CI (nothing published)
+  because `mcp>=1.28` had no upper bound and CI resolved the just-released `mcp` 2.0.0, which renamed
+  `streamablehttp_client` to `streamable_http_client` in `mcp.client.streamable_http` -- breaking every
+  connector/MCP import at collection time. Unrelated to any code in this release; a fresh install
+  yesterday would have hit the same break. Pinned below the major bump until `contextlake.kb.mcp_client`
+  is deliberately audited and updated for the 2.x API, rather than chasing it mid-release.
+
 ## [2.58.2] - 2026-07-29
 
 ### Added
