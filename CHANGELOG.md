@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.59.0] - 2026-07-29
+
+### Added
+
+- **Directory-scoped config with inheritance.** `contextlake init --local` (and `contextlake source add
+  --local`) writes `.contextlake.ini` / `.contextlake.kb.toml` into the current directory instead of
+  `~/`. The "local" tier of both config systems now walks up from the current directory to the
+  filesystem root looking for these files -- the same discovery model `git` uses for `.git` -- so a
+  config at a project's root is inherited by every subdirectory underneath it, not just the exact
+  directory that holds the file. Previously the local tier only ever checked cwd literally, which meant
+  running any command from a subdirectory silently fell straight through to the global config.
+  `contextlake source add`/`remove`/`enable`/`disable` now default to the nearest ancestor's local config
+  once one exists, instead of always writing to global.
+
 ## [2.58.3] - 2026-07-29
 
 ### Fixed

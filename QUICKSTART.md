@@ -118,7 +118,12 @@ The fast path, `contextlake init` writes both config files for you (interactive,
 ```bash
 contextlake init                       # prompts for platform, group, workspace
 contextlake init --platform github --group my-org --yes   # non-interactive
+contextlake init --local               # scope config to this project instead of ~/
 ```
+
+Working across more than one org or project? `--local` writes config into the current directory instead
+of `~/`; every subdirectory underneath it inherits it automatically (see
+[Directory-scoped config](docs/configuration.md#directory-scoped-config)).
 
 Prefer to write them by hand? **Mirror config**, `~/.contextlake.ini`:
 

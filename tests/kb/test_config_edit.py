@@ -94,11 +94,17 @@ def test_add_source_creates_parent_dirs_and_file(tmp_path):
 
 
 def test_resolve_write_target_defaults_to_global_config(monkeypatch, tmp_path):
+    """No explicit path, no local flag, and no local config anywhere in the
+    ancestor chain -- falls back to global, same as before directory-scoped
+    config existed."""
     from contextlake.kb import config as kbcfg
     from contextlake.kb.config_edit import resolve_write_target
 
     fake_global = tmp_path / "global-kb.toml"
     monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(fake_global))
+    # Isolate the ancestor walk too -- an absolute nonexistent path is checked
+    # directly (no walking), matching find_ancestor_config's isolation rule.
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", str(tmp_path / "no-local.toml"))
     assert resolve_write_target(None) == fake_global
 
 
@@ -107,6 +113,49 @@ def test_resolve_write_target_honors_explicit_path(tmp_path):
 
     explicit = tmp_path / "explicit.toml"
     assert resolve_write_target(str(explicit)) == explicit
+
+
+def test_resolve_write_target_uses_an_existing_ancestor_local_config(monkeypatch, tmp_path):
+    """Once a project has a local config anywhere in the ancestor chain, writes
+    land there by default -- no need to re-pass --local every time."""
+    from contextlake.kb import config as kbcfg
+    from contextlake.kb.config_edit import resolve_write_target
+
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(tmp_path / "global-kb.toml"))
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", ".contextlake.kb.toml")
+    root_local = tmp_path / ".contextlake.kb.toml"
+    root_local.write_text("[kb]\n")
+    deep = tmp_path / "a" / "b"
+    deep.mkdir(parents=True)
+    monkeypatch.chdir(deep)
+
+    assert resolve_write_target(None) == root_local
+
+
+def test_resolve_write_target_local_flag_creates_in_cwd_when_none_exists(monkeypatch, tmp_path):
+    """--local with no existing ancestor local config targets a new file in
+    cwd, not the global config -- this is how a workspace gets its FIRST local
+    config from `source add` alone, without running `init --local` first."""
+    from contextlake.kb import config as kbcfg
+    from contextlake.kb.config_edit import resolve_write_target
+
+    monkeypatch.setattr(kbcfg, "GLOBAL_CONFIG", str(tmp_path / "global-kb.toml"))
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", ".contextlake.kb.toml")
+    cwd = tmp_path / "workspace"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+
+    # relative, same as any other never-yet-created path -- resolve before comparing
+    assert resolve_write_target(None, local=True).resolve() == cwd / ".contextlake.kb.toml"
+
+
+def test_resolve_write_target_explicit_path_wins_over_local_flag(tmp_path):
+    """An explicit --config always wins, even with --local also passed --
+    --local is just a convenience default, not a second override tier."""
+    from contextlake.kb.config_edit import resolve_write_target
+
+    explicit = tmp_path / "explicit.toml"
+    assert resolve_write_target(str(explicit), local=True) == explicit
 
 
 def test_write_is_atomic_no_partial_file_left_and_content_intact(tmp_path):

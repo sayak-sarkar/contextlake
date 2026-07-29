@@ -126,7 +126,7 @@ def cmd_source_add(args) -> int:
                             "(or run interactively)"))
             return 2
 
-    config_edit.add_source(getattr(args, "config", None), src)
+    config_edit.add_source(getattr(args, "config", None), src, local=getattr(args, "local", False))
     pipeline = _pipeline_for(src["type"])
     log(style.ok(f"Added source {style.cyan(src['name'])} (type={src['type']})"))
     if pipeline == "connect":
@@ -170,7 +170,8 @@ def _not_found_message(args, name: str) -> str:
     in another config file in the precedence chain (e.g. a local
     .contextlake.kb.toml while this looked at the global kb.toml) is a visible
     mismatch, not a silent "not found"."""
-    target = config_edit.resolve_write_target(getattr(args, "config", None))
+    target = config_edit.resolve_write_target(
+        getattr(args, "config", None), local=getattr(args, "local", False))
     return (f"No source named {style.cyan(name)} in {target} "
             "(run `contextlake source list` to see the effective config; "
             "it may live in another config file)")
@@ -180,7 +181,8 @@ def cmd_source_remove(args) -> int:
     name = _require_name(args)
     if name is None:
         return 2
-    if config_edit.remove_source(getattr(args, "config", None), name):
+    if config_edit.remove_source(getattr(args, "config", None), name,
+                                 local=getattr(args, "local", False)):
         log(style.ok(f"Removed source {style.cyan(name)}"))
     else:
         log(f"{_not_found_message(args, name)} -- nothing to remove")
@@ -191,7 +193,8 @@ def _cmd_source_set_enabled(args, enabled: bool) -> int:
     name = _require_name(args)
     if name is None:
         return 2
-    found = config_edit.set_source_enabled(getattr(args, "config", None), name, enabled)
+    found = config_edit.set_source_enabled(getattr(args, "config", None), name, enabled,
+                                           local=getattr(args, "local", False))
     if not found:
         log(style.fail(_not_found_message(args, name)))
         return 1

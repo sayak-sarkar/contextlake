@@ -21,14 +21,15 @@ any `--llm`, and with `[llm]` disabled in `kb.toml`, the wiki stage no-ops and t
 everything generated lives under one `store_dir`, setting it to a folder in your workspace keeps the entire
 knowledge base in a single, easy-to-access location.
 
-Both config files are read from their default locations (`~/.contextlake.ini` and `~/.contextlake/kb.toml`);
-pass `--config` / `--kb-config` to point elsewhere. The valid `[kb]` keys are `store_dir`, `languages`,
-`skip_generated`, `max_file_bytes`, and `index_workers` (plus the `[embeddings]`, `[llm]`, `[sources]`,
-`[rules]` tables); an unrecognized key or table is warned and ignored, so a typo like `store` (for
-`store_dir`) is surfaced rather than silently dropping the run into the wrong place. Likewise, an explicit
-`--kb-config` path that doesn't exist is a hard error rather than a silent fall-through to the next file
-in the precedence chain (`~/.contextlake/kb.toml`), which could point at a completely different store than
-the one you meant to target. Skip stages with
+Both config files are read from their default locations (`~/.contextlake.ini` and `~/.contextlake/kb.toml`,
+or the nearest ancestor directory's `.contextlake.ini` / `.contextlake.kb.toml` if one exists -- see
+[Directory-scoped config](configuration.md#directory-scoped-config)); pass `--config` to point elsewhere.
+The valid `[kb]` keys are `store_dir`, `languages`, `skip_generated`, `max_file_bytes`, and `index_workers`
+(plus the `[embeddings]`, `[llm]`, `[sources]`, `[rules]` tables); an unrecognized key or table is warned
+and ignored, so a typo like `store` (for `store_dir`) is surfaced rather than silently dropping the run
+into the wrong place. Likewise, an explicit `--config` path that doesn't exist is a hard error rather than
+a silent fall-through to the next file in the precedence chain, which could point at a completely different
+store than the one you meant to target. Skip stages with
 `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect` / `--no-enrich`. For an isolated CLI, install with
 `pipx install "contextlake[kb]"`, or run ad-hoc with `uvx`.
 

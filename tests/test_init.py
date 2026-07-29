@@ -52,6 +52,43 @@ def test_init_config_flag_redirects_both_generated_files(tmp_path, monkeypatch):
     assert not decoy.exists()
 
 
+def test_init_local_flag_writes_to_cwd_not_global(tmp_path, monkeypatch):
+    """--local writes a project-scoped config into cwd instead of ~/ -- found
+    via dogfooding: `init` run inside a fresh project directory always fell
+    through to the existing global config, with no way to create one scoped
+    to just that project."""
+    decoy = tmp_path / "decoy"
+    monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(decoy / ".contextlake.ini"))
+    monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(decoy / ".contextlake/kb.toml"))
+    project = tmp_path / "myproject"
+    project.mkdir()
+    monkeypatch.chdir(project)
+
+    rc = init_cmd.cmd_init(_args(local=True, platform="github", group="acme"))
+    assert rc == 0
+    assert "platform = github" in (project / ".contextlake.ini").read_text()
+    assert (project / ".contextlake.kb.toml").exists()
+    assert not decoy.exists()
+
+
+def test_init_explicit_config_wins_over_local_flag(tmp_path, monkeypatch):
+    """--config always wins, even with --local also passed -- --local is a
+    convenience default, not a second override tier."""
+    decoy = tmp_path / "decoy"
+    monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(decoy / ".contextlake.ini"))
+    monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(decoy / ".contextlake/kb.toml"))
+    project = tmp_path / "myproject"
+    project.mkdir()
+    monkeypatch.chdir(project)
+
+    custom = tmp_path / "elsewhere" / "myconfig.ini"
+    rc = init_cmd.cmd_init(_args(config=str(custom), local=True, platform="github", group="acme"))
+    assert rc == 0
+    assert custom.exists()
+    assert not (project / ".contextlake.ini").exists()
+    assert not decoy.exists()
+
+
 def test_init_gitlab_omits_platform_key(tmp_path, monkeypatch):
     # gitlab is the default, so the key is left out (cleaner config)
     _run(tmp_path, monkeypatch, platform="gitlab", group="acme")

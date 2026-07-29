@@ -20,7 +20,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..config import expand_path
+from ..config import expand_path, find_ancestor_config
 from ..logging_setup import log
 
 try:  # Python 3.11+
@@ -157,16 +157,22 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
     point at a completely different (possibly production) store than the one the
     caller meant to target. The other, auto-discovered files in the chain are
     legitimately optional and keep silently no-op'ing when absent.
+
+    "Local" is the nearest ancestor directory's ``.contextlake.kb.toml``, walking
+    up from cwd to the filesystem root (see ``find_ancestor_config``) -- a
+    project-root config every subdirectory underneath it inherits.
     """
     if config_path and not Path(expand_path(config_path)).exists():
         raise ConfigError(
             f"--config path not found: {config_path}\n"
             "Refusing to fall back to the next config in the precedence chain "
-            "(~/.contextlake/kb.toml or .contextlake.kb.toml), which may point at "
-            "a different store than the one you meant to use."
+            "(~/.contextlake/kb.toml, or the nearest ancestor directory's "
+            ".contextlake.kb.toml), which may point at a different store than "
+            "the one you meant to use."
         )
+    local_config = find_ancestor_config(LOCAL_CONFIG)
     merged: dict = {}
-    for src in (GLOBAL_CONFIG, LOCAL_CONFIG, config_path):
+    for src in (GLOBAL_CONFIG, local_config, config_path):
         for table, values in _read_toml(src).items():
             if table in _SCALAR_TABLES:
                 # Deep-merge by key: a local file setting only `model` must not

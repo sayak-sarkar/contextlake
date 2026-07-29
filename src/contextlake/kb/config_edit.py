@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from ..config import expand_path
+from ..config import expand_path, find_ancestor_config
 from . import config as kb_config
 
 try:
@@ -22,10 +22,24 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
     ) from exc
 
 
-def resolve_write_target(config_path: str | None) -> Path:
-    """The kb.toml path to write: an explicit path, else the global config."""
-    target = config_path if config_path else kb_config.GLOBAL_CONFIG
-    return Path(expand_path(target))
+def resolve_write_target(config_path: str | None, local: bool = False) -> Path:
+    """The kb.toml path to write.
+
+    Precedence: an explicit ``config_path`` always wins. Otherwise, ``local=True``
+    forces the nearest ancestor directory's ``.contextlake.kb.toml`` (creating it
+    in cwd if no ancestor has one yet) -- for deliberately scoping a source to a
+    project. With neither, the *existing* nearest ancestor local config is used if
+    one is already there (so once a workspace has a local config, writes keep
+    landing in it without re-passing ``--local`` every time); failing that, the
+    global config, same as before this existed.
+    """
+    if config_path:
+        return Path(expand_path(config_path))
+    if local:
+        return Path(expand_path(
+            find_ancestor_config(kb_config.LOCAL_CONFIG) or kb_config.LOCAL_CONFIG))
+    found_local = find_ancestor_config(kb_config.LOCAL_CONFIG)
+    return Path(expand_path(found_local or kb_config.GLOBAL_CONFIG))
 
 
 def _load_document(path: Path):
@@ -58,7 +72,7 @@ def _find_source_index(aot, name: str) -> int | None:
     return None
 
 
-def add_source(config_path: str | None, source: dict) -> None:
+def add_source(config_path: str | None, source: dict, local: bool = False) -> None:
     """Upsert a ``[[sources]]`` block keyed by ``source["name"]``.
 
     When a source with that name already exists, its keys are updated in
@@ -66,7 +80,7 @@ def add_source(config_path: str | None, source: dict) -> None:
     other previously-set keys (e.g. ``token_env``, ``file_key``) and any
     inline comments survive a re-add that only touches a subset of keys.
     """
-    path = resolve_write_target(config_path)
+    path = resolve_write_target(config_path, local=local)
     doc = _load_document(path)
     aot = _sources_aot(doc)
 
@@ -84,9 +98,9 @@ def add_source(config_path: str | None, source: dict) -> None:
     _write_document(path, doc)
 
 
-def remove_source(config_path: str | None, name: str) -> bool:
+def remove_source(config_path: str | None, name: str, local: bool = False) -> bool:
     """Delete the ``[[sources]]`` block named ``name``. False if absent."""
-    path = resolve_write_target(config_path)
+    path = resolve_write_target(config_path, local=local)
     doc = _load_document(path)
     aot = _sources_aot(doc)
 
@@ -99,9 +113,10 @@ def remove_source(config_path: str | None, name: str) -> bool:
     return True
 
 
-def set_source_enabled(config_path: str | None, name: str, enabled: bool) -> bool:
+def set_source_enabled(config_path: str | None, name: str, enabled: bool,
+                        local: bool = False) -> bool:
     """Toggle ``enabled`` on the named source block. False if absent."""
-    path = resolve_write_target(config_path)
+    path = resolve_write_target(config_path, local=local)
     doc = _load_document(path)
     aot = _sources_aot(doc)
 

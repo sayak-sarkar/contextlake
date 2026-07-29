@@ -75,6 +75,25 @@ def test_cli_dispatches_source_list_through_kb_commands(tmp_path, gls_logs):
 
 # --- add ---------------------------------------------------------------------
 
+def test_add_local_flag_writes_to_cwd_not_global(tmp_path, gls_logs, monkeypatch):
+    """--local with no --config and no existing ancestor local config writes a
+    fresh .contextlake.kb.toml in cwd, not the global config -- lets a
+    workspace get its first local config from `source add` alone."""
+    monkeypatch.setattr(kbcfg, "LOCAL_CONFIG", ".contextlake.kb.toml")
+    project = tmp_path / "myproject"
+    project.mkdir()
+    monkeypatch.chdir(project)
+
+    rc = source_cmd.cmd_source(
+        _args("add", None, type="atlassian", name="jira", mcp="https://mcp.example",
+              local=True))
+    assert rc == 0
+    local_file = project / ".contextlake.kb.toml"
+    assert local_file.exists()
+    assert _toml(local_file)["sources"] == [
+        {"type": "atlassian", "name": "jira", "mcp": "https://mcp.example"}]
+
+
 def test_add_writes_source_from_flags(tmp_path, gls_logs):
     cfg = tmp_path / "kb.toml"
     rc = source_cmd.cmd_source(

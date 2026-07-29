@@ -111,7 +111,7 @@ def snake(stages, cols, fname, title, sub):
 
 
 precedence(
-    [("defaults","built-in"),("~/.ini","global"),("./.ini","local"),("--config","custom file"),("CLI flags","effective")],
+    [("defaults","built-in"),("~/.ini","global"),("↑.ini","nearest local"),("--config","custom file"),("CLI flags","effective")],
     "config-precedence.svg","Configuration precedence","each layer overrides the one before it")
 
 snake(

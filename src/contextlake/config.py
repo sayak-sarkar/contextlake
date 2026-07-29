@@ -55,6 +55,30 @@ DEFAULT_CONFIG = {
 }
 
 
+def find_ancestor_config(filename, start=None):
+    """The nearest ancestor directory's ``filename``, walking from ``start``
+    (default: cwd) up through every parent to the filesystem root -- the same
+    discovery git uses for ``.git``. ``None`` if no ancestor has it.
+
+    An **absolute** ``filename`` is checked directly, no walking: this is what
+    every existing test does to isolate the "local" tier at a specific tmp
+    path (``monkeypatch.setattr(module, "LOCAL_CONFIG_FILE", str(tmp_path /
+    "..."))``), and an absolute path doesn't have "parent directories" to walk
+    in the sense this function means anyway.
+    """
+    if os.path.isabs(filename):
+        return filename if os.path.exists(filename) else None
+    directory = os.path.abspath(start or os.getcwd())
+    while True:
+        candidate = os.path.join(directory, filename)
+        if os.path.exists(candidate):
+            return candidate
+        parent = os.path.dirname(directory)
+        if parent == directory:  # reached filesystem root
+            return None
+        directory = parent
+
+
 def _merge(config, path):
     """Merge an INI file's ``[contextlake]`` section into config, if present."""
     if not path or not os.path.exists(path):
@@ -70,11 +94,14 @@ def load_config(config_path=None):
     """Load configuration with precedence: explicit --config > local > global > defaults.
 
     Sources are merged from lowest to highest precedence so the later (more
-    specific) source wins on conflicting keys.
+    specific) source wins on conflicting keys. "Local" is the nearest ancestor
+    directory (walking up from cwd) with a ``.contextlake.ini`` -- like a
+    project-root config that every subdirectory underneath it inherits.
     """
     config = DEFAULT_CONFIG.copy()
+    local_config_file = find_ancestor_config(LOCAL_CONFIG_FILE)
     _merge(config, CONFIG_FILE)               # global (~/.contextlake.ini)
-    _merge(config, LOCAL_CONFIG_FILE)         # local workspace config
+    _merge(config, local_config_file)         # nearest ancestor's local config
     _merge(config, config_path)               # explicit --config path
 
     # INI/CLI values are stored verbatim, so a `work_dir = ~/repos` would
@@ -85,18 +112,21 @@ def load_config(config_path=None):
 
     if (config.get('gitlab_group') == DEFAULT_CONFIG['gitlab_group']
             and not config.get('group')):
-        # No usable config was found. The local files are resolved against the
-        # CURRENT directory, which trips people up when the config lives next to
-        # the example in the repo but the command is run from elsewhere — so show
-        # the exact paths searched (absolute) and whether each exists.
+        # No usable config was found -- show the exact paths searched (absolute)
+        # and whether each exists, so a config that lives one directory up (or in
+        # the wrong spot entirely) isn't a silent mystery.
         log("WARNING: gitlab_group is still the placeholder 'your-gitlab-group' — "
             "no config with your group was found. Searched (low to high precedence):")
-        for path in (CONFIG_FILE, LOCAL_CONFIG_FILE, config_path):
+        for path in (CONFIG_FILE, local_config_file, config_path):
             if not path:
                 continue
             mark = "found" if os.path.exists(path) else "absent"
             log(f"    [{mark}] {os.path.abspath(path)}")
-        log("  Local files (.contextlake.ini) are read from the CURRENT directory. "
+        if not local_config_file:
+            log(f"    [absent] {LOCAL_CONFIG_FILE} (searched this directory and "
+                "every parent, up to filesystem root)")
+        log("  A local config is the nearest ancestor directory's "
+            f"{LOCAL_CONFIG_FILE} -- every subdirectory underneath it inherits it. "
             "Copy .contextlake.ini.example to one of the paths above (or pass "
             "--config PATH) and set gitlab_group.")
 

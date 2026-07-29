@@ -338,11 +338,21 @@ Examples:
   contextlake init                       interactive setup (prompts with defaults)
   contextlake init --yes                 non-interactive, all defaults
   contextlake init --platform github --group my-org --yes
+  contextlake init --local               write config to THIS directory, not ~/
+
+Without --local or --config, init writes ~/.contextlake.ini + ~/.contextlake/kb.toml
+(the global config every directory falls back to). --local writes
+.contextlake.ini + .contextlake.kb.toml in the current directory instead -- a
+project-scoped config that this directory and every subdirectory underneath
+it will inherit (nearest ancestor wins; see docs/configuration.md).
                 """)
     p.add_argument("--platform", default=_S,
                    help="gitlab (default) | github | bitbucket | gitea | codeberg | forgejo")
     p.add_argument("--group", default=_S, help="the group / org / workspace to mirror")
     p.add_argument("--work-dir", default=_S, help="local workspace directory")
+    p.add_argument("--local", action="store_true", default=_S,
+                   help="write config to the current directory instead of ~/ "
+                        "(inherited by every subdirectory underneath it)")
     p.add_argument("--kb", dest="kb", action="store_true", default=_S,
                    help="set up the knowledge layer (default: yes)")
     p.add_argument("--no-kb", dest="kb", action="store_false", default=_S,
@@ -443,6 +453,7 @@ Examples:
                 epilog="""
 Examples:
   contextlake source add jira --type atlassian --mcp https://mcp.atlassian.com/v1/mcp/authv2
+  contextlake source add jira --type atlassian --local   scope it to this project, not global
   contextlake source list
   contextlake source test jira
   contextlake source disable jira
@@ -450,13 +461,21 @@ Examples:
 `list` and `test` show the effective (merged) config -- the same precedence
 chain `connect`/`ingest`/`wiki` use -- so a source defined in a local
 .contextlake.kb.toml is visible even if it is not in the file `add`/`remove`
-write to. `remove`/`enable`/`disable` mutate a single target file (the
---config path, else the global kb.toml); if the named source isn't found
-there, the message names that file. Note the asymmetric exit codes for a
-missing name: `remove` is a no-op (exit 0), `enable`/`disable` fail (exit 1).
+write to. `remove`/`enable`/`disable` mutate a single target file: the
+--config path if given, else the nearest ancestor directory's
+.contextlake.kb.toml if one already exists (walking up from cwd), else the
+global kb.toml; if the named source isn't found there, the message names
+that file. --local forces the nearest-ancestor (or a fresh one in cwd if none
+exists yet) even when a --config path isn't given. Note the asymmetric exit
+codes for a missing name: `remove` is a no-op (exit 0), `enable`/`disable`
+fail (exit 1).
                 """)
     p.add_argument("action", choices=["add", "list", "remove", "test", "enable", "disable"])
     p.add_argument("name", nargs="?", help="source name (required for all actions except list)")
+    p.add_argument("--local", action="store_true", default=_S,
+                   help="add/remove/enable/disable: target the nearest ancestor "
+                        "directory's .contextlake.kb.toml (or create one in cwd) "
+                        "instead of the global config")
     p.add_argument("--type", default=_S,
                    help="atlassian | figma | gitlab | mcp | files | web | api")
     p.add_argument("--mcp", default=_S, help="MCP server URL (atlassian/figma/mcp)")

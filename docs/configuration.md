@@ -8,10 +8,17 @@ contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-laye
 
 Configuration is loaded in this precedence order:
 
-1. **Local config**: `.contextlake.ini` in the current directory (highest priority)
+1. **Local config**: the nearest ancestor directory's `.contextlake.ini`, walking up from the current
+   directory to the filesystem root (like git's `.git` discovery) — highest priority. A config at your
+   project root is inherited by every subdirectory underneath it; you don't need to be in the exact
+   directory that holds the file.
 2. **Global config**: `~/.contextlake.ini` in the home directory
 3. **Default values**: built-in defaults (lowest priority)
 4. **CLI arguments**: override all other settings
+
+Run `contextlake init --local` inside a project to create that project's local config
+(`.contextlake.ini` + `.contextlake/kb.toml`'s knowledge-layer equivalent, `.contextlake.kb.toml`) instead
+of the global one — see [Directory-scoped config](#directory-scoped-config) below.
 
 An example `.contextlake.ini`:
 
@@ -38,6 +45,29 @@ contextlake --group my-gitlab-group sync          # override the group
 contextlake --config /path/to/custom.ini sync     # use a different config file
 contextlake --work-dir /home/user/dev --group your-gitlab-group status  # combine
 ```
+
+## Directory-scoped config
+
+A single global config (`~/.contextlake.ini` + `~/.contextlake/kb.toml`) works well when you only ever
+mirror one org into one workspace. If you work across several orgs or projects, each with its own
+platform, group, or knowledge-layer sources, scope a config to a project instead:
+
+```bash
+cd ~/work/some-project
+contextlake init --local        # writes .contextlake.ini + .contextlake.kb.toml here
+contextlake source add jira --type atlassian --local   # scopes a source the same way
+```
+
+Every command run from that directory (or any subdirectory underneath it) picks up this local config
+automatically — you don't need to pass `--config` yourself, and you don't need to be in the exact
+directory the file lives in. Resolution walks up from the current directory to the filesystem root
+looking for `.contextlake.ini` / `.contextlake.kb.toml`, the same way `git` finds `.git` from anywhere
+inside a repo; the *nearest* ancestor wins if more than one project happens to be nested.
+
+`--local` on `source add`/`remove`/`enable`/`disable` targets that same nearest-ancestor file (creating
+one in the current directory if none exists yet in the chain); once a project has a local config, those
+commands land in it by default without needing `--local` again. An explicit `--config PATH` always takes
+precedence over both the local and global tiers.
 
 ## Settings reference
 

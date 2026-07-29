@@ -14,7 +14,8 @@ The tool is built as a modular Python CLI application with the following compone
 The tool uses a hierarchical configuration system with the following precedence:
 
 1. **Configuration Files** (using Python's `configparser`):
-   - Local config: `.contextlake.ini` in current directory
+   - Local config: `.contextlake.ini` in the nearest ancestor directory, walking up from cwd to the
+     filesystem root (`find_ancestor_config()` in `config.py`) — same discovery model as git's `.git`
    - Global config: `~/.contextlake.ini` in home directory
    - Custom config: Specified via `--config` CLI argument
 
@@ -26,7 +27,7 @@ The tool uses a hierarchical configuration system with the following precedence:
 before it, so the most specific source wins:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the local ./.contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
 </p>
 
 #### Core modules

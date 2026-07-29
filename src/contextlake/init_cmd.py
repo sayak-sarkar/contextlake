@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 from . import style
-from .config import CONFIG_FILE
+from .config import CONFIG_FILE, LOCAL_CONFIG_FILE
 from .core import PLATFORM_DEFAULTS, platform_name
 from .logging_setup import log
 
@@ -130,11 +130,20 @@ def cmd_init(args) -> int:
     # targets the mirror INI (matching --config's documented meaning for
     # mirror commands), with kb.toml written alongside it as a sibling, same
     # relative layout as the real ~/.contextlake.ini + ~/.contextlake/kb.toml
-    # defaults.
+    # defaults. --local (lower precedence than --config) writes into cwd
+    # instead of ~/ -- a project-scoped config every subdirectory underneath
+    # this one inherits (see config.find_ancestor_config).
     config_path = getattr(args, "config", None)
-    mirror_config_file = os.path.expanduser(config_path) if config_path else CONFIG_FILE
-    kb_config_file = str(Path(mirror_config_file).parent / "kb.toml") if config_path \
-        else _KB_CONFIG
+    local = getattr(args, "local", False)
+    if config_path:
+        mirror_config_file = os.path.expanduser(config_path)
+        kb_config_file = str(Path(mirror_config_file).parent / "kb.toml")
+    elif local:
+        mirror_config_file = LOCAL_CONFIG_FILE
+        kb_config_file = ".contextlake.kb.toml"
+    else:
+        mirror_config_file = CONFIG_FILE
+        kb_config_file = _KB_CONFIG
 
     log(style.bold("contextlake init") + " — let's set up your workspace.\n")
 
