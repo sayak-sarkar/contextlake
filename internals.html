@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=a0b4c6b">
-<link rel="stylesheet" href="docs.css?v=a0b4c6b">
-<link rel="stylesheet" href="cmdk.css?v=a0b4c6b">
+<link rel="stylesheet" href="fonts.css?v=ef558f9">
+<link rel="stylesheet" href="docs.css?v=ef558f9">
+<link rel="stylesheet" href="cmdk.css?v=ef558f9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -59,7 +59,8 @@ knowledge layer work under the hood.</p>
 <ol>
 <li>
 <p><strong>Configuration Files</strong> (using Python's <code>configparser</code>):
-   - Local config: <code>.contextlake.ini</code> in current directory
+   - Local config: <code>.contextlake.ini</code> in the nearest ancestor directory, walking up from cwd to the
+     filesystem root (<code>find_ancestor_config()</code> in <code>config.py</code>), same discovery model as git's <code>.git</code>
    - Global config: <code>~/.contextlake.ini</code> in home directory
    - Custom config: Specified via <code>--config</code> CLI argument</p>
 </li>
@@ -73,7 +74,7 @@ knowledge layer work under the hood.</p>
 <p><strong>Configuration loading flow</strong>, <code>load_config()</code> merges each layer over the one
 before it, so the most specific source wins:</p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the local ./.contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
 </p>
 
 <h4 id="core-modules">Core modules<a class="anchor" href="#core-modules" title="Link to this section">#</a></h4>
@@ -348,6 +349,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=a0b4c6b"></script>
+<script defer src="cmdk.js?v=ef558f9"></script>
 </body>
 </html>

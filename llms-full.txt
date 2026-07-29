@@ -430,7 +430,12 @@ The fast path, `contextlake init` writes both config files for you (interactive,
 ```bash
 contextlake init                       # prompts for platform, group, workspace
 contextlake init --platform github --group my-org --yes   # non-interactive
+contextlake init --local               # scope config to this project instead of ~/
 ```
+
+Working across more than one org or project? `--local` writes config into the current directory instead
+of `~/`; every subdirectory underneath it inherits it automatically (see
+[Directory-scoped config](docs/configuration.md#directory-scoped-config)).
 
 Prefer to write them by hand? **Mirror config**, `~/.contextlake.ini`:
 
@@ -1008,10 +1013,17 @@ contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-laye
 
 Configuration is loaded in this precedence order:
 
-1. **Local config**: `.contextlake.ini` in the current directory (highest priority)
+1. **Local config**: the nearest ancestor directory's `.contextlake.ini`, walking up from the current
+   directory to the filesystem root (like git's `.git` discovery), highest priority. A config at your
+   project root is inherited by every subdirectory underneath it; you don't need to be in the exact
+   directory that holds the file.
 2. **Global config**: `~/.contextlake.ini` in the home directory
 3. **Default values**: built-in defaults (lowest priority)
 4. **CLI arguments**: override all other settings
+
+Run `contextlake init --local` inside a project to create that project's local config
+(`.contextlake.ini` + `.contextlake/kb.toml`'s knowledge-layer equivalent, `.contextlake.kb.toml`) instead
+of the global one, see [Directory-scoped config](#directory-scoped-config) below.
 
 An example `.contextlake.ini`:
 
@@ -1038,6 +1050,29 @@ contextlake --group my-gitlab-group sync          # override the group
 contextlake --config /path/to/custom.ini sync     # use a different config file
 contextlake --work-dir /home/user/dev --group your-gitlab-group status  # combine
 ```
+
+## Directory-scoped config
+
+A single global config (`~/.contextlake.ini` + `~/.contextlake/kb.toml`) works well when you only ever
+mirror one org into one workspace. If you work across several orgs or projects, each with its own
+platform, group, or knowledge-layer sources, scope a config to a project instead:
+
+```bash
+cd ~/work/some-project
+contextlake init --local        # writes .contextlake.ini + .contextlake.kb.toml here
+contextlake source add jira --type atlassian --local   # scopes a source the same way
+```
+
+Every command run from that directory (or any subdirectory underneath it) picks up this local config
+automatically, you don't need to pass `--config` yourself, and you don't need to be in the exact
+directory the file lives in. Resolution walks up from the current directory to the filesystem root
+looking for `.contextlake.ini` / `.contextlake.kb.toml`, the same way `git` finds `.git` from anywhere
+inside a repo; the *nearest* ancestor wins if more than one project happens to be nested.
+
+`--local` on `source add`/`remove`/`enable`/`disable` targets that same nearest-ancestor file (creating
+one in the current directory if none exists yet in the chain); once a project has a local config, those
+commands land in it by default without needing `--local` again. An explicit `--config PATH` always takes
+precedence over both the local and global tiers.
 
 ## Settings reference
 
@@ -1901,14 +1936,15 @@ any `--llm`, and with `[llm]` disabled in `kb.toml`, the wiki stage no-ops and t
 everything generated lives under one `store_dir`, setting it to a folder in your workspace keeps the entire
 knowledge base in a single, easy-to-access location.
 
-Both config files are read from their default locations (`~/.contextlake.ini` and `~/.contextlake/kb.toml`);
-pass `--config` / `--kb-config` to point elsewhere. The valid `[kb]` keys are `store_dir`, `languages`,
-`skip_generated`, `max_file_bytes`, and `index_workers` (plus the `[embeddings]`, `[llm]`, `[sources]`,
-`[rules]` tables); an unrecognized key or table is warned and ignored, so a typo like `store` (for
-`store_dir`) is surfaced rather than silently dropping the run into the wrong place. Likewise, an explicit
-`--kb-config` path that doesn't exist is a hard error rather than a silent fall-through to the next file
-in the precedence chain (`~/.contextlake/kb.toml`), which could point at a completely different store than
-the one you meant to target. Skip stages with
+Both config files are read from their default locations (`~/.contextlake.ini` and `~/.contextlake/kb.toml`,
+or the nearest ancestor directory's `.contextlake.ini` / `.contextlake.kb.toml` if one exists -- see
+[Directory-scoped config](configuration.md#directory-scoped-config)); pass `--config` to point elsewhere.
+The valid `[kb]` keys are `store_dir`, `languages`, `skip_generated`, `max_file_bytes`, and `index_workers`
+(plus the `[embeddings]`, `[llm]`, `[sources]`, `[rules]` tables); an unrecognized key or table is warned
+and ignored, so a typo like `store` (for `store_dir`) is surfaced rather than silently dropping the run
+into the wrong place. Likewise, an explicit `--config` path that doesn't exist is a hard error rather than
+a silent fall-through to the next file in the precedence chain, which could point at a completely different
+store than the one you meant to target. Skip stages with
 `--no-sync` / `--no-embed` / `--no-wiki` / `--no-connect` / `--no-enrich`. For an isolated CLI, install with
 `pipx install "contextlake[kb]"`, or run ad-hoc with `uvx`.
 
@@ -2721,7 +2757,8 @@ The tool is built as a modular Python CLI application with the following compone
 The tool uses a hierarchical configuration system with the following precedence:
 
 1. **Configuration Files** (using Python's `configparser`):
-   - Local config: `.contextlake.ini` in current directory
+   - Local config: `.contextlake.ini` in the nearest ancestor directory, walking up from cwd to the
+     filesystem root (`find_ancestor_config()` in `config.py`), same discovery model as git's `.git`
    - Global config: `~/.contextlake.ini` in home directory
    - Custom config: Specified via `--config` CLI argument
 
@@ -2733,7 +2770,7 @@ The tool uses a hierarchical configuration system with the following precedence:
 before it, so the most specific source wins:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the local ./.contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
 </p>
 
 #### Core modules
@@ -3252,6 +3289,63 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.59.0] - 2026-07-29
+
+### Added
+
+- **Directory-scoped config with inheritance.** `contextlake init --local` (and `contextlake source add
+  --local`) writes `.contextlake.ini` / `.contextlake.kb.toml` into the current directory instead of
+  `~/`. The "local" tier of both config systems now walks up from the current directory to the
+  filesystem root looking for these files -- the same discovery model `git` uses for `.git` -- so a
+  config at a project's root is inherited by every subdirectory underneath it, not just the exact
+  directory that holds the file. Previously the local tier only ever checked cwd literally, which meant
+  running any command from a subdirectory silently fell straight through to the global config.
+  `contextlake source add`/`remove`/`enable`/`disable` now default to the nearest ancestor's local config
+  once one exists, instead of always writing to global.
+
+## [2.58.3] - 2026-07-29
+
+### Fixed
+
+- **Pinned `mcp` to `<2` in the `kb` extra.** The v2.58.2 release gate failed in CI (nothing published)
+  because `mcp>=1.28` had no upper bound and CI resolved the just-released `mcp` 2.0.0, which renamed
+  `streamablehttp_client` to `streamable_http_client` in `mcp.client.streamable_http` -- breaking every
+  connector/MCP import at collection time. Unrelated to any code in this release; a fresh install
+  yesterday would have hit the same break. Pinned below the major bump until `contextlake.kb.mcp_client`
+  is deliberately audited and updated for the 2.x API, rather than chasing it mid-release.
+
+## [2.58.2] - 2026-07-29
+
+### Added
+
+- **`contextlake init`'s data-source prompt now loops** ("Connect a data source now?" then "Connect
+  another data source?") instead of collecting exactly one source per run -- found via dogfooding: adding
+  a second source meant re-running `contextlake source add` by hand afterward.
+- **`init` and `source add` explain what "Source name" actually means** -- it's a local nickname you pick
+  to reference the connection later (`contextlake source test <name>`), not your Atlassian site, Figma
+  team, or any other provider-side identifier. Also found via dogfooding: a real user typed their org name
+  as the "source name," reasonably expecting it to be some kind of account identifier.
+- **`init`/`source add` suggest each provider's official hosted MCP URL as the default** for `atlassian`
+  (`https://mcp.atlassian.com/v1/mcp/authv2`) and `figma` (`https://mcp.figma.com/mcp`), verified against
+  each provider's own docs, so the prompt no longer forces you to already know the endpoint yourself.
+
+### Fixed
+
+- **`[llm] provider = "cli"` with `command = "gemini"` was broken since it shipped.** `gemini`'s
+  `-p`/`--prompt` flag is a required string *value*, not a boolean "read the rest from stdin" switch --
+  the preset sent `["-p"]` with the prompt only on stdin, which produced a yargs usage dump instead of a
+  completion (found live once a real subscription login was available to test against). `CliLlm` now
+  substitutes a `{PROMPT}` placeholder in `gemini`'s preset args with the actual prompt at call time and
+  skips stdin for that call -- every other command (`claude`, `codex`, a user's own CLI) is unaffected
+  and keeps feeding the prompt on stdin. This trades away two properties for `gemini` specifically: no
+  more `ARG_MAX` headroom for very large prompts, and the prompt is now visible to other local processes
+  via `ps`/`/proc` for the duration of the call (still never a secret, but no longer stdin-only).
+- Confirmed live (not just from docs) that `codex`'s ChatGPT-subscription login is **not** hijacked by a
+  stray `OPENAI_API_KEY` in the environment -- ran a real `cli`-provider wiki generation with the key set
+  and it used the subscription login without complaint, unlike `claude`/`gemini`. The v2.58.1 entry below
+  called this "not confirmed"; it now is. `OPENAI_API_KEY` is still stripped defensively for `codex`, since
+  a future `codex` version could change that behavior.
 
 ## [2.58.1] - 2026-07-28
 

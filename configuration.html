@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=a0b4c6b">
-<link rel="stylesheet" href="docs.css?v=a0b4c6b">
-<link rel="stylesheet" href="cmdk.css?v=a0b4c6b">
+<link rel="stylesheet" href="fonts.css?v=ef558f9">
+<link rel="stylesheet" href="docs.css?v=ef558f9">
+<link rel="stylesheet" href="cmdk.css?v=ef558f9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -53,11 +53,17 @@ contextlake is covered in the <a href="quickstart">Quickstart</a>; the knowledge
 <h2 id="using-configuration-files">Using configuration files<a class="anchor" href="#using-configuration-files" title="Link to this section">#</a></h2>
 <p>Configuration is loaded in this precedence order:</p>
 <ol>
-<li><strong>Local config</strong>: <code>.contextlake.ini</code> in the current directory (highest priority)</li>
+<li><strong>Local config</strong>: the nearest ancestor directory's <code>.contextlake.ini</code>, walking up from the current
+   directory to the filesystem root (like git's <code>.git</code> discovery), highest priority. A config at your
+   project root is inherited by every subdirectory underneath it; you don't need to be in the exact
+   directory that holds the file.</li>
 <li><strong>Global config</strong>: <code>~/.contextlake.ini</code> in the home directory</li>
 <li><strong>Default values</strong>: built-in defaults (lowest priority)</li>
 <li><strong>CLI arguments</strong>: override all other settings</li>
 </ol>
+<p>Run <code>contextlake init --local</code> inside a project to create that project's local config
+(<code>.contextlake.ini</code> + <code>.contextlake/kb.toml</code>'s knowledge-layer equivalent, <code>.contextlake.kb.toml</code>) instead
+of the global one, see <a href="#directory-scoped-config">Directory-scoped config</a> below.</p>
 <p>An example <code>.contextlake.ini</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
 <span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
@@ -77,6 +83,23 @@ contextlake<span class="w"> </span>--group<span class="w"> </span>my-gitlab-grou
 contextlake<span class="w"> </span>--config<span class="w"> </span>/path/to/custom.ini<span class="w"> </span>sync<span class="w">     </span><span class="c1"># use a different config file</span>
 contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/home/user/dev<span class="w"> </span>--group<span class="w"> </span>your-gitlab-group<span class="w"> </span>status<span class="w">  </span><span class="c1"># combine</span>
 </code></pre></div>
+<h2 id="directory-scoped-config">Directory-scoped config<a class="anchor" href="#directory-scoped-config" title="Link to this section">#</a></h2>
+<p>A single global config (<code>~/.contextlake.ini</code> + <code>~/.contextlake/kb.toml</code>) works well when you only ever
+mirror one org into one workspace. If you work across several orgs or projects, each with its own
+platform, group, or knowledge-layer sources, scope a config to a project instead:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>~/work/some-project
+contextlake<span class="w"> </span>init<span class="w"> </span>--local<span class="w">        </span><span class="c1"># writes .contextlake.ini + .contextlake.kb.toml here</span>
+contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w"> </span>jira<span class="w"> </span>--type<span class="w"> </span>atlassian<span class="w"> </span>--local<span class="w">   </span><span class="c1"># scopes a source the same way</span>
+</code></pre></div>
+<p>Every command run from that directory (or any subdirectory underneath it) picks up this local config
+automatically, you don't need to pass <code>--config</code> yourself, and you don't need to be in the exact
+directory the file lives in. Resolution walks up from the current directory to the filesystem root
+looking for <code>.contextlake.ini</code> / <code>.contextlake.kb.toml</code>, the same way <code>git</code> finds <code>.git</code> from anywhere
+inside a repo; the <em>nearest</em> ancestor wins if more than one project happens to be nested.</p>
+<p><code>--local</code> on <code>source add</code>/<code>remove</code>/<code>enable</code>/<code>disable</code> targets that same nearest-ancestor file (creating
+one in the current directory if none exists yet in the chain); once a project has a local config, those
+commands land in it by default without needing <code>--local</code> again. An explicit <code>--config PATH</code> always takes
+precedence over both the local and global tiers.</p>
 <h2 id="settings-reference">Settings reference<a class="anchor" href="#settings-reference" title="Link to this section">#</a></h2>
 <table>
 <thead>
@@ -242,6 +265,7 @@ contextlake<span class="w"> </span>--work-dir<span class="w"> </span>/home/user/
 <ul>
 <li><a href="#using-configuration-files">Using configuration files</a></li>
 <li><a href="#overriding-on-the-command-line">Overriding on the command line</a></li>
+<li><a href="#directory-scoped-config">Directory-scoped config</a></li>
 <li><a href="#settings-reference">Settings reference</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
@@ -272,6 +296,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=a0b4c6b"></script>
+<script defer src="cmdk.js?v=ef558f9"></script>
 </body>
 </html>

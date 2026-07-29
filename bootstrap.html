@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=a0b4c6b">
-<link rel="stylesheet" href="docs.css?v=a0b4c6b">
-<link rel="stylesheet" href="cmdk.css?v=a0b4c6b">
+<link rel="stylesheet" href="fonts.css?v=ef558f9">
+<link rel="stylesheet" href="docs.css?v=ef558f9">
+<link rel="stylesheet" href="cmdk.css?v=ef558f9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -63,14 +63,15 @@ for higher-quality prose; the pre-command form <code>contextlake --llm builtin b
 any <code>--llm</code>, and with <code>[llm]</code> disabled in <code>kb.toml</code>, the wiki stage no-ops and the rest still runs. Because
 everything generated lives under one <code>store_dir</code>, setting it to a folder in your workspace keeps the entire
 knowledge base in a single, easy-to-access location.</p>
-<p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and <code>~/.contextlake/kb.toml</code>);
-pass <code>--config</code> / <code>--kb-config</code> to point elsewhere. The valid <code>[kb]</code> keys are <code>store_dir</code>, <code>languages</code>,
-<code>skip_generated</code>, <code>max_file_bytes</code>, and <code>index_workers</code> (plus the <code>[embeddings]</code>, <code>[llm]</code>, <code>[sources]</code>,
-<code>[rules]</code> tables); an unrecognized key or table is warned and ignored, so a typo like <code>store</code> (for
-<code>store_dir</code>) is surfaced rather than silently dropping the run into the wrong place. Likewise, an explicit
-<code>--kb-config</code> path that doesn't exist is a hard error rather than a silent fall-through to the next file
-in the precedence chain (<code>~/.contextlake/kb.toml</code>), which could point at a completely different store than
-the one you meant to target. Skip stages with
+<p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and <code>~/.contextlake/kb.toml</code>,
+or the nearest ancestor directory's <code>.contextlake.ini</code> / <code>.contextlake.kb.toml</code> if one exists -- see
+<a href="configuration#directory-scoped-config">Directory-scoped config</a>); pass <code>--config</code> to point elsewhere.
+The valid <code>[kb]</code> keys are <code>store_dir</code>, <code>languages</code>, <code>skip_generated</code>, <code>max_file_bytes</code>, and <code>index_workers</code>
+(plus the <code>[embeddings]</code>, <code>[llm]</code>, <code>[sources]</code>, <code>[rules]</code> tables); an unrecognized key or table is warned
+and ignored, so a typo like <code>store</code> (for <code>store_dir</code>) is surfaced rather than silently dropping the run
+into the wrong place. Likewise, an explicit <code>--config</code> path that doesn't exist is a hard error rather than
+a silent fall-through to the next file in the precedence chain, which could point at a completely different
+store than the one you meant to target. Skip stages with
 <code>--no-sync</code> / <code>--no-embed</code> / <code>--no-wiki</code> / <code>--no-connect</code> / <code>--no-enrich</code>. For an isolated CLI, install with
 <code>pipx install "contextlake[kb]"</code>, or run ad-hoc with <code>uvx</code>.</p>
 <h2 id="command-composition">Command composition<a class="anchor" href="#command-composition" title="Link to this section">#</a></h2>
@@ -178,6 +179,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=a0b4c6b"></script>
+<script defer src="cmdk.js?v=ef558f9"></script>
 </body>
 </html>
