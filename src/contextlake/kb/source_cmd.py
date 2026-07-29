@@ -67,14 +67,25 @@ def _interactive() -> bool:
 
 
 def _prompt_missing(src: dict) -> dict:
-    """Fill in a missing ``type``/``name`` interactively (TTY only)."""
-    from ..init_cmd import _ask  # lazy: keeps this module import-cheap
+    """Fill in a missing ``type``/``name``/``mcp`` interactively (TTY only)."""
+    from ..init_cmd import _MCP_DEFAULTS, _ask  # lazy: keeps this module import-cheap
 
     if not src.get("type"):
         src["type"] = _ask(
             "Source type (atlassian/figma/gitlab/slack/files/web/api/graphql/mcp)", "files")
     if not src.get("name"):
+        log("  Source name is a local nickname you pick to reference this "
+            "connection later (contextlake source test <name>) -- it is not "
+            "your Atlassian site, Figma team, or any other provider-side ID.")
         src["name"] = _ask("Source name", src["type"])
+    if not src.get("mcp") and src["type"] in _MCP_DEFAULTS:
+        default_mcp = _MCP_DEFAULTS[src["type"]]
+        log(f"  MCP server URL: {src['type']}'s official hosted endpoint is "
+            "suggested below; press enter to accept it, or supply your own "
+            "self-hosted/enterprise MCP URL instead.")
+        mcp_url = _ask("MCP server URL (blank to configure later)", default_mcp)
+        if mcp_url:
+            src["mcp"] = mcp_url
     return src
 
 

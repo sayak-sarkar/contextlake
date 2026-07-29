@@ -189,6 +189,56 @@ def test_init_connector_prompt_accepted_adds_source(tmp_path, monkeypatch):
     assert 'mcp = "https://mcp.example.com"' in kb
 
 
+def test_init_connector_prompt_loops_to_add_multiple_sources(tmp_path, monkeypatch):
+    """`init` used to collect exactly one source per run -- adding a second
+    meant re-running `contextlake source add` by hand. The prompt now loops
+    ("Connect a data source now?" then "Connect another data source?") until
+    declined, so several sources can be added in one pass."""
+    pytest.importorskip("tomlkit")
+    monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(tmp_path / ".contextlake.ini"))
+    monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(tmp_path / ".contextlake/kb.toml"))
+    monkeypatch.setattr(init_cmd, "_interactive", lambda: True)
+
+    calls = {"connect": 0}
+
+    def fake_ask_yn(prompt, default):
+        if "Connect a data source" in prompt or "Connect another data source" in prompt:
+            calls["connect"] += 1
+            return calls["connect"] <= 2  # accept twice, decline the third
+        return default
+
+    sources = iter([("atlassian", "jira"), ("figma", "design")])
+
+    def fake_ask(prompt, default):
+        if "Source type" in prompt:
+            return _current[0]
+        if "Source name" in prompt:
+            return _current[1]
+        if "MCP server URL" in prompt:
+            return default  # accept the suggested default
+        return default
+
+    _current = [None, None]
+
+    def fake_ask_wrapper(prompt, default):
+        nonlocal _current
+        if "Source type" in prompt:
+            _current[:] = next(sources)
+        return fake_ask(prompt, default)
+
+    monkeypatch.setattr(init_cmd, "_ask_yn", fake_ask_yn)
+    monkeypatch.setattr(init_cmd, "_ask", fake_ask_wrapper)
+
+    rc = init_cmd.cmd_init(_args(yes=False, group="acme"))
+    assert rc == 0
+    kb = (tmp_path / ".contextlake/kb.toml").read_text()
+    assert 'name = "jira"' in kb and 'type = "atlassian"' in kb
+    assert 'name = "design"' in kb and 'type = "figma"' in kb
+    # the suggested defaults were accepted, not left blank
+    assert 'mcp = "https://mcp.atlassian.com/v1/mcp/authv2"' in kb
+    assert 'mcp = "https://mcp.figma.com/mcp"' in kb
+
+
 def test_init_connector_prompt_never_asks_for_a_secret_value(tmp_path, monkeypatch):
     pytest.importorskip("tomlkit")
     monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(tmp_path / ".contextlake.ini"))

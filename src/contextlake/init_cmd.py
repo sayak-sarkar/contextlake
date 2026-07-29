@@ -24,6 +24,15 @@ from .logging_setup import log
 _KB_CONFIG = os.path.expanduser("~/.contextlake/kb.toml")
 _PLATFORMS = ("gitlab", "github", "bitbucket", "gitea", "codeberg", "forgejo")
 
+# Official hosted MCP endpoints, so the prompt has a real default instead of
+# forcing the user to already know it. Verified against each provider's own
+# docs (2026-07-28): Atlassian's Remote MCP Server guide, Figma's Dev Mode MCP
+# Server guide. Self-hosted/enterprise setups can still type their own URL.
+_MCP_DEFAULTS = {
+    "atlassian": "https://mcp.atlassian.com/v1/mcp/authv2",
+    "figma": "https://mcp.figma.com/mcp",
+}
+
 
 def _interactive() -> bool:
     try:
@@ -166,20 +175,35 @@ def cmd_init(args) -> int:
     if want_kb:
         wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings), force=force)
 
-    # --- optional data source ------------------------------------------------
+    # --- optional data source(s) ---------------------------------------------
     # Purely optional and skippable: default is "no", and --yes (non-interactive)
     # never reaches this prompt. Only a source *type*, *name*, and MCP server
     # *URL* are collected here -- never a secret value (auth stays an env var,
-    # set later via `contextlake source add --set token_env=...`).
+    # set later via `contextlake source add --set token_env=...`). Loops so
+    # more than one source can be added in a single init run (Confluence *and*
+    # Figma, two Atlassian sites, etc.) instead of forcing a second pass
+    # through `contextlake source add` for every source after the first.
     if want_kb and interactive:
-        connect = _ask_yn(
-            "Connect a data source now (Confluence/Jira/Figma/GitLab/MCP)?", False)
-        if connect:
+        first = True
+        while _ask_yn(
+            "Connect a data source now (Confluence/Jira/Figma/GitLab/MCP)?"
+            if first else "Connect another data source?", False,
+        ):
+            first = False
+            log("  Source type: atlassian = Confluence/Jira, figma = Figma Dev "
+                "Mode, gitlab = a GitLab MCP server, mcp = any other MCP server.")
             src_type = _ask("Source type (atlassian/figma/gitlab/mcp)", "atlassian")
+            log("  Source name is a local nickname you pick to reference this "
+                "connection later (contextlake source test <name>) -- it is not "
+                "your Atlassian site, Figma team, or any other provider-side ID.")
             src_name = _ask("Source name", src_type)
             src = {"type": src_type, "name": src_name}
             if src_type in ("atlassian", "figma"):
-                mcp_url = _ask("MCP server URL (blank to configure later)", "")
+                default_mcp = _MCP_DEFAULTS.get(src_type, "")
+                log(f"  MCP server URL: {src_type}'s official hosted endpoint is "
+                    "suggested below; press enter to accept it, or supply your "
+                    "own self-hosted/enterprise MCP URL instead.")
+                mcp_url = _ask("MCP server URL (blank to configure later)", default_mcp)
                 if mcp_url:
                     src["mcp"] = mcp_url
             try:
@@ -188,6 +212,7 @@ def cmd_init(args) -> int:
                 log("")
                 log(f"{style.warn('source')} Install contextlake[kb] to connect "
                     "a data source; skipping.")
+                break
             else:
                 config_edit.add_source(kb_config_file, src)
                 log("")
@@ -196,6 +221,7 @@ def cmd_init(args) -> int:
                 log(f"  Run {style.cyan('contextlake source list')} to review, or "
                     f"{style.cyan('contextlake source test ' + src_name)} "
                     "to check reachability.")
+                log("")
 
     # --- auth guidance ------------------------------------------------------
     env, is_set = _token_status(platform)
