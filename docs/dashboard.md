@@ -203,6 +203,10 @@ Y", "explain repo Z". Two layers, always shown together:
   is grounded in") so you can verify it, not just trust it. If the LLM call fails for
   any reason, chat falls back to the free result rather than erroring out.
 
+If a question fails outright (a network hiccup, the server restarting mid-request, and
+so on), that turn shows a **Retry** button instead of leaving you to retype it — it
+resends the same question in place.
+
 `--llm-chat` is opt-in at server start, never toggled per-question: it mints the same
 per-launch token `--allow-mutations` uses (§10), and every chat request while it's on
 must carry that token -- a page other than this dashboard can't silently trigger a

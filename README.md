@@ -268,8 +268,9 @@ Full guide: **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextl
 
 `contextlake dashboard --serve` opens a local, offline-first window into everything the
 knowledge layer builds: a fleet overview, per-repo anatomy, the cross-repo architecture
-graph, change-impact (blast radius), health, and search. Try it with zero setup via
-`contextlake dashboard --serve --sample`.
+graph, change-impact (blast radius), health, search, and a **Chat** tab to ask questions
+about the fleet in plain language (free graph router always on, LLM-synthesized prose
+opt-in via `--llm-chat`). Try it with zero setup via `contextlake dashboard --serve --sample`.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.1] - 2026-07-29
+
+### Fixed
+
+- **Chat: a failed question now offers Retry.** If a chat request fails for any reason (a network
+  blip, the server restarting mid-request, and so on), the error now carries a **Retry** button that
+  resends the same question in place, instead of leaving you to retype it.
+
+### Documentation
+
+- README now mentions the dashboard's Chat tab (shipped in 2.60.0 but not yet called out there).
+- `docs/dashboard.md` §11 documents the new Retry button.
+- `site/.gitignore` was missing `comparison.html` from its generated-page list -- the only
+  `build_docs.py` output not covered, so it kept showing as untracked instead of ignored.
+
 ## [2.60.0] - 2026-07-29
 
 ### Added
