@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Mirror repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-29"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-30"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=cd23dae">
-<link rel="stylesheet" href="tokens.css?v=cd23dae">
-<link rel="stylesheet" href="docs.css?v=cd23dae">
-<link rel="stylesheet" href="cmdk.css?v=cd23dae">
+<link rel="stylesheet" href="fonts.css?v=857c5d9">
+<link rel="stylesheet" href="tokens.css?v=857c5d9">
+<link rel="stylesheet" href="docs.css?v=857c5d9">
+<link rel="stylesheet" href="cmdk.css?v=857c5d9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -320,6 +320,10 @@ contextlake<span class="w"> </span>--auto-stash<span class="w"> </span>update
 <span class="c1"># [2026-06-16 10:00:00] ✓ backend/services/api-gateway: Updated main</span>
 </code></pre></div>
 <h3 id="customization">Customization<a class="anchor" href="#customization" title="Link to this section">#</a></h3>
+<p>These resilience/safety flags are kept out of <code>contextlake &lt;command&gt; --help</code>'s default listing (run
+<code>contextlake update --help-advanced</code> to see them alongside every other mirror-tier command's flags) --
+they're automation levers, not something to guess at interactively, and every one has the
+<code>.contextlake.ini</code> equivalent below as its primary home.</p>
 <p>You can customize branch safety behavior via configuration or CLI:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># In .contextlake.ini</span>
 <span class="k">[contextlake]</span>
@@ -546,6 +550,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=cd23dae"></script>
+<script defer src="cmdk.js?v=857c5d9"></script>
 </body>
 </html>
