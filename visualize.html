@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Visualize the graph · contextlake docs">
 <meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-30"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=190649e">
-<link rel="stylesheet" href="docs.css?v=190649e">
-<link rel="stylesheet" href="cmdk.css?v=190649e">
+<link rel="stylesheet" href="fonts.css?v=e674997">
+<link rel="stylesheet" href="docs.css?v=e674997">
+<link rel="stylesheet" href="cmdk.css?v=e674997">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -63,9 +63,12 @@ search, and a minimap; it opens straight from <code>file://</code>:</p>
 </p>
 
 <p>Seed with one of <code>--node</code> / <code>--name</code> (+<code>--kind</code>) / <code>--search</code> / <code>--repo</code> / <code>--overview</code>. Bound the result
-with <code>--hops</code> (default 2), <code>--max-nodes</code> (500), <code>--max-fanout</code> (50, a per-node cap that stops hub nodes
-from exploding), <code>--relation</code>, and <code>--direction {in,out,both}</code>, whatever is dropped is <strong>logged</strong>, never
-silently truncated.</p>
+with <code>--hops</code> (default 2), <code>--max-nodes</code> (500), <code>--max-edges</code> (400 for <code>--repo</code> views -- a dense repo can
+pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
+capping edges independently means it always renders, possibly truncated, never errors), <code>--max-fanout</code> (50,
+a per-node cap that stops hub nodes from exploding), <code>--relation</code>, and <code>--direction {in,out,both}</code>, whatever
+is dropped is <strong>logged</strong>, never silently truncated. On the dashboard, a repo too large to show in one
+diagram gets a "scope to one module" dropdown (its top-level path segments) instead of an arbitrary slice.</p>
 <h2 id="output-formats">Output formats<a class="anchor" href="#output-formats" title="Link to this section">#</a></h2>
 <p>Output is chosen with <code>--format</code>:</p>
 <ul>
@@ -188,6 +191,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=190649e"></script>
+<script defer src="cmdk.js?v=e674997"></script>
 </body>
 </html>
