@@ -28,7 +28,7 @@ git -C "$WT" reset --hard origin/gh-pages --quiet
 
 # the deployable site = the page HTML + stylesheet + manifest/SEO + all assets
 # (build_docs.py / tools/ / .gitignore are source, not shipped)
-cp "$HERE"/*.html "$HERE"/docs.css "$HERE"/cmdk.css "$HERE"/cmdk.js "$HERE"/fonts.css "$HERE"/manifest.webmanifest "$HERE"/sitemap.xml "$HERE"/llms.txt "$HERE"/llms-full.txt "$HERE"/search-index.json "$WT"/
+cp "$HERE"/*.html "$HERE"/docs.css "$HERE"/tokens.css "$HERE"/cmdk.css "$HERE"/cmdk.js "$HERE"/fonts.css "$HERE"/manifest.webmanifest "$HERE"/sitemap.xml "$HERE"/llms.txt "$HERE"/llms-full.txt "$HERE"/search-index.json "$WT"/
 cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$HERE"/*.svg "$WT"/ 2>/dev/null || true
 cp -r "$HERE"/fonts "$WT"/
 
@@ -42,6 +42,7 @@ cp -r "$HERE"/fonts "$WT"/
 VER="$(git -C "$REPO" rev-parse --short HEAD)"
 find "$WT" -maxdepth 1 -name '*.html' -print0 | xargs -0 sed -i \
   -e "s/href=\"docs\.css\"/href=\"docs.css?v=$VER\"/g" \
+  -e "s/href=\"tokens\.css\"/href=\"tokens.css?v=$VER\"/g" \
   -e "s/href=\"fonts\.css\"/href=\"fonts.css?v=$VER\"/g" \
   -e "s/href=\"cmdk\.css\"/href=\"cmdk.css?v=$VER\"/g" \
   -e "s/src=\"cmdk\.js\"/src=\"cmdk.js?v=$VER\"/g" \

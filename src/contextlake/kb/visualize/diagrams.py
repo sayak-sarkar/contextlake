@@ -39,6 +39,125 @@ def to_dot(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def _xml_escape(s: str) -> str:
+    return (
+        (s or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+# Node/edge fields carried into GraphML's <key> attribute declarations. A
+# fixed, small set (not every field in the payload dict) -- richer than
+# to_dot/to_mermaid's name-only labels, since GraphML's whole point is letting
+# Gephi/yEd filter and color by real attributes, but still bounded rather than
+# dumping every internal field (context/signature/prov_* stay in the JSON
+# export for that level of detail).
+_GRAPHML_NODE_KEYS = ("kind", "name", "repo", "qualified_name", "file", "line", "lang")
+_GRAPHML_EDGE_KEYS = ("relation", "confidence", "weight")
+
+
+def to_graphml(payload: dict) -> str:
+    """Render as GraphML (Gephi/yEd import) -- the same bounded subgraph slice
+    every other ``--format`` renders, just in a standards-based interchange
+    format instead of a contextlake-specific one. No new extraction: reuses
+    the identical node/edge dicts ``to_dot``/``to_mermaid`` already consume.
+    """
+    idmap: dict[str, str] = {n["id"]: f"n{i}" for i, n in enumerate(payload["nodes"])}
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<graphml xmlns="http://graphml.graphdrawing.org/xmlns" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns '
+        'http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">',
+    ]
+    for key in _GRAPHML_NODE_KEYS:
+        attr_type = "double" if key == "line" else "string"
+        lines.append(f'  <key id="n_{key}" for="node" attr.name="{key}" attr.type="{attr_type}"/>')
+    for key in _GRAPHML_EDGE_KEYS:
+        attr_type = "double" if key == "weight" else "string"
+        lines.append(f'  <key id="e_{key}" for="edge" attr.name="{key}" attr.type="{attr_type}"/>')
+    lines.append('  <graph id="contextlake" edgedefault="directed">')
+    for n in payload["nodes"]:
+        lines.append(f'    <node id="{idmap[n["id"]]}">')
+        for key in _GRAPHML_NODE_KEYS:
+            value = n.get(key)
+            if value is None or value == "":
+                continue
+            lines.append(f'      <data key="n_{key}">{_xml_escape(str(value))}</data>')
+        lines.append("    </node>")
+    for e in payload["edges"]:
+        s, d = idmap.get(e["src"]), idmap.get(e["dst"])
+        if not s or not d:
+            continue
+        lines.append(f'    <edge source="{s}" target="{d}">')
+        for key in _GRAPHML_EDGE_KEYS:
+            value = e.get(key)
+            if value is None or value == "":
+                continue
+            lines.append(f'      <data key="e_{key}">{_xml_escape(str(value))}</data>')
+        lines.append("    </edge>")
+    lines.append("  </graph>")
+    lines.append("</graphml>")
+    return "\n".join(lines)
+
+
+def _cypher_ident(s: str) -> str:
+    """Backtick-quote a label/relationship-type -- contextlake's kind/relation
+    vocabularies are open (free-text, see kb/model.py), so they can contain
+    characters (spaces, hyphens, ...) that aren't valid bare Cypher
+    identifiers. Backtick-quoting handles the full range without needing to
+    first sanitize into a valid bare identifier; an embedded backtick is
+    escaped by doubling it, Cypher's own convention for this quoting style.
+    """
+    return "`" + (s or "unknown").replace("`", "``") + "`"
+
+
+def _cypher_literal(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def to_cypher(payload: dict) -> str:
+    """Render as Cypher ``CREATE`` statements (Neo4j/FalkorDB import) -- the
+    same bounded subgraph slice every other ``--format`` renders. Node labels
+    come from ``kind`` (e.g. a function node imports as ``(:function)``),
+    relationship types from ``relation`` (e.g. ``[:calls]``) -- both
+    backtick-quoted rather than reshaped into PascalCase/UPPER_SNAKE, since
+    contextlake's own kind/relation vocabularies are open text, not a fixed
+    enum, and quoting handles that without a lossy sanitization pass.
+    """
+    idmap: dict[str, str] = {n["id"]: f"n{i}" for i, n in enumerate(payload["nodes"])}
+    lines = []
+    for n in payload["nodes"]:
+        props = {"id": n["id"]}
+        for key in ("name", "repo", "qualified_name", "file", "line", "lang"):
+            value = n.get(key)
+            if value is not None and value != "":
+                props[key] = value
+        prop_str = ", ".join(f"{k}: {_cypher_literal(v)}" for k, v in props.items())
+        label = _cypher_ident(n.get("kind") or "node")
+        lines.append(f"CREATE ({idmap[n['id']]}:{label} {{{prop_str}}})")
+    for e in payload["edges"]:
+        s, d = idmap.get(e["src"]), idmap.get(e["dst"])
+        if not s or not d:
+            continue
+        props = {}
+        for key in ("confidence", "weight"):
+            value = e.get(key)
+            if value is not None and value != "":
+                props[key] = value
+        prop_str = ", ".join(f"{k}: {_cypher_literal(v)}" for k, v in props.items())
+        rel = _cypher_ident(e.get("relation") or "related_to")
+        lines.append(f"CREATE ({s})-[:{rel} {{{prop_str}}}]->({d})")
+    return "\n".join(lines)
+
+
 def _mermaid_escape(s: str) -> str:
     return (
         (s or "")

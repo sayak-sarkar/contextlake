@@ -9,7 +9,7 @@ from __future__ import annotations
 import importlib.util
 from abc import ABC, abstractmethod
 
-from .._util import ollama_reachable
+from .._util import ollama_has_model, ollama_reachable
 
 
 class Embedder(ABC):
@@ -77,17 +77,25 @@ def _build_builtin_embedder(cfg):
 
 
 def _resolve_auto_embedder(cfg) -> Embedder | None:
-    """Resolve provider="auto": a reachable local Ollama, else the built-in
-    embedder if its extra is importable, else None (graceful skip). Never raises."""
+    """Resolve provider="auto": a reachable local Ollama that actually HAS the
+    target embedding model pulled, else the built-in embedder if its extra is
+    importable, else None (graceful skip). Never raises.
+
+    The daemon being reachable at all is not enough to commit to Ollama: a very
+    common real setup is Ollama running for chat models (e.g. just `qwen2.5`)
+    with no embedding model ever pulled, which "auto" used to pick anyway --
+    reachability checks /api/tags for *a* response, not whether the specific
+    model this call is about to request exists, so every embed() call failed
+    with Ollama's own real 404 ("model ... not found, try pulling it first")
+    instead of "auto" falling through to a provider that actually works.
+    """
     base_url = getattr(cfg, "base_url", "http://127.0.0.1:11434")
-    if ollama_reachable(base_url):
+    model = getattr(cfg, "model", None) or "nomic-embed-text"
+    if ollama_reachable(base_url) and ollama_has_model(base_url, model):
         from .ollama import OllamaEmbedder
 
-        return OllamaEmbedder(
-            model=getattr(cfg, "model", None) or "nomic-embed-text",
-            base_url=base_url,
-            batch_size=getattr(cfg, "batch_size", 64),
-        )
+        return OllamaEmbedder(model=model, base_url=base_url,
+                              batch_size=getattr(cfg, "batch_size", 64))
     engine = (getattr(cfg, "engine", "model2vec") or "model2vec").lower()
     module = "fastembed" if engine == "fastembed" else "model2vec"
     # find_spec locates the package without importing the heavy module.

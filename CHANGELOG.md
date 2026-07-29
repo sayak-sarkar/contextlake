@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.8] - 2026-07-30
+
+### Fixed
+- **`provider = "auto"` (embeddings and wiki-LLM tiers) no longer commits to a local Ollama that
+  doesn't have the target model pulled.** Root-caused the long-standing "Embedder unavailable —
+  HTTP Error 404: Not Found" by reproducing it live: Ollama running for one model (e.g. a chat
+  model) with the embedding/LLM default (`nomic-embed-text` / `llama3.1`) never pulled used to
+  still get picked by "auto" (it only checked the daemon answered `/api/tags`, not whether *this*
+  model was in the response), so every real call failed on Ollama's own genuine 404. `auto` now
+  checks model availability (new `ollama_has_model()`) before picking Ollama, falling through to
+  the builtin CPU model instead. An explicit `provider = "ollama"` config that hits a real 404 now
+  gets Ollama's actual reason and a `run 'ollama pull <model>'` hint, not a bare
+  `HTTP Error 404: Not Found`.
+- Fixed a raw traceback fragment on `contextlake serve` (stdio transport): a second/third Ctrl-C
+  landing in the brief window while Python joins the `mcp` SDK's background stdio-reader thread
+  during interpreter shutdown printed a harmless but alarming "Exception ignored while joining a
+  thread in `_thread._shutdown()`". Reproduced directly (3 rapid SIGINTs); fixed with a hard
+  process exit immediately after `cmd_serve`'s own cleanup runs, skipping the rest of Python's
+  shutdown sequence where the noise originated.
+- Reworded the "corrupted .git" skip message (`index`, `repo_migrate`) after empirically verifying
+  real submodules/worktrees are NOT false-flagged (already correct) — the actual gap was that the
+  wording conflated two distinct situations. It now distinguishes "git can't find a repository here
+  at all" (a dangling submodule/worktree link) from "git resolves it to a DIFFERENT, ancestor
+  directory" (naming that directory) — the latter being the actual silent-misattribution case this
+  check exists to catch.
+- Dashboard Diagrams tab: the default (no module selected) view on a truncated repo now auto-scopes
+  to the repo's largest module instead of an arbitrary alphabetical node slice — a repo with an
+  `ExternalProjects/`-style vendored top-level directory no longer shows vendored code ahead of
+  real source by default. An explicit pick from the module dropdown (including "Whole repo")
+  still overrides this and sticks across format-tab switches.
+
+### Added
+- `graph --format graphml`: export the bounded subgraph slice as GraphML for Gephi/yEd import, with
+  real typed node/edge attributes (kind, name, repo, file, line, lang / relation, confidence,
+  weight) as GraphML `<data>` keys.
+- `graph --format cypher`: export as Cypher `CREATE` statements for Neo4j/FalkorDB import. Node
+  labels come from `kind`, relationship types from `relation`, both backtick-quoted since
+  contextlake's kind/relation vocabularies are open text, not a fixed enum.
+- CLI: unknown-flag errors now suggest a fix instead of a bare argparse dump. A flag valid on a
+  *different* subcommand names where it belongs (`bootstrap --local` → "isn't a flag on
+  'bootstrap' — it's used by: init, source"); a genuine same-command typo suggests the real flag
+  (`--worksapce` → "Did you mean: --workspace?"); a value-taking flag immediately followed by
+  another recognized flag names the real problem instead of argparse's generic "expected one
+  argument" (`--workspace --open` → "needs a value, but the next token ('--open') is itself a
+  recognized flag").
+
 ## [2.60.7] - 2026-07-30
 
 ### Fixed

@@ -7,6 +7,7 @@ connectors; kept here as the single source of truth.
 from __future__ import annotations
 
 import json
+import urllib.error
 import urllib.request
 
 
@@ -50,6 +51,35 @@ def ollama_reachable(base_url: str, timeout: float = 1.5) -> bool:
         return False
 
 
+def ollama_list_models(base_url: str, timeout: float = 1.5) -> list[str]:
+    """Names of every model Ollama actually has pulled, or ``[]`` on any
+    failure (daemon down, timeout, malformed response) -- a caller checking
+    "is model X usable" should treat that the same as "no, it isn't", not
+    raise. The daemon being reachable at all (see ``ollama_reachable``) says
+    nothing about which models it can actually serve -- a very common real
+    setup is Ollama running for chat models with no embedding model pulled.
+    """
+    try:
+        url = base_url.rstrip("/") + "/api/tags"
+        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310 - local URL
+            data = json.loads(resp.read().decode())
+        return [m["name"] for m in data.get("models", []) if "name" in m]
+    except Exception:  # noqa: BLE001 - any failure means "treat as no models"
+        return []
+
+
+def ollama_has_model(base_url: str, model: str, timeout: float = 1.5) -> bool:
+    """Whether ``model`` is among Ollama's pulled models. Matches with or
+    without Ollama's implicit ``:latest`` tag on either side -- a config that
+    just says ``model = "nomic-embed-text"`` should match Ollama listing it
+    as ``nomic-embed-text:latest``, and vice versa."""
+    def _bare(name: str) -> str:
+        return name.split(":", 1)[0] if name.endswith(":latest") else name
+
+    wanted = _bare(model)
+    return any(_bare(m) == wanted for m in ollama_list_models(base_url, timeout))
+
+
 def post_json(url: str, payload: dict, timeout: float, headers: dict | None = None) -> dict:
     """POST ``payload`` as JSON and return the decoded JSON response.
 
@@ -61,3 +91,27 @@ def post_json(url: str, payload: dict, timeout: float, headers: dict | None = No
     req = urllib.request.Request(url, data=body, headers=head)
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - configured URL
         return json.loads(resp.read().decode())
+
+
+def describe_ollama_http_error(e: urllib.error.HTTPError, model: str) -> str:
+    """A clear, actionable reason for an Ollama API call's HTTPError, shared by
+    the embeddings and LLM Ollama clients (both hit this the same way).
+
+    Ollama's real reason for a 404 (``{"error": "model \\"X\\" not found, try
+    pulling it first"}``) is in the response body, which bare urllib discards
+    -- surfacing only the generic status-line reason ("Not Found") reads as a
+    network/connectivity problem when it's almost always just an unpulled
+    model. Only reached for an *explicit* ``provider = "ollama"`` config;
+    ``provider = "auto"`` checks model availability before ever picking Ollama
+    (see embeddings/llm ``base.py``'s ``_resolve_auto_*``), so it never hits
+    this for a missing model.
+    """
+    try:
+        parsed_body = json.loads(e.read().decode())
+        reason = parsed_body.get("error") or str(e)
+    except Exception:  # noqa: BLE001 - a malformed/non-JSON body is still an HTTPError
+        reason = str(e)
+    if e.code == 404 and "not found" in reason.lower():
+        return (f"Ollama: {reason} -- run 'ollama pull {model}' "
+                "(or point config's model at one you've already pulled)")
+    return f"Ollama returned HTTP {e.code}: {reason}"

@@ -1,12 +1,16 @@
 """Tests for the embeddings provider abstraction (no live model)."""
 
+import io
+import json
 import sys
 import types
+import urllib.error
 
 import pytest
 
 import contextlake.kb.embeddings.base as base_mod
 import contextlake.kb.embeddings.ollama as ollama_mod
+from contextlake.kb import _util as util_mod
 from contextlake.kb.config import EmbeddingsCfg
 from contextlake.kb.embeddings import build_embedder
 from contextlake.kb.embeddings.builtin import BuiltinEmbedder
@@ -64,6 +68,95 @@ def test_ollama_embed_posts_per_text(monkeypatch):
     assert calls[0][0] == "http://x:11434/api/embeddings"  # trailing slash trimmed
 
 
+def test_ollama_embed_404_names_the_real_reason_and_the_fix(monkeypatch):
+    """Root-cause fix: Ollama's real reason for a 404 ({"error": "model ...
+    not found, try pulling it first"}) is in the response body, which bare
+    urllib discards -- the raw HTTPError used to surface only its generic
+    status-line reason ("Not Found"), reading as a network problem instead of
+    "you haven't pulled this model". Reproduced live against a real Ollama
+    daemon with a different model pulled before writing this fix."""
+    error = 'model "nomic-embed-text" not found, try pulling it first'
+    body = json.dumps({"error": error}).encode()
+
+    def fake_post(url, payload, timeout):
+        raise urllib.error.HTTPError(url, 404, "Not Found", {}, io.BytesIO(body))
+
+    monkeypatch.setattr(ollama_mod, "post_json", fake_post)
+    emb = OllamaEmbedder(model="nomic-embed-text", base_url="http://x:11434")
+    with pytest.raises(RuntimeError) as exc:
+        emb.embed(["alpha"])
+    msg = str(exc.value)
+    assert 'model "nomic-embed-text" not found' in msg
+    assert "ollama pull nomic-embed-text" in msg
+
+
+def test_ollama_embed_non_404_http_error_still_reports_status_and_body(monkeypatch):
+    body = json.dumps({"error": "internal server error"}).encode()
+
+    def fake_post(url, payload, timeout):
+        raise urllib.error.HTTPError(url, 500, "Internal Server Error", {}, io.BytesIO(body))
+
+    monkeypatch.setattr(ollama_mod, "post_json", fake_post)
+    emb = OllamaEmbedder(model="m", base_url="http://x:11434")
+    with pytest.raises(RuntimeError) as exc:
+        emb.embed(["alpha"])
+    assert "HTTP 500" in str(exc.value) and "internal server error" in str(exc.value)
+    assert "ollama pull" not in str(exc.value)  # not a missing-model case
+
+
+def test_ollama_embed_non_json_error_body_falls_back_to_str(monkeypatch):
+    def fake_post(url, payload, timeout):
+        raise urllib.error.HTTPError(url, 404, "Not Found", {}, io.BytesIO(b"not json"))
+
+    monkeypatch.setattr(ollama_mod, "post_json", fake_post)
+    emb = OllamaEmbedder(model="m", base_url="http://x:11434")
+    with pytest.raises(RuntimeError):
+        emb.embed(["alpha"])
+
+
+# --- ollama_list_models / ollama_has_model (base.py's "auto" model check) --
+
+def _fake_tags_response(monkeypatch, models):
+    class _FakeResp(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    payload = json.dumps({"models": [{"name": m} for m in models]}).encode()
+    monkeypatch.setattr(util_mod.urllib.request, "urlopen",
+                        lambda *a, **k: _FakeResp(payload))
+
+
+def test_ollama_list_models_returns_pulled_model_names(monkeypatch):
+    _fake_tags_response(monkeypatch, ["qwen2.5:3b", "llama3:8b"])
+    assert util_mod.ollama_list_models("http://x:11434") == ["qwen2.5:3b", "llama3:8b"]
+
+
+def test_ollama_list_models_empty_on_any_failure(monkeypatch):
+    monkeypatch.setattr(util_mod.urllib.request, "urlopen",
+                        lambda *a, **k: (_ for _ in ()).throw(OSError("down")))
+    assert util_mod.ollama_list_models("http://x:11434") == []
+
+
+def test_ollama_has_model_bare_name_matches_explicit_latest_tag(monkeypatch):
+    _fake_tags_response(monkeypatch, ["nomic-embed-text:latest"])
+    assert util_mod.ollama_has_model("http://x:11434", "nomic-embed-text") is True
+
+
+def test_ollama_has_model_false_when_only_unrelated_models_pulled(monkeypatch):
+    """The exact real bug: Ollama running with only a chat model pulled must
+    NOT be reported as having the embedding model."""
+    _fake_tags_response(monkeypatch, ["qwen2.5:3b"])
+    assert util_mod.ollama_has_model("http://x:11434", "nomic-embed-text") is False
+
+
+def test_ollama_has_model_explicit_tag_does_not_match_different_explicit_tag(monkeypatch):
+    _fake_tags_response(monkeypatch, ["nomic-embed-text:v1.5"])
+    assert util_mod.ollama_has_model("http://x:11434", "nomic-embed-text:v2") is False
+
+
 # --- built-in embedder ------------------------------------------------------
 
 def test_default_provider_is_auto():
@@ -110,13 +203,30 @@ def test_builtin_embed_model2vec_mocked(monkeypatch):
 
 # --- the "auto" resolver ----------------------------------------------------
 
-def test_auto_prefers_reachable_ollama(monkeypatch):
+def test_auto_prefers_reachable_ollama_that_has_the_model(monkeypatch):
     monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: True)
+    monkeypatch.setattr(base_mod, "ollama_has_model", lambda *a, **k: True)
     emb = build_embedder(EmbeddingsCfg(enabled=True, provider="auto"))
     assert isinstance(emb, OllamaEmbedder)
 
 
-def test_auto_falls_back_to_builtin(monkeypatch):
+def test_auto_falls_back_to_builtin_when_ollama_reachable_but_missing_the_model(monkeypatch):
+    """The real bug this regression-guards: Ollama running (e.g. for chat
+    models) with no embedding model pulled used to still get picked by
+    "auto" -- reachability alone said nothing about whether THIS model
+    exists, so every real embed() call failed with Ollama's own 404 instead
+    of "auto" falling through to something that actually works."""
+    monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: True)
+    monkeypatch.setattr(base_mod, "ollama_has_model", lambda *a, **k: False)
+    monkeypatch.setattr(
+        base_mod.importlib.util, "find_spec",
+        lambda name: object() if name == "model2vec" else None,
+    )
+    emb = build_embedder(EmbeddingsCfg(enabled=True, provider="auto"))
+    assert isinstance(emb, BuiltinEmbedder) and emb.engine == "model2vec"
+
+
+def test_auto_falls_back_to_builtin_when_ollama_unreachable(monkeypatch):
     monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: False)
     monkeypatch.setattr(
         base_mod.importlib.util, "find_spec",

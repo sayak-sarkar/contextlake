@@ -78,6 +78,18 @@ class _RootArgumentParser(argparse.ArgumentParser):
     # ever changes the wording, this degrades gracefully to the fallback
     # super().error() dump below -- never a crash, just the old UX.
     _BAD_COMMAND_RE = re.compile(r"^argument <command>: invalid choice: '([^']+)'")
+    # parse_args() (called once, on the root parser -- see main()) is where argparse
+    # reports leftover tokens no subparser consumed; a flag that exists on a DIFFERENT
+    # subcommand than the one invoked (e.g. `bootstrap --local`, --local is init/source
+    # add only) ends up here, indistinguishable at this point from a genuine typo.
+    _BAD_FLAGS_RE = re.compile(r"^unrecognized arguments: (.+)$")
+    # Raised by the SUBPARSER that owns the flag (unlike the two patterns above,
+    # both root-only) when a value-taking flag is immediately followed by another
+    # recognized flag instead of a value -- e.g. `dashboard --workspace --open`:
+    # argparse never learns --workspace's value was meant to come first, and
+    # reports the flag as simply missing its argument, which reads as "what
+    # value?" rather than the real issue, flag ordering.
+    _MISSING_VALUE_RE = re.compile(r"^argument (-[^:]+): expected one argument$")
 
     def parse_known_args(self, args=None, namespace=None):
         # Stashed so error() can tell "genuinely mistyped command" apart from
@@ -100,6 +112,16 @@ class _RootArgumentParser(argparse.ArgumentParser):
                 # real issue is the unrecognized flag, not a mistyped command.
                 super().error(f"unrecognized arguments: {flag}")
             self.exit(2, self._unknown_command_text(bad))
+        m = self._BAD_FLAGS_RE.match(message)
+        if m:
+            text = self._unrecognized_flag_text(m.group(1))
+            if text is not None:
+                self.exit(2, text)
+        m = self._MISSING_VALUE_RE.match(message)
+        if m:
+            text = self._missing_value_text(m.group(1))
+            if text is not None:
+                self.exit(2, text)
         super().error(message)
 
     def _preceding_unrecognized_flag(self, bad):
@@ -135,6 +157,90 @@ class _RootArgumentParser(argparse.ArgumentParser):
             lines.append(f"Did you mean: {suggestion}?")
         lines.append("")
         lines.append(f"Run '{self.prog} --help' to see all commands.")
+        return "\n".join(lines) + "\n"
+
+    def _flags_by_command(self):
+        """``{command_name: {every registered flag string}}``, canonical names
+        only (aliases like 'who-knows'/'blast-radius' point at the same
+        subparser object as their canonical verb, so they'd otherwise show up
+        as a spurious extra "used by" entry for the same flags). Built once
+        and cached at the class level -- every subcommand's flags are fixed
+        for the lifetime of the process, and this is reachable from a
+        subparser's own error() too (not just the root's), since argparse
+        defaults every add_parser() to this same class (see build_parser()).
+        """
+        cached = getattr(_RootArgumentParser, "_flags_by_command_cache", None)
+        if cached is not None:
+            return cached
+        reg = {}
+        for name, subparser in getattr(self, "_command_choices", {}).items():
+            if name in _ALIASES:
+                continue
+            reg[name] = set(subparser._option_string_actions.keys())
+        _RootArgumentParser._flags_by_command_cache = reg
+        return reg
+
+    def _unrecognized_flag_text(self, raw):
+        """``raw`` is argparse's own leftover-token dump for "unrecognized
+        arguments" -- e.g. ``bootstrap --local`` leaves ``--local`` unconsumed
+        because that flag exists on init/source add, not bootstrap. Returns a
+        message naming which command(s) the flag DOES belong to (or, for a
+        genuine typo, the nearby valid flag on the command actually invoked);
+        None if there's nothing better to say than argparse's own message.
+        """
+        from . import style
+
+        bad = next((t for t in raw.split() if t.startswith("-")), None)
+        if bad is None:
+            return None
+        argv = getattr(self, "_last_argv", None) or []
+        choices = getattr(self, "_command_choices", {})
+        command = next((t for t in argv if t in choices), None)
+        canonical = _ALIASES.get(command, command)
+        flags_by_command = self._flags_by_command()
+
+        # An EXACT match on some other command is a certain, unambiguous signal --
+        # checked first so it can't be shadowed by a same-command fuzzy guess (e.g.
+        # `bootstrap --local` fuzzy-matching bootstrap's own --llm is a much worse
+        # answer than the true one: --local is real, just on init/source instead).
+        used_by = sorted(cmd for cmd, flags in flags_by_command.items()
+                         if bad in flags and cmd != canonical)
+        if used_by and canonical:
+            lines = [style.fail(f"{bad!r} isn't a flag on {canonical!r}"), "",
+                     f"It's used by: {', '.join(used_by)}.", "",
+                     f"Run '{self.prog} {canonical} --help' to see {canonical}'s own flags."]
+            return "\n".join(lines) + "\n"
+
+        this_commands_flags = flags_by_command.get(canonical, set())
+        typo = difflib.get_close_matches(bad, this_commands_flags, n=1, cutoff=0.75)
+        if typo:
+            lines = [style.fail(f"Unknown flag: {bad!r}"), "",
+                     f"Did you mean: {typo[0]}?"]
+            return "\n".join(lines) + "\n"
+        return None  # nothing sensible to say -- argparse's own message stands
+
+    def _missing_value_text(self, flag):
+        """``flag`` (e.g. ``--workspace``) reported "expected one argument" --
+        if the very next token in argv is itself a recognized flag (not a
+        value the user forgot to quote or that happens to start with '-'),
+        say so plainly instead of leaving the reader to guess why a value they
+        DID seem to provide "wasn't" one. None otherwise (a truly missing
+        value, or one that just happens to start with '-', gets no better
+        explanation than argparse's own).
+        """
+        from . import style
+
+        argv = getattr(self, "_last_argv", None) or []
+        try:
+            idx = argv.index(flag)
+        except ValueError:
+            return None
+        nxt = argv[idx + 1] if idx + 1 < len(argv) else None
+        if nxt is None or not nxt.startswith("-") or nxt not in self._option_string_actions:
+            return None
+        lines = [style.fail(f"{flag!r} needs a value, but the next token ({nxt!r}) is "
+                            "itself a recognized flag"), "",
+                 f"Put the value right after {flag}, e.g. '{flag} <value> {nxt}'."]
         return "\n".join(lines) + "\n"
 
 # Verbs handled by the optional knowledge layer (the [kb] extra).
@@ -284,7 +390,8 @@ def _root_hidden_flags(p):
     add("--retriever", choices=("fts", "semantic", "hybrid"))
     add("--direction", choices=["in", "out", "both"])
     add("--format", choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram",
-                             "statediagram", "erdiagram", "deploymentdiagram", "json"])
+                             "statediagram", "erdiagram", "deploymentdiagram", "graphml",
+                             "cypher", "json"])
     add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"])
     add("--site", nargs="?", const="")
 
@@ -645,7 +752,8 @@ Examples:
                    help="edge direction to follow (default both)")
     p.add_argument("--format", default=_S,
                    choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram",
-                           "statediagram", "erdiagram", "deploymentdiagram", "json"],
+                           "statediagram", "erdiagram", "deploymentdiagram", "graphml",
+                           "cypher", "json"],
                    help="output format (default html; classdiagram = UML Mermaid; "
                         "sequencediagram = Mermaid call-order trace, needs --node/--name/--search; "
                         "statediagram = Mermaid entity state machine from guarded field "
@@ -654,7 +762,8 @@ Examples:
                         "erdiagram = Mermaid table/view ER diagram from SQL DDL, no "
                         "attribute data, empty for ORM-only schemas; deploymentdiagram = "
                         "Mermaid Terraform resource diagram grouped by inferred category "
-                        "(network/compute/storage/database/security), Terraform-only)")
+                        "(network/compute/storage/database/security), Terraform-only; "
+                        "graphml = Gephi/yEd import; cypher = Neo4j/FalkorDB CREATE statements)")
     p.add_argument("--layout", default=_S,
                    choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
                    help="html: initial layout (default cose; switchable in the page)")

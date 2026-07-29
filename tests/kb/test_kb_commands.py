@@ -740,3 +740,30 @@ def test_serve_stdio_does_not_log_a_bind_url(tmp_path, gls_logs, monkeypatch):
     assert "Serving knowledge graph over MCP (stdio)" in gls_logs.text
     assert "http://" not in gls_logs.text
     assert "MCP server on" not in gls_logs.text
+
+
+def test_serve_ctrl_c_closes_the_store_then_hard_exits(tmp_path, gls_logs, monkeypatch):
+    """Reproduced directly (a real subprocess, 3 rapid SIGINTs): a second/third
+    Ctrl-C landing in the brief window while Python joins the mcp SDK's
+    background stdio-reader thread surfaces as a harmless but noisy "Exception
+    ignored while joining a thread in _thread._shutdown()" traceback fragment.
+    The fix is a hard os._exit() once OUR OWN cleanup has run -- this test
+    can't spawn that real subprocess scenario (os._exit would kill the test
+    process too), so it mocks os._exit to record the call instead of actually
+    exiting, and asserts store.close() happened strictly BEFORE it -- the
+    fix must not skip real cleanup on the way to skipping Python's."""
+    cfg = _kb_config(tmp_path)
+    monkeypatch.setattr(
+        "contextlake.kb.server.run_server",
+        lambda *a, **kw: (_ for _ in ()).throw(KeyboardInterrupt))
+    order = []
+    real_close = SqliteStore.close
+    monkeypatch.setattr(SqliteStore, "close",
+                        lambda self: (order.append("store.close"), real_close(self)))
+    monkeypatch.setattr("os._exit", lambda code: order.append(f"os._exit({code})"))
+
+    rc = commands_mod.cmd_serve(_serve_args(cfg, transport="stdio"))
+
+    assert rc == 0  # the function's own return value is unaffected by the mock
+    assert order == ["store.close", "os._exit(0)"]
+    assert "Stopping MCP server" in gls_logs.text

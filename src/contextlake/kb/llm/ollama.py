@@ -7,7 +7,9 @@ so prompts never leave the machine.
 
 from __future__ import annotations
 
-from .._util import post_json
+import urllib.error
+
+from .._util import describe_ollama_http_error, post_json
 from .base import LlmClient
 
 
@@ -24,5 +26,11 @@ class OllamaLlm(LlmClient):
         payload = {"model": self.model, "prompt": prompt, "stream": False}
         if system:
             payload["system"] = system
-        res = post_json(f"{self.base_url}/api/generate", payload, self.timeout)
+        try:
+            res = post_json(f"{self.base_url}/api/generate", payload, self.timeout)
+        except urllib.error.HTTPError as e:
+            # Only an explicit provider="ollama" reaches here for a missing model
+            # -- "auto" checks model availability first (see base.py's
+            # _resolve_auto_llm).
+            raise RuntimeError(describe_ollama_http_error(e, self.model)) from e
         return (res.get("response") or "").strip()

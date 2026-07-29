@@ -92,6 +92,71 @@ def test_unrecognized_flag_inside_a_subcommand_still_reports_correctly(capsys):
     assert "unrecognized arguments: --work-d" in err
 
 
+def test_flag_valid_on_a_different_command_names_that_command(capsys):
+    """`bootstrap --local` used to dump argparse's generic "unrecognized
+    arguments: --local" with no hint that --local is real, just not here (it's
+    an init/source flag) -- a genuine, observed stumble."""
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["bootstrap", "--local"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "'--local' isn't a flag on 'bootstrap'" in err
+    assert "init" in err and "source" in err
+    assert "unrecognized arguments" not in err
+
+
+def test_flag_typo_on_the_invoked_command_suggests_the_real_flag(capsys):
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["index", "--worksapce", "."])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "Unknown flag: '--worksapce'" in err
+    assert "Did you mean: --workspace?" in err
+
+
+def test_flag_valid_elsewhere_check_runs_before_same_command_fuzzy_guess(capsys):
+    """--local is lexically close to --llm (both short, both start '--l'), which
+    at a loose cutoff would have "corrected" it to the wrong, unrelated flag --
+    the exact used-by-another-command match must win over that fuzzy guess."""
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["bootstrap", "--local"])
+    err = capsys.readouterr().err
+    assert "--llm" not in err
+
+
+def test_unrecognized_flag_with_no_close_match_anywhere_falls_back(capsys):
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["index", "--totally-bogus-flag"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "unrecognized arguments: --totally-bogus-flag" in err
+    assert "isn't a flag on" not in err and "Unknown flag" not in err
+
+
+def test_value_taking_flag_followed_by_another_flag_names_the_real_problem(capsys):
+    """`dashboard --serve --workspace --open` -- argparse's own "expected one
+    argument" reads as "you forgot a value", when the real issue is --open
+    landing where --workspace's value belongs."""
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["dashboard", "--serve", "--workspace", "--open"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "'--workspace' needs a value" in err
+    assert "'--open'" in err
+    assert "expected one argument" not in err
+
+
+def test_value_taking_flag_genuinely_missing_a_value_keeps_argparses_message(capsys):
+    """Regression guard: a flag missing its value with nothing (not even
+    another flag) after it has no better explanation to offer -- must not
+    regress to a worse or misleading message."""
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["dashboard", "--workspace"])
+    err = capsys.readouterr().err
+    assert "expected one argument" in err
+    assert "needs a value" not in err
+
+
 def test_n_is_a_short_form_of_dry_run():
     args = build_parser().parse_args(["sync", "-n"])
     assert args.dry_run is True

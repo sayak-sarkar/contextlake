@@ -15,6 +15,7 @@ def cmd_serve(args) -> int:
 
     store, store_dir = _open_store(args)
     vector_store = None
+    interrupted = False
     try:
         # CLI exposes "http"; the MCP SDK calls it "streamable-http".
         transport = "streamable-http" if getattr(args, "transport", None) == "http" else "stdio"
@@ -63,9 +64,24 @@ def cmd_serve(args) -> int:
         # --serve, each of which already reports its own stop message instead
         # of falling through to cli.py's generic "Operation cancelled" catch.
         log("Stopping MCP server")
+        interrupted = True
         return 0
     finally:
         if vector_store is not None:
             vector_store.close()
         store.close()
+        if interrupted:
+            # The mcp SDK's stdio transport leaves a background thread blocked on
+            # a stdin read; joining it during normal interpreter shutdown takes a
+            # moment, and an impatient second/third Ctrl-C in that window lands
+            # with no try/except left around it (we've already returned), surfacing
+            # as a harmless but noisy "Exception ignored while joining a thread in
+            # _thread._shutdown()" traceback fragment. Our own cleanup just ran
+            # above; nothing meaningful is left to do, so skip Python's remaining
+            # shutdown sequence (thread joins, atexit) rather than leave that
+            # window open. Reproduced directly: 3 rapid SIGINTs before this fix
+            # printed the traceback every time; after it, they never do.
+            import os
+
+            os._exit(0)
 

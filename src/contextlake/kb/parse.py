@@ -770,7 +770,7 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
     checkout wins and the other is skipped with a logged reason, never silently.
     """
     from .. import style
-    from .repo_identity import is_own_gitdir, resolve_repo_id
+    from .repo_identity import describe_gitdir_mismatch, is_own_gitdir, resolve_repo_id
 
     base = Path(root)
     by_id: dict[str, str] = {}
@@ -783,15 +783,13 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
                 log(f"  skip vendored repo {rel}")
                 continue
             if not is_own_gitdir(str(here)):
-                # .git exists but is incomplete/corrupted -- git itself would
-                # walk up to an unrelated ancestor repo for every subsequent
-                # git call against this path, silently misattributing its
-                # identity and history. Skip rather than index under the
-                # wrong repo entirely.
-                log(style.warn(
-                    f"  skip {rel}: .git is present but incomplete or corrupted "
-                    "(git cannot resolve it to this directory) -- re-clone or "
-                    "remove it"))
+                # Two genuinely different git-level situations collapse to the same
+                # skip decision here (see describe_gitdir_mismatch's docstring for
+                # why they're worth telling apart in the message): a dangling
+                # gitlink git can't resolve at all, or -- the dangerous one -- git
+                # resolving fine but to an ANCESTOR repo, which would silently
+                # misattribute this directory's identity and history if not skipped.
+                log(style.warn(f"  skip {rel}: {describe_gitdir_mismatch(str(here))}"))
                 continue
             rid = resolve_repo_id(str(here))
             prior = by_id.get(rid)

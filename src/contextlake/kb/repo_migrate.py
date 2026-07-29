@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..logging_setup import log
-from .repo_identity import is_own_gitdir, resolve_repo_id
+from .repo_identity import describe_gitdir_mismatch, is_own_gitdir, resolve_repo_id
 from .store.shards import history_path, shard_path
 
 
@@ -86,12 +86,13 @@ def migrate_stale_repo_ids(store, store_dir) -> MigrationResult:
             result.skipped_missing_path.append(repo.id)
             continue
         if not is_own_gitdir(repo.path):
-            # .git has gone corrupted/incomplete since indexing -- git would
-            # silently resolve an ancestor repo's identity instead. Trusting
-            # that here would delete this repo's real data on a false "id
-            # changed" signal and never correctly re-index it. Leave the row
-            # as-is, same as a missing checkout.
-            log(f"  note: {repo.id} at {repo.path} has a corrupted .git; "
+            # .git no longer resolves to this exact directory since indexing --
+            # either git can't find it at all, or (the dangerous case) it silently
+            # resolves an ancestor repo's identity instead. Trusting either here
+            # would delete this repo's real data on a false "id changed" signal
+            # and never correctly re-index it. Leave the row as-is, same as a
+            # missing checkout.
+            log(f"  note: {repo.id} at {repo.path}: {describe_gitdir_mismatch(repo.path)}; "
                 "skipping id migration for it")
             result.skipped_missing_path.append(repo.id)
             continue

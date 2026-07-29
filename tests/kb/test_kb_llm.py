@@ -1,7 +1,10 @@
 """Tests for the LLM client abstraction (no live model)."""
 
+import io
+import json
 import sys
 import types
+import urllib.error
 
 import pytest
 
@@ -63,6 +66,21 @@ def test_ollama_generate(monkeypatch):
     assert seen["payload"]["system"] == "be precise" and seen["payload"]["stream"] is False
 
 
+def test_ollama_generate_404_names_the_real_reason_and_the_fix(monkeypatch):
+    error = 'model "llama3.1" not found, try pulling it first'
+    body = json.dumps({"error": error}).encode()
+
+    def fake_post(url, payload, timeout):
+        raise urllib.error.HTTPError(url, 404, "Not Found", {}, io.BytesIO(body))
+
+    monkeypatch.setattr(ollama_mod, "post_json", fake_post)
+    with pytest.raises(RuntimeError) as exc:
+        OllamaLlm(model="llama3.1", base_url="http://x:11434").generate("hi")
+    msg = str(exc.value)
+    assert 'model "llama3.1" not found' in msg
+    assert "ollama pull llama3.1" in msg
+
+
 # --- built-in LLM -----------------------------------------------------------
 
 def test_default_provider_is_auto():
@@ -89,12 +107,25 @@ def test_builtin_generate_mocked(monkeypatch):
     assert out == "echo:write docs"  # stripped
 
 
-def test_auto_prefers_reachable_ollama(monkeypatch):
+def test_auto_prefers_reachable_ollama_that_has_the_model(monkeypatch):
     monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: True)
+    monkeypatch.setattr(base_mod, "ollama_has_model", lambda *a, **k: True)
     assert isinstance(build_llm(LlmCfg(enabled=True, provider="auto")), OllamaLlm)
 
 
-def test_auto_falls_back_to_builtin(monkeypatch):
+def test_auto_falls_back_to_builtin_when_ollama_reachable_but_missing_the_model(monkeypatch):
+    """Same real bug as embeddings: Ollama running for one chat model (not the
+    "auto" default) used to still get picked, then fail on first generate()."""
+    monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: True)
+    monkeypatch.setattr(base_mod, "ollama_has_model", lambda *a, **k: False)
+    monkeypatch.setattr(
+        base_mod.importlib.util, "find_spec",
+        lambda name: object() if name == "llama_cpp" else None,
+    )
+    assert isinstance(build_llm(LlmCfg(enabled=True, provider="auto")), BuiltinLlm)
+
+
+def test_auto_falls_back_to_builtin_when_ollama_unreachable(monkeypatch):
     monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: False)
     monkeypatch.setattr(
         base_mod.importlib.util, "find_spec",

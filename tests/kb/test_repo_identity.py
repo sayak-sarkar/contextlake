@@ -4,6 +4,7 @@ import subprocess
 
 from contextlake.kb.repo_identity import (
     canonical_repo_id,
+    describe_gitdir_mismatch,
     is_own_gitdir,
     normalize_remote_url,
     resolve_repo_id,
@@ -105,3 +106,57 @@ def test_is_own_gitdir_false_for_a_corrupted_git_that_walks_up_to_an_ancestor(tm
     # Sanity: git really does walk up and resolve the ancestor's remote here --
     # this is the trap is_own_gitdir exists to catch, not a hypothetical.
     assert canonical_repo_id(str(broken)) == "example.com/acme/ancestor"
+
+
+def test_is_own_gitdir_true_for_a_real_intact_worktree(tmp_path):
+    """Regression guard for the "does this false-positive on legitimate
+    gitlinks" question: a real `git worktree add` checkout has a `.git` FILE
+    (not a directory) pointing at the main repo's `.git/worktrees/<name>` --
+    empirically confirmed this resolves correctly to the worktree's OWN
+    directory, not the main repo's, so it must NOT be flagged."""
+    main = tmp_path / "main-repo"
+    _init_repo(main, remote="https://example.com/acme/main.git")
+    wt = tmp_path / "linked-worktree"
+    _git(main, "worktree", "add", "-q", str(wt), "-b", "a-branch")
+    assert is_own_gitdir(str(wt)) is True
+
+
+def test_is_own_gitdir_true_for_a_real_intact_submodule(tmp_path):
+    """Same regression guard, for a submodule's `.git` file (points at
+    `<super>/.git/modules/<name>`) -- also resolves to its own directory."""
+    sub_source = tmp_path / "sub-source"
+    _init_repo(sub_source, remote="https://example.com/acme/sub.git")
+    super_repo = tmp_path / "super"
+    _init_repo(super_repo, remote="https://example.com/acme/super.git")
+    subprocess.run(
+        ["git", "-c", "protocol.file.allow=always", "-C", str(super_repo),
+         "submodule", "add", "-q", str(sub_source), "subm"],
+        check=True, capture_output=True, text=True,
+    )
+    assert is_own_gitdir(str(super_repo / "subm")) is True
+
+
+def test_describe_gitdir_mismatch_names_the_ancestor_it_resolved_to(tmp_path):
+    ancestor = tmp_path / "workspace"
+    _init_repo(ancestor, remote="https://example.com/acme/ancestor.git")
+    broken = ancestor / "nested" / "broken-checkout"
+    broken.mkdir(parents=True)
+    (broken / ".git").mkdir()
+    (broken / ".git" / "HEAD").write_text("not a real gitdir\n")
+    msg = describe_gitdir_mismatch(str(broken))
+    assert "DIFFERENT, ancestor directory" in msg
+    assert str(ancestor.resolve()) in msg
+
+
+def test_describe_gitdir_mismatch_says_git_cant_find_it_for_a_dangling_gitlink(tmp_path):
+    """A gitlink `.git` file pointing at storage that doesn't exist (e.g. a
+    submodule directory copied without its `.git/modules/` companion) -- git
+    errors outright here, it does NOT silently walk up to any ancestor, so the
+    message must say so, not claim an ancestor was found."""
+    orphan = tmp_path / "orphan-gitlink"
+    orphan.mkdir()
+    (orphan / ".git").write_text("gitdir: ../.git/modules/never-existed\n")
+    assert is_own_gitdir(str(orphan)) is False
+    msg = describe_gitdir_mismatch(str(orphan))
+    assert "can't find a repository here at all" in msg
+    assert "ancestor" not in msg

@@ -7,7 +7,9 @@ Uses the stable ``POST /api/embeddings`` endpoint ({"model","prompt"} ->
 
 from __future__ import annotations
 
-from .._util import post_json
+import urllib.error
+
+from .._util import describe_ollama_http_error, post_json
 from .base import Embedder
 
 
@@ -26,6 +28,12 @@ class OllamaEmbedder(Embedder):
         url = f"{self.base_url}/api/embeddings"
         out: list[list[float]] = []
         for text in texts:
-            res = post_json(url, {"model": self.model, "prompt": text}, self.timeout)
+            try:
+                res = post_json(url, {"model": self.model, "prompt": text}, self.timeout)
+            except urllib.error.HTTPError as e:
+                # Only an explicit provider="ollama" reaches here for a missing
+                # model -- "auto" checks model availability first (see base.py's
+                # _resolve_auto_embedder).
+                raise RuntimeError(describe_ollama_http_error(e, self.model)) from e
             out.append([float(x) for x in res.get("embedding", [])])
         return out

@@ -9,7 +9,7 @@ from __future__ import annotations
 import importlib.util
 from abc import ABC, abstractmethod
 
-from .._util import ollama_reachable
+from .._util import ollama_has_model, ollama_reachable
 
 
 class LlmClient(ABC):
@@ -98,14 +98,22 @@ def _build_builtin_llm(cfg):
 
 
 def _resolve_auto_llm(cfg) -> LlmClient | None:
-    """Resolve provider="auto": a reachable local Ollama, else the built-in LLM if
-    llama-cpp-python is importable, else None (graceful skip). Never raises."""
+    """Resolve provider="auto": a reachable local Ollama that actually HAS the
+    target model pulled, else the built-in LLM if llama-cpp-python is
+    importable, else None (graceful skip). Never raises.
+
+    Same fix as embeddings' _resolve_auto_embedder, same reason: the daemon
+    being reachable says nothing about whether THIS model exists there. A very
+    plausible real setup for this tier specifically -- Ollama pulled for one
+    chat model (e.g. `qwen2.5:3b`) but not the "auto" default (`llama3.1`) --
+    would otherwise still get picked and fail on first real generate() call.
+    """
     base_url = getattr(cfg, "base_url", "http://127.0.0.1:11434")
-    if ollama_reachable(base_url):
+    model = getattr(cfg, "model", None) or "llama3.1"
+    if ollama_reachable(base_url) and ollama_has_model(base_url, model):
         from .ollama import OllamaLlm
 
-        return OllamaLlm(model=getattr(cfg, "model", None) or "llama3.1", base_url=base_url,
-                         timeout=getattr(cfg, "timeout", 300))
+        return OllamaLlm(model=model, base_url=base_url, timeout=getattr(cfg, "timeout", 300))
     if importlib.util.find_spec("llama_cpp") is not None:
         return _build_builtin_llm(cfg)
     return None

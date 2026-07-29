@@ -275,6 +275,97 @@ def test_dot_and_mermaid_export(store):
     assert viz.to_mermaid(p).startswith("graph LR")
 
 
+def test_graphml_export_is_well_formed_xml_with_attributes(store):
+    _hub(store, leaves=3)
+    p = _payload(store)
+    text = viz.to_graphml(p)
+    assert text.startswith('<?xml version="1.0" encoding="UTF-8"?>')
+
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(text)
+    ns = {"g": "http://graphml.graphdrawing.org/xmlns"}
+    nodes = root.findall(".//g:node", ns)
+    edges = root.findall(".//g:edge", ns)
+    assert len(nodes) == len(p["nodes"])
+    assert len(edges) == len(p["edges"])
+    # every node carries its kind/name as declared <data> keys, not just an id
+    kinds = {d.get("key") for n in nodes for d in n.findall("g:data", ns)}
+    assert "n_kind" in kinds and "n_name" in kinds
+
+
+def test_graphml_escapes_xml_special_characters_in_attribute_values():
+    payload = viz.to_payload(
+        [_node("n1", name='A<B>&"weird"')], [],
+    )
+    text = viz.to_graphml(payload)
+    assert "A<B>" not in text  # raw '<'/'>' would corrupt the XML structure
+    assert "&lt;B&gt;" in text
+    # still parses cleanly despite the adversarial name
+    import xml.etree.ElementTree as ET
+    ET.fromstring(text)
+
+
+def test_graphml_skips_edges_with_a_missing_endpoint(store):
+    _hub(store, leaves=3)
+    p = _payload(store)
+    p["edges"].append({"src": p["nodes"][0]["id"], "dst": "does-not-exist",
+                       "relation": "calls", "confidence": "EXTRACTED", "weight": 1.0})
+    text = viz.to_graphml(p)
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(text)
+    ns = {"g": "http://graphml.graphdrawing.org/xmlns"}
+    # the dangling edge must not appear at all (not even as a broken reference)
+    assert len(root.findall(".//g:edge", ns)) == len(p["edges"]) - 1
+
+
+def test_cypher_export_shape(store):
+    _hub(store, leaves=3)
+    p = _payload(store)
+    text = viz.to_cypher(p)
+    lines = text.splitlines()
+    node_lines = [ln for ln in lines if ln.startswith("CREATE (n") and "]->" not in ln]
+    edge_lines = [ln for ln in lines if "]->" in ln]
+    assert len(node_lines) == len(p["nodes"])
+    assert len(edge_lines) == len(p["edges"])
+    assert 'id: "H"' in text  # the real node id survives as a property, not just the alias
+
+
+def test_cypher_backtick_quotes_open_vocabulary_kind_and_relation():
+    # kind/relation are free text (kb/model.py) -- a value with characters
+    # invalid in a bare Cypher identifier (space, hyphen) must still produce
+    # syntactically valid Cypher via backtick-quoting, not a bare (and broken)
+    # label/relationship-type.
+    payload = viz.to_payload(
+        [_node("n1", name="A", kind="http endpoint"), _node("n2", name="B", kind="db-table")],
+        [_edge("n1", "n2", relation="calls via http")],
+    )
+    text = viz.to_cypher(payload)
+    assert "`http endpoint`" in text
+    assert "`db-table`" in text
+    assert "`calls via http`" in text
+
+
+def test_cypher_escapes_a_literal_backtick_in_kind_by_doubling_it():
+    payload = viz.to_payload([_node("n1", name="A", kind="weird`kind")], [])
+    text = viz.to_cypher(payload)
+    assert "weird``kind" in text
+
+
+def test_cypher_escapes_quotes_and_backslashes_in_string_properties():
+    payload = viz.to_payload([_node("n1", name='say "hi"\\there')], [])
+    text = viz.to_cypher(payload)
+    assert 'say \\"hi\\"\\\\there' in text
+
+
+def test_cypher_skips_edges_with_a_missing_endpoint(store):
+    _hub(store, leaves=3)
+    p = _payload(store)
+    p["edges"].append({"src": p["nodes"][0]["id"], "dst": "does-not-exist",
+                       "relation": "calls", "confidence": "EXTRACTED", "weight": 1.0})
+    text = viz.to_cypher(p)
+    assert "does-not-exist" not in text
+
+
 def test_mermaid_edge_label_pipe_does_not_break_delimiter_syntax():
     # A literal "|" in a relation string used to slip straight through _mermaid_escape
     # and break the `-->|label|` delimiter, producing invalid Mermaid (confirmed by

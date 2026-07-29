@@ -18,7 +18,8 @@ import urllib.parse
 from pathlib import Path
 
 __all__ = [
-    "normalize_remote_url", "canonical_repo_id", "is_own_gitdir", "resolve_repo_id", "run_git",
+    "normalize_remote_url", "canonical_repo_id", "describe_gitdir_mismatch", "is_own_gitdir",
+    "resolve_repo_id", "run_git",
 ]
 
 _GIT_TIMEOUT = 5.0
@@ -75,6 +76,36 @@ def is_own_gitdir(path: str) -> bool:
         return Path(top).resolve() == Path(path).resolve()
     except OSError:
         return False
+
+
+def describe_gitdir_mismatch(path: str) -> str:
+    """A specific, accurate reason ``is_own_gitdir(path)`` returned False, for
+    a caller's warning message. Verified empirically (real submodules/
+    worktrees resolve fine and never reach here) that this only fires for two
+    genuinely distinct git-level situations, worth telling apart rather than
+    collapsing into one generic "corrupted" message:
+
+    - git can't find a repository here **at all** -- a dangling gitlink (a
+      submodule/worktree ``.git`` file pointing at real storage that's
+      missing, e.g. copied without its ``.git/modules/`` companion, or a
+      worktree whose main repo's registry entry was removed). Re-clone or
+      remove is the right advice; there's nothing here to repair in place.
+    - git resolves it just fine, to a **different, ancestor** directory (an
+      incomplete ``.git`` sitting inside another repo's own working tree) --
+      the dangerous silent-misattribution case this whole check exists to
+      catch: every subsequent git call here would otherwise inherit that
+      ancestor's identity and history instead of failing loudly.
+    """
+    top = run_git(path, "rev-parse", "--show-toplevel")
+    if not top:
+        return ("git can't find a repository here at all -- most likely a dangling "
+                "submodule/worktree link whose real storage is missing -- re-clone or remove it")
+    try:
+        resolved = str(Path(top).resolve())
+    except OSError:
+        return "git reported a toplevel path that can't be resolved -- re-clone or remove it"
+    return (f"git resolves it to a DIFFERENT, ancestor directory ({resolved}), not this one -- "
+            "likely nested inside another repo's working tree by accident")
 
 
 def canonical_repo_id(path: str) -> str | None:

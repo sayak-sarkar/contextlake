@@ -1,0 +1,30 @@
+/* contextlake site — shared brand color/type tokens (index.html + generated docs pages).
+   Canonical values: BRANDING.md §3 (light) / §3.4 (moonlit-navy dark). Single source of
+   truth so the two surfaces can't drift out of sync the way they used to (each defined
+   its own identical copy independently). Page-specific extras (shadows, code-block
+   colors, layout dimensions, etc.) stay local to index.html's own <style> / docs.css. */
+:root{
+  --deepwater:#0E2A33; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4;
+  --shore:#D7C5A0; --sun:#E7B53C;
+  --bg:#f4fafb; --surface:#ffffff; --ink:#0E2A33; --muted:#41606a; --subtle:#6c878f;
+  --line:#d6e6e9; --line-2:#c2d8dc;
+  --link:#137A8B; --link-hover:#0f6473;
+  --ff: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ff-d: "Space Grotesk", var(--ff);
+  --ff-m: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --rs: 9px;
+}
+/* dark theme: explicit toggle wins; otherwise the @media block below follows the OS
+   unless the reader chose light. */
+:root[data-theme="dark"]{
+  --deepwater:#081D30; --bg:#0C2438; --surface:#15314C; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
+  --line:#274864; --line-2:#375672;
+  --link:#2BB3A3; --link-hover:#54c9bb;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --deepwater:#081D30; --bg:#0C2438; --surface:#15314C; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
+    --line:#274864; --line-2:#375672;
+    --link:#2BB3A3; --link-hover:#54c9bb;
+  }
+}

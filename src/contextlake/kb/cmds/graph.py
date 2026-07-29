@@ -27,7 +27,7 @@ def cmd_graph(args) -> int:
     # _open_store loads config and may warn on an unknown key.
     fmt = getattr(args, "format", None) or "html"
     if (fmt in ("json", "dot", "mermaid", "classdiagram", "sequencediagram", "statediagram",
-               "erdiagram", "deploymentdiagram")
+               "erdiagram", "deploymentdiagram", "graphml", "cypher")
             and not getattr(args, "output", None) and not getattr(args, "serve", False)):
         from ...logging_setup import use_stderr
         use_stderr()
@@ -188,6 +188,10 @@ def cmd_graph(args) -> int:
             text = viz.to_er_diagram(payload)
         elif fmt == "deploymentdiagram":
             text = viz.to_deployment_diagram(payload)
+        elif fmt == "graphml":
+            text = viz.to_graphml(payload)
+        elif fmt == "cypher":
+            text = viz.to_cypher(payload)
         else:
             text = viz.to_html(payload, cdn=cdn, layout=layout)
 

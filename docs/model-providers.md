@@ -4,12 +4,15 @@ Both the embeddings and wiki tiers are pluggable and take a `provider`, defaulti
 by what may leave your machine and what hardware you have.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable AND already has the target model pulled, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
 </p>
 
-- **`auto`** (default), resolves to a reachable local **Ollama**, else the **built-in** CPU model if its
-  extra is installed, else it skips that tier. So the semantic/wiki tiers Just Work the moment you set
-  `enabled = true`, with no daemon and no API key.
+- **`auto`** (default), resolves to a reachable local **Ollama** that already has the target model
+  pulled, else the **built-in** CPU model if its extra is installed, else it skips that tier.
+  Reachability alone isn't enough to pick Ollama — a daemon running for other models (e.g. just a chat
+  model, with no embedding model ever pulled) falls straight through to the built-in tier instead of
+  failing on first real use. So the semantic/wiki tiers Just Work the moment you set `enabled = true`,
+  with no daemon and no API key.
 - **`builtin`**, a small model that runs **in-process on CPU**, auto-downloaded once to `cache_dir`
   (default `~/.contextlake/models`). Zero daemon, zero API key.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,

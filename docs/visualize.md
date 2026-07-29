@@ -72,7 +72,18 @@ Output is chosen with `--format`:
   type-name interpolation references draw the connections between resources. A single-category view
   renders flat (no subgraph wrapper). **Terraform-only** (HCL is the only IaC language the extractor
   parses): a repo with no `.tf` files renders an empty diagram with guidance, not a bug.
-- **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
+- **`graphml`**, the standard [GraphML](http://graphml.graphdrawing.org/) interchange format for
+  [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake graph --repo
+  acme/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,
+  file, line, lang / relation, confidence, weight) as GraphML `<data>` keys, so Gephi's own filter and
+  color-by-attribute tools work directly against them — not just a bare shape.
+- **`cypher`**, `CREATE` statements for a [Neo4j](https://neo4j.com/)/[FalkorDB](https://www.falkordb.com/)
+  import: `contextlake graph --repo acme/app --format cypher --output g.cypher`, then `cypher-shell -f
+  g.cypher` (or FalkorDB's own loader). Node labels come from `kind`, relationship types from `relation`
+  — both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
+  quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).
+- **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
+  `--format graphml` instead — real typed attributes, not a bespoke shape to parse).
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without

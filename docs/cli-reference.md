@@ -19,9 +19,42 @@ Run 'contextlake --help' to see all commands.
 The match runs against every command name **and its aliases** (`blast-radius` for `impact`, `who-knows`
 for `owners`), then shows the canonical verb, matching what `--help` teaches.
 
-Flags never match on a partial name. `contextlake index --work-d /tmp` reports `unrecognized arguments:
---work-d` rather than silently guessing you meant `--workspace`: a partial flag is treated the same as an
-unknown one, so a typo fails loudly instead of doing the wrong thing.
+Flags never match on a partial name or abbreviation. `contextlake index --work-d /tmp` reports
+`unrecognized arguments: --work-d` rather than silently guessing you meant `--workspace`: a prefix is
+treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
+
+A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
+letter -- not a shortened prefix) does get a suggestion, scoped to that command's own flags:
+
+```
+$ contextlake index --worksapce .
+✗ Unknown flag: '--worksapce'
+
+Did you mean: --workspace?
+```
+
+A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
+reporting it as simply unrecognized:
+
+```
+$ contextlake bootstrap --local
+✗ '--local' isn't a flag on 'bootstrap'
+
+It's used by: init, source.
+
+Run 'contextlake bootstrap --help' to see bootstrap's own flags.
+```
+
+A value-taking flag immediately followed by another recognized flag (its value was left out, so the next
+flag lands where the value should be) names the real problem instead of arguing you forgot a value
+entirely:
+
+```
+$ contextlake dashboard --serve --workspace --open
+✗ '--workspace' needs a value, but the next token ('--open') is itself a recognized flag
+
+Put the value right after --workspace, e.g. '--workspace <value> --open'.
+```
 
 ## Knowledge-layer commands
 

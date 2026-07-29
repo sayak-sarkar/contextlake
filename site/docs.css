@@ -1,33 +1,23 @@
-/* contextlake docs — shared styling, aligned to the landing brand */
+/* contextlake docs — shared styling, aligned to the landing brand.
+   Shared brand tokens (--deepwater/--lake/--bg/--ink/--link/etc., light+dark) now
+   load from tokens.css -- these :root blocks add only the tokens specific to docs
+   pages (prose colors, code-block colors, hover states). */
 :root{
-  --deepwater:#0E2A33; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4;
-  --shore:#D7C5A0; --sun:#E7B53C;
-  --bg:#f4fafb; --surface:#ffffff; --ink:#0E2A33; --muted:#41606a; --subtle:#6c878f;
-  --line:#d6e6e9; --line-2:#c2d8dc;
-  /* semantic tokens so the dark theme is a pure variable swap */
-  --link:#137A8B; --link-hover:#0f6473; --prose-ink:#26414a;
+  --prose-ink:#26414a;
   --code-bg:#e9f1f2; --code-ink:#0c3a44; --pre-bg:#0E2A33;
   --hover:#e9f4f5; --callout-bg:#eef7f8; --callout-ink:#2f4d55; --row-alt:#f6fafb;
   --iconbtn-hover:#eef6f7; --hero-tint:#dcecee; --card-shadow:rgba(14,42,51,.14);
-  --ff: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --ff-d: "Space Grotesk", var(--ff);
-  --ff-m: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --rs: 9px;
 }
 /* dark theme: explicit toggle wins; otherwise follow the OS unless the reader chose light */
 :root[data-theme="dark"]{
-  --deepwater:#081D30; --bg:#0C2438; --surface:#15314C; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
-  --line:#274864; --line-2:#375672;
-  --link:#2BB3A3; --link-hover:#54c9bb; --prose-ink:#cbdde0;
+  --prose-ink:#cbdde0;
   --code-bg:#142F49; --code-ink:#d6ecee; --pre-bg:#06182A;
   --hover:#1E3C58; --callout-bg:#132C48; --callout-ink:#c3d6d9; --row-alt:#112B44;
   --iconbtn-hover:#1E3C58; --hero-tint:#142F4A; --card-shadow:rgba(0,0,0,.4);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --deepwater:#081D30; --bg:#0C2438; --surface:#15314C; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
-    --line:#274864; --line-2:#375672;
-    --link:#2BB3A3; --link-hover:#54c9bb; --prose-ink:#cbdde0;
+    --prose-ink:#cbdde0;
     --code-bg:#142F49; --code-ink:#d6ecee; --pre-bg:#06182A;
     --hover:#1E3C58; --callout-bg:#132C48; --callout-ink:#c3d6d9; --row-alt:#112B44;
     --iconbtn-hover:#1E3C58; --hero-tint:#142F4A; --card-shadow:rgba(0,0,0,.4);

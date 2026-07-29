@@ -613,6 +613,7 @@ def shell(meta, body, toc_html) -> str:
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
 <link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="docs.css">
 <link rel="stylesheet" href="cmdk.css">
 </head>

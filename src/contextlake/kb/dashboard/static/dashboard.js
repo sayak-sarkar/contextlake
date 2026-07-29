@@ -768,30 +768,42 @@
     var scopeWrap = h("div", { class: "cl-diagram-scope" });
     var body = h("div", { class: "cl-panel__body" });
     var currentModule = null;
-    var modulesLoaded = false;
+    var modulesPromise = null;
+    // The very first truncated response auto-scopes to the repo's largest
+    // module instead of showing an arbitrary alphabetical (often vendored-code-
+    // biased -- e.g. "ExternalProjects/" sorts before "src/") slice by default.
+    // Only applies once: after that, whatever the user picks (including
+    // explicitly choosing "Whole repo") sticks across format tab switches.
+    var autoDefaultApplied = false;
 
     // Only fetched once a diagram actually comes back truncated -- a repo small
-    // enough to render whole never pays for this extra round trip.
-    function ensureModulePicker() {
-      if (modulesLoaded) return;
-      modulesLoaded = true;
-      CL.data.repoModules(id).then(function (res) {
-        var mods = res.modules || [];
-        if (mods.length < 2) return; // one giant module is no scope-down at all
-        clear(scopeWrap);
-        var select = h("select", {
-          class: "cl-select", "aria-label": "Scope diagram to one module",
-          onchange: function (ev) {
-            currentModule = ev.target.value || null;
-            renderFmt(currentFmt);
-          }
-        }, h("option", { value: "" }, "Whole repo (truncated)"),
-           mods.map(function (m) {
-             return h("option", { value: m.prefix }, m.prefix + " (" + m.nodes + ")");
-           }));
-        scopeWrap.appendChild(h("label", { class: "cl-diagram-scope__label" },
-          "This repo is too large to show in one diagram — ", select));
-      }).catch(function () { /* scope-down is a convenience, not essential -- fail quiet */ });
+    // enough to render whole never pays for this extra round trip. Cached as a
+    // promise so the auto-default and the dropdown population share one fetch.
+    function loadModules() {
+      if (!modulesPromise) modulesPromise = CL.data.repoModules(id).catch(function () {
+        return { modules: [] }; // scope-down is a convenience, not essential -- fail quiet
+      });
+      return modulesPromise;
+    }
+
+    // Caller clears scopeWrap first -- rebuilt fresh on every truncated render so
+    // the <select>'s value stays synced to currentModule (which can change via
+    // the auto-default below, not just a user click).
+    function populateModulePicker(mods) {
+      if (mods.length < 2) return; // one giant module is no scope-down at all
+      var select = h("select", {
+        class: "cl-select", "aria-label": "Scope diagram to one module",
+        onchange: function (ev) {
+          currentModule = ev.target.value || null;
+          renderFmt(currentFmt);
+        }
+      }, h("option", { value: "" }, "Whole repo (truncated)"),
+         mods.map(function (m) {
+           return h("option", { value: m.prefix }, m.prefix + " (" + m.nodes + ")");
+         }));
+      select.value = currentModule || "";
+      scopeWrap.appendChild(h("label", { class: "cl-diagram-scope__label" },
+        "This repo is too large to show in one diagram — ", select));
     }
 
     var currentFmt = null;
@@ -802,10 +814,20 @@
       });
       clear(body); body.appendChild(skeleton(1));
       CL.data.diagram(id, fmt, currentModule).then(function (res) {
-        clear(body);
-        if (res.error) { body.appendChild(stateBlock({ kind: "error", title: "Unknown diagram format" })); return; }
-        if (res.truncated) ensureModulePicker();
-        body.appendChild(mermaidCard(res.text));
+        if (res.error) { clear(body); body.appendChild(stateBlock({ kind: "error", title: "Unknown diagram format" })); return; }
+        if (!res.truncated) { clear(body); body.appendChild(mermaidCard(res.text)); return; }
+        loadModules().then(function (modRes) {
+          var mods = modRes.modules || [];
+          if (!autoDefaultApplied && currentModule === null && mods.length) {
+            autoDefaultApplied = true;
+            currentModule = mods[0].prefix; // largest module -- see repo_modules()'s own ranking
+            renderFmt(fmt); // re-fetch scoped to it instead of rendering the arbitrary whole-repo slice
+            return;
+          }
+          clear(scopeWrap);
+          populateModulePicker(mods);
+          clear(body); body.appendChild(mermaidCard(res.text));
+        });
       }).catch(function (e) {
         clear(body);
         body.appendChild(stateBlock({ kind: "error", title: "Couldn't load this diagram", msg: String(e) }));
