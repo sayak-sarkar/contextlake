@@ -405,19 +405,21 @@ This section is canon. Pebble and the context-pebble are fixed; their silhouette
 
 ### 5.1 Who Pebble is
 
-Pebble is a small, friendly, innocent-faced **warm brown river otter** who surfaces from the contextlake cradling a glowing translucent **context-pebble** in both forepaws, offering it forward. Read in one beat: *"I went down, I found the real thing, here it is."* Calm, competent, never frantic. Pebble is the embodiment of the anti-hallucination promise, it returns with real context, not a guess.
+Pebble is a small, friendly, innocent-faced **dark blue-grey river otter** who surfaces from the contextlake cradling a glowing translucent **context-pebble** in both forepaws, offering it forward. Read in one beat: *"I went down, I found the real thing, here it is."* Calm, competent, never frantic. Pebble is the embodiment of the anti-hallucination promise, it returns with real context, not a guess.
 
-**A note on "brown," measured, not eyeballed (2026-07-28):** sampling actual pixels from shipped art
-(`docs/img/pebble-peek.png`, `docs/img/icon-512.png`) shows the crown/back sit in the scene's ambient
-cool lake-light and read as a dark, cool-cast charcoal in shadow (`#1C2D33`–`#2A393E`) — that's
-**lighting, not fur color**. The muzzle, cheeks, and paws, which catch more direct light, read as clearly
-warm tan/cream (`#D9CA99`–`#FBE7AB`), and mid-tone fur in better light reads as genuine warm umber-brown
-(`~#A0876A`). Pebble's fur is brown; do not flatten the whole body to one cool-grey value the way the
-now-retired flat mark did (§2) — that drift is exactly how this doc ended up saying "dark blue-grey" in
-the first place. See §5.3 for the corrected ramp.
+**Corrected back to blue-grey (2026-07-28), after a same-day detour to "brown."** A pixel-sampling exercise
+against `docs/img/pebble-peek.png`/`icon-512.png` briefly concluded Pebble was warm brown — but those
+files are themselves off-canon art from a later, unlocked ChatGPT session, not the original design.
+Tracing the actual asset history (`pebble_images/pebble.png`, the first generation) confirmed the
+character was always blue-grey. Blue-grey also fits the product: contextlake's whole primitive palette
+is cool (deepwater/lake/current), the shipped theme is moonlit navy, and `shore #D7C5A0` — the only warm
+primitive — is explicitly restricted to illustration dividers (§7.2), never a UI or mascot color. A
+blue-grey otter is *of* the same water as the product; a brown one would be a warm object with no
+palette support. **The shipped painterly art (`docs/img/pebble-peek.png`, `icon-512.png`, the hero images)
+is currently off-canon and needs regeneration** to match; see §7.3.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly warm brown river otter cradling a glowing translucent context-pebble in both forepaws, offering it forward." width="240">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter cradling a glowing translucent context-pebble in both forepaws, offering it forward." width="240">
 </p>
 
 ### 5.2 Silhouette & proportions (locked)
@@ -433,20 +435,18 @@ Recognizable as a **solid rounded silhouette at 10% size**, the pebble glow as t
 - **Tail:** thick tapered, a seated stabilizer; never focal.
 - **Whiskers:** 2–3 fine low-contrast strokes per side; optional, omit at small sizes.
 
-### 5.3 Fur & body color (illustration ramp: measured from shipped art, corrected 2026-07-28)
+### 5.3 Fur & body color (illustration ramp: locked hex, restored 2026-07-28)
 
 | Zone | Hex | Role |
 |---|---|---|
-| Crown, back, tail (in the scene's ambient cool light) | `#1C2D33` – `#2A393E` | darkest fur value; a cool-cast **shadow**, not the material color (§5.1) |
-| Body mid-tone, better-lit fur | `~#A0876A` | the true warm umber-brown read |
-| Muzzle, cheeks, chin, paws | `#D9CA99` – `#FBE7AB` | warm cream-tan, the lightest fur |
+| Primary fur (back, head, tail) | `#23424B` | the body read |
+| Mid fur / form transition | `#2F5A63` | rounded-volume midtone |
+| Belly, chest, muzzle, brow | `#6E8E92` | mist-lifted underside |
+| Inner-ear / paw-pad | `#8A9C8F` | warm-cool neutral |
 | Nose | `#0E2A33` (deepwater) | the darkest allowed point |
 | Eye | `#0E2A33` iris + single `#EAF4F4` catch-light | n/a |
 
 Wet-fur sheen is soft `#EAF4F4` painterly highlights at low opacity, **never discrete water droplets**.
-Do not render the crown/back as a flat, uniform slate/teal fill — that was the retired flat mark's error
-(§2): the cool cast belongs to shadow modeling under the brand's lake-light, layered over warm-brown fur,
-not a fur color in its own right.
 
 ### 5.4 The context-pebble (locked, the most controlled element)
 
@@ -515,10 +515,10 @@ content/CTA/pebble; use deepwater `#0E2A33` as the darkest value; keep Pebble ou
 Use the base prompt + locked phrase blocks. Keep locked phrases verbatim; vary only **[POSE]** and **[CONTEXT]**.
 
 **Reusable base prompt**
-> Mascot illustration of **Pebble**, a cute innocent-faced **warm brown river otter** with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle, large soft dark eyes with a single upper-left catch-light, small rounded ears. Umber-brown fur (`~#A0876A` mid-tone), warm cream-tan muzzle/cheeks/paws (`#D9CA99`–`#FBE7AB`); the crown and back may fall into a cool-shadowed charcoal (`#1C2D33`–`#2A393E`) under the scene's ambient lake-light — that's lighting, never a flat slate/grey fur color. Deepwater `#0E2A33` nose, no pure black. Pebble is **[POSE]**, cradling in both forepaws a **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint (`#E7B53C`)**; the pebble is lit from within and casts a soft teal glow onto Pebble's paws and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**. Calm, trustworthy, friendly-but-precise mood. Rich dimensional painterly illustration, soft volumetric subsurface lighting, gentle rim light in mist `#EAF4F4`, NO hard outlines, forms separated by value and color, soft depth-of-field lake background. Gaze directed toward the context-pebble / the viewer's content. Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore `#D7C5A0`, gold `#E7B53C`.
+> Mascot illustration of **Pebble**, a cute innocent-faced **dark blue-grey river otter** with a rounded river-smoothed body, broad head (head-to-body ratio 1:1.6), short muzzle, large soft dark eyes with a single upper-left catch-light, small rounded ears. Fur in deep blue-grey teal tones (`#23424B` back, `#2F5A63` midtone, `#6E8E92` mist-lifted belly), deepwater `#0E2A33` nose, no pure black. Pebble is **[POSE]**, cradling in both forepaws a **smooth polished translucent agate sea-glass context-pebble with a cool teal-green inner glow (`#2BB3A3` core falling off to lake `#137A8B`) and exactly one small warm-gold glint (`#E7B53C`)**; the pebble is lit from within and casts a soft teal glow onto Pebble's paws and chin. Setting: a calm misty lake at the waterline, **[CONTEXT]**. Calm, trustworthy, friendly-but-precise mood. Rich dimensional painterly illustration, soft volumetric subsurface lighting, gentle rim light in mist `#EAF4F4`, NO hard outlines, forms separated by value and color, soft depth-of-field lake background. Gaze directed toward the context-pebble / the viewer's content. Palette: deepwater `#0E2A33`, lake `#137A8B`, current `#2BB3A3`, mist `#EAF4F4`, shore `#D7C5A0`, gold `#E7B53C`.
 
 **Locked phrases (paste verbatim):**
-- `cute innocent-faced warm brown river otter`
+- `cute innocent-faced dark blue-grey river otter`
 - `smooth polished translucent agate sea-glass context-pebble`
 - `cool teal-green inner glow (#2BB3A3 core to lake #137A8B falloff) and exactly one small warm-gold glint (#E7B53C)`
 - `lit from within, casts a soft teal glow onto Pebble's paws and chin`
@@ -526,7 +526,7 @@ Use the base prompt + locked phrase blocks. Keep locked phrases verbatim; vary o
 - `gaze toward the context / content`
 
 **Mandatory negative prompt (always include):**
-> amber sphere, glowing orb with star dots, dragon ball, faceted crystal, cut gem, gold nugget, network graph inside the stone, glowing nodes inside, water droplets on face, sweat drops, tears, anxious expression, shocked face, angry, sleepy, hard black outlines, pure black, neon, text, watermark, two otters, realistic otter anatomy, off-page stare, flat uniform slate/blue-grey fur.
+> amber sphere, glowing orb with star dots, dragon ball, faceted crystal, cut gem, gold nugget, network graph inside the stone, glowing nodes inside, water droplets on face, sweat drops, tears, anxious expression, shocked face, angry, sleepy, hard black outlines, pure black, neon, text, watermark, two otters, realistic otter anatomy, off-page stare, warm brown fur (fur is blue-grey, see §5.1).
 
 **Slot examples**
 - Hero: `[POSE]` = *surfacing at the waterline, presenting the pebble forward* · `[CONTEXT]` = *soft sunrise mist, calm reflective water*.
@@ -631,12 +631,13 @@ choice. The 16–32px favicon simplification (§2.3) is the only surface using t
 
 | Asset | Current state | Action | Size / format |
 |---|---|---|---|
-| **The mark** | **Shipped**: painterly crop, `docs/branding/mark.png` (resize of `docs/img/icon-512.png`) | keep in sync with the painterly source; see §2.1 | PNG |
-| `docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg` | retired flat-mark assets | **Kept for history only** — not referenced by any build, page, or spec; do not revive as the logo | n/a |
+| **The mark** | **Off-canon**: `docs/branding/mark.png` (resize of `docs/img/icon-512.png`) is warm brown, not the locked blue-grey (§5.1/§5.3) | **Regenerate** once new blue-grey painterly art exists (no ChatGPT generation has combined blue-grey fur + the teal pebble yet); until then this is a known, flagged gap, not silently accepted as canon | PNG |
+| `docs/img/pebble-peek.png`, `docs/img/icon-512.png`, hero/OG art | **Off-canon**: same brown-fur drift as the mark, from an unlocked later ChatGPT session | **Regenerate** to blue-grey; not yet done, blocked on new art generation | PNG/WebP |
+| `docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg` | retired flat-mark assets (correct blue-grey color, wrong register) | **Kept for history only** — not referenced by any build, page, or spec; do not revive as the logo (the register decision stands even though the color was right) | n/a |
 | `docs/branding/wordmark.svg` | shipped single-color, weight 700 | keep in sync with §2.4; `<desc>` should not claim a flat otter-head mark is primary | SVG |
-| `docs/branding/mascot.md` | rewritten to Section 5, then re-corrected 2026-07-28 (brown fur, one register) | keep in sync with §5 | markdown |
-| `docs/img/icon-16/32/48/64.png` | simplified silhouette (`site/tools/gen_small_mark.py`) | **Recolor** the silhouette off mist-teal toward the brand's warm-brown direction so the small-favicon tier doesn't read as a leftover cool otter; not yet done | PNG, deepwater-solid bg |
-| `docs/img/icon-180/192/512.png` | painterly mark (`site/tools/gen_icons_final.py`) | **Keep** — already the target state | PNG, deepwater-solid bg |
+| `docs/branding/mascot.md` | rewritten to Section 5, then corrected back to blue-grey 2026-07-28 | keep in sync with §5 | markdown |
+| `docs/img/icon-16/32/48/64.png` | simplified silhouette (`site/tools/gen_small_mark.py`), mist-teal, matches the locked fur color | **Keep** — already correct | PNG, deepwater-solid bg |
+| `docs/img/icon-180/192/512.png` | painterly mark (`site/tools/gen_icons_final.py`), warm brown | **Regenerate** once blue-grey painterly art exists (see "The mark" row above) | PNG, deepwater-solid bg |
 | `favicon.svg` | missing | **Create** theme-aware flat favicon (`prefers-color-scheme`) | SVG + ICO/PNG @16/32/48 |
 | Maskable app icon | missing | **Create** full-bleed deepwater, 10% safe padding | PNG 512×512 |
 | `docs/img/og.jpg` (1200×630) | correct spec | **Keep**; verify wordmark is real Space Grotesk overlay | JPG/PNG 1200×630 |
