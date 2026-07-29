@@ -3321,6 +3321,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.2] - 2026-07-29
+
+### Fixed
+
+- **Ctrl-C during `init` (or any knowledge-layer command) no longer dumps a raw traceback.**
+  Only the mirror-pipeline commands (`fetch`/`clone`/`sync`/...) had a `KeyboardInterrupt` catch in
+  `cli.py`'s `main()`; `init`'s interactive prompts and the entire knowledge-layer dispatch
+  (`index`, `wiki`, `dashboard`, `serve`, `source add`'s guided prompt, everything routed through
+  `_KB_COMMANDS`) fell straight through to an unhandled `KeyboardInterrupt` and a stack trace.
+  Both paths now exit clean with `Operation cancelled by user` (exit 130), matching the mirror
+  commands' existing behavior -- including the lazy `from .kb import commands` import itself
+  (tree-sitter/numpy/mcp, the slowest part of a cold start and a very reachable place for a real
+  interrupt to land), not just the dispatch call after it.
+- `contextlake serve` now reports `Stopping MCP server` on Ctrl-C instead of falling through to the
+  generic top-level message, matching `graph --serve`/`--site` and `dashboard --serve`'s existing
+  per-command stop messages.
+
 ## [2.60.1] - 2026-07-29
 
 ### Fixed

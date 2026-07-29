@@ -932,12 +932,19 @@ def main(argv=None):
     # First-run setup writes the config the rest of the tool reads, so it must run
     # before load_config's "no config found" preamble. No [kb] extra needed.
     if args.command == "init":
-        from .init_cmd import cmd_init
-        sys.exit(cmd_init(args))
+        try:
+            from .init_cmd import cmd_init
+            sys.exit(cmd_init(args))
+        except KeyboardInterrupt:
+            log("Operation cancelled by user")
+            sys.exit(130)
 
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs
-    # without the [kb] extra.
+    # without the [kb] extra. The import itself (tree-sitter, numpy, the mcp
+    # SDK) is the slowest part of a cold start and a very reachable place for a
+    # real Ctrl-C to land, so it needs the same KeyboardInterrupt catch as the
+    # dispatch call below, not just the fast path.
     if args.command in _KB_COMMANDS:
         try:
             from .kb import commands as kb_commands
@@ -945,12 +952,18 @@ def main(argv=None):
             log(f"The '{args.command}' command needs the knowledge-layer extra: "
                 f"pip install 'contextlake[kb]'  ({e})")
             sys.exit(1)
+        except KeyboardInterrupt:
+            log("Operation cancelled by user")
+            sys.exit(130)
         from .kb.config import ConfigError
         try:
             sys.exit(kb_commands.dispatch(args.command, args))
         except ConfigError as e:
             log(str(e))
             sys.exit(1)
+        except KeyboardInterrupt:
+            log("Operation cancelled by user")
+            sys.exit(130)
 
     # Load configuration (honouring an explicit --config path if given), then
     # overlay any CLI overrides on top.

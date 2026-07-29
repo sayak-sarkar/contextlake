@@ -57,6 +57,13 @@ def cmd_serve(args) -> int:
         run_server(store, transport=transport, host=host, port=port,
                    embedder=embedder, vector_store=vector_store)
         return 0
+    except KeyboardInterrupt:
+        # Ctrl-C is the documented way to stop this server (see the "Ctrl-C to
+        # stop" log line above), same as graph --serve/--site and dashboard
+        # --serve, each of which already reports its own stop message instead
+        # of falling through to cli.py's generic "Operation cancelled" catch.
+        log("Stopping MCP server")
+        return 0
     finally:
         if vector_store is not None:
             vector_store.close()
