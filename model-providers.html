@@ -19,16 +19,17 @@
 <meta name="twitter:title" content="Model providers · contextlake docs">
 <meta name="twitter:description" content="The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-28"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-30"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=e674997">
-<link rel="stylesheet" href="docs.css?v=e674997">
-<link rel="stylesheet" href="cmdk.css?v=e674997">
+<link rel="stylesheet" href="fonts.css?v=cd23dae">
+<link rel="stylesheet" href="tokens.css?v=cd23dae">
+<link rel="stylesheet" href="docs.css?v=cd23dae">
+<link rel="stylesheet" href="cmdk.css?v=cd23dae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -50,13 +51,16 @@
 <p>Both the embeddings and wiki tiers are pluggable and take a <code>provider</code>, defaulting to <strong><code>"auto"</code></strong>. Pick
 by what may leave your machine and what hardware you have.</p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable AND already has the target model pulled, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
 </p>
 
 <ul>
-<li><strong><code>auto</code></strong> (default), resolves to a reachable local <strong>Ollama</strong>, else the <strong>built-in</strong> CPU model if its
-  extra is installed, else it skips that tier. So the semantic/wiki tiers Just Work the moment you set
-  <code>enabled = true</code>, with no daemon and no API key.</li>
+<li><strong><code>auto</code></strong> (default), resolves to a reachable local <strong>Ollama</strong> that already has the target model
+  pulled, else the <strong>built-in</strong> CPU model if its extra is installed, else it skips that tier.
+  Reachability alone isn't enough to pick Ollama, a daemon running for other models (e.g. just a chat
+  model, with no embedding model ever pulled) falls straight through to the built-in tier instead of
+  failing on first real use. So the semantic/wiki tiers Just Work the moment you set <code>enabled = true</code>,
+  with no daemon and no API key.</li>
 <li><strong><code>builtin</code></strong>, a small model that runs <strong>in-process on CPU</strong>, auto-downloaded once to <code>cache_dir</code>
   (default <code>~/.contextlake/models</code>). Zero daemon, zero API key.</li>
 <li><em>Embeddings</em>, <code>engine = "model2vec"</code> (default): static <code>potion-base-8M</code> (~30MB, MIT), numpy inference,
@@ -330,6 +334,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=e674997"></script>
+<script defer src="cmdk.js?v=cd23dae"></script>
 </body>
 </html>

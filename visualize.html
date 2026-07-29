@@ -26,9 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=e674997">
-<link rel="stylesheet" href="docs.css?v=e674997">
-<link rel="stylesheet" href="cmdk.css?v=e674997">
+<link rel="stylesheet" href="fonts.css?v=cd23dae">
+<link rel="stylesheet" href="tokens.css?v=cd23dae">
+<link rel="stylesheet" href="docs.css?v=cd23dae">
+<link rel="stylesheet" href="cmdk.css?v=cd23dae">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -113,7 +114,18 @@ diagram gets a "scope to one module" dropdown (its top-level path segments) inst
   type-name interpolation references draw the connections between resources. A single-category view
   renders flat (no subgraph wrapper). <strong>Terraform-only</strong> (HCL is the only IaC language the extractor
   parses): a repo with no <code>.tf</code> files renders an empty diagram with guidance, not a bug.</li>
-<li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for Gephi / cytoscape / custom tooling.</li>
+<li><strong><code>graphml</code></strong>, the standard <a href="http://graphml.graphdrawing.org/" target="_blank" rel="noopener">GraphML<span class="ext-arrow" aria-hidden="true">↗</span></a> interchange format for
+  <a href="https://gephi.org/" target="_blank" rel="noopener">Gephi<span class="ext-arrow" aria-hidden="true">↗</span></a>/<a href="https://www.yworks.com/products/yed" target="_blank" rel="noopener">yEd<span class="ext-arrow" aria-hidden="true">↗</span></a>: <code>contextlake graph --repo
+  acme/app --format graphml --output g.graphml</code>. Nodes/edges carry real attributes (kind, name, repo,
+  file, line, lang / relation, confidence, weight) as GraphML <code>&lt;data&gt;</code> keys, so Gephi's own filter and
+  color-by-attribute tools work directly against them, not just a bare shape.</li>
+<li><strong><code>cypher</code></strong>, <code>CREATE</code> statements for a <a href="https://neo4j.com/" target="_blank" rel="noopener">Neo4j<span class="ext-arrow" aria-hidden="true">↗</span></a>/<a href="https://www.falkordb.com/" target="_blank" rel="noopener">FalkorDB<span class="ext-arrow" aria-hidden="true">↗</span></a>
+  import: <code>contextlake graph --repo acme/app --format cypher --output g.cypher</code>, then <code>cypher-shell -f
+  g.cypher</code> (or FalkorDB's own loader). Node labels come from <code>kind</code>, relationship types from <code>relation</code>
+ , both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
+  quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).</li>
+<li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for cytoscape / custom tooling (Gephi/yEd users want
+  <code>--format graphml</code> instead, real typed attributes, not a bespoke shape to parse).</li>
 </ul>
 <p>For interactive exploration of a large graph, <code>contextlake graph --serve</code> runs a local web UI where
 clicking a node <strong>expands</strong> it (fetches its neighbours on demand) so you can walk the graph without
@@ -191,6 +203,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=e674997"></script>
+<script defer src="cmdk.js?v=cd23dae"></script>
 </body>
 </html>

@@ -1735,12 +1735,15 @@ Both the embeddings and wiki tiers are pluggable and take a `provider`, defaulti
 by what may leave your machine and what hardware you have.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable AND already has the target model pulled, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
 </p>
 
-- **`auto`** (default), resolves to a reachable local **Ollama**, else the **built-in** CPU model if its
-  extra is installed, else it skips that tier. So the semantic/wiki tiers Just Work the moment you set
-  `enabled = true`, with no daemon and no API key.
+- **`auto`** (default), resolves to a reachable local **Ollama** that already has the target model
+  pulled, else the **built-in** CPU model if its extra is installed, else it skips that tier.
+  Reachability alone isn't enough to pick Ollama, a daemon running for other models (e.g. just a chat
+  model, with no embedding model ever pulled) falls straight through to the built-in tier instead of
+  failing on first real use. So the semantic/wiki tiers Just Work the moment you set `enabled = true`,
+  with no daemon and no API key.
 - **`builtin`**, a small model that runs **in-process on CPU**, auto-downloaded once to `cache_dir`
   (default `~/.contextlake/models`). Zero daemon, zero API key.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
@@ -2513,7 +2516,18 @@ Output is chosen with `--format`:
   type-name interpolation references draw the connections between resources. A single-category view
   renders flat (no subgraph wrapper). **Terraform-only** (HCL is the only IaC language the extractor
   parses): a repo with no `.tf` files renders an empty diagram with guidance, not a bug.
-- **`json`**, the raw `{nodes, edges, meta}` for Gephi / cytoscape / custom tooling.
+- **`graphml`**, the standard [GraphML](http://graphml.graphdrawing.org/) interchange format for
+  [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake graph --repo
+  acme/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,
+  file, line, lang / relation, confidence, weight) as GraphML `<data>` keys, so Gephi's own filter and
+  color-by-attribute tools work directly against them, not just a bare shape.
+- **`cypher`**, `CREATE` statements for a [Neo4j](https://neo4j.com/)/[FalkorDB](https://www.falkordb.com/)
+  import: `contextlake graph --repo acme/app --format cypher --output g.cypher`, then `cypher-shell -f
+  g.cypher` (or FalkorDB's own loader). Node labels come from `kind`, relationship types from `relation`
+ , both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
+  quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).
+- **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
+  `--format graphml` instead, real typed attributes, not a bespoke shape to parse).
 
 For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
@@ -3220,9 +3234,42 @@ Run 'contextlake --help' to see all commands.
 The match runs against every command name **and its aliases** (`blast-radius` for `impact`, `who-knows`
 for `owners`), then shows the canonical verb, matching what `--help` teaches.
 
-Flags never match on a partial name. `contextlake index --work-d /tmp` reports `unrecognized arguments:
---work-d` rather than silently guessing you meant `--workspace`: a partial flag is treated the same as an
-unknown one, so a typo fails loudly instead of doing the wrong thing.
+Flags never match on a partial name or abbreviation. `contextlake index --work-d /tmp` reports
+`unrecognized arguments: --work-d` rather than silently guessing you meant `--workspace`: a prefix is
+treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
+
+A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
+letter -- not a shortened prefix) does get a suggestion, scoped to that command's own flags:
+
+```
+$ contextlake index --worksapce .
+✗ Unknown flag: '--worksapce'
+
+Did you mean: --workspace?
+```
+
+A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
+reporting it as simply unrecognized:
+
+```
+$ contextlake bootstrap --local
+✗ '--local' isn't a flag on 'bootstrap'
+
+It's used by: init, source.
+
+Run 'contextlake bootstrap --help' to see bootstrap's own flags.
+```
+
+A value-taking flag immediately followed by another recognized flag (its value was left out, so the next
+flag lands where the value should be) names the real problem instead of arguing you forgot a value
+entirely:
+
+```
+$ contextlake dashboard --serve --workspace --open
+✗ '--workspace' needs a value, but the next token ('--open') is itself a recognized flag
+
+Put the value right after --workspace, e.g. '--workspace <value> --open'.
+```
 
 ## Knowledge-layer commands
 
@@ -3373,6 +3420,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.60.8] - 2026-07-30
+
+### Fixed
+- **`provider = "auto"` (embeddings and wiki-LLM tiers) no longer commits to a local Ollama that
+  doesn't have the target model pulled.** Root-caused the long-standing "Embedder unavailable , 
+  HTTP Error 404: Not Found" by reproducing it live: Ollama running for one model (e.g. a chat
+  model) with the embedding/LLM default (`nomic-embed-text` / `llama3.1`) never pulled used to
+  still get picked by "auto" (it only checked the daemon answered `/api/tags`, not whether *this*
+  model was in the response), so every real call failed on Ollama's own genuine 404. `auto` now
+  checks model availability (new `ollama_has_model()`) before picking Ollama, falling through to
+  the builtin CPU model instead. An explicit `provider = "ollama"` config that hits a real 404 now
+  gets Ollama's actual reason and a `run 'ollama pull <model>'` hint, not a bare
+  `HTTP Error 404: Not Found`.
+- Fixed a raw traceback fragment on `contextlake serve` (stdio transport): a second/third Ctrl-C
+  landing in the brief window while Python joins the `mcp` SDK's background stdio-reader thread
+  during interpreter shutdown printed a harmless but alarming "Exception ignored while joining a
+  thread in `_thread._shutdown()`". Reproduced directly (3 rapid SIGINTs); fixed with a hard
+  process exit immediately after `cmd_serve`'s own cleanup runs, skipping the rest of Python's
+  shutdown sequence where the noise originated.
+- Reworded the "corrupted .git" skip message (`index`, `repo_migrate`) after empirically verifying
+  real submodules/worktrees are NOT false-flagged (already correct), the actual gap was that the
+  wording conflated two distinct situations. It now distinguishes "git can't find a repository here
+  at all" (a dangling submodule/worktree link) from "git resolves it to a DIFFERENT, ancestor
+  directory" (naming that directory), the latter being the actual silent-misattribution case this
+  check exists to catch.
+- Dashboard Diagrams tab: the default (no module selected) view on a truncated repo now auto-scopes
+  to the repo's largest module instead of an arbitrary alphabetical node slice, a repo with an
+  `ExternalProjects/`-style vendored top-level directory no longer shows vendored code ahead of
+  real source by default. An explicit pick from the module dropdown (including "Whole repo")
+  still overrides this and sticks across format-tab switches.
+
+### Added
+- `graph --format graphml`: export the bounded subgraph slice as GraphML for Gephi/yEd import, with
+  real typed node/edge attributes (kind, name, repo, file, line, lang / relation, confidence,
+  weight) as GraphML `<data>` keys.
+- `graph --format cypher`: export as Cypher `CREATE` statements for Neo4j/FalkorDB import. Node
+  labels come from `kind`, relationship types from `relation`, both backtick-quoted since
+  contextlake's kind/relation vocabularies are open text, not a fixed enum.
+- CLI: unknown-flag errors now suggest a fix instead of a bare argparse dump. A flag valid on a
+  *different* subcommand names where it belongs (`bootstrap --local` → "isn't a flag on
+  'bootstrap', it's used by: init, source"); a genuine same-command typo suggests the real flag
+  (`--worksapce` → "Did you mean: --workspace?"); a value-taking flag immediately followed by
+  another recognized flag names the real problem instead of argparse's generic "expected one
+  argument" (`--workspace --open` → "needs a value, but the next token ('--open') is itself a
+  recognized flag").
 
 ## [2.60.7] - 2026-07-30
 

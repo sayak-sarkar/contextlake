@@ -46,20 +46,17 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=e674997">
-<link rel="stylesheet" href="cmdk.css?v=e674997">
+<link rel="stylesheet" href="fonts.css?v=cd23dae">
+<link rel="stylesheet" href="tokens.css?v=cd23dae">
+<link rel="stylesheet" href="cmdk.css?v=cd23dae">
 <style>
+  /* Shared brand tokens (--deepwater/--lake/--bg/--ink/--link/etc., light+dark) now
+     load from tokens.css -- these :root blocks add only the tokens specific to this
+     page (hover variants, shadows, layout width). */
   :root{
-    --deepwater:#0E2A33; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4;
-    --shore:#D7C5A0; --sun:#E7B53C;
-    --bg:#f4fafb; --surface:#ffffff; --ink:#0E2A33; --muted:#41606a; --subtle:#6c878f;
-    --line:#d6e6e9; --line-2:#c2d8dc;
-    --link:#137A8B; --link-hover:#0f6473; --lake-hover:#0f6473;
+    --lake-hover:#0f6473;
     --surface-2:#fbfdfd; --tint:#e6f3f4; --callout-bg:#eef7f8; --btn-hover:#f0f7f8;
-    --ff: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --ff-d: "Space Grotesk", var(--ff);
-    --ff-m: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-    --r: 14px; --rs: 9px;
+    --r: 14px;
     --shadow: 0 18px 48px -22px rgba(14,42,51,.30);
     --shadow-s: 0 4px 16px -8px rgba(14,42,51,.22);
     --wrap: 1080px;
@@ -67,17 +64,13 @@
   /* dark theme: explicit toggle wins; else follow the OS unless the reader chose light.
      The hero stays deepwater in both themes by design; the content surfaces flip. */
   :root[data-theme="dark"]{
-    --deepwater:#081D30; --bg:#0C2438; --surface:#15314C; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
-    --line:#274864; --line-2:#375672;
-    --link:#2BB3A3; --link-hover:#54c9bb; --lake-hover:#34c4b3;
+    --lake-hover:#34c4b3;
     --surface-2:#112B44; --tint:#163350; --callout-bg:#132C48; --btn-hover:#1E3C58;
     --shadow:0 18px 48px -22px rgba(0,0,0,.5); --shadow-s:0 4px 16px -8px rgba(0,0,0,.45);
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --deepwater:#081D30; --bg:#0C2438; --surface:#15314C; --ink:#EAF4F4; --muted:#A4B3B6; --subtle:#8FA1A5;
-      --line:#274864; --line-2:#375672;
-      --link:#2BB3A3; --link-hover:#54c9bb; --lake-hover:#34c4b3;
+      --lake-hover:#34c4b3;
       --surface-2:#112B44; --tint:#163350; --callout-bg:#132C48; --btn-hover:#1E3C58;
       --shadow:0 18px 48px -22px rgba(0,0,0,.5); --shadow-s:0 4px 16px -8px rgba(0,0,0,.45);
     }
@@ -785,7 +778,7 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=e674997"
+    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=cd23dae"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
     <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
@@ -1232,6 +1225,6 @@ nav.querySelectorAll(".nav-links a").forEach(function(a){a.addEventListener("cli
 document.addEventListener("click",function(e){if(nav.classList.contains("open")&&!nav.contains(e.target))set(false);});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nav.classList.contains("open")){set(false);tog.focus();}});
 addEventListener("resize",function(){if(innerWidth>680)set(false);});})();</script>
-<script defer src="cmdk.js?v=e674997"></script>
+<script defer src="cmdk.js?v=cd23dae"></script>
 </body>
 </html>
