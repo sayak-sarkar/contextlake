@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=ef558f9">
-<link rel="stylesheet" href="docs.css?v=ef558f9">
-<link rel="stylesheet" href="cmdk.css?v=ef558f9">
+<link rel="stylesheet" href="fonts.css?v=1232215">
+<link rel="stylesheet" href="docs.css?v=1232215">
+<link rel="stylesheet" href="cmdk.css?v=1232215">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -51,6 +51,25 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/" target="_blank" rel="noopener">Keep a Changelog<span class="ext-arrow" aria-hidden="true">↗</span></a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target="_blank" rel="noopener">Semantic Versioning<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
+<h2 id="2591-2026-07-29">[2.59.1] - 2026-07-29<a class="anchor" href="#2591-2026-07-29" title="Link to this section">#</a></h2>
+<h3 id="changed">Changed<a class="anchor" href="#changed" title="Link to this section">#</a></h3>
+<ul>
+<li><strong>Upgraded the <code>mcp</code> SDK dependency to 2.0.0</strong>, lifting the <code>&lt;2</code> stopgap pin from v2.58.3. Patched
+  every breaking rename (<code>FastMCP</code> -&gt; <code>MCPServer</code>, <code>streamablehttp_client</code> -&gt; <code>streamable_http_client</code> in
+  two files, <code>CallToolResult.structuredContent</code>/<code>isError</code> -&gt; snake_case, the removed
+  <code>mcp.shared.memory</code> in-memory test helper -&gt; the new <code>mcp.Client</code>).</li>
+</ul>
+<h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>contextlake serve</code> was completely broken for any tool touching the SQLite-backed store</strong>, on
+  either transport. This mcp SDK version dispatches every synchronous tool call through
+  <code>anyio.to_thread.run_sync</code> unconditionally, so a server-lifetime store sharing one <code>sqlite3</code>
+  connection across calls now crashed with "SQLite objects created in a thread can only be used in
+  that same thread" the moment any tool ran (confirmed live against a real HTTP-served server: works
+  on mcp 1.28.1, broken on 2.0.0). <code>SqliteStore</code>, <code>VectorStore</code>, and <code>SqliteVecStore</code> now hand out one
+  connection per thread instead of one connection total (WAL mode, already in place, is exactly the
+  mode SQLite recommends for this).</li>
+</ul>
 <h2 id="2590-2026-07-29">[2.59.0] - 2026-07-29<a class="anchor" href="#2590-2026-07-29" title="Link to this section">#</a></h2>
 <h3 id="added">Added<a class="anchor" href="#added" title="Link to this section">#</a></h3>
 <ul>
@@ -65,7 +84,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   once one exists, instead of always writing to global.</li>
 </ul>
 <h2 id="2583-2026-07-29">[2.58.3] - 2026-07-29<a class="anchor" href="#2583-2026-07-29" title="Link to this section">#</a></h2>
-<h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
+<h3 id="fixed_1">Fixed<a class="anchor" href="#fixed_1" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Pinned <code>mcp</code> to <code>&lt;2</code> in the <code>kb</code> extra.</strong> The v2.58.2 release gate failed in CI (nothing published)
   because <code>mcp&gt;=1.28</code> had no upper bound and CI resolved the just-released <code>mcp</code> 2.0.0, which renamed
@@ -88,7 +107,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   (<code>https://mcp.atlassian.com/v1/mcp/authv2</code>) and <code>figma</code> (<code>https://mcp.figma.com/mcp</code>), verified against
   each provider's own docs, so the prompt no longer forces you to already know the endpoint yourself.</li>
 </ul>
-<h3 id="fixed_1">Fixed<a class="anchor" href="#fixed_1" title="Link to this section">#</a></h3>
+<h3 id="fixed_2">Fixed<a class="anchor" href="#fixed_2" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>[llm] provider = "cli"</code> with <code>command = "gemini"</code> was broken since it shipped.</strong> <code>gemini</code>'s
   <code>-p</code>/<code>--prompt</code> flag is a required string <em>value</em>, not a boolean "read the rest from stdin" switch --
@@ -106,7 +125,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   a future <code>codex</code> version could change that behavior.</li>
 </ul>
 <h2 id="2581-2026-07-28">[2.58.1] - 2026-07-28<a class="anchor" href="#2581-2026-07-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_2">Fixed<a class="anchor" href="#fixed_2" title="Link to this section">#</a></h3>
+<h3 id="fixed_3">Fixed<a class="anchor" href="#fixed_3" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>[llm] provider = "cli"</code> no longer leaks the CLI's own API-key env var into the child process.</strong>
   The whole point of this provider is reusing a subscription (<code>claude -p</code> / <code>gemini</code> / <code>codex</code>)
@@ -124,7 +143,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   API-key auth as a separate explicitly-opted-into login mode rather than an env-var override.</li>
 </ul>
 <h2 id="2580-2026-07-27">[2.58.0] - 2026-07-27<a class="anchor" href="#2580-2026-07-27" title="Link to this section">#</a></h2>
-<h3 id="changed">Changed<a class="anchor" href="#changed" title="Link to this section">#</a></h3>
+<h3 id="changed_1">Changed<a class="anchor" href="#changed_1" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Empty-repo classification: new <code>note</code> state, distinct from <code>skip</code>.</strong> A repo with zero commits
   (<code>update</code>/<code>branches</code> can't resolve <code>HEAD</code> -- there's no history to read yet) previously reported as
@@ -247,7 +266,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   the rest of the fog→clarity system, a teal border/glow and a blinking
   cursor after the last command (respects <code>prefers-reduced-motion</code>).</li>
 </ul>
-<h3 id="fixed_3">Fixed<a class="anchor" href="#fixed_3" title="Link to this section">#</a></h3>
+<h3 id="fixed_4">Fixed<a class="anchor" href="#fixed_4" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard server: a client disconnecting mid-response no longer logs a
   traceback.</strong> <code>_send()</code>'s <code>wfile.write</code> is now guarded against
@@ -281,7 +300,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   text embeds repo-derived symbol/table/resource names, untrusted input).
   Live-only, same as MCP console/Settings.</li>
 </ul>
-<h3 id="fixed_4">Fixed<a class="anchor" href="#fixed_4" title="Link to this section">#</a></h3>
+<h3 id="fixed_5">Fixed<a class="anchor" href="#fixed_5" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>deploymentdiagram</code>: a repo's own Python/JS/etc. module nodes no longer
   leak into the Terraform diagram.</strong> <code>kind="module"</code> isn't exclusive to HCL , 
@@ -362,7 +381,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   (<code>--llm anthropic|openai|ollama|cli</code>) gates meaningfully. The note prints
   once, before generation starts, not per repo.</li>
 </ul>
-<h3 id="fixed_5">Fixed<a class="anchor" href="#fixed_5" title="Link to this section">#</a></h3>
+<h3 id="fixed_6">Fixed<a class="anchor" href="#fixed_6" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Docs house-style: em-dashes stripped from the remaining <code>docs/*.md</code>
   pages</strong> (<code>serve.md</code>, <code>cli-reference.md</code>, <code>index-code-graph.md</code>,
@@ -371,7 +390,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   semicolons, commas, or parens per the surrounding sentence.</li>
 </ul>
 <h2 id="2511-2026-07-26">[2.51.1] - 2026-07-26<a class="anchor" href="#2511-2026-07-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_6">Fixed<a class="anchor" href="#fixed_6" title="Link to this section">#</a></h3>
+<h3 id="fixed_7">Fixed<a class="anchor" href="#fixed_7" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A top-level unrecognized flag followed by a path-looking token no longer
   reports a confusing "Unknown command".</strong> <code>contextlake --work-d /tmp doctor</code>
@@ -407,7 +426,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   <code>~/.contextlake/kb.toml</code> (languages, connectors, embedder/LLM settings) never
   leaks into the fleet billed as "fictional data, nothing local is read".</li>
 </ul>
-<h3 id="fixed_7">Fixed<a class="anchor" href="#fixed_7" title="Link to this section">#</a></h3>
+<h3 id="fixed_8">Fixed<a class="anchor" href="#fixed_8" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>index --workspace</code> no longer silently misattributes a corrupted nested
   <code>.git</code> to an unrelated ancestor repo.</strong> <code>git -C &lt;path&gt;</code> walks <em>up</em> the
@@ -480,7 +499,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   JSON on a non-zero exit, so check <code>$?</code> deliberately rather than assuming
   0 means "ran" instead of "clean".</li>
 </ul>
-<h3 id="fixed_8">Fixed<a class="anchor" href="#fixed_8" title="Link to this section">#</a></h3>
+<h3 id="fixed_9">Fixed<a class="anchor" href="#fixed_9" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>embed</code> and <code>wiki</code> (both per-repo and <code>--namespaces</code>) silently reported a
   partial failure as a clean success.</strong> If even one repo/namespace out of a
@@ -489,7 +508,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   unless you scrolled back through the whole log. Both now show <code>⚠</code> and the
   failed count whenever <code>failed &gt; 0</code>.</li>
 </ul>
-<h3 id="changed_1">Changed<a class="anchor" href="#changed_1" title="Link to this section">#</a></h3>
+<h3 id="changed_2">Changed<a class="anchor" href="#changed_2" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>update</code>, <code>branches</code>, <code>index --workspace</code>, <code>embed</code>, and <code>wiki</code> now name a
   concrete next step when something failed</strong>, instead of ending on a bare
@@ -535,7 +554,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   names before upgrading past this release.</li>
 </ul>
 <h2 id="2482-2026-07-26">[2.48.2] - 2026-07-26<a class="anchor" href="#2482-2026-07-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_9">Fixed<a class="anchor" href="#fixed_9" title="Link to this section">#</a></h3>
+<h3 id="fixed_10">Fixed<a class="anchor" href="#fixed_10" title="Link to this section">#</a></h3>
 <ul>
 <li>
 <p><strong>The C4 diagram's namespace boundary tagging could mark a real edge as
@@ -675,7 +694,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   <code>classify_error(...) == "project-deleted"</code> check (<code>core.py</code>).</li>
 </ul>
 <h2 id="2481-2026-07-26">[2.48.1] - 2026-07-26<a class="anchor" href="#2481-2026-07-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_10">Fixed<a class="anchor" href="#fixed_10" title="Link to this section">#</a></h3>
+<h3 id="fixed_11">Fixed<a class="anchor" href="#fixed_11" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>statediagram</code> extraction (v2.48.0) could emit a false transition, not just an
   undercount.</strong> An independent review of the guard→assignment regex found five
@@ -747,7 +766,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   repo-scoped architecture graph, curated wiki, and connector links, Wiki/Links only appear when the
   repo actually has one, never as a dead crumb for data that doesn't exist.</li>
 </ul>
-<h3 id="fixed_11">Fixed<a class="anchor" href="#fixed_11" title="Link to this section">#</a></h3>
+<h3 id="fixed_12">Fixed<a class="anchor" href="#fixed_12" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A deleted (or access-revoked) upstream GitLab project is a clean <code>update</code> skip, not an
   error.</strong> Previously bucketed into the generic error count alongside real failures; now
@@ -828,7 +847,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   line. No new extraction was needed, every <code>calls</code> edge already carried its source
   line, so this is a renderer over data already collected, not a new parser pass.</li>
 </ul>
-<h3 id="fixed_12">Fixed<a class="anchor" href="#fixed_12" title="Link to this section">#</a></h3>
+<h3 id="fixed_13">Fixed<a class="anchor" href="#fixed_13" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Docs corrected a false claim that Devin reads the same repo-committed MCP config
   file as Windsurf.</strong> Devin's MCP connections are account/org-level (<code>mcp.devin.ai</code>,
@@ -841,7 +860,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   match source order. References are now sorted by line before resolution.</li>
 </ul>
 <h2 id="2451-2026-07-25">[2.45.1] - 2026-07-25<a class="anchor" href="#2451-2026-07-25" title="Link to this section">#</a></h2>
-<h3 id="fixed_13">Fixed<a class="anchor" href="#fixed_13" title="Link to this section">#</a></h3>
+<h3 id="fixed_14">Fixed<a class="anchor" href="#fixed_14" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>A local config file's <code>[llm]</code>/<code>[kb]</code>/<code>[embeddings]</code> table no longer wipes out
   sibling fields set globally.</strong> Those three tables are now deep-merged key-by-key
@@ -866,7 +885,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   the space before their counts.</li>
 </ul>
 <h2 id="2450-2026-07-25">[2.45.0] - 2026-07-25<a class="anchor" href="#2450-2026-07-25" title="Link to this section">#</a></h2>
-<h3 id="fixed_14">Fixed<a class="anchor" href="#fixed_14" title="Link to this section">#</a></h3>
+<h3 id="fixed_15">Fixed<a class="anchor" href="#fixed_15" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>doctor</code> flags a missing wiki-LLM runtime.</strong> When the built-in wiki LLM is
   configured but <code>llama-cpp-python</code> isn't installed, <code>doctor</code> now reports
@@ -875,7 +894,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 <li><strong>Dashboard favicon.</strong> The dashboard shell ships an inline SVG favicon, so browsers
   no longer log a <code>/favicon.ico</code> 404 (and the tab gets an icon).</li>
 </ul>
-<h3 id="changed_2">Changed<a class="anchor" href="#changed_2" title="Link to this section">#</a></h3>
+<h3 id="changed_3">Changed<a class="anchor" href="#changed_3" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Moonlit-navy dark theme</strong> for the dashboard and the graph visualizer.</li>
 <li>Renamed the demo running example to a generic "Catalog" service across the sample
@@ -897,7 +916,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   percent, elapsed, ETA, rate) on stderr, degrading to periodic summaries when not a
   TTY, so stdout redirects (e.g. <code>&gt;&gt; run.log</code>) stay clean of bar/<code>\r</code> artifacts.</li>
 </ul>
-<h3 id="changed_3">Changed<a class="anchor" href="#changed_3" title="Link to this section">#</a></h3>
+<h3 id="changed_4">Changed<a class="anchor" href="#changed_4" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Consistent CLI presentation across every command.</strong> One status vocabulary
   (<code>✓</code> ok, <code>⚠</code> warn, <code>✗</code> fail, <code>⊘</code> skip, <code>=</code> unchanged, <code>↝</code> switched, <code>~</code> dry-run) now
@@ -922,7 +941,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   the graph shows no coupling. Cluster pages are served over MCP by passing a namespace
   to <code>get_wiki</code>, and shown per group in the dashboard's fleet overview.</li>
 </ul>
-<h3 id="changed_4">Changed<a class="anchor" href="#changed_4" title="Link to this section">#</a></h3>
+<h3 id="changed_5">Changed<a class="anchor" href="#changed_5" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>query</code> now points at semantic search when a natural-language phrase finds no
   keyword matches.</strong> A multi-word query with no FTS hit gets a one-line hint (run
@@ -930,7 +949,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   a bare "No matches"; a single-token symbol lookup stays quiet.</li>
 </ul>
 <h2 id="2420-2026-07-21">[2.42.0] - 2026-07-21<a class="anchor" href="#2420-2026-07-21" title="Link to this section">#</a></h2>
-<h3 id="fixed_15">Fixed<a class="anchor" href="#fixed_15" title="Link to this section">#</a></h3>
+<h3 id="fixed_16">Fixed<a class="anchor" href="#fixed_16" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Indexing config keys are now honored.</strong> <code>[kb] skip_generated</code>, <code>max_file_bytes</code>,
   and <code>index_workers</code> were documented but silently ignored (the loader read only
@@ -1047,7 +1066,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   (extending and implementing base classes). The grammar (<code>tree-sitter-kotlin</code>) ships
   in the <code>[kb]</code> extra.</li>
 </ul>
-<h3 id="fixed_16">Fixed<a class="anchor" href="#fixed_16" title="Link to this section">#</a></h3>
+<h3 id="fixed_17">Fixed<a class="anchor" href="#fixed_17" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Tolerant wiki review-score parsing.</strong> The council reviewer now recovers a numeric
   score from prose or alternate-JSON review responses before abstaining, so capable
@@ -1116,7 +1135,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   while measuring wiki quality: a 1.5B–3B Ollama model on a <strong>CPU-only</strong> host (~0.85–1.7
   tok/s, no GPU) exceeds 300s per page.</li>
 </ul>
-<h3 id="changed_5">Changed<a class="anchor" href="#changed_5" title="Link to this section">#</a></h3>
+<h3 id="changed_6">Changed<a class="anchor" href="#changed_6" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Quieter, less alarming model downloads.</strong> Downloading the built-in model (LLM or
   embedder) used to print two Hugging Face notices, a <code>local_dir_use_symlinks</code>
@@ -1131,7 +1150,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   tells you the exact idempotent command to re-run once the connection is back, nothing
   is lost, the mirror just resumes.</li>
 </ul>
-<h3 id="fixed_17">Fixed<a class="anchor" href="#fixed_17" title="Link to this section">#</a></h3>
+<h3 id="fixed_18">Fixed<a class="anchor" href="#fixed_18" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Wiki reviews without a usable score now abstain instead of scoring zero.</strong> Small
   local models (e.g. the built-in 0.5B) sometimes return a review the council can't score
@@ -1166,7 +1185,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   and everything lands in one place. The pre-command form (<code>--llm builtin bootstrap</code>)
   kept working throughout; this adds the natural post-command form.</li>
 </ul>
-<h3 id="changed_6">Changed<a class="anchor" href="#changed_6" title="Link to this section">#</a></h3>
+<h3 id="changed_7">Changed<a class="anchor" href="#changed_7" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Clearer built-in-LLM install error.</strong> When the <code>llm-local</code> extra is missing, the
   error now also gives the prebuilt-CPU-wheel fallback (<code>pip install llama-cpp-python
@@ -1175,7 +1194,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   failed. Same fallback documented in QUICKSTART + the knowledge-layer model-providers
   section.</li>
 </ul>
-<h3 id="fixed_18">Fixed<a class="anchor" href="#fixed_18" title="Link to this section">#</a></h3>
+<h3 id="fixed_19">Fixed<a class="anchor" href="#fixed_19" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>find_callers</code> and <code>blast_radius</code> accept a bare symbol name.</strong> Agents call these
   MCP tools with a name (e.g. <code>CatalogService</code>), but they only accepted an internal
@@ -1195,7 +1214,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 </ul>
 <h2 id="2332-2026-07-06">[2.33.2] - 2026-07-06<a class="anchor" href="#2332-2026-07-06" title="Link to this section">#</a></h2>
 <h2 id="2331-2026-07-06">[2.33.1] - 2026-07-06<a class="anchor" href="#2331-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="fixed_19">Fixed<a class="anchor" href="#fixed_19" title="Link to this section">#</a></h3>
+<h3 id="fixed_20">Fixed<a class="anchor" href="#fixed_20" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>init</code> now recommends the extra that matches your choice.</strong> If you enable
   semantic search during <code>contextlake init</code>, the "Next" hint recommends
@@ -1229,7 +1248,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   try-before-fleet run, <code>contextlake bootstrap --repos "…"</code> goes from nothing to a
   wired workspace over just the chosen repos.</li>
 </ul>
-<h3 id="changed_7">Changed<a class="anchor" href="#changed_7" title="Link to this section">#</a></h3>
+<h3 id="changed_8">Changed<a class="anchor" href="#changed_8" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>embed</code> now vectorizes only meaningful nodes</strong>, code definitions (class /
   function / method / interface / struct / enum) and HTTP endpoints, and skips file,
@@ -1249,7 +1268,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   facts, not a fuzzy search. (Surfaced by dogfooding <code>ask</code> on a real 800-node codebase,
   where inheritance questions previously fell through to semantic search.)</li>
 </ul>
-<h3 id="fixed_20">Fixed<a class="anchor" href="#fixed_20" title="Link to this section">#</a></h3>
+<h3 id="fixed_21">Fixed<a class="anchor" href="#fixed_21" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Text-format graph output is no longer log-polluted.</strong> Streaming a large graph to
   stdout as <code>--format json</code> / <code>dot</code> / <code>mermaid</code> / <code>classdiagram</code> could prepend a
@@ -1282,7 +1301,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   class diagrams.</li>
 </ul>
 <h2 id="2280-2026-07-06">[2.28.0] - 2026-07-06<a class="anchor" href="#2280-2026-07-06" title="Link to this section">#</a></h2>
-<h3 id="changed_8">Changed<a class="anchor" href="#changed_8" title="Link to this section">#</a></h3>
+<h3 id="changed_9">Changed<a class="anchor" href="#changed_9" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>ask</code>'s explain route degrades usefully.</strong> When a question like "explain the
   catalog-api" hits a repo with no generated wiki, <code>ask</code> now returns that repo's
@@ -1353,7 +1372,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   re-embedded once automatically (with a message saying why); incremental behavior
   then resumes.</li>
 </ul>
-<h3 id="changed_9">Changed<a class="anchor" href="#changed_9" title="Link to this section">#</a></h3>
+<h3 id="changed_10">Changed<a class="anchor" href="#changed_10" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Built-in embedder guidance is now measured, not assumed.</strong> A four-model
   bake-off on the enriched text (potion-8M/32M vs ONNX bge-small and quantized
@@ -1371,7 +1390,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   Enumeration already used the token-native HTTP client, so the whole mirror now runs
   with just <code>git</code> + a token; without a token the glab-then-git behavior is unchanged.</li>
 </ul>
-<h3 id="changed_10">Changed<a class="anchor" href="#changed_10" title="Link to this section">#</a></h3>
+<h3 id="changed_11">Changed<a class="anchor" href="#changed_11" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The share card is built from the approved hero art</strong> (Pebble in the wide misty
   lake) with real typography, Space Grotesk wordmark, Inter tagline, gold Get
@@ -1386,7 +1405,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
 <p>The product-review hardening release: an end-to-end review as a brand-new
 <code>pip install</code> user surfaced the gaps between the advertised experience and the
 real one; this release closes them.</p>
-<h3 id="fixed_21">Fixed<a class="anchor" href="#fixed_21" title="Link to this section">#</a></h3>
+<h3 id="fixed_22">Fixed<a class="anchor" href="#fixed_22" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>dashboard --sample</code> works from a pip install and under <code>--serve</code>.</strong> The demo-fleet
   fixture used to live at the repo root (absent from every wheel, so <code>--sample</code> crashed
@@ -1419,7 +1438,7 @@ real one; this release closes them.</p>
 <li><strong>A Docker install block</strong> for the published <code>ghcr.io/sayak-sarkar/contextlake</code> image,
   which now carries OCI source labels linking it back to the repository.</li>
 </ul>
-<h3 id="changed_11">Changed<a class="anchor" href="#changed_11" title="Link to this section">#</a></h3>
+<h3 id="changed_12">Changed<a class="anchor" href="#changed_12" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>The CLI introduces itself as what it is</strong>, a local context layer that mirrors,
   indexes, and serves real source over MCP, rather than "GitLab Workspace
@@ -1434,7 +1453,7 @@ real one; this release closes them.</p>
   classifier and keyword sets state the supported Python range and positioning.</li>
 </ul>
 <h2 id="2201-2026-07-01">[2.20.1] - 2026-07-01<a class="anchor" href="#2201-2026-07-01" title="Link to this section">#</a></h2>
-<h3 id="fixed_22">Fixed<a class="anchor" href="#fixed_22" title="Link to this section">#</a></h3>
+<h3 id="fixed_23">Fixed<a class="anchor" href="#fixed_23" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README doc links now resolve on the PyPI project page.</strong> They were relative
   (<code>docs/…​.md</code>), which 404s on PyPI (it renders the README but doesn't host the repo files);
@@ -1464,7 +1483,7 @@ real one; this release closes them.</p>
   walkthrough with screenshots (fleet layouts, repo anatomy, the architecture graph, blast
   radius, and generating a wiki), linked from the README and knowledge-layer docs.</li>
 </ul>
-<h3 id="fixed_23">Fixed<a class="anchor" href="#fixed_23" title="Link to this section">#</a></h3>
+<h3 id="fixed_24">Fixed<a class="anchor" href="#fixed_24" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>wiki</code> / <code>embed</code> / <code>connect &lt;repo&gt;</code> now scope to the named repo(s).</strong> The positional repo
   id was ignored, so these silently ran across the entire indexed fleet; an unknown id now
@@ -1480,7 +1499,7 @@ real one; this release closes them.</p>
   live server" state, not a scary error.</li>
 <li>Replaced the crude inline otter illustration in empty states with the <strong>Pebble</strong> mascot art.</li>
 </ul>
-<h3 id="changed_12">Changed<a class="anchor" href="#changed_12" title="Link to this section">#</a></h3>
+<h3 id="changed_13">Changed<a class="anchor" href="#changed_13" title="Link to this section">#</a></h3>
 <ul>
 <li>Dashboard stat / confidence numbers are <strong>thousands-formatted</strong> (<code>1,013,948</code>).</li>
 <li>Static-export per-repo relationships are built from a <strong>single bucketed edge scan</strong>
@@ -1489,7 +1508,7 @@ real one; this release closes them.</p>
   than a single repo, so the dashboard's sample mode reads like a real fleet.</li>
 </ul>
 <h2 id="2192-2026-06-28">[2.19.2] - 2026-06-28<a class="anchor" href="#2192-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_24">Fixed<a class="anchor" href="#fixed_24" title="Link to this section">#</a></h3>
+<h3 id="fixed_25">Fixed<a class="anchor" href="#fixed_25" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>impact &lt;symbol&gt;</code> no longer silently resolves an ambiguous name to the wrong repo.</strong>
   A bare name (e.g. <code>Node</code>, <code>Order</code>) was resolved via a full-text search and the top hit
@@ -1502,7 +1521,7 @@ real one; this release closes them.</p>
   identically.</li>
 </ul>
 <h2 id="2191-2026-06-28">[2.19.1] - 2026-06-28<a class="anchor" href="#2191-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="fixed_25">Fixed<a class="anchor" href="#fixed_25" title="Link to this section">#</a></h3>
+<h3 id="fixed_26">Fixed<a class="anchor" href="#fixed_26" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dashboard: the command palette (and the provenance drawer and pin chip) no longer render
   stuck-open.</strong> Their <code>[hidden]</code> attribute was being overridden by a CSS <code>display:</code> value, so
@@ -1591,7 +1610,7 @@ real one; this release closes them.</p>
   multiple of 8; applied when the vector table is first created (re-embed to change it).</li>
 </ul>
 <h2 id="2110-2026-06-28">[2.11.0] - 2026-06-28<a class="anchor" href="#2110-2026-06-28" title="Link to this section">#</a></h2>
-<h3 id="changed_13">Changed<a class="anchor" href="#changed_13" title="Link to this section">#</a></h3>
+<h3 id="changed_14">Changed<a class="anchor" href="#changed_14" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>contextlake index</code> with no arguments now indexes the current directory</strong> instead of
   doing nothing, so <code>cd my-repo &amp;&amp; contextlake index</code> just works. Pass <code>--source PATH</code> or
@@ -1609,7 +1628,7 @@ real one; this release closes them.</p>
   directory). A small, dependency-free subset of gitignore syntax; ignored files are
   counted and reported, never silently dropped.</li>
 </ul>
-<h3 id="changed_14">Changed<a class="anchor" href="#changed_14" title="Link to this section">#</a></h3>
+<h3 id="changed_15">Changed<a class="anchor" href="#changed_15" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Colorful output now reaches <code>status</code> and <code>fetch</code>.</strong> <code>status</code> prints a right-aligned,
   glyph-coded summary (<code>✓</code> synchronized, <code>⚠</code> missing/extra), and <code>fetch</code> styles its header and
@@ -1617,7 +1636,7 @@ real one; this release closes them.</p>
   Still plain and <code>NO_COLOR</code>-friendly when not a TTY.</li>
 </ul>
 <h2 id="291-2026-06-26">[2.9.1] - 2026-06-26<a class="anchor" href="#291-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="changed_15">Changed<a class="anchor" href="#changed_15" title="Link to this section">#</a></h3>
+<h3 id="changed_16">Changed<a class="anchor" href="#changed_16" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README overhaul</strong> (this also fixes the instruction shown on PyPI): corrected the primary install
   to <code>pip install contextlake</code> (the old <code>pip install .</code> only works from a clone), led with the value
@@ -1645,7 +1664,7 @@ real one; this release closes them.</p>
     node paints), plus a collapsible key for edge-confidence line styles and per-language repo
     lettermarks, so the iconography is self-explanatory. All still offline/self-contained.</li>
 </ul>
-<h3 id="changed_16">Changed<a class="anchor" href="#changed_16" title="Link to this section">#</a></h3>
+<h3 id="changed_17">Changed<a class="anchor" href="#changed_17" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Captured docstrings + signatures now feed the wiki and <code>get_repo_brief</code>.</strong> <code>repo_brief</code>'s top
   symbols carry their <code>doc</code> + <code>signature</code>, so the LLM-wiki is synthesized from real docstrings (not
@@ -1658,7 +1677,7 @@ real one; this release closes them.</p>
   across the llm/ and embeddings/ providers and the connector, into one stdlib-only <code>kb/_util</code>. No
   behaviour change.</li>
 </ul>
-<h3 id="fixed_26">Fixed<a class="anchor" href="#fixed_26" title="Link to this section">#</a></h3>
+<h3 id="fixed_27">Fixed<a class="anchor" href="#fixed_27" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Safety gate now fails <em>closed</em> on an indeterminate git state.</strong> <code>has_uncommitted_changes</code> and the
   branch/HEAD reads in the sync core swallowed errors and returned a permissive default, so a failed,
@@ -1731,14 +1750,14 @@ real one; this release closes them.</p>
   <code>examples/fixtures/golden-queries.json</code>.</li>
 </ul>
 <h2 id="251-2026-06-26">[2.5.1] - 2026-06-26<a class="anchor" href="#251-2026-06-26" title="Link to this section">#</a></h2>
-<h3 id="fixed_27">Fixed<a class="anchor" href="#fixed_27" title="Link to this section">#</a></h3>
+<h3 id="fixed_28">Fixed<a class="anchor" href="#fixed_28" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>README logo now renders on PyPI.</strong> The header glyph used a repo-relative <code>src</code>, which PyPI can't
   resolve (it doesn't host the repo files), so it showed as a broken image on the project page. Pointed
   it at the absolute <code>raw.githubusercontent.com</code> URL (correct <code>image/svg+xml</code> content-type, verified
   through PyPI's own <code>readme_renderer</code>). Badges were already absolute.</li>
 </ul>
-<h3 id="changed_17">Changed<a class="anchor" href="#changed_17" title="Link to this section">#</a></h3>
+<h3 id="changed_18">Changed<a class="anchor" href="#changed_18" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Docs reconciled with the shipped MCP surface.</strong> <code>docs/knowledge-layer.md</code> now lists the cross-repo
   tools (<code>repo_dependencies</code>, <code>repo_flow</code>, <code>blast_radius</code>, <code>get_wiki</code>) alongside the existing graph
@@ -1782,7 +1801,7 @@ real one; this release closes them.</p>
   <code>truncated</code> when capped), an impact slice for agents, made correct by the AMBIGUOUS-edge change
   below so the hottest symbols aren't missed.</li>
 </ul>
-<h3 id="changed_18">Changed<a class="anchor" href="#changed_18" title="Link to this section">#</a></h3>
+<h3 id="changed_19">Changed<a class="anchor" href="#changed_19" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>embed</code>'s "disabled" message is now actionable.</strong> Instead of the dead-end "Embeddings are
   disabled", it names the exact next step, install <code>contextlake[kb-full]</code> (when the embedder is
@@ -1848,7 +1867,7 @@ real one; this release closes them.</p>
   params → <code>{}</code>, trivially-generic paths dropped) so unrelated repos don't falsely link. Re-run
   <code>index</code> / <code>bootstrap</code> to populate. Event/messaging flow (SNS/SQS/EventBridge/Kafka) is the next slice.</li>
 </ul>
-<h3 id="changed_19">Changed<a class="anchor" href="#changed_19" title="Link to this section">#</a></h3>
+<h3 id="changed_20">Changed<a class="anchor" href="#changed_20" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>MCP: result budgeting on <code>get_neighbors</code> / <code>find_callers</code> / <code>find_dependents</code>.</strong> They now take a
   <code>limit</code> (default 50), order EXTRACTED-first, and return <code>{..., total, truncated}</code> instead of an
@@ -1871,7 +1890,7 @@ real one; this release closes them.</p>
 <li><strong>Inspector lists a node's relationships</strong>, each neighbour clickable to navigate to it (in-view
   hop-to-hop). Tapping a node/edge reframes the canvas onto the selection so it stays legible.</li>
 </ul>
-<h3 id="changed_20">Changed<a class="anchor" href="#changed_20" title="Link to this section">#</a></h3>
+<h3 id="changed_21">Changed<a class="anchor" href="#changed_21" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Graph visualizer reworked into an enterprise app shell.</strong> The floating translucent cards are
   replaced by a real layout, a top bar (brand, mode, search), a collapsible left sidebar (view
@@ -1889,7 +1908,7 @@ real one; this release closes them.</p>
   like the vendored cytoscape), so the source is lint/<code>node --check</code>-able. Output is still one
   self-contained offline HTML.</li>
 </ul>
-<h3 id="fixed_28">Fixed<a class="anchor" href="#fixed_28" title="Link to this section">#</a></h3>
+<h3 id="fixed_29">Fixed<a class="anchor" href="#fixed_29" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Truncation is now visible in the UI.</strong> A bounded subgraph that was clipped used to read as
   complete; a persistent status-bar banner now says "showing N of M, truncated" (honest counts only).</li>
@@ -1947,7 +1966,7 @@ real one; this release closes them.</p>
 </li>
 </ul>
 <h2 id="216-2026-06-23">[2.1.6] - 2026-06-23<a class="anchor" href="#216-2026-06-23" title="Link to this section">#</a></h2>
-<h3 id="fixed_29">Fixed<a class="anchor" href="#fixed_29" title="Link to this section">#</a></h3>
+<h3 id="fixed_30">Fixed<a class="anchor" href="#fixed_30" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Quadratic indexing slowdown at scale (the real fix for "indexing got slower the more repos I
   had").</strong> Each node was refreshed in the full-text index with a per-row <code>DELETE FROM node_fts WHERE
@@ -1967,7 +1986,7 @@ real one; this release closes them.</p>
   fix above in place, a full warm re-index of a 33-repo subtree dropped from ~8.8s (serial) to ~3.1s
   (8 workers, ≈2.9×); the parse speedup grows with both repo count and core count.</li>
 </ul>
-<h3 id="changed_21">Changed<a class="anchor" href="#changed_21" title="Link to this section">#</a></h3>
+<h3 id="changed_22">Changed<a class="anchor" href="#changed_22" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Indexing skips generated/derived files and oversized blobs (configurable, logged).</strong> The code
   graph no longer indexes machine-generated files (<code>*.designer.cs</code>, <code>*.min.js</code>, <code>AssemblyInfo.cs</code>,
@@ -1994,7 +2013,7 @@ real one; this release closes them.</p>
   models</strong>, so <code>docker run … contextlake bootstrap</code> works with zero config / offline.</li>
 </ul>
 <h2 id="214-2026-06-22">[2.1.4] - 2026-06-22<a class="anchor" href="#214-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_22">Changed<a class="anchor" href="#changed_22" title="Link to this section">#</a></h3>
+<h3 id="changed_23">Changed<a class="anchor" href="#changed_23" title="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>bootstrap</code>'s "knowledge layer not installed" message is now actionable.</strong> It prints the exact
   Python interpreter in use and flags the common cause, running the bare <code>./contextlake.py</code>
@@ -2002,7 +2021,7 @@ real one; this release closes them.</p>
   command for that interpreter and the venv alternative (<code>./.venv/bin/contextlake bootstrap</code>).</li>
 </ul>
 <h2 id="213-2026-06-22">[2.1.3] - 2026-06-22<a class="anchor" href="#213-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_23">Changed<a class="anchor" href="#changed_23" title="Link to this section">#</a></h3>
+<h3 id="changed_24">Changed<a class="anchor" href="#changed_24" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Sync is far more resilient to flaky networks and moved branches.</strong> <code>update</code> and <code>branches</code>
   now <strong>retry transient proxy/network drops</strong> (e.g. <code>unexpected eof</code>, <code>connection reset</code>) with
@@ -2019,7 +2038,7 @@ real one; this release closes them.</p>
 <li>The release workflow now also <strong>publishes a GitHub Release</strong> on each <code>vX.Y.Z</code> tag, with notes
   pulled from this changelog and the built sdist + wheel attached.</li>
 </ul>
-<h3 id="changed_24">Changed<a class="anchor" href="#changed_24" title="Link to this section">#</a></h3>
+<h3 id="changed_25">Changed<a class="anchor" href="#changed_25" title="Link to this section">#</a></h3>
 <ul>
 <li>Adopt the SPDX <strong><code>license = "MIT"</code></strong> form (PEP 639) and drop the deprecated <code>License ::</code>
   classifier, silences the setuptools deprecation warnings emitted during the build. Building
@@ -2046,7 +2065,7 @@ real one; this release closes them.</p>
   <strong>log file keep the full <code>[YYYY-MM-DD HH:MM:SS]</code> prefix</strong> unchanged, so the audit trail is
   untouched.</li>
 </ul>
-<h3 id="changed_25">Changed<a class="anchor" href="#changed_25" title="Link to this section">#</a></h3>
+<h3 id="changed_26">Changed<a class="anchor" href="#changed_26" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Branch name alone no longer causes an <code>update</code> to be skipped.</strong> A repo with a clean
   working tree is now fetched and fast-forwarded on whatever branch it is checked out on, 
@@ -2057,7 +2076,7 @@ real one; this release closes them.</p>
   any branch outside <code>safe_branches</code> was skipped outright.</li>
 </ul>
 <h2 id="201-2026-06-22">[2.0.1] - 2026-06-22<a class="anchor" href="#201-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_26">Changed<a class="anchor" href="#changed_26" title="Link to this section">#</a></h3>
+<h3 id="changed_27">Changed<a class="anchor" href="#changed_27" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Clearer config-not-found warning.</strong> When <code>gitlab_group</code> is still the placeholder, the
   warning now lists the exact files searched (absolute paths, with <code>[found]</code>/<code>[absent]</code>) and
@@ -2065,7 +2084,7 @@ real one; this release closes them.</p>
   placed next to the example in the repo but run from elsewhere is no longer a silent miss.</li>
 </ul>
 <h2 id="200-2026-06-22">[2.0.0] - 2026-06-22<a class="anchor" href="#200-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_27">Changed<a class="anchor" href="#changed_27" title="Link to this section">#</a></h3>
+<h3 id="changed_28">Changed<a class="anchor" href="#changed_28" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Renamed the project <code>gitlab-sync</code> → <code>contextlake</code>.</strong> The tool grew from a GitLab
   mirror into a local <em>context layer</em> for AI tools, and the name now reflects that. This
@@ -2087,7 +2106,7 @@ real one; this release closes them.</p>
   repository is renamed on GitHub (the old URL auto-redirects).</li>
 </ul>
 <h2 id="1181-2026-06-22">[1.18.1] - 2026-06-22<a class="anchor" href="#1181-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_28">Changed<a class="anchor" href="#changed_28" title="Link to this section">#</a></h3>
+<h3 id="changed_29">Changed<a class="anchor" href="#changed_29" title="Link to this section">#</a></h3>
 <ul>
 <li>Confirmed the mascot's name, <strong>Pebble</strong> the otter, in <code>BRANDING.md</code> and the mascot spec.</li>
 </ul>
@@ -2103,13 +2122,13 @@ real one; this release closes them.</p>
   the package/command rename is a separate, later step.</li>
 </ul>
 <h2 id="1171-2026-06-22">[1.17.1] - 2026-06-22<a class="anchor" href="#1171-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_29">Changed<a class="anchor" href="#changed_29" title="Link to this section">#</a></h3>
+<h3 id="changed_30">Changed<a class="anchor" href="#changed_30" title="Link to this section">#</a></h3>
 <ul>
 <li>Broadened the local pre-publish checks to cover the whole tree (<code>docs/</code>,
   <code>examples/</code>, <code>.github/</code>, and every top-level doc), not just <code>src/</code>.</li>
 </ul>
 <h2 id="1170-2026-06-22">[1.17.0] - 2026-06-22<a class="anchor" href="#1170-2026-06-22" title="Link to this section">#</a></h2>
-<h3 id="changed_30">Changed<a class="anchor" href="#changed_30" title="Link to this section">#</a></h3>
+<h3 id="changed_31">Changed<a class="anchor" href="#changed_31" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Documentation refactored for readability.</strong> The README is now a lean ~180-line
   landing page (down from ~1,300); detailed command, configuration, branch-safety,
@@ -2125,7 +2144,7 @@ real one; this release closes them.</p>
   commands, and <code>docs/internals.md</code>, a deep-dive on the core-sync internals plus a
   new <strong>knowledge-layer architecture</strong> section.</li>
 </ul>
-<h3 id="changed_31">Changed<a class="anchor" href="#changed_31" title="Link to this section">#</a></h3>
+<h3 id="changed_32">Changed<a class="anchor" href="#changed_32" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Slimmed the README</strong> (~1,320 → ~860 lines): the deep Technical Documentation /
   architecture moved into <code>docs/internals.md</code>, and the inline version history now
@@ -2137,7 +2156,7 @@ real one; this release closes them.</p>
 <ul>
 <li><strong>QUICKSTART.md</strong>, a short install → <code>bootstrap</code> → wire-your-editor guide.</li>
 </ul>
-<h3 id="changed_32">Changed<a class="anchor" href="#changed_32" title="Link to this section">#</a></h3>
+<h3 id="changed_33">Changed<a class="anchor" href="#changed_33" title="Link to this section">#</a></h3>
 <ul>
 <li><code>steer</code> now <strong>enhances existing files instead of skipping them</strong>: an existing
   <code>AGENTS.md</code> / <code>CLAUDE.md</code> / <code>.windsurfrules</code> / <code>.kiro/steering</code> keeps the user's
@@ -2200,13 +2219,13 @@ real one; this release closes them.</p>
   model; only semantic search needs embeddings).</li>
 </ul>
 <h2 id="191-2026-06-21">[1.9.1] - 2026-06-21<a class="anchor" href="#191-2026-06-21" title="Link to this section">#</a></h2>
-<h3 id="fixed_30">Fixed<a class="anchor" href="#fixed_30" title="Link to this section">#</a></h3>
+<h3 id="fixed_31">Fixed<a class="anchor" href="#fixed_31" title="Link to this section">#</a></h3>
 <ul>
 <li><code>serve</code> over the stdio transport wrote human-facing log lines to stdout, which is
   the MCP JSON-RPC channel, corrupting the protocol stream (clients saw spurious
   parse errors). On stdio, logs now go to stderr.</li>
 </ul>
-<h3 id="changed_33">Changed<a class="anchor" href="#changed_33" title="Link to this section">#</a></h3>
+<h3 id="changed_34">Changed<a class="anchor" href="#changed_34" title="Link to this section">#</a></h3>
 <ul>
 <li><code>index --workspace</code> is quieter by default: the per-repo "parsed/resolved" detail
   is now debug-level (show it with <code>-v</code>), leaving the clean per-repo progress bar.</li>
@@ -2273,7 +2292,7 @@ real one; this release closes them.</p>
   Runs alongside Atlassian sources under <code>connect</code>. Connector-agnostic helpers were
   extracted to a shared module so new connectors stay small.</li>
 </ul>
-<h3 id="fixed_31">Fixed<a class="anchor" href="#fixed_31" title="Link to this section">#</a></h3>
+<h3 id="fixed_32">Fixed<a class="anchor" href="#fixed_32" title="Link to this section">#</a></h3>
 <ul>
 <li><code>link_scrape</code> association rules expressed as a <code>patterns</code> list (as in the example
   config) were silently ignored; both a singular <code>pattern</code> and a <code>patterns</code> list
@@ -2318,7 +2337,7 @@ private data lives in the package.</p>
 <p>This release stabilizes the core and makes the tool installable. It repairs
 several regressions introduced by the earlier modularization and fixes a
 critical configuration bug.</p>
-<h3 id="fixed_32">Fixed<a class="anchor" href="#fixed_32" title="Link to this section">#</a></h3>
+<h3 id="fixed_33">Fixed<a class="anchor" href="#fixed_33" title="Link to this section">#</a></h3>
 <ul>
 <li><strong>Critical:</strong> repositories were keyed by their full <code>&lt;group&gt;/...</code> path while
   local clones mirror the tree <em>below</em> the group, so every repo was misreported
@@ -2364,7 +2383,7 @@ critical configuration bug.</p>
 <li>A pytest test suite (68 tests) with fakes for <code>git</code>/<code>glab</code>, and GitHub Actions
   CI running ruff + pytest on Python 3.9-3.14.</li>
 </ul>
-<h3 id="changed_34">Changed<a class="anchor" href="#changed_34" title="Link to this section">#</a></h3>
+<h3 id="changed_35">Changed<a class="anchor" href="#changed_35" title="Link to this section">#</a></h3>
 <ul>
 <li>Code modularized into a <code>gitlab_sync</code> package: <code>cli.py</code>, <code>core.py</code>,
   <code>config.py</code>, <code>safety.py</code>, <code>logging_setup.py</code>.</li>
@@ -2385,7 +2404,7 @@ critical configuration bug.</p>
 <li>Adaptive worker pool for dynamic parallelism</li>
 <li>Comprehensive branch safety documentation in README</li>
 </ul>
-<h3 id="changed_35">Changed<a class="anchor" href="#changed_35" title="Link to this section">#</a></h3>
+<h3 id="changed_36">Changed<a class="anchor" href="#changed_36" title="Link to this section">#</a></h3>
 <ul>
 <li>Updated README with branch safety section including scenarios and examples</li>
 </ul>
@@ -2402,7 +2421,7 @@ critical configuration bug.</p>
 <li>Adaptive worker pool for dynamic parallelism</li>
 <li>Enhanced error classification for better retry strategies</li>
 </ul>
-<h3 id="changed_36">Changed<a class="anchor" href="#changed_36" title="Link to this section">#</a></h3>
+<h3 id="changed_37">Changed<a class="anchor" href="#changed_37" title="Link to this section">#</a></h3>
 <ul>
 <li>Removed all hardcoded company/personal identifiers</li>
 <li>Configuration files can be excluded from version control</li>
@@ -2422,25 +2441,30 @@ critical configuration bug.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#unreleased">[Unreleased]</a></li>
+<li><a href="#2591-2026-07-29">[2.59.1] - 2026-07-29</a><ul>
+<li><a href="#changed">Changed</a></li>
+<li><a href="#fixed">Fixed</a></li>
+</ul>
+</li>
 <li><a href="#2590-2026-07-29">[2.59.0] - 2026-07-29</a><ul>
 <li><a href="#added">Added</a></li>
 </ul>
 </li>
 <li><a href="#2583-2026-07-29">[2.58.3] - 2026-07-29</a><ul>
-<li><a href="#fixed">Fixed</a></li>
+<li><a href="#fixed_1">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2582-2026-07-29">[2.58.2] - 2026-07-29</a><ul>
 <li><a href="#added_1">Added</a></li>
-<li><a href="#fixed_1">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#2581-2026-07-28">[2.58.1] - 2026-07-28</a><ul>
 <li><a href="#fixed_2">Fixed</a></li>
 </ul>
 </li>
+<li><a href="#2581-2026-07-28">[2.58.1] - 2026-07-28</a><ul>
+<li><a href="#fixed_3">Fixed</a></li>
+</ul>
+</li>
 <li><a href="#2580-2026-07-27">[2.58.0] - 2026-07-27</a><ul>
-<li><a href="#changed">Changed</a></li>
+<li><a href="#changed_1">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2570-2026-07-27">[2.57.0] - 2026-07-27</a><ul>
@@ -2449,12 +2473,12 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2560-2026-07-27">[2.56.0] - 2026-07-27</a><ul>
 <li><a href="#added_3">Added</a></li>
-<li><a href="#fixed_3">Fixed</a></li>
+<li><a href="#fixed_4">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2550-2026-07-27">[2.55.0] - 2026-07-27</a><ul>
 <li><a href="#added_4">Added</a></li>
-<li><a href="#fixed_4">Fixed</a></li>
+<li><a href="#fixed_5">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2540-2026-07-27">[2.54.0] - 2026-07-27</a><ul>
@@ -2467,22 +2491,22 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2520-2026-07-26">[2.52.0] - 2026-07-26</a><ul>
 <li><a href="#added_7">Added</a></li>
-<li><a href="#fixed_5">Fixed</a></li>
+<li><a href="#fixed_6">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2511-2026-07-26">[2.51.1] - 2026-07-26</a><ul>
-<li><a href="#fixed_6">Fixed</a></li>
+<li><a href="#fixed_7">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2510-2026-07-26">[2.51.0] - 2026-07-26</a><ul>
 <li><a href="#added_8">Added</a></li>
-<li><a href="#fixed_7">Fixed</a></li>
+<li><a href="#fixed_8">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2500-2026-07-26">[2.50.0] - 2026-07-26</a><ul>
 <li><a href="#added_9">Added</a></li>
-<li><a href="#fixed_8">Fixed</a></li>
-<li><a href="#changed_1">Changed</a></li>
+<li><a href="#fixed_9">Fixed</a></li>
+<li><a href="#changed_2">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2490-2026-07-26">[2.49.0] - 2026-07-26</a><ul>
@@ -2490,16 +2514,16 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2482-2026-07-26">[2.48.2] - 2026-07-26</a><ul>
-<li><a href="#fixed_9">Fixed</a></li>
+<li><a href="#fixed_10">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2481-2026-07-26">[2.48.1] - 2026-07-26</a><ul>
-<li><a href="#fixed_10">Fixed</a></li>
+<li><a href="#fixed_11">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2480-2026-07-26">[2.48.0] - 2026-07-26</a><ul>
 <li><a href="#added_10">Added</a></li>
-<li><a href="#fixed_11">Fixed</a></li>
+<li><a href="#fixed_12">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2470-2026-07-25">[2.47.0] - 2026-07-25</a><ul>
@@ -2508,30 +2532,30 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2460-2026-07-25">[2.46.0] - 2026-07-25</a><ul>
 <li><a href="#added_11">Added</a></li>
-<li><a href="#fixed_12">Fixed</a></li>
-</ul>
-</li>
-<li><a href="#2451-2026-07-25">[2.45.1] - 2026-07-25</a><ul>
 <li><a href="#fixed_13">Fixed</a></li>
 </ul>
 </li>
-<li><a href="#2450-2026-07-25">[2.45.0] - 2026-07-25</a><ul>
+<li><a href="#2451-2026-07-25">[2.45.1] - 2026-07-25</a><ul>
 <li><a href="#fixed_14">Fixed</a></li>
-<li><a href="#changed_2">Changed</a></li>
+</ul>
+</li>
+<li><a href="#2450-2026-07-25">[2.45.0] - 2026-07-25</a><ul>
+<li><a href="#fixed_15">Fixed</a></li>
+<li><a href="#changed_3">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2440-2026-07-23">[2.44.0] - 2026-07-23</a><ul>
 <li><a href="#added_12">Added</a></li>
-<li><a href="#changed_3">Changed</a></li>
+<li><a href="#changed_4">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2430-2026-07-22">[2.43.0] - 2026-07-22</a><ul>
 <li><a href="#added_13">Added</a></li>
-<li><a href="#changed_4">Changed</a></li>
+<li><a href="#changed_5">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2420-2026-07-21">[2.42.0] - 2026-07-21</a><ul>
-<li><a href="#fixed_15">Fixed</a></li>
+<li><a href="#fixed_16">Fixed</a></li>
 <li><a href="#added_14">Added</a></li>
 </ul>
 </li>
@@ -2553,7 +2577,7 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2370-2026-07-08">[2.37.0] - 2026-07-08</a><ul>
 <li><a href="#added_19">Added</a></li>
-<li><a href="#fixed_16">Fixed</a></li>
+<li><a href="#fixed_17">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2360-2026-07-08">[2.36.0] - 2026-07-08</a><ul>
@@ -2563,29 +2587,29 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2350-2026-07-08">[2.35.0] - 2026-07-08</a><ul>
 <li><a href="#added_21">Added</a></li>
-<li><a href="#changed_5">Changed</a></li>
-<li><a href="#fixed_17">Fixed</a></li>
+<li><a href="#changed_6">Changed</a></li>
+<li><a href="#fixed_18">Fixed</a></li>
 <li><a href="#documentation_1">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2340-2026-07-07">[2.34.0] - 2026-07-07</a><ul>
 <li><a href="#added_22">Added</a></li>
-<li><a href="#changed_6">Changed</a></li>
-<li><a href="#fixed_18">Fixed</a></li>
+<li><a href="#changed_7">Changed</a></li>
+<li><a href="#fixed_19">Fixed</a></li>
 <li><a href="#documentation_2">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2332-2026-07-06">[2.33.2] - 2026-07-06</a></li>
 <li><a href="#2331-2026-07-06">[2.33.1] - 2026-07-06</a><ul>
-<li><a href="#fixed_19">Fixed</a></li>
+<li><a href="#fixed_20">Fixed</a></li>
 <li><a href="#documentation_3">Documentation</a></li>
 </ul>
 </li>
 <li><a href="#2330-2026-07-06">[2.33.0] - 2026-07-06</a><ul>
 <li><a href="#added_23">Added</a></li>
-<li><a href="#changed_7">Changed</a></li>
+<li><a href="#changed_8">Changed</a></li>
 <li><a href="#added_24">Added</a></li>
-<li><a href="#fixed_20">Fixed</a></li>
+<li><a href="#fixed_21">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2300-2026-07-06">[2.30.0] - 2026-07-06</a><ul>
@@ -2594,7 +2618,7 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2280-2026-07-06">[2.28.0] - 2026-07-06</a><ul>
-<li><a href="#changed_8">Changed</a></li>
+<li><a href="#changed_9">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2270-2026-07-06">[2.27.0] - 2026-07-06</a><ul>
@@ -2615,37 +2639,37 @@ critical configuration bug.</p>
 </li>
 <li><a href="#2230-2026-07-02">[2.23.0] - 2026-07-02</a><ul>
 <li><a href="#added_31">Added</a></li>
-<li><a href="#changed_9">Changed</a></li>
+<li><a href="#changed_10">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2220-2026-07-02">[2.22.0] - 2026-07-02</a><ul>
 <li><a href="#added_32">Added</a></li>
-<li><a href="#changed_10">Changed</a></li>
-</ul>
-</li>
-<li><a href="#2210-2026-07-02">[2.21.0] - 2026-07-02</a><ul>
-<li><a href="#fixed_21">Fixed</a></li>
-<li><a href="#added_33">Added</a></li>
 <li><a href="#changed_11">Changed</a></li>
 </ul>
 </li>
-<li><a href="#2201-2026-07-01">[2.20.1] - 2026-07-01</a><ul>
+<li><a href="#2210-2026-07-02">[2.21.0] - 2026-07-02</a><ul>
 <li><a href="#fixed_22">Fixed</a></li>
+<li><a href="#added_33">Added</a></li>
+<li><a href="#changed_12">Changed</a></li>
+</ul>
+</li>
+<li><a href="#2201-2026-07-01">[2.20.1] - 2026-07-01</a><ul>
+<li><a href="#fixed_23">Fixed</a></li>
 <li><a href="#added_34">Added</a></li>
 </ul>
 </li>
 <li><a href="#2200-2026-06-30">[2.20.0] - 2026-06-30</a><ul>
 <li><a href="#added_35">Added</a></li>
-<li><a href="#fixed_23">Fixed</a></li>
-<li><a href="#changed_12">Changed</a></li>
+<li><a href="#fixed_24">Fixed</a></li>
+<li><a href="#changed_13">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2192-2026-06-28">[2.19.2] - 2026-06-28</a><ul>
-<li><a href="#fixed_24">Fixed</a></li>
+<li><a href="#fixed_25">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2191-2026-06-28">[2.19.1] - 2026-06-28</a><ul>
-<li><a href="#fixed_25">Fixed</a></li>
+<li><a href="#fixed_26">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#2190-2026-06-28">[2.19.0] - 2026-06-28</a><ul>
@@ -2681,22 +2705,22 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#2110-2026-06-28">[2.11.0] - 2026-06-28</a><ul>
-<li><a href="#changed_13">Changed</a></li>
+<li><a href="#changed_14">Changed</a></li>
 </ul>
 </li>
 <li><a href="#2100-2026-06-28">[2.10.0] - 2026-06-28</a><ul>
 <li><a href="#added_44">Added</a></li>
-<li><a href="#changed_14">Changed</a></li>
+<li><a href="#changed_15">Changed</a></li>
 </ul>
 </li>
 <li><a href="#291-2026-06-26">[2.9.1] - 2026-06-26</a><ul>
-<li><a href="#changed_15">Changed</a></li>
+<li><a href="#changed_16">Changed</a></li>
 </ul>
 </li>
 <li><a href="#290-2026-06-26">[2.9.0] - 2026-06-26</a><ul>
 <li><a href="#added_45">Added</a></li>
-<li><a href="#changed_16">Changed</a></li>
-<li><a href="#fixed_26">Fixed</a></li>
+<li><a href="#changed_17">Changed</a></li>
+<li><a href="#fixed_27">Fixed</a></li>
 <li><a href="#security">Security</a></li>
 </ul>
 </li>
@@ -2714,25 +2738,25 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#251-2026-06-26">[2.5.1] - 2026-06-26</a><ul>
-<li><a href="#fixed_27">Fixed</a></li>
-<li><a href="#changed_17">Changed</a></li>
+<li><a href="#fixed_28">Fixed</a></li>
+<li><a href="#changed_18">Changed</a></li>
 </ul>
 </li>
 <li><a href="#250-2026-06-26">[2.5.0] - 2026-06-26</a><ul>
 <li><a href="#added_49">Added</a></li>
-<li><a href="#changed_18">Changed</a></li>
+<li><a href="#changed_19">Changed</a></li>
 <li><a href="#added_50">Added</a></li>
 </ul>
 </li>
 <li><a href="#240-2026-06-25">[2.4.0] - 2026-06-25</a><ul>
 <li><a href="#added_51">Added</a></li>
-<li><a href="#changed_19">Changed</a></li>
+<li><a href="#changed_20">Changed</a></li>
 </ul>
 </li>
 <li><a href="#230-2026-06-24">[2.3.0] - 2026-06-24</a><ul>
 <li><a href="#added_52">Added</a></li>
-<li><a href="#changed_20">Changed</a></li>
-<li><a href="#fixed_28">Fixed</a></li>
+<li><a href="#changed_21">Changed</a></li>
+<li><a href="#fixed_29">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#220-2026-06-23">[2.2.0] - 2026-06-23</a><ul>
@@ -2740,9 +2764,9 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#216-2026-06-23">[2.1.6] - 2026-06-23</a><ul>
-<li><a href="#fixed_29">Fixed</a></li>
+<li><a href="#fixed_30">Fixed</a></li>
 <li><a href="#added_54">Added</a></li>
-<li><a href="#changed_21">Changed</a></li>
+<li><a href="#changed_22">Changed</a></li>
 </ul>
 </li>
 <li><a href="#215-2026-06-23">[2.1.5] - 2026-06-23</a><ul>
@@ -2750,16 +2774,16 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#214-2026-06-22">[2.1.4] - 2026-06-22</a><ul>
-<li><a href="#changed_22">Changed</a></li>
+<li><a href="#changed_23">Changed</a></li>
 </ul>
 </li>
 <li><a href="#213-2026-06-22">[2.1.3] - 2026-06-22</a><ul>
-<li><a href="#changed_23">Changed</a></li>
+<li><a href="#changed_24">Changed</a></li>
 </ul>
 </li>
 <li><a href="#212-2026-06-22">[2.1.2] - 2026-06-22</a><ul>
 <li><a href="#added_56">Added</a></li>
-<li><a href="#changed_24">Changed</a></li>
+<li><a href="#changed_25">Changed</a></li>
 </ul>
 </li>
 <li><a href="#211-2026-06-22">[2.1.1] - 2026-06-22</a><ul>
@@ -2768,20 +2792,20 @@ critical configuration bug.</p>
 </li>
 <li><a href="#210-2026-06-22">[2.1.0] - 2026-06-22</a><ul>
 <li><a href="#added_58">Added</a></li>
-<li><a href="#changed_25">Changed</a></li>
-</ul>
-</li>
-<li><a href="#201-2026-06-22">[2.0.1] - 2026-06-22</a><ul>
 <li><a href="#changed_26">Changed</a></li>
 </ul>
 </li>
-<li><a href="#200-2026-06-22">[2.0.0] - 2026-06-22</a><ul>
+<li><a href="#201-2026-06-22">[2.0.1] - 2026-06-22</a><ul>
 <li><a href="#changed_27">Changed</a></li>
+</ul>
+</li>
+<li><a href="#200-2026-06-22">[2.0.0] - 2026-06-22</a><ul>
+<li><a href="#changed_28">Changed</a></li>
 <li><a href="#note">Note</a></li>
 </ul>
 </li>
 <li><a href="#1181-2026-06-22">[1.18.1] - 2026-06-22</a><ul>
-<li><a href="#changed_28">Changed</a></li>
+<li><a href="#changed_29">Changed</a></li>
 </ul>
 </li>
 <li><a href="#1180-2026-06-22">[1.18.0] - 2026-06-22</a><ul>
@@ -2789,21 +2813,21 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#1171-2026-06-22">[1.17.1] - 2026-06-22</a><ul>
-<li><a href="#changed_29">Changed</a></li>
+<li><a href="#changed_30">Changed</a></li>
 </ul>
 </li>
 <li><a href="#1170-2026-06-22">[1.17.0] - 2026-06-22</a><ul>
-<li><a href="#changed_30">Changed</a></li>
+<li><a href="#changed_31">Changed</a></li>
 </ul>
 </li>
 <li><a href="#1160-2026-06-22">[1.16.0] - 2026-06-22</a><ul>
 <li><a href="#added_60">Added</a></li>
-<li><a href="#changed_31">Changed</a></li>
+<li><a href="#changed_32">Changed</a></li>
 </ul>
 </li>
 <li><a href="#1150-2026-06-22">[1.15.0] - 2026-06-22</a><ul>
 <li><a href="#added_61">Added</a></li>
-<li><a href="#changed_32">Changed</a></li>
+<li><a href="#changed_33">Changed</a></li>
 </ul>
 </li>
 <li><a href="#1140-2026-06-22">[1.14.0] - 2026-06-22</a><ul>
@@ -2827,8 +2851,8 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#191-2026-06-21">[1.9.1] - 2026-06-21</a><ul>
-<li><a href="#fixed_30">Fixed</a></li>
-<li><a href="#changed_33">Changed</a></li>
+<li><a href="#fixed_31">Fixed</a></li>
+<li><a href="#changed_34">Changed</a></li>
 </ul>
 </li>
 <li><a href="#190-2026-06-21">[1.9.0] - 2026-06-21</a><ul>
@@ -2849,7 +2873,7 @@ critical configuration bug.</p>
 </li>
 <li><a href="#150-2026-06-21">[1.5.0] - 2026-06-21</a><ul>
 <li><a href="#added_71">Added</a></li>
-<li><a href="#fixed_31">Fixed</a></li>
+<li><a href="#fixed_32">Fixed</a></li>
 </ul>
 </li>
 <li><a href="#140-2026-06-21">[1.4.0] - 2026-06-21</a><ul>
@@ -2857,19 +2881,19 @@ critical configuration bug.</p>
 </ul>
 </li>
 <li><a href="#130-2026-06-21">[1.3.0] - 2026-06-21</a><ul>
-<li><a href="#fixed_32">Fixed</a></li>
+<li><a href="#fixed_33">Fixed</a></li>
 <li><a href="#added_73">Added</a></li>
-<li><a href="#changed_34">Changed</a></li>
+<li><a href="#changed_35">Changed</a></li>
 </ul>
 </li>
 <li><a href="#120-2026-06-16">[1.2.0] - 2026-06-16</a><ul>
 <li><a href="#added_74">Added</a></li>
-<li><a href="#changed_35">Changed</a></li>
+<li><a href="#changed_36">Changed</a></li>
 </ul>
 </li>
 <li><a href="#110-2026-05-24">[1.1.0] - 2026-05-24</a><ul>
 <li><a href="#added_75">Added</a></li>
-<li><a href="#changed_36">Changed</a></li>
+<li><a href="#changed_37">Changed</a></li>
 </ul>
 </li>
 <li><a href="#100-2026-05-10">[1.0.0] - 2026-05-10</a><ul>
@@ -2904,6 +2928,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=ef558f9"></script>
+<script defer src="cmdk.js?v=1232215"></script>
 </body>
 </html>
