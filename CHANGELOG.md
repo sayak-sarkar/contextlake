@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.59.1] - 2026-07-29
+
+### Changed
+
+- **Upgraded the `mcp` SDK dependency to 2.0.0**, lifting the `<2` stopgap pin from v2.58.3. Patched
+  every breaking rename (`FastMCP` -> `MCPServer`, `streamablehttp_client` -> `streamable_http_client` in
+  two files, `CallToolResult.structuredContent`/`isError` -> snake_case, the removed
+  `mcp.shared.memory` in-memory test helper -> the new `mcp.Client`).
+
+### Fixed
+
+- **`contextlake serve` was completely broken for any tool touching the SQLite-backed store**, on
+  either transport. This mcp SDK version dispatches every synchronous tool call through
+  `anyio.to_thread.run_sync` unconditionally, so a server-lifetime store sharing one `sqlite3`
+  connection across calls now crashed with "SQLite objects created in a thread can only be used in
+  that same thread" the moment any tool ran (confirmed live against a real HTTP-served server: works
+  on mcp 1.28.1, broken on 2.0.0). `SqliteStore`, `VectorStore`, and `SqliteVecStore` now hand out one
+  connection per thread instead of one connection total (WAL mode, already in place, is exactly the
+  mode SQLite recommends for this).
+
 ## [2.59.0] - 2026-07-29
 
 ### Added
