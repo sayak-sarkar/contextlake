@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.3] - 2026-07-29
+
+### Added
+
+- **Shell tab-completion, on by default.** `argcomplete` is now a core dependency (pure Python,
+  ~40KB, zero required dependencies of its own), so completion is available the moment
+  `contextlake` itself is installed -- `pip install contextlake` alone. `contextlake init` then
+  offers (on by default; `--no-completion` to skip) to register it with your shell: a one-line
+  `eval "$(register-python-argcomplete contextlake)"` appended to `~/.bashrc`/`~/.zshrc` (zsh gets
+  a `bashcompinit` line first), or a dedicated completions file for fish -- idempotent, and never
+  touching anything else already in your rc file. `contextlake <TAB>` then completes every command
+  and every one of its flags, generated live from the same parser that runs the command. See
+  `docs/usage.md#shell-completion` for the manual one-liner per shell if you skipped it at `init`
+  time (or use a shell other than bash/zsh/fish).
+- **`contextlake version`** as a subcommand alias for `--version` (docker/npm/kubectl all support
+  both spellings; `version` previously errored as an unknown command, suggesting `verify`).
+
 ## [2.60.2] - 2026-07-29
 
 ### Fixed

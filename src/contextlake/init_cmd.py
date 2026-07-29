@@ -6,8 +6,10 @@ which auth path they'll use, write valid config with sensible defaults, and prin
 the next step. Interactive when stdin is a TTY; otherwise (or with ``--yes``)
 non-interactive from flags + defaults, so it is scriptable and CI-safe.
 
-Stdlib only. Never writes a token into a file — auth is always an env var,
-referenced by name.
+Stdlib only, plus one lazy import: ``argcomplete.shell_integration`` for the
+fish completions file (argcomplete itself is a core dependency; see
+pyproject.toml). Never writes a token into a file — auth is always an env
+var, referenced by name.
 """
 
 from __future__ import annotations
@@ -117,6 +119,95 @@ def _write(path: str, content: str, *, force: bool) -> bool:
     p.write_text(content, encoding="utf-8")
     log(f"  {style.ok('wrote')} {path}")
     return True
+
+
+# argcomplete is a core dependency (see pyproject.toml), so registering it is
+# just a matter of wiring it into the user's shell -- fish gets a static
+# completions file, bash/zsh get a one-line `eval` (evaluated fresh each shell
+# start, so it never goes stale the way pasting the ~3KB generated script
+# itself into an rc file would).
+_COMPLETION_EVAL_CMD = 'eval "$(register-python-argcomplete contextlake)"'
+_COMPLETION_MARKER = "register-python-argcomplete contextlake"
+
+
+def _bash_zsh_rc(shell: str) -> str | None:
+    if shell == "bash":
+        return os.path.expanduser("~/.bashrc")
+    if shell == "zsh":
+        return os.path.expanduser("~/.zshrc")
+    return None
+
+
+def _completion_already_registered(rc_path: str) -> bool:
+    try:
+        return _COMPLETION_MARKER in Path(rc_path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+def _append_completion_block(rc_path: str, shell: str) -> None:
+    """Append a clearly-delimited, idempotent-marker-bearing block -- same
+    append-only, never-clobber convention `contextlake steer` already uses for
+    AGENTS.md/.mcp.json, just for a shell rc file instead."""
+    lines = ["", "# >>> contextlake shell completion >>>"]
+    if shell == "zsh":
+        # bash-style completion needs zsh's bashcompinit shim loaded first;
+        # most interactive zsh setups already load it, but not guaranteeing
+        # that would leave the eval line below silently doing nothing.
+        lines.append("autoload -U bashcompinit && bashcompinit")
+    lines.append(_COMPLETION_EVAL_CMD)
+    lines.append("# <<< contextlake shell completion <<<")
+    lines.append("")
+    Path(rc_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(rc_path, "a", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+
+def _write_fish_completion() -> str:
+    from argcomplete.shell_integration import shellcode  # core dep; see pyproject.toml
+
+    path = os.path.expanduser("~/.config/fish/completions/contextlake.fish")
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_text(shellcode(["contextlake"], shell="fish"), encoding="utf-8")
+    return path
+
+
+def _setup_shell_completion(*, interactive: bool, default_on: bool) -> None:
+    """Register shell tab-completion, on by default (see docs/usage.md
+    #shell-completion for the plain manual steps this automates). Every write
+    here is visible in the log before it happens and is either idempotent
+    (bash/zsh: skips if the marker's already present) or a full overwrite of a
+    file contextlake itself owns (fish's dedicated completions file) -- never
+    a silent, unannounced mutation of a dotfile the user didn't ask about."""
+    want = _ask_yn("Enable shell tab-completion for contextlake?", default_on) \
+        if interactive else default_on
+    if not want:
+        return
+    shell_path = os.environ.get("SHELL", "")
+    shell_name = os.path.basename(shell_path)
+    log("")
+    if shell_name in ("bash", "zsh"):
+        rc_path = _bash_zsh_rc(shell_name)
+        if _completion_already_registered(rc_path):
+            log(f"{style.ok('completion')} already registered in {rc_path}")
+        else:
+            log(f"{style.ok('completion')} adding to {rc_path}:")
+            log(f"    {_COMPLETION_EVAL_CMD}")
+            _append_completion_block(rc_path, shell_name)
+            log(f"  Open a new {shell_name} shell (or `source {rc_path}`) for it to take effect.")
+    elif shell_name == "fish":
+        try:
+            path = _write_fish_completion()
+        except ImportError:
+            log(f"{style.warn('completion')} argcomplete not importable; skipping "
+                "(this shouldn't happen -- it's a core dependency).")
+        else:
+            log(f"{style.ok('completion')} wrote {path}")
+            log("  Open a new fish shell for it to take effect.")
+    else:
+        log(f"{style.warn('completion')} unrecognized shell "
+            f"({shell_path or '$SHELL not set'}) — see "
+            "docs/usage.md#shell-completion for manual setup (bash/zsh/fish).")
 
 
 def cmd_init(args) -> int:
@@ -243,6 +334,12 @@ def cmd_init(args) -> int:
     else:
         log(f"{style.warn('auth')} Set {env} to mirror private repos "
             "(public orgs work without a token, rate-limited).")
+
+    # --- shell completion ----------------------------------------------------
+    completion_default = getattr(args, "completion", None)
+    if completion_default is None:
+        completion_default = True
+    _setup_shell_completion(interactive=interactive, default_on=completion_default)
 
     # --- next steps ---------------------------------------------------------
     log("")

@@ -9,8 +9,12 @@ from contextlake.config import load_config
 
 
 def _args(**over):
+    # completion=False: shell-completion registration is its own concern with
+    # its own dedicated tests below (test_init_shell_completion.py-style, in
+    # this file's later section) that explicitly mock HOME/SHELL; every other
+    # test here must never touch a real dotfile, on this or any CI machine.
     base = dict(platform=None, group=None, work_dir=None, kb=None,
-                embeddings=False, yes=True, force=False)
+                embeddings=False, completion=False, yes=True, force=False)
     base.update(over)
     return Namespace(**base)
 
@@ -302,3 +306,87 @@ def test_init_connector_prompt_never_asks_for_a_secret_value(tmp_path, monkeypat
         "token" in p.lower() or "secret" in p.lower() or "password" in p.lower()
         for p in seen_prompts
     )
+
+
+# --- shell completion ------------------------------------------------------
+# Dedicated section: every test here explicitly mocks HOME and SHELL so
+# nothing ever touches a real dotfile, on this or any CI machine -- the exact
+# hazard the default-False `completion` in _args()'s base dict (above) exists
+# to prevent for every *other* test in this file.
+
+def test_completion_default_on_writes_bash_eval_line(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)
+    rc = (tmp_path / ".bashrc").read_text()
+    assert 'eval "$(register-python-argcomplete contextlake)"' in rc
+
+
+def test_completion_zsh_adds_bashcompinit_first(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/usr/bin/zsh")
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)
+    rc = (tmp_path / ".zshrc").read_text()
+    assert "bashcompinit" in rc
+    assert 'eval "$(register-python-argcomplete contextlake)"' in rc
+
+
+def test_completion_is_idempotent_on_rerun(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)
+    rc = (tmp_path / ".bashrc").read_text()
+    assert rc.count("register-python-argcomplete contextlake") == 1
+
+
+def test_completion_preserves_existing_rc_content(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    (tmp_path / ".bashrc").write_text("export PATH=/my/own/stuff:$PATH\n")
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)
+    rc = (tmp_path / ".bashrc").read_text()
+    assert "export PATH=/my/own/stuff:$PATH" in rc
+    assert "register-python-argcomplete contextlake" in rc
+
+
+def test_completion_off_does_not_touch_any_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    init_cmd._setup_shell_completion(interactive=False, default_on=False)
+    assert not (tmp_path / ".bashrc").exists()
+
+
+def test_completion_fish_writes_dedicated_completions_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/usr/bin/fish")
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)
+    path = tmp_path / ".config" / "fish" / "completions" / "contextlake.fish"
+    assert path.exists()
+    assert "contextlake" in path.read_text()
+
+
+def test_completion_unrecognized_shell_warns_not_crashes(tmp_path, monkeypatch, gls_logs):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/tcsh")
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)  # must not raise
+    assert "unrecognized shell" in gls_logs.text.lower()
+
+
+def test_init_end_to_end_registers_completion_by_default(tmp_path, monkeypatch):
+    """cmd_init's own wiring, not just the helper function directly: the
+    completion arg defaults to on when the CLI doesn't set it at all. Real
+    argparse with --completion/--no-completion both using default=SUPPRESS
+    leaves `completion` absent from the namespace when unset, which is what
+    `del args.completion` simulates here -- cmd_init then reads it via
+    getattr(args, "completion", None), landing on None (not False)."""
+    monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(tmp_path / ".contextlake.ini"))
+    monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(tmp_path / ".contextlake/kb.toml"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    args = _args(group="acme")
+    del args.completion  # simulate the real CLI: unset, not explicitly False
+    init_cmd.cmd_init(args)
+    rc = tmp_path / "home" / ".bashrc"
+    assert rc.exists()
+    assert "register-python-argcomplete contextlake" in rc.read_text()

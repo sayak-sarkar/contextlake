@@ -331,6 +331,13 @@ Issues: https://github.com/sayak-sarkar/contextlake/issues
         _add_global(p)
         return p
 
+    # `--version` (a flag, exits during parsing) is the documented way to check
+    # the version, but `contextlake version` is a very natural first guess
+    # (docker/npm/kubectl all support both spellings) and previously errored as
+    # an unknown command; a bare subcommand alias costs nothing to keep in sync
+    # since it prints the exact same f-string main() already has.
+    command("version", "show contextlake's version number and exit")
+
     # ---- first run ---------------------------------------------------------
     p = command("init", "guided setup: write your mirror + knowledge-layer config",
                 epilog="""
@@ -359,6 +366,10 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                    help="write only the mirror config")
     p.add_argument("--embeddings", action="store_true", default=_S,
                    help="enable semantic search in the generated kb config")
+    p.add_argument("--completion", dest="completion", action="store_true", default=_S,
+                   help="register shell tab-completion (default: yes, on bash/zsh)")
+    p.add_argument("--no-completion", dest="completion", action="store_false", default=_S,
+                   help="skip registering shell tab-completion")
     p.add_argument("--yes", "-y", action="store_true", default=_S,
                    help="non-interactive: accept defaults / flags, no prompts")
     p.add_argument("--force", action="store_true", default=_S,
@@ -913,6 +924,21 @@ def main(argv=None):
     from . import style
 
     parser = build_parser()
+    # Shell tab-completion (bash/zsh/fish/tcsh): a core dependency (see
+    # pyproject.toml), so this is always available once contextlake itself is
+    # installed -- only registering it with a shell (init offers to do this;
+    # docs/usage.md#shell-completion has the manual one-liner) is a separate
+    # step. autocomplete() only acts when a shell's completion machinery has
+    # set COMP_LINE et al., so this is a silent no-op on every normal
+    # invocation. The try/except is defensive, not the primary path: an
+    # editable install or a stale environment predating this dependency
+    # shouldn't crash the whole CLI over a missing completion library.
+    try:
+        import argcomplete
+
+        argcomplete.autocomplete(parser)
+    except ImportError:
+        pass
     args = parser.parse_args(argv)
     args.command = _ALIASES.get(args.command, args.command)
 
@@ -925,6 +951,12 @@ def main(argv=None):
     # (description, command list, getting-started examples) and exit clean.
     if args.command is None:
         parser.print_help()
+        sys.exit(0)
+
+    # Same output `--version` prints (parser.prog is "contextlake"), just also
+    # reachable as a subcommand.
+    if args.command == "version":
+        print(f"{parser.prog} {__version__}")
         sys.exit(0)
 
     setup_logging(verbose=args.verbose, quiet=args.quiet, log_file=args.log_file)

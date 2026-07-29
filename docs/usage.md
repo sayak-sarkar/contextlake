@@ -16,6 +16,31 @@ Every command carries its own scoped help, `contextlake <command> --help` shows
 just that command's flags with worked examples, and bare `contextlake` prints the
 full command list.
 
+### Shell completion
+
+On by default. `argcomplete` is a core dependency, so `pip install contextlake` alone is enough —
+no separate extra. `contextlake init` then offers to register it with your shell (on by default;
+pass `--no-completion` to skip), writing whichever of these applies once, idempotently:
+
+```bash
+# bash — appended to ~/.bashrc
+eval "$(register-python-argcomplete contextlake)"
+
+# zsh — appended to ~/.zshrc (needs bashcompinit; most zsh setups already load it)
+autoload -U bashcompinit && bashcompinit
+eval "$(register-python-argcomplete contextlake)"
+
+# fish — a dedicated file, written once
+register-python-argcomplete --shell fish contextlake > ~/.config/fish/completions/contextlake.fish
+```
+
+If you skipped it at `init` time, use a shell other than bash/zsh/fish, or just want to do it by
+hand, the commands above are exactly what `init` runs — copy the one for your shell and open a new
+shell afterward. `contextlake <TAB>` then completes every command and, inside a command, every one
+of its flags — generated live from the same parser that runs the command, so it can never drift
+out of sync with the actual CLI surface. Uses [argcomplete](https://github.com/kislyuk/argcomplete)
+(pure Python, no dependencies of its own).
+
 **Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `index
 --workspace`) accepts `--repos PATTERN`, a comma-separated **glob/substring** filter
 over your repo paths, so you can mirror and index just a handful instead of the whole

@@ -132,3 +132,72 @@ def test_plain_sets_no_color_before_any_output(monkeypatch):
         main(["--plain"])
     assert exc.value.code == 0
     assert os.environ.get("NO_COLOR") == "1"
+
+
+def test_version_subcommand_matches_the_version_flag(capsys):
+    """`contextlake version` was previously an unknown command -- a very
+    natural first guess (docker/npm/kubectl all support both spellings) --
+    reported as "Unknown command: 'version'". It must print the exact same
+    string as `--version`, not a paraphrase that could drift from it."""
+    from contextlake.cli import main
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    flag_output = capsys.readouterr().out.strip()
+
+    with pytest.raises(SystemExit) as exc:
+        main(["version"])
+    assert exc.value.code == 0
+    subcommand_output = capsys.readouterr().out.strip()
+
+    from contextlake import __version__
+
+    assert flag_output == subcommand_output == f"contextlake {__version__}"
+
+
+def test_argcomplete_engaged_when_importable(monkeypatch):
+    """Shell completion (pip install "contextlake[completion]") is wired as a
+    lazy, optional import in main() -- ImportError is caught so the core
+    tool's zero-dependency promise holds when it's absent (the normal case in
+    this dev venv; see test_argcomplete_absence_is_a_silent_noop below). This
+    proves the *present* branch actually calls into it rather than silently
+    no-op'ing every time, using a stub instead of a hard new test dependency
+    on the real package."""
+    import sys
+    import types
+
+    calls = []
+    stub = types.ModuleType("argcomplete")
+    stub.autocomplete = lambda parser: calls.append(parser)
+    monkeypatch.setitem(sys.modules, "argcomplete", stub)
+
+    from contextlake.cli import main
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert len(calls) == 1
+
+
+def test_argcomplete_absence_is_a_silent_noop(monkeypatch):
+    """The common case (extra not installed): main() must still run normally,
+    not crash, when `import argcomplete` raises ImportError."""
+    import builtins
+    import sys
+
+    monkeypatch.delitem(sys.modules, "argcomplete", raising=False)
+    real_import = builtins.__import__
+
+    def _fake_import(name, *a, **kw):
+        if name == "argcomplete":
+            raise ImportError("simulated: extra not installed")
+        return real_import(name, *a, **kw)
+
+    monkeypatch.setattr(builtins, "__import__", _fake_import)
+
+    from contextlake.cli import main
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
