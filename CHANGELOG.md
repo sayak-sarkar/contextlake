@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.58.2] - 2026-07-29
+
+### Added
+
+- **`contextlake init`'s data-source prompt now loops** ("Connect a data source now?" then "Connect
+  another data source?") instead of collecting exactly one source per run -- found via dogfooding: adding
+  a second source meant re-running `contextlake source add` by hand afterward.
+- **`init` and `source add` explain what "Source name" actually means** -- it's a local nickname you pick
+  to reference the connection later (`contextlake source test <name>`), not your Atlassian site, Figma
+  team, or any other provider-side identifier. Also found via dogfooding: a real user typed their org name
+  as the "source name," reasonably expecting it to be some kind of account identifier.
+- **`init`/`source add` suggest each provider's official hosted MCP URL as the default** for `atlassian`
+  (`https://mcp.atlassian.com/v1/mcp/authv2`) and `figma` (`https://mcp.figma.com/mcp`), verified against
+  each provider's own docs, so the prompt no longer forces you to already know the endpoint yourself.
+
+### Fixed
+
+- **`[llm] provider = "cli"` with `command = "gemini"` was broken since it shipped.** `gemini`'s
+  `-p`/`--prompt` flag is a required string *value*, not a boolean "read the rest from stdin" switch --
+  the preset sent `["-p"]` with the prompt only on stdin, which produced a yargs usage dump instead of a
+  completion (found live once a real subscription login was available to test against). `CliLlm` now
+  substitutes a `{PROMPT}` placeholder in `gemini`'s preset args with the actual prompt at call time and
+  skips stdin for that call -- every other command (`claude`, `codex`, a user's own CLI) is unaffected
+  and keeps feeding the prompt on stdin. This trades away two properties for `gemini` specifically: no
+  more `ARG_MAX` headroom for very large prompts, and the prompt is now visible to other local processes
+  via `ps`/`/proc` for the duration of the call (still never a secret, but no longer stdin-only).
+- Confirmed live (not just from docs) that `codex`'s ChatGPT-subscription login is **not** hijacked by a
+  stray `OPENAI_API_KEY` in the environment -- ran a real `cli`-provider wiki generation with the key set
+  and it used the subscription login without complaint, unlike `claude`/`gemini`. The v2.58.1 entry below
+  called this "not confirmed"; it now is. `OPENAI_API_KEY` is still stripped defensively for `codex`, since
+  a future `codex` version could change that behavior.
+
 ## [2.58.1] - 2026-07-28
 
 ### Fixed

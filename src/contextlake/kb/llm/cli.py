@@ -3,8 +3,14 @@
 Reuses a subscription the user already has (``claude -p`` / ``gemini`` / ``codex``)
 instead of an API key contextlake would have to hold. Data goes to whatever provider
 that CLI uses — the user's informed choice, documented as such. Stdlib ``subprocess``
-only; the prompt (system prepended) is fed on **stdin**, never as a shell string, so
-there is no shell-injection surface and no argv length limit.
+only, an argv list rather than a shell string either way, so there is never a
+shell-injection surface. The prompt is fed on **stdin** by default (no argv length
+limit, not visible to other local processes via ``ps``/``/proc``) — except `gemini`,
+whose ``-p`` flag is a required *value*, not a boolean headless-mode switch, and which
+has no stdin-only invocation. For that one case the prompt goes on argv via the
+``{PROMPT}`` placeholder (see ``_PRESETS``), trading both of those properties away:
+an ARG_MAX ceiling on very large prompts, and local visibility of prompt content
+(repo-derived source context, not secrets) to other processes on the same machine.
 """
 
 from __future__ import annotations
@@ -24,10 +30,18 @@ from .base import LlmClient
 # explanatory output-style plugin enabled globally. `--safe-mode` disables all
 # of that (auth/model/tools still work), which is what a text-generation
 # backend wants: deterministic output independent of the user's personal
-# customizations. Not yet verified whether `gemini`/`codex` have an equivalent.
+# customizations. Not yet verified whether `codex` has an equivalent.
+#
+# `gemini`'s `-p`/`--prompt` is documented as a string option, not a boolean
+# "read from stdin" switch -- confirmed live: `gemini -p` with the prompt only
+# on stdin produced a yargs usage dump, while `gemini -p "<text>"` reached the
+# API. The `{PROMPT}` placeholder below is substituted with the actual prompt
+# at call time (see `generate()`); any preset/config using it gets the prompt
+# on argv instead of stdin.
+_PROMPT_PLACEHOLDER = "{PROMPT}"
 _PRESETS: dict[str, list[str]] = {
     "claude": ["-p", "--safe-mode"],
-    "gemini": ["-p"],
+    "gemini": ["-p", _PROMPT_PLACEHOLDER],
     "codex": ["exec"],
 }
 
@@ -72,12 +86,22 @@ class CliLlm(LlmClient):
 
     def generate(self, prompt: str, *, system: str | None = None) -> str:
         text = prompt if not system else f"{system}\n\n{prompt}"
-        argv = [self.command, *self.args]
+        # A `{PROMPT}` placeholder in args means this CLI needs the prompt as an
+        # argv value (gemini) -- substitute it and skip stdin. Otherwise (the
+        # common case: claude, codex, a user's own CLI) the prompt goes on
+        # stdin as before, argv is untouched.
+        if _PROMPT_PLACEHOLDER in self.args:
+            argv = [self.command, *(text if a == _PROMPT_PLACEHOLDER else a
+                                     for a in self.args)]
+            stdin_input = None
+        else:
+            argv = [self.command, *self.args]
+            stdin_input = text
         env = os.environ.copy()
         for var in _AUTH_ENV_VARS.get(os.path.basename(self.command), ()):
             env.pop(var, None)
         try:
-            res = subprocess.run(argv, input=text, capture_output=True,
+            res = subprocess.run(argv, input=stdin_input, capture_output=True,
                                  text=True, timeout=self.timeout, env=env)
         except FileNotFoundError as e:
             # Misconfiguration, not a transient failure — fail fast, actionably.

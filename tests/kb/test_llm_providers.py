@@ -196,7 +196,42 @@ def test_build_llm_returns_cli():
     llm = build_llm(cfg)
     assert isinstance(llm, CliLlm)
     assert llm.command == "gemini"
-    assert llm.args == ["-p"]
+    assert llm.args == ["-p", "{PROMPT}"]
+
+
+def test_cli_gemini_preset_puts_prompt_on_argv_not_stdin(monkeypatch):
+    """`gemini -p` is a required string value, not a boolean headless-mode
+    switch -- confirmed live: `gemini -p` with the prompt only on stdin produced
+    a yargs usage dump, while `gemini -p "<text>"` reached the API. The preset's
+    `{PROMPT}` placeholder must be substituted with the real prompt on argv, and
+    stdin must be left empty (not double-fed)."""
+    seen = {}
+
+    def fake_run(argv, input=None, **k):
+        seen["argv"] = argv
+        seen["input"] = input
+        return _FakeCompleted(stdout="ok")
+
+    monkeypatch.setattr(cli_mod.subprocess, "run", fake_run)
+    CliLlm(command="gemini").generate("Question?", system="Be brief.")
+    assert seen["argv"] == ["gemini", "-p", "Be brief.\n\nQuestion?"]
+    assert seen["input"] is None
+
+
+def test_cli_claude_and_codex_still_feed_prompt_on_stdin(monkeypatch):
+    """Only gemini's preset uses the {PROMPT} placeholder -- claude/codex (and
+    any custom `args` without the placeholder) keep the prompt off argv."""
+    seen = {}
+
+    def fake_run(argv, input=None, **k):
+        seen["argv"] = argv
+        seen["input"] = input
+        return _FakeCompleted(stdout="ok")
+
+    monkeypatch.setattr(cli_mod.subprocess, "run", fake_run)
+    CliLlm(command="claude").generate("hi")
+    assert "{PROMPT}" not in seen["argv"]
+    assert seen["input"] == "hi"
 
 
 def test_llmcfg_new_fields_defaults_and_parse():
