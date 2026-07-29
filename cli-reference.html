@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=857c5d9">
-<link rel="stylesheet" href="tokens.css?v=857c5d9">
-<link rel="stylesheet" href="docs.css?v=857c5d9">
-<link rel="stylesheet" href="cmdk.css?v=857c5d9">
+<link rel="stylesheet" href="fonts.css?v=90fada5">
+<link rel="stylesheet" href="tokens.css?v=90fada5">
+<link rel="stylesheet" href="docs.css?v=90fada5">
+<link rel="stylesheet" href="cmdk.css?v=90fada5">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -88,6 +88,13 @@ entirely:</p>
 
 Put the value right after --workspace, e.g. &#39;--workspace &lt;value&gt; --open&#39;.
 </code></pre></div>
+<h2 id="shell-completion">Shell completion<a class="anchor" href="#shell-completion" title="Link to this section">#</a></h2>
+<p>Registered automatically the first time any command runs in a real interactive terminal (no <code>pip
+install</code> post-install hook exists to do this at install time -- see <a href="usage">Mirror repositories</a></p>
+<h1 id="shell-completion-for-why-and-never-overrides-an-explicit-decline-from-contextlake-init">shell-completion for why), and never overrides an explicit decline from `contextlake init<a class="anchor" href="#shell-completion-for-why-and-never-overrides-an-explicit-decline-from-contextlake-init" title="Link to this section">#</a></h1>
+<p>--no-completion<code>. Run</code>contextlake completion [bash|zsh|fish]<code>to register on demand instead of
+waiting for that first run, or</code>CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of the automatic check
+entirely.</p>
 <h2 id="advancedresilience-flags">Advanced/resilience flags<a class="anchor" href="#advancedresilience-flags" title="Link to this section">#</a></h2>
 <p>The 8 mirror-tier commands (<code>fetch</code>/<code>clone</code>/<code>update</code>/<code>branches</code>/<code>verify</code>/<code>status</code>/<code>sync</code>/<code>audit</code>) each
 take a further ~14 retry/backoff/worker-pool/safety-check flags (<code>--max-retries</code>,
@@ -195,6 +202,7 @@ are covered under <a href="usage">Mirror repositories</a>.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#typos-and-abbreviations">Typos and abbreviations</a></li>
+<li><a href="#shell-completion">Shell completion</a></li>
 <li><a href="#advancedresilience-flags">Advanced/resilience flags</a></li>
 <li><a href="#knowledge-layer-commands">Knowledge-layer commands</a></li>
 <li><a href="#see-also">See also</a></li>
@@ -226,6 +234,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=857c5d9"></script>
+<script defer src="cmdk.js?v=90fada5"></script>
 </body>
 </html>

@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=857c5d9">
-<link rel="stylesheet" href="tokens.css?v=857c5d9">
-<link rel="stylesheet" href="docs.css?v=857c5d9">
-<link rel="stylesheet" href="cmdk.css?v=857c5d9">
+<link rel="stylesheet" href="fonts.css?v=90fada5">
+<link rel="stylesheet" href="tokens.css?v=90fada5">
+<link rel="stylesheet" href="docs.css?v=90fada5">
+<link rel="stylesheet" href="cmdk.css?v=90fada5">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -63,9 +63,22 @@ documented in the <a href="knowledge-layer">Knowledge layer</a> overview and the
 just that command's flags with worked examples, and bare <code>contextlake</code> prints the
 full command list.</p>
 <h3 id="shell-completion">Shell completion<a class="anchor" href="#shell-completion" title="Link to this section">#</a></h3>
-<p>On by default. <code>argcomplete</code> is a core dependency, so <code>pip install contextlake</code> alone is enough , 
-no separate extra. <code>contextlake init</code> then offers to register it with your shell (on by default;
-pass <code>--no-completion</code> to skip), writing whichever of these applies once, idempotently:</p>
+<p>On by default, and set up automatically, no command to remember. <code>argcomplete</code> is a core
+dependency, so <code>pip install contextlake</code> alone is enough, no separate extra; a plain <code>pip install</code>
+has no post-install hook to run anything at (that's a deliberate Python packaging limitation, not a
+gap here), so instead the <strong>first time any command runs in a real interactive terminal</strong>,
+contextlake registers completion for you, once, and says so in the log. Skipped entirely in
+non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure, set
+<code>CONTEXTLAKE_NO_AUTO_COMPLETION=1</code> to opt out of this check altogether. <code>contextlake init</code> offers
+the same registration explicitly (on by default; pass <code>--no-completion</code> to skip) if you'd rather
+decide up front, and an explicit decline there is remembered, the automatic check never overrides
+it later.</p>
+<p>Run it again on demand (a different shell, after skipping it once, or just to re-run it) with:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>completion<span class="w">          </span><span class="c1"># auto-detect $SHELL and register</span>
+contextlake<span class="w"> </span>completion<span class="w"> </span>zsh<span class="w">      </span><span class="c1"># register for zsh explicitly, regardless of $SHELL</span>
+</code></pre></div>
+<p>This, <code>init</code>'s own prompt, and the automatic first-run check all write whichever of these applies,
+once, idempotently:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># bash, appended to ~/.bashrc</span>
 <span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">&quot;</span>
 
@@ -76,12 +89,11 @@ autoload<span class="w"> </span>-U<span class="w"> </span>bashcompinit<span clas
 <span class="c1"># fish, a dedicated file, written once</span>
 register-python-argcomplete<span class="w"> </span>--shell<span class="w"> </span>fish<span class="w"> </span>contextlake<span class="w"> </span>&gt;<span class="w"> </span>~/.config/fish/completions/contextlake.fish
 </code></pre></div>
-<p>If you skipped it at <code>init</code> time, use a shell other than bash/zsh/fish, or just want to do it by
-hand, the commands above are exactly what <code>init</code> runs, copy the one for your shell and open a new
-shell afterward. <code>contextlake &lt;TAB&gt;</code> then completes every command and, inside a command, every one
-of its flags, generated live from the same parser that runs the command, so it can never drift
-out of sync with the actual CLI surface. Uses <a href="https://github.com/kislyuk/argcomplete" target="_blank" rel="noopener">argcomplete<span class="ext-arrow" aria-hidden="true">↗</span></a>
-(pure Python, no dependencies of its own).</p>
+<p>For a shell other than bash/zsh/fish, or to do it by hand, copy the block above for your shell and
+open a new shell afterward. <code>contextlake &lt;TAB&gt;</code> then completes every command and, inside a command,
+every one of its flags, generated live from the same parser that runs the command, so it can never
+drift out of sync with the actual CLI surface. Uses
+<a href="https://github.com/kislyuk/argcomplete" target="_blank" rel="noopener">argcomplete<span class="ext-arrow" aria-hidden="true">↗</span></a> (pure Python, no dependencies of its own).</p>
 <p><strong>Mirror a subset with <code>--repos</code>.</strong> Every mirror command (and <code>bootstrap</code> / <code>index
 --workspace</code>) accepts <code>--repos PATTERN</code>, a comma-separated <strong>glob/substring</strong> filter
 over your repo paths, so you can mirror and index just a handful instead of the whole
@@ -550,6 +562,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=857c5d9"></script>
+<script defer src="cmdk.js?v=90fada5"></script>
 </body>
 </html>
