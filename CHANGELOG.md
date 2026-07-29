@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.61.0] - 2026-07-30
+
+### Added
+- **`contextlake --help` now groups all 29 commands by task** (Get started / Mirror a fleet / Build
+  the knowledge graph / Explore & search / Serve to editors) instead of one flat, un-grouped list --
+  built from an advisor-reviewed CLI-wide audit after direct feedback that the CLI "is not very easy
+  or intuitive to guess without reading the manual." Descriptions are pulled live from each
+  subcommand's own help text (no separate copy to drift out of sync) and wrapped to the terminal
+  width, correctly re-indented under the description column.
+- **`contextlake <mirror-command> --help-advanced`** (on `fetch`/`clone`/`update`/`branches`/
+  `verify`/`status`/`sync`/`audit`) reveals the ~14 resilience/tuning flags (`--max-retries`,
+  `--backoff-initial`/`--backoff-max`, `--adaptive-workers`, `--protect-working-branches`,
+  `--safe-branches`, `--require-clean-workspace`, `--auto-stash`, and their `--no-` counterparts) that
+  default `--help` now keeps out of the listing -- every one already has a `.contextlake.ini`
+  equivalent, so hiding them by default removes ~60% of the visible flag surface on 8 commands for
+  zero functional cost. The flags themselves are unchanged and still fully documented in
+  [Mirror repositories](docs/usage.md).
+- `Examples:` epilogs added to `fetch`/`clone`/`update`/`branches`/`verify`/`status`/`audit`'s own
+  `--help`, matching the worked examples every other command already carried.
+
+This is an additive-only pass: no command, flag, or alias was renamed, removed, or re-nested --
+everything documented in `docs/usage.md`, the README, and the site keeps working exactly as before.
+Full proposal, rationale, and what was deliberately deferred (not done here): `planning/specs/
+spec-cli-simplification.md`.
+
 ## [2.60.8] - 2026-07-30
 
 ### Fixed

@@ -56,6 +56,20 @@ $ contextlake dashboard --serve --workspace --open
 Put the value right after --workspace, e.g. '--workspace <value> --open'.
 ```
 
+## Advanced/resilience flags
+
+The 8 mirror-tier commands (`fetch`/`clone`/`update`/`branches`/`verify`/`status`/`sync`/`audit`) each
+take a further ~14 retry/backoff/worker-pool/safety-check flags (`--max-retries`,
+`--backoff-initial`/`--backoff-max`, `--adaptive-workers`, `--protect-working-branches`,
+`--safe-branches`, `--require-clean-workspace`, `--auto-stash`, and their `--no-` counterparts) --
+automation levers, not something to guess at from a bare `--help`. Every one already has a
+`.contextlake.ini` equivalent (see [Mirror repositories](usage.md)), so they're kept out of the
+default `--help` listing; run `contextlake <command> --help-advanced` to see them.
+
+`contextlake --help` groups all 29 commands by task (Get started / Mirror a fleet / Build the
+knowledge graph / Explore & search / Serve to editors) directly in its own output -- the tables below
+are the same commands, organized for reference rather than a first read.
+
 ## Knowledge-layer commands
 
 | Command | What it does |

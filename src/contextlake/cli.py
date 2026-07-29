@@ -18,6 +18,7 @@ import difflib
 import os
 import re
 import sys
+import textwrap
 
 from . import __version__
 from .config import DEFAULT_CONFIG, expand_path, get_cache_paths, load_config
@@ -60,6 +61,47 @@ _SCALAR_FLAGS = (
 # CLI verb aliases: the MCP tools call these capabilities who_knows / blast_radius,
 # so the CLI accepts the same vocabulary. Purely additive; the canonical verbs stay.
 _ALIASES = {"who-knows": "owners", "blast-radius": "impact"}
+
+# Groups the flat 29-command list by task, for the root --help's categorized
+# listing (replacing argparse's own alphabetical-ish flat dump). Every command
+# name must appear in exactly one group -- see test_every_command_is_categorized.
+_COMMAND_CATEGORIES = (
+    ("Get started", ("version", "init", "bootstrap", "doctor")),
+    ("Mirror a fleet", ("fetch", "clone", "update", "branches", "verify", "status",
+                        "sync", "audit")),
+    ("Build the knowledge graph", ("index", "source", "connect", "embed", "ingest",
+                                   "enrich", "wiki", "lint", "eval")),
+    ("Explore & search", ("query", "graph", "owners", "impact", "dashboard")),
+    ("Serve to editors", ("serve", "steer", "hook")),
+)
+
+
+def _categorized_commands_text(choices):
+    """A grouped-by-task replacement for the subparsers action's own flat
+    listing (suppressed per-command in ``command()`` above), built from the
+    live subparser objects so each description always matches the command's
+    own --help -- no separate copy to drift out of sync. Long descriptions
+    (bootstrap, dashboard, ...) are wrapped and re-indented to the terminal
+    width instead of hard-wrapping mid-word past column 80 -- RawDescription-
+    HelpFormatter never touches the epilog, so nothing else does this for us."""
+    from . import style
+
+    _REVERSE_ALIASES = {canon: alias for alias, canon in _ALIASES.items()}
+    indent, label_col = "    ", 22
+    wrap_width = max(40, style.terminal_width() - len(indent) - label_col - 1)
+    cont_indent = " " * (len(indent) + label_col + 1)
+
+    lines = ["Commands, by task:"]
+    for title, names in _COMMAND_CATEGORIES:
+        lines.append(f"\n  {title}:")
+        for name in names:
+            alias = _REVERSE_ALIASES.get(name)
+            label = f"{name} ({alias})" if alias else name
+            desc = (choices[name].description or "").strip()
+            wrapped = textwrap.wrap(desc, wrap_width) or [""]
+            lines.append(f"{indent}{label:<{label_col}} {wrapped[0]}")
+            lines.extend(f"{cont_indent}{cont}" for cont in wrapped[1:])
+    return "\n".join(lines)
 
 
 class _RootArgumentParser(argparse.ArgumentParser):
@@ -159,6 +201,16 @@ class _RootArgumentParser(argparse.ArgumentParser):
         lines.append(f"Run '{self.prog} --help' to see all commands.")
         return "\n".join(lines) + "\n"
 
+    # --help-advanced only exists on the 8 mirror commands by design (the other
+    # 21 have no hidden tier to reveal) -- excluded from the cross-command
+    # "used by" registry below so running it on the wrong command falls
+    # through to argparse's own plain "unrecognized arguments" message instead
+    # of a noisy 9-command "used by" list. -h/--help are NOT included here:
+    # they exist on every subparser already, so `cmd != canonical` can never
+    # fire for them, and stripping them would break the same-command fuzzy-typo
+    # suggestion for a transposition like `--hepl` (very much wanted).
+    _META_FLAGS = frozenset({"--help-advanced"})
+
     def _flags_by_command(self):
         """``{command_name: {every registered flag string}}``, canonical names
         only (aliases like 'who-knows'/'blast-radius' point at the same
@@ -176,7 +228,7 @@ class _RootArgumentParser(argparse.ArgumentParser):
         for name, subparser in getattr(self, "_command_choices", {}).items():
             if name in _ALIASES:
                 continue
-            reg[name] = set(subparser._option_string_actions.keys())
+            reg[name] = set(subparser._option_string_actions.keys()) - self._META_FLAGS
         _RootArgumentParser._flags_by_command_cache = reg
         return reg
 
@@ -282,6 +334,40 @@ _DEFAULTS = {
 _S = argparse.SUPPRESS
 
 
+class _RootHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """The root parser's own flat, 29-entry "commands:" listing (one line per
+    subparser, alphabetical-ish registration order) is replaced by the epilog's
+    hand-built "Commands, by task:" section (see _categorized_commands_text) --
+    dropping the subparsers action here means an empty "commands:" group, which
+    argparse's own HelpFormatter already omits header-and-all when empty."""
+
+    def add_argument(self, action):
+        if isinstance(action, argparse._SubParsersAction):
+            return
+        super().add_argument(action)
+
+
+class _RevealAdvancedHelp(argparse.Action):
+    """``--help-advanced``: the same help as ``-h``, plus the resilience/tuning
+    flags _add_mirror() otherwise keeps out of the default listing (each carries
+    its real text on ``action._advanced_help``, stashed at registration time
+    since the visible ``help=`` is SUPPRESS)."""
+
+    def __init__(self, option_strings, dest, **kwargs):
+        kwargs.setdefault("nargs", 0)
+        kwargs.setdefault("default", _S)
+        kwargs.setdefault("help", "also show this command's resilience/tuning flags")
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        for action in parser._actions:
+            real_help = getattr(action, "_advanced_help", None)
+            if real_help is not None:
+                action.help = real_help
+        parser.print_help()
+        parser.exit()
+
+
 def _add_global(p):
     g = p.add_argument_group("global options")
     g.add_argument("--config", default=_S,
@@ -312,33 +398,51 @@ def _add_mirror(p, hidden=False):
              "filter (e.g. 'team/api,billing,frontend/*') — great for a demo subset")
     add("-n", "--dry-run", action="store_true", dest="dry_run",
         help="show what would happen without cloning, updating, or switching branches")
-    add("--clean-corrupted", action="store_true", dest="clean_corrupted",
+
+    # Resilience/tuning knobs: real automation levers (retry/backoff/worker-pool/
+    # safety-check overrides), but nobody guesses these from a bare --help -- every
+    # one already has a .contextlake.ini equivalent, so hiding them here removes zero
+    # capability. Kept out of the default listing; --help-advanced reveals them.
+    def add_advanced(*names, **kw):
+        real_help = kw.pop("help", None)
+        kw["help"] = _S
+        kw.setdefault("default", _S)
+        action = p.add_argument(*names, **kw)
+        if not hidden and real_help is not None:
+            action._advanced_help = real_help
+
+    add_advanced("--clean-corrupted", action="store_true", dest="clean_corrupted",
         help="remove corrupted/incomplete directories before cloning (default: true)")
-    add("--no-clean-corrupted", action="store_false", dest="clean_corrupted",
+    add_advanced("--no-clean-corrupted", action="store_false", dest="clean_corrupted",
         help="do not remove corrupted/incomplete directories (fail instead)")
-    add("--max-retries", type=int, help="max retry attempts for failed operations")
-    add("--backoff-initial", type=float, help="initial backoff time in seconds")
-    add("--backoff-max", type=float, help="maximum backoff time in seconds")
-    add("--adaptive-workers", action="store_true", dest="adaptive_workers",
+    add_advanced("--max-retries", type=int, help="max retry attempts for failed operations")
+    add_advanced("--backoff-initial", type=float, help="initial backoff time in seconds")
+    add_advanced("--backoff-max", type=float, help="maximum backoff time in seconds")
+    add_advanced("--adaptive-workers", action="store_true", dest="adaptive_workers",
         help="enable adaptive worker pool (default: true)")
-    add("--no-adaptive-workers", action="store_false", dest="adaptive_workers",
+    add_advanced("--no-adaptive-workers", action="store_false", dest="adaptive_workers",
         help="disable adaptive worker pool (use static max_workers)")
-    add("--min-workers", type=int, help="minimum workers for the adaptive pool")
-    add("--error-threshold", type=float, help="error rate threshold (0.0-1.0)")
-    add("--protect-working-branches", action="store_true", dest="protect_working_branches",
+    add_advanced("--min-workers", type=int, help="minimum workers for the adaptive pool")
+    add_advanced("--error-threshold", type=float, help="error rate threshold (0.0-1.0)")
+    add_advanced("--protect-working-branches", action="store_true", dest="protect_working_branches",
         help="enable branch protection (default: true)")
-    add("--no-protect-working-branches", action="store_false", dest="protect_working_branches",
+    add_advanced("--no-protect-working-branches", action="store_false",
+        dest="protect_working_branches",
         help="disable branch protection (allow operations on any branch)")
-    add("--safe-branches",
+    add_advanced("--safe-branches",
         help="comma-separated safe branches (default: main,master,develop,development)")
-    add("--require-clean-workspace", action="store_true", dest="require_clean_workspace",
+    add_advanced("--require-clean-workspace", action="store_true", dest="require_clean_workspace",
         help="require clean workspace before operations (default: true)")
-    add("--no-require-clean-workspace", action="store_false", dest="require_clean_workspace",
+    add_advanced("--no-require-clean-workspace", action="store_false",
+        dest="require_clean_workspace",
         help="allow operations with uncommitted changes")
-    add("--auto-stash", action="store_true", dest="auto_stash",
+    add_advanced("--auto-stash", action="store_true", dest="auto_stash",
         help="automatically stash changes before operations (default: false)")
-    add("--no-auto-stash", action="store_false", dest="auto_stash",
+    add_advanced("--no-auto-stash", action="store_false", dest="auto_stash",
         help="disable automatic stashing")
+
+    if not hidden:
+        p.add_argument("--help-advanced", action=_RevealAdvancedHelp)
 
 
 def _add_report(p, *, no_audit=False):
@@ -403,7 +507,7 @@ def build_parser():
         description="A local context layer for AI tools: mirror your repositories, "
                     "index them into a knowledge graph, and serve it over MCP so agents "
                     "answer from real source instead of guessing.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=_RootHelpFormatter,
         allow_abbrev=False,
         epilog="""
 Get started:
@@ -486,15 +590,37 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                    help="overwrite existing config files")
 
     # ---- mirror core -------------------------------------------------------
-    for name, help_ in (
-        ("fetch", "enumerate the GitLab projects you can access and cache the list"),
-        ("clone", "clone repositories missing from the local workspace"),
-        ("update", "fetch + fast-forward every existing clone"),
-        ("branches", "switch each repo to its most active development branch"),
-        ("verify", "compare the local workspace against GitLab (read-only)"),
-        ("status", "show sync state without changing anything"),
+    for name, help_, epilog in (
+        ("fetch", "enumerate the GitLab projects you can access and cache the list", """
+Examples:
+  contextlake fetch                             list every accessible GitLab project
+  contextlake fetch --repos 'team/api,billing'  only projects matching this filter
+                """),
+        ("clone", "clone repositories missing from the local workspace", """
+Examples:
+  contextlake clone              clone whatever's missing from the workspace
+  contextlake clone --dry-run    show what would be cloned, change nothing
+                """),
+        ("update", "fetch + fast-forward every existing clone", """
+Examples:
+  contextlake update                             fetch + fast-forward every clone
+  contextlake update --repos 'team/api,billing'  only these repos
+                """),
+        ("branches", "switch each repo to its most active development branch", """
+Examples:
+  contextlake branches             switch every repo to its most active branch
+  contextlake branches --dry-run   show what would switch, change nothing
+                """),
+        ("verify", "compare the local workspace against GitLab (read-only)", """
+Examples:
+  contextlake verify   compare the workspace against GitLab, change nothing
+                """),
+        ("status", "show sync state without changing anything", """
+Examples:
+  contextlake status   show sync state, change nothing
+                """),
     ):
-        _add_mirror(command(name, help_))
+        _add_mirror(command(name, help_, epilog=epilog))
 
     p = command("sync", "full mirror: fetch + clone + update + branches + verify",
                 epilog="""
@@ -506,7 +632,11 @@ Examples:
     _add_mirror(p)
     _add_report(p, no_audit=True)
 
-    p = command("audit", "per-repo health and age report (JSON + CSV)")
+    p = command("audit", "per-repo health and age report (JSON + CSV)", epilog="""
+Examples:
+  contextlake audit                            per-repo health/age report (JSON + CSV)
+  contextlake audit --report /tmp/audit.json   write the report to a custom path
+                """)
     _add_mirror(p)
     _add_report(p)
 
@@ -882,6 +1012,10 @@ Examples:
     _add_net(p)
 
     parser.set_defaults(**_DEFAULTS)
+    # The full categorized map goes first (what's available), the hand-picked
+    # "Get started" recipes and doc links (already in `epilog`) follow.
+    parser.epilog = ("\n" + _categorized_commands_text(parser._command_choices)
+                     + "\n" + parser.epilog)
     return parser
 
 

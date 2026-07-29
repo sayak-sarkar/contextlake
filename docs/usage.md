@@ -314,6 +314,11 @@ contextlake --auto-stash update
 
 ### Customization
 
+These resilience/safety flags are kept out of `contextlake <command> --help`'s default listing (run
+`contextlake update --help-advanced` to see them alongside every other mirror-tier command's flags) --
+they're automation levers, not something to guess at interactively, and every one has the
+`.contextlake.ini` equivalent below as its primary home.
+
 You can customize branch safety behavior via configuration or CLI:
 
 ```ini

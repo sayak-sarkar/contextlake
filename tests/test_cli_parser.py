@@ -4,7 +4,7 @@ help epilog. See docs/... review notes for the source of these findings.
 
 import pytest
 
-from contextlake.cli import build_parser
+from contextlake.cli import _ALIASES, _COMMAND_CATEGORIES, build_parser
 
 
 def test_abbreviated_long_flags_are_rejected():
@@ -155,6 +155,130 @@ def test_value_taking_flag_genuinely_missing_a_value_keeps_argparses_message(cap
     err = capsys.readouterr().err
     assert "expected one argument" in err
     assert "needs a value" not in err
+
+
+def test_mirror_command_help_hides_resilience_flags_by_default(capsys):
+    """The 14 resilience/tuning flags (retry/backoff/worker-pool/safety-check
+    overrides) clutter --help without being something a user guesses at --
+    each already has a .contextlake.ini equivalent, so hiding them costs
+    nothing. Default --help should show only the 4 common mirror flags."""
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["fetch", "--help"])
+    out = capsys.readouterr().out
+    assert "--work-dir" in out
+    assert "--dry-run" in out
+    assert "--max-retries" not in out
+    assert "--auto-stash" not in out
+
+
+def test_mirror_command_help_advanced_reveals_resilience_flags(capsys):
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["fetch", "--help-advanced"])
+    out = capsys.readouterr().out
+    assert "--max-retries" in out
+    assert "max retry attempts for failed operations" in out
+    assert "--auto-stash" in out
+
+
+def test_resilience_flags_still_parse_even_though_hidden():
+    """Hiding help text must not remove the flag itself -- these are still the
+    documented way to override the sync INI from the command line."""
+    args = build_parser().parse_args(
+        ["fetch", "--max-retries", "5", "--auto-stash"])
+    assert args.max_retries == 5
+    assert args.auto_stash is True
+
+
+def test_typo_suggester_still_matches_a_hidden_resilience_flag(capsys):
+    """The flag-typo suggester reads _option_string_actions directly, not the
+    visible help text, so a hidden flag must still get a real suggestion."""
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["fetch", "--max-retrie", "5"])
+    err = capsys.readouterr().err
+    assert exc.value.code == 2
+    assert "Did you mean: --max-retries?" in err
+
+
+def test_help_advanced_on_the_wrong_command_gives_argparses_plain_message(capsys):
+    """--help-advanced only exists on the 8 mirror commands; running it on any
+    other command (e.g. index) must NOT trigger the cross-command 'used by'
+    message -- that path is for real domain flags, and a 9-command 'used by:
+    audit, bootstrap, ...' list for a help flag is noise, not help."""
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["index", "--help-advanced"])
+    err = capsys.readouterr().err
+    assert exc.value.code == 2
+    assert "isn't a flag on" not in err
+    assert "unrecognized arguments: --help-advanced" in err
+
+
+def test_help_advanced_is_not_a_root_flag():
+    """--help-advanced only exists on the real mirror subcommands; the root
+    parser's hidden _add_mirror(hidden=True) copy (used for cross-command
+    flag-suggestion matching) has no use for it."""
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--help-advanced"])
+
+
+@pytest.mark.parametrize("name", [
+    "fetch", "clone", "update", "branches", "verify", "status", "audit",
+])
+def test_every_mirror_command_has_an_examples_epilog(name):
+    """Before this fix, only sync/bootstrap/init/etc. carried a worked example
+    in their own --help; the plain mirror-core commands did not, an
+    inconsistency a user hits the moment they run e.g. `update --help`."""
+    parser = build_parser()._command_choices[name]
+    assert "Examples:" in (parser.epilog or "")
+    assert f"contextlake {name}" in parser.epilog
+
+
+def test_every_registered_command_is_categorized_exactly_once():
+    """The categorized --help listing must never silently drop (or double-list)
+    a real command -- every canonical name registered on the root parser
+    (excluding aliases, which _COMMAND_CATEGORIES never lists separately) has
+    to appear in exactly one category."""
+    all_commands = {name for name in build_parser()._command_choices
+                    if name not in _ALIASES}
+    categorized = [name for _, names in _COMMAND_CATEGORIES for name in names]
+    assert len(categorized) == len(set(categorized)), "a command is listed twice"
+    assert set(categorized) == all_commands
+
+
+def test_long_command_descriptions_wrap_to_terminal_width_not_mid_line(monkeypatch):
+    """bootstrap/dashboard/source/etc. have long descriptions; RawDescription-
+    HelpFormatter never wraps epilog text, so without manual wrapping these
+    would run well past 80 columns on a plain line with no re-indent."""
+    from contextlake.cli import _categorized_commands_text
+
+    monkeypatch.setenv("COLUMNS", "80")
+    text = _categorized_commands_text(build_parser()._command_choices)
+    for line in text.splitlines():
+        assert len(line) <= 80, f"line exceeds 80 columns: {line!r}"
+    # the wrapped continuation re-indents under the description column, not col 0
+    assert "\n                           config" in text
+
+
+def test_bare_invocation_with_no_command_shows_the_categorized_help():
+    """`contextlake` with no arguments is the single most common first
+    invocation (subparsers are required=False) -- must render the new
+    categorized help cleanly, not error, and not fall back to the old flat
+    listing."""
+    from contextlake.cli import main
+
+    with pytest.raises(SystemExit) as exc:
+        main([])
+    assert exc.value.code == 0
+
+
+def test_root_help_shows_the_categorized_list_not_the_flat_one(capsys):
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--help"])
+    out = capsys.readouterr().out
+    assert "Commands, by task:" in out
+    assert "Mirror a fleet:" in out
+    assert "owners (who-knows)" in out
+    # the old flat argparse listing (one un-grouped line per command) is gone
+    assert "\ncommands:\n" not in out
 
 
 def test_n_is_a_short_form_of_dry_run():
