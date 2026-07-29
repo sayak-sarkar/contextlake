@@ -195,6 +195,14 @@
     settings: function () {
       return MODE === "static" ? Promise.reject(new Error("live only")) : fetchJSON("/api/settings");
     },
+    // Chat: free graph-router answers always; LLM prose layered on top only
+    // when the server was started with --llm-chat (window.__CL_LLM_CHAT__).
+    // Same live-only treatment as MCP console/Settings -- there's no server
+    // for a static --site export to ask.
+    chat: function (question) {
+      return MODE === "static" ? Promise.reject(new Error("live only"))
+        : postJSON("/api/chat", { question: question });
+    },
     // Mutating actions: live + --allow-mutations only. Never available in static
     // mode (there's no server to send them to) -- callers gate on MUTATIONS first.
     syncRepo: function (id) { return postJSON("/api/repo/" + encPath(id) + "/sync"); },
@@ -1086,6 +1094,93 @@
     if (searchState.q) runSearch();
   }
 
+  // ---- Chat ---------------------------------------------------------------
+  // Always-on free layer: the same deterministic `ask` router `contextlake
+  // serve` exposes over MCP, reached in-process (no logic duplicated). LLM
+  // prose is layered on top only when the dashboard was started with
+  // --llm-chat (window.__CL_LLM_CHAT__) -- an opt-in made once at server
+  // start, never toggled per-question here.
+  var chatHistory = [];
+  function renderChatNode(n) {
+    return h("div", { class: "cl-result", style: "cursor:default" }, kindIcon(n.kind),
+      h("span", null, h("strong", null, n.qualified_name || n.name),
+        h("div", { class: "cl-result__meta" }, n.repo + (n.file ? " · " + n.file + (n.line_start ? ":" + n.line_start : "") : ""))));
+  }
+  function renderChatStructured(s) {
+    var box = h("div", { class: "cl-card" });
+    if (s.nodes && s.nodes.length) {
+      s.nodes.forEach(function (n) { box.appendChild(renderChatNode(n)); });
+      if (s.truncated) box.appendChild(h("p", { class: "cl-muted" }, "More results exist than shown."));
+    } else if (s.blast) {
+      box.appendChild(h("p", null, h("strong", null, s.blast.total), " node(s) within ", s.blast.hops, " hop(s)"));
+      (s.blast.hits || []).forEach(function (n) {
+        box.appendChild(h("div", { class: "cl-result", style: "cursor:default" }, kindIcon(n.kind),
+          h("span", null, h("strong", null, n.name), h("div", { class: "cl-result__meta" }, n.repo + " · " + n.hop + " hop via " + n.via + " · " + n.confidence))));
+      });
+      if (s.blast.truncated) box.appendChild(h("p", { class: "cl-muted" }, "More results exist than shown."));
+    } else if (s.owners && s.owners.owners) {
+      s.owners.owners.forEach(function (o) {
+        box.appendChild(h("div", { class: "cl-result", style: "cursor:default" },
+          h("span", null, h("strong", null, o.name), h("div", { class: "cl-result__meta" }, o.commits + " commit(s), last active " + o.last_active))));
+      });
+    } else if (s.wiki && s.wiki.found) {
+      if (s.wiki.stale) box.appendChild(h("p", { class: "cl-muted" }, "STALE -- the code changed since this was generated."));
+      box.appendChild(h("pre", { class: "cl-snippet" }, s.wiki.markdown || ""));
+    } else if (s.brief && s.brief.found) {
+      box.appendChild(h("pre", { class: "cl-snippet" }, JSON.stringify(s.brief, null, 2)));
+    } else {
+      box.appendChild(h("p", { class: "cl-muted" }, "No results."));
+    }
+    return box;
+  }
+  function viewChat() {
+    if (MODE === "static") { liveOnlyBlock("chat-body", "Chat is live-only"); return; }
+    var body = clear($("#chat-body"));
+    var llmOn = !!window.__CL_LLM_CHAT__;
+    body.appendChild(h("p", { class: "cl-muted" },
+      llmOn ? "Answers are LLM-synthesized prose, grounded in cited graph data (shown below each answer)."
+            : "Answers are the free graph router -- structured and cited, not written prose. Start the dashboard with --llm-chat for prose answers."));
+    var history = h("div", { class: "cl-panel__body", id: "chat-history", "aria-live": "polite" });
+    var field = h("input", { type: "text", class: "cl-searchfield", placeholder: "Ask about the fleet -- \"who calls X\", \"what depends on Y\", \"explain repo Z\"", "aria-label": "Question" });
+    var askBtn = h("button", { class: "cl-btn cl-btn--primary", type: "button" }, "Ask");
+    body.appendChild(h("div", { class: "cl-row" }, field, askBtn));
+    body.appendChild(history);
+    chatHistory.forEach(function (turn) { history.appendChild(turn); });
+
+    function ask() {
+      var q = field.value.trim();
+      if (!q) return;
+      field.value = ""; field.disabled = true; askBtn.disabled = true;
+      var turn = h("div", { class: "cl-card" });
+      turn.appendChild(h("p", null, h("strong", null, "You: "), q));
+      var pending = skeleton(1);
+      turn.appendChild(pending);
+      history.appendChild(turn);
+      chatHistory.push(turn);
+      turn.scrollIntoView({ block: "nearest" });
+      CL.data.chat(q).then(function (res) {
+        turn.removeChild(pending);
+        if (res.llm_used) {
+          turn.appendChild(h("p", null, h("strong", null, "Answer: "), res.answer));
+          var details = h("details", null, h("summary", null, "Graph data this answer is grounded in"), renderChatStructured(res.structured));
+          turn.appendChild(details);
+        } else {
+          if (res.llm_error) turn.appendChild(h("p", { class: "cl-muted" }, "LLM synthesis unavailable (", res.llm_error, ") -- showing the free router result."));
+          turn.appendChild(h("p", null, res.structured.note));
+          turn.appendChild(renderChatStructured(res.structured));
+        }
+      }).catch(function (e) {
+        turn.removeChild(pending);
+        turn.appendChild(stateBlock({ kind: "error", title: "Question failed", msg: String(e.message || e) }));
+      }).then(function () {
+        field.disabled = false; askBtn.disabled = false; field.focus();
+      });
+    }
+    askBtn.addEventListener("click", ask);
+    field.addEventListener("keydown", function (e) { if (e.key === "Enter") ask(); });
+    field.focus();
+  }
+
   // ---- MCP console + Settings --------------------------------------------
   // Both describe this machine/process (the running server, the active
   // kb.toml) rather than the graph, so neither has anything meaningful to
@@ -1246,7 +1341,7 @@
   // ===================================================================== //
   // ROUTER + CHROME                                                        //
   // ===================================================================== //
-  var PANELS = ["fleet", "repo", "arch", "symbol", "health", "search", "mcp", "settings"];
+  var PANELS = ["fleet", "repo", "arch", "symbol", "health", "search", "chat", "mcp", "settings"];
   // Track the last-rendered route so we only move focus to #app on an actual
   // route/lens CHANGE (navigation), never on in-view data re-renders — e.g. the
   // ground-truth filter, trust-bar segments and blast toggles all call
@@ -1281,6 +1376,7 @@
       else if (lens === "symbol") viewSymbol(r.rest || ctx.nodeId);
       else if (lens === "health") viewHealth();
       else if (lens === "search") { if (r.query.q) searchState.q = r.query.q; viewSearch(searchState.q); }
+      else if (lens === "chat") viewChat();
       else if (lens === "mcp") viewMcp();
       else if (lens === "settings") viewSettings();
       refreshChrome(lens);

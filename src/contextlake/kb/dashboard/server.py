@@ -51,7 +51,8 @@ def _json_bytes(obj) -> bytes:
 
 def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: int = 8765,
                            config_path: str | None = None, sample: bool = False,
-                           allow_mutations: bool = False, workspace: str | None = None):
+                           allow_mutations: bool = False, workspace: str | None = None,
+                           llm_chat: bool = False):
     """Build (but do not start) the dashboard HTTP server.
 
     Returned non-blocking so the CLI loop and tests drive ``serve_forever`` /
@@ -72,21 +73,47 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     non-loopback ``host`` or with ``sample`` -- there is no real fleet to mutate
     behind the bundled demo data. ``workspace`` is where ``add_repo`` clones new
     repos; defaults to ``store_dir.parent`` when not given.
+
+    ``POST /api/chat`` (natural-language Q&A over the graph, see :mod:`.chat`)
+    is always available, at the same free/read-only risk level as the other
+    ``/api/*`` GET routes -- it needs no flag and no token. ``llm_chat=True``
+    (``--llm-chat`` on the CLI) additionally builds an ``LlmClient`` from the
+    ambient ``[llm]`` config and turns the router's structured answer into
+    prose; that path costs real time/tokens, so it's opt-in at server-start
+    time (never per-request) and its own requests carry the same per-process
+    token mutations use, to stop a page other than this dashboard from
+    silently triggering paid calls.
     """
     from .. import visualize as viz
 
     store_dir = Path(store_dir)
     store_factory, store_path = type(store), getattr(store, "path", None)
     ws_dir = Path(workspace) if workspace else store_dir.parent
-    token = secrets.token_urlsafe(32) if allow_mutations else None
+    token = secrets.token_urlsafe(32) if (allow_mutations or llm_chat) else None
     host_header_ok = {f"{host}:{port}", f"localhost:{port}"}
+
+    chat_llm = None
+    chat_embedder = chat_vector_store = None
+    if llm_chat:
+        from ..config import KbConfig, load_kb_config
+        from ..embeddings import build_embedder
+        from ..llm.base import build_llm
+
+        cfg = KbConfig() if sample else load_kb_config(config_path)
+        chat_llm = build_llm(cfg.llm)
+        chat_embedder = build_embedder(cfg.embeddings)
+        vec_path = store_dir / "embeddings.sqlite"
+        if chat_embedder is not None and vec_path.exists():
+            from ..embeddings.store import build_vector_store
+
+            chat_vector_store = build_vector_store(vec_path, backend=cfg.embeddings.vector_backend)
 
     shell = _static("dashboard.html")
     js = _static("dashboard.js")
-    if allow_mutations:
-        js = f'window.__CL_TOKEN__={json.dumps(token)};\nwindow.__CL_MUTATIONS__=true;\n' + js
-    else:
-        js = "window.__CL_MUTATIONS__=false;\n" + js
+    js = f"window.__CL_LLM_CHAT__={json.dumps(chat_llm is not None)};\n" + js
+    if allow_mutations or llm_chat:
+        js = f'window.__CL_TOKEN__={json.dumps(token)};\n' + js
+    js = f"window.__CL_MUTATIONS__={json.dumps(allow_mutations)};\n" + js
     assets = {
         "dashboard.js": (js, "application/javascript"),
         "dashboard.css": (_static("dashboard.css"), "text/css"),
@@ -285,6 +312,31 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         finally:
             lock.release()
 
+    def _chat(body: bytes) -> tuple[int, bytes]:
+        """POST /api/chat -- always available (see build_dashboard_server's
+        docstring for why this needs no flag/token of its own; llm_chat's own
+        token requirement is checked by the caller before this runs). No store
+        lock: this never writes, so it can run alongside any other
+        dashboard/CLI activity without contention."""
+        from . import chat as kbchat
+
+        try:
+            payload = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            return 400, b'{"error":"invalid JSON body"}'
+        question = (payload.get("question") or "").strip()
+        if not question:
+            return 400, b'{"error":"question required"}'
+        req = _open_store()
+        try:
+            result = kbchat.chat_answer(
+                req, question, llm=chat_llm, embedder=chat_embedder,
+                vector_store=chat_vector_store)
+            return 200, _json_bytes(result)
+        finally:
+            if req is not store:
+                req.close()
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_a):  # keep request logs off the console
             pass
@@ -328,34 +380,56 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
             self._send(404, "text/plain", b"not found")
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler name
-            if not allow_mutations:
-                self._send(404, "text/plain", b"not found")
-                return
+            parsed = urllib.parse.urlparse(self.path)
             # DNS rebinding: an attacker domain that resolves to 127.0.0.1 would
             # otherwise sail straight past the loopback bind, since the browser's
             # same-origin check is about the domain, not the resolved address.
             # Requiring the Host header to literally name this host:port closes
-            # that gap without needing a real TLS cert on localhost.
+            # that gap without needing a real TLS cert on localhost. Applies to
+            # every POST below, chat included.
             if (self.headers.get("Host") or "") not in host_header_ok:
                 self._send(403, "text/plain", b"forbidden")
+                return
+
+            if parsed.path == "/api/chat":
+                # Free/read-only (router-only) chat needs no token, same risk
+                # level as any other GET /api/* route. Only the LLM-synthesis
+                # layer costs real time/tokens, so only *it* requires the same
+                # per-process token mutations use -- checked here rather than
+                # inside _chat so a bad/missing token is rejected before the
+                # (free) router work even runs.
+                if chat_llm is not None:
+                    given = self.headers.get(TOKEN_HEADER) or ""
+                    if not token or not hmac.compare_digest(given, token):
+                        self._send(403, "text/plain", b"forbidden")
+                        return
+                length = int(self.headers.get("Content-Length") or 0)
+                body = self.rfile.read(min(length, 1_000_000)) if length else b""
+                code, resp = _chat(body)
+                self._send(code, "application/json", resp)
+                return
+
+            if not allow_mutations:
+                self._send(404, "text/plain", b"not found")
                 return
             given = self.headers.get(TOKEN_HEADER) or ""
             if not token or not hmac.compare_digest(given, token):
                 self._send(403, "text/plain", b"forbidden")
                 return
-            parsed = urllib.parse.urlparse(self.path)
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(min(length, 1_000_000)) if length else b""
             code, resp = _mutate(parsed.path, body)
             self._send(code, "application/json", resp)
 
-    return ThreadingHTTPServer((host, port), Handler)
+    srv = ThreadingHTTPServer((host, port), Handler)
+    srv.chat_llm_enabled = chat_llm is not None  # for serve_dashboard's startup log only
+    return srv
 
 
 def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
                     open_browser: bool = False, config_path: str | None = None,
                     sample: bool = False, allow_mutations: bool = False,
-                    workspace: str | None = None) -> None:
+                    workspace: str | None = None, llm_chat: bool = False) -> None:
     """Serve the dashboard (blocking until Ctrl-C)."""
     from ... import style
     from ...logging_setup import log
@@ -365,13 +439,26 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
     try:
         srv = build_dashboard_server(store, store_dir, host=host, port=port,
                                      config_path=config_path, sample=sample,
-                                     allow_mutations=allow_mutations, workspace=workspace)
+                                     allow_mutations=allow_mutations, workspace=workspace,
+                                     llm_chat=llm_chat)
         log(style.ok(f"Dashboard on http://{host}:{port}  (Ctrl-C to stop)"))
+        log("Ask a question in the Chat tab -- free graph-router answers, always on.")
         if allow_mutations:
             log(style.warn("Mutating routes enabled (--allow-mutations): sync/add-repo/"
                            "MCP-server actions can write to this store from the browser. "
                            "The per-launch auth token is wired into the served page only "
                            "-- it isn't printed here or logged anywhere."))
+        if llm_chat:
+            if srv.chat_llm_enabled:  # type: ignore[attr-defined]
+                log(style.warn("LLM chat synthesis enabled (--llm-chat): questions are "
+                               "sent to the configured [llm] provider for prose answers. "
+                               "The per-launch auth token gates this path the same way "
+                               "--allow-mutations gates writes."))
+            else:
+                log(style.dim("--llm-chat was set, but [llm] isn't enabled in this "
+                              "config -- chat stays free/router-only. Configure [llm] "
+                              "in kb.toml (same setting `contextlake wiki` uses) to turn "
+                              "synthesis on."))
         if open_browser:
             import webbrowser
             webbrowser.open(f"http://{host}:{port}")

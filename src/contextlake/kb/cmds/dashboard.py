@@ -37,6 +37,7 @@ def cmd_dashboard(args) -> int:
     host = getattr(args, "host", None) or "127.0.0.1"
     port = getattr(args, "port", None) or 8765
     allow_mutations = getattr(args, "allow_mutations", False)
+    llm_chat = getattr(args, "llm_chat", False)
     if allow_mutations:
         if sample:
             log(style.fail("--allow-mutations refused with --sample: the demo fleet "
@@ -63,7 +64,8 @@ def cmd_dashboard(args) -> int:
             # defaults instead -- otherwise real embedder/connector config
             # would leak into a surface billed as "nothing local is read".
             serve_dashboard(materialize_sample_store(tmp), host=host, port=port,
-                            open_browser=getattr(args, "open", False), sample=True)
+                            open_browser=getattr(args, "open", False), sample=True,
+                            llm_chat=llm_chat)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
         return 0
@@ -71,6 +73,7 @@ def cmd_dashboard(args) -> int:
                     open_browser=getattr(args, "open", False),
                     config_path=getattr(args, "config", None),
                     allow_mutations=allow_mutations,
-                    workspace=getattr(args, "workspace", None))
+                    workspace=getattr(args, "workspace", None),
+                    llm_chat=llm_chat)
     return 0
 

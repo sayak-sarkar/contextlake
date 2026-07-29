@@ -3,7 +3,8 @@
 The dashboard is the human window into everything contextlake builds: a **local,
 offline-first** single-page app over your knowledge store. No accounts, no cloud, no
 build step, one command and it opens in your browser. Read-only by default; see
-[§10](#10-mutating-routes---allow-mutations) for the opt-in write actions.
+[§10](#10-mutating-routes---allow-mutations) for the opt-in write actions and
+[§11](#11-chat) to ask it questions directly.
 
 > New here? Skim [QUICKSTART](../QUICKSTART.md) first. For what the graph/wiki/search
 > tiers actually do, see [knowledge-layer.md](knowledge-layer.md).
@@ -40,6 +41,7 @@ contextlake dashboard --serve --open         # live, against your store; opens y
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §10). Loopback host only; refused with `--sample`. |
 | `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
+| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §11). Real time/token cost per question. |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
@@ -184,7 +186,31 @@ loopback bind, respectively). A mutation takes the store's single-writer lock
 for its own duration only, so a concurrent CLI command sees a clean `409`
 instead of an interleaved write.
 
+## 11. Chat
+
+Ask a question about the fleet in plain language -- "who calls X", "what depends on
+Y", "explain repo Z". Two layers, always shown together:
+
+* **Free graph router (always on).** The same deterministic `ask` classifier
+  `contextlake serve` exposes over MCP: it routes the question to the matching graph
+  tool (`find_definition`, `find_callers`, `blast_radius`, `who_knows`, `get_wiki`,
+  semantic search, ...) and returns a structured, cited result. No LLM call, no cost,
+  works with zero extra setup.
+* **LLM prose (opt-in, `--llm-chat`).** Layers a short written answer on top of that
+  same structured result, using whatever `[llm]` provider `kb.toml` already has
+  configured (the same setting `contextlake wiki` uses). The structured citations the
+  prose was grounded in are always shown alongside it (expand "Graph data this answer
+  is grounded in") so you can verify it, not just trust it. If the LLM call fails for
+  any reason, chat falls back to the free result rather than erroring out.
+
+`--llm-chat` is opt-in at server start, never toggled per-question: it mints the same
+per-launch token `--allow-mutations` uses (§10), and every chat request while it's on
+must carry that token -- a page other than this dashboard can't silently trigger a
+paid call. The free layer needs no token, same risk level as any other read-only
+`/api/*` route. Live-only, like MCP console/Settings above (no `--site` export).
+
 ---
 
 Everything here runs entirely on your machine, and is read-only unless you opt into
-`--allow-mutations` (§10).
+`--allow-mutations` (§10) or `--llm-chat` (§11, which sends questions to your
+configured `[llm]` provider -- everything else stays local).

@@ -747,6 +747,11 @@ Examples:
     p.add_argument("--workspace", default=_S,
                    help="--allow-mutations: where 'add repo' clones new repos "
                         "(default: alongside the store)")
+    p.add_argument("--llm-chat", dest="llm_chat", action="store_true", default=_S,
+                   help="the dashboard's Chat tab always answers via the free graph "
+                        "router; this additionally sends its structured result to "
+                        "the configured [llm] provider for a prose answer (real "
+                        "time/token cost per question, opt in explicitly)")
     _add_net(p)
 
     parser.set_defaults(**_DEFAULTS)

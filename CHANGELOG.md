@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.0] - 2026-07-29
+
+### Added
+
+- **Chat tab in the dashboard.** Ask a question about the fleet in plain language and get an answer,
+  right in the browser. Two layers, always shown together:
+  - **Free graph router (always on, no flag needed).** Reuses `contextlake serve`'s own `ask` MCP tool
+    unchanged, in-process -- no logic duplicated. Classifies the question, dispatches to the matching
+    graph tool (`find_definition`/`find_callers`/`blast_radius`/`who_knows`/`get_wiki`/semantic search),
+    returns a structured, cited result. Zero LLM cost.
+  - **LLM-synthesized prose (`--llm-chat`, opt-in at server start).** Turns that structured result into
+    a short written answer using whatever `[llm]` provider `kb.toml` already has configured (the same
+    setting `contextlake wiki` uses). The citations the prose was grounded in are always shown alongside
+    it, expandable, so it's checkable rather than just trusted. An LLM failure degrades to the free
+    result rather than erroring out.
+  - `--llm-chat` mints the same per-launch token `--allow-mutations` uses, and every chat request while
+    it's active must carry it -- a page other than this dashboard can't silently trigger a paid call. The
+    free layer needs no token, same risk level as any other read-only `/api/*` route.
+  - See [`docs/dashboard.md` §11](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md#11-chat).
+
 ## [2.59.1] - 2026-07-29
 
 ### Changed

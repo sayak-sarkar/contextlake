@@ -273,6 +273,88 @@ def _post(url, body, *, token=None, host=None):
             return e.code, {}
 
 
+def test_chat_endpoint_works_without_any_flag(served):
+    """Chat is not a mutation -- it must work on the plain `served` fixture
+    (no --allow-mutations, no --llm-chat, no token) at the same risk level as
+    any other read-only /api/* route."""
+    status, body = _post(served + "/api/chat", {"question": "who calls CatalogService?"})
+    assert status == 200
+    assert body["llm_used"] is False
+    assert body["structured"]["route"] == "callers"
+
+
+def test_chat_requires_a_question(served):
+    status, body = _post(served + "/api/chat", {})
+    assert status == 400
+    assert "question" in body["error"]
+
+
+@pytest.fixture
+def served_with_llm_chat(tmp_path, monkeypatch):
+    """Like `served`, but --llm-chat with a stubbed LlmClient -- proves the
+    endpoint's token gating and prose-synthesis wiring without a real provider
+    or network call. An explicit (empty) --config keeps load_kb_config from
+    touching this machine's real ambient config."""
+    import contextlake.kb.llm.base as llm_base
+
+    class _StubLlm:
+        def generate(self, prompt, *, system=None):
+            return "STUBBED ANSWER"
+
+    monkeypatch.setattr(llm_base, "build_llm", lambda cfg: _StubLlm())
+
+    s = SqliteStore(tmp_path / "index.sqlite")
+    nodes = [
+        Node(id="svc", repo="team/app", kind="class", name="CatalogService", lang="python"),
+        Node(id="caller", repo="team/app", kind="function", name="checkout", lang="python"),
+    ]
+    edges = [Edge(src="caller", dst="svc", relation="calls",
+                  confidence=Confidence.EXTRACTED, provenance=_PROV)]
+    s.upsert_repo(Repo(id="team/app", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="team/app", head_commit="h1", nodes=nodes, edges=edges))
+    reindex_shard(s, tmp_path, "team/app")
+
+    cfg_file = tmp_path / "kb.toml"
+    cfg_file.write_text("")
+
+    port = _free_port()
+    srv = build_dashboard_server(s, tmp_path, host="127.0.0.1", port=port,
+                                 config_path=str(cfg_file), llm_chat=True)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    base = f"http://127.0.0.1:{port}"
+    try:
+        js = _get(base + "/dashboard.js").decode("utf-8")
+        token = json.loads(re.search(r'__CL_TOKEN__=("(?:[^"\\]|\\.)*")', js).group(1))
+        assert "window.__CL_LLM_CHAT__=true;" in js
+        yield base, token
+    finally:
+        srv.shutdown()
+        s.close()
+
+
+def test_chat_requires_token_when_llm_chat_enabled(served_with_llm_chat):
+    base, _token = served_with_llm_chat
+    status, _body = _post(base + "/api/chat", {"question": "who calls CatalogService?"})
+    assert status == 403
+
+
+def test_chat_rejects_wrong_token_when_llm_chat_enabled(served_with_llm_chat):
+    base, _token = served_with_llm_chat
+    status, _body = _post(base + "/api/chat", {"question": "who calls CatalogService?"},
+                          token="not-the-real-token")
+    assert status == 403
+
+
+def test_chat_with_correct_token_returns_llm_synthesized_answer(served_with_llm_chat):
+    base, token = served_with_llm_chat
+    status, body = _post(base + "/api/chat", {"question": "who calls CatalogService?"}, token=token)
+    assert status == 200
+    assert body["llm_used"] is True
+    assert body["answer"] == "STUBBED ANSWER"
+    assert body["structured"]["route"] == "callers"  # citations still present
+
+
 def test_post_disabled_without_allow_mutations(served):
     status, _body = _post(served + "/api/repo/team/app/sync", {}, token="whatever")
     assert status == 404
