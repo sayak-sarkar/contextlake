@@ -1147,10 +1147,8 @@
     body.appendChild(history);
     chatHistory.forEach(function (turn) { history.appendChild(turn); });
 
-    function ask() {
-      var q = field.value.trim();
-      if (!q) return;
-      field.value = ""; field.disabled = true; askBtn.disabled = true;
+    function send(q) {
+      field.disabled = true; askBtn.disabled = true;
       var turn = h("div", { class: "cl-card" });
       turn.appendChild(h("p", null, h("strong", null, "You: "), q));
       var pending = skeleton(1);
@@ -1171,10 +1169,23 @@
         }
       }).catch(function (e) {
         turn.removeChild(pending);
-        turn.appendChild(stateBlock({ kind: "error", title: "Question failed", msg: String(e.message || e) }));
+        var retryBtn = h("button", { class: "cl-btn", type: "button" }, "Retry");
+        retryBtn.addEventListener("click", function () {
+          var i = chatHistory.indexOf(turn);
+          if (i !== -1) chatHistory.splice(i, 1);
+          history.removeChild(turn);
+          send(q);
+        });
+        turn.appendChild(stateBlock({ kind: "error", title: "Question failed", msg: String(e.message || e), action: retryBtn }));
       }).then(function () {
         field.disabled = false; askBtn.disabled = false; field.focus();
       });
+    }
+    function ask() {
+      var q = field.value.trim();
+      if (!q) return;
+      field.value = "";
+      send(q);
     }
     askBtn.addEventListener("click", ask);
     field.addEventListener("keydown", function (e) { if (e.key === "Enter") ask(); });
