@@ -1,5 +1,6 @@
 """Tests for `contextlake init` — the guided config generator."""
 
+import sys
 from argparse import Namespace
 
 import pytest
@@ -386,10 +387,16 @@ def test_completion_preserves_existing_rc_content(tmp_path, monkeypatch):
 
 
 def test_completion_off_does_not_touch_any_file(tmp_path, monkeypatch):
+    """A decline still never touches the shell rc file -- only the tool's own
+    ~/.contextlake/ decision marker (see the dedicated marker tests below),
+    which is what lets a later zero-step check know the user already said no
+    instead of silently registering completion behind their back."""
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("SHELL", "/bin/bash")
     init_cmd._setup_shell_completion(interactive=False, default_on=False)
     assert not (tmp_path / ".bashrc").exists()
+    assert (tmp_path / ".contextlake" / ".completion_setup_done").read_text().strip() \
+        == "declined"
 
 
 def test_completion_fish_writes_dedicated_completions_file(tmp_path, monkeypatch):
@@ -406,6 +413,121 @@ def test_completion_unrecognized_shell_warns_not_crashes(tmp_path, monkeypatch, 
     monkeypatch.setenv("SHELL", "/bin/tcsh")
     init_cmd._setup_shell_completion(interactive=False, default_on=True)  # must not raise
     assert "unrecognized shell" in gls_logs.text.lower()
+
+
+def test_completion_registered_marker_names_the_shell(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/zsh")
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)
+    marker = tmp_path / ".contextlake" / ".completion_setup_done"
+    assert marker.read_text().strip() == "registered:zsh"
+
+
+def test_completion_unrecognized_shell_still_marks_decided(tmp_path, monkeypatch):
+    """Even the "nothing sensible to do" branch must record a decision --
+    otherwise a user on an unsupported shell would get re-nagged by the
+    zero-step auto-check on every single command forever."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/tcsh")
+    init_cmd._setup_shell_completion(interactive=False, default_on=True)
+    marker = tmp_path / ".contextlake" / ".completion_setup_done"
+    assert "unrecognized-shell" in marker.read_text()
+
+
+# --- `contextlake completion` subcommand + zero-step auto-registration -----
+
+def test_cmd_completion_registers_for_the_detected_shell(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    init_cmd.cmd_completion(Namespace(shell=None))
+    assert "register-python-argcomplete" in (tmp_path / ".bashrc").read_text()
+
+
+def test_cmd_completion_shell_argument_overrides_SHELL_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/zsh")
+    init_cmd.cmd_completion(Namespace(shell="bash"))
+    assert (tmp_path / ".bashrc").exists()
+    assert not (tmp_path / ".zshrc").exists()
+
+
+def test_auto_register_skips_when_already_decided(tmp_path, monkeypatch):
+    monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False)  # opt back in; see conftest
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    (tmp_path / ".contextlake").mkdir()
+    (tmp_path / ".contextlake" / ".completion_setup_done").write_text("declined\n")
+    init_cmd.maybe_auto_register_completion()
+    assert not (tmp_path / ".bashrc").exists()
+
+
+def test_auto_register_never_overrides_an_explicit_decline(tmp_path, monkeypatch):
+    """The exact scenario the marker exists to prevent: `init --no-completion`
+    said no, and a later command must not silently register anyway just
+    because it looks (from the rc file alone) like nothing was ever decided."""
+    monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False)  # opt back in; see conftest
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    init_cmd._setup_shell_completion(interactive=False, default_on=False)  # the decline
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    init_cmd.maybe_auto_register_completion()
+    assert not (tmp_path / ".bashrc").exists()
+
+
+def test_auto_register_skips_when_not_a_real_terminal(tmp_path, monkeypatch):
+    """CI, Docker, and piped output all have no shell worth configuring and no
+    one watching the log line -- must be a silent no-op, not a registration."""
+    monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False)  # opt back in; see conftest
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    init_cmd.maybe_auto_register_completion()
+    assert not (tmp_path / ".bashrc").exists()
+    assert not (tmp_path / ".contextlake" / ".completion_setup_done").exists()
+
+
+def test_auto_register_skips_silently_under_quiet(tmp_path, monkeypatch):
+    """`_setup_shell_completion`'s own contract is to never mutate a dotfile
+    silently -- under -q every one of its log() lines disappears, so
+    `quiet=True` must skip the whole thing rather than register with zero
+    visible notice. The marker must NOT be written either, so it's simply
+    retried on the user's next non-quiet run instead of never happening."""
+    monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False)  # opt back in; see conftest
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    init_cmd.maybe_auto_register_completion(quiet=True)
+    assert not (tmp_path / ".bashrc").exists()
+    assert not (tmp_path / ".contextlake" / ".completion_setup_done").exists()
+
+
+def test_auto_register_skips_when_env_var_opts_out(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    monkeypatch.setenv("CONTEXTLAKE_NO_AUTO_COMPLETION", "1")
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    init_cmd.maybe_auto_register_completion()
+    assert not (tmp_path / ".bashrc").exists()
+    assert not (tmp_path / ".contextlake" / ".completion_setup_done").exists()
+
+
+def test_auto_register_fires_once_in_a_real_terminal(tmp_path, monkeypatch):
+    monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False)  # opt back in; see conftest
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("SHELL", "/bin/bash")
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    init_cmd.maybe_auto_register_completion()
+    assert "register-python-argcomplete" in (tmp_path / ".bashrc").read_text()
+    # second call (e.g. the user's next command) must not re-append
+    init_cmd.maybe_auto_register_completion()
+    assert (tmp_path / ".bashrc").read_text().count("register-python-argcomplete") == 1
 
 
 def test_init_end_to_end_registers_completion_by_default(tmp_path, monkeypatch):

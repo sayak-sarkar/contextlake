@@ -172,19 +172,41 @@ def _write_fish_completion() -> str:
     return path
 
 
-def _setup_shell_completion(*, interactive: bool, default_on: bool) -> None:
+def _completion_decision_marker() -> Path:
+    """A tool-owned state file (not a dotfile the user maintains) recording
+    that shell completion has been decided one way or another -- accepted,
+    declined, or an unrecognized shell -- so a later, zero-step check (see
+    ``maybe_auto_register_completion``) never re-asks or silently overrides
+    an explicit ``init --no-completion``/"n" decline."""
+    return Path(os.path.expanduser("~/.contextlake/.completion_setup_done"))
+
+
+def _mark_completion_decided(outcome: str) -> None:
+    try:
+        marker = _completion_decision_marker()
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(outcome + "\n", encoding="utf-8")
+    except OSError:
+        pass  # best-effort -- a missed marker just means asking again next run
+
+
+def _setup_shell_completion(*, interactive: bool, default_on: bool,
+                            shell_override: str | None = None) -> None:
     """Register shell tab-completion, on by default (see docs/usage.md
     #shell-completion for the plain manual steps this automates). Every write
     here is visible in the log before it happens and is either idempotent
     (bash/zsh: skips if the marker's already present) or a full overwrite of a
     file contextlake itself owns (fish's dedicated completions file) -- never
-    a silent, unannounced mutation of a dotfile the user didn't ask about."""
+    a silent, unannounced mutation of a dotfile the user didn't ask about.
+    Every branch records its outcome via ``_mark_completion_decided`` so this
+    is asked (or auto-run) at most once."""
     want = _ask_yn("Enable shell tab-completion for contextlake?", default_on) \
         if interactive else default_on
     if not want:
+        _mark_completion_decided("declined")
         return
     shell_path = os.environ.get("SHELL", "")
-    shell_name = os.path.basename(shell_path)
+    shell_name = shell_override or os.path.basename(shell_path)
     log("")
     if shell_name in ("bash", "zsh"):
         rc_path = _bash_zsh_rc(shell_name)
@@ -195,19 +217,55 @@ def _setup_shell_completion(*, interactive: bool, default_on: bool) -> None:
             log(f"    {_COMPLETION_EVAL_CMD}")
             _append_completion_block(rc_path, shell_name)
             log(f"  Open a new {shell_name} shell (or `source {rc_path}`) for it to take effect.")
+        _mark_completion_decided(f"registered:{shell_name}")
     elif shell_name == "fish":
         try:
             path = _write_fish_completion()
         except ImportError:
             log(f"{style.warn('completion')} argcomplete not importable; skipping "
                 "(this shouldn't happen -- it's a core dependency).")
+            _mark_completion_decided("argcomplete-missing")
         else:
             log(f"{style.ok('completion')} wrote {path}")
             log("  Open a new fish shell for it to take effect.")
+            _mark_completion_decided("registered:fish")
     else:
         log(f"{style.warn('completion')} unrecognized shell "
             f"({shell_path or '$SHELL not set'}) — see "
             "docs/usage.md#shell-completion for manual setup (bash/zsh/fish).")
+        _mark_completion_decided(f"unrecognized-shell:{shell_name or 'unset'}")
+
+
+def maybe_auto_register_completion(*, quiet: bool = False) -> None:
+    """Zero-step completion setup for anyone who installs via pip/uv/pipx and
+    never runs `init` -- the entry point most tools (gh, kubectl) leave as a
+    manual step. Fires at most once (guarded by the same decision marker
+    `init`/`contextlake completion` write), only in a genuinely interactive
+    terminal (never CI/Docker/a piped command, where there's no shell to
+    configure and no one watching the log line explaining what happened), and
+    never overrides an explicit prior accept/decline. ``quiet=True`` (-q) also
+    skips it outright: `_setup_shell_completion`'s own contract is to never
+    mutate a dotfile silently, and -q would make every one of its log() lines
+    disappear -- the marker is deliberately NOT written on this skip, so it's
+    simply retried on the user's next non-quiet run instead of never happening."""
+    if quiet:
+        return
+    if os.environ.get("CONTEXTLAKE_NO_AUTO_COMPLETION"):
+        return
+    if _completion_decision_marker().exists():
+        return
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return
+    _setup_shell_completion(interactive=False, default_on=True)
+
+
+def cmd_completion(args) -> int:
+    """`contextlake completion [bash|zsh|fish]` -- register tab-completion for
+    the current (or named) shell right now, without needing a full `init` run
+    first. Reuses the exact mechanism `init` uses, so both stay in sync."""
+    _setup_shell_completion(interactive=False, default_on=True,
+                            shell_override=getattr(args, "shell", None))
+    return 0
 
 
 def cmd_init(args) -> int:

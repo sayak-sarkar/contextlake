@@ -4,7 +4,7 @@ help epilog. See docs/... review notes for the source of these findings.
 
 import pytest
 
-from contextlake.cli import _ALIASES, _COMMAND_CATEGORIES, build_parser
+from contextlake.cli import _ALIASES, _COMMAND_CATEGORIES, _KB_COMMANDS, build_parser
 
 
 def test_abbreviated_long_flags_are_rejected():
@@ -279,6 +279,56 @@ def test_root_help_shows_the_categorized_list_not_the_flat_one(capsys):
     assert "owners (who-knows)" in out
     # the old flat argparse listing (one un-grouped line per command) is gone
     assert "\ncommands:\n" not in out
+
+
+def test_completion_command_parses_with_and_without_a_shell_override():
+    parser = build_parser()
+    assert parser.parse_args(["completion"]).shell is None
+    assert parser.parse_args(["completion", "zsh"]).shell == "zsh"
+
+
+def test_completion_rejects_an_unsupported_shell_name(capsys):
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["completion", "powershell"])
+
+
+def test_completion_is_not_a_kb_command():
+    """Shell completion has nothing to do with the knowledge layer -- it must
+    work in the base (mirror-only) install, not require the [kb] extra."""
+    assert "completion" not in _KB_COMMANDS
+
+
+def test_auto_register_completion_runs_once_and_does_not_swallow_the_real_exit_code(monkeypatch):
+    """The zero-step auto-check fires before a command's own config
+    validation (a deliberate ordering decision, see its call site's comment
+    in main()) -- confirm it doesn't also swallow or alter that command's own
+    exit code on a genuine failure (`serve --config <path that doesn't
+    exist>` reliably exits 1, see docs/... the embedder/server config-path
+    guard)."""
+    from contextlake import cli, init_cmd
+
+    calls = []
+    monkeypatch.setattr(init_cmd, "maybe_auto_register_completion", lambda **kw: calls.append(1))
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["serve", "--config", "/definitely/does/not/exist.toml"])
+    assert calls == [1]
+    assert exc.value.code == 1
+
+
+@pytest.mark.parametrize("command_args", [["init", "--yes"], ["completion"]])
+def test_auto_register_completion_is_skipped_for_init_and_completion(monkeypatch, command_args):
+    """init and `completion` already own this exact decision explicitly --
+    the auto-check must never also run (and potentially double-register or
+    re-log) underneath them."""
+    from contextlake import cli, init_cmd
+
+    calls = []
+    monkeypatch.setattr(init_cmd, "maybe_auto_register_completion", lambda **kw: calls.append(1))
+    monkeypatch.setattr(init_cmd, "cmd_init", lambda args: 0)
+    monkeypatch.setattr(init_cmd, "cmd_completion", lambda args: 0)
+    with pytest.raises(SystemExit):
+        cli.main(command_args)
+    assert calls == []
 
 
 def test_n_is_a_short_form_of_dry_run():

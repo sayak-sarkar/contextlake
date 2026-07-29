@@ -18,9 +18,26 @@ full command list.
 
 ### Shell completion
 
-On by default. `argcomplete` is a core dependency, so `pip install contextlake` alone is enough —
-no separate extra. `contextlake init` then offers to register it with your shell (on by default;
-pass `--no-completion` to skip), writing whichever of these applies once, idempotently:
+On by default, and set up automatically — no command to remember. `argcomplete` is a core
+dependency, so `pip install contextlake` alone is enough, no separate extra; a plain `pip install`
+has no post-install hook to run anything at (that's a deliberate Python packaging limitation, not a
+gap here), so instead the **first time any command runs in a real interactive terminal**,
+contextlake registers completion for you, once, and says so in the log. Skipped entirely in
+non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure — set
+`CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. `contextlake init` offers
+the same registration explicitly (on by default; pass `--no-completion` to skip) if you'd rather
+decide up front, and an explicit decline there is remembered — the automatic check never overrides
+it later.
+
+Run it again on demand (a different shell, after skipping it once, or just to re-run it) with:
+
+```bash
+contextlake completion          # auto-detect $SHELL and register
+contextlake completion zsh      # register for zsh explicitly, regardless of $SHELL
+```
+
+This, `init`'s own prompt, and the automatic first-run check all write whichever of these applies,
+once, idempotently:
 
 ```bash
 # bash — appended to ~/.bashrc
@@ -34,12 +51,11 @@ eval "$(register-python-argcomplete contextlake)"
 register-python-argcomplete --shell fish contextlake > ~/.config/fish/completions/contextlake.fish
 ```
 
-If you skipped it at `init` time, use a shell other than bash/zsh/fish, or just want to do it by
-hand, the commands above are exactly what `init` runs — copy the one for your shell and open a new
-shell afterward. `contextlake <TAB>` then completes every command and, inside a command, every one
-of its flags — generated live from the same parser that runs the command, so it can never drift
-out of sync with the actual CLI surface. Uses [argcomplete](https://github.com/kislyuk/argcomplete)
-(pure Python, no dependencies of its own).
+For a shell other than bash/zsh/fish, or to do it by hand, copy the block above for your shell and
+open a new shell afterward. `contextlake <TAB>` then completes every command and, inside a command,
+every one of its flags — generated live from the same parser that runs the command, so it can never
+drift out of sync with the actual CLI surface. Uses
+[argcomplete](https://github.com/kislyuk/argcomplete) (pure Python, no dependencies of its own).
 
 **Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `index
 --workspace`) accepts `--repos PATTERN`, a comma-separated **glob/substring** filter

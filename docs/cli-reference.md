@@ -56,6 +56,15 @@ $ contextlake dashboard --serve --workspace --open
 Put the value right after --workspace, e.g. '--workspace <value> --open'.
 ```
 
+## Shell completion
+
+Registered automatically the first time any command runs in a real interactive terminal (no `pip
+install` post-install hook exists to do this at install time -- see [Mirror repositories](usage.md)
+#shell-completion for why), and never overrides an explicit decline from `contextlake init
+--no-completion`. Run `contextlake completion [bash|zsh|fish]` to register on demand instead of
+waiting for that first run, or `CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of the automatic check
+entirely.
+
 ## Advanced/resilience flags
 
 The 8 mirror-tier commands (`fetch`/`clone`/`update`/`branches`/`verify`/`status`/`sync`/`audit`) each

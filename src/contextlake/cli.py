@@ -66,7 +66,7 @@ _ALIASES = {"who-knows": "owners", "blast-radius": "impact"}
 # listing (replacing argparse's own alphabetical-ish flat dump). Every command
 # name must appear in exactly one group -- see test_every_command_is_categorized.
 _COMMAND_CATEGORIES = (
-    ("Get started", ("version", "init", "bootstrap", "doctor")),
+    ("Get started", ("version", "init", "completion", "bootstrap", "doctor")),
     ("Mirror a fleet", ("fetch", "clone", "update", "branches", "verify", "status",
                         "sync", "audit")),
     ("Build the knowledge graph", ("index", "source", "connect", "embed", "ingest",
@@ -308,6 +308,8 @@ _DEFAULTS = {
     "command": None, "args": [],
     # global
     "verbose": False, "quiet": False, "log_file": None, "config": None,
+    # completion
+    "shell": None,
     # mirror
     "work_dir": None, "group": None, "report": None, "no_audit": False,
     "max_retries": None, "backoff_initial": None, "backoff_max": None,
@@ -588,6 +590,22 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                    help="non-interactive: accept defaults / flags, no prompts")
     p.add_argument("--force", action="store_true", default=_S,
                    help="overwrite existing config files")
+
+    p = command("completion",
+                "register shell tab-completion for the current shell (bash/zsh/fish)",
+                epilog="""
+Examples:
+  contextlake completion        auto-detect $SHELL and register
+  contextlake completion zsh    register for zsh explicitly
+
+Also happens automatically, once, the first time any command runs in a real
+interactive terminal (skip this with CONTEXTLAKE_NO_AUTO_COMPLETION=1) -- this
+command is for running it again explicitly, on demand, or for a shell other
+than $SHELL. Uses the exact mechanism `init` uses (see docs/usage.md
+#shell-completion), so both stay idempotent and in sync.
+                """)
+    p.add_argument("shell", nargs="?", choices=["bash", "zsh", "fish"], default=_S,
+                   help="override $SHELL auto-detection")
 
     # ---- mirror core -------------------------------------------------------
     for name, help_, epilog in (
@@ -1211,6 +1229,26 @@ def main(argv=None):
 
     setup_logging(verbose=args.verbose, quiet=args.quiet, log_file=args.log_file)
 
+    # Zero-step completion setup for anyone who skipped `init` entirely (a pip/
+    # uv/pipx install has no post-install hook to hang this on -- see
+    # maybe_auto_register_completion's own docstring). Skipped for init/
+    # completion themselves: both already own this decision explicitly.
+    #
+    # Deliberately placed here, before any command-specific config load or
+    # validation -- so on a command that goes on to fail (a mistyped
+    # --config, a still-placeholder gitlab_group), the completion notice
+    # prints first. Considered moving this after each dispatch path's own
+    # config load instead, but that config load itself only *warns and
+    # continues* on most real problems (a hard failure needs its own --config
+    # to point at a literally nonexistent path -- a narrow edge case, and
+    # only reachable at all before a first-ever `init`); the notice is its
+    # own clearly-delimited line either way, never conflated with the error
+    # that follows. Not worth threading this through every dispatch branch
+    # for that narrow a case.
+    if args.command not in ("init", "completion"):
+        from .init_cmd import maybe_auto_register_completion
+        maybe_auto_register_completion(quiet=args.quiet)
+
     # First-run setup writes the config the rest of the tool reads, so it must run
     # before load_config's "no config found" preamble. No [kb] extra needed.
     if args.command == "init":
@@ -1220,6 +1258,12 @@ def main(argv=None):
         except KeyboardInterrupt:
             log("Operation cancelled by user")
             sys.exit(130)
+
+    # No [kb] extra needed -- shell completion has nothing to do with the
+    # knowledge layer, so this must not route through _KB_COMMANDS.
+    if args.command == "completion":
+        from .init_cmd import cmd_completion
+        sys.exit(cmd_completion(args))
 
     # Knowledge-layer verbs are handled by the optional kb subsystem and don't
     # need the sync config/preamble. Imported lazily so the core tool runs

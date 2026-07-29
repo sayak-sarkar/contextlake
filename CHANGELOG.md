@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.62.0] - 2026-07-30
+
+### Added
+- **Shell tab-completion now registers itself automatically**, the first time any command runs in a
+  real interactive terminal -- no `init` run required first. A `pip install`/`uv tool install`/
+  `pipx install` has no post-install hook to do this at install time (a deliberate Python packaging
+  limitation, not a gap here), so this is the closest achievable equivalent: a one-time,
+  TTY-gated check, logged plainly before it writes anything, that never re-fires and never
+  overrides an explicit `contextlake init --no-completion` decline (tracked by a new
+  `~/.contextlake/.completion_setup_done` marker). Opt out of the check entirely with
+  `CONTEXTLAKE_NO_AUTO_COMPLETION=1`.
+- **`contextlake completion [bash|zsh|fish]`**: register tab-completion on demand, for the current
+  shell or an explicit override, without waiting for the automatic first-run check or a full
+  `init`. Works without the `[kb]` extra (shell completion isn't a knowledge-layer concern).
+
 ## [2.61.0] - 2026-07-30
 
 ### Added

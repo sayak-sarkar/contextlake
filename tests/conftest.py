@@ -114,6 +114,39 @@ def _clean_gitlab_env(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolated_home(tmp_path, monkeypatch):
+    """Hard backstop: no test should ever be able to write to the real
+    machine's actual home directory (dotfiles, ~/.contextlake/, etc.),
+    regardless of which code path it exercises or whether it remembered to
+    isolate HOME itself. This was a real, observed leak: `init_cmd`'s decline
+    path writes a `~/.contextlake/.completion_setup_done` marker (needed so
+    the zero-step auto-check never re-asks), and dozens of pre-existing
+    `cmd_init`-based tests only ever redirected `CONFIG_FILE`/`_KB_CONFIG`
+    (module attributes), never the `HOME` env var itself -- safe when that
+    decline path was a no-op, not once it started writing a file. A test that
+    sets HOME explicitly to its own tmp_path still wins (its own
+    monkeypatch.setenv call runs later, in the test body, after this fixture).
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+
+
+@pytest.fixture(autouse=True)
+def _no_auto_completion(monkeypatch):
+    """Keep tests hermetic: `maybe_auto_register_completion` (see cli.py's
+    main()) fires on every real CLI invocation gated only on isatty() and a
+    one-time marker -- under `pytest -s`, or any runner that leaves a TTY
+    attached, an unguarded test calling cli.main(...) would register
+    completion against the DEVELOPER'S OWN real ~/.zshrc and create a real
+    ~/.contextlake/. This is the exact hazard test_init.py's own `_args()`
+    already documents guarding against for `contextlake init` directly; this
+    fixture closes the same hole for the newer zero-step auto-check. Tests
+    that specifically exercise the auto-check opt back in via
+    monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False).
+    """
+    monkeypatch.setenv("CONTEXTLAKE_NO_AUTO_COMPLETION", "1")
+
+
+@pytest.fixture(autouse=True)
 def _clean_color_env(monkeypatch):
     """Keep tests hermetic: a shell (or terminal wrapper) that sets FORCE_COLOR
     would make style.ok()/style.warn() emit ANSI codes even under pytest's
