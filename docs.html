@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Overview · contextlake docs">
 <meta name="twitter:description" content="A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-25"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-29"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=5e5b186">
-<link rel="stylesheet" href="docs.css?v=5e5b186">
-<link rel="stylesheet" href="cmdk.css?v=5e5b186">
+<link rel="stylesheet" href="fonts.css?v=c2efbbf">
+<link rel="stylesheet" href="docs.css?v=c2efbbf">
+<link rel="stylesheet" href="cmdk.css?v=c2efbbf">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -329,8 +329,9 @@ works with a local Ollama or any OpenAI-compatible endpoint.</p>
 <h3 id="the-dashboard">The dashboard<a class="anchor" href="#the-dashboard" title="Link to this section">#</a></h3>
 <p><code>contextlake dashboard --serve</code> opens a local, offline-first window into everything the
 knowledge layer builds: a fleet overview, per-repo anatomy, the cross-repo architecture
-graph, change-impact (blast radius), health, and search. Try it with zero setup via
-<code>contextlake dashboard --serve --sample</code>.</p>
+graph, change-impact (blast radius), health, search, and a <strong>Chat</strong> tab to ask questions
+about the fleet in plain language (free graph router always on, LLM-synthesized prose
+opt-in via <code>--llm-chat</code>). Try it with zero setup via <code>contextlake dashboard --serve --sample</code>.</p>
 <p align="center">
   <img class="ss ss-light" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820"><img class="ss ss-dark" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards-dark.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">
 </p>
@@ -394,6 +395,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=5e5b186"></script>
+<script defer src="cmdk.js?v=c2efbbf"></script>
 </body>
 </html>
