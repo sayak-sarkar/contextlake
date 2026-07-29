@@ -25,7 +25,12 @@ _PROV = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 
 
 
 @pytest.fixture
-def served(tmp_path):
+def served(tmp_path, monkeypatch):
+    # /api/settings resolves the real config precedence chain, including
+    # ~/.contextlake/kb.toml -- isolate HOME so a machine with a real, populated
+    # global config (e.g. from manually testing `contextlake init`) can't leak
+    # real [[sources]] into what every test here expects to be an empty default.
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
     s = SqliteStore(tmp_path / "index.sqlite")
     nodes = [
         Node(id="svc", repo="team/app", kind="class", name="CatalogService", lang="python"),

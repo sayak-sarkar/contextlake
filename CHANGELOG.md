@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.5] - 2026-07-29
+
+### Fixed
+
+- **A def nested directly under an unnamed struct/union/enum could silently drop an entire
+  C/C++ file from the graph.** Found indexing a real legacy C++ codebase: the containment-edge
+  fallback used `def_node_to_id.get(parent.id)` without a default, so a structural parent that
+  matched a def type but was never captured (anonymous structs/unions/enums have no `name:` field
+  for the query to capture) produced `Edge(src=None)` -- a pydantic validation error that aborted
+  parsing the *whole file*, not just that one edge, silently losing every node and edge it would
+  have contributed. Now falls back to the file node, same as every other uncontained definition.
+- **The embed step's error message now includes the exception's class name**, not just `str(e)`.
+  Chasing an "Embedder unavailable — HTTP Error 404: Not Found" report turned into an extended
+  investigation because several unrelated failure modes render similar-looking messages; the
+  class name alone would have settled it immediately. No behavior change, purely diagnostic.
+- **Test-isolation bug** (dev-only, not user-facing): two dashboard tests asserted
+  `sources == []` while reading the real config precedence chain, so a machine with a populated
+  `~/.contextlake/kb.toml` (e.g. from manually testing `init`) made them fail locally even though
+  CI was always green. Both now isolate `HOME`.
+
 ## [2.60.4] - 2026-07-29
 
 ### Fixed

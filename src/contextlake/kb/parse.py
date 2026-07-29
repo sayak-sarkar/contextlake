@@ -559,7 +559,14 @@ def parse_source(
         parent = def_ts.parent
         while parent is not None and parent.type not in def_types:
             parent = parent.parent
-        parent_id = def_node_to_id.get(parent.id) if parent else file_id
+        # A structural def-typed ancestor doesn't guarantee it was *registered* in
+        # def_node_to_id -- the first pass skips a def whose declarator has no
+        # enclosing def node (line ~536), which is common in C/C++ under macros,
+        # `extern "C"` blocks, and complex templates. Without this fallback,
+        # `.get(parent.id)` silently returns None, producing Edge(src=None) --
+        # a pydantic validation error that aborts extraction of the *entire file*,
+        # not just this one containment edge.
+        parent_id = def_node_to_id.get(parent.id, file_id) if parent else file_id
         edges.append(Edge(
             src=parent_id, dst=def_node_to_id[def_ts.id], relation="contains",
             confidence=Confidence.EXTRACTED,

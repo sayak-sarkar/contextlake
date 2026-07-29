@@ -108,7 +108,14 @@ def cmd_embed(args) -> int:
                 try:
                     embedder.embed(["contextlake embedder readiness probe"])
                 except Exception as e:  # noqa: BLE001
-                    log(style.warn(f"Embedder unavailable — {e}"))
+                    # str(e) alone has repeatedly been ambiguous in the field --
+                    # several unrelated failure modes (a bad model id, a stale
+                    # local cache, a corporate proxy mangling the HF Hub request)
+                    # all surface differently-shaped messages that read the same
+                    # to a human. The exception's own class name is nearly free
+                    # to add and turns "guess which of these it is" into a
+                    # one-line answer.
+                    log(style.warn(f"Embedder unavailable — {type(e).__name__}: {e}"))
                     log(style.dim("  No vectors written. Fix the embedder above, then "
                                   "re-run: contextlake embed"))
                     return 1

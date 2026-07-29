@@ -205,6 +205,26 @@ def test_parse_cpp():
     assert "Animal" in {base for _sub, base, _f, _ln in inh}       # Dog : public Animal
 
 
+def test_parse_cpp_nested_def_under_unnamed_container_falls_back_to_file():
+    """A def nested directly under an unnamed struct/union/enum -- common in real
+    C++ under anonymous unions -- must not crash the whole file. The anonymous
+    container matches a def-type structurally but is never captured (the query
+    requires a `name:` field), so it's never registered in def_node_to_id; the
+    containment edge must fall back to the file, not silently produce
+    Edge(src=None) and abort every node/edge this file would have contributed."""
+    src = (b"struct Outer {\n"
+           b"    struct {\n"
+           b"        void inner() {}\n"
+           b"    } anon;\n"
+           b"};\n")
+    nodes, edges, _calls, _inh = parse_source("r", "f.cpp", src, "cpp")
+    k = _kinds(nodes)
+    assert "Outer" in k["struct"] and "inner" in k["function"]
+    inner_id = next(n.id for n in nodes if n.name == "inner")
+    file_id = next(n.id for n in nodes if n.kind == "file")
+    assert (file_id, inner_id, "contains") in {(e.src, e.dst, e.relation) for e in edges}
+
+
 def test_parse_rust():
     src = (b"use std::io::Read;\nstruct Server { addr: String }\ntrait Handler { fn go(&self); }\n"
            b"enum State { On }\nfn mk() -> Server { work(); Server { addr: String::new() } }\n")

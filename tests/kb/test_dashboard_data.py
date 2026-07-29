@@ -375,7 +375,13 @@ def test_mcp_console_json_snippet_carries_an_explicit_config_path(store_dir):
     assert args == ["serve", "--config", str(cfg)]
 
 
-def test_settings_shape_and_derived_fields(store_dir):
+def test_settings_shape_and_derived_fields(store_dir, tmp_path, monkeypatch):
+    # settings(..., config_path=None) resolves the real precedence chain,
+    # including ~/.contextlake/kb.toml -- on a machine where that file has
+    # real [[sources]] (e.g. from manually testing `contextlake init`), this
+    # test would silently pick them up and fail. Isolate HOME so it only ever
+    # sees the empty config this test actually wrote.
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
     s, sd = store_dir
     out = kbdata.settings(s, sd)
     assert out["store_size_bytes"] > 0                 # the shards/wiki written by the fixture
