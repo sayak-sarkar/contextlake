@@ -6254,7 +6254,7 @@ oceans, waves, fishing, or drowning, and never "data lake".
 
 ## Pebble
 
-Pebble is contextlake's mascot: a small, friendly, warm brown river otter who surfaces from the lake
+Pebble is contextlake's mascot: a small, friendly, dark blue-grey river otter who surfaces from the lake
 cradling a glowing translucent context-pebble in both forepaws, offering it forward. The one-beat read is
 "I went down, I found the real thing, here it is." Calm, competent, never frantic. Pebble is the
 anti-hallucination promise made friendly.
