@@ -19,16 +19,16 @@
 <meta name="twitter:title" content="Mirror repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-29"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=c2efbbf">
-<link rel="stylesheet" href="docs.css?v=c2efbbf">
-<link rel="stylesheet" href="cmdk.css?v=c2efbbf">
+<link rel="stylesheet" href="fonts.css?v=d2d402c">
+<link rel="stylesheet" href="docs.css?v=d2d402c">
+<link rel="stylesheet" href="cmdk.css?v=d2d402c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -61,6 +61,26 @@ documented in the <a href="knowledge-layer">Knowledge layer</a> overview and the
 <p>Every command carries its own scoped help, <code>contextlake &lt;command&gt; --help</code> shows
 just that command's flags with worked examples, and bare <code>contextlake</code> prints the
 full command list.</p>
+<h3 id="shell-completion">Shell completion<a class="anchor" href="#shell-completion" title="Link to this section">#</a></h3>
+<p>On by default. <code>argcomplete</code> is a core dependency, so <code>pip install contextlake</code> alone is enough , 
+no separate extra. <code>contextlake init</code> then offers to register it with your shell (on by default;
+pass <code>--no-completion</code> to skip), writing whichever of these applies once, idempotently:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># bash, appended to ~/.bashrc</span>
+<span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">&quot;</span>
+
+<span class="c1"># zsh, appended to ~/.zshrc (needs bashcompinit; most zsh setups already load it)</span>
+autoload<span class="w"> </span>-U<span class="w"> </span>bashcompinit<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>bashcompinit
+<span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">&quot;</span>
+
+<span class="c1"># fish, a dedicated file, written once</span>
+register-python-argcomplete<span class="w"> </span>--shell<span class="w"> </span>fish<span class="w"> </span>contextlake<span class="w"> </span>&gt;<span class="w"> </span>~/.config/fish/completions/contextlake.fish
+</code></pre></div>
+<p>If you skipped it at <code>init</code> time, use a shell other than bash/zsh/fish, or just want to do it by
+hand, the commands above are exactly what <code>init</code> runs, copy the one for your shell and open a new
+shell afterward. <code>contextlake &lt;TAB&gt;</code> then completes every command and, inside a command, every one
+of its flags, generated live from the same parser that runs the command, so it can never drift
+out of sync with the actual CLI surface. Uses <a href="https://github.com/kislyuk/argcomplete" target="_blank" rel="noopener">argcomplete<span class="ext-arrow" aria-hidden="true">↗</span></a>
+(pure Python, no dependencies of its own).</p>
 <p><strong>Mirror a subset with <code>--repos</code>.</strong> Every mirror command (and <code>bootstrap</code> / <code>index
 --workspace</code>) accepts <code>--repos PATTERN</code>, a comma-separated <strong>glob/substring</strong> filter
 over your repo paths, so you can mirror and index just a handful instead of the whole
@@ -464,6 +484,7 @@ sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </sp
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#command-reference">Command reference</a><ul>
+<li><a href="#shell-completion">Shell completion</a></li>
 <li><a href="#status-check-current-synchronization-status">status: check current synchronization status</a></li>
 <li><a href="#fetch-fetch-all-gitlab-projects">fetch: fetch all GitLab projects</a></li>
 <li><a href="#clone-clone-missing-repositories">clone: clone missing repositories</a></li>
@@ -524,6 +545,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=c2efbbf"></script>
+<script defer src="cmdk.js?v=d2d402c"></script>
 </body>
 </html>

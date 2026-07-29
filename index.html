@@ -46,8 +46,8 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=c2efbbf">
-<link rel="stylesheet" href="cmdk.css?v=c2efbbf">
+<link rel="stylesheet" href="fonts.css?v=d2d402c">
+<link rel="stylesheet" href="cmdk.css?v=d2d402c">
 <style>
   :root{
     --deepwater:#0E2A33; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4;
@@ -545,9 +545,8 @@
   .uc .uc-cmd .p{color:var(--subtle)}
 
   /* why not: two grounded comparison cards */
-  .wn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  @media(max-width:920px){.wn-grid{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:560px){.wn-grid{grid-template-columns:1fr}}
+  .wn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:640px){.wn-grid{grid-template-columns:1fr}}
   .wn{padding:26px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2)}
   .wn h3{font-size:15px;margin:0 0 12px;font-family:var(--ff-m);color:var(--ink);font-weight:600}
   .wn p{color:var(--muted);font-size:14.5px;margin:0;line-height:1.65}
@@ -786,7 +785,7 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=c2efbbf"
+    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=d2d402c"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
     <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
@@ -983,6 +982,10 @@
       <div class="wn">
         <h3>vs. other local code-graph tools</h3>
         <p>Tools like Graphify and GitNexus index <b>a codebase</b>, on demand, one at a time. contextlake mirrors and continuously keeps fresh <b>a whole fleet</b> of repos, on their real branches, with a graph, search, and a wiki that stay in sync across all of them, automatically.</p>
+      </div>
+      <div class="wn">
+        <h3>vs. AI wiki generators (DeepWiki)</h3>
+        <p>DeepWiki turns a single <b>public</b> repo into an AI-written wiki, on demand, in the cloud, one at a time, and your own code needs a paid account to go through it privately. contextlake mirrors <b>your whole fleet</b> locally and keeps a graph, search, and wiki <b>offline and current</b> across every repo you have, nothing leaves your disk to get there.</p>
         <a class="doclink" href="comparison">How contextlake compares &rarr;</a>
       </div>
     </div>
@@ -1229,6 +1232,6 @@ nav.querySelectorAll(".nav-links a").forEach(function(a){a.addEventListener("cli
 document.addEventListener("click",function(e){if(nav.classList.contains("open")&&!nav.contains(e.target))set(false);});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nav.classList.contains("open")){set(false);tog.focus();}});
 addEventListener("resize",function(){if(innerWidth>680)set(false);});})();</script>
-<script defer src="cmdk.js?v=c2efbbf"></script>
+<script defer src="cmdk.js?v=d2d402c"></script>
 </body>
 </html>
