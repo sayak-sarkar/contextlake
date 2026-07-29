@@ -26,9 +26,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=d2d402c">
-<link rel="stylesheet" href="docs.css?v=d2d402c">
-<link rel="stylesheet" href="cmdk.css?v=d2d402c">
+<link rel="stylesheet" href="fonts.css?v=49130a9">
+<link rel="stylesheet" href="docs.css?v=49130a9">
+<link rel="stylesheet" href="cmdk.css?v=49130a9">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -100,6 +100,11 @@ inside a repo; the <em>nearest</em> ancestor wins if more than one project happe
 one in the current directory if none exists yet in the chain); once a project has a local config, those
 commands land in it by default without needing <code>--local</code> again. An explicit <code>--config PATH</code> always takes
 precedence over both the local and global tiers.</p>
+<p><code>init --local</code> also scopes the <em>values</em> it writes, not just the config file's location: <code>work_dir</code>
+defaults to the current directory (override interactively, or with <code>--work-dir</code>), and the
+knowledge-layer's <code>store_dir</code> defaults to a <code>.contextlake/kb</code> directory next to that workspace instead
+of the global <code>~/.contextlake/kb</code> (override with <code>--store-dir</code>), so two separate <code>--local</code> projects
+never end up sharing one store.</p>
 <h2 id="settings-reference">Settings reference<a class="anchor" href="#settings-reference" title="Link to this section">#</a></h2>
 <table>
 <thead>
@@ -296,6 +301,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=d2d402c"></script>
+<script defer src="cmdk.js?v=49130a9"></script>
 </body>
 </html>
