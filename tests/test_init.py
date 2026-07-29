@@ -13,7 +13,7 @@ def _args(**over):
     # its own dedicated tests below (test_init_shell_completion.py-style, in
     # this file's later section) that explicitly mock HOME/SHELL; every other
     # test here must never touch a real dotfile, on this or any CI machine.
-    base = dict(platform=None, group=None, work_dir=None, kb=None,
+    base = dict(platform=None, group=None, work_dir=None, store_dir=None, kb=None,
                 embeddings=False, completion=False, yes=True, force=False)
     base.update(over)
     return Namespace(**base)
@@ -73,6 +73,41 @@ def test_init_local_flag_writes_to_cwd_not_global(tmp_path, monkeypatch):
     assert "platform = github" in (project / ".contextlake.ini").read_text()
     assert (project / ".contextlake.kb.toml").exists()
     assert not decoy.exists()
+
+
+def test_init_local_flag_scopes_store_dir_to_workspace(tmp_path, monkeypatch):
+    """--local scopes the mirror workspace to cwd; the KB store should default
+    to living alongside it too -- found via dogfooding: a `--local` config's
+    kb.toml still pointed store_dir at the global ~/.contextlake/kb, so two
+    separate --local workspaces on the same machine silently shared one store."""
+    decoy = tmp_path / "decoy"
+    monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(decoy / ".contextlake.ini"))
+    monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(decoy / ".contextlake/kb.toml"))
+    project = tmp_path / "myproject"
+    project.mkdir()
+    monkeypatch.chdir(project)
+
+    rc = init_cmd.cmd_init(_args(local=True, platform="github", group="acme"))
+    assert rc == 0
+    kb = (project / ".contextlake.kb.toml").read_text()
+    assert f'store_dir = "{project / ".contextlake" / "kb"}"' in kb
+
+
+def test_init_explicit_store_dir_wins_over_local_default(tmp_path, monkeypatch):
+    decoy = tmp_path / "decoy"
+    monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(decoy / ".contextlake.ini"))
+    monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(decoy / ".contextlake/kb.toml"))
+    project = tmp_path / "myproject"
+    project.mkdir()
+    monkeypatch.chdir(project)
+
+    custom_store = str(tmp_path / "shared-store")
+    rc = init_cmd.cmd_init(
+        _args(local=True, platform="github", group="acme", store_dir=custom_store)
+    )
+    assert rc == 0
+    kb = (project / ".contextlake.kb.toml").read_text()
+    assert f'store_dir = "{custom_store}"' in kb
 
 
 def test_init_explicit_config_wins_over_local_flag(tmp_path, monkeypatch):

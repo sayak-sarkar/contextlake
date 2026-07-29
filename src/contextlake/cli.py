@@ -357,6 +357,9 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                    help="gitlab (default) | github | bitbucket | gitea | codeberg | forgejo")
     p.add_argument("--group", default=_S, help="the group / org / workspace to mirror")
     p.add_argument("--work-dir", default=_S, help="local workspace directory")
+    p.add_argument("--store-dir", default=_S,
+                   help="knowledge-layer store directory (default: a .contextlake/kb "
+                        "next to the workspace with --local, ~/.contextlake/kb otherwise)")
     p.add_argument("--local", action="store_true", default=_S,
                    help="write config to the current directory instead of ~/ "
                         "(inherited by every subdirectory underneath it)")

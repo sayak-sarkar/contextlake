@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.4] - 2026-07-29
+
+### Fixed
+
+- **`init --local` now actually scopes its own defaults to the workspace it's writing into.**
+  Found via live dogfooding: `contextlake init --local --yes` wrote a project-scoped
+  `.contextlake.ini` correctly, but the `work_dir` *value* inside it still defaulted to a
+  hardcoded `~/work` regardless of where `init` was run or that `--local` was passed at all --
+  so `contextlake bootstrap` would mirror into a generic `~/work` directory instead of the
+  project you were sitting in. The interactive prompt suggested the same wrong default. Both now
+  default to the current directory (override with `--work-dir`, or by typing a different answer
+  at the prompt). Confirmed this default was a generic, hardcoded literal, not anything read from
+  your real environment -- it happened to resemble a real workspace name purely by coincidence of
+  casing.
+- **`init` now also scopes the knowledge-layer store under `--local`.** The generated
+  `.contextlake.kb.toml`'s `store_dir` unconditionally pointed at the global
+  `~/.contextlake/kb`, so two separate `--local` projects on the same machine silently shared one
+  store. `--local` now defaults `store_dir` to a `.contextlake/kb` directory next to the
+  workspace; a new `--store-dir` flag (and an interactive prompt) overrides it either way.
+
+### Added
+
+- **`--store-dir`** on `contextlake init`, alongside `--work-dir`: sets the knowledge-layer store
+  location explicitly instead of taking the (now workspace-scoped, with `--local`) default.
+
 ## [2.60.3] - 2026-07-29
 
 ### Added

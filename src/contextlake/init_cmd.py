@@ -86,12 +86,12 @@ def _mirror_ini(work_dir: str, platform: str, group: str) -> str:
     return "\n".join(lines)
 
 
-def _kb_toml(enable_embeddings: bool) -> str:
+def _kb_toml(enable_embeddings: bool, store_dir: str) -> str:
     lines = [
         "# contextlake knowledge-layer configuration (written by `contextlake init`).",
         "",
         "[kb]",
-        'store_dir = "~/.contextlake/kb"',
+        f'store_dir = "{store_dir}"',
         "",
         "[embeddings]",
         "# Local-first semantic search. The built-in CPU embedder needs no Ollama",
@@ -253,7 +253,11 @@ def cmd_init(args) -> int:
     default_group = getattr(args, "group", None) or "your-org"
     group = _ask("Group / org / workspace to mirror", default_group) if interactive \
         else default_group
-    default_work = getattr(args, "work_dir", None) or os.path.expanduser("~/work")
+    # cwd, not a fixed literal: `init` is run from wherever the user wants this
+    # workspace to live (this is the whole point of --local), so "here" is the
+    # only default that's ever actually right -- a hardcoded guess is wrong for
+    # everyone except by coincidence.
+    default_work = getattr(args, "work_dir", None) or os.getcwd()
     work_dir = _ask("Local workspace directory", default_work) if interactive \
         else default_work
 
@@ -264,16 +268,27 @@ def cmd_init(args) -> int:
     want_kb = _ask_yn("Set up the knowledge layer (graph + search)?", kb_default) \
         if interactive else kb_default
     enable_embeddings = False
+    store_dir = None
     if want_kb:
         enable_embeddings = _ask_yn("  Enable semantic search (built-in CPU model)?",
                                     True) if interactive else \
             bool(getattr(args, "embeddings", False))
+        # --local scopes the mirror workspace to cwd, so the KB store should
+        # live alongside it by default too -- otherwise "everything is scoped
+        # to this directory" would be true for the repos but not for the
+        # graph/vectors built from them, which is the more surprising half.
+        default_store = getattr(args, "store_dir", None) or (
+            os.path.join(work_dir, ".contextlake", "kb") if local
+            else "~/.contextlake/kb"
+        )
+        store_dir = _ask("  Knowledge-layer store directory", default_store) \
+            if interactive else default_store
 
     # --- write --------------------------------------------------------------
     log("")
     wrote_any = _write(mirror_config_file, _mirror_ini(work_dir, platform, group), force=force)
     if want_kb:
-        wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings), force=force)
+        wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings, store_dir), force=force)
 
     # --- optional data source(s) ---------------------------------------------
     # Purely optional and skippable: default is "no", and --yes (non-interactive)
