@@ -3371,6 +3371,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.6] - 2026-07-29
+
+### Fixed
+
+- **`contextlake dashboard --serve` on a port already in use dumped a raw traceback**
+  instead of a clean, actionable message. Found live: a second `dashboard --serve`
+  invocation while one was already running. `serve_dashboard` now catches the
+  `OSError` from the socket bind, logs what happened and how to fix it (`--port`, or
+  stop the existing process), and returns a proper non-zero exit code -- `cmd_dashboard`
+  now propagates that instead of always returning `0` regardless of what happened.
+- **`contextlake index` (no `--source`/`--workspace`) now warns before silently
+  bundling nested repos into one.** Indexing a workspace root that isn't itself a git
+  repo but *contains* one (the common "cd into your mirrored fleet and just run index"
+  mistake) folded every nested repo's files into a single made-up repo id -- then
+  running the correct `index --workspace .` afterward duplicated that data under the
+  nested repo's real identity. The zero-config single-repo behavior is unchanged (it's
+  a legitimate, narrower use case); it now just says so and points at `--workspace .`
+  when cwd clearly isn't that case.
+
 ## [2.60.5] - 2026-07-29
 
 ### Fixed
