@@ -20,9 +20,12 @@ search, and a minimap; it opens straight from `file://`:
 </p>
 
 Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. Bound the result
-with `--hops` (default 2), `--max-nodes` (500), `--max-fanout` (50, a per-node cap that stops hub nodes
-from exploding), `--relation`, and `--direction {in,out,both}`, whatever is dropped is **logged**, never
-silently truncated.
+with `--hops` (default 2), `--max-nodes` (500), `--max-edges` (400 for `--repo` views -- a dense repo can
+pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
+capping edges independently means it always renders, possibly truncated, never errors), `--max-fanout` (50,
+a per-node cap that stops hub nodes from exploding), `--relation`, and `--direction {in,out,both}`, whatever
+is dropped is **logged**, never silently truncated. On the dashboard, a repo too large to show in one
+diagram gets a "scope to one module" dropdown (its top-level path segments) instead of an arbitrary slice.
 
 ## Output formats
 

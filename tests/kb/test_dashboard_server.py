@@ -107,6 +107,21 @@ def test_repo_diagram_endpoint(served):
     assert unknown["error"] == "unknown format"
 
 
+def test_repo_diagram_endpoint_module_param_scopes_the_view(served):
+    # both fixture nodes are under no file path in `served`, so scoping to a
+    # module that doesn't exist should just yield an (honestly) empty slice,
+    # not an error -- proves the query param reaches data.diagram() at all.
+    scoped = json.loads(_get(served + "/api/repo/team/app/diagram?format=mermaid&module=nope"))
+    assert scoped["format"] == "mermaid"
+    assert "CatalogService" not in scoped["text"]
+
+
+def test_repo_modules_endpoint(served):
+    body = json.loads(_get(served + "/api/repo/team/app/modules"))
+    assert body["repo"] == "team/app"
+    assert body["modules"] == []  # fixture nodes have no `file` set -- honestly empty
+
+
 def test_send_swallows_client_disconnect_errors(tmp_path):
     # a client (browser tab, curl) disconnecting mid-write must not surface a traceback --
     # ThreadingHTTPServer already isolates it to its own request thread, this only checks

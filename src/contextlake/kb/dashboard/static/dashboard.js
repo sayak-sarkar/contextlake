@@ -137,9 +137,17 @@
     // `contextlake graph --format ...` produces) -- nothing to snapshot as a
     // portable static export any more than MCP/Settings are, so static rejects
     // and asyncPanel's existing live-only empty state takes over.
-    diagram: function (id, fmt) {
+    diagram: function (id, fmt, module) {
+      if (MODE === "static") return Promise.reject(new Error("live only"));
+      var url = "/api/repo/" + encPath(id) + "/diagram?format=" + encodeURIComponent(fmt);
+      if (module) url += "&module=" + encodeURIComponent(module);
+      return fetchJSON(url);
+    },
+    // Populates the Diagrams tab's module scope-down control -- only fetched
+    // when a repo's diagram comes back truncated, so small repos never pay for it.
+    repoModules: function (id) {
       return MODE === "static" ? Promise.reject(new Error("live only"))
-        : fetchJSON("/api/repo/" + encPath(id) + "/diagram?format=" + encodeURIComponent(fmt));
+        : fetchJSON("/api/repo/" + encPath(id) + "/modules");
     },
     // sequencediagram needs a single symbol seed, not a whole repo, so it's served off
     // /api/impact/diagram (same family as impact() below) rather than /api/repo/.../diagram.
@@ -687,7 +695,12 @@
         // repo content (symbol names, table names, ...) is untrusted input. Theme
         // is (re-)applied per render in mermaidCard, not here, so a light/dark
         // toggle takes effect on the next render without reloading the script.
-        window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+        // maxEdges is a belt-and-braces margin above repo_subgraph()'s own
+        // max_edges=400 server-side cap (see kb/visualize/payload.py) -- the
+        // server should never actually hand back more than ~400-500 edges, but
+        // a future caller (CLI-generated text pasted in, an older cached
+        // response) shouldn't hard-error instead of just rendering slower.
+        window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", maxEdges: 2000 });
         resolve(window.mermaid);
       };
       s.onerror = function () { reject(new Error("failed to load mermaid.min.js")); };
@@ -696,16 +709,32 @@
     return mermaidLoadPromise;
   }
   var mermaidRenderSeq = 0;
+  // On a failed render, mermaid.js leaves its temporary "#d<id>{...}" wrapper
+  // (a <div> holding the diagram's injected <style>) sitting directly in
+  // document.body -- it only cleans this up itself on success. Left alone,
+  // every failed render (e.g. hitting Mermaid's own maxEdges guard on a huge
+  // repo) permanently adds one more global stylesheet the whole page's CSS
+  // engine must consider on every recalc, so a session with several failed
+  // attempts gets measurably, cumulatively slower -- not just that one
+  // diagram staying broken. Removed defensively regardless of failure cause.
+  function cleanupMermaidLeak(renderId) {
+    var leaked = document.getElementById("d" + renderId);
+    if (leaked) leaked.remove();
+  }
   function mermaidCard(text) {
     var svgBox = h("div", { class: "cl-mermaid" }, h("p", { class: "cl-muted" }, "Rendering…"));
     var seq = ++mermaidRenderSeq;
+    var renderId = "cl-mmd-" + seq;
     loadMermaid()
       .then(function (mermaid) {
         // re-applied on every render (not just at load) so a diagram opened
         // before a light/dark toggle still switches theme on the next render.
-        mermaid.initialize({ startOnLoad: false, securityLevel: "strict",
+        // maxEdges is repeated here too -- mermaid.initialize() replaces the
+        // whole config each call, it doesn't merge, so omitting it here would
+        // silently fall back to the default 500 on every re-theme.
+        mermaid.initialize({ startOnLoad: false, securityLevel: "strict", maxEdges: 2000,
           theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default" });
-        return mermaid.render("cl-mmd-" + seq, text);
+        return mermaid.render(renderId, text);
       })
       .then(function (out) {
         if (seq !== mermaidRenderSeq) return; // a newer render superseded this one
@@ -715,6 +744,7 @@
         clear(svgBox); svgBox.innerHTML = out.svg;
       })
       .catch(function (e) {
+        cleanupMermaidLeak(renderId);
         if (seq !== mermaidRenderSeq) return;
         clear(svgBox);
         svgBox.appendChild(stateBlock({
@@ -735,16 +765,46 @@
     var available = {};
     DIAGRAM_FORMATS.forEach(function (f) { available[f.fmt] = f.avail(kinds); });
     var strip = h("div", { class: "cl-tabs", role: "tablist" });
+    var scopeWrap = h("div", { class: "cl-diagram-scope" });
     var body = h("div", { class: "cl-panel__body" });
+    var currentModule = null;
+    var modulesLoaded = false;
 
+    // Only fetched once a diagram actually comes back truncated -- a repo small
+    // enough to render whole never pays for this extra round trip.
+    function ensureModulePicker() {
+      if (modulesLoaded) return;
+      modulesLoaded = true;
+      CL.data.repoModules(id).then(function (res) {
+        var mods = res.modules || [];
+        if (mods.length < 2) return; // one giant module is no scope-down at all
+        clear(scopeWrap);
+        var select = h("select", {
+          class: "cl-select", "aria-label": "Scope diagram to one module",
+          onchange: function (ev) {
+            currentModule = ev.target.value || null;
+            renderFmt(currentFmt);
+          }
+        }, h("option", { value: "" }, "Whole repo (truncated)"),
+           mods.map(function (m) {
+             return h("option", { value: m.prefix }, m.prefix + " (" + m.nodes + ")");
+           }));
+        scopeWrap.appendChild(h("label", { class: "cl-diagram-scope__label" },
+          "This repo is too large to show in one diagram — ", select));
+      }).catch(function () { /* scope-down is a convenience, not essential -- fail quiet */ });
+    }
+
+    var currentFmt = null;
     function renderFmt(fmt) {
+      currentFmt = fmt;
       strip.querySelectorAll(".cl-tab").forEach(function (btn) {
         btn.setAttribute("aria-selected", String(btn.dataset.fmt === fmt));
       });
       clear(body); body.appendChild(skeleton(1));
-      CL.data.diagram(id, fmt).then(function (res) {
+      CL.data.diagram(id, fmt, currentModule).then(function (res) {
         clear(body);
         if (res.error) { body.appendChild(stateBlock({ kind: "error", title: "Unknown diagram format" })); return; }
+        if (res.truncated) ensureModulePicker();
         body.appendChild(mermaidCard(res.text));
       }).catch(function (e) {
         clear(body);
@@ -761,7 +821,7 @@
       if (isAvail) btn.addEventListener("click", function () { renderFmt(f.fmt); });
       strip.appendChild(btn);
     });
-    pane.appendChild(strip); pane.appendChild(body);
+    pane.appendChild(strip); pane.appendChild(scopeWrap); pane.appendChild(body);
     var firstFmt = DIAGRAM_FORMATS.filter(function (f) { return available[f.fmt]; })[0] || DIAGRAM_FORMATS[0];
     renderFmt(firstFmt.fmt);
   }

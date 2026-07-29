@@ -120,13 +120,22 @@ def cmd_graph(args) -> int:
         # The overview is a fleet inventory — default to loading every repo (so any
         # is findable); neighbourhood/repo views stay bounded at 500.
         max_nodes = getattr(args, "max_nodes", None) or (5000 if overview else 500)
+        # Only the Mermaid-rendered formats have a hard edge-count limit of their
+        # own to protect against (see repo_subgraph's docstring) -- html (cytoscape)
+        # and dot have no such limit and must keep showing every edge among the
+        # capped nodes exactly as before, unless the user explicitly asks otherwise.
+        max_edges = getattr(args, "max_edges", None)
+        if max_edges is None and fmt in ("mermaid", "classdiagram", "statediagram",
+                                        "erdiagram", "deploymentdiagram"):
+            max_edges = 400
 
         meta: dict = {}
         if overview:
             nodes, edges = viz.overview_subgraph(store, max_nodes=max_nodes, meta=meta)
             meta["mode"] = "overview"
         elif getattr(args, "repo", None) and not _has_seed(args):
-            nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes, meta=meta)
+            nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes,
+                                             max_edges=max_edges, meta=meta)
             # empty AND not a known repo -> the id is wrong; suggest close ones
             # (a real repo with nodes renders even without a repos-table row).
             if not nodes and store.get_repo(args.repo) is None:

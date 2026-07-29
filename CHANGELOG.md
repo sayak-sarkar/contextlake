@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.60.7] - 2026-07-30
+
+### Fixed
+- Dashboard's Mermaid-rendered diagram formats (`mermaid`/`classdiagram`/
+  `statediagram`/`erdiagram`/`deploymentdiagram`) now cap a repo's internal
+  subgraph by **edge** count, not just node count. A dense repo (heavy
+  `contains`/`calls` fan-out -- found on a large real-world C/C++ codebase)
+  could pack well over 500 edges into a 500-node slice, which exceeded
+  Mermaid's own hard `maxEdges` default and made the Relations diagram fail to
+  render outright. `repo_subgraph()`'s new `max_edges` parameter defaults to
+  400 (safely under Mermaid's 500) for those formats only -- `--format html`/
+  `dot`/`json` render via cytoscape/DOT, have no such limit, and are
+  deliberately left uncapped by default (still overridable via the new CLI
+  flag, `graph --max-edges N`). The dashboard's own `mermaid.initialize()`
+  also raises `maxEdges` to 2000 as a belt-and-braces margin.
+- Dashboard: fixed a real, reproducible DOM/stylesheet leak. On every FAILED
+  Mermaid render, the library itself leaves a temporary `<div id="d<renderId>">`
+  (holding a full injected stylesheet) sitting directly in `document.body` --
+  it only cleans this up on success. Left alone, every failed render (e.g. the
+  edge-limit error above, before this fix) permanently adds one more global
+  stylesheet the page's CSS engine has to consider on every recalc, so it's a
+  real, unbounded-growth correctness bug worth fixing regardless of how much
+  it costs in practice. Now defensively removed after every failed render.
+
+### Added
+- Dashboard Diagrams tab: when a repo's diagram comes back truncated, a "scope
+  to one module" dropdown appears, populated from the repo's top-level path
+  segments (largest first, segments under 5 nodes dropped). Lets a huge repo be
+  explored one directory at a time instead of only ever seeing an arbitrary
+  (alphabetically-first) slice of 500 nodes -- which, for a repo with a
+  `ExternalProjects/`-style vendored directory, meant vendored code crowded out
+  real source in every default view. New `kb/visualize/payload.py::repo_modules()`
+  + `/api/repo/<id>/modules` endpoint.
+
 ## [2.60.6] - 2026-07-29
 
 ### Fixed

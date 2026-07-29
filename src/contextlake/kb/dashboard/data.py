@@ -429,13 +429,16 @@ def data_flow(store, repo_id: str, *, limit: int = 500) -> dict:
 DIAGRAM_FORMATS = ("mermaid", "classdiagram", "statediagram", "erdiagram", "deploymentdiagram")
 
 
-def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500) -> dict:
+def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500,
+           max_edges: int = 400, module: str | None = None) -> dict:
     """Render one of :data:`DIAGRAM_FORMATS` for a repo's internal graph.
 
     Reuses the exact ``repo_subgraph`` -> ``to_payload`` -> renderer pipeline
     ``contextlake graph --repo <repo> --format <fmt>`` already uses (no new
     extraction, no new rendering logic) -- this is the CLI's own output, now also
-    reachable from the dashboard.
+    reachable from the dashboard. ``module``, when given, scopes the diagram to
+    one top-level path segment (see :func:`repo_modules`) -- the fix for a repo
+    too large to render meaningfully in one slice.
     """
     from .. import visualize as viz
 
@@ -443,7 +446,8 @@ def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500) -> dict:
         return {"repo": sanitize_label(repo_id), "format": fmt, "error": "unknown format"}
 
     meta: dict = {"mode": "repo", "repo": repo_id}
-    nodes, edges = viz.repo_subgraph(store, repo_id, max_nodes=max_nodes, meta=meta)
+    nodes, edges = viz.repo_subgraph(store, repo_id, max_nodes=max_nodes,
+                                     max_edges=max_edges, path_prefix=module, meta=meta)
     payload = viz.to_payload(nodes, edges, meta)
     renderer = {
         "mermaid": viz.to_mermaid,
@@ -458,6 +462,14 @@ def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500) -> dict:
         "text": renderer(payload),
         "truncated": bool(meta.get("truncated")),
     }
+
+
+def repo_modules(store, repo_id: str) -> dict:
+    """Top-level path segments worth offering as a "scope to one module" choice
+    on a repo's Diagrams tab, per :func:`kb.visualize.payload.repo_modules`."""
+    from .. import visualize as viz
+
+    return {"repo": sanitize_label(repo_id), "modules": viz.repo_modules(store, repo_id)}
 
 
 def sequence_diagram(store, node_id: str, *, hops: int = 2, max_nodes: int = 500,

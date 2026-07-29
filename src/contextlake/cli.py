@@ -165,7 +165,7 @@ _DEFAULTS = {
     "action": None,
     "golden": None, "retriever": None, "as_of": None,
     "node": None, "name": None, "search": None, "overview": False, "hops": None,
-    "max_nodes": None, "max_fanout": None, "relation": None, "direction": None,
+    "max_nodes": None, "max_edges": None, "max_fanout": None, "relation": None, "direction": None,
     "format": None, "layout": None, "output": None, "open": False, "cdn": False,
     "serve": False, "site": None, "repos": None, "group_depth": None,
     "anonymize": False, "sample": False, "c4": False,
@@ -276,7 +276,7 @@ def _root_hidden_flags(p):
                  "--no-wiki", "--force", "--watch", "--overview", "--open", "--cdn",
                  "--serve", "--anonymize", "--sample", "--c4", "--c1"):
         add(flag, action="store_true")
-    for flag in ("--interval", "--port", "--limit", "--hops", "--max-nodes",
+    for flag in ("--interval", "--port", "--limit", "--hops", "--max-nodes", "--max-edges",
                  "--max-fanout", "--group-depth"):
         add(flag, type=int)
     add("--llm", choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"])
@@ -634,6 +634,10 @@ Examples:
     p.add_argument("--hops", type=int, default=_S, help="expansion radius (default 2)")
     p.add_argument("--max-nodes", dest="max_nodes", type=int, default=_S,
                    help="cap on rendered nodes (default 500)")
+    p.add_argument("--max-edges", dest="max_edges", type=int, default=_S,
+                   help="cap on rendered edges for --repo views (default 400 -- a dense "
+                        "repo can pack well over 500 edges into 500 nodes, which used to "
+                        "exceed Mermaid's own hard maxEdges limit and fail to render)")
     p.add_argument("--max-fanout", dest="max_fanout", type=int, default=_S,
                    help="per-node neighbour cap, anti-hub (default 50)")
     p.add_argument("--relation", default=_S, help="only follow edges of this relation")

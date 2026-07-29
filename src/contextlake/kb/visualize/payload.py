@@ -163,33 +163,89 @@ def extract_subgraph(store: Store, seed_ids, *, hops: int = 2, max_nodes: int = 
 
 
 def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
+                  max_edges: int | None = None, path_prefix: str | None = None,
                   meta: dict | None = None) -> tuple[list[Node], list[Edge]]:
-    """One repo's internal graph: its nodes (capped) and the edges among them."""
+    """One repo's internal graph: its nodes (capped) and the edges among them.
+
+    ``max_edges`` is opt-in (``None`` = no additional edge cap beyond whatever
+    ``max_nodes`` induces) -- **not on by default**, because not every consumer
+    needs it. A cytoscape ``--format html``/``dot`` view has no edge-count limit
+    of its own and used to show every edge among the capped nodes; only the
+    Mermaid-rendered formats (``mermaid``/``classdiagram``/``statediagram``/
+    ``erdiagram``/``deploymentdiagram``) have a hard ``maxEdges`` (500 by
+    default) that a dense repo (heavy ``contains``/``calls`` fan-out, e.g. a
+    large C/C++ codebase) can blow past with just 500 nodes -- surfacing as a
+    raw render error. Callers rendering through Mermaid should pass
+    ``max_edges=400`` (below Mermaid's 500, so the dashboard's belt-and-braces
+    ``maxEdges`` bump is genuinely a safety margin, not the load-bearing limit);
+    everyone else should leave it ``None``.
+
+    ``path_prefix``, when given, scopes to nodes whose ``file`` starts with it --
+    the "one module at a time" view for repos too large to render meaningfully in
+    one slice (see ``repo_modules`` for the prefixes worth offering a caller).
+    """
+    where = "repo_id=?"
+    params: list[object] = [repo_id]
+    if path_prefix:
+        where += " AND file LIKE ? ESCAPE '\\'"
+        params.append(path_prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
     rows = store.conn.execute(
-        "SELECT node_id FROM nodes WHERE repo_id=? ORDER BY node_id LIMIT ?",
-        (repo_id, max_nodes + 1),
+        f"SELECT node_id FROM nodes WHERE {where} ORDER BY node_id LIMIT ?",
+        (*params, max_nodes + 1),
     ).fetchall()
-    truncated = len(rows) > max_nodes
+    node_truncated = len(rows) > max_nodes
     ids = [r[0] for r in rows[:max_nodes]]
     seen = set(ids)
     nodes = [n for nid in ids if (n := store.get_node(nid)) is not None]
     edges: list[Edge] = []
     edge_keys: set[tuple] = set()
+    edge_truncated = False
     for nid in ids:
+        if max_edges is not None and len(edges) >= max_edges:
+            edge_truncated = True
+            break
         for e in store.neighbors(nid, direction="out"):
             if e.dst in seen:
                 k = (e.src, e.dst, e.relation)
                 if k not in edge_keys:
                     edge_keys.add(k)
                     edges.append(e)
+                    if max_edges is not None and len(edges) >= max_edges:
+                        edge_truncated = True
+                        break
+    truncated = node_truncated or edge_truncated
     if truncated:
-        log(f"  truncated: repo {repo_id!r} has more than {max_nodes} nodes")
+        log(f"  truncated: repo {repo_id!r} subgraph exceeds max_nodes={max_nodes}"
+            + (f" or max_edges={max_edges}" if max_edges is not None else ""))
     if meta is not None:
         meta["truncated"] = truncated
-        if truncated:  # cheap exact total only when we actually capped
+        if node_truncated:  # cheap exact total only when we actually capped on nodes
             meta["total"] = store.conn.execute(
-                "SELECT COUNT(*) FROM nodes WHERE repo_id=?", (repo_id,)).fetchone()[0]
+                f"SELECT COUNT(*) FROM nodes WHERE {where}", tuple(params)).fetchone()[0]
     return nodes, edges
+
+
+def repo_modules(store: Store, repo_id: str, *, min_nodes: int = 5) -> list[dict]:
+    """Top-level path segments worth offering as a "scope to one module" choice
+    on a repo's Diagrams tab -- computed from each node's ``file``, not a fixed
+    depth, so it works for both ``src/foo/...`` layouts and single-top-dir repos.
+    Segments with fewer than ``min_nodes`` nodes are dropped (not worth a whole
+    tab of its own); the remainder is sorted by node count, largest first, so a
+    caller populating a dropdown can offer the modules actually worth scoping to.
+    """
+    rows = store.conn.execute(
+        "SELECT file FROM nodes WHERE repo_id=? AND file IS NOT NULL AND file != ''",
+        (repo_id,),
+    ).fetchall()
+    counts: dict[str, int] = {}
+    for (file,) in rows:
+        top = file.split("/", 1)[0]
+        counts[top] = counts.get(top, 0) + 1
+    return [
+        {"prefix": prefix, "nodes": n}
+        for prefix, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        if n >= min_nodes
+    ]
 
 
 def overview_subgraph(store: Store, *, max_nodes: int = 5000,

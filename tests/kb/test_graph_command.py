@@ -104,6 +104,94 @@ def test_repo_subgraph_is_internal_only(store):
     assert [(e.src, e.dst) for e in edges] == [("a", "b")]  # external edge excluded
 
 
+def _dense_hub(store, leaves=20):
+    """A synthetic repo where a small node cap still yields MORE edges than
+    nodes -- a hub with fan-out to every leaf, plus every leaf calling every
+    other leaf, so max_nodes alone (the old cap) doesn't bound edge count.
+    Mirrors the real-world shape (dense C/C++ contains/calls fan-out) that
+    tripped Mermaid's own maxEdges guard -- synthetic, not the real repo."""
+    nodes = [_node("hub", kind="class")] + [_node(f"leaf{i}") for i in range(leaves)]
+    store.upsert_nodes("r", nodes)
+    edges = [_edge("hub", f"leaf{i}") for i in range(leaves)]
+    for i in range(leaves):
+        for j in range(leaves):
+            if i != j:
+                edges.append(_edge(f"leaf{i}", f"leaf{j}"))
+    store.upsert_edges("r", edges)
+
+
+def test_repo_subgraph_caps_edges_independently_of_nodes(store):
+    _dense_hub(store, leaves=20)  # 20 nodes but 20 + 20*19 = 400 possible edges
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=100, max_edges=50)
+    assert len(nodes) == 21  # node cap never hit
+    # exact, not <=: the cap must stop collection AT max_edges, never over it
+    # (an off-by-one here would mean the render can still exceed Mermaid's own
+    # hard limit for a differently-shaped dense repo) and never meaningfully
+    # under it either while more qualifying edges remain uncollected.
+    assert len(edges) == 50
+    meta: dict = {}
+    viz.repo_subgraph(store, "r", max_nodes=100, max_edges=50, meta=meta)
+    assert meta["truncated"] is True
+    # edge-only truncation must NOT fabricate a node "total" -- that count is
+    # only meaningful (and only computed) when the NODE cap itself was hit.
+    assert "total" not in meta
+
+
+def test_repo_subgraph_edges_under_cap_is_not_truncated(store):
+    _dense_hub(store, leaves=5)  # 5 + 5*4 = 25 edges, well under any real cap
+    meta: dict = {}
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=100, max_edges=400, meta=meta)
+    assert meta["truncated"] is False
+    assert len(nodes) == 6
+    assert len(edges) == 25
+
+
+def test_repo_subgraph_max_edges_none_means_uncapped(store):
+    # the default: callers that don't render through Mermaid (html/dot via
+    # `graph --format html`) must keep seeing every edge among the capped
+    # nodes, exactly as before this fix -- no new implicit limit.
+    _dense_hub(store, leaves=20)
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=100)
+    assert len(nodes) == 21
+    assert len(edges) == 20 + 20 * 19  # every hub + inter-leaf edge, uncapped
+
+
+def _node_with_file(nid, file, repo="r"):
+    return Node(id=nid, repo=repo, kind="function", name=nid, file=file)
+
+
+def test_repo_subgraph_path_prefix_scopes_to_one_module(store):
+    store.upsert_nodes("r", [
+        _node_with_file("a", "src/foo.py"), _node_with_file("b", "src/bar.py"),
+        _node_with_file("c", "vendor/thirdparty.py"),
+    ])
+    store.upsert_edges("r", [_edge("a", "b"), _edge("a", "c")])
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=100, path_prefix="src")
+    assert {n.id for n in nodes} == {"a", "b"}
+    assert [(e.src, e.dst) for e in edges] == [("a", "b")]  # c is out of scope
+
+
+def test_repo_subgraph_path_prefix_escapes_sql_wildcards(store):
+    # a module name containing literal SQL wildcard characters must be matched
+    # literally, not interpreted as a LIKE pattern (e.g. "foo_bar" must not
+    # also match "fooXbar").
+    store.upsert_nodes("r", [
+        _node_with_file("a", "foo_bar/x.py"), _node_with_file("b", "fooXbar/x.py"),
+    ])
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=100, path_prefix="foo_bar")
+    assert {n.id for n in nodes} == {"a"}
+
+
+def test_repo_modules_ranks_by_size_and_drops_tiny_segments(store):
+    files = (["src/a.py"] * 8) + (["vendor/b.py"] * 3) + (["scripts/c.py"] * 1)
+    store.upsert_nodes("r", [
+        _node_with_file(f"n{i}", f) for i, f in enumerate(files)
+    ])
+    mods = viz.repo_modules(store, "r", min_nodes=2)
+    assert [m["prefix"] for m in mods] == ["src", "vendor"]  # scripts (1) dropped
+    assert mods[0] == {"prefix": "src", "nodes": 8}
+
+
 def test_overview_aggregates_cross_repo(store):
     # the overview's cross-repo edges come from the package two-hop (publishes ⨝
     # depends_on), NOT raw imports: repoA publishes pkg, repoB depends_on it ->
@@ -928,6 +1016,51 @@ def test_deployment_diagram_empty_view_explains_terraform_only_not_silently():
     assert out.startswith("graph TD")
     assert "no Terraform" in out
     assert ".tf files" in out
+
+
+def _write_dense_repo_config(tmp_path, leaves=20):
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    s = SqliteStore(kb / "index.sqlite")
+    _dense_hub(s, leaves=leaves)
+    s.close()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{kb.as_posix()}"\n')
+    return cfg
+
+
+def test_cli_json_format_is_not_edge_capped_by_default(tmp_path, capsys):
+    # `--format html`/`json`/`dot` render via cytoscape/DOT, which have no
+    # Mermaid-style hard edge limit -- they must keep showing every edge among
+    # the capped nodes exactly as before the Mermaid edge-cap fix, unless the
+    # user explicitly passes --max-edges.
+    cfg = _write_dense_repo_config(tmp_path, leaves=20)  # 20 + 20*19 = 400 edges
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--repo", "r", "--format", "json", "--config", str(cfg)])
+    assert e.value.code == 0
+    parsed = json.loads(capsys.readouterr().out)
+    assert len(parsed["edges"]) == 400  # uncapped
+
+
+def test_cli_mermaid_format_is_edge_capped_by_default(tmp_path, capsys):
+    cfg = _write_dense_repo_config(tmp_path, leaves=20)
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--repo", "r", "--format", "mermaid", "--config", str(cfg)])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    assert out.count("-->") == 400  # the default max_edges cap for Mermaid formats
+
+
+def test_cli_explicit_max_edges_overrides_default_for_any_format(tmp_path, capsys):
+    # an explicit --max-edges is honored even for a format that doesn't default
+    # to capping (json/html/dot) -- the user asked for it, so apply it.
+    cfg = _write_dense_repo_config(tmp_path, leaves=20)
+    with pytest.raises(SystemExit) as e:
+        main(["graph", "--repo", "r", "--format", "json", "--max-edges", "10",
+              "--config", str(cfg)])
+    assert e.value.code == 0
+    parsed = json.loads(capsys.readouterr().out)
+    assert len(parsed["edges"]) == 10
 
 
 def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, capsys):

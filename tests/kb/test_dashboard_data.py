@@ -268,6 +268,43 @@ def test_diagram_rejects_sequencediagram_and_unknown_formats():
         s.close()
 
 
+def test_diagram_module_param_scopes_to_one_path_prefix():
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_nodes("team/big", [
+            Node(id="a", repo="team/big", kind="function", name="a", file="src/a.py"),
+            Node(id="b", repo="team/big", kind="function", name="b", file="src/b.py"),
+            Node(id="c", repo="team/big", kind="function", name="c", file="vendor/c.py"),
+        ])
+        s.upsert_edges("team/big", [
+            Edge(src="a", dst="b", relation="calls", confidence=Confidence.EXTRACTED,
+                 provenance=_PROV),
+            Edge(src="a", dst="c", relation="calls", confidence=Confidence.EXTRACTED,
+                 provenance=_PROV),
+        ])
+        whole = kbdata.diagram(s, "team/big", "mermaid")
+        assert "vendor" in whole["text"] or "c" in whole["text"]
+        scoped = kbdata.diagram(s, "team/big", "mermaid", module="src")
+        assert '"c"' not in scoped["text"] and "vendor" not in scoped["text"]
+    finally:
+        s.close()
+
+
+def test_repo_modules_endpoint_wrapper_shape():
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_nodes("team/big", [
+            Node(id=f"n{i}", repo="team/big", kind="function", name=f"n{i}",
+                 file=("src/x.py" if i < 8 else "vendor/y.py"))
+            for i in range(10)
+        ])
+        out = kbdata.repo_modules(s, "team/big")
+        assert out["repo"] == "team/big"
+        assert out["modules"][0] == {"prefix": "src", "nodes": 8}
+    finally:
+        s.close()
+
+
 def test_sequence_diagram_renders_the_seeds_outgoing_calls(store_dir):
     # app_caller ("checkout") --calls--> app_catalogservice ("CatalogService") in the fixture
     s, _ = store_dir

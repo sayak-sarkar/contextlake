@@ -48,6 +48,7 @@ from .payload import (  # noqa: F401
     _node_dict,
     extract_subgraph,
     overview_subgraph,
+    repo_modules,
     repo_node_sizes,
     repo_subgraph,
     seed_ids_from_args,

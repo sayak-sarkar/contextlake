@@ -242,7 +242,11 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 if rest.endswith("/diagram"):
                     repo_id = urllib.parse.unquote(rest[:-len("/diagram")])
                     fmt = (q.get("format") or ["mermaid"])[0]
-                    return 200, _json_bytes(kbdata.diagram(req, repo_id, fmt))
+                    module = (q.get("module") or [None])[0]
+                    return 200, _json_bytes(kbdata.diagram(req, repo_id, fmt, module=module))
+                if rest.endswith("/modules"):
+                    repo_id = urllib.parse.unquote(rest[:-len("/modules")])
+                    return 200, _json_bytes(kbdata.repo_modules(req, repo_id))
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
             if path == "/api/mcp":
