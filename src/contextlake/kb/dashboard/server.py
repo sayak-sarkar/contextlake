@@ -429,18 +429,29 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
 def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
                     open_browser: bool = False, config_path: str | None = None,
                     sample: bool = False, allow_mutations: bool = False,
-                    workspace: str | None = None, llm_chat: bool = False) -> None:
-    """Serve the dashboard (blocking until Ctrl-C)."""
+                    workspace: str | None = None, llm_chat: bool = False) -> int:
+    """Serve the dashboard (blocking until Ctrl-C). Returns a process exit code."""
     from ... import style
     from ...logging_setup import log
 
     store_dir = Path(store_dir)
     store = SqliteStore(store_dir / "index.sqlite")
     try:
-        srv = build_dashboard_server(store, store_dir, host=host, port=port,
-                                     config_path=config_path, sample=sample,
-                                     allow_mutations=allow_mutations, workspace=workspace,
-                                     llm_chat=llm_chat)
+        try:
+            srv = build_dashboard_server(store, store_dir, host=host, port=port,
+                                         config_path=config_path, sample=sample,
+                                         allow_mutations=allow_mutations, workspace=workspace,
+                                         llm_chat=llm_chat)
+        except OSError as e:
+            # A raw traceback here (port already in use is the common case --
+            # a previous `dashboard --serve` still running, most often) is a
+            # bad first impression for an error this ordinary and this
+            # actionable.
+            log(style.warn(f"Could not start the dashboard on {host}:{port} — {e}"))
+            log(style.dim("  Another `contextlake dashboard --serve` may already be "
+                          "running on this port -- pick another with --port, or stop "
+                          "the existing one."))
+            return 1
         log(style.ok(f"Dashboard on http://{host}:{port}  (Ctrl-C to stop)"))
         log("Ask a question in the Chat tab -- free graph-router answers, always on.")
         if allow_mutations:
@@ -468,5 +479,6 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
             log("Stopping dashboard server")
         finally:
             srv.shutdown()
+        return 0
     finally:
         store.close()

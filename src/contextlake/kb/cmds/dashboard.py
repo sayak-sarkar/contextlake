@@ -63,17 +63,15 @@ def cmd_dashboard(args) -> int:
             # Settings/MCP routes must be told explicitly to use bare config
             # defaults instead -- otherwise real embedder/connector config
             # would leak into a surface billed as "nothing local is read".
-            serve_dashboard(materialize_sample_store(tmp), host=host, port=port,
-                            open_browser=getattr(args, "open", False), sample=True,
-                            llm_chat=llm_chat)
+            return serve_dashboard(materialize_sample_store(tmp), host=host, port=port,
+                                   open_browser=getattr(args, "open", False), sample=True,
+                                   llm_chat=llm_chat)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-        return 0
-    serve_dashboard(store_dir, host=host, port=port,
+    return serve_dashboard(store_dir, host=host, port=port,
                     open_browser=getattr(args, "open", False),
                     config_path=getattr(args, "config", None),
                     allow_mutations=allow_mutations,
                     workspace=getattr(args, "workspace", None),
                     llm_chat=llm_chat)
-    return 0
 

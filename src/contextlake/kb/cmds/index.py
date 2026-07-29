@@ -222,6 +222,18 @@ def cmd_index(args) -> int:
         if src.is_dir():
             from ..parse import index_repo_dir  # lazy: only needs tree-sitter when indexing code
 
+            if not (src / ".git").exists():
+                nested = [p.parent.name for p in src.glob("*/.git")]
+                if nested:
+                    log(style.warn(
+                        f"{src.resolve()} isn't itself a git repo, but contains "
+                        f"{len(nested)} that are ({', '.join(sorted(nested)[:5])}"
+                        f"{', …' if len(nested) > 5 else ''}). Indexing it this way "
+                        "bundles everything underneath into ONE repo -- if this is a "
+                        "workspace mirroring several repos, use "
+                        "`contextlake index --workspace .` instead, which indexes each "
+                        "nested repo separately under its own identity."
+                    ))
             repo_id = getattr(args, "repo", None) or src.resolve().name  # "." -> cwd name
             head = _git_head(src)
             shard = index_repo_dir(str(src), repo_id, head_commit=head, **parse_opts)

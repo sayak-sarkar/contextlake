@@ -192,6 +192,22 @@ def test_index_without_source_indexes_cwd(tmp_path, monkeypatch):
     store.close()
 
 
+def test_index_without_source_warns_when_cwd_bundles_nested_repos(tmp_path, monkeypatch, capsys):
+    """cwd itself isn't a git repo but contains one that is -- found live,
+    indexing a workspace root this way silently bundled a real mirrored repo's
+    files into one made-up repo id instead of the nested repo's own identity,
+    duplicating data once `index --workspace .` was later run properly. Not
+    changed (still a valid, if narrower, use case) -- just warned about."""
+    cfg = _kb_config(tmp_path)
+    workspace = tmp_path / "workspace"
+    _bare_git_repo(workspace / "nested-repo")
+    (workspace / "nested-repo" / "app.py").write_text("def widget():\n    pass\n")
+    monkeypatch.chdir(workspace)
+    assert _run(["index", "--config", str(cfg)]) == 0
+    out = capsys.readouterr().out
+    assert "nested-repo" in out and "--workspace ." in out
+
+
 def test_index_missing_source_errors_cleanly(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
     code = _run(["index", "--config", str(cfg), "--source", str(tmp_path / "nope.json")])

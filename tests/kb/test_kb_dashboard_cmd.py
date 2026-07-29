@@ -43,6 +43,7 @@ def test_allow_mutations_accepted_with_loopback_host(tmp_path, monkeypatch):
 
     def fake_serve(store_dir, **kw):
         called.update(kw)
+        return 0
 
     monkeypatch.setattr("contextlake.kb.dashboard.server.serve_dashboard", fake_serve)
     args = _args(["dashboard", "--serve", "--allow-mutations", "--host", "127.0.0.1"])

@@ -16,7 +16,7 @@ from datetime import date
 
 import pytest
 
-from contextlake.kb.dashboard.server import TOKEN_HEADER, build_dashboard_server
+from contextlake.kb.dashboard.server import TOKEN_HEADER, build_dashboard_server, serve_dashboard
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -455,6 +455,24 @@ def test_capabilities_endpoint(served, served_with_mutations):
     base, _port, _token, _origin = served_with_mutations
     on = json.loads(_get(base + "/api/capabilities"))
     assert on == {"mutations": True}
+
+
+def test_serve_dashboard_port_in_use_fails_clean_not_traceback(tmp_path, monkeypatch, gls_logs):
+    """A port collision (the common case: a previous `dashboard --serve` still
+    running) used to propagate a raw OSError all the way to a traceback at the
+    CLI -- found live, running against a real repo. serve_dashboard must catch
+    it, log something actionable, and return a failure code instead."""
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    port = _free_port()
+    blocker = socket.socket()
+    blocker.bind(("127.0.0.1", port))
+    blocker.listen(1)
+    try:
+        rc = serve_dashboard(tmp_path, host="127.0.0.1", port=port)
+        assert rc == 1
+        assert "could not start the dashboard" in gls_logs.text.lower()
+    finally:
+        blocker.close()
 
 
 def _free_port():
