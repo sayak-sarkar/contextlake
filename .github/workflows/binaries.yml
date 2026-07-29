@@ -33,7 +33,7 @@ jobs:
     name: build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -64,7 +64,7 @@ jobs:
           chmod +x "out/${{ matrix.asset_name }}" || true
           file "out/${{ matrix.asset_name }}" || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset_name }}
           path: out/${{ matrix.asset_name }}
@@ -76,8 +76,8 @@ jobs:
     permissions:
       contents: write   # upload release assets (create the release if binaries.yml wins the race)
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v8
         with:
           path: out
           merge-multiple: true
