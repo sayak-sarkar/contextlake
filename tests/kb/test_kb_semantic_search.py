@@ -2,7 +2,7 @@
 
 import asyncio
 
-from mcp.shared.memory import create_connected_server_and_client_session as connect
+from mcp import Client
 
 from contextlake.kb.embeddings.store import VectorStore
 from contextlake.kb.model import Node
@@ -25,12 +25,12 @@ def _unwrap(structured):
 
 
 async def _call(server, tool, args):
-    async with connect(server) as client:
+    async with Client(server) as client:
         return await client.call_tool(tool, args)
 
 
 async def _tool_names(server):
-    async with connect(server) as client:
+    async with Client(server) as client:
         return {t.name for t in (await client.list_tools()).tools}
 
 
@@ -50,7 +50,7 @@ def test_semantic_search_ranks_and_maps_to_nodes(tmp_path):
     try:
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
         res = asyncio.run(_call(server, "semantic_search", {"query": "the order workflow", "k": 1}))
-        items = _unwrap(res.structuredContent)
+        items = _unwrap(res.structured_content)
         assert [n["id"] for n in items] == ["a"]  # nearest to the query vector
     finally:
         vs.close()
@@ -65,7 +65,7 @@ def test_semantic_search_empty_query_returns_empty_not_crash(tmp_path):
     try:
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
         res = asyncio.run(_call(server, "semantic_search", {"query": "   "}))
-        assert _unwrap(res.structuredContent) == []
+        assert _unwrap(res.structured_content) == []
     finally:
         vs.close()
         store.close()

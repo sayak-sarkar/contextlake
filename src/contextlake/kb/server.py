@@ -14,7 +14,7 @@ import re
 from collections import deque
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from pydantic import BaseModel
 
 from .model import Edge, Node
@@ -277,19 +277,14 @@ def _bfs_path(store: Store, src_id: str, dst_id: str, max_hops: int) -> list[str
 
 
 def build_server(
-    store: Store, *, name: str = "contextlake-kb", host: str = "127.0.0.1", port: int = 8765,
-    embedder=None, vector_store=None,
-) -> FastMCP:
-    mcp = FastMCP(
-        name, instructions=_INSTRUCTIONS, host=host, port=port,
-        stateless_http=True, json_response=True,
-    )
-    # FastMCP doesn't expose a version parameter, so serverInfo would report the
-    # MCP SDK's version to every connected editor. Set contextlake's own.
-    inner = getattr(mcp, "_mcp_server", None)
-    if inner is not None and hasattr(inner, "version"):
-        from .. import __version__
-        inner.version = __version__
+    store: Store, *, name: str = "contextlake-kb", embedder=None, vector_store=None,
+) -> MCPServer:
+    # host/port/stateless_http/json_response moved to run_server()/.run() --
+    # this SDK version's server object no longer takes them at construction
+    # (they're streamable-http-transport options, not server-identity options).
+    from .. import __version__
+
+    mcp = MCPServer(name, instructions=_INSTRUCTIONS, version=__version__)
 
     @mcp.tool()
     def graph_stats() -> StatsOut:
@@ -861,7 +856,12 @@ def run_server(
     store: Store, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8765,
     embedder=None, vector_store=None,
 ) -> None:
-    """Build and run the MCP server (blocking)."""
-    build_server(
-        store, host=host, port=port, embedder=embedder, vector_store=vector_store
-    ).run(transport=transport)
+    """Build and run the MCP server (blocking).
+
+    host/port/stateless_http/json_response are streamable-http-only options,
+    passed to .run() rather than the server constructor. .run()'s stdio branch
+    ignores unknown kwargs entirely (see mcp.server.mcpserver.MCPServer.run), so
+    passing them unconditionally here is harmless for transport="stdio".
+    """
+    build_server(store, embedder=embedder, vector_store=vector_store).run(
+        transport=transport, host=host, port=port, stateless_http=True, json_response=True)

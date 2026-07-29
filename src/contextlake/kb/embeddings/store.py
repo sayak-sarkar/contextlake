@@ -12,6 +12,7 @@ import array
 import logging
 import math
 import sqlite3
+import threading
 from pathlib import Path
 
 SCHEMA_VERSION = 1
@@ -38,9 +39,21 @@ class VectorStore:
 
     def __init__(self, path: str | Path):
         self.path = str(path)
-        self.conn = sqlite3.connect(self.path)
-        self.conn.execute("PRAGMA journal_mode=WAL")
-        self._init_schema()
+        self._local = threading.local()
+        _ = self.conn  # eagerly open + init schema on the constructing thread
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """A connection scoped to the calling thread -- see SqliteStore.conn's
+        docstring for why a server-lifetime store can't share one connection
+        across threads (contextlake serve's MCP tool dispatch)."""
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(self.path)
+            conn.execute("PRAGMA journal_mode=WAL")
+            self._local.conn = conn
+            self._init_schema()
+        return conn
 
     def _init_schema(self) -> None:
         self.conn.execute(
@@ -115,26 +128,46 @@ class SqliteVecStore:
     name = "sqlite-vec"
 
     def __init__(self, path: str | Path, *, chunk_size: int = 1024):
-        import sqlite_vec  # optional dependency; ImportError -> factory fallback
-
         self.path = str(path)
         # vec0 requires the chunk size to be a positive multiple of 8.
         self._chunk_size = max(8, (int(chunk_size) // 8) * 8)
-        self.conn = sqlite3.connect(self.path)
-        self.conn.enable_load_extension(True)
-        sqlite_vec.load(self.conn)
-        self.conn.enable_load_extension(False)
-        self.conn.execute("CREATE TABLE IF NOT EXISTS vec_meta (key TEXT PRIMARY KEY, value TEXT)")
-        self.conn.commit()
-        row = self.conn.execute("SELECT value FROM vec_meta WHERE key='dim'").fetchone()
-        self._dim = int(row[0]) if row else None
-        # 'dim' can be written by guard_store_identity independently of table creation, so it
-        # is NOT a reliable "vec_items exists" sentinel; probe sqlite_master for the real state.
-        # (Otherwise: guard a fresh store, embed a zero-node workspace so upsert/_ensure_table
-        # never runs, reopen -> _dim set but no table -> count/search/clear raise 'no such table'.)
-        self._has_table = self.conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='vec_items'"
-        ).fetchone() is not None
+        self._local = threading.local()
+        self._dim: int | None = None
+        self._has_table: bool | None = None  # None until the first connection sets it
+        _ = self.conn  # eagerly open + load the extension on the constructing thread
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """A connection scoped to the calling thread -- see SqliteStore.conn's
+        docstring for why a server-lifetime store can't share one connection
+        across threads (contextlake serve's MCP tool dispatch). The sqlite-vec
+        extension is loaded per-connection (it's not a file-level property), so
+        every thread's first connection loads it independently; _dim/_has_table
+        reflect the file itself, computed once and cached on the instance."""
+        import sqlite_vec  # optional dependency; ImportError -> factory fallback
+
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(self.path)
+            conn.enable_load_extension(True)
+            sqlite_vec.load(conn)
+            conn.enable_load_extension(False)
+            conn.execute("CREATE TABLE IF NOT EXISTS vec_meta (key TEXT PRIMARY KEY, value TEXT)")
+            conn.commit()
+            self._local.conn = conn
+            if self._has_table is None:
+                row = conn.execute("SELECT value FROM vec_meta WHERE key='dim'").fetchone()
+                self._dim = int(row[0]) if row else None
+                # 'dim' can be written by guard_store_identity independently of table
+                # creation, so it is NOT a reliable "vec_items exists" sentinel; probe
+                # sqlite_master for the real state. (Otherwise: guard a fresh store,
+                # embed a zero-node workspace so upsert/_ensure_table never runs,
+                # reopen -> _dim set but no table -> count/search/clear raise 'no such
+                # table'.)
+                self._has_table = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='vec_items'"
+                ).fetchone() is not None
+        return conn
 
     def _ensure_table(self, dim: int) -> None:
         self._dim = dim

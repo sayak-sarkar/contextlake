@@ -13,8 +13,8 @@ from contextlake.kb.connectors.slack import (
 from contextlake.kb.model import Confidence
 
 _MOCK_SERVER = """
-from mcp.server.fastmcp import FastMCP
-m = FastMCP("mock-slack")
+from mcp.server.mcpserver import MCPServer
+m = MCPServer("mock-slack")
 
 @m.tool()
 def conversations_info(channel: str) -> dict:

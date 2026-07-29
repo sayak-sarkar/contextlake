@@ -5,10 +5,10 @@ import sys
 import contextlake.kb.mcp_client as mcp_client
 from contextlake.kb.mcp_client import call_tool, list_tools
 
-# A tiny stdio FastMCP server used as the connection target.
+# A tiny stdio MCP server used as the connection target.
 _MOCK_SERVER = """
-from mcp.server.fastmcp import FastMCP
-m = FastMCP("mock")
+from mcp.server.mcpserver import MCPServer
+m = MCPServer("mock")
 
 @m.tool()
 def echo(text: str) -> str:
@@ -43,7 +43,7 @@ def test_call_tool_structured(tmp_path):
 
 
 class _FakeHttpResult:
-    structuredContent = {"result": "ok"}
+    structured_content = {"result": "ok"}
     content = None
 
 
@@ -70,7 +70,7 @@ class _FakeHttpSession:
 
 
 class _FakeStreamableHttpCm:
-    """Stub async context manager standing in for ``streamablehttp_client``."""
+    """Stub async context manager standing in for ``streamable_http_client``."""
 
     def __init__(self, url):
         self.url = url
@@ -83,7 +83,7 @@ class _FakeStreamableHttpCm:
 
 
 def test_call_tool_http(monkeypatch):
-    monkeypatch.setattr(mcp_client, "streamablehttp_client", _FakeStreamableHttpCm)
+    monkeypatch.setattr(mcp_client, "streamable_http_client", _FakeStreamableHttpCm)
     monkeypatch.setattr(mcp_client, "ClientSession", _FakeHttpSession)
     result = call_tool(url="http://example.test/mcp", tool="search", arguments={"q": "a"})
     assert result == "ok"

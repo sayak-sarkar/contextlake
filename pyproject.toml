@@ -48,10 +48,18 @@ release = ["build>=1.0", "twine>=5.0"]
 # Optional knowledge-layer subsystem (contextlake.kb). Note: `mcp` requires
 # Python >= 3.10, so this extra's floor is 3.10 while the core tool stays 3.9+.
 kb = [
-    # <2: mcp 2.0.0 renamed streamablehttp_client -> streamable_http_client (and
-    # likely other breaking changes, not yet audited) -- pin below the major
-    # bump until contextlake.kb.mcp_client is deliberately updated for 2.x.
-    "mcp>=1.28,<2", "pydantic>=2", "tomli; python_version<'3.11'", "tomlkit>=0.13",
+    # >=2.0: audited and patched for the breaking rename/reshuffle in this major
+    # (streamablehttp_client -> streamable_http_client in BOTH mcp_client.py and
+    # sources/mcp.py; CallToolResult.structuredContent/isError -> snake_case;
+    # server.py's FastMCP -> MCPServer, with host/port/stateless_http/
+    # json_response moved from the constructor to .run(); mcp.shared.memory's
+    # in-memory test session helper removed, replaced with mcp.Client). Also
+    # surfaced a real bug this version's tool dispatch exposes: MCPServer runs
+    # every sync tool call via anyio.to_thread.run_sync (unconditional, no
+    # opt-out), so a server-lifetime SqliteStore/VectorStore/SqliteVecStore
+    # needs one sqlite3 connection per thread, not one connection total --
+    # fixed in store/sqlite_store.py and embeddings/store.py.
+    "mcp>=2.0", "pydantic>=2", "tomli; python_version<'3.11'", "tomlkit>=0.13",
     # Code parsing: the tree-sitter runtime plus per-language grammar packages
     # (added incrementally as languages are supported).
     "tree-sitter>=0.25", "tree-sitter-python>=0.23",

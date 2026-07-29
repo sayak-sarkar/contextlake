@@ -52,9 +52,9 @@ class McpSource:
         from mcp import ClientSession
 
         if self.url:
-            from mcp.client.streamable_http import streamablehttp_client
+            from mcp.client.streamable_http import streamable_http_client
 
-            async with streamablehttp_client(self.url) as streams:
+            async with streamable_http_client(self.url) as streams:
                 return await self._read_all(ClientSession, streams[0], streams[1])
 
         from mcp.client.stdio import StdioServerParameters, stdio_client

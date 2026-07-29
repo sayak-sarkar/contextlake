@@ -17,13 +17,13 @@ from typing import Any
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 
 
 def _parse_result(res: Any) -> Any:
     """Extract a tool result as structured data, falling back to JSON/plain text."""
-    if res.structuredContent:
-        data = res.structuredContent
+    if res.structured_content:
+        data = res.structured_content
         return data.get("result", data) if isinstance(data, dict) else data
     text = "".join(getattr(c, "text", "") for c in (res.content or []))
     try:
@@ -41,7 +41,7 @@ async def _call_in_session(session, tool, arguments, timeout) -> Any:
 
 async def _acall(command, args, tool, arguments, timeout, env, url=None):
     if url:
-        async with streamablehttp_client(url) as streams:
+        async with streamable_http_client(url) as streams:
             async with ClientSession(streams[0], streams[1]) as session:
                 return await _call_in_session(session, tool, arguments, timeout)
 

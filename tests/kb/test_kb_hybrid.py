@@ -3,7 +3,7 @@
 import asyncio
 from datetime import date
 
-from mcp.shared.memory import create_connected_server_and_client_session as connect
+from mcp import Client
 
 from contextlake.kb.embeddings.hybrid import _expand, _ppr, hybrid_search
 from contextlake.kb.embeddings.store import VectorStore
@@ -96,13 +96,13 @@ def test_hybrid_search_tool(tmp_path):
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
 
         async def go():
-            async with connect(server) as client:
+            async with Client(server) as client:
                 names = {t.name for t in (await client.list_tools()).tools}
                 assert "hybrid_search" in names
                 return await client.call_tool("hybrid_search", {"query": "order", "k": 3})
 
         res = asyncio.run(go())
-        items = _unwrap(res.structuredContent)
+        items = _unwrap(res.structured_content)
         assert items[0]["id"] == "seed"
     finally:
         vs.close()
@@ -118,11 +118,11 @@ def test_hybrid_search_tool_empty_query_returns_empty_not_crash(tmp_path):
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
 
         async def go():
-            async with connect(server) as client:
+            async with Client(server) as client:
                 return await client.call_tool("hybrid_search", {"query": "  "})
 
         res = asyncio.run(go())
-        assert _unwrap(res.structuredContent) == []
+        assert _unwrap(res.structured_content) == []
     finally:
         vs.close()
         store.close()

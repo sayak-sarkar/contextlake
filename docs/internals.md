@@ -237,7 +237,7 @@ over the mirrored repos. Its pieces:
   (Personalized PageRank) retrieval.
 - **Wiki tier** (`kb/llm/`, `kb/wiki/`): a pluggable `LlmClient` generates
   provenance-stamped pages gated by a verification council.
-- **Serving & steering** (`kb/server.py`, `kb/steer/`): a FastMCP server exposes the
+- **Serving & steering** (`kb/server.py`, `kb/steer/`): an MCP server exposes the
   graph tools; `steer` writes the per-tool steering files + skills library.
 - **CLI** (`kb/commands.py`): the `index/connect/embed/lint/wiki/steer/serve/query/
   doctor` handlers, dispatched from the main CLI and imported lazily so the core tool

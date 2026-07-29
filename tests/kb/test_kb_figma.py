@@ -15,8 +15,8 @@ from contextlake.kb.connectors.figma import (
 from contextlake.kb.model import Confidence
 
 _MOCK_SERVER = """
-from mcp.server.fastmcp import FastMCP
-m = FastMCP("mock-figma")
+from mcp.server.mcpserver import MCPServer
+m = MCPServer("mock-figma")
 
 @m.tool()
 def get_metadata(fileKey: str) -> dict:

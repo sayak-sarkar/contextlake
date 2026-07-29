@@ -11,6 +11,7 @@ import json
 import logging
 import re
 import sqlite3
+import threading
 from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
@@ -60,13 +61,34 @@ class SqliteStore(Store):
     def __init__(self, db_path: str | Path):
         self.path = Path(db_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(self.path))
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.executescript(_SCHEMA)
-        self._migrate_additive_columns()
-        self._set_meta("schema_version", str(SCHEMA_VERSION))
-        self.conn.commit()
+        self._local = threading.local()
+        _ = self.conn  # eagerly open + migrate on the constructing thread
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """A connection scoped to the calling thread.
+
+        A single shared sqlite3.Connection can't safely cross threads (raises
+        "SQLite objects created in a thread can only be used in that same
+        thread"), and `contextlake serve`'s MCP server dispatches every
+        synchronous tool call to a worker-thread pool (`anyio.to_thread.run_sync`
+        in the mcp SDK, unconditional, no opt-out) -- so a store that outlives
+        a single request/call must hand out one connection per thread, not one
+        connection total. WAL mode (set below) is exactly the mode SQLite
+        recommends for this: concurrent connections to the same file, each
+        used only by the thread that opened it.
+        """
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(str(self.path))
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.executescript(_SCHEMA)
+            self._local.conn = conn
+            self._migrate_additive_columns()
+            self._set_meta("schema_version", str(SCHEMA_VERSION))
+            conn.commit()
+        return conn
 
     def _migrate_additive_columns(self) -> None:
         """Add columns introduced after a store already exists on disk.

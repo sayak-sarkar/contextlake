@@ -28,8 +28,8 @@ from contextlake.kb.model import Confidence
 
 # Mock MCP server exposing the two tools the connector calls.
 _MOCK_SERVER = """
-from mcp.server.fastmcp import FastMCP
-m = FastMCP("mock-atlassian")
+from mcp.server.mcpserver import MCPServer
+m = MCPServer("mock-atlassian")
 
 @m.tool()
 def getAccessibleAtlassianResources() -> list[dict]:
