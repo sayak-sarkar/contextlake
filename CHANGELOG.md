@@ -20,8 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **C++/C: `.h` header files were mapped to the C language, not C++.** A class declared in a
   header and defined in a matching `.cpp` was invisible to the graph -- this affects any codebase
   with a conventional header/source split, which is most C++ code. Headers are now mapped to C++,
-  matched fleet-wide (196/200 sampled repos strictly improve or match; the remainder are genuine
-  plain-C-with-`.h` cases, unaffected in practice since C code has no classes to miss).
+  matching or improving extraction on 196 of 200 sampled real-world headers; the remaining 4 trace
+  to a separate, pre-existing gap in how template full-specializations are handled, not a
+  regression from this change.
 - **C++: `#ifdef`/`#else` and `#ifndef`-guard duplicate definitions no longer cause spurious
   ambiguous call resolution or silently delete a real overload.** The same function or method
   defined once per preprocessor branch (a common portability pattern, and -- via include guards --
