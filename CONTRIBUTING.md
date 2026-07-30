@@ -11,6 +11,16 @@ reports, fixes, and well-scoped features are all welcome.
   that mission are a hard sell.
 - **No network in tests.** Everything that shells out to `git` or `glab` must be
   faked. A passing test suite should never touch GitLab.
+- **No real filesystem/dotfile mutation in tests, either.** `tests/conftest.py`'s
+  autouse `_isolated_home` fixture hard-redirects `HOME` to a per-test tmp
+  directory for the *entire* suite specifically because of a real incident: a
+  code path that had always been a no-op (declining shell-completion setup)
+  gained a real write (a decision marker, so a later automatic check never
+  re-asks), and every pre-existing test that exercised it — never having
+  needed to isolate `HOME` before — silently started writing to the real
+  machine's `~/.contextlake/`. **When a branch that used to do nothing gains a
+  filesystem or env-dependent side effect, re-check every test that already
+  exercises it, not just the new tests you're adding for it.**
 - **Every change ships with a test.** Bug fix? Add the test that fails without
   it. Feature? Cover the happy path and the obvious failure.
 - **No secrets or local config in the repo.** Never hardcode credentials, API
@@ -56,8 +66,12 @@ src/contextlake/
 ├── core.py           the real work: fetch / clone / update / branches / verify
 ├── config.py         INI loading, precedence, path expansion
 ├── safety.py         working-branch and clean-workspace protection
+├── init_cmd.py        `init` + shell-completion setup/auto-registration
 └── logging_setup.py  one logger, console + optional rotating file
 ```
+
+(The optional `[kb]` extra's knowledge-layer package, `src/contextlake/kb/`, has its own much
+larger internal layout — see [docs/internals.md](docs/internals.md), not covered here.)
 
 The CLI stays thin: it parses, resolves config, and calls into `core`. Business
 logic belongs in `core` (and is unit-testable without a real repo). Anything that
@@ -69,6 +83,10 @@ When adding a command or option:
    see the comment there for why that matters).
 2. Implement the behaviour in `core` as a small, testable function.
 3. Add tests using the `fake_subprocess` fixture (see `tests/conftest.py`).
+4. A brand-new top-level command also needs one entry in `cli._COMMAND_CATEGORIES`
+   (which category it belongs to for `contextlake --help`'s grouped listing) —
+   `test_every_registered_command_is_categorized_exactly_once` fails loudly if
+   you forget, so this is hard to miss, not a silent gap.
 
 ## Commit style
 
