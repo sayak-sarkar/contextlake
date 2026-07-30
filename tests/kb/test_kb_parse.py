@@ -281,6 +281,21 @@ def test_index_repo_dir_resolves_out_of_line_method_three_segments_across_files(
     assert sum(1 for e in shard.edges if e.dst == spin.id and e.relation == "contains") == 1
 
 
+def test_h_extension_uses_cpp_grammar_without_losing_plain_c_defs(tmp_path):
+    # ".h" is parsed with the "cpp" grammar (a near-superset of C) so the common
+    # C++ header/.cpp split resolves out-of-line methods (see the two tests
+    # above); this pins that a genuinely C-only ".h" still extracts its
+    # definitions correctly under that grammar -- no regression for plain C.
+    (tmp_path / "point.h").write_text(
+        "struct Point {\n    int x;\n    int y;\n};\n\n"
+        "int distance(struct Point a, struct Point b) {\n    return 0;\n}\n")
+    shard = index_repo_dir(str(tmp_path), "demo/point")
+    point = next(n for n in shard.nodes if n.name == "Point")
+    assert point.kind == "struct"
+    distance = next(n for n in shard.nodes if n.name == "distance")
+    assert distance.kind == "function"
+
+
 def test_parse_rust():
     src = (b"use std::io::Read;\nstruct Server { addr: String }\ntrait Handler { fn go(&self); }\n"
            b"enum State { On }\nfn mk() -> Server { work(); Server { addr: String::new() } }\n")
