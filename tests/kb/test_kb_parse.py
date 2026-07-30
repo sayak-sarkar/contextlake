@@ -281,6 +281,25 @@ def test_index_repo_dir_resolves_out_of_line_method_three_segments_across_files(
     assert sum(1 for e in shard.edges if e.dst == spin.id and e.relation == "contains") == 1
 
 
+def test_index_repo_dir_forward_declaration_does_not_block_resolution(tmp_path):
+    # A forward declaration ("class Widget;", the standard way to break an
+    # #include cycle) must not produce a second same-named class node -- that
+    # would make out-of-line-method resolution ambiguous (candidates != 1) and
+    # silently leave Draw as "function"/file-contained.
+    (tmp_path / "fwd.h").write_text("class Widget;\n")
+    (tmp_path / "widget.h").write_text(
+        "class Widget {\npublic:\n    void Draw();\n};\n")
+    (tmp_path / "widget.cpp").write_text(
+        "#include \"widget.h\"\nvoid Widget::Draw() {\n}\n")
+    shard = index_repo_dir(str(tmp_path), "demo/widgets_fwd")
+    widgets = [n for n in shard.nodes if n.name == "Widget"]
+    assert len(widgets) == 1, "the forward declaration must not create a second class node"
+    draw = next(n for n in shard.nodes if n.name == "Draw")
+    assert draw.kind == "method"
+    assert (widgets[0].id, draw.id, "contains") in {
+        (e.src, e.dst, e.relation) for e in shard.edges}
+
+
 def test_h_extension_uses_cpp_grammar_without_losing_plain_c_defs(tmp_path):
     # ".h" is parsed with the "cpp" grammar (a near-superset of C) so the common
     # C++ header/.cpp split resolves out-of-line methods (see the two tests

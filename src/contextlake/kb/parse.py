@@ -586,6 +586,17 @@ def parse_source(
         qualified = ".".join([*full_scope, name])
         line = name_node.start_point[0] + 1
         kind = _DEF_TYPES[lang][def_ts.type]
+        # A forward declaration ("class Widget;", the standard way to break header
+        # include cycles in C/C++) is a body-less class_specifier/struct_specifier/
+        # enum_specifier/union_specifier -- not a definition in the graph-node sense.
+        # Skipping it avoids cluttering the graph with spurious body-less class
+        # nodes, and (crucially for _resolve_pending_methods) avoids a repo with
+        # both a forward decl and the real definition producing two same-named
+        # "class"/"struct" candidates, which silently disables out-of-line-method
+        # resolution (len(candidates) != 1 bails out with no error).
+        if (lang in ("c", "cpp") and kind in ("class", "struct", "enum")
+                and def_ts.child_by_field_name("body") is None):
+            continue
         if kind == "function" and enclosing and _DEF_TYPES[lang].get(enclosing[0].type) == "class":
             kind = "method"
         nid = make_id(repo_id, rel_path, qualified, str(line))
