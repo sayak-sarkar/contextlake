@@ -312,11 +312,18 @@ def render_prompt(brief: dict) -> str:
             )
     if brief.get("hubs"):
         lines.append("")
-        lines.append("Most-depended-on symbols (highest caller count in the graph — "
-                     "treat changes to these with extra care):")
+        lines.append("Most-depended-on symbols (ranked by caller count in the graph):")
         for h in brief["hubs"][:8]:
             lines.append(f"  - {h['kind']} {h['name']} ({h.get('file') or '?'}), "
                          f"{h['count']} caller(s)")
+        lines.append(
+            "For Gotchas, state only that each symbol above has that many callers in "
+            "the graph and is therefore worth extra care/tests when changed — do not "
+            "characterize WHY it has that many callers, and do not call it "
+            "\"foundational\", \"core\", \"critical infrastructure\", or similar: the "
+            "caller count is the only fact given, not an explanation of the symbol's "
+            "role or importance."
+        )
     if brief.get("decisions"):
         lines.append("")
         lines.append("Recorded decisions (from the repo's own ADR/decision docs, "
