@@ -22,15 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a conventional header/source split, which is most C++ code. Headers are now mapped to C++,
   matching or improving extraction on 196 of 200 sampled real-world headers; the remaining 4 trace
   to a separate, pre-existing gap in how template full-specializations are handled, not a
-  regression from this change.
-- **C++: `#ifdef`/`#else` and `#ifndef`-guard duplicate definitions no longer cause spurious
-  ambiguous call resolution or silently delete a real overload.** The same function or method
-  defined once per preprocessor branch (a common portability pattern, and -- via include guards --
-  the single most common header pattern of all) is now de-duplicated only when the two definitions
-  are genuinely the same symbol in different branches of the *same* conditional, not merely behind
-  *some* conditional anywhere in the file. A widened signature comparison (return/parameter types
-  read from the AST, not just parameter names) also stops distinct overloads on either side of a
-  branch from being merged into one and having one definition silently deleted.
+  regression from this change. **Note:** a `languages` config that lists `c` without also listing
+  `cpp` will no longer index `.h` files at all, since they're now classified as `cpp` -- add `cpp`
+  to your `languages` list if you rely on header-declared definitions. (Follow-up to admit `.h`
+  under either language tracked in the project's backlog; not fixed in this release.)
+- **C++: `#ifdef`/`#else` duplicate definitions no longer cause spurious ambiguous call
+  resolution.** The same function or method defined once per preprocessor branch (a common
+  portability pattern) is now de-duplicated only when the two definitions are genuinely the same
+  symbol in different branches of the *same* `#ifdef`/`#else` (or `#ifndef`/`#else`) conditional --
+  not merely behind *some* conditional anywhere in the file, and never for a bare `#ifndef` include
+  guard with no `#else` (the single most common header pattern of all, deliberately excluded: a
+  guard alone has only one branch, so there's nothing to collapse). A widened signature comparison
+  (return/parameter types read from the AST, not just parameter names) keeps genuinely distinct
+  overloads on either side of a branch as separate definitions.
 
 ### Added
 - **Namespace blocks now participate in C++ containment.** A `namespace App { ... }` block is a

@@ -82,10 +82,13 @@ depth) resolves to a `method` contained by its class, repo-wide -- not just the 
 so an out-of-line definition in one file still shows up under its class even when the class itself is
 declared in a different header. A `namespace { ... }` block is its own containing node, the same way a
 class or file is. Header files (`.h`) are parsed as C++, so a class declared in a header and defined in a
-matching `.cpp` is visible as one unit rather than the class half going missing. Two definitions of the
-same method guarded by `#ifdef`/`#else` (or an `#ifndef` include guard) in the same conditional collapse
-into one node instead of appearing as duplicate, ambiguous call targets -- while genuinely distinct
-overloads on either side of a branch are kept as separate definitions, not merged into one. See
+matching `.cpp` is visible as one unit rather than the class half going missing (if your `contextlake.toml`
+restricts `languages` to `["c"]` without also listing `cpp`, `.h` files are now excluded from indexing
+entirely -- list both if you rely on header-declared definitions). An `#ifdef`/`#else` (or `#ifndef`/`#else`)
+pair -- two definitions of the same method in different branches of the *same* conditional -- collapses
+into one node instead of appearing as duplicate, ambiguous call targets. A bare `#ifndef` header guard with
+no `#else` does **not** trigger this: both copies would sit in the same (only) branch, so nothing collapses,
+and genuinely distinct overloads anywhere are kept as separate definitions, never merged into one. See
 [Health and maintenance](#health-and-maintenance) above: `doctor` flags any C/C++ shard indexed before
 these fixes landed, as a signal to re-index.
 
