@@ -23,6 +23,16 @@ _SETUP_FILENAMES = {
     "program.cs", "makefile",
 }
 
+def _grounding_cap(node_count: int) -> int:
+    """How many symbols to sample into the wiki prompt's ranked lists.
+
+    Grows with repo size (a fixed 15 is ~0.03% of a 50k-node repo) but stays
+    bounded -- more symbols means a longer, more expensive LLM call, so this is
+    a deliberate depth-vs-cost tradeoff, not a free win.
+    """
+    return max(15, min(80, node_count // 1500))
+
+
 SYSTEM = (
     "You are a precise staff engineer writing a short wiki page about a code "
     "repository for other engineers. Use ONLY the facts provided. Do not invent "
@@ -144,7 +154,8 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
         degree[e.dst] += 1
         in_degree[e.dst] += 1
         out_degree[e.src] += 1
-    top = [by_id[i] for i, _ in degree.most_common(15) if i in by_id]
+    cap = _grounding_cap(len(nodes))
+    top = [by_id[i] for i, _ in degree.most_common(cap) if i in by_id]
     all_files = {n.file for n in nodes if n.file}
     return {
         "repo": repo_id,
@@ -159,9 +170,9 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
         # folded into top_symbols so existing consumers of that field are
         # unaffected.
         "hubs": [_symbol_row(by_id[i], count=c)
-                for i, c in in_degree.most_common(15) if i in by_id],
+                for i, c in in_degree.most_common(cap) if i in by_id],
         "dispatchers": [_symbol_row(by_id[i], count=c)
-                        for i, c in out_degree.most_common(15) if i in by_id],
+                        for i, c in out_degree.most_common(cap) if i in by_id],
         "packages": [n.name for n in nodes if n.kind == "package"][:20],
         "files": sorted(all_files)[:20],
         "decisions": [{"title": n.name, "file": n.file,

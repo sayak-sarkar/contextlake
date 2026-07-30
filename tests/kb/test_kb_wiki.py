@@ -75,6 +75,13 @@ def test_repo_brief_splits_hubs_and_dispatchers(tmp_path):
     assert all("count" not in t for t in brief["top_symbols"])
 
 
+def test_grounding_cap_scales_with_repo_size():
+    from contextlake.kb.wiki.generate import _grounding_cap
+    assert _grounding_cap(500) == 15      # below floor
+    assert _grounding_cap(30_000) == 20   # 30000 // 1500 == 20
+    assert _grounding_cap(200_000) == 80  # capped at the ceiling
+
+
 def test_repo_brief_reads_readme_excerpt_when_store_given(tmp_path):
     _shard(tmp_path)
     repo_dir = tmp_path / "checkout"
