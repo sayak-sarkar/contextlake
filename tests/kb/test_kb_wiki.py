@@ -97,6 +97,25 @@ def test_kind_floor_only_backfills_zero_degree_into_top_symbols_not_hubs(tmp_pat
     assert all(h["count"] > 0 for h in brief["hubs"] + brief["dispatchers"])
 
 
+def test_repo_brief_grounded_count_is_the_union_not_the_sum(tmp_path):
+    # _shard: 3 nodes (svc, charge, pkg), cap=15 so top_ids covers all 3;
+    # in_degree only has "charge" (called once), out_degree only has "svc"
+    # (calls once) -- top_ids/hub_ids/dispatcher_ids overlap heavily, so the
+    # union (3) must differ from a naive sum (3 + 1 + 1 == 5).
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    assert brief["grounded_count"] == 3
+    assert brief["grounded_count"] <= brief["node_count"]
+
+
+def test_provenance_footer_states_grounding_coverage():
+    from contextlake.kb.wiki.generate import provenance_footer
+    brief = {"repo": "r", "head": "abc123", "files": ["a.py"],
+            "node_count": 200, "grounded_count": 15}
+    footer = provenance_footer(brief)
+    assert "Grounded in 15/200 symbols" in footer
+
+
 def test_grounding_cap_scales_with_repo_size():
     from contextlake.kb.wiki.generate import _grounding_cap
     assert _grounding_cap(500) == 15      # below floor

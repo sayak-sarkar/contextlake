@@ -205,11 +205,16 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
     hub_ids = _ranked_with_kind_floor(in_degree.most_common(), by_id, cap)
     dispatcher_ids = _ranked_with_kind_floor(out_degree.most_common(), by_id, cap)
     all_files = {n.file for n in nodes if n.file}
+    # Distinct symbols the model actually saw a grounding fact for, across all
+    # three lists combined -- a set union, since a node can legitimately appear
+    # in more than one list. Used to state the coverage ratio in the footer.
+    grounded_ids = set(top_ids) | set(hub_ids) | set(dispatcher_ids)
     return {
         "repo": repo_id,
         "head": shard.head_commit,
         "node_count": len(nodes),
         "edge_count": len(shard.edges),
+        "grounded_count": len(grounded_ids),
         "kinds": dict(Counter(n.kind for n in nodes)),
         "langs": dict(Counter(n.lang for n in nodes if n.lang)),
         "top_symbols": [_symbol_row(n) for n in top],
@@ -306,11 +311,16 @@ def render_prompt(brief: dict) -> str:
 
 def provenance_footer(brief: dict, verified_at: date | None = None) -> str:
     cites = ", ".join(f"`{f}`" for f in brief["files"][:10])
+    coverage = ""
+    if brief.get("grounded_count") is not None and brief.get("node_count"):
+        pct = round(100 * brief["grounded_count"] / brief["node_count"], 1)
+        coverage = f" Grounded in {brief['grounded_count']}/{brief['node_count']} symbols ({pct}%)."
     return (
         "\n\n---\n"
         f"*Generated from the knowledge graph of `{brief['repo']}` at commit "
         f"`{brief['head']}` on {verified_at or date.today()}."
         + (f" Sources: {cites}." if cites else "")
+        + coverage
         + "*"
     )
 
