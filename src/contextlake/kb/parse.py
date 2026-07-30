@@ -282,7 +282,7 @@ _QUERIES = {
         (function_definition declarator: (function_declarator declarator: (identifier) @def))
         (function_definition declarator: (function_declarator declarator: (field_identifier) @def))
         (function_definition declarator: (function_declarator declarator:
-            (qualified_identifier name: (identifier) @def)))
+            (qualified_identifier) @def_qi))
         (preproc_include path: (string_literal) @import)
         (preproc_include path: (system_lib_string) @import)
         (call_expression function: (identifier) @call)
@@ -506,6 +506,33 @@ def _enclosing_defs(name_node: ts.Node, def_types: set[str]) -> list[ts.Node]:
     return out
 
 
+def _qualified_chain(qi_node: ts.Node) -> tuple[list[str], ts.Node]:
+    """Segments + innermost name node of a (possibly multi-level) qualified_identifier.
+
+    tree-sitter-cpp right-nests a 3+-segment qualified name *under the ``name:``
+    field*: ``A::B::C`` parses as ``qualified_identifier(scope: A, name:
+    qualified_identifier(scope: B, name: C))``. A query pattern anchored on a fixed
+    field path only ever sees the outermost node, so this walks the chain in Python
+    to any depth instead, returning e.g. (["A", "B"], <the C identifier node>).
+    """
+    segments: list[str] = []
+    node = qi_node
+    while node.type == "qualified_identifier":
+        scope = node.child_by_field_name("scope")
+        name = node.child_by_field_name("name")
+        if scope is not None and scope.type in (
+            "namespace_identifier", "type_identifier", "identifier"
+        ):
+            segments.append(scope.text.decode("utf-8", "replace"))
+        if name is None:
+            return segments, node  # defensive; not expected from valid C++
+        if name.type == "qualified_identifier":
+            node = name
+            continue
+        return segments, name
+    return segments, node
+
+
 def parse_source(
     repo_id: str, rel_path: str, source: bytes, lang: str, verified_at: date | None = None
 ) -> tuple[list[Node], list[Edge], list[tuple[str, str, str, int]],
@@ -529,33 +556,45 @@ def parse_source(
 
     # First pass: a Node for every definition, keyed by its tree-sitter def node id.
     def_node_to_id: dict[int, str] = {}
-    pending: list[tuple[ts.Node, str, int]] = []  # (def_ts_node, qualified_name, line)
+    pending: list[tuple[ts.Node, str, int, str]] = []  # (def_ts_node, qualified_name, line, nid)
+    def_worklist: list[tuple[ts.Node, ts.Node, list[str]]] = []  # (def_ts, name_node, extra_scope)
     for name_node in captures.get("def", []):
         def_ts = _def_node(name_node, def_types)
-        if def_ts is None:
-            continue   # a declarator with no enclosing def node (defensive)
+        if def_ts is not None:
+            def_worklist.append((def_ts, name_node, []))
+    for qi_node in captures.get("def_qi", []):
+        extra_scope, name_node = _qualified_chain(qi_node)
+        def_ts = _def_node(qi_node, def_types)
+        if def_ts is not None:
+            def_worklist.append((def_ts, name_node, extra_scope))
+
+    for def_ts, name_node, extra_scope in def_worklist:
         name = name_node.text.decode("utf-8", "replace")
         enclosing = _enclosing_defs(name_node, def_types)
         scope = [n.child_by_field_name("name").text.decode("utf-8", "replace")
                  for n in reversed(enclosing) if n.child_by_field_name("name")]
-        qualified = ".".join([*scope, name])
+        full_scope = scope + extra_scope if extra_scope else scope
+        qualified = ".".join([*full_scope, name])
         line = name_node.start_point[0] + 1
         kind = _DEF_TYPES[lang][def_ts.type]
         if kind == "function" and enclosing and _DEF_TYPES[lang].get(enclosing[0].type) == "class":
             kind = "method"
         nid = make_id(repo_id, rel_path, qualified, str(line))
         def_node_to_id[def_ts.id] = nid
+        node_attrs = _doc_sig(def_ts, lang)
+        if extra_scope:
+            node_attrs["_pending_method_of"] = extra_scope
         nodes.append(Node(
             id=nid, repo=repo_id, kind=kind, name=name, qualified_name=f"{rel_path}::{qualified}",
             file=rel_path, line_start=line, line_end=def_ts.end_point[0] + 1, lang=lang,
-            attrs=_doc_sig(def_ts, lang),
+            attrs=node_attrs,
         ))
-        pending.append((def_ts, qualified, line))
+        pending.append((def_ts, qualified, line, nid))
 
     # Second pass: containment edges (parent definition, else the file). The parent is
     # the nearest enclosing def-typed node above this one — computed from def_ts itself
     # (a C/C++ function_definition has no "name" field to walk from).
-    for def_ts, _qualified, line in pending:
+    for def_ts, _qualified, line, _nid in pending:
         parent = def_ts.parent
         while parent is not None and parent.type not in def_types:
             parent = parent.parent

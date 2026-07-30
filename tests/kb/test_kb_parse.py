@@ -225,6 +225,30 @@ def test_parse_cpp_nested_def_under_unnamed_container_falls_back_to_file():
     assert (file_id, inner_id, "contains") in {(e.src, e.dst, e.relation) for e in edges}
 
 
+def test_parse_cpp_out_of_line_method_two_segments_links_to_class():
+    src = (b"class Widget {\npublic:\n    void Draw();\n};\n\n"
+           b"void Widget::Draw() {\n    Render();\n}\n")
+    nodes, edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
+    draw = next(n for n in nodes if n.name == "Draw" and n.line_start == 6)
+    assert draw.kind == "method"
+    widget = next(n for n in nodes if n.name == "Widget")
+    assert (widget.id, draw.id, "contains") in {
+        (e.src, e.dst, e.relation) for e in edges}
+    assert ("Render" in {c[1] for c in calls})
+
+
+def test_parse_cpp_out_of_line_method_three_segments_not_lost():
+    src = (b"namespace App {\nclass Gadget {\npublic:\n    void Spin();\n};\n}\n\n"
+           b"void App::Gadget::Spin() {\n    Tick();\n}\n")
+    nodes, edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
+    spin = next((n for n in nodes if n.name == "Spin"), None)
+    assert spin is not None, "a 3-segment qualified definition must not vanish"
+    gadget = next(n for n in nodes if n.name == "Gadget")
+    assert (gadget.id, spin.id, "contains") in {
+        (e.src, e.dst, e.relation) for e in edges}
+    assert "Tick" in {c[1] for c in calls}
+
+
 def test_parse_rust():
     src = (b"use std::io::Read;\nstruct Server { addr: String }\ntrait Handler { fn go(&self); }\n"
            b"enum State { On }\nfn mk() -> Server { work(); Server { addr: String::new() } }\n")
