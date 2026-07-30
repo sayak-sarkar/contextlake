@@ -273,6 +273,11 @@ def test_parse_cpp_ifdef_else_twins_collapse_to_one_node():
     nodes, _edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     setups = [n for n in nodes if n.name == "Setup"]
     assert len(setups) == 1
+    # The surviving node absorbs outgoing calls from BOTH merged branch bodies --
+    # there's no way to know which branch really compiles, so both FastInit (the
+    # #ifdef body) and SlowInit (the #else body) attribute to the one kept Setup.
+    setup_calls = {c[1] for c in calls if c[0] == setups[0].id}
+    assert setup_calls == {"FastInit", "SlowInit"}
 
 
 def test_parse_cpp_ifdef_else_twins_calls_resolve_inferred(tmp_path):
@@ -308,6 +313,66 @@ def test_parse_cpp_ifdef_overloads_are_not_conflated_as_twins():
     nodes, _edges, _calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     setups = [n for n in nodes if n.name == "Setup"]
     assert len(setups) == 2
+
+
+def test_parse_cpp_ifndef_guard_overloads_are_not_conflated_as_twins():
+    # An #ifndef/#define/.../#endif header guard is ITSELF a preproc_ifdef node
+    # with no #else -- every def in the guarded header shares that one root, so
+    # a same-root-only pre-filter is a no-op for the whole file. Two genuine
+    # overloads (const vs. non-const) sitting directly under the guard, with no
+    # #else branch between them, must both survive: same conditional root, but
+    # NOT in different branches of it (_conditional_branch returns None for
+    # both), so _dedupe_preprocessor_twins must refuse to merge them regardless
+    # of what _signature_text reports.
+    src = (b"#ifndef FOO_H\n"
+           b"#define FOO_H\n"
+           b"class C {\n"
+           b"public:\n"
+           b"    int at(int i) { return 1; }\n"
+           b"    int at(int i) const { return 2; }\n"
+           b"};\n"
+           b"#endif\n")
+    nodes, _edges, _calls, _inh = parse_source("r", "f.h", src, "cpp")
+    ats = [n for n in nodes if n.name == "at"]
+    assert len(ats) == 2
+
+
+def test_parse_cpp_ifndef_guard_ref_qualified_overloads_are_not_conflated():
+    # Same shape as the const/non-const case above, but for ref-qualifiers
+    # (& vs &&) -- tree-sitter attaches these as siblings of the parameter_list
+    # inside the same function_declarator, not inside the parameter_list itself,
+    # so _signature_text must read the whole declarator's text, not just its
+    # parameter_list child, or these look identical and one is deleted.
+    src = (b"#ifndef FOO_H\n"
+           b"#define FOO_H\n"
+           b"class C {\n"
+           b"public:\n"
+           b"    int get() & { return 1; }\n"
+           b"    int get() && { return 2; }\n"
+           b"};\n"
+           b"#endif\n")
+    nodes, _edges, _calls, _inh = parse_source("r", "f.h", src, "cpp")
+    gets = [n for n in nodes if n.name == "get"]
+    assert len(gets) == 2
+
+
+def test_parse_cpp_ifdef_else_twin_nested_inside_guard_still_collapses():
+    # The intended behavior must survive branch-differentiation: a genuine
+    # #ifdef/#else twin NESTED inside an #ifndef header guard still collapses
+    # to 1 node -- its conditional root is the inner #ifdef (the nearest
+    # enclosing preproc_ifdef), independent of the outer guard, and the two
+    # branches are the inner #ifdef's primary body vs. its #else body.
+    src = (b"#ifndef FOO_H\n"
+           b"#define FOO_H\n"
+           b"#ifdef USE_FAST\n"
+           b"void Setup() {}\n"
+           b"#else\n"
+           b"void Setup() {}\n"
+           b"#endif\n"
+           b"#endif\n")
+    nodes, _edges, _calls, _inh = parse_source("r", "f.h", src, "cpp")
+    setups = [n for n in nodes if n.name == "Setup"]
+    assert len(setups) == 1
 
 
 def test_index_repo_dir_resolves_out_of_line_method_across_files(tmp_path):

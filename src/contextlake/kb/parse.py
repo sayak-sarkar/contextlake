@@ -525,7 +525,11 @@ def _conditional_root(node: ts.Node) -> int | None:
     Two definitions sharing the same conditional root are candidates for being
     branch-twins of the same preprocessor conditional (tree-sitter parses both
     branches unconditionally, since it never evaluates the preprocessor) --
-    matching root is a necessary, cheap pre-filter before comparing signatures.
+    matching root is a necessary, but NOT sufficient, cheap pre-filter: an
+    ``#ifndef FOO_H`` header guard is *itself* a ``preproc_ifdef`` with no
+    ``#else`` at all, so every definition in a guarded header shares one root.
+    ``_conditional_branch`` below is what actually confirms two defs sit in
+    different branches of that root, which the root check alone cannot.
     """
     n = node.parent
     while n is not None:
@@ -535,8 +539,29 @@ def _conditional_root(node: ts.Node) -> int | None:
     return None
 
 
+def _conditional_branch(node: ts.Node) -> int | None:
+    """Which branch of its enclosing conditional ``node`` sits in.
+
+    Returns the ``.id`` of the nearest ``preproc_else``/``preproc_elif``
+    ancestor encountered while climbing from ``node`` up to (but not including)
+    its ``_conditional_root`` -- or ``None`` if ``node`` sits directly in the
+    primary ``#if``/``#ifdef`` branch, with no intervening ``preproc_else``/
+    ``preproc_elif``. Two definitions are only genuine ``#ifdef``/``#else`` (or
+    ``#elif``) twins if they share a root AND have DIFFERENT branch markers --
+    two defs directly under an ``#ifndef`` guard (no ``#else``) both return
+    ``None`` here, correctly refusing to be treated as twins just because they
+    share that guard's root.
+    """
+    n = node.parent
+    while n is not None and n.type not in ("preproc_if", "preproc_ifdef"):
+        if n.type in ("preproc_else", "preproc_elif"):
+            return n.id
+        n = n.parent
+    return None
+
+
 def _signature_text(def_ts: ts.Node) -> str:
-    """A parameter-list discriminator read directly off the definition node.
+    """A signature discriminator read directly off the definition node.
 
     Deliberately does NOT reuse ``_doc_sig``'s ``attrs["signature"]``: that field
     only looks at a ``parameters``/``parameter_list`` *field on def_ts itself*,
@@ -544,35 +569,64 @@ def _signature_text(def_ts: ts.Node) -> str:
     nested inside a ``function_declarator``, reached via the ``declarator``
     field, itself possibly wrapped in one or more pointer/reference declarators
     (e.g. ``int* Foo(int x)``). Relying on the attrs field left ``sig`` empty for
-    every C/C++ definition, silently disabling overload discrimination below --
-    this walks the declarator chain instead so real overloads (different
-    parameter lists) are never conflated as branch-twins.
+    every C/C++ definition, silently disabling overload discrimination below.
+
+    For C/C++, this returns the *entire* ``function_declarator``'s text, not
+    just its parameter list: tree-sitter attaches trailing cv-qualifiers
+    (``const``) and ref-qualifiers (``&``/``&&``) as siblings of the parameter
+    list INSIDE the same declarator, not inside the parameter list itself --
+    keying on the parameter list alone let ``int at(int) const`` and
+    non-const ``int at(int)`` collapse together as if they were one signature.
+    For py/js/ts/c#, which expose ``parameters``/``parameter_list`` as a direct
+    field on the def node, that field's text is used as before.
     """
-    params = def_ts.child_by_field_name("parameters") or def_ts.child_by_field_name(
+    direct = def_ts.child_by_field_name("parameters") or def_ts.child_by_field_name(
         "parameter_list")
+    if direct is not None:
+        return direct.text.decode("utf-8", "replace").strip()
     node = def_ts.child_by_field_name("declarator")
-    while params is None and node is not None:
-        params = node.child_by_field_name("parameters") or node.child_by_field_name(
-            "parameter_list")
+    seen = 0
+    while node is not None and seen < 10:
+        if node.type == "function_declarator":
+            return node.text.decode("utf-8", "replace").strip()
         node = node.child_by_field_name("declarator")
-    return params.text.decode("utf-8", "replace").strip() if params is not None else ""
+        seen += 1
+    return ""
 
 
 def _dedupe_preprocessor_twins(
     nodes: list[Node], pending: list[tuple[ts.Node, str, int, str]],
     def_node_to_id: dict[int, str],
 ) -> None:
-    """Collapse same-name, same-signature, same-#if-branch duplicate definitions.
+    """Collapse same-name, same-signature, DIFFERENT-branch duplicate definitions.
 
     A genuine overload (``void Setup(); void Setup(int);``) has a different
-    signature and is never touched. Two defs merge only when they share BOTH an
-    identical (qualified name, signature) AND the same conditional root -- the
-    exact shape of an ``#ifdef``/``#else`` twin -- so two unrelated ``#ifdef``
-    blocks elsewhere in the file that happen to define the same name/signature
-    are never conflated. The first (lowest source line) is kept; the other's
-    tree-sitter id is remapped to the same graph node id so later containment/
+    signature (see ``_signature_text``) and is never touched. Two defs merge
+    only when they share an identical (qualified name, signature) AND the same
+    conditional root (``_conditional_root``) AND sit in two DIFFERENT branches
+    of that conditional (``_conditional_branch``) -- the exact shape of an
+    ``#ifdef``/``#else``/``#elif`` twin. Root alone is not enough: an ``#ifndef``
+    header guard is itself a conditional root with no ``#else``, so every
+    definition in a guarded header would otherwise share one root, making a
+    root-only check a no-op for the entire file (and silently deleting one of
+    two genuine overloads that happen to share a root, e.g. ``const``/non-const
+    pairs, if their signatures also happened to look alike). Two unrelated
+    ``#ifdef`` blocks elsewhere in the file that happen to define the same
+    name/signature have different roots and are never conflated either. Within
+    one (name, signature, root) group, if any branch holds more than one
+    candidate, or fewer than two distinct branches are represented, nothing in
+    that group is merged -- leaving distinct nodes uncollapsed is always safe;
+    silently merging when the branch shape isn't a clean twin is not.
+
+    The first (lowest source line) surviving candidate is kept; the others'
+    tree-sitter ids are remapped to the same graph node id so later containment/
     call attribution (both keyed by ``def_ts.id`` via ``def_node_to_id``) still
-    resolves correctly.
+    resolves correctly. Because both branches' bodies genuinely called
+    something, the surviving node absorbs outgoing calls from EVERY merged
+    branch (e.g. both a ``FastInit()`` call from the ``#ifdef`` body and a
+    ``SlowInit()`` call from the ``#else`` body attribute to the one kept
+    node) -- there is no way to know which branch really compiles, so this is
+    the only coherent choice.
 
     The final filter step matches dropped ``pending`` entries to ``nodes`` by
     node id (``pending``'s 4th element), never by list position -- ``nodes``
@@ -592,9 +646,15 @@ def _dedupe_preprocessor_twins(
     for entries in groups.values():
         if len(entries) < 2:
             continue
-        entries.sort(key=lambda e: e[2])  # by line -- keep the first
-        keeper_id = entries[0][3]
-        for def_ts, _qualified, _line, nid in entries[1:]:
+        by_branch: dict[int | None, list[tuple[ts.Node, str, int, str]]] = {}
+        for entry in entries:
+            by_branch.setdefault(_conditional_branch(entry[0]), []).append(entry)
+        if len(by_branch) < 2 or any(len(v) > 1 for v in by_branch.values()):
+            continue  # not a clean one-def-per-branch twin shape -- leave as-is
+        representatives = [v[0] for v in by_branch.values()]
+        representatives.sort(key=lambda e: e[2])  # by line -- keep the first
+        keeper_id = representatives[0][3]
+        for def_ts, _qualified, _line, nid in representatives[1:]:
             def_node_to_id[def_ts.id] = keeper_id
             drop_ids.add(nid)
 
