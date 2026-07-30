@@ -574,14 +574,14 @@ def _dedupe_preprocessor_twins(
     call attribution (both keyed by ``def_ts.id`` via ``def_node_to_id``) still
     resolves correctly.
 
-    Matches ``pending`` entries to ``nodes`` by node id (``pending``'s 4th
-    element), never by list position -- ``nodes`` starts with a leading file
-    node before this loop ever runs, so ``pending[i]`` and ``nodes[i]`` are not
-    the same definition.
+    The final filter step matches dropped ``pending`` entries to ``nodes`` by
+    node id (``pending``'s 4th element), never by list position -- ``nodes``
+    starts with a leading file node before this loop ever runs, so
+    ``pending[i]`` and ``nodes[i]`` are never the same definition.
     """
     groups: dict[tuple, list[tuple[ts.Node, str, int, str]]] = {}
     for entry in pending:
-        def_ts, qualified, _line, nid = entry
+        def_ts, qualified, _line, _nid = entry
         root = _conditional_root(def_ts)
         if root is None:
             continue
