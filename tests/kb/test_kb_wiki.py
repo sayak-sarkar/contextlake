@@ -146,6 +146,47 @@ def test_repo_brief_readme_excerpt_none_without_store_or_checkout(tmp_path):
     assert repo_brief(tmp_path, "r", store=store)["readme_excerpt"] is None
 
 
+def test_setup_signals_summarizes_legacy_build_tooling_by_category():
+    from contextlake.kb.wiki.generate import _setup_signals
+    files = ({f"proj{i}.vcxproj" for i in range(5)} | {f"old{i}.dsp" for i in range(3)}
+             | {"CMakeLists.txt"})
+    signals = _setup_signals(files)
+    joined = " ".join(signals)
+    assert "5 modern MSBuild" in joined or any("vcxproj" in s and "5" in s for s in signals)
+    assert any("3" in s and "dsp" in s for s in signals)
+
+
+def test_repo_brief_flags_generated_paths_by_directory_segment(tmp_path):
+    nodes = [Node(id="g1", repo="r", kind="function", name="f",
+                  file="src/generated/widgets.py")]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=[]))
+    brief = repo_brief(tmp_path, "r")
+    assert brief["generated_paths_detected"] is True
+
+
+def test_repo_brief_flags_generated_paths_by_filename_convention(tmp_path):
+    nodes = [Node(id="g1", repo="r", kind="class", name="Form1",
+                  file="ui/Form1.designer.cs")]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=[]))
+    brief = repo_brief(tmp_path, "r")
+    assert brief["generated_paths_detected"] is True
+
+
+def test_repo_brief_generated_paths_detected_false_without_generated_files(tmp_path):
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    assert brief["generated_paths_detected"] is False
+
+
+def test_render_prompt_notes_generated_paths_when_detected(tmp_path):
+    nodes = [Node(id="g1", repo="r", kind="function", name="f",
+                  file="src/generated/widgets.py")]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=[]))
+    brief = repo_brief(tmp_path, "r")
+    prompt = render_prompt(brief)
+    assert "derived build output, not hand-authored design" in prompt
+
+
 def test_render_prompt_omits_setup_and_gotchas_sections_without_grounding(tmp_path):
     # No edges (so no hubs) and no conventional setup/config filenames --
     # both new sections must be left out entirely, not emitted empty.

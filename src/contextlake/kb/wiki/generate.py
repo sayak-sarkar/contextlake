@@ -23,6 +23,19 @@ _SETUP_FILENAMES = {
     "program.cs", "makefile",
 }
 
+# Legacy C/C++ build-tooling file extensions: too numerous in a large legacy
+# repo to list individually (hundreds of .vcxproj/.dsp files would drown the
+# prompt), so _setup_signals reports these as a summarized per-category count
+# rather than per-file entries like the presence-only allowlist above.
+_LEGACY_BUILD_CATEGORIES = {
+    ".vcxproj": "modern MSBuild (.vcxproj)",
+    ".vcproj": "older MSBuild (.vcproj)",
+    ".dsp": "legacy MSVC6 project (.dsp)",
+    ".dsw": "legacy MSVC6 workspace (.dsw)",
+    ".pbxproj": "Xcode project (.pbxproj)",
+    ".cdtproject": "Eclipse CDT project",
+}
+
 def _grounding_cap(node_count: int) -> int:
     """How many symbols to sample into the wiki prompt's ranked lists.
 
@@ -102,6 +115,12 @@ def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> li
     ``Dockerfile``, ``pyproject.toml``, ...) that aren't source code and so
     never become graph nodes at all. Same store-optional, degrade-to-nothing
     guard as :func:`_readme_excerpt` -- omit ``store`` and you just get (1).
+
+    A third, distinct kind of entry is appended: legacy C/C++ build-tooling
+    files (``.vcxproj``, ``.dsp``, ``.pbxproj``, ...) are summarized as a
+    per-category count string rather than listed per-file -- a large legacy
+    repo can carry hundreds of these, which would drown the presence-only
+    listing above if treated the same way.
     """
     found = {f for f in all_files if _is_setup_filename(f.rsplit("/", 1)[-1])}
     if store is not None and repo_id is not None:
@@ -111,7 +130,14 @@ def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> li
             for entry in base.iterdir():
                 if entry.is_file() and _is_setup_filename(entry.name):
                     found.add(entry.name)
-    return sorted(found)[:20]
+    by_ext: dict[str, int] = {}
+    for f in all_files:
+        ext = "." + f.rsplit(".", 1)[-1].lower() if "." in f else ""
+        if ext in _LEGACY_BUILD_CATEGORIES:
+            by_ext[ext] = by_ext.get(ext, 0) + 1
+    summary = [f"{n} {_LEGACY_BUILD_CATEGORIES[ext]} file(s) detected"
+              for ext, n in sorted(by_ext.items())]
+    return sorted(found)[:20] + summary
 
 
 def _readme_excerpt(store, repo_id: str, *, max_chars: int = 2000) -> str | None:
@@ -209,6 +235,17 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
     # three lists combined -- a set union, since a node can legitimately appear
     # in more than one list. Used to state the coverage ratio in the footer.
     grounded_ids = set(top_ids) | set(hub_ids) | set(dispatcher_ids)
+    # Reuse the parser's own generated-file detection (never duplicate it here)
+    # so the wiki prompt can warn the model off treating machine-emitted files
+    # as hand-authored design -- by path segment (a "generated/" directory) or
+    # by filename convention (e.g. ``*.designer.cs``), same signal the indexer
+    # itself uses to decide what to skip.
+    from ..parse import _is_generated_name
+
+    generated_paths_detected = any(
+        "generated" in f.lower().split("/") or _is_generated_name(f.rsplit("/", 1)[-1])
+        for f in all_files
+    )
     return {
         "repo": repo_id,
         "head": shard.head_commit,
@@ -232,6 +269,7 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
         "external": external_context(store_dir, repo_id),
         "readme_excerpt": _readme_excerpt(store, repo_id),
         "setup_signals": _setup_signals(all_files, store, repo_id),
+        "generated_paths_detected": generated_paths_detected,
     }
 
 
@@ -254,7 +292,9 @@ def render_prompt(brief: dict) -> str:
         lines.append("Depends on packages: " + ", ".join(brief["packages"]))
     if brief["files"]:
         lines.append("Notable files: " + ", ".join(brief["files"]))
-    if brief.get("readme_excerpt") or brief.get("setup_signals"):
+    has_setup_signal = (brief.get("readme_excerpt") or brief.get("setup_signals")
+                        or brief.get("generated_paths_detected"))
+    if has_setup_signal:
         lines.append("")
         lines.append("Setup/run signal (from the repo's own files):")
         if brief.get("setup_signals"):
@@ -263,6 +303,13 @@ def render_prompt(brief: dict) -> str:
         if brief.get("readme_excerpt"):
             lines.append("  From the repo's own README:")
             lines.append(f"  \"{brief['readme_excerpt']}\"")
+        if brief.get("generated_paths_detected"):
+            lines.append(
+                "  Some files under a generated-output path or with a generator "
+                "marker are present -- treat their contents as derived build "
+                "output, not hand-authored design, unless the facts above say "
+                "otherwise."
+            )
     if brief.get("hubs"):
         lines.append("")
         lines.append("Most-depended-on symbols (highest caller count in the graph — "
@@ -292,7 +339,7 @@ def render_prompt(brief: dict) -> str:
             "Never present external claims as facts about the code without attribution."
         )
     sections = "Overview"
-    if brief.get("readme_excerpt") or brief.get("setup_signals"):
+    if has_setup_signal:
         sections += ", Setup & Run"
     sections += ", Architecture, Dependencies"
     if brief.get("hubs"):
