@@ -252,6 +252,17 @@ def test_parse_cpp_out_of_line_method_three_segments_not_lost():
     assert "Tick" in {c[1] for c in calls}
 
 
+def test_parse_cpp_namespace_block_contains_its_members():
+    src = b"namespace App {\nclass Gadget {\npublic:\n    void Spin() {}\n};\n}\n"
+    nodes, edges, _c, _i = parse_source("r", "f.cpp", src, "cpp")
+    k = _kinds(nodes)
+    assert "App" in k.get("namespace", set())
+    ns = next(n for n in nodes if n.name == "App")
+    gadget = next(n for n in nodes if n.name == "Gadget")
+    assert (ns.id, gadget.id, "contains") in {
+        (e.src, e.dst, e.relation) for e in edges}
+
+
 def test_index_repo_dir_resolves_out_of_line_method_across_files(tmp_path):
     (tmp_path / "widget.h").write_text(
         "class Widget {\npublic:\n    void Draw();\n};\n")

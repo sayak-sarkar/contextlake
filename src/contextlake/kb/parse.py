@@ -185,7 +185,7 @@ _DEF_TYPES = {
     "cpp": {
         "function_definition": "function", "class_specifier": "class",
         "struct_specifier": "struct", "enum_specifier": "enum",
-        "union_specifier": "struct",
+        "union_specifier": "struct", "namespace_definition": "namespace",
     },
     "rust": {
         "function_item": "function", "struct_item": "struct",
@@ -295,6 +295,7 @@ _QUERIES = {
         (function_definition declarator: (function_declarator declarator: (field_identifier) @def))
         (function_definition declarator: (function_declarator declarator:
             (qualified_identifier) @def_qi))
+        (namespace_definition name: (namespace_identifier) @def)
         (preproc_include path: (string_literal) @import)
         (preproc_include path: (system_lib_string) @import)
         (call_expression function: (identifier) @call)
