@@ -75,7 +75,7 @@ def test_repo_brief_splits_hubs_and_dispatchers(tmp_path):
     assert all("count" not in t for t in brief["top_symbols"])
 
 
-def test_hubs_reserve_a_slot_per_kind_even_when_low_degree(tmp_path):
+def test_kind_floor_only_backfills_zero_degree_into_top_symbols_not_hubs(tmp_path):
     nodes = [Node(id=f"fn{i}", repo="r", kind="function", name=f"fn{i}", lang="python")
              for i in range(20)]
     nodes.append(Node(id="tbl1", repo="r", kind="table", name="Orders", lang="sql"))
@@ -86,7 +86,15 @@ def test_hubs_reserve_a_slot_per_kind_even_when_low_degree(tmp_path):
              for i in range(1, 20)]
     write_shard(tmp_path, GraphShard(repo="r", nodes=nodes, edges=edges))
     brief = repo_brief(tmp_path, "r")
-    assert any(h["name"] == "Orders" for h in brief["hubs"] + brief["top_symbols"])
+    # The zero-degree "table" kind is represented in top_symbols (which carries
+    # no count, so a zero-degree row is an honest listing, not a fabricated claim)...
+    assert any(t["name"] == "Orders" for t in brief["top_symbols"])
+    # ...and NEVER in hubs/dispatchers specifically, because those fields carry a
+    # real caller/callee "count" the LLM prompt reads as "N caller(s), worth extra
+    # care" -- a fabricated 0-count row there would be a false signal, not just an
+    # omission. This is the anti-fabrication invariant a looser "any(...) in hubs +
+    # top_symbols" assertion could not actually pin down.
+    assert all(h["count"] > 0 for h in brief["hubs"] + brief["dispatchers"])
 
 
 def test_grounding_cap_scales_with_repo_size():
