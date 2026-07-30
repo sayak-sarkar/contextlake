@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.64.0] - 2026-07-30
+
+### Added
+- **Wiki: richer per-repo template.** Pages gain two new sections, each only written
+  when the graph actually grounds it (never an empty heading): **Setup & Run** (from
+  a README excerpt read off the repo's live checkout, plus which conventional
+  entry-point/config files are present -- `package.json`, `Dockerfile`,
+  `pyproject.toml`, `manage.py`, etc.) and **Gotchas** (the most-depended-on symbols,
+  reframed as a "treat changes here with extra care" signal -- reuses the hubs data
+  already computed, no new extraction). Section order is now fixed:
+  Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions, External
+  context. `repo_brief()` gained an optional `store` param (only used for the README
+  read; omit it and the field is simply `None` -- degrades the same way
+  `dashboard.data._readme_html` already does for a missing/moved checkout).
+  Anonymized `--site` exports drop the README excerpt, same rule as the existing
+  README/wiki-body exclusion.
+- **Wiki: same richer template for cluster/namespace pages.** `wiki/cluster.py`'s
+  cluster prompt gets the same fixed-order, nothing-invented treatment, including a
+  "Gotchas" section grounded in a real coupling-risk signal: the highest-weight
+  internal edges (busiest cross-repo coupling) and the member repos with the most
+  boundary edges (widest external blast radius) -- both read directly off data the
+  cluster brief already computes.
+- **Dashboard: the Wiki tab no longer gates content behind a "Reveal wiki" click.**
+  The page renders directly; the one thing the old gate carried that mattered (the
+  `stale` flag) is now a persistent badge next to the heading instead of being hidden
+  behind the same click.
+- **Dashboard: live "Regenerate wiki" action, single-repo and fleet-wide.** With
+  `--allow-mutations`, a repo's Wiki tab gets a scoped regenerate button and the
+  Settings tab gets a fleet-wide one. Both show a real pre-flight estimate ("N of M
+  repos will regenerate, the rest are already up to date") before confirming, with a
+  Force option to bypass the freshness check (the estimate updates to make that cost
+  explicit first). Modeled on the existing MCP-server start/stop lifecycle
+  (non-blocking subprocess + pidfile), not the blocking sync/add-repo pattern -- an
+  LLM-backed run has no safe fixed timeout. Spawns the real `contextlake wiki` CLI
+  unmodified, so there's no duplicated generation logic; the dashboard just tails its
+  log and polls whether it's still running.
+
 ## [2.63.0] - 2026-07-30
 
 ### Added

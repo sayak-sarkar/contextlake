@@ -75,6 +75,40 @@ def test_repo_brief_splits_hubs_and_dispatchers(tmp_path):
     assert all("count" not in t for t in brief["top_symbols"])
 
 
+def test_repo_brief_reads_readme_excerpt_when_store_given(tmp_path):
+    _shard(tmp_path)
+    repo_dir = tmp_path / "checkout"
+    repo_dir.mkdir()
+    (repo_dir / "README.md").write_text("# Widget\n\nRun `make test` to test.")
+    (repo_dir / "pyproject.toml").write_text("[project]\nname='widget'")
+    store = SqliteStore(":memory:")
+    store.upsert_repo(Repo(id="r", path=str(repo_dir)))
+
+    brief = repo_brief(tmp_path, "r", store=store)
+    assert "make test" in brief["readme_excerpt"]
+    assert "pyproject.toml" in brief["setup_signals"]
+
+
+def test_repo_brief_readme_excerpt_none_without_store_or_checkout(tmp_path):
+    _shard(tmp_path)
+    assert repo_brief(tmp_path, "r")["readme_excerpt"] is None
+
+    store = SqliteStore(":memory:")
+    store.upsert_repo(Repo(id="r", path=str(tmp_path / "does-not-exist")))
+    assert repo_brief(tmp_path, "r", store=store)["readme_excerpt"] is None
+
+
+def test_render_prompt_omits_setup_and_gotchas_sections_without_grounding(tmp_path):
+    # No edges (so no hubs) and no conventional setup/config filenames --
+    # both new sections must be left out entirely, not emitted empty.
+    nodes = [Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py")]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=[]))
+    brief = repo_brief(tmp_path, "r")
+    prompt = render_prompt(brief)
+    assert "Setup & Run" not in prompt
+    assert "Gotchas" not in prompt
+
+
 def test_repo_brief_carries_docstrings_into_the_wiki_prompt(tmp_path):
     nodes = [
         Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py",
@@ -215,9 +249,13 @@ def test_render_prompt_without_decisions_is_unchanged(tmp_path):
     brief = repo_brief(tmp_path, "r")
     prompt = render_prompt(brief)
     assert "Recorded decisions" not in prompt
+    # This shard's one edge gives it a hub (see repo_brief), so Gotchas is
+    # included; Setup & Run/Decisions are not (no readme/setup signal, no ADRs).
     assert prompt.strip().endswith(
-        "Write a wiki page in Markdown with sections: Overview, Key components, "
-        "Dependencies. Ground every statement in the facts above; do not speculate.")
+        "Write a wiki page in Markdown with sections: Overview, Architecture, "
+        "Dependencies, Gotchas, in that order. Ground every statement in the facts "
+        "above; do not speculate. Omit a section entirely if the facts above give "
+        "you nothing to say for it — do not write a heading with no content.")
 
 
 def test_render_prompt_with_external_context_is_cited_and_attributed(tmp_path):
@@ -240,8 +278,10 @@ def test_render_prompt_without_external_context_is_unchanged(tmp_path):
     # baseline code-facts content is still present, byte-for-byte behavior preserved
     assert "CatalogService" in prompt and "svc.py" in prompt and "requests" in prompt
     assert prompt.strip().endswith(
-        "Write a wiki page in Markdown with sections: Overview, Key components, "
-        "Dependencies. Ground every statement in the facts above; do not speculate.")
+        "Write a wiki page in Markdown with sections: Overview, Architecture, "
+        "Dependencies, Gotchas, in that order. Ground every statement in the facts "
+        "above; do not speculate. Omit a section entirely if the facts above give "
+        "you nothing to say for it — do not write a heading with no content.")
 
 
 def test_generate_page_has_title_body_provenance(tmp_path):

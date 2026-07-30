@@ -166,10 +166,19 @@ contextlake wiki acme/catalog-api --llm builtin
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
 API key (install the `llm-local` extra first); `ollama` / `openai` use those backends.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
-renders right in the Wiki tab, grounded in the repo's real symbols, with a provenance
-footer citing the exact commit and source files.
+renders directly in the Wiki tab — no click-through needed — grounded in the repo's real
+symbols and (when available) its own README and conventional setup/config files, with a
+fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions —
+sections with nothing to ground them are left out, never emitted empty), plus an attributed
+"external context" block from connected sources when there's real data to cite, and a
+provenance footer citing the exact commit and source files. A **STALE** badge appears next to
+the heading whenever the indexed commit has moved since the page was generated — that's
+always visible, not tucked behind anything.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+
+With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
+carry a **Regenerate** button — see [§11](#11-mutating-routes---allow-mutations).
 
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
@@ -189,12 +198,20 @@ it's a summary, not a form; edit `kb.toml` directly to change anything.
 ## 11. Mutating routes (`--allow-mutations`)
 
 Everything above is read-only. `contextlake dashboard --serve --allow-mutations`
-additionally exposes three write actions, each behind an explicit confirm dialog in
+additionally exposes four write actions, each behind an explicit confirm dialog in
 the browser: **Sync now** on a repo page (`git pull --ff-only` + reindex), **Add
-repo** on the fleet overview (clone a URL into `--workspace` + index it), and
+repo** on the fleet overview (clone a URL into `--workspace` + index it),
 **Start / Stop / Restart** for a separate `contextlake serve --transport http`
 process on the MCP console tab (not the stdio server your editor spawns -- this
-dashboard can't see or manage that one).
+dashboard can't see or manage that one), and **Regenerate** wiki (single-repo on
+that repo's Wiki tab, or fleet-wide on Settings — runs the exact `contextlake
+wiki` CLI as a background process, detached from the request that started it, so
+it keeps running even if you close the browser tab).
+Regenerate always shows a real pre-flight count first — "N of M repos will
+regenerate, the rest are already up to date" — before you confirm, and a **Force**
+checkbox to bypass that freshness check and regenerate everything in scope
+regardless (the estimate updates to reflect that before you confirm, too — a
+fleet-wide Force run can mean an LLM call per indexed repo).
 
 Refused outright with `--sample` (the demo fleet is fictional -- nothing on disk to
 sync/clone) and with any `--host` other than `127.0.0.1`/`localhost` (mutating

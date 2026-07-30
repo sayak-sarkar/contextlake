@@ -11,9 +11,19 @@ machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ol
 inline and scopes generation to the named repo(s).
 
 Run `contextlake wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
-symbols, dependencies, files) with a provenance footer citing the commit and sources, then puts the draft
-through a **verification council**, reviewers score it for accuracy, completeness, and clarity and a
-chairman publishes only pages above a configurable threshold. Nothing that fails review is written.
+symbols, dependencies, files, and — when the repo's own checkout is available — an excerpt of its README
+and which conventional entry-point/config files it has, e.g. `package.json`, `Dockerfile`, `manage.py`)
+with a provenance footer citing the commit and sources, then puts the draft through a **verification
+council**, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
+above a configurable threshold. Nothing that fails review is written.
+
+The page has a fixed section order — Overview, Setup & Run, Architecture, Dependencies, Gotchas,
+Decisions — but a section is only ever written when the graph actually has something to ground it:
+"Setup & Run" needs a README excerpt or a detected config file, "Gotchas" needs at least one symbol with
+real callers in the graph (reframed honestly as "most depended on — treat changes with extra care", not
+invented incident history). A repo with no such signal simply gets fewer sections, never an empty
+heading. "External context" (below) is a separate, always-conditional block on top of that list, not one
+of the named sections.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).
@@ -35,8 +45,12 @@ services call which over HTTP, publish/consume which events, and share which pac
 page per namespace at that prefix depth. It grounds strictly in the cross-repo edges the graph already
 resolved (no new extraction) and reuses the same review council + provenance footer as the per-repo wiki,
 so it stays advisory and cited; when the graph shows no coupling it says so rather than inventing a link.
-Cluster pages are served over MCP by passing a namespace to `get_wiki`, and shown per group in the
-dashboard's fleet overview.
+Cluster pages get the same fixed-section, nothing-invented treatment as per-repo pages, including a
+"Gotchas" section when there's a real coupling-risk signal to ground it: the highest-weight internal edges
+(busiest cross-repo coupling in the namespace) and the member repos with the most boundary edges
+(the ones whose changes are most likely to ripple outside the namespace) — both read directly off data the
+cluster brief already computes, no new metric. Cluster pages are served over MCP by passing a namespace to
+`get_wiki`, and shown per group in the dashboard's fleet overview.
 
 ## Incorporating connector enrichment
 
@@ -48,10 +62,15 @@ assertion or as an undisclosed code fact. The council still gates the enriched p
 ensuring external context supplements rather than displaces code-backed facts and that attribution is
 clear and verifiable.
 
-The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
-provenance footer citing the exact commit and source files it was built from.
+The result, rendered directly in the dashboard's Wiki tab (no click-through needed): prose grounded
+strictly in real symbols, with a provenance footer citing the exact commit and source files it was built
+from, and a **STALE** badge if the indexed commit has since moved.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+
+With `contextlake dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
+Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
+background — see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes---allow-mutations).
 
 ## Recorded decisions
 

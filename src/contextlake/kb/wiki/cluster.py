@@ -130,6 +130,30 @@ def cluster_fingerprint(brief: dict) -> str:
     return hashlib.sha1(repr(pairs).encode("utf-8")).hexdigest()[:12]
 
 
+def _busiest_coupling(internal_edges: list[dict], *, top_n: int = 5) -> list[dict]:
+    """Internal edges sorted by shared-edge weight, highest first -- the
+    cluster-level equivalent of a per-repo "hub": changes to these two repos'
+    shared surface likely ripple across the namespace. No new metric --
+    ``weight`` already exists on every edge (see ``_phrase_edge``)."""
+    return sorted(internal_edges, key=lambda e: e.get("weight", 1), reverse=True)[:top_n]
+
+
+def _leakiest_repos(boundary_edges: list[dict], member_ids: set, *,
+                    top_n: int = 5) -> list[tuple[str, int]]:
+    """Member repos ranked by how many boundary edges touch them -- a repo with
+    the most connections crossing out of the namespace has the widest external
+    blast radius for a change at its edge."""
+    from collections import Counter
+
+    counts: Counter = Counter()
+    for e in boundary_edges:
+        if e["src"] in member_ids:
+            counts[e["src"]] += 1
+        if e["dst"] in member_ids:
+            counts[e["dst"]] += 1
+    return counts.most_common(top_n)
+
+
 def _phrase_edge(e: dict) -> str:
     s, d, w = e["src"], e["dst"], e.get("weight", 1)
     if e["flavor"] == "http":
@@ -162,12 +186,32 @@ def render_cluster_prompt(brief: dict) -> str:
         lines.append("")
         lines.append("Couples to repositories outside this namespace:")
         lines += [f"  - {_phrase_edge(e)}" for e in brief["boundary_edges"]]
+    member_ids = {r["repo"] for r in brief["repos"]}
+    busiest = _busiest_coupling(brief["internal_edges"])
+    leakiest = _leakiest_repos(brief["boundary_edges"], member_ids)
+    if busiest or leakiest:
+        lines.append("")
+        lines.append("Coupling risk signal (from the graph, not invented):")
+        if busiest:
+            lines.append("  Busiest internal coupling (highest shared-edge weight -- "
+                         "changes here likely ripple across the namespace):")
+            lines += [f"    - {_phrase_edge(e)}" for e in busiest]
+        if leakiest:
+            lines.append("  Leakiest repos (most connections crossing outside this "
+                         "namespace -- a boundary change here has the widest external "
+                         "blast radius):")
+            lines += [f"    - {repo} ({count} external connection(s))"
+                     for repo, count in leakiest]
+    sections = "Overview, Services (one line each), How they talk (internal), External coupling"
+    if busiest or leakiest:
+        sections += ", Gotchas"
+    sections += ", Shared dependencies"
     lines += [
         "",
-        "Write a cluster wiki page in Markdown with sections: Overview, Services "
-        "(one line each), How they talk (internal), External coupling, Shared "
-        "dependencies. Ground every statement in the facts above; do not speculate "
-        "or invent any coupling not listed.",
+        f"Write a cluster wiki page in Markdown with sections: {sections}, in that "
+        "order. Ground every statement in the facts above; do not speculate or invent "
+        "any coupling not listed. Omit a section entirely if the facts above give you "
+        "nothing to say for it -- do not write a heading with no content.",
     ]
     return "\n".join(lines)
 

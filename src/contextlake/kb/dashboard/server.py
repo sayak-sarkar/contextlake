@@ -265,6 +265,16 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 out["mutations"] = allow_mutations
                 out["http_server"] = mcp_status
                 return 200, _json_bytes(out)
+            if path == "/api/wiki/status":
+                out = kbmut.wiki_generate_status(sd) if allow_mutations else {"running": False}
+                return 200, _json_bytes(out)
+            if path == "/api/wiki/estimate":
+                if not allow_mutations:
+                    return 404, b'{"error":"not found"}'
+                repo_id = (q.get("repo") or [None])[0]
+                force = (q.get("force") or ["false"])[0].lower() == "true"
+                return 200, _json_bytes(
+                    kbmut.wiki_generate_estimate(req, sd, repo_id=repo_id, force=force))
             if path == "/api/settings":
                 out = kbdata.settings(req, sd, config_path=config_path, sample=sample)
                 out["mutations"] = allow_mutations
@@ -325,6 +335,27 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     req.close()
         finally:
             lock.release()
+
+    def _wiki_generate(body: bytes) -> tuple[int, bytes]:
+        """POST /api/wiki/generate -- deliberately NOT dispatched through _mutate:
+        that helper holds the store's single-writer lock for the dispatch's
+        duration, but the spawned `contextlake wiki` child takes that SAME lock
+        itself at startup (via _guard_store) and is a different pid, so it can
+        lose the race against this request's own lock window and exit with
+        "store is busy". wiki_generate_start() itself never touches the store
+        (only a subprocess spawn + a pidfile write), so it needs no lock here at
+        all -- the child manages its own."""
+        try:
+            payload = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            return 400, b'{"error":"invalid JSON body"}'
+        repo_id = (payload.get("repo") or "").strip() or None
+        force = bool(payload.get("force"))
+        llm = (payload.get("llm") or "").strip() or None
+        llm_model = (payload.get("llm_model") or "").strip() or None
+        return 200, _json_bytes(kbmut.wiki_generate_start(
+            store_dir, repo_id=repo_id, force=force, llm=llm,
+            llm_model=llm_model, config_path=config_path))
 
     def _chat(body: bytes) -> tuple[int, bytes]:
         """POST /api/chat -- always available (see build_dashboard_server's
@@ -432,7 +463,10 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 return
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(min(length, 1_000_000)) if length else b""
-            code, resp = _mutate(parsed.path, body)
+            if parsed.path == "/api/wiki/generate":
+                code, resp = _wiki_generate(body)
+            else:
+                code, resp = _mutate(parsed.path, body)
             self._send(code, "application/json", resp)
 
     srv = ThreadingHTTPServer((host, port), Handler)

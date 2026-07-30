@@ -140,6 +140,42 @@ def test_render_cluster_prompt_phrases_internal_and_boundary():
     assert "do not speculate or invent any coupling not listed" in p
 
 
+def test_render_cluster_prompt_gotchas_section_from_coupling_signal():
+    brief = {
+        "namespace": "acme/pay", "member_count": 3, "truncated": False,
+        "repos": [{"repo": "acme/pay/api", "langs": {}, "top": []},
+                  {"repo": "acme/pay/web", "langs": {}, "top": []},
+                  {"repo": "acme/pay/core", "langs": {}, "top": []}],
+        "internal_edges": [
+            {"src": "acme/pay/web", "dst": "acme/pay/api", "flavor": "http", "weight": 5},
+            {"src": "acme/pay/api", "dst": "acme/pay/core", "flavor": "depends", "weight": 1},
+        ],
+        "boundary_edges": [
+            {"src": "acme/ship/api", "dst": "acme/pay/web", "flavor": "http", "weight": 1},
+            {"src": "acme/pay/web", "dst": "x/other", "flavor": "depends", "weight": 1},
+        ],
+        "heads": {"acme/pay/api": "a1", "acme/pay/web": "w1", "acme/pay/core": "c1"},
+    }
+    p = render_cluster_prompt(brief)
+    assert "Coupling risk signal" in p
+    # highest-weight internal edge (5) listed as the busiest coupling
+    assert "Busiest internal coupling" in p
+    assert "acme/pay/web calls acme/pay/api over HTTP (5 shared endpoint(s))" in p
+    # acme/pay/web touches 2 boundary edges -- the leakiest member repo
+    assert "Leakiest repos" in p
+    assert "acme/pay/web (2 external connection(s))" in p
+    assert ", Gotchas," in p
+
+
+def test_render_cluster_prompt_omits_gotchas_without_coupling_signal():
+    brief = {"namespace": "acme/pay", "member_count": 1, "truncated": False,
+             "repos": [{"repo": "acme/pay/a", "langs": {}, "top": []}],
+             "internal_edges": [], "boundary_edges": [], "heads": {"acme/pay/a": "x"}}
+    p = render_cluster_prompt(brief)
+    assert "Coupling risk signal" not in p
+    assert "Gotchas" not in p
+
+
 def test_render_cluster_prompt_no_coupling_fallback():
     brief = {"namespace": "acme/pay", "member_count": 2, "truncated": False,
              "repos": [{"repo": "acme/pay/a", "langs": {}, "top": []}],

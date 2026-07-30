@@ -229,6 +229,24 @@
     mcpServe: function (action, opts) {
       var body = Object.assign({ action: action }, opts || {});
       return postJSON("/api/mcp/serve", body);
+    },
+    // Live wiki (re)generation: single-repo (repoId given) or fleet-wide
+    // (repoId omitted, mirrors `contextlake wiki` with no args). estimate()
+    // is read-only (no LLM call) -- the count shown before the user confirms.
+    wikiStatus: function () {
+      return MODE === "static" ? Promise.reject(new Error("live only")) : fetchJSON("/api/wiki/status");
+    },
+    wikiEstimate: function (repoId, force) {
+      var params = [];
+      if (repoId) params.push("repo=" + encodeURIComponent(repoId));
+      if (force) params.push("force=true");
+      return fetchJSON("/api/wiki/estimate" + (params.length ? "?" + params.join("&") : ""));
+    },
+    wikiGenerate: function (repoId, force) {
+      var body = {};
+      if (repoId) body.repo = repoId;
+      if (force) body.force = true;
+      return postJSON("/api/wiki/generate", body);
     }
   };
 
@@ -658,18 +676,18 @@
           cmd: "contextlake wiki " + id + " --llm builtin",
           action: genAction("Generate wiki", "contextlake wiki " + id + " --llm builtin")
         }));
+        if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id));
         return;
       }
-      var revealed = false;
+      var wikiHeader = [h("strong", null, "Curated wiki — advisory")];
+      if (w.stale) wikiHeader.push(h("span", { class: "cl-healthchip cl-healthchip--stale" },
+        "STALE — code changed since generation"));
       var holder = h("div", { class: "cl-advisory" },
-        h("strong", null, "Curated wiki — advisory" + (w.stale ? ", may be stale" : "")),
-        h("p", { class: "cl-muted" }, "Not ground truth. Reveal to read; verify against the cited source."));
-      var btn = h("button", { class: "cl-btn", type: "button" }, "Reveal wiki");
-      btn.addEventListener("click", function () {
-        if (revealed) return; revealed = true; btn.remove();
-        holder.appendChild(h("div", { class: "cl-md", html: w.html || "" }));
-      });
-      holder.appendChild(btn); pane.appendChild(holder);
+        h("div", { class: "cl-row" }, wikiHeader),
+        h("p", { class: "cl-muted" }, "Not ground truth — verify against the cited source."),
+        h("div", { class: "cl-md", html: w.html || "" }));
+      pane.appendChild(holder);
+      if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id));
     } else if (tab === "owners") {
       if (!d.owners || !d.owners.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No owners", msg: "Derived from git history — none available." })); return; }
       var ot = table(["Owner", "Commits", "Lines", "Share", ""],
@@ -1516,6 +1534,67 @@
     card.appendChild(actions);
     return card;
   }
+  // A "Regenerate wiki" control: single-repo (repoId given) or fleet-wide
+  // (repoId omitted). Estimate-then-confirm before starting -- a fleet-wide
+  // run with Force can fire an LLM call per indexed repo, so the count is
+  // shown up front rather than discovered after the fact. Polls status with
+  // a setTimeout chain (never overlapping requests); wikiPollGen guards
+  // against a stale chain updating a card the user has since navigated away
+  // from, same idiom as the Diagrams tab's renderGen.
+  var wikiPollGen = 0;
+  function wikiRegenerateCard(repoId) {
+    var myGen = ++wikiPollGen;
+    var card = h("div", { class: "cl-card" },
+      h("strong", null, "Regenerate wiki" + (repoId ? "" : " — fleet-wide")),
+      h("p", { class: "cl-muted" },
+        repoId ? "Runs contextlake wiki for this repo only."
+              : "Runs contextlake wiki for every indexed repo — skips repos already up to date unless Force is checked."));
+    var statusLine = h("div", { class: "cl-row" }, h("span", null, "Idle"));
+    var forceCheck = h("input", { type: "checkbox" });
+    var logBox = h("pre", { class: "cl-snippet", hidden: true });
+    var btn = h("button", { class: "cl-btn cl-btn--primary", type: "button" },
+      "Regenerate" + (repoId ? "" : " (fleet-wide)"));
+    card.appendChild(statusLine);
+    card.appendChild(h("label", { class: "cl-row" }, forceCheck, "Force (ignore freshness — regenerate every targeted repo)"));
+    card.appendChild(h("div", { class: "cl-actions" }, btn));
+    card.appendChild(logBox);
+
+    function setStatus(text, running) {
+      clear(statusLine);
+      statusLine.appendChild(h("span", null, text));
+      btn.disabled = running;
+    }
+    function poll() {
+      if (myGen !== wikiPollGen) return;
+      CL.data.wikiStatus().then(function (s) {
+        if (myGen !== wikiPollGen) return;
+        if (s.log_tail) { logBox.hidden = false; logBox.textContent = s.log_tail; }
+        if (s.running) {
+          setStatus("Running — pid " + s.pid + (s.repo ? " (" + s.repo + ")" : " (fleet-wide)"), true);
+          setTimeout(poll, 2000);
+        } else {
+          setStatus(s.finished ? "Finished — see log below" : "Idle", false);
+        }
+      }).catch(function () { /* static mode / not yet started -- leave as Idle */ });
+    }
+    btn.addEventListener("click", function () {
+      btn.disabled = true;
+      CL.data.wikiEstimate(repoId, forceCheck.checked).then(function (est) {
+        if (est.total === 0) { window.alert("No indexed repos match this scope."); btn.disabled = false; return null; }
+        var msg = forceCheck.checked
+          ? ("This bypasses the freshness check — all " + est.total + " repo(s) will regenerate. Continue?")
+          : (est.would_regenerate + " of " + est.total + " repo(s) will regenerate (" +
+            est.unchanged + " already up to date). Continue?");
+        if (!window.confirm(msg)) { btn.disabled = false; return null; }
+        return CL.data.wikiGenerate(repoId, forceCheck.checked).then(function (r) {
+          if (!r.ok) { window.alert("Failed: " + (r.error || "unknown error")); btn.disabled = false; return; }
+          poll();
+        });
+      }).catch(function (e) { window.alert("Failed: " + e.message); btn.disabled = false; });
+    });
+    poll();   // reflect an already-in-progress run on load
+    return card;
+  }
   function fmtBytes(n) {
     if (n == null) return "—";
     var units = ["B", "KB", "MB", "GB", "TB"], i = 0, v = n;
@@ -1548,6 +1627,8 @@
       llmCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Enabled"), h("span", null, d.llm.enabled ? "Yes" : "No")));
       if (d.llm.enabled) llmCard.appendChild(h("div", { class: "cl-row" }, h("span", null, "Provider"), h("code", null, d.llm.provider)));
       body.appendChild(llmCard);
+
+      if (MUTATIONS) body.appendChild(wikiRegenerateCard(null));
 
       if (d.sources.length) {
         body.appendChild(table(["Name", "Type", "Enabled"],

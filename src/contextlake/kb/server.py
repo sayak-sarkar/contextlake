@@ -558,6 +558,8 @@ def build_server(
         """
         from .wiki.generate import repo_brief
         sp = getattr(store, "path", None)
+        # store=None: this tool's output (RepoBriefOut) doesn't surface
+        # readme_excerpt, so skip the filesystem read that field would trigger.
         brief = repo_brief(Path(sp).parent, repo) if sp else None
         if not brief:
             return RepoBriefOut(repo=sanitize_label(repo), found=False)

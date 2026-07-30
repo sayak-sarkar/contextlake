@@ -312,6 +312,90 @@ def served_with_mutations(tmp_path):
         s.close()
 
 
+@pytest.fixture
+def served_with_wiki_mutations(tmp_path, monkeypatch):
+    """Like ``served_with_mutations``, but with an explicit --config pointed at
+    this fixture's own isolated store. Required for /api/wiki/generate, which
+    spawns a real ``contextlake wiki`` subprocess (see wiki_generate_start's
+    docstring): without an explicit config, that subprocess falls back to the
+    normal discovery chain, which on a real dev machine can resolve a
+    real/production store -- HOME is isolated too, for the same reason
+    ``served`` isolates it (defense in depth, not relying on --config alone).
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    store_dir = tmp_path / "store"
+    store_dir.mkdir()
+    s = SqliteStore(store_dir / "index.sqlite")
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+
+    port = _free_port()
+    srv = build_dashboard_server(s, store_dir, host="127.0.0.1", port=port,
+                                 allow_mutations=True, workspace=str(tmp_path / "ws"),
+                                 config_path=str(cfg))
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    base = f"http://127.0.0.1:{port}"
+    try:
+        js = _get(base + "/dashboard.js").decode("utf-8")
+        token = re.search(r'__CL_TOKEN__=("(?:[^"\\]|\\.)*")', js).group(1)
+        token = json.loads(token)
+        yield base, token, store_dir
+    finally:
+        srv.shutdown()
+        s.close()
+
+
+def _get_status(url):
+    try:
+        with urllib.request.urlopen(url, timeout=5) as r:
+            return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read() or b"{}")
+
+
+def test_wiki_status_and_estimate_are_gated_by_mutations(served):
+    # No --allow-mutations: status degrades to not-running, estimate is 404
+    # (previewing a mutating action that isn't available makes no sense).
+    assert json.loads(_get(served + "/api/wiki/status")) == {"running": False}
+    status, _ = _get_status(served + "/api/wiki/estimate")
+    assert status == 404
+
+
+def test_wiki_estimate_endpoint(served_with_wiki_mutations):
+    base, _token, store_dir = served_with_wiki_mutations
+    status, body = _get_status(base + "/api/wiki/estimate")
+    assert status == 200
+    assert body == {"total": 0, "would_regenerate": 0, "unchanged": 0}
+
+
+def test_wiki_generate_route_starts_and_reports_status(served_with_wiki_mutations):
+    base, token, store_dir = served_with_wiki_mutations
+    status, body = _post(base + "/api/wiki/generate", {}, token=token)
+    assert status == 200
+    assert body["ok"] is True
+    assert "pid" in body
+    for _ in range(50):
+        poll = json.loads(_get(base + "/api/wiki/status"))
+        if poll.get("finished"):
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError("wiki generation did not finish in time")
+    assert poll["running"] is False
+    # Regression: /api/wiki/generate must NOT be dispatched through _mutate's
+    # store-lock window -- the spawned `contextlake wiki` child takes that same
+    # lock itself (via _guard_store) at startup, as a different pid, and would
+    # lose the race and exit with "store is busy" if the parent request handler
+    # still held it. See _wiki_generate's docstring in server.py.
+    assert "busy" not in poll["log_tail"].lower()
+
+
+def test_wiki_generate_route_requires_mutations(served):
+    status, body = _post(served + "/api/wiki/generate", {})
+    assert status == 404
+
+
 def _post(url, body, *, token=None, host=None):
     # A custom "Host" header in `headers` makes http.client skip its own default
     # Host and send this value instead, on the SAME real TCP connection the URL's

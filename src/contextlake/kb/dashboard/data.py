@@ -145,9 +145,14 @@ def _symbol_out(t: dict) -> dict:
     return row
 
 
-def _brief_out(brief: dict | None) -> dict | None:
+def _brief_out(brief: dict | None, *, anonymize: bool = False) -> dict | None:
     """Sanitize a ``wiki.generate.repo_brief`` dict for the browser (mirrors
-    ``get_repo_brief``)."""
+    ``get_repo_brief``).
+
+    ``readme_excerpt`` is dropped when ``anonymize`` -- same rule as
+    ``readme_html``/wiki body: anonymized exports never carry README prose,
+    which can hold author names / internal URLs as plain text.
+    """
     if not brief:
         return None
     return {
@@ -165,6 +170,9 @@ def _brief_out(brief: dict | None) -> dict | None:
         "dispatchers": [_symbol_out(t) for t in brief.get("dispatchers", [])],
         "packages": [sanitize_label(p) for p in brief["packages"]],
         "files": [sanitize_label(f) for f in brief["files"]],
+        "setup_signals": [sanitize_label(f) for f in brief.get("setup_signals", [])],
+        "readme_excerpt": (None if anonymize or not brief.get("readme_excerpt")
+                           else sanitize_label(brief["readme_excerpt"], max_len=4000)),
     }
 
 
@@ -348,7 +356,7 @@ def repo_detail(store, store_dir, repo_id: str, *, anonymize: bool = False) -> d
         readme_html = _readme_html(store, repo_id)
     return {
         "repo": sanitize_label(repo_id),
-        "brief": _brief_out(repo_brief(sd, repo_id)),
+        "brief": _brief_out(repo_brief(sd, repo_id, store=store), anonymize=anonymize),
         "readme_html": readme_html,
         "wiki": wiki,
         "owners": _owners_for(store, repo_id, anonymize=anonymize),

@@ -191,3 +191,160 @@ def mcp_stop(store_dir) -> dict:
 def mcp_restart(store_dir, **kw) -> dict:
     mcp_stop(store_dir)
     return mcp_start(store_dir, **kw)
+
+
+# --- Wiki generation (live, from the dashboard) ------------------------------
+#
+# Single-repo or fleet-wide (repo_id=None runs every indexed repo, mirroring
+# `contextlake wiki` with no args). Cluster/namespace generation is CLI-only --
+# not exposed here; this covers what was actually asked for. Modeled on
+# mcp_start/mcp_stop/mcp_status, not sync_repo/add_repo: an LLM-backed run has
+# no safe fixed timeout (could be one repo or the whole fleet), so it's a
+# non-blocking Popen + pidfile, not a blocking subprocess.run(timeout=...).
+
+def _wiki_pidfile(store_dir) -> Path:
+    return Path(store_dir) / "dashboard" / "wiki-gen.pid"
+
+
+def _wiki_logfile(store_dir) -> Path:
+    return Path(store_dir) / "dashboard" / "wiki-gen.log"
+
+
+def _pid_finished(pid: int) -> bool:
+    """True once ``pid`` has exited.
+
+    ``wiki_generate_start`` never waits on its child (the point is to return
+    immediately), so an exited child is a zombie until reaped -- and
+    ``os.kill(pid, 0)`` reports a zombie as alive forever, since the pid is
+    still allocated. Reap it via a non-blocking ``waitpid`` first (this IS
+    our child, spawned by this same process); fall back to the plain
+    alive-check for a pid that isn't our child (e.g. a dashboard restart lost
+    track of a still-running prior run).
+
+    ``ThreadingHTTPServer`` means two concurrent pollers (a second browser tab,
+    a reload) can call this for the same pid at once -- benign: only one
+    ``waitpid`` actually reaps it, the other gets ``ChildProcessError`` and
+    falls through to ``_pid_alive``, which by then correctly reports False for
+    the just-reaped pid.
+    """
+    try:
+        reaped_pid, _ = os.waitpid(pid, os.WNOHANG)
+        if reaped_pid == pid:
+            return True
+    except ChildProcessError:
+        pass
+    return not _pid_alive(pid)
+
+
+def wiki_generate_status(store_dir) -> dict:
+    """Poll a run started by :func:`wiki_generate_start`.
+
+    Tails the log for live progress -- the CLI's own per-repo ``written``/
+    ``rejected``/``unchanged`` lines, unchanged, so no new machine-readable
+    progress format is needed. The log is read unconditionally, even after the
+    pidfile is gone: the pidfile only tracks liveness and is cleared once a
+    finished run has been reported, but the log is the durable record of what
+    happened, including a failure -- exactly the case a poller most needs to
+    still see, so a second/late poll (a reload, a second browser tab) must not
+    go blank just because it missed the one ``finished: True`` tick.
+    """
+    log_path = _wiki_logfile(store_dir)
+    tail = ""
+    if log_path.exists():
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+        tail = "\n".join(text.splitlines()[-40:])
+    pf = _wiki_pidfile(store_dir)
+    if not pf.exists():
+        return {"running": False, "log_tail": tail}
+    try:
+        info = json.loads(pf.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"running": False, "log_tail": tail}
+    pid = info.get("pid")
+    running = isinstance(pid, int) and not _pid_finished(pid)
+    result = {"running": running, "log_tail": tail,
+             **{k: v for k, v in info.items() if k != "pid"}}
+    if not running:
+        pf.unlink(missing_ok=True)
+        result["finished"] = True
+    return result
+
+
+def wiki_generate_estimate(store, store_dir, *, repo_id: str | None = None,
+                           force: bool = False) -> dict:
+    """Read-only, no LLM call: how many repos would actually regenerate.
+
+    Replicates ``cmds.wiki.cmd_wiki``'s exact freshness-skip check (the
+    ``at commit `<sha>``` provenance-footer regex) so the dashboard can show a
+    real count before the user confirms a run. With ``force``, every targeted
+    repo counts as "would regenerate" -- the estimate makes that cost explicit
+    instead of it being a surprise after the run has already started.
+    """
+    from ..wiki.generate import repo_brief
+
+    if repo_id:
+        r = store.get_repo(repo_id)
+        repos = [r] if r else []
+    else:
+        repos = store.list_repos()
+    wiki_dir = Path(store_dir) / "wiki"
+    total = len(repos)
+    would_regenerate = 0
+    for r in repos:
+        brief = repo_brief(store_dir, r.id)
+        if brief is None:
+            continue
+        wiki_file = wiki_dir / (r.id.replace("/", "__") + ".md")
+        stale_or_missing = True
+        if not force and wiki_file.exists() and brief.get("head"):
+            prev = wiki_file.read_text(encoding="utf-8", errors="replace")
+            m = re.search(r"at commit `([^`]+)`", prev)
+            stale_or_missing = not (m and m.group(1) == brief["head"])
+        if stale_or_missing:
+            would_regenerate += 1
+    return {"total": total, "would_regenerate": would_regenerate,
+           "unchanged": total - would_regenerate}
+
+
+def wiki_generate_start(store_dir, *, repo_id: str | None = None, force: bool = False,
+                        llm: str | None = None, llm_model: str | None = None,
+                        config_path: str | None = None) -> dict:
+    """Spawn ``contextlake wiki`` as a subprocess -- reuses the exact, tested CLI
+    generation loop unmodified, no duplicated logic. Refuses to start a second
+    run while one is already in progress (single pidfile, same discipline as
+    the MCP server lifecycle above).
+
+    Unlike ``mcp_start`` (a server that should never legitimately exit within
+    the startup grace period), a wiki run with nothing to do exits almost
+    immediately with code 0 -- that's success, not a failure to detect, so
+    there's no "exited immediately" check here; :func:`wiki_generate_status`
+    reports it as ``finished`` on the very next poll.
+
+    ``config_path`` should always be the caller's own resolved config path:
+    without it, the subprocess falls back to the normal config discovery
+    chain (global / ancestor ``.contextlake.kb.toml``), which may not be the
+    same store this dashboard is serving.
+    """
+    status = wiki_generate_status(store_dir)
+    if status["running"]:
+        return {"ok": False, "error": "a wiki generation run is already in progress",
+               **status}
+    cmd = [sys.executable, "-m", "contextlake", "wiki"]
+    if repo_id:
+        cmd.append(repo_id)
+    if force:
+        cmd.append("--force")
+    if llm:
+        cmd += ["--llm", llm]
+    if llm_model:
+        cmd += ["--llm-model", llm_model]
+    if config_path:
+        cmd += ["--config", config_path]
+    log_path = _wiki_logfile(store_dir)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "w", encoding="utf-8") as logf:
+        proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT,
+                                start_new_session=True)
+    pf = _wiki_pidfile(store_dir)
+    pf.write_text(json.dumps({"pid": proc.pid, "repo": repo_id, "force": force}))
+    return {"ok": True, "running": True, "pid": proc.pid}

@@ -199,7 +199,7 @@ def cmd_wiki(args) -> int:
         written = rejected = skipped = failed = 0
         progress = style.Progress(len(targets), label="wiki")
         for repo_id, _ in targets:
-            brief = repo_brief(store_dir, repo_id)
+            brief = repo_brief(store_dir, repo_id, store=store)
             if brief is None:
                 progress.advance(repo_id)
                 continue
@@ -220,7 +220,7 @@ def cmd_wiki(args) -> int:
                     progress.advance(repo_id)
                     continue
             try:
-                page = generate_page(llm, store_dir, repo_id)
+                page = generate_page(llm, store_dir, repo_id, store=store)
                 gate = council_gate(llm, page, render_prompt(brief),
                                     accept_score=cfg.llm.accept_score,
                                     council_size=getattr(cfg.llm, "council_size", None))

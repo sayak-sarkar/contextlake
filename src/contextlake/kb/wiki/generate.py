@@ -9,8 +9,19 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import date
+from pathlib import Path
 
 from ..store.shards import read_shard
+
+# Conventional entry-point/config filenames -- presence-only signal for the
+# "Setup & Run" section (never file contents beyond the README excerpt below,
+# so there's no hallucination surface: the model is told these files exist,
+# not what's in them).
+_SETUP_FILENAMES = {
+    "package.json", "pyproject.toml", "dockerfile", "docker-compose.yml",
+    "docker-compose.yaml", "manage.py", "main.py", "__main__.py",
+    "program.cs", "makefile",
+}
 
 SYSTEM = (
     "You are a precise staff engineer writing a short wiki page about a code "
@@ -65,8 +76,61 @@ def _symbol_row(n, *, count: int | None = None) -> dict:
     return row
 
 
-def repo_brief(store_dir, repo_id: str) -> dict | None:
-    """Salient, grounded facts about a repo, or None if it has no shard."""
+def _is_setup_filename(base: str) -> bool:
+    base = base.lower()
+    return base in _SETUP_FILENAMES or base.startswith("readme") or base.endswith(".csproj")
+
+
+def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> list[str]:
+    """Which conventional entry-point/config filenames exist.
+
+    Two sources, merged: (1) every file already in the shard (not the
+    truncated 20-file sample below) -- catches source-tree entry points like
+    ``main.py``/``manage.py``/``Program.cs``, which tree-sitter indexes like
+    any other source file; (2) a top-level-only listing of the live checkout,
+    when ``store`` is given -- catches config/manifest files (``package.json``,
+    ``Dockerfile``, ``pyproject.toml``, ...) that aren't source code and so
+    never become graph nodes at all. Same store-optional, degrade-to-nothing
+    guard as :func:`_readme_excerpt` -- omit ``store`` and you just get (1).
+    """
+    found = {f for f in all_files if _is_setup_filename(f.rsplit("/", 1)[-1])}
+    if store is not None and repo_id is not None:
+        r = store.get_repo(repo_id)
+        base = Path(r.path) if r and getattr(r, "path", None) else None
+        if base and base.is_dir():
+            for entry in base.iterdir():
+                if entry.is_file() and _is_setup_filename(entry.name):
+                    found.add(entry.name)
+    return sorted(found)[:20]
+
+
+def _readme_excerpt(store, repo_id: str, *, max_chars: int = 2000) -> str | None:
+    """First ``max_chars`` of the repo's own README, read from its live checkout.
+
+    Degrades to ``None`` (never raises) when ``store`` is omitted or the
+    checkout is missing/moved -- mirrors ``dashboard.data._readme_html``'s
+    guard for the exact same reason.
+    """
+    if store is None:
+        return None
+    r = store.get_repo(repo_id)
+    base = Path(r.path) if r and getattr(r, "path", None) else None
+    if not base or not base.is_dir():
+        return None
+    for name in ("README.md", "README.rst", "README.txt", "README", "readme.md"):
+        f = base / name
+        if f.is_file():
+            return f.read_text(encoding="utf-8", errors="replace")[:max_chars]
+    return None
+
+
+def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
+    """Salient, grounded facts about a repo, or None if it has no shard.
+
+    ``store`` is optional and only used for the ``readme_excerpt`` field (a
+    live-checkout filesystem read, unlike everything else here which comes
+    from the indexed shard alone) -- omit it and the field is simply ``None``.
+    """
     shard = read_shard(store_dir, repo_id)
     if shard is None:
         return None
@@ -81,6 +145,7 @@ def repo_brief(store_dir, repo_id: str) -> dict | None:
         in_degree[e.dst] += 1
         out_degree[e.src] += 1
     top = [by_id[i] for i, _ in degree.most_common(15) if i in by_id]
+    all_files = {n.file for n in nodes if n.file}
     return {
         "repo": repo_id,
         "head": shard.head_commit,
@@ -98,11 +163,13 @@ def repo_brief(store_dir, repo_id: str) -> dict | None:
         "dispatchers": [_symbol_row(by_id[i], count=c)
                         for i, c in out_degree.most_common(15) if i in by_id],
         "packages": [n.name for n in nodes if n.kind == "package"][:20],
-        "files": sorted({n.file for n in nodes if n.file})[:20],
+        "files": sorted(all_files)[:20],
         "decisions": [{"title": n.name, "file": n.file,
                        "doc": (n.attrs or {}).get("doc")}
                       for n in nodes if n.kind == "adr"][:20],
         "external": external_context(store_dir, repo_id),
+        "readme_excerpt": _readme_excerpt(store, repo_id),
+        "setup_signals": _setup_signals(all_files, store, repo_id),
     }
 
 
@@ -125,6 +192,22 @@ def render_prompt(brief: dict) -> str:
         lines.append("Depends on packages: " + ", ".join(brief["packages"]))
     if brief["files"]:
         lines.append("Notable files: " + ", ".join(brief["files"]))
+    if brief.get("readme_excerpt") or brief.get("setup_signals"):
+        lines.append("")
+        lines.append("Setup/run signal (from the repo's own files):")
+        if brief.get("setup_signals"):
+            lines.append("  Entry-point/config files present: "
+                         + ", ".join(brief["setup_signals"]))
+        if brief.get("readme_excerpt"):
+            lines.append("  From the repo's own README:")
+            lines.append(f"  \"{brief['readme_excerpt']}\"")
+    if brief.get("hubs"):
+        lines.append("")
+        lines.append("Most-depended-on symbols (highest caller count in the graph — "
+                     "treat changes to these with extra care):")
+        for h in brief["hubs"][:8]:
+            lines.append(f"  - {h['kind']} {h['name']} ({h.get('file') or '?'}), "
+                         f"{h['count']} caller(s)")
     if brief.get("decisions"):
         lines.append("")
         lines.append("Recorded decisions (from the repo's own ADR/decision docs, "
@@ -146,13 +229,20 @@ def render_prompt(brief: dict) -> str:
             "attribute each such statement to its source (name the source/link). "
             "Never present external claims as facts about the code without attribution."
         )
-    sections = "Overview, Key components, Dependencies"
+    sections = "Overview"
+    if brief.get("readme_excerpt") or brief.get("setup_signals"):
+        sections += ", Setup & Run"
+    sections += ", Architecture, Dependencies"
+    if brief.get("hubs"):
+        sections += ", Gotchas"
     if brief.get("decisions"):
         sections += ", Decisions"
     lines += [
         "",
-        f"Write a wiki page in Markdown with sections: {sections}. Ground every "
-        "statement in the facts above; do not speculate.",
+        f"Write a wiki page in Markdown with sections: {sections}, in that order. "
+        "Ground every statement in the facts above; do not speculate. Omit a section "
+        "entirely if the facts above give you nothing to say for it — do not write a "
+        "heading with no content.",
     ]
     return "\n".join(lines)
 
@@ -168,9 +258,10 @@ def provenance_footer(brief: dict, verified_at: date | None = None) -> str:
     )
 
 
-def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = None) -> str | None:
+def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = None,
+                  store=None) -> str | None:
     """Generate a provenance-stamped wiki page (Markdown), or None without a shard."""
-    brief = repo_brief(store_dir, repo_id)
+    brief = repo_brief(store_dir, repo_id, store=store)
     if brief is None:
         return None
     body = llm.generate(render_prompt(brief), system=SYSTEM).strip()
