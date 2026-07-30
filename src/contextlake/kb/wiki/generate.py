@@ -134,6 +134,42 @@ def _readme_excerpt(store, repo_id: str, *, max_chars: int = 2000) -> str | None
     return None
 
 
+def _ranked_with_kind_floor(
+    candidates: list[tuple[str, int]], by_id: dict, cap: int,
+) -> list[str]:
+    """``candidates`` (node_id, count) sorted by count desc -> up to ``cap`` ids,
+    reserving at least one slot per distinct kind present so a kind with
+    structurally low degree (e.g. a SQL table, which doesn't call anything)
+    always gets some representation instead of being silently squeezed out by
+    a pure degree-rank cutoff.
+
+    ``candidates`` must already include every id you want considered for a
+    floor slot -- a kind absent from ``candidates`` entirely (e.g. because the
+    caller only passed nodes with nonzero degree) gets no floor slot, since
+    there's nothing here to represent it. Callers that want a zero-degree
+    kind included must include it as a (id, 0) candidate themselves.
+    """
+    by_kind: dict[str, list[str]] = {}
+    order: list[str] = []
+    for nid, _count in candidates:
+        node = by_id.get(nid)
+        if node is None:
+            continue
+        by_kind.setdefault(node.kind, []).append(nid)
+        order.append(nid)
+    floor_ids = [ids[0] for ids in by_kind.values()][:cap]
+    floor_set = set(floor_ids)
+    remaining_cap = max(0, cap - len(floor_ids))
+    rest = [nid for nid in order if nid not in floor_set][:remaining_cap]
+    seen: set[str] = set()
+    out: list[str] = []
+    for nid in floor_ids + rest:
+        if nid not in seen:
+            seen.add(nid)
+            out.append(nid)
+    return out[:cap]
+
+
 def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
     """Salient, grounded facts about a repo, or None if it has no shard.
 
@@ -155,7 +191,19 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
         in_degree[e.dst] += 1
         out_degree[e.src] += 1
     cap = _grounding_cap(len(nodes))
-    top = [by_id[i] for i, _ in degree.most_common(cap) if i in by_id]
+    # Candidates for top_symbols cover every node (defaulting to 0 degree), not
+    # just the ones with an edge, so a kind that never appears in `degree` at
+    # all (e.g. a SQL table, which doesn't call anything) still gets a floor
+    # slot -- top_symbols carries no "count", so a 0-degree row here is not a
+    # fabricated claim, just an honestly-listed symbol.
+    all_node_candidates = sorted(((n.id, degree[n.id]) for n in nodes), key=lambda x: -x[1])
+    top_ids = _ranked_with_kind_floor(all_node_candidates, by_id, cap)
+    top = [by_id[i] for i in top_ids]
+    # hubs/dispatchers keep counts, so their floor only reorders real
+    # candidates (nodes that actually have the relevant degree) -- it must
+    # never manufacture a "0 caller(s)" row for a kind with no real signal.
+    hub_ids = _ranked_with_kind_floor(in_degree.most_common(), by_id, cap)
+    dispatcher_ids = _ranked_with_kind_floor(out_degree.most_common(), by_id, cap)
     all_files = {n.file for n in nodes if n.file}
     return {
         "repo": repo_id,
@@ -169,10 +217,8 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
         # the dashboard's own risk view (Anatomy tab's hotspots section), not
         # folded into top_symbols so existing consumers of that field are
         # unaffected.
-        "hubs": [_symbol_row(by_id[i], count=c)
-                for i, c in in_degree.most_common(cap) if i in by_id],
-        "dispatchers": [_symbol_row(by_id[i], count=c)
-                        for i, c in out_degree.most_common(cap) if i in by_id],
+        "hubs": [_symbol_row(by_id[i], count=in_degree[i]) for i in hub_ids],
+        "dispatchers": [_symbol_row(by_id[i], count=out_degree[i]) for i in dispatcher_ids],
         "packages": [n.name for n in nodes if n.kind == "package"][:20],
         "files": sorted(all_files)[:20],
         "decisions": [{"title": n.name, "file": n.file,

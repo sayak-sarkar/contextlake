@@ -75,6 +75,20 @@ def test_repo_brief_splits_hubs_and_dispatchers(tmp_path):
     assert all("count" not in t for t in brief["top_symbols"])
 
 
+def test_hubs_reserve_a_slot_per_kind_even_when_low_degree(tmp_path):
+    nodes = [Node(id=f"fn{i}", repo="r", kind="function", name=f"fn{i}", lang="python")
+             for i in range(20)]
+    nodes.append(Node(id="tbl1", repo="r", kind="table", name="Orders", lang="sql"))
+    prov = Provenance(source_file="f.py", verified_at=date.today())
+    # Every "fn" node calls fn0 heavily; the SQL table has zero in/out edges at all.
+    edges = [Edge(src=f"fn{i}", dst="fn0", relation="calls",
+                  confidence=Confidence.INFERRED, provenance=prov)
+             for i in range(1, 20)]
+    write_shard(tmp_path, GraphShard(repo="r", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+    assert any(h["name"] == "Orders" for h in brief["hubs"] + brief["top_symbols"])
+
+
 def test_grounding_cap_scales_with_repo_size():
     from contextlake.kb.wiki.generate import _grounding_cap
     assert _grounding_cap(500) == 15      # below floor
