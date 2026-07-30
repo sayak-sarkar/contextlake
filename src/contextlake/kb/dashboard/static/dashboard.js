@@ -145,9 +145,13 @@
     },
     // Populates the Diagrams tab's module scope-down control -- only fetched
     // when a repo's diagram comes back truncated, so small repos never pay for it.
-    repoModules: function (id) {
-      return MODE === "static" ? Promise.reject(new Error("live only"))
-        : fetchJSON("/api/repo/" + encPath(id) + "/modules");
+    // `within`, when given, asks for the next level down (that module's own
+    // children) instead of the top-level list -- the recursive drill-down.
+    repoModules: function (id, within) {
+      if (MODE === "static") return Promise.reject(new Error("live only"));
+      var url = "/api/repo/" + encPath(id) + "/modules";
+      if (within) url += "?within=" + encodeURIComponent(within);
+      return fetchJSON(url);
     },
     // sequencediagram needs a single symbol seed, not a whole repo, so it's served off
     // /api/impact/diagram (same family as impact() below) rather than /api/repo/.../diagram.
@@ -175,6 +179,13 @@
       }
       return fetchJSON("/api/impact?node=" + encodeURIComponent(seed) +
         "&hops=" + (hops || 3) + "&limit=" + (limit || 100));
+    },
+    // "How does A reach B" -- live only (BFS over the real graph, same
+    // precedent as diagram()/dataFlow()/sequenceDiagram() above).
+    path: function (from, to, maxHops) {
+      if (MODE === "static") return Promise.reject(new Error("live only"));
+      return fetchJSON("/api/path?from=" + encodeURIComponent(from) +
+        "&to=" + encodeURIComponent(to) + "&max_hops=" + (maxHops || 6));
     },
     search: function (q, kind, repo) {
       if (MODE === "static") {
@@ -610,6 +621,29 @@
         top.appendChild(row);
       });
       if (b.top_symbols && b.top_symbols.length) pane.appendChild(top);
+      // Hotspots: fan-in (hubs) and fan-out (dispatchers) ranked separately --
+      // the combined-degree "Top symbols" above answers "what matters", this
+      // answers "where's the risk" (hubs: protect with tests; dispatchers:
+      // where behavior branches). Data already computed at index time
+      // (wiki.generate.repo_brief); this is its own section, not folded in.
+      var hubs = b.hubs || [], dispatchers = b.dispatchers || [];
+      if (hubs.length || dispatchers.length) {
+        var hotWrap = h("div", { class: "cl-card" }, h("strong", null, "Hotspots"));
+        function hotTable(title, rows, countLabel) {
+          if (!rows.length) return null;
+          return h("div", null, h("p", { class: "cl-muted" }, title),
+            table(["symbol", "file", countLabel, ""], rows.map(function (t) {
+              return [t.name, t.file || "—", String(t.count),
+                h("button", { class: "cl-btn", type: "button", onclick: function () { go("#/symbol/" + (t.name || "")); } },
+                  h("span", { html: icon("ui-blast") }), "Blast radius")];
+            }), [false, false, true, false]));
+        }
+        var hubsTable = hotTable("Most depended on (hubs)", hubs, "callers");
+        var dispatchersTable = hotTable("Widest fan-out (dispatchers)", dispatchers, "callees");
+        if (hubsTable) hotWrap.appendChild(hubsTable);
+        if (dispatchersTable) hotWrap.appendChild(dispatchersTable);
+        pane.appendChild(hotWrap);
+      }
     } else if (tab === "readme") {
       if (d.readme_html) pane.appendChild(h("div", { class: "cl-card" },
         h("p", { class: "cl-muted" }, "README — verbatim from source" + (b.head ? " @ " + String(b.head).slice(0, 8) : "")),
@@ -768,67 +802,124 @@
     var scopeWrap = h("div", { class: "cl-diagram-scope" });
     var body = h("div", { class: "cl-panel__body" });
     var currentModule = null;
-    var modulesPromise = null;
-    // The very first truncated response auto-scopes to the repo's largest
-    // module instead of showing an arbitrary alphabetical (often vendored-code-
-    // biased -- e.g. "ExternalProjects/" sorts before "src/") slice by default.
-    // Only applies once: after that, whatever the user picks (including
-    // explicitly choosing "Whole repo") sticks across format tab switches.
+    var modulesCache = {}; // within-value ("" = top level) -> promise of {modules:[...]}
+    // The initial landing auto-descends into the largest child at each level,
+    // not just one hop, until the view is no longer truncated or there's
+    // nowhere further to drill (see repo_modules()'s `within` param) -- e.g. a
+    // repo whose entire code lives under one top-level dir used to dead-end
+    // picking that one module (still truncated, no way further down); now it
+    // keeps descending into that module's own largest child, and so on. Runs
+    // once per tab load: after it settles, or the user makes any explicit
+    // pick, further truncated views just offer the picker -- no repeated
+    // silent auto-navigation out from under an explicit choice.
     var autoDefaultApplied = false;
 
     // Only fetched once a diagram actually comes back truncated -- a repo small
-    // enough to render whole never pays for this extra round trip. Cached as a
-    // promise so the auto-default and the dropdown population share one fetch.
-    function loadModules() {
-      if (!modulesPromise) modulesPromise = CL.data.repoModules(id).catch(function () {
+    // enough to render whole never pays for this extra round trip. Cached per
+    // scope depth so re-visiting an already-seen level (e.g. via a breadcrumb
+    // click) doesn't refetch.
+    function loadModules(within) {
+      var key = within || "";
+      if (!modulesCache[key]) modulesCache[key] = CL.data.repoModules(id, within).catch(function () {
         return { modules: [] }; // scope-down is a convenience, not essential -- fail quiet
       });
-      return modulesPromise;
+      return modulesCache[key];
     }
 
-    // Caller clears scopeWrap first -- rebuilt fresh on every truncated render so
-    // the <select>'s value stays synced to currentModule (which can change via
-    // the auto-default below, not just a user click).
-    function populateModulePicker(mods) {
-      if (mods.length < 2) return; // one giant module is no scope-down at all
+    // "src/payments" -> ["src", "src/payments"], each entry a full prefix
+    // ready to jump back to.
+    function crumbPrefixes(mod) {
+      if (!mod) return [];
+      var parts = mod.split("/"), out = [], acc = "";
+      parts.forEach(function (p) { acc = acc ? acc + "/" + p : p; out.push(acc); });
+      return out;
+    }
+
+    function jumpTo(prefix) {
+      autoDefaultApplied = true; // an explicit choice -- never auto-navigate away from it
+      currentModule = prefix;
+      renderFmt(currentFmt);
+    }
+
+    // Caller clears scopeWrap first -- rebuilt fresh on every render so the
+    // breadcrumb/picker stay synced to currentModule (which can change via the
+    // auto-drill above, not just a user click). `mods` are currentModule's own
+    // children (one level deeper); `truncated` is whether the CURRENT view
+    // still needs narrowing.
+    function renderScopeControls(mods, truncated) {
+      clear(scopeWrap);
+      if (currentModule) {
+        var crumbs = crumbPrefixes(currentModule);
+        var trail = [h("button", {
+          class: "cl-crumb", type: "button", onclick: function () { jumpTo(null); }
+        }, "Whole repo")];
+        crumbs.forEach(function (full, i) {
+          trail.push(h("span", { class: "cl-crumb-sep" }, "›"));
+          var label = full.split("/").pop();
+          trail.push(i === crumbs.length - 1
+            ? h("span", { class: "cl-crumb cl-crumb--current" }, label)
+            : h("button", {
+                class: "cl-crumb", type: "button",
+                onclick: (function (p) { return function () { jumpTo(p); }; })(full)
+              }, label));
+        });
+        scopeWrap.appendChild(h("div", { class: "cl-crumbs" }, trail));
+      }
+      if (!mods.length) {
+        if (truncated) scopeWrap.appendChild(h("p", { class: "cl-muted" },
+          "Still too large to show in full — no further breakdown available for " +
+          (currentModule ? "this module" : "this repo") + "."));
+        return;
+      }
       var select = h("select", {
-        class: "cl-select", "aria-label": "Scope diagram to one module",
-        onchange: function (ev) {
-          currentModule = ev.target.value || null;
-          renderFmt(currentFmt);
-        }
-      }, h("option", { value: "" }, "Whole repo (truncated)"),
+        class: "cl-select", "aria-label": "Narrow further",
+        onchange: function (ev) { if (ev.target.value) jumpTo(ev.target.value); }
+      }, h("option", { value: "" }, "Narrow further…"),
          mods.map(function (m) {
-           return h("option", { value: m.prefix }, m.prefix + " (" + m.nodes + ")");
+           return h("option", { value: m.prefix }, m.prefix.split("/").pop() + " (" + m.nodes + ")");
          }));
-      select.value = currentModule || "";
       scopeWrap.appendChild(h("label", { class: "cl-diagram-scope__label" },
-        "This repo is too large to show in one diagram — ", select));
+        (currentModule ? "This module" : "This repo") + " is too large to show in one diagram — ", select));
     }
 
     var currentFmt = null;
+    // The auto-drill can take several sequential round trips (a deeply nested
+    // repo). If the user switches format tabs mid-descent, that's a brand new
+    // renderFmt() call while the old chain's fetches are still in flight --
+    // without a guard, the stale chain's `.then()`s would go on mutating
+    // `currentModule`/the DOM after a newer chain already took over. Same
+    // stale-response guard idiom as `mermaidRenderSeq` elsewhere in this file.
+    var renderGen = 0;
     function renderFmt(fmt) {
       currentFmt = fmt;
+      var myGen = ++renderGen;
       strip.querySelectorAll(".cl-tab").forEach(function (btn) {
         btn.setAttribute("aria-selected", String(btn.dataset.fmt === fmt));
       });
       clear(body); body.appendChild(skeleton(1));
       CL.data.diagram(id, fmt, currentModule).then(function (res) {
+        if (myGen !== renderGen) return; // a newer renderFmt call superseded this one
         if (res.error) { clear(body); body.appendChild(stateBlock({ kind: "error", title: "Unknown diagram format" })); return; }
-        if (!res.truncated) { clear(body); body.appendChild(mermaidCard(res.text)); return; }
-        loadModules().then(function (modRes) {
+        if (!res.truncated) {
+          autoDefaultApplied = true;
+          renderScopeControls([], false); // still show the breadcrumb if scoped, so the user keeps context
+          clear(body); body.appendChild(mermaidCard(res.text));
+          return;
+        }
+        loadModules(currentModule).then(function (modRes) {
+          if (myGen !== renderGen) return;
           var mods = modRes.modules || [];
-          if (!autoDefaultApplied && currentModule === null && mods.length) {
-            autoDefaultApplied = true;
-            currentModule = mods[0].prefix; // largest module -- see repo_modules()'s own ranking
-            renderFmt(fmt); // re-fetch scoped to it instead of rendering the arbitrary whole-repo slice
+          if (!autoDefaultApplied && mods.length) {
+            currentModule = mods[0].prefix; // largest child at this depth -- see repo_modules()'s own ranking
+            renderFmt(fmt); // re-fetch scoped one level deeper instead of rendering the still-too-big slice
             return;
           }
-          clear(scopeWrap);
-          populateModulePicker(mods);
+          autoDefaultApplied = true;
+          renderScopeControls(mods, true);
           clear(body); body.appendChild(mermaidCard(res.text));
         });
       }).catch(function (e) {
+        if (myGen !== renderGen) return;
         clear(body);
         body.appendChild(stateBlock({ kind: "error", title: "Couldn't load this diagram", msg: String(e) }));
       });
@@ -1097,6 +1188,76 @@
     return h("button", { class: "cl-btn", type: "button", "aria-pressed": String(blastCfg.rels[rel] !== false), onclick: function () { blastCfg.rels[rel] = blastCfg.rels[rel] === false; this.setAttribute("aria-pressed", String(blastCfg.rels[rel] !== false)); if (onChange) onChange(); else CL.router.render(); } }, label);
   }
   function labelWrap(text, ctrl) { return h("label", { class: "cl-row" }, text, ctrl); }
+
+  // ---- Path ---------------------------------------------------------------
+  // "How does A reach B" as a route, not a diagram -- drawing the rest of the
+  // graph around a single path only adds places to get lost. Reuses the same
+  // resolve_target id/name/fuzzy resolution + ambiguous-candidates handling
+  // the Blast radius view already has (kb/dashboard/data.py's path()).
+  var pathState = { from: "", to: "" };
+  function viewPath() {
+    if (MODE === "static") { renderInto("path-body", stateBlock({
+      kind: "unavailable", title: "Path is live-only",
+      msg: "This static export has no running server behind it.",
+      cmd: "contextlake dashboard --serve",
+      action: genAction("Run live server", "contextlake dashboard --serve")
+    })); return; }
+    var body = h("div", { class: "cl-panel__body" });
+    body.appendChild(h("p", { class: "cl-muted" },
+      "Find the shortest route between two symbols over the real call graph."));
+    var fromInput = h("input", { class: "cl-pathinput", type: "text", value: pathState.from,
+      placeholder: "from symbol or node id", "aria-label": "From symbol" });
+    var toInput = h("input", { class: "cl-pathinput", type: "text", value: pathState.to,
+      placeholder: "to symbol or node id", "aria-label": "To symbol" });
+    var resultWrap = h("div");
+    function renderResult(res) {
+      clear(resultWrap);
+      if (!res.found) {
+        if (res.ambiguous && res.candidates && res.candidates.length) {
+          var amb = stateBlock({
+            kind: "empty",
+            title: "“" + (res.which === "from" ? res.from : res.to) + "” is defined in several repos",
+            msg: "Narrow to one repo and try again:"
+          });
+          res.candidates.forEach(function (c) {
+            amb.appendChild(h("div", { class: "cl-row" }, kindIcon(c.kind), c.name, h("span", { class: "cl-muted" }, c.repo)));
+          });
+          resultWrap.appendChild(amb);
+          return;
+        }
+        resultWrap.appendChild(stateBlock({ kind: "empty", title: "No path found",
+          msg: "No route between “" + res.from + "” and “" + res.to + "” within the hop limit." }));
+        return;
+      }
+      var steps = h("div", { class: "cl-pathsteps" });
+      res.steps.forEach(function (s, i) {
+        steps.appendChild(h("div", { class: "cl-row" },
+          h("span", { class: "cl-stepnum" }, String(i + 1)), kindIcon(s.kind), h("strong", null, s.name),
+          s.file ? h("span", { class: "cl-muted" }, s.file) : null,
+          h("button", { class: "cl-btn", type: "button", onclick: function () { go("#/symbol/" + s.id); } },
+            h("span", { html: icon("ui-blast") }), "Blast radius")));
+        if (i < res.steps.length - 1) steps.appendChild(h("div", { class: "cl-patharrow" }, "↓ calls"));
+      });
+      resultWrap.appendChild(steps);
+    }
+    function runSearch() {
+      var from = fromInput.value.trim(), to = toInput.value.trim();
+      if (!from || !to) return;
+      pathState.from = from; pathState.to = to;
+      clear(resultWrap); resultWrap.appendChild(skeleton(1));
+      CL.data.path(from, to).then(renderResult).catch(function (e) {
+        clear(resultWrap);
+        resultWrap.appendChild(stateBlock({ kind: "error", title: "Couldn't find a path", msg: String(e) }));
+      });
+    }
+    var form = h("form", { class: "cl-pathform", onsubmit: function (ev) { ev.preventDefault(); runSearch(); } },
+      fromInput, h("span", { class: "cl-muted", "aria-hidden": "true" }, "→"), toInput,
+      h("button", { class: "cl-btn cl-btn--primary", type: "submit" }, "Find path"));
+    body.appendChild(form);
+    body.appendChild(resultWrap);
+    renderInto("path-body", body);
+    if (pathState.from && pathState.to) runSearch();
+  }
 
   // ---- Health -----------------------------------------------------------
   function viewHealth() {
@@ -1434,7 +1595,7 @@
   // ===================================================================== //
   // ROUTER + CHROME                                                        //
   // ===================================================================== //
-  var PANELS = ["fleet", "repo", "arch", "symbol", "health", "search", "chat", "mcp", "settings"];
+  var PANELS = ["fleet", "repo", "arch", "symbol", "path", "health", "search", "chat", "mcp", "settings"];
   // Track the last-rendered route so we only move focus to #app on an actual
   // route/lens CHANGE (navigation), never on in-view data re-renders — e.g. the
   // ground-truth filter, trust-bar segments and blast toggles all call
@@ -1467,6 +1628,7 @@
       else if (lens === "repo") viewRepo(r.rest || ctx.repoId, r.query.tab);
       else if (lens === "arch") viewArch(r.rest || null);
       else if (lens === "symbol") viewSymbol(r.rest || ctx.nodeId);
+      else if (lens === "path") viewPath();
       else if (lens === "health") viewHealth();
       else if (lens === "search") { if (r.query.q) searchState.q = r.query.q; viewSearch(searchState.q); }
       else if (lens === "chat") viewChat();

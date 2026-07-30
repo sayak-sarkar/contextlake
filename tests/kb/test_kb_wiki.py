@@ -49,6 +49,32 @@ def test_repo_brief_and_prompt(tmp_path):
     assert "CatalogService" in prompt and "svc.py" in prompt and "requests" in prompt
 
 
+def test_repo_brief_splits_hubs_and_dispatchers(tmp_path):
+    prov = Provenance(source_file="x.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [Node(id=nid, repo="r", kind="function", name=nid, file="f.py") for nid in
+             ("hub", "c1", "c2", "dispatcher", "e1", "e2")]
+    edges = [
+        Edge(src="c1", dst="hub", relation="calls",
+             confidence=Confidence.EXTRACTED, provenance=prov),
+        Edge(src="c2", dst="hub", relation="calls",
+             confidence=Confidence.EXTRACTED, provenance=prov),
+        Edge(src="dispatcher", dst="e1", relation="calls",
+             confidence=Confidence.EXTRACTED, provenance=prov),
+        Edge(src="dispatcher", dst="e2", relation="calls",
+             confidence=Confidence.EXTRACTED, provenance=prov),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r")
+    hubs = {h["name"]: h["count"] for h in brief["hubs"]}
+    dispatchers = {d["name"]: d["count"] for d in brief["dispatchers"]}
+    assert hubs["hub"] == 2      # called by 2 -- the hub
+    assert dispatchers["dispatcher"] == 2  # calls 2 -- the dispatcher
+    assert "hub" not in dispatchers   # hub calls nothing itself
+    assert "dispatcher" not in hubs   # dispatcher is called by nobody itself
+    # unchanged: top_symbols keeps its existing shape, no "count" key leaked in
+    assert all("count" not in t for t in brief["top_symbols"])
+
+
 def test_repo_brief_carries_docstrings_into_the_wiki_prompt(tmp_path):
     nodes = [
         Node(id="svc", repo="r", kind="class", name="CatalogService", file="svc.py",

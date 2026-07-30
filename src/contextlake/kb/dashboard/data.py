@@ -132,6 +132,19 @@ def fleet_overview(store, group_depth: int = 1) -> dict:
 # ---------------------------------------------------------------------------
 # Per-repo detail (anatomy + README + wiki + owners + links)
 # ---------------------------------------------------------------------------
+def _symbol_out(t: dict) -> dict:
+    row = {
+        "kind": sanitize_label(t["kind"]),
+        "name": sanitize_label(t["name"]),
+        "file": sanitize_label(t["file"]) if t.get("file") else None,
+        "signature": sanitize_label(t["signature"]) if t.get("signature") else None,
+        "doc": sanitize_label(t["doc"]) if t.get("doc") else None,
+    }
+    if "count" in t:
+        row["count"] = t["count"]
+    return row
+
+
 def _brief_out(brief: dict | None) -> dict | None:
     """Sanitize a ``wiki.generate.repo_brief`` dict for the browser (mirrors
     ``get_repo_brief``)."""
@@ -144,13 +157,12 @@ def _brief_out(brief: dict | None) -> dict | None:
         "edge_count": brief["edge_count"],
         "kinds": brief["kinds"],
         "langs": brief["langs"],
-        "top_symbols": [{
-            "kind": sanitize_label(t["kind"]),
-            "name": sanitize_label(t["name"]),
-            "file": sanitize_label(t["file"]) if t.get("file") else None,
-            "signature": sanitize_label(t["signature"]) if t.get("signature") else None,
-            "doc": sanitize_label(t["doc"]) if t.get("doc") else None,
-        } for t in brief["top_symbols"]],
+        "top_symbols": [_symbol_out(t) for t in brief["top_symbols"]],
+        # Hubs (most called) / dispatchers (widest fan-out) -- the dashboard's
+        # hotspot/risk ranking, split from the combined degree above. See
+        # wiki.generate.repo_brief.
+        "hubs": [_symbol_out(t) for t in brief.get("hubs", [])],
+        "dispatchers": [_symbol_out(t) for t in brief.get("dispatchers", [])],
         "packages": [sanitize_label(p) for p in brief["packages"]],
         "files": [sanitize_label(f) for f in brief["files"]],
     }
@@ -464,12 +476,15 @@ def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500,
     }
 
 
-def repo_modules(store, repo_id: str) -> dict:
-    """Top-level path segments worth offering as a "scope to one module" choice
-    on a repo's Diagrams tab, per :func:`kb.visualize.payload.repo_modules`."""
+def repo_modules(store, repo_id: str, *, within: str | None = None) -> dict:
+    """Path segments worth offering as a "scope to one module" choice on a
+    repo's Diagrams tab, per :func:`kb.visualize.payload.repo_modules`. ``within``
+    requests the next level down instead of the top-level list -- see that
+    function's docstring for why a repo can need more than one level."""
     from .. import visualize as viz
 
-    return {"repo": sanitize_label(repo_id), "modules": viz.repo_modules(store, repo_id)}
+    return {"repo": sanitize_label(repo_id),
+            "modules": viz.repo_modules(store, repo_id, within=within)}
 
 
 def sequence_diagram(store, node_id: str, *, hops: int = 2, max_nodes: int = 500,
@@ -572,6 +587,53 @@ def impact(store, node_id: str, hops: int = 3, limit: int = 100,
             "kind": sanitize_label(h.kind), "name": sanitize_label(h.name),
             "hop": h.hop, "via": sanitize_label(h.via), "confidence": h.confidence,
         } for h in hits],
+    }
+
+
+def path(store, src: str, dst: str, *, max_hops: int = 6, repo: str | None = None) -> dict:
+    """Shortest route between two symbols/node ids -- "how does A reach B", as a
+    numbered sequence of steps rather than a diagram (a route is what the
+    question actually asks for; drawing the rest of the graph around it only
+    adds places to get lost).
+
+    Reuses the exact same pieces the MCP `shortest_path` tool and the Symbol
+    page's blast-radius view already use: ``impact.resolve_target`` for id/name/
+    fuzzy resolution (so a bare symbol name works, with the same
+    ambiguous-across-repos handling ``impact()`` has) and ``server._bfs_path``
+    for the BFS itself -- no new path-finding logic.
+    """
+    from .. import server as mcp_server
+    from ..impact import resolve_target
+
+    def _resolve(target):
+        node, candidates = resolve_target(store, target, repo=repo)
+        return node, [{"repo": sanitize_label(c.repo), "kind": sanitize_label(c.kind),
+                      "name": sanitize_label(c.name)} for c in candidates[:10]]
+
+    src_node, src_candidates = _resolve(src)
+    if src_node is None:
+        return {"from": sanitize_label(src), "to": sanitize_label(dst), "found": False,
+                "steps": [], "which": "from", "ambiguous": bool(src_candidates),
+                "candidates": src_candidates}
+    dst_node, dst_candidates = _resolve(dst)
+    if dst_node is None:
+        return {"from": sanitize_label(src_node.name), "to": sanitize_label(dst), "found": False,
+                "steps": [], "which": "to", "ambiguous": bool(dst_candidates),
+                "candidates": dst_candidates}
+
+    ids = mcp_server._bfs_path(store, src_node.id, dst_node.id, max_hops)
+    if not ids:
+        return {"from": sanitize_label(src_node.name), "to": sanitize_label(dst_node.name),
+                "found": False, "steps": [], "which": None, "ambiguous": False, "candidates": []}
+    steps = [n for nid in ids if (n := store.get_node(nid)) is not None]
+    return {
+        "from": sanitize_label(src_node.name), "to": sanitize_label(dst_node.name),
+        "found": True, "hops": len(steps) - 1,
+        "steps": [{
+            "id": sanitize_label(n.id), "name": sanitize_label(n.name),
+            "kind": sanitize_label(n.kind),
+            "file": sanitize_label(n.file) if n.file else None,
+        } for n in steps],
     }
 
 

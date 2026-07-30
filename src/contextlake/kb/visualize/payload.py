@@ -225,22 +225,42 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     return nodes, edges
 
 
-def repo_modules(store: Store, repo_id: str, *, min_nodes: int = 5) -> list[dict]:
-    """Top-level path segments worth offering as a "scope to one module" choice
-    on a repo's Diagrams tab -- computed from each node's ``file``, not a fixed
+def repo_modules(store: Store, repo_id: str, *, within: str | None = None,
+                 min_nodes: int = 5) -> list[dict]:
+    """Path segments worth offering as a "scope to one module" choice on a
+    repo's Diagrams tab -- computed from each node's ``file``, not a fixed
     depth, so it works for both ``src/foo/...`` layouts and single-top-dir repos.
     Segments with fewer than ``min_nodes`` nodes are dropped (not worth a whole
     tab of its own); the remainder is sorted by node count, largest first, so a
     caller populating a dropdown can offer the modules actually worth scoping to.
+
+    ``within``, when given, scopes to one path segment deeper than the default
+    top level: passing the prefix a caller already scoped to (e.g. ``"src"``)
+    returns ITS children (``"src/foo"``, ``"src/bar"``, ...) instead of the
+    same top-level list again. This is the fix for a module that is itself
+    still too large to render in one slice -- e.g. a repo whose entire code
+    lives under one top-level ``src/``, where the flat (depth-1) listing offers
+    no way to narrow further. Each returned ``prefix`` is a full path (already
+    including ``within``), ready to pass straight back in as either the next
+    call's ``within`` or as ``repo_subgraph``'s ``path_prefix`` -- both accept
+    arbitrary depth unchanged, only this enumerator was ever depth-1-only.
     """
-    rows = store.conn.execute(
-        "SELECT file FROM nodes WHERE repo_id=? AND file IS NOT NULL AND file != ''",
-        (repo_id,),
-    ).fetchall()
+    depth = 0
+    where = "repo_id=? AND file IS NOT NULL AND file != ''"
+    params: list[object] = [repo_id]
+    if within:
+        clean = within.strip("/")
+        depth = clean.count("/") + 1
+        where += " AND file LIKE ? ESCAPE '\\'"
+        params.append(clean.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "/%")
+    rows = store.conn.execute(f"SELECT file FROM nodes WHERE {where}", tuple(params)).fetchall()
     counts: dict[str, int] = {}
     for (file,) in rows:
-        top = file.split("/", 1)[0]
-        counts[top] = counts.get(top, 0) + 1
+        parts = file.split("/")
+        if len(parts) <= depth:
+            continue  # a file directly at this depth, not one level under it
+        seg = "/".join(parts[: depth + 1])
+        counts[seg] = counts.get(seg, 0) + 1
     return [
         {"prefix": prefix, "nodes": n}
         for prefix, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))

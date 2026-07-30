@@ -2134,8 +2134,8 @@ Source: https://sayak.in/contextlake/dashboard
 The dashboard is the human window into everything contextlake builds: a **local,
 offline-first** single-page app over your knowledge store. No accounts, no cloud, no
 build step, one command and it opens in your browser. Read-only by default; see
-[§10](#10-mutating-routes---allow-mutations) for the opt-in write actions and
-[§11](#11-chat) to ask it questions directly.
+[§11](#11-mutating-routes---allow-mutations) for the opt-in write actions and
+[§12](#12-chat) to ask it questions directly.
 
 > New here? Skim [QUICKSTART](../QUICKSTART.md) first. For what the graph/wiki/search
 > tiers actually do, see [knowledge-layer.md](knowledge-layer.md).
@@ -2170,9 +2170,9 @@ contextlake dashboard --serve --open         # live, against your store; opens y
 | `--anonymize` | For a real-store `--site`: hash authors, drop URLs + prose (shareable). |
 | `--open` | Open the result in your browser. |
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
-| `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §10). Loopback host only; refused with `--sample`. |
+| `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
 | `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
-| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §11). Real time/token cost per question. |
+| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
@@ -2210,6 +2210,11 @@ one-click **Blast radius**, and every fact carries its provenance.
 
 ![A repo's anatomy: kinds and top symbols](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png)
 
+Below Top symbols, a **Hotspots** section ranks the same call-graph degree data two
+other ways: **hubs** (most depended-on, worth protecting with tests) and
+**dispatchers** (widest fan-out, where behavior branches). Nothing new is extracted;
+it's the same index-time centrality data, split by direction instead of combined.
+
 ## 5. Diagrams
 
 A repo's **Diagrams** tab renders the same Mermaid text `contextlake graph --repo <id>
@@ -2228,6 +2233,13 @@ enabled when the repo actually has the relevant node kind (e.g. **Classes** stay
 disabled for a repo with no classes), this is read from the same anatomy census the
 repo page's Kinds card already shows, not a separate check. The raw Mermaid source sits
 below the rendered diagram with a one-click copy, for pasting into a PR or design doc.
+
+**A repo too large to draw in one slice** auto-narrows to its largest module instead of
+showing a truncated whole-repo tangle, and if that module is *itself* still too large,
+it keeps narrowing into that module's own largest child, one level at a time, until the
+view fits (or there's genuinely nowhere further to go). A breadcrumb trail (`Whole repo
+› src › payments › tests`) shows the path taken; click any earlier crumb to widen back
+out, or pick a different child from the narrow-further control to explore a sibling.
 
 Live-only (not part of a `--site` export, same as MCP console/Settings below), Mermaid
 itself is lazy-loaded into the page only the first time this tab is opened.
@@ -2265,7 +2277,16 @@ docstring or the git-blame commit message on its defining line, see
 [Connect and enrich](connect-enrich.md#connectors)), live-JQL confirmed the same way a branch-derived key
 is. Clicking it opens the real tracker URL directly, not another dashboard view.
 
-## 8. Generate a wiki
+## 8. Path
+
+Sometimes the question isn't "what does this touch" (§7) but "how does A reach B", a
+single route, not a diagram. The **Path** tab takes two symbol names (or node ids) and
+shows the shortest one, as numbered steps. If a name is ambiguous across repos, it lists
+the candidates and asks you to narrow (a node id, or a name unique to one repo, resolves
+straight through); if there's no route within the hop limit, it says so plainly rather
+than showing an empty diagram.
+
+## 9. Generate a wiki
 
 No wiki for a repo yet? Its **Wiki** tab hands you the exact command (one click to copy):
 
@@ -2283,7 +2304,7 @@ footer citing the exact commit and source files.
 
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
-## 9. MCP console & Settings
+## 10. MCP console & Settings
 
 Two read-only panels, live-only (not part of a `--site` export; both describe this
 machine/process, not the graph itself):
@@ -2296,7 +2317,7 @@ copyable `.mcp.json` / `.vscode/mcp.json` snippet for wiring an editor to it.
 mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing:
 it's a summary, not a form; edit `kb.toml` directly to change anything.
 
-## 10. Mutating routes (`--allow-mutations`)
+## 11. Mutating routes (`--allow-mutations`)
 
 Everything above is read-only. `contextlake dashboard --serve --allow-mutations`
 additionally exposes three write actions, each behind an explicit confirm dialog in
@@ -2317,7 +2338,7 @@ loopback bind, respectively). A mutation takes the store's single-writer lock
 for its own duration only, so a concurrent CLI command sees a clean `409`
 instead of an interleaved write.
 
-## 11. Chat
+## 12. Chat
 
 Ask a question about the fleet in plain language -- "who calls X", "what depends on
 Y", "explain repo Z". Two layers, always shown together:
@@ -2339,7 +2360,7 @@ so on), that turn shows a **Retry** button instead of leaving you to retype it, 
 resends the same question in place.
 
 `--llm-chat` is opt-in at server start, never toggled per-question: it mints the same
-per-launch token `--allow-mutations` uses (§10), and every chat request while it's on
+per-launch token `--allow-mutations` uses (§11), and every chat request while it's on
 must carry that token -- a page other than this dashboard can't silently trigger a
 paid call. The free layer needs no token, same risk level as any other read-only
 `/api/*` route. Live-only, like MCP console/Settings above (no `--site` export).
@@ -2347,7 +2368,7 @@ paid call. The free layer needs no token, same risk level as any other read-only
 ---
 
 Everything here runs entirely on your machine, and is read-only unless you opt into
-`--allow-mutations` (§10) or `--llm-chat` (§11, which sends questions to your
+`--allow-mutations` (§11) or `--llm-chat` (§12, which sends questions to your
 configured `[llm]` provider -- everything else stays local).
 
 ---
@@ -3464,6 +3485,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.63.0] - 2026-07-30
+
+### Added
+- **Dashboard: recursive module drill-down for oversized repos.** A repo whose diagrams
+  tab used to dead-end at one still-too-large module (auto-scope to the largest
+  top-level directory, still truncated, no way further down) now keeps narrowing into
+  that module's own largest child, one level at a time, until the view fits or there's
+  genuinely nowhere further to go. A breadcrumb trail shows the path taken; any earlier
+  crumb widens back out, and a "narrow further" control lets you explore a sibling.
+  `kb/visualize/payload.py`'s `repo_modules()` gained a `within` param to enumerate one
+  level below an already-scoped prefix (the underlying `path_prefix` matching already
+  supported arbitrary depth; only the enumerator was ever depth-1-only) -- additive,
+  no change to existing single-level callers.
+- **Dashboard: Hotspots section on the Anatomy tab.** The existing combined-degree "Top
+  symbols" ranking is now also split into **hubs** (most depended-on -- worth
+  protecting with tests) and **dispatchers** (widest fan-out -- where behavior
+  branches), each its own ranked table. No new extraction: `repo_brief()` already
+  computed this centrality data at index time; it's now split by direction instead of
+  only combined.
+- **Dashboard: Path tab.** "How does A reach B" as a single numbered route, not a
+  diagram -- the existing `shortest_path` MCP tool's BFS finally has a dashboard UI.
+  Accepts a bare symbol name (same id/name/fuzzy resolution and ambiguous-across-repos
+  handling the Blast radius view already has) or a node id.
 
 ## [2.62.1] - 2026-07-30
 

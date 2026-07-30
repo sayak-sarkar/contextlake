@@ -127,10 +127,36 @@ def test_repo_detail_brief_readme_wiki_owners(store_dir):
     assert d["brief"]["node_count"] >= 4
     assert "CatalogService" in {t["name"] for t in d["brief"]["top_symbols"]} or d["brief"]["kinds"]
     assert d["readme_html"] and "<strong>order</strong>" in d["readme_html"]
+    # hubs/dispatchers are always present as keys (possibly empty), sanitized the
+    # same way top_symbols is -- see wiki.generate.repo_brief's split.
+    assert isinstance(d["brief"]["hubs"], list) and isinstance(d["brief"]["dispatchers"], list)
     assert d["wiki"]["found"] and d["wiki"]["html"]
     assert d["wiki"]["stale"] is False  # wiki commit matches the indexed head
     assert any(o["name"] == "Ada Lovelace" for o in d["owners"])
     assert d["links"]["tracked_by"][0]["url"].startswith("https://")
+
+
+def test_repo_detail_brief_hubs_and_dispatchers_carry_counts(tmp_path):
+    sd = tmp_path
+    s = SqliteStore(sd / "index.sqlite")
+    try:
+        nodes = [Node(id=nid, repo="team/big", kind="function", name=nid, file="f.py")
+                 for nid in ("hub", "c1", "c2", "dispatcher", "e1", "e2")]
+        edges = [
+            _edge("c1", "hub", "calls"), _edge("c2", "hub", "calls"),
+            _edge("dispatcher", "e1", "calls"), _edge("dispatcher", "e2", "calls"),
+        ]
+        s.upsert_repo(Repo(id="team/big", path=str(tmp_path), head_commit="h1"))
+        write_shard(sd, GraphShard(repo="team/big", head_commit="h1", nodes=nodes, edges=edges))
+        reindex_shard(s, sd, "team/big")
+        s.mark_indexed("team/big", "h1", "2026-06-01T00:00:00Z")
+        d = kbdata.repo_detail(s, sd, "team/big")
+        hubs = {h["name"]: h["count"] for h in d["brief"]["hubs"]}
+        dispatchers = {t["name"]: t["count"] for t in d["brief"]["dispatchers"]}
+        assert hubs["hub"] == 2
+        assert dispatchers["dispatcher"] == 2
+    finally:
+        s.close()
 
 
 def test_repo_detail_anonymize_hashes_authors_and_strips_urls(store_dir):
@@ -301,6 +327,21 @@ def test_repo_modules_endpoint_wrapper_shape():
         out = kbdata.repo_modules(s, "team/big")
         assert out["repo"] == "team/big"
         assert out["modules"][0] == {"prefix": "src", "nodes": 8}
+    finally:
+        s.close()
+
+
+def test_repo_modules_within_param_passes_through_to_visualize():
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_nodes("team/big", [
+            Node(id=f"n{i}", repo="team/big", kind="function", name=f"n{i}", file=f)
+            for i, f in enumerate((["src/foo/a.py"] * 6) + (["src/bar/b.py"] * 6))
+        ])
+        top = kbdata.repo_modules(s, "team/big")
+        assert [m["prefix"] for m in top["modules"]] == ["src"]
+        deeper = kbdata.repo_modules(s, "team/big", within="src")
+        assert {m["prefix"] for m in deeper["modules"]} == {"src/foo", "src/bar"}
     finally:
         s.close()
 
@@ -495,3 +536,74 @@ def test_mcp_console_sample_mode_never_reads_the_real_ambient_config(
     assert len(seen_cfgs) == 1
     assert seen_cfgs[0].enabled is False  # bare KbConfig default, not the real ambient config
     assert seen_cfgs[0].provider != "builtin"
+
+
+# --- path (Finding 3: "how does A reach B") --------------------------------
+
+def _chain_store():
+    """a --calls--> b --calls--> c, in-memory: a small dedicated store for the
+    multi-hop / not-found / name-resolution cases, since the shared `store_dir`
+    fixture only has one single-hop edge."""
+    s = SqliteStore(":memory:")
+    s.upsert_nodes("team/chain", [
+        Node(id="a", repo="team/chain", kind="function", name="alpha", file="a.py"),
+        Node(id="b", repo="team/chain", kind="function", name="beta", file="b.py"),
+        Node(id="c", repo="team/chain", kind="function", name="gamma", file="c.py"),
+        Node(id="lonely", repo="team/chain", kind="function", name="lonely", file="d.py"),
+    ])
+    s.upsert_edges("team/chain", [_edge("a", "b", "calls"), _edge("b", "c", "calls")])
+    return s
+
+
+def test_path_finds_a_multi_hop_route_by_name():
+    s = _chain_store()
+    try:
+        res = kbdata.path(s, "alpha", "gamma")
+        assert res["found"] and res["hops"] == 2
+        assert [step["name"] for step in res["steps"]] == ["alpha", "beta", "gamma"]
+    finally:
+        s.close()
+
+
+def test_path_finds_a_route_by_node_id():
+    s = _chain_store()
+    try:
+        res = kbdata.path(s, "a", "b")
+        assert res["found"] and res["hops"] == 1
+    finally:
+        s.close()
+
+
+def test_path_reports_not_found_for_disconnected_nodes():
+    s = _chain_store()
+    try:
+        res = kbdata.path(s, "alpha", "lonely")
+        assert res["found"] is False and res["steps"] == []
+    finally:
+        s.close()
+
+
+def test_path_reports_which_side_failed_to_resolve():
+    s = _chain_store()
+    try:
+        missing_from = kbdata.path(s, "does-not-exist", "gamma")
+        assert missing_from["found"] is False and missing_from["which"] == "from"
+        missing_to = kbdata.path(s, "alpha", "does-not-exist")
+        assert missing_to["found"] is False and missing_to["which"] == "to"
+    finally:
+        s.close()
+
+
+def test_path_reports_ambiguous_candidates_across_repos():
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_nodes("team/x", [
+            Node(id="x1", repo="team/x", kind="function", name="dup", file="x.py")])
+        s.upsert_nodes("team/y", [
+            Node(id="y1", repo="team/y", kind="function", name="dup", file="y.py"),
+            Node(id="y2", repo="team/y", kind="function", name="unique", file="y.py")])
+        res = kbdata.path(s, "dup", "unique")
+        assert res["found"] is False and res["which"] == "from" and res["ambiguous"]
+        assert {c["repo"] for c in res["candidates"]} == {"team/x", "team/y"}
+    finally:
+        s.close()

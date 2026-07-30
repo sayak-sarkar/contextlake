@@ -371,6 +371,26 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
 .cl-select { font: inherit; color: var(--cl-ink); background: var(--cl-surface);
   border: 1.5px solid var(--cl-line); border-radius: var(--cl-radius-sm);
   padding: var(--sp-1) var(--sp-2); cursor: pointer; }
+.cl-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1);
+  padding: var(--sp-2) 0 0; font-size: var(--fs-300); }
+.cl-crumb { border: 0; background: none; padding: 0; font: inherit; cursor: pointer;
+  color: var(--cl-primary); }
+.cl-crumb:hover { text-decoration: underline; }
+.cl-crumb--current { color: var(--cl-ink-muted); cursor: default; }
+.cl-crumb-sep { color: var(--cl-ink-muted); }
+
+/* ---- Path --------------------------------------------------------------- */
+.cl-pathform { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  margin: var(--sp-3) 0; }
+.cl-pathinput { flex: 1; min-width: 200px; font: inherit; color: var(--cl-ink);
+  background: var(--cl-surface); border: 1.5px solid var(--cl-line);
+  border-radius: var(--cl-radius-sm); padding: var(--sp-2) var(--sp-3); }
+.cl-pathsteps { display: flex; flex-direction: column; }
+.cl-stepnum { width: 22px; height: 22px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: var(--fs-200); background: color-mix(in srgb, var(--cl-lake) 16%, transparent);
+  border: 1px solid var(--cl-lake); color: var(--cl-lake); }
+.cl-patharrow { color: var(--cl-ink-muted); margin: 2px 0 var(--sp-2) 11px; font-size: var(--fs-300); }
 
 /* ---- Blast lanes -------------------------------------------------------- */
 .cl-lanes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(180px, 1fr);

@@ -36,6 +36,7 @@
     <symbol id="ui-fleet" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></symbol>
     <symbol id="ui-arch" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><line x1="7" y1="7" x2="10.5" y2="16.5"/><line x1="17" y1="7" x2="13.5" y2="16.5"/><line x1="7.5" y1="6" x2="16.5" y2="6"/></symbol>
     <symbol id="ui-blast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></symbol>
+    <symbol id="ui-path" viewBox="0 0 24 24"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M7 17.5C10 14 9 10 12 8s5-1 7-3.5" stroke-dasharray="2.5 2.5"/></symbol>
     <symbol id="ui-health" viewBox="0 0 24 24"><path d="M3 12h4l2 6 4-14 2 8h6"/></symbol>
     <symbol id="ui-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></symbol>
     <symbol id="ui-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="5" y1="5" x2="7" y2="7"/><line x1="17" y1="17" x2="19" y2="19"/><line x1="5" y1="19" x2="7" y2="17"/><line x1="17" y1="7" x2="19" y2="5"/></symbol>
@@ -115,6 +116,7 @@
     <a class="cl-rail__item" href="#/repo" data-lens="repo"><svg class="cl-ic" aria-hidden="true"><use href="#g-repo"/></svg><span class="cl-rail__label">Repo</span></a>
     <a class="cl-rail__item" href="#/arch" data-lens="arch"><svg class="cl-ic" aria-hidden="true"><use href="#ui-arch"/></svg><span class="cl-rail__label">Architecture</span></a>
     <a class="cl-rail__item" href="#/symbol" data-lens="symbol"><svg class="cl-ic" aria-hidden="true"><use href="#ui-blast"/></svg><span class="cl-rail__label">Blast radius</span></a>
+    <a class="cl-rail__item" href="#/path" data-lens="path"><svg class="cl-ic" aria-hidden="true"><use href="#ui-path"/></svg><span class="cl-rail__label">Path</span></a>
     <a class="cl-rail__item" href="#/health" data-lens="health"><svg class="cl-ic" aria-hidden="true"><use href="#ui-health"/></svg><span class="cl-rail__label">Health</span></a>
     <a class="cl-rail__item" href="#/search" data-lens="search"><svg class="cl-ic" aria-hidden="true"><use href="#ui-search"/></svg><span class="cl-rail__label">Search</span></a>
     <a class="cl-rail__item" href="#/chat" data-lens="chat"><svg class="cl-ic" aria-hidden="true"><use href="#ui-chat"/></svg><span class="cl-rail__label">Chat</span></a>
@@ -139,6 +141,10 @@
     <section id="panel-symbol" class="cl-panel" aria-labelledby="h-symbol" hidden>
       <h2 id="h-symbol" class="cl-panel__title">Blast radius</h2>
       <div id="symbol-body" class="cl-panel__body"></div>
+    </section>
+    <section id="panel-path" class="cl-panel" aria-labelledby="h-path" hidden>
+      <h2 id="h-path" class="cl-panel__title">Path</h2>
+      <div id="path-body" class="cl-panel__body"></div>
     </section>
     <section id="panel-health" class="cl-panel" aria-labelledby="h-health" hidden>
       <h2 id="h-health" class="cl-panel__title">Knowledge health</h2>

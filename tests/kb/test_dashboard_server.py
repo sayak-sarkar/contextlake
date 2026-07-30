@@ -122,6 +122,48 @@ def test_repo_modules_endpoint(served):
     assert body["modules"] == []  # fixture nodes have no `file` set -- honestly empty
 
 
+def test_repo_modules_endpoint_within_param_drills_one_level_deeper(tmp_path, monkeypatch):
+    # `served`'s own fixture nodes have no `file`, so a dedicated store is used
+    # here to prove `?within=` reaches data.repo_modules() and returns the
+    # NEXT level down, not the same top-level answer again.
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    s = SqliteStore(tmp_path / "index.sqlite")
+    # both >= repo_modules' default min_nodes=5
+    nodes = [Node(id=f"n{i}", repo="team/big", kind="function", name=f"n{i}",
+                  lang="python", file=f) for i, f in enumerate(
+        (["src/foo/a.py"] * 6) + (["src/bar/b.py"] * 5))]
+    s.upsert_repo(Repo(id="team/big", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="team/big", head_commit="h1", nodes=nodes, edges=[]))
+    reindex_shard(s, tmp_path, "team/big")
+    s.mark_indexed("team/big", "h1", "2026-06-01T00:00:00Z")
+    port = _free_port()
+    srv = build_dashboard_server(s, tmp_path, host="127.0.0.1", port=port)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{port}"
+        top = json.loads(_get(base + "/api/repo/team/big/modules"))
+        assert [m["prefix"] for m in top["modules"]] == ["src"]
+        deeper = json.loads(_get(base + "/api/repo/team/big/modules?within=src"))
+        assert {m["prefix"] for m in deeper["modules"]} == {"src/foo", "src/bar"}
+    finally:
+        srv.shutdown()
+        s.close()
+
+
+def test_path_endpoint(served):
+    found = json.loads(_get(served + "/api/path?from=checkout&to=CatalogService"))
+    assert found["found"] and found["hops"] == 1
+    missing = json.loads(_get(served + "/api/path?from=checkout&to=does-not-exist"))
+    assert missing["found"] is False and missing["which"] == "to"
+    # missing `to` -> a real 400, not a 500/traceback
+    try:
+        urllib.request.urlopen(served + "/api/path?from=checkout", timeout=5)
+        raise AssertionError("expected HTTPError")
+    except urllib.error.HTTPError as e:
+        assert e.code == 400
+
+
 def test_send_swallows_client_disconnect_errors(tmp_path):
     # a client (browser tab, curl) disconnecting mid-write must not surface a traceback --
     # ThreadingHTTPServer already isolates it to its own request thread, this only checks

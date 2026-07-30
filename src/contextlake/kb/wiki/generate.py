@@ -56,6 +56,15 @@ def external_context(
     return items
 
 
+def _symbol_row(n, *, count: int | None = None) -> dict:
+    row = {"kind": n.kind, "name": n.name, "file": n.file,
+           "doc": (n.attrs or {}).get("doc"),
+           "signature": (n.attrs or {}).get("signature")}
+    if count is not None:
+        row["count"] = count
+    return row
+
+
 def repo_brief(store_dir, repo_id: str) -> dict | None:
     """Salient, grounded facts about a repo, or None if it has no shard."""
     shard = read_shard(store_dir, repo_id)
@@ -64,9 +73,13 @@ def repo_brief(store_dir, repo_id: str) -> dict | None:
     nodes = shard.nodes
     by_id = {n.id: n for n in nodes}
     degree: Counter = Counter()
+    in_degree: Counter = Counter()   # callers -- a hub, worth protecting with tests
+    out_degree: Counter = Counter()  # callees -- a dispatcher, where behavior branches
     for e in shard.edges:
         degree[e.src] += 1
         degree[e.dst] += 1
+        in_degree[e.dst] += 1
+        out_degree[e.src] += 1
     top = [by_id[i] for i, _ in degree.most_common(15) if i in by_id]
     return {
         "repo": repo_id,
@@ -75,9 +88,15 @@ def repo_brief(store_dir, repo_id: str) -> dict | None:
         "edge_count": len(shard.edges),
         "kinds": dict(Counter(n.kind for n in nodes)),
         "langs": dict(Counter(n.lang for n in nodes if n.lang)),
-        "top_symbols": [{"kind": n.kind, "name": n.name, "file": n.file,
-                         "doc": (n.attrs or {}).get("doc"),
-                         "signature": (n.attrs or {}).get("signature")} for n in top],
+        "top_symbols": [_symbol_row(n) for n in top],
+        # Split combined-degree ranking above into fan-in/fan-out separately --
+        # the dashboard's own risk view (Anatomy tab's hotspots section), not
+        # folded into top_symbols so existing consumers of that field are
+        # unaffected.
+        "hubs": [_symbol_row(by_id[i], count=c)
+                for i, c in in_degree.most_common(15) if i in by_id],
+        "dispatchers": [_symbol_row(by_id[i], count=c)
+                        for i, c in out_degree.most_common(15) if i in by_id],
         "packages": [n.name for n in nodes if n.kind == "package"][:20],
         "files": sorted({n.file for n in nodes if n.file})[:20],
         "decisions": [{"title": n.name, "file": n.file,

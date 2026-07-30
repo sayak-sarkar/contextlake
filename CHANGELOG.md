@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.63.0] - 2026-07-30
+
+### Added
+- **Dashboard: recursive module drill-down for oversized repos.** A repo whose diagrams
+  tab used to dead-end at one still-too-large module (auto-scope to the largest
+  top-level directory, still truncated, no way further down) now keeps narrowing into
+  that module's own largest child, one level at a time, until the view fits or there's
+  genuinely nowhere further to go. A breadcrumb trail shows the path taken; any earlier
+  crumb widens back out, and a "narrow further" control lets you explore a sibling.
+  `kb/visualize/payload.py`'s `repo_modules()` gained a `within` param to enumerate one
+  level below an already-scoped prefix (the underlying `path_prefix` matching already
+  supported arbitrary depth; only the enumerator was ever depth-1-only) -- additive,
+  no change to existing single-level callers.
+- **Dashboard: Hotspots section on the Anatomy tab.** The existing combined-degree "Top
+  symbols" ranking is now also split into **hubs** (most depended-on -- worth
+  protecting with tests) and **dispatchers** (widest fan-out -- where behavior
+  branches), each its own ranked table. No new extraction: `repo_brief()` already
+  computed this centrality data at index time; it's now split by direction instead of
+  only combined.
+- **Dashboard: Path tab.** "How does A reach B" as a single numbered route, not a
+  diagram -- the existing `shortest_path` MCP tool's BFS finally has a dashboard UI.
+  Accepts a bare symbol name (same id/name/fuzzy resolution and ambiguous-across-repos
+  handling the Blast radius view already has) or a node id.
+
 ## [2.62.1] - 2026-07-30
 
 ### Fixed

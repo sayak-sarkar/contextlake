@@ -220,6 +220,15 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     return 400, b'{"error":"node required"}'
                 hops = int((q.get("hops") or [2])[0])
                 return 200, _json_bytes(kbdata.sequence_diagram(req, nid, hops=hops))
+            if path == "/api/path":
+                src = (q.get("from") or [None])[0]
+                dst = (q.get("to") or [None])[0]
+                if not src or not dst:
+                    return 400, b'{"error":"from and to required"}'
+                max_hops = int((q.get("max_hops") or [6])[0])
+                repo = (q.get("repo") or [None])[0]
+                return 200, _json_bytes(
+                    kbdata.path(req, src, dst, max_hops=max_hops, repo=repo))
             if path == "/api/search":
                 query_text = (q.get("q") or [""])[0]
                 if not query_text:
@@ -246,7 +255,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     return 200, _json_bytes(kbdata.diagram(req, repo_id, fmt, module=module))
                 if rest.endswith("/modules"):
                     repo_id = urllib.parse.unquote(rest[:-len("/modules")])
-                    return 200, _json_bytes(kbdata.repo_modules(req, repo_id))
+                    within = (q.get("within") or [None])[0]
+                    return 200, _json_bytes(kbdata.repo_modules(req, repo_id, within=within))
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
             if path == "/api/mcp":

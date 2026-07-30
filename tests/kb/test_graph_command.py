@@ -192,6 +192,41 @@ def test_repo_modules_ranks_by_size_and_drops_tiny_segments(store):
     assert mods[0] == {"prefix": "src", "nodes": 8}
 
 
+def test_repo_modules_within_drills_one_level_deeper(store):
+    # A repo whose entire code lives under one top-level dir: the depth-1 view
+    # offers only "src" (no way to narrow further); `within="src"` must reveal
+    # SRC's own children instead of repeating the same top-level answer.
+    files = (["src/foo/a.py"] * 6) + (["src/bar/b.py"] * 4) + (["src/loose.py"] * 1) + \
+        (["test/c.py"] * 1)
+    store.upsert_nodes("r", [
+        _node_with_file(f"n{i}", f) for i, f in enumerate(files)
+    ])
+    top = viz.repo_modules(store, "r", min_nodes=2)
+    assert [m["prefix"] for m in top] == ["src"]  # test (1) dropped below min_nodes
+
+    within_src = viz.repo_modules(store, "r", within="src", min_nodes=2)
+    assert [m["prefix"] for m in within_src] == ["src/foo", "src/bar"]
+    assert within_src[0] == {"prefix": "src/foo", "nodes": 6}
+    # a file directly under "src/" (src/loose.py, no further segment) contributes
+    # to src's own top-level count but has no child of its own to report here.
+
+    # one level deeper than "src/foo" lands on the file itself (no further
+    # subdirectory to report) -- a single-file "module" of its own 6 nodes.
+    within_deeper = viz.repo_modules(store, "r", within="src/foo", min_nodes=2)
+    assert within_deeper == [{"prefix": "src/foo/a.py", "nodes": 6}]
+
+    # a genuinely empty scope (no matching files at all) reports no modules.
+    assert viz.repo_modules(store, "r", within="src/foo/a.py", min_nodes=1) == []
+
+
+def test_repo_modules_within_escapes_sql_wildcards(store):
+    store.upsert_nodes("r", [
+        _node_with_file("a", "foo_bar/x/y.py"), _node_with_file("b", "fooXbar/x/y.py"),
+    ])
+    mods = viz.repo_modules(store, "r", within="foo_bar", min_nodes=1)
+    assert [m["prefix"] for m in mods] == ["foo_bar/x"]
+
+
 def test_overview_aggregates_cross_repo(store):
     # the overview's cross-repo edges come from the package two-hop (publishes ⨝
     # depends_on), NOT raw imports: repoA publishes pkg, repoB depends_on it ->
