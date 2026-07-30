@@ -97,7 +97,7 @@ are the same commands, organized for reference rather than a first read.
 | `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
 | `lint` | Graph health audit: stale repos, dangling edges (`--json`) |
-| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability |
+| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
 | `serve` | Expose the graph over MCP (stdio or `--transport http`) |
 | `steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |

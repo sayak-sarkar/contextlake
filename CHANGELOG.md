@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.65.0] - 2026-07-31
+
+### Fixed
+- **C++: out-of-line qualified method definitions (`Widget::Draw`, `App::Gadget::Spin`) are no
+  longer lost or misfiled.** A method body defined outside its class, at any qualification depth
+  (single- or multi-level `::` chains), is now captured with its fully-qualified name and resolved
+  repo-wide back to the class it belongs to as a `method`, instead of either vanishing or being
+  recorded as a bare, file-contained `function`. Along the way, a real forward-declaration
+  ambiguity was fixed: a class/struct that's only forward-declared (no body) no longer produces a
+  spurious node that a same-named real definition could be silently confused with.
+- **C++/C: `.h` header files were mapped to the C language, not C++.** A class declared in a
+  header and defined in a matching `.cpp` was invisible to the graph -- this affects any codebase
+  with a conventional header/source split, which is most C++ code. Headers are now mapped to C++,
+  matched fleet-wide (196/200 sampled repos strictly improve or match; the remainder are genuine
+  plain-C-with-`.h` cases, unaffected in practice since C code has no classes to miss).
+- **C++: `#ifdef`/`#else` and `#ifndef`-guard duplicate definitions no longer cause spurious
+  ambiguous call resolution or silently delete a real overload.** The same function or method
+  defined once per preprocessor branch (a common portability pattern, and -- via include guards --
+  the single most common header pattern of all) is now de-duplicated only when the two definitions
+  are genuinely the same symbol in different branches of the *same* conditional, not merely behind
+  *some* conditional anywhere in the file. A widened signature comparison (return/parameter types
+  read from the AST, not just parameter names) also stops distinct overloads on either side of a
+  branch from being merged into one and having one definition silently deleted.
+
+### Added
+- **Namespace blocks now participate in C++ containment.** A `namespace App { ... }` block is a
+  real containing node in the graph, the same way a class or file already is, instead of its
+  members appearing to float file-level.
+- **`contextlake doctor` flags C/C++ shards indexed with an older parser version.** Each indexed
+  shard now records the parser version it was built with; `doctor` compares that against the
+  current version and calls out any C/C++ shard that predates the qualified-method, namespace, and
+  `#ifdef`-dedup fixes above, so it's obvious which repos need a re-index to pick them up (an
+  advisory check -- it doesn't fail the overall `doctor` exit code).
+
 ## [2.64.0] - 2026-07-30
 
 ### Added

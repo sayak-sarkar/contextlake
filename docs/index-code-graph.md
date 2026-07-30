@@ -41,7 +41,9 @@ and lockfiles from the graph.
 ## Health and maintenance
 
 `contextlake doctor` checks the environment (FTS5, `git` / `glab` on PATH, the store, the embedder, and the
-ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. `contextlake lint`
+ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
+doesn't affect the exit code) any C/C++ shard indexed with an older parser version than the one currently
+installed -- a nudge to re-index that repo so it picks up parser-correctness fixes. `contextlake lint`
 audits the graph itself, reporting **stale repos** (HEAD moved since they were indexed) and **dangling
 edges** (an edge whose endpoint node is missing). Both exit non-zero on problems, so they're CI-friendly.
 
@@ -72,6 +74,20 @@ parser registry is pluggable:
 
 Frameworks are indexed through their base language: **React / Next.js / Node.js** are JS/TS(X),
 **Angular** is TS (its templates are HTML), and **.NET** is C#.
+
+#### C++ completeness
+
+A method defined outside its class (`ReturnType Class::method(...) { ... }`, at any `::` qualification
+depth) resolves to a `method` contained by its class, repo-wide -- not just the file it's declared in --
+so an out-of-line definition in one file still shows up under its class even when the class itself is
+declared in a different header. A `namespace { ... }` block is its own containing node, the same way a
+class or file is. Header files (`.h`) are parsed as C++, so a class declared in a header and defined in a
+matching `.cpp` is visible as one unit rather than the class half going missing. Two definitions of the
+same method guarded by `#ifdef`/`#else` (or an `#ifndef` include guard) in the same conditional collapse
+into one node instead of appearing as duplicate, ambiguous call targets -- while genuinely distinct
+overloads on either side of a branch are kept as separate definitions, not merged into one. See
+[Health and maintenance](#health-and-maintenance) above: `doctor` flags any C/C++ shard indexed before
+these fixes landed, as a signal to re-index.
 
 ### Infrastructure: Terraform / HCL
 
