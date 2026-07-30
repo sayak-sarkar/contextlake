@@ -909,6 +909,17 @@ def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
         if node.kind in ("class", "struct"):
             class_index.setdefault(node.name, []).append(node.id)
 
+    # Index each node's *first* "contains" edge once, up front. A linear scan of
+    # `edges` per pending method makes this pass O(pending x edges) -- measured
+    # at ~192s for a 20k-pending/150k-edge C++ repo, exactly the legacy-scale
+    # case this plan targets. "First occurrence wins" (only set if not already
+    # present) mirrors the previous `for i, e in enumerate(edges): ... break`
+    # scan's first-match semantics exactly.
+    contains_edge_idx: dict[str, int] = {}
+    for i, e in enumerate(edges):
+        if e.relation == "contains" and e.dst not in contains_edge_idx:
+            contains_edge_idx[e.dst] = i
+
     for node in by_id.values():
         pending = node.attrs.pop("_pending_method_of", None)
         if not pending:
@@ -917,14 +928,15 @@ def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
         if not candidates or len(candidates) != 1:
             continue  # unresolved or ambiguous -- leave as "function", file-contained
         class_id = candidates[0]
-        for i, e in enumerate(edges):
-            if e.dst == node.id and e.relation == "contains":
-                edges[i] = Edge(
-                    src=class_id, dst=node.id, relation="contains",
-                    confidence=e.confidence, provenance=e.provenance,
-                )
-                node.kind = "method"
-                break
+        i = contains_edge_idx.get(node.id)
+        if i is None:
+            continue  # defensive: no containment edge found for this node
+        e = edges[i]
+        edges[i] = Edge(
+            src=class_id, dst=node.id, relation="contains",
+            confidence=e.confidence, provenance=e.provenance,
+        )
+        node.kind = "method"
 
 
 def _resolve_name_refs(
