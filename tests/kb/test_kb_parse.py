@@ -230,9 +230,9 @@ def test_parse_cpp_out_of_line_method_two_segments_links_to_class():
            b"void Widget::Draw() {\n    Render();\n}\n")
     nodes, edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     draw = next(n for n in nodes if n.name == "Draw" and n.line_start == 6)
-    assert draw.kind == "method"
     assert draw.qualified_name == "f.cpp::Widget.Draw"
     assert draw.attrs["_pending_method_of"] == ["Widget"]
+    assert draw.kind == "method"
     widget = next(n for n in nodes if n.name == "Widget")
     assert (widget.id, draw.id, "contains") in {
         (e.src, e.dst, e.relation) for e in edges}
