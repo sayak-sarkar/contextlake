@@ -287,9 +287,14 @@ def test_completion_command_parses_with_and_without_a_shell_override():
     assert parser.parse_args(["completion", "zsh"]).shell == "zsh"
 
 
-def test_completion_rejects_an_unsupported_shell_name(capsys):
-    with pytest.raises(SystemExit):
-        build_parser().parse_args(["completion", "powershell"])
+def test_completion_accepts_any_value_at_parse_time_not_just_the_three_shells():
+    """Deliberately NOT argparse `choices=` (see cli.py's comment on the `shell`
+    positional): that combined with this codebase's SUPPRESS-default
+    convention breaks on Python 3.9-3.11 (fixed by 3.12) -- argparse validates
+    the SUPPRESS sentinel itself against choices when the positional is
+    omitted. Validation happens in cmd_completion() instead; see
+    test_cmd_completion_rejects_an_unsupported_shell_name in test_init.py."""
+    assert build_parser().parse_args(["completion", "powershell"]).shell == "powershell"
 
 
 def test_completion_is_not_a_kb_command():

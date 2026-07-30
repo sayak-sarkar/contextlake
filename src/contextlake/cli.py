@@ -604,8 +604,14 @@ command is for running it again explicitly, on demand, or for a shell other
 than $SHELL. Uses the exact mechanism `init` uses (see docs/usage.md
 #shell-completion), so both stay idempotent and in sync.
                 """)
-    p.add_argument("shell", nargs="?", choices=["bash", "zsh", "fish"], default=_S,
-                   help="override $SHELL auto-detection")
+    # No choices=[...] here (deliberately): combined with nargs="?" and this
+    # codebase's SUPPRESS-default convention, older argparse (3.9-3.11; fixed
+    # by 3.12) validates the SUPPRESS sentinel itself against choices when the
+    # positional is omitted, raising "invalid choice: '==SUPPRESS=='" -- a
+    # real cross-version break caught by CI, not local testing (this dev venv
+    # runs 3.14). cmd_completion() validates the value itself instead.
+    p.add_argument("shell", nargs="?", default=_S,
+                   help="override $SHELL auto-detection (bash/zsh/fish)")
 
     # ---- mirror core -------------------------------------------------------
     for name, help_, epilog in (

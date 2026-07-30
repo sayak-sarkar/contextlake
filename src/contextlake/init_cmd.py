@@ -259,12 +259,21 @@ def maybe_auto_register_completion(*, quiet: bool = False) -> None:
     _setup_shell_completion(interactive=False, default_on=True)
 
 
+_COMPLETION_SHELLS = ("bash", "zsh", "fish")
+
+
 def cmd_completion(args) -> int:
     """`contextlake completion [bash|zsh|fish]` -- register tab-completion for
     the current (or named) shell right now, without needing a full `init` run
-    first. Reuses the exact mechanism `init` uses, so both stay in sync."""
-    _setup_shell_completion(interactive=False, default_on=True,
-                            shell_override=getattr(args, "shell", None))
+    first. Reuses the exact mechanism `init` uses, so both stay in sync.
+    Validates `shell` itself (not argparse `choices=`, see the definition in
+    cli.py for why) -- same pattern as `init`'s own `--platform` check."""
+    shell = getattr(args, "shell", None)
+    if shell is not None and shell not in _COMPLETION_SHELLS:
+        log(style.warn(f"Unknown shell {shell!r} — expected one of "
+                       f"{', '.join(_COMPLETION_SHELLS)}"))
+        return 2
+    _setup_shell_completion(interactive=False, default_on=True, shell_override=shell)
     return 0
 
 

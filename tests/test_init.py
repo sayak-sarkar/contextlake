@@ -451,6 +451,18 @@ def test_cmd_completion_shell_argument_overrides_SHELL_env(tmp_path, monkeypatch
     assert not (tmp_path / ".zshrc").exists()
 
 
+def test_cmd_completion_rejects_an_unsupported_shell_name(tmp_path, monkeypatch, gls_logs):
+    """Validated here, not via argparse `choices=` -- see cli.py's comment on
+    the `shell` positional for why (a real cross-Python-version argparse
+    break, caught by CI on 3.9-3.11, not local testing)."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    rc = init_cmd.cmd_completion(Namespace(shell="powershell"))
+    assert rc == 2
+    assert "unknown shell" in gls_logs.text.lower()
+    assert not (tmp_path / ".bashrc").exists()
+    assert not (tmp_path / ".zshrc").exists()
+
+
 def test_auto_register_skips_when_already_decided(tmp_path, monkeypatch):
     monkeypatch.delenv("CONTEXTLAKE_NO_AUTO_COMPLETION", raising=False)  # opt back in; see conftest
     monkeypatch.setenv("HOME", str(tmp_path))
