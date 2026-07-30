@@ -90,7 +90,16 @@ LANG_BY_EXT = {
     ".cs": "csharp",
     ".go": "go",
     ".java": "java",
-    ".c": "c", ".h": "c",
+    ".c": "c",
+    # ".h" is ambiguous between C and C++ headers, but real-world ".h" files
+    # overwhelmingly use the common C++ header/.cpp split (see
+    # test_index_repo_dir_resolves_out_of_line_method_across_files) -- the
+    # tree-sitter-cpp grammar is a near-superset of C, so parsing ".h" as "cpp"
+    # strictly matches-or-improves extraction on plain C headers too (measured
+    # against ~200 real ".h" files from the repo fleet: e.g. jni.h's `#ifdef
+    # __cplusplus` wrapper classes are only recognized under the cpp grammar;
+    # genuinely C-only headers like jvmdi.h extract identically either way).
+    ".h": "cpp",
     ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp", ".c++": "cpp",
     ".hpp": "cpp", ".hh": "cpp", ".hxx": "cpp",
     ".rs": "rust",
@@ -769,6 +778,7 @@ def index_repo_dir(
             shard.edges.extend(edges)
 
     shard.nodes.extend(by_id.values())
+    _resolve_pending_methods(by_id, shard.edges)
     shard.edges.extend(_resolve_name_refs(
         all_calls, by_id, relation="calls", target_kinds=_CALLABLE_KINDS))
     shard.edges.extend(_resolve_name_refs(
@@ -870,6 +880,37 @@ _SQL_KINDS = {"table", "view"}
 # candidate (so blast-radius doesn't miss hot symbols); a name matching more than
 # this is too generic (e.g. `get`/`handle`) to be signal and is skipped.
 _MAX_AMBIG_FANOUT = 6
+
+
+def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
+    """Repo-wide second pass: link an out-of-line qualified method to its class.
+
+    ``Node.attrs["_pending_method_of"]`` (set by ``parse_source`` when a definition's
+    declarator was a qualified name, e.g. ``Widget::Draw``) names the qualifier chain;
+    the class may live in any file (the common header/source split), so this can only
+    resolve once every file in the repo has been parsed and ``by_id`` is complete.
+    """
+    class_index: dict[str, list[str]] = {}
+    for node in by_id.values():
+        if node.kind in ("class", "struct"):
+            class_index.setdefault(node.name, []).append(node.id)
+
+    for node in by_id.values():
+        pending = node.attrs.pop("_pending_method_of", None)
+        if not pending:
+            continue
+        candidates = class_index.get(pending[-1])
+        if not candidates or len(candidates) != 1:
+            continue  # unresolved or ambiguous -- leave as "function", file-contained
+        class_id = candidates[0]
+        for i, e in enumerate(edges):
+            if e.dst == node.id and e.relation == "contains":
+                edges[i] = Edge(
+                    src=class_id, dst=node.id, relation="contains",
+                    confidence=e.confidence, provenance=e.provenance,
+                )
+                node.kind = "method"
+                break
 
 
 def _resolve_name_refs(

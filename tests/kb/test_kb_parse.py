@@ -226,31 +226,59 @@ def test_parse_cpp_nested_def_under_unnamed_container_falls_back_to_file():
 
 
 def test_parse_cpp_out_of_line_method_two_segments_links_to_class():
+    # parse_source's own (pre-resolution) contract: the pending marker is set and
+    # the node is still "function"/file-contained. The repo-wide resolution that
+    # turns this into a "method" contained by its class is index_repo_dir's job
+    # (it needs to see every file first) -- see
+    # test_index_repo_dir_resolves_out_of_line_method_across_files below.
     src = (b"class Widget {\npublic:\n    void Draw();\n};\n\n"
            b"void Widget::Draw() {\n    Render();\n}\n")
-    nodes, edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
+    nodes, _edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     draw = next(n for n in nodes if n.name == "Draw" and n.line_start == 6)
     assert draw.qualified_name == "f.cpp::Widget.Draw"
     assert draw.attrs["_pending_method_of"] == ["Widget"]
-    assert draw.kind == "method"
-    widget = next(n for n in nodes if n.name == "Widget")
-    assert (widget.id, draw.id, "contains") in {
-        (e.src, e.dst, e.relation) for e in edges}
     assert ("Render" in {c[1] for c in calls})
 
 
 def test_parse_cpp_out_of_line_method_three_segments_not_lost():
+    # Same pre-resolution contract as above, for a 3-segment qualified name.
     src = (b"namespace App {\nclass Gadget {\npublic:\n    void Spin();\n};\n}\n\n"
            b"void App::Gadget::Spin() {\n    Tick();\n}\n")
-    nodes, edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
+    nodes, _edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     spin = next((n for n in nodes if n.name == "Spin"), None)
     assert spin is not None, "a 3-segment qualified definition must not vanish"
     assert spin.qualified_name == "f.cpp::App.Gadget.Spin"
     assert spin.attrs["_pending_method_of"] == ["App", "Gadget"]
-    gadget = next(n for n in nodes if n.name == "Gadget")
-    assert (gadget.id, spin.id, "contains") in {
-        (e.src, e.dst, e.relation) for e in edges}
     assert "Tick" in {c[1] for c in calls}
+
+
+def test_index_repo_dir_resolves_out_of_line_method_across_files(tmp_path):
+    (tmp_path / "widget.h").write_text(
+        "class Widget {\npublic:\n    void Draw();\n};\n")
+    (tmp_path / "widget.cpp").write_text(
+        "#include \"widget.h\"\nvoid Widget::Draw() {\n}\n")
+    shard = index_repo_dir(str(tmp_path), "demo/widgets")
+    draw = next(n for n in shard.nodes if n.name == "Draw")
+    assert draw.kind == "method"
+    widget = next(n for n in shard.nodes if n.name == "Widget")
+    assert (widget.id, draw.id, "contains") in {
+        (e.src, e.dst, e.relation) for e in shard.edges}
+    # exactly one containment edge into Draw -- not both file and class
+    assert sum(1 for e in shard.edges if e.dst == draw.id and e.relation == "contains") == 1
+
+
+def test_index_repo_dir_resolves_out_of_line_method_three_segments_across_files(tmp_path):
+    (tmp_path / "gadget.h").write_text(
+        "namespace App {\nclass Gadget {\npublic:\n    void Spin();\n};\n}\n")
+    (tmp_path / "gadget.cpp").write_text(
+        "#include \"gadget.h\"\nvoid App::Gadget::Spin() {\n}\n")
+    shard = index_repo_dir(str(tmp_path), "demo/gadgets")
+    spin = next(n for n in shard.nodes if n.name == "Spin")
+    assert spin.kind == "method"
+    gadget = next(n for n in shard.nodes if n.name == "Gadget")
+    assert (gadget.id, spin.id, "contains") in {
+        (e.src, e.dst, e.relation) for e in shard.edges}
+    assert sum(1 for e in shard.edges if e.dst == spin.id and e.relation == "contains") == 1
 
 
 def test_parse_rust():
