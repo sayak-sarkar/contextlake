@@ -17,13 +17,32 @@ with a provenance footer citing the commit and sources, then puts the draft thro
 council**, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
 above a configurable threshold. Nothing that fails review is written.
 
+How many symbols get sampled into that grounding set scales with the repo's own size —
+`max(15, min(80, node_count // 1500))` — instead of a flat count of 15. Below about 24,000 graph
+nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
+reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
+dispatchers) carry proportionally more grounding depth, bounded so the prompt stays a fixed cost.
+Within that sample, `top_symbols` reserves at least one slot per distinct symbol kind (e.g. a SQL
+table node, which has no call edges) so a structurally low-degree kind is never squeezed out
+entirely by pure degree-ranking; `hubs`/`dispatchers` never do this backfill with a fabricated
+zero-count row, since those two carry a real caller/callee count claim. The provenance footer also
+states the resulting coverage as a fact — "Grounded in N/M symbols (X%)" — the count of distinct
+symbols the sample actually touched versus the repo's total node count.
+
 The page has a fixed section order — Overview, Setup & Run, Architecture, Dependencies, Gotchas,
 Decisions — but a section is only ever written when the graph actually has something to ground it:
-"Setup & Run" needs a README excerpt or a detected config file, "Gotchas" needs at least one symbol with
-real callers in the graph (reframed honestly as "most depended on — treat changes with extra care", not
-invented incident history). A repo with no such signal simply gets fewer sections, never an empty
-heading. "External context" (below) is a separate, always-conditional block on top of that list, not one
-of the named sections.
+"Setup & Run" needs a README excerpt or a detected config file, and separately flags when an indexed
+file lives under a directory literally named `generated/` (e.g. `src/generated/widgets.py`), so the
+model is warned off presenting that file's contents as hand-authored design. (`setup_signals` also
+has category-counting logic for legacy C/C++ project/workspace files such as `.vcxproj`/`.dsp` --
+today this has no visible effect, since those extensions aren't part of the currently-indexed
+language set and so never reach the graph to be counted.) "Gotchas" needs at least one symbol with
+real callers in the graph, and states only the caller-count fact ("N caller(s) in the graph, worth
+extra care/tests when changed") — the model is explicitly told not to characterize *why* a symbol
+has many callers, so it never invents a label like "foundational" or "critical infrastructure". A
+repo with no such signal simply gets fewer sections, never an empty heading. "External context"
+(below) is a separate, always-conditional block on top of that list, not
+one of the named sections.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).

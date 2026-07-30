@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.66.0] - 2026-07-31
+
+### Added
+- **Wiki grounding sample size now scales with repo size instead of a flat cap of 15.** The
+  number of symbols sampled into `top_symbols`/`hubs`/`dispatchers` is now
+  `max(15, min(80, node_count // 1500))`. This only changes behavior once a repo passes about
+  24,000 graph nodes (below that, the formula still floors to the same 15 as before); the sample
+  size then grows with repo size up to a cap of 80, reached at around 120,000 nodes.
+- **`top_symbols` now reserves at least one slot per distinct symbol kind.** Previously a pure
+  degree-rank cutoff could squeeze out a structurally low-degree kind entirely (e.g. a SQL table
+  node, which has no in/out call edges) once the sample cap filled up with higher-degree
+  function/method nodes. The zero-degree backfill is applied only to `top_symbols`, which carries
+  no numeric claim about a symbol; `hubs`/`dispatchers` reuse the same per-kind-floor helper but
+  only ever reorder candidates that already have a real (nonzero) caller/callee count -- they never
+  fabricate a "0 caller(s)" row for a kind with no signal.
+- **Wiki pages' provenance footer now states a coverage-ratio fact.** It appends
+  "Grounded in N/M symbols (X%)", where N is the number of distinct symbols appearing across
+  `top_symbols`/`hubs`/`dispatchers` combined and M is the repo's total node count, letting a
+  reader judge how much of the repo's surface the grounding sample actually covers.
+- **`setup_signals` gained per-category counting logic for legacy C/C++ project/workspace files**
+  (`.vcxproj`, `.vcproj`, `.dsp`/`.dsw`, `.pbxproj`, `.cdtproject`), so a large legacy repo could be
+  summarized as a count (e.g. "3 legacy MSVC6 project (.dsp) file(s) detected") rather than listed
+  file-by-file. **Note:** this counts only files already present in the graph's node set, and none
+  of these extensions are part of the currently-parsed/indexed language set -- so on a real repo
+  today the count is always zero; this is groundwork with no user-visible effect yet, pending a
+  follow-up to source it from the repo's live file listing the way the existing config-file
+  detection (`package.json`, `Dockerfile`, ...) already does.
+- **`repo_brief` gained a `generated_paths_detected` flag** so the wiki prompt can warn the model
+  off treating derived build output as hand-authored design. It fires for an indexed file living
+  under a directory literally named `generated/` (e.g. `src/generated/widgets.py`); it also checks
+  the parser's own generated-filename convention (e.g. `Form1.designer.cs`), but a file matching
+  that convention is, by default, already excluded from indexing before it can reach the graph --
+  so that half of the check only has an effect when a repo's `[kb] skip_generated = false`.
+
+### Fixed
+- **`contextlake graph --repo <repo>` (and the dashboard's repo diagram) now truncates to
+  `--max-nodes` by degree rank, not by an arbitrary `node_id` order.** When a repo's node count
+  exceeds the cap, the surviving nodes are now the highest-degree ones (ties broken by `node_id`)
+  instead of whichever nodes happened to sort first by id, so the most connected/important part of
+  the graph is what a truncated view keeps.
+- **The wiki's Gotchas section now states only the caller-count fact, not a characterization of
+  why.** The prompt still tells the model each symbol's caller count and that it's therefore worth
+  extra care/tests when changed, but no longer lets it describe *why* a symbol has many callers --
+  wording like "foundational", "core", or "critical infrastructure" is explicitly disallowed, since
+  the caller count is the only fact actually given, not an explanation of the symbol's role.
+
 ## [2.65.0] - 2026-07-31
 
 ### Fixed

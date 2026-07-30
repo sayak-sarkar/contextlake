@@ -24,8 +24,11 @@ with `--hops` (default 2), `--max-nodes` (500), `--max-edges` (400 for `--repo` 
 pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
 capping edges independently means it always renders, possibly truncated, never errors), `--max-fanout` (50,
 a per-node cap that stops hub nodes from exploding), `--relation`, and `--direction {in,out,both}`, whatever
-is dropped is **logged**, never silently truncated. On the dashboard, a repo too large to show in one
-diagram gets a "scope to one module" dropdown (its top-level path segments) instead of an arbitrary slice.
+is dropped is **logged**, never silently truncated. For a `--repo` view over `--max-nodes`, which nodes
+survive the cut is now ranked by degree (highest-connected nodes kept first, ties broken by node id)
+rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
+instead of whatever happened to sort first. On the dashboard, a repo too large to show in one diagram gets
+a "scope to one module" dropdown (its top-level path segments) instead of an arbitrary slice.
 
 ## Output formats
 
