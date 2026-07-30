@@ -231,6 +231,8 @@ def test_parse_cpp_out_of_line_method_two_segments_links_to_class():
     nodes, edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     draw = next(n for n in nodes if n.name == "Draw" and n.line_start == 6)
     assert draw.kind == "method"
+    assert draw.qualified_name == "f.cpp::Widget.Draw"
+    assert draw.attrs["_pending_method_of"] == ["Widget"]
     widget = next(n for n in nodes if n.name == "Widget")
     assert (widget.id, draw.id, "contains") in {
         (e.src, e.dst, e.relation) for e in edges}
@@ -243,6 +245,8 @@ def test_parse_cpp_out_of_line_method_three_segments_not_lost():
     nodes, edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     spin = next((n for n in nodes if n.name == "Spin"), None)
     assert spin is not None, "a 3-segment qualified definition must not vanish"
+    assert spin.qualified_name == "f.cpp::App.Gadget.Spin"
+    assert spin.attrs["_pending_method_of"] == ["App", "Gadget"]
     gadget = next(n for n in nodes if n.name == "Gadget")
     assert (gadget.id, spin.id, "contains") in {
         (e.src, e.dst, e.relation) for e in edges}
