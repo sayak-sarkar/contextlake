@@ -95,10 +95,13 @@ LANG_BY_EXT = {
     # overwhelmingly use the common C++ header/.cpp split (see
     # test_index_repo_dir_resolves_out_of_line_method_across_files) -- the
     # tree-sitter-cpp grammar is a near-superset of C, so parsing ".h" as "cpp"
-    # strictly matches-or-improves extraction on plain C headers too (measured
-    # against ~200 real ".h" files from the repo fleet: e.g. jni.h's `#ifdef
-    # __cplusplus` wrapper classes are only recognized under the cpp grammar;
-    # genuinely C-only headers like jvmdi.h extract identically either way).
+    # matches-or-improves extraction on plain C headers too in 196/200 real
+    # ".h" files sampled from the repo fleet (e.g. jni.h's `#ifdef __cplusplus`
+    # wrapper classes are only recognized under the cpp grammar; genuinely
+    # C-only headers like jvmdi.h extract identically either way). The
+    # remaining 4/200 traced to a separate, pre-existing gap in cpp's handling
+    # of `template<>` full-specialization structs, not a regression on plain-C
+    # content.
     ".h": "cpp",
     ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp", ".c++": "cpp",
     ".hpp": "cpp", ".hh": "cpp", ".hxx": "cpp",
