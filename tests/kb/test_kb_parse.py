@@ -263,6 +263,36 @@ def test_parse_cpp_namespace_block_contains_its_members():
         (e.src, e.dst, e.relation) for e in edges}
 
 
+def test_parse_cpp_ifdef_else_twins_collapse_to_one_node():
+    src = (b"#ifdef USE_FAST\n"
+           b"void Setup() { FastInit(); }\n"
+           b"#else\n"
+           b"void Setup() { SlowInit(); }\n"
+           b"#endif\n"
+           b"void Run() { Setup(); }\n")
+    nodes, _edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
+    setups = [n for n in nodes if n.name == "Setup"]
+    assert len(setups) == 1
+
+
+def test_parse_cpp_ifdef_else_twins_calls_resolve_inferred(tmp_path):
+    (tmp_path / "f.cpp").write_text(
+        "#ifdef USE_FAST\n"
+        "void Setup() { FastInit(); }\n"
+        "#else\n"
+        "void Setup() { SlowInit(); }\n"
+        "#endif\n"
+        "void Run() { Setup(); }\n"
+        "void FastInit() {}\n"
+        "void SlowInit() {}\n"
+    )
+    shard = index_repo_dir(str(tmp_path), "demo/twins")
+    calls_to_setup = [e for e in shard.edges if e.relation == "calls"
+                      and any(n.id == e.dst and n.name == "Setup" for n in shard.nodes)]
+    assert len(calls_to_setup) == 1
+    assert calls_to_setup[0].confidence.value == "INFERRED"
+
+
 def test_index_repo_dir_resolves_out_of_line_method_across_files(tmp_path):
     (tmp_path / "widget.h").write_text(
         "class Widget {\npublic:\n    void Draw();\n};\n")

@@ -519,6 +519,69 @@ def _enclosing_defs(name_node: ts.Node, def_types: set[str]) -> list[ts.Node]:
     return out
 
 
+def _conditional_root(node: ts.Node) -> int | None:
+    """The ``.id`` of the nearest enclosing ``#if``/``#ifdef`` construct, or ``None``.
+
+    Two definitions sharing the same conditional root are candidates for being
+    branch-twins of the same preprocessor conditional (tree-sitter parses both
+    branches unconditionally, since it never evaluates the preprocessor) --
+    matching root is a necessary, cheap pre-filter before comparing signatures.
+    """
+    n = node.parent
+    while n is not None:
+        if n.type in ("preproc_if", "preproc_ifdef"):
+            return n.id
+        n = n.parent
+    return None
+
+
+def _dedupe_preprocessor_twins(
+    nodes: list[Node], pending: list[tuple[ts.Node, str, int, str]],
+    def_node_to_id: dict[int, str],
+) -> None:
+    """Collapse same-name, same-signature, same-#if-branch duplicate definitions.
+
+    A genuine overload (``void Setup(); void Setup(int);``) has a different
+    signature and is never touched. Two defs merge only when they share BOTH an
+    identical (qualified name, signature) AND the same conditional root -- the
+    exact shape of an ``#ifdef``/``#else`` twin -- so two unrelated ``#ifdef``
+    blocks elsewhere in the file that happen to define the same name/signature
+    are never conflated. The first (lowest source line) is kept; the other's
+    tree-sitter id is remapped to the same graph node id so later containment/
+    call attribution (both keyed by ``def_ts.id`` via ``def_node_to_id``) still
+    resolves correctly.
+
+    Matches ``pending`` entries to ``nodes`` by node id (``pending``'s 4th
+    element), never by list position -- ``nodes`` starts with a leading file
+    node before this loop ever runs, so ``pending[i]`` and ``nodes[i]`` are not
+    the same definition.
+    """
+    nodes_by_id = {n.id: n for n in nodes}
+    groups: dict[tuple, list[tuple[ts.Node, str, int, str]]] = {}
+    for entry in pending:
+        def_ts, qualified, _line, nid = entry
+        root = _conditional_root(def_ts)
+        if root is None:
+            continue
+        node = nodes_by_id.get(nid)
+        sig = (node.attrs or {}).get("signature", "") if node else ""
+        groups.setdefault((qualified, sig, root), []).append(entry)
+
+    drop_ids: set[str] = set()
+    for entries in groups.values():
+        if len(entries) < 2:
+            continue
+        entries.sort(key=lambda e: e[2])  # by line -- keep the first
+        keeper_id = entries[0][3]
+        for def_ts, _qualified, _line, nid in entries[1:]:
+            def_node_to_id[def_ts.id] = keeper_id
+            drop_ids.add(nid)
+
+    if drop_ids:
+        nodes[:] = [n for n in nodes if n.id not in drop_ids]
+        pending[:] = [p for p in pending if p[3] not in drop_ids]
+
+
 def _qualified_chain(qi_node: ts.Node) -> tuple[list[str], ts.Node]:
     """Segments + innermost name node of a (possibly multi-level) qualified_identifier.
 
@@ -614,6 +677,8 @@ def parse_source(
             attrs=node_attrs,
         ))
         pending.append((def_ts, qualified, line, nid))
+
+    _dedupe_preprocessor_twins(nodes, pending, def_node_to_id)
 
     # Second pass: containment edges (parent definition, else the file). The parent is
     # the nearest enclosing def-typed node above this one — computed from def_ts itself
