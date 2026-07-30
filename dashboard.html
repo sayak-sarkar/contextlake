@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8d71120">
-<link rel="stylesheet" href="tokens.css?v=8d71120">
-<link rel="stylesheet" href="docs.css?v=8d71120">
-<link rel="stylesheet" href="cmdk.css?v=8d71120">
+<link rel="stylesheet" href="fonts.css?v=88fbe49">
+<link rel="stylesheet" href="tokens.css?v=88fbe49">
+<link rel="stylesheet" href="docs.css?v=88fbe49">
+<link rel="stylesheet" href="cmdk.css?v=88fbe49">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -208,9 +208,17 @@ than showing an empty diagram.</p>
 <p><code>--llm</code> enables the LLM tier inline, <code>builtin</code> runs a small CPU model with no Ollama or
 API key (install the <code>llm-local</code> extra first); <code>ollama</code> / <code>openai</code> use those backends.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
-renders right in the Wiki tab, grounded in the repo's real symbols, with a provenance
-footer citing the exact commit and source files.</p>
+renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
+symbols and (when available) its own README and conventional setup/config files, with a
+fixed section order (Overview, Setup &amp; Run, Architecture, Dependencies, Gotchas, Decisions , 
+sections with nothing to ground them are left out, never emitted empty), plus an attributed
+"external context" block from connected sources when there's real data to cite, and a
+provenance footer citing the exact commit and source files. A <strong>STALE</strong> badge appears next to
+the heading whenever the indexed commit has moved since the page was generated, that's
+always visible, not tucked behind anything.</p>
 <p><img class="ss ss-light" alt="The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png" /><img class="ss ss-dark" alt="The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-dark.png" /></p>
+<p>With <code>--allow-mutations</code>, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
+carry a <strong>Regenerate</strong> button, see <a href="#11-mutating-routes---allow-mutations">§11</a>.</p>
 <p>See <a href="knowledge-layer#curated-wiki">knowledge-layer.md → Curated wiki</a>.</p>
 <h2 id="10-mcp-console-settings">10. MCP console &amp; Settings<a class="anchor" href="#10-mcp-console-settings" title="Link to this section">#</a></h2>
 <p>Two read-only panels, live-only (not part of a <code>--site</code> export; both describe this
@@ -223,12 +231,20 @@ mirror root, configured connectors, and the embedder/LLM tiers. No in-browser ed
 it's a summary, not a form; edit <code>kb.toml</code> directly to change anything.</p>
 <h2 id="11-mutating-routes-allow-mutations">11. Mutating routes (<code>--allow-mutations</code>)<a class="anchor" href="#11-mutating-routes-allow-mutations" title="Link to this section">#</a></h2>
 <p>Everything above is read-only. <code>contextlake dashboard --serve --allow-mutations</code>
-additionally exposes three write actions, each behind an explicit confirm dialog in
+additionally exposes four write actions, each behind an explicit confirm dialog in
 the browser: <strong>Sync now</strong> on a repo page (<code>git pull --ff-only</code> + reindex), <strong>Add
-repo</strong> on the fleet overview (clone a URL into <code>--workspace</code> + index it), and
+repo</strong> on the fleet overview (clone a URL into <code>--workspace</code> + index it),
 <strong>Start / Stop / Restart</strong> for a separate <code>contextlake serve --transport http</code>
 process on the MCP console tab (not the stdio server your editor spawns -- this
-dashboard can't see or manage that one).</p>
+dashboard can't see or manage that one), and <strong>Regenerate</strong> wiki (single-repo on
+that repo's Wiki tab, or fleet-wide on Settings, runs the exact <code>contextlake
+wiki</code> CLI as a background process, detached from the request that started it, so
+it keeps running even if you close the browser tab).
+Regenerate always shows a real pre-flight count first, "N of M repos will
+regenerate, the rest are already up to date", before you confirm, and a <strong>Force</strong>
+checkbox to bypass that freshness check and regenerate everything in scope
+regardless (the estimate updates to reflect that before you confirm, too, a
+fleet-wide Force run can mean an LLM call per indexed repo).</p>
 <p>Refused outright with <code>--sample</code> (the demo fleet is fictional -- nothing on disk to
 sync/clone) and with any <code>--host</code> other than <code>127.0.0.1</code>/<code>localhost</code> (mutating
 routes are loopback-only by design). A random per-launch token is minted at
@@ -311,6 +327,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=8d71120"></script>
+<script defer src="cmdk.js?v=88fbe49"></script>
 </body>
 </html>

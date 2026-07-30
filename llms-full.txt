@@ -1690,9 +1690,19 @@ machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ol
 inline and scopes generation to the named repo(s).
 
 Run `contextlake wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
-symbols, dependencies, files) with a provenance footer citing the commit and sources, then puts the draft
-through a **verification council**, reviewers score it for accuracy, completeness, and clarity and a
-chairman publishes only pages above a configurable threshold. Nothing that fails review is written.
+symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
+and which conventional entry-point/config files it has, e.g. `package.json`, `Dockerfile`, `manage.py`)
+with a provenance footer citing the commit and sources, then puts the draft through a **verification
+council**, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
+above a configurable threshold. Nothing that fails review is written.
+
+The page has a fixed section order, Overview, Setup & Run, Architecture, Dependencies, Gotchas,
+Decisions, but a section is only ever written when the graph actually has something to ground it:
+"Setup & Run" needs a README excerpt or a detected config file, "Gotchas" needs at least one symbol with
+real callers in the graph (reframed honestly as "most depended on, treat changes with extra care", not
+invented incident history). A repo with no such signal simply gets fewer sections, never an empty
+heading. "External context" (below) is a separate, always-conditional block on top of that list, not one
+of the named sections.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).
@@ -1714,8 +1724,12 @@ services call which over HTTP, publish/consume which events, and share which pac
 page per namespace at that prefix depth. It grounds strictly in the cross-repo edges the graph already
 resolved (no new extraction) and reuses the same review council + provenance footer as the per-repo wiki,
 so it stays advisory and cited; when the graph shows no coupling it says so rather than inventing a link.
-Cluster pages are served over MCP by passing a namespace to `get_wiki`, and shown per group in the
-dashboard's fleet overview.
+Cluster pages get the same fixed-section, nothing-invented treatment as per-repo pages, including a
+"Gotchas" section when there's a real coupling-risk signal to ground it: the highest-weight internal edges
+(busiest cross-repo coupling in the namespace) and the member repos with the most boundary edges
+(the ones whose changes are most likely to ripple outside the namespace), both read directly off data the
+cluster brief already computes, no new metric. Cluster pages are served over MCP by passing a namespace to
+`get_wiki`, and shown per group in the dashboard's fleet overview.
 
 ## Incorporating connector enrichment
 
@@ -1727,10 +1741,15 @@ assertion or as an undisclosed code fact. The council still gates the enriched p
 ensuring external context supplements rather than displaces code-backed facts and that attribution is
 clear and verifiable.
 
-The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
-provenance footer citing the exact commit and source files it was built from.
+The result, rendered directly in the dashboard's Wiki tab (no click-through needed): prose grounded
+strictly in real symbols, with a provenance footer citing the exact commit and source files it was built
+from, and a **STALE** badge if the indexed commit has since moved.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+
+With `contextlake dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
+Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
+background, see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes---allow-mutations).
 
 ## Recorded decisions
 
@@ -2297,10 +2316,19 @@ contextlake wiki acme/catalog-api --llm builtin
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
 API key (install the `llm-local` extra first); `ollama` / `openai` use those backends.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
-renders right in the Wiki tab, grounded in the repo's real symbols, with a provenance
-footer citing the exact commit and source files.
+renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
+symbols and (when available) its own README and conventional setup/config files, with a
+fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions , 
+sections with nothing to ground them are left out, never emitted empty), plus an attributed
+"external context" block from connected sources when there's real data to cite, and a
+provenance footer citing the exact commit and source files. A **STALE** badge appears next to
+the heading whenever the indexed commit has moved since the page was generated, that's
+always visible, not tucked behind anything.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
+
+With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
+carry a **Regenerate** button, see [§11](#11-mutating-routes---allow-mutations).
 
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
@@ -2320,12 +2348,20 @@ it's a summary, not a form; edit `kb.toml` directly to change anything.
 ## 11. Mutating routes (`--allow-mutations`)
 
 Everything above is read-only. `contextlake dashboard --serve --allow-mutations`
-additionally exposes three write actions, each behind an explicit confirm dialog in
+additionally exposes four write actions, each behind an explicit confirm dialog in
 the browser: **Sync now** on a repo page (`git pull --ff-only` + reindex), **Add
-repo** on the fleet overview (clone a URL into `--workspace` + index it), and
+repo** on the fleet overview (clone a URL into `--workspace` + index it),
 **Start / Stop / Restart** for a separate `contextlake serve --transport http`
 process on the MCP console tab (not the stdio server your editor spawns -- this
-dashboard can't see or manage that one).
+dashboard can't see or manage that one), and **Regenerate** wiki (single-repo on
+that repo's Wiki tab, or fleet-wide on Settings, runs the exact `contextlake
+wiki` CLI as a background process, detached from the request that started it, so
+it keeps running even if you close the browser tab).
+Regenerate always shows a real pre-flight count first, "N of M repos will
+regenerate, the rest are already up to date", before you confirm, and a **Force**
+checkbox to bypass that freshness check and regenerate everything in scope
+regardless (the estimate updates to reflect that before you confirm, too, a
+fleet-wide Force run can mean an LLM call per indexed repo).
 
 Refused outright with `--sample` (the demo fleet is fictional -- nothing on disk to
 sync/clone) and with any `--host` other than `127.0.0.1`/`localhost` (mutating
@@ -3485,6 +3521,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.64.0] - 2026-07-30
+
+### Added
+- **Wiki: richer per-repo template.** Pages gain two new sections, each only written
+  when the graph actually grounds it (never an empty heading): **Setup & Run** (from
+  a README excerpt read off the repo's live checkout, plus which conventional
+  entry-point/config files are present -- `package.json`, `Dockerfile`,
+  `pyproject.toml`, `manage.py`, etc.) and **Gotchas** (the most-depended-on symbols,
+  reframed as a "treat changes here with extra care" signal -- reuses the hubs data
+  already computed, no new extraction). Section order is now fixed:
+  Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions, External
+  context. `repo_brief()` gained an optional `store` param (only used for the README
+  read; omit it and the field is simply `None` -- degrades the same way
+  `dashboard.data._readme_html` already does for a missing/moved checkout).
+  Anonymized `--site` exports drop the README excerpt, same rule as the existing
+  README/wiki-body exclusion.
+- **Wiki: same richer template for cluster/namespace pages.** `wiki/cluster.py`'s
+  cluster prompt gets the same fixed-order, nothing-invented treatment, including a
+  "Gotchas" section grounded in a real coupling-risk signal: the highest-weight
+  internal edges (busiest cross-repo coupling) and the member repos with the most
+  boundary edges (widest external blast radius) -- both read directly off data the
+  cluster brief already computes.
+- **Dashboard: the Wiki tab no longer gates content behind a "Reveal wiki" click.**
+  The page renders directly; the one thing the old gate carried that mattered (the
+  `stale` flag) is now a persistent badge next to the heading instead of being hidden
+  behind the same click.
+- **Dashboard: live "Regenerate wiki" action, single-repo and fleet-wide.** With
+  `--allow-mutations`, a repo's Wiki tab gets a scoped regenerate button and the
+  Settings tab gets a fleet-wide one. Both show a real pre-flight estimate ("N of M
+  repos will regenerate, the rest are already up to date") before confirming, with a
+  Force option to bypass the freshness check (the estimate updates to make that cost
+  explicit first). Modeled on the existing MCP-server start/stop lifecycle
+  (non-blocking subprocess + pidfile), not the blocking sync/add-repo pattern -- an
+  LLM-backed run has no safe fixed timeout. Spawns the real `contextlake wiki` CLI
+  unmodified, so there's no duplicated generation logic; the dashboard just tails its
+  log and polls whether it's still running.
 
 ## [2.63.0] - 2026-07-30
 

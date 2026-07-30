@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Generate the wiki · contextlake docs">
 <meta name="twitter:description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generate-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate the wiki", "item": "https://sayak.in/contextlake/generate-wiki"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generate-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-30"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate the wiki", "item": "https://sayak.in/contextlake/generate-wiki"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8d71120">
-<link rel="stylesheet" href="tokens.css?v=8d71120">
-<link rel="stylesheet" href="docs.css?v=8d71120">
-<link rel="stylesheet" href="cmdk.css?v=8d71120">
+<link rel="stylesheet" href="fonts.css?v=88fbe49">
+<link rel="stylesheet" href="tokens.css?v=88fbe49">
+<link rel="stylesheet" href="docs.css?v=88fbe49">
+<link rel="stylesheet" href="cmdk.css?v=88fbe49">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -56,9 +56,18 @@ machine), or skip the toml entirely and pass <code>--llm &lt;provider&gt;</code>
 <code>anthropic</code> | <code>cli</code>), for example <code>contextlake wiki acme/catalog-api --llm builtin</code>, which enables the tier
 inline and scopes generation to the named repo(s).</p>
 <p>Run <code>contextlake wiki</code>: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
-symbols, dependencies, files) with a provenance footer citing the commit and sources, then puts the draft
-through a <strong>verification council</strong>, reviewers score it for accuracy, completeness, and clarity and a
-chairman publishes only pages above a configurable threshold. Nothing that fails review is written.</p>
+symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
+and which conventional entry-point/config files it has, e.g. <code>package.json</code>, <code>Dockerfile</code>, <code>manage.py</code>)
+with a provenance footer citing the commit and sources, then puts the draft through a <strong>verification
+council</strong>, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
+above a configurable threshold. Nothing that fails review is written.</p>
+<p>The page has a fixed section order, Overview, Setup &amp; Run, Architecture, Dependencies, Gotchas,
+Decisions, but a section is only ever written when the graph actually has something to ground it:
+"Setup &amp; Run" needs a README excerpt or a detected config file, "Gotchas" needs at least one symbol with
+real callers in the graph (reframed honestly as "most depended on, treat changes with extra care", not
+invented incident history). A repo with no such signal simply gets fewer sections, never an empty
+heading. "External context" (below) is a separate, always-conditional block on top of that list, not one
+of the named sections.</p>
 <p>For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see <a href="model-providers">Model providers</a>.</p>
 <h2 id="searchable-prose">Searchable prose<a class="anchor" href="#searchable-prose" title="Link to this section">#</a></h2>
@@ -75,8 +84,12 @@ services call which over HTTP, publish/consume which events, and share which pac
 page per namespace at that prefix depth. It grounds strictly in the cross-repo edges the graph already
 resolved (no new extraction) and reuses the same review council + provenance footer as the per-repo wiki,
 so it stays advisory and cited; when the graph shows no coupling it says so rather than inventing a link.
-Cluster pages are served over MCP by passing a namespace to <code>get_wiki</code>, and shown per group in the
-dashboard's fleet overview.</p>
+Cluster pages get the same fixed-section, nothing-invented treatment as per-repo pages, including a
+"Gotchas" section when there's a real coupling-risk signal to ground it: the highest-weight internal edges
+(busiest cross-repo coupling in the namespace) and the member repos with the most boundary edges
+(the ones whose changes are most likely to ripple outside the namespace), both read directly off data the
+cluster brief already computes, no new metric. Cluster pages are served over MCP by passing a namespace to
+<code>get_wiki</code>, and shown per group in the dashboard's fleet overview.</p>
 <h2 id="incorporating-connector-enrichment">Incorporating connector enrichment<a class="anchor" href="#incorporating-connector-enrichment" title="Link to this section">#</a></h2>
 <p>When <code>contextlake enrich</code> has populated a repo's <code>@enrich:&lt;repo&gt;</code> enrichment documents (via Atlassian or
 MCP search sources), the wiki synthesizer draws on them and incorporates an "External context" section
@@ -85,9 +98,13 @@ Jira issue, or MCP search result) and attributed by source URL or name, never pr
 assertion or as an undisclosed code fact. The council still gates the enriched page before it is written,
 ensuring external context supplements rather than displaces code-backed facts and that attribution is
 clear and verifiable.</p>
-<p>The result, rendered in the dashboard's Wiki tab: prose grounded strictly in real symbols, with a
-provenance footer citing the exact commit and source files it was built from.</p>
+<p>The result, rendered directly in the dashboard's Wiki tab (no click-through needed): prose grounded
+strictly in real symbols, with a provenance footer citing the exact commit and source files it was built
+from, and a <strong>STALE</strong> badge if the indexed commit has since moved.</p>
 <p><img class="ss ss-light" alt="The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png" /><img class="ss ss-dark" alt="The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files" src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki-dark.png" /></p>
+<p>With <code>contextlake dashboard --serve --allow-mutations</code>, both the per-repo Wiki tab and the fleet-wide
+Settings tab also carry a <strong>Regenerate</strong> button that runs this same command from the browser, in the
+background, see <a href="dashboard#11-mutating-routes---allow-mutations">The dashboard → Mutating routes</a>.</p>
 <h2 id="recorded-decisions">Recorded decisions<a class="anchor" href="#recorded-decisions" title="Link to this section">#</a></h2>
 <p>A repo's own ADR/decision docs (see <a href="index-code-graph#architecture-decisions-adrs">Index &amp; Code Graph</a>)
 are authored facts, not connector content, so they don't need attribution the way "External context"
@@ -137,6 +154,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=8d71120"></script>
+<script defer src="cmdk.js?v=88fbe49"></script>
 </body>
 </html>
