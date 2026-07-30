@@ -338,11 +338,16 @@ def test_parse_cpp_ifndef_guard_overloads_are_not_conflated_as_twins():
 
 
 def test_parse_cpp_ifndef_guard_ref_qualified_overloads_are_not_conflated():
-    # Same shape as the const/non-const case above, but for ref-qualifiers
-    # (& vs &&) -- tree-sitter attaches these as siblings of the parameter_list
-    # inside the same function_declarator, not inside the parameter_list itself,
-    # so _signature_text must read the whole declarator's text, not just its
-    # parameter_list child, or these look identical and one is deleted.
+    # Same shape as the const/non-const case above: both defs sit directly under
+    # the guard with no #else between them, so _conditional_branch returns None
+    # for both and _dedupe_preprocessor_twins refuses to merge them on branch
+    # shape alone (only one branch is represented) -- regardless of what
+    # _signature_text reports. This test does NOT exercise the widened
+    # declarator-text signature key; see
+    # test_parse_cpp_ifdef_else_overload_pair_across_branches_needs_qualifier_in_signature
+    # below for the case that actually isolates that check (confirmed by
+    # reverting _signature_text to parameter_list-only and observing this test
+    # still passes while that one fails).
     src = (b"#ifndef FOO_H\n"
            b"#define FOO_H\n"
            b"class C {\n"
@@ -354,6 +359,44 @@ def test_parse_cpp_ifndef_guard_ref_qualified_overloads_are_not_conflated():
     nodes, _edges, _calls, _inh = parse_source("r", "f.h", src, "cpp")
     gets = [n for n in nodes if n.name == "get"]
     assert len(gets) == 2
+
+
+def test_parse_cpp_ifdef_else_overload_pair_across_branches_needs_qualifier_in_signature():
+    # This is the ONE case that actually isolates the widened (declarator-text,
+    # not just parameter_list) signature key: a non-const/const overload PAIR,
+    # split one-per-branch across a genuine #ifdef/#else -- so _conditional_branch
+    # reports 2 DISTINCT branches with exactly 1 candidate each, i.e. branch
+    # differentiation alone says "this looks like a legitimate twin shape" (it
+    # would happily allow a merge). Only _signature_text correctly reporting
+    # different signatures (because it includes the trailing "const") keeps
+    # these two in SEPARATE (name, signature, root) groups, so they never even
+    # reach the branch check as a merge candidate pair.
+    #
+    # Verified empirically (both directions, see task-4-report.md's round-3
+    # section for the transcript): with the real widened _signature_text, this
+    # produces 2 nodes; temporarily reverting _signature_text to
+    # parameter_list-only text collapses it to 1 (both overloads then share the
+    # same empty-of-qualifiers "(int i)" signature, land in one group, and
+    # branch differentiation -- seeing 2 distinct branches, 1 candidate each --
+    # incorrectly approves the merge). The two tests directly above this one
+    # (const/non-const and ref-qualified, both under a bare guard with NO
+    # #else) do NOT distinguish a working vs. broken signature key -- they stay
+    # at 2 nodes either way, because branch differentiation alone (only one
+    # branch represented) already refuses to merge them.
+    src = (b"#ifndef FOO_H\n"
+           b"#define FOO_H\n"
+           b"class C {\n"
+           b"public:\n"
+           b"#ifdef A\n"
+           b"    int at(int i) { return 1; }\n"
+           b"#else\n"
+           b"    int at(int i) const { return 2; }\n"
+           b"#endif\n"
+           b"};\n"
+           b"#endif\n")
+    nodes, _edges, _calls, _inh = parse_source("r", "f.h", src, "cpp")
+    ats = [n for n in nodes if n.name == "at"]
+    assert len(ats) == 2
 
 
 def test_parse_cpp_ifdef_else_twin_nested_inside_guard_still_collapses():
