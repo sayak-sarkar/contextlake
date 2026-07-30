@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not merely behind *some* conditional anywhere in the file, and never for a bare `#ifndef` include
   guard with no `#else` (the single most common header pattern of all, deliberately excluded: a
   guard alone has only one branch, so there's nothing to collapse). A widened signature comparison
-  (return/parameter types read from the AST, not just parameter names) keeps genuinely distinct
+  (parameter types read from the AST, not just parameter names) keeps genuinely distinct
   overloads on either side of a branch as separate definitions.
 
 ### Added

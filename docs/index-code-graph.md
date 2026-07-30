@@ -82,7 +82,7 @@ depth) resolves to a `method` contained by its class, repo-wide -- not just the 
 so an out-of-line definition in one file still shows up under its class even when the class itself is
 declared in a different header. A `namespace { ... }` block is its own containing node, the same way a
 class or file is. Header files (`.h`) are parsed as C++, so a class declared in a header and defined in a
-matching `.cpp` is visible as one unit rather than the class half going missing (if your `contextlake.toml`
+matching `.cpp` is visible as one unit rather than the class half going missing (if your `kb.toml`
 restricts `languages` to `["c"]` without also listing `cpp`, `.h` files are now excluded from indexing
 entirely -- list both if you rely on header-declared definitions). An `#ifdef`/`#else` (or `#ifndef`/`#else`)
 pair -- two definitions of the same method in different branches of the *same* conditional -- collapses
