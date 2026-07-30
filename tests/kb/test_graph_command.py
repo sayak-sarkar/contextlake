@@ -104,6 +104,17 @@ def test_repo_subgraph_is_internal_only(store):
     assert [(e.src, e.dst) for e in edges] == [("a", "b")]  # external edge excluded
 
 
+def test_repo_subgraph_truncation_keeps_highest_degree_nodes(store):
+    # 'zzz' sorts last by node_id but is the hub (5 outgoing edges); 'aaa' and
+    # 'bbb' are degree-0 leaves that would win a plain ORDER BY node_id
+    # truncation. With max_nodes=1 the survivor must be the hub, not whichever
+    # node sorts first alphabetically/by id.
+    store.upsert_nodes("r", [_node("zzz", kind="class"), _node("aaa"), _node("bbb")])
+    store.upsert_edges("r", [_edge("zzz", f"e{i}") for i in range(5)])
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=1)
+    assert [n.id for n in nodes] == ["zzz"]
+
+
 def _dense_hub(store, leaves=20):
     """A synthetic repo where a small node cap still yields MORE edges than
     nodes -- a hub with fan-out to every leaf, plus every leaf calling every

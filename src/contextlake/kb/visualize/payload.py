@@ -189,9 +189,21 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     if path_prefix:
         where += " AND file LIKE ? ESCAPE '\\'"
         params.append(path_prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
+    deg_params = [repo_id, repo_id]
     rows = store.conn.execute(
-        f"SELECT node_id FROM nodes WHERE {where} ORDER BY node_id LIMIT ?",
-        (*params, max_nodes + 1),
+        f"""
+        SELECT n.node_id FROM nodes n
+        LEFT JOIN (
+            SELECT src AS node_id, COUNT(*) AS c FROM edges WHERE repo_id=? GROUP BY src
+            UNION ALL
+            SELECT dst AS node_id, COUNT(*) AS c FROM edges WHERE repo_id=? GROUP BY dst
+        ) deg ON deg.node_id = n.node_id
+        WHERE {where}
+        GROUP BY n.node_id
+        ORDER BY COALESCE(SUM(deg.c), 0) DESC, n.node_id ASC
+        LIMIT ?
+        """,
+        (*deg_params, *params, max_nodes + 1),
     ).fetchall()
     node_truncated = len(rows) > max_nodes
     ids = [r[0] for r in rows[:max_nodes]]
