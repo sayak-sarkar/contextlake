@@ -293,6 +293,23 @@ def test_parse_cpp_ifdef_else_twins_calls_resolve_inferred(tmp_path):
     assert calls_to_setup[0].confidence.value == "INFERRED"
 
 
+def test_parse_cpp_ifdef_overloads_are_not_conflated_as_twins():
+    # A genuine overload set inside ONE #ifdef branch must survive: same qualified
+    # name and same conditional root as each other, but different parameter lists.
+    # _doc_sig's attrs["signature"] is always empty for C/C++ (the parameter_list
+    # sits under function_declarator, not a direct field of function_definition),
+    # so the dedup's signature discriminator must be read directly off def_ts
+    # (see _signature_text) -- otherwise this collapses to 1 node, silently
+    # deleting a real overload.
+    src = (b"#ifdef USE_FAST\n"
+           b"void Setup() {}\n"
+           b"void Setup(int x) {}\n"
+           b"#endif\n")
+    nodes, _edges, _calls, _inh = parse_source("r", "f.cpp", src, "cpp")
+    setups = [n for n in nodes if n.name == "Setup"]
+    assert len(setups) == 2
+
+
 def test_index_repo_dir_resolves_out_of_line_method_across_files(tmp_path):
     (tmp_path / "widget.h").write_text(
         "class Widget {\npublic:\n    void Draw();\n};\n")

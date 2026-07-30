@@ -535,6 +535,29 @@ def _conditional_root(node: ts.Node) -> int | None:
     return None
 
 
+def _signature_text(def_ts: ts.Node) -> str:
+    """A parameter-list discriminator read directly off the definition node.
+
+    Deliberately does NOT reuse ``_doc_sig``'s ``attrs["signature"]``: that field
+    only looks at a ``parameters``/``parameter_list`` *field on def_ts itself*,
+    which a C/C++ ``function_definition`` never has -- its parameter list is
+    nested inside a ``function_declarator``, reached via the ``declarator``
+    field, itself possibly wrapped in one or more pointer/reference declarators
+    (e.g. ``int* Foo(int x)``). Relying on the attrs field left ``sig`` empty for
+    every C/C++ definition, silently disabling overload discrimination below --
+    this walks the declarator chain instead so real overloads (different
+    parameter lists) are never conflated as branch-twins.
+    """
+    params = def_ts.child_by_field_name("parameters") or def_ts.child_by_field_name(
+        "parameter_list")
+    node = def_ts.child_by_field_name("declarator")
+    while params is None and node is not None:
+        params = node.child_by_field_name("parameters") or node.child_by_field_name(
+            "parameter_list")
+        node = node.child_by_field_name("declarator")
+    return params.text.decode("utf-8", "replace").strip() if params is not None else ""
+
+
 def _dedupe_preprocessor_twins(
     nodes: list[Node], pending: list[tuple[ts.Node, str, int, str]],
     def_node_to_id: dict[int, str],
@@ -556,15 +579,13 @@ def _dedupe_preprocessor_twins(
     node before this loop ever runs, so ``pending[i]`` and ``nodes[i]`` are not
     the same definition.
     """
-    nodes_by_id = {n.id: n for n in nodes}
     groups: dict[tuple, list[tuple[ts.Node, str, int, str]]] = {}
     for entry in pending:
         def_ts, qualified, _line, nid = entry
         root = _conditional_root(def_ts)
         if root is None:
             continue
-        node = nodes_by_id.get(nid)
-        sig = (node.attrs or {}).get("signature", "") if node else ""
+        sig = _signature_text(def_ts)
         groups.setdefault((qualified, sig, root), []).append(entry)
 
     drop_ids: set[str] = set()
