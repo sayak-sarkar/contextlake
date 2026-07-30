@@ -147,6 +147,14 @@ def _has_generated_header(source: bytes) -> bool:
     """True if a file's first bytes carry a recognised 'this is generated' marker."""
     return any(m in source[:2048].lower() for m in _GENERATED_HEADER_MARKERS)
 
+# Bumped whenever a change to def/containment/resolution logic changes graph
+# output for existing repos -- doctor's stale-shard check compares a shard's
+# stamp against this to know when a re-index is worth recommending. This is the
+# first version stamped (no shard predating this ever recorded a version, so
+# there is nothing for "1" to be distinguished from yet); bump to "2" the next
+# time parsing logic changes graph output for already-indexed repos.
+PARSER_VERSION = "1"
+
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
     "python": {"class_definition": "class", "function_definition": "function"},
@@ -846,7 +854,7 @@ def index_repo_dir(
     index_hcl = not languages or "hcl" in languages
     index_sql = not languages or "sql" in languages
     ignore = load_ignore_patterns(root)
-    shard = GraphShard(repo=repo_id, head_commit=head_commit)
+    shard = GraphShard(repo=repo_id, head_commit=head_commit, parser_version=PARSER_VERSION)
     by_id: dict[str, Node] = {}
     all_calls: list[tuple[str, str, str, int]] = []
     all_inherits: list[tuple[str, str, str, int]] = []

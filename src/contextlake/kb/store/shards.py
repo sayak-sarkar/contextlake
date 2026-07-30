@@ -23,6 +23,7 @@ _SHARD_WARN_BYTES = 50 * 1024 * 1024
 class GraphShard(BaseModel):
     repo: str
     head_commit: str | None = None
+    parser_version: str | None = None
     nodes: list[Node] = Field(default_factory=list)
     edges: list[Edge] = Field(default_factory=list)
 

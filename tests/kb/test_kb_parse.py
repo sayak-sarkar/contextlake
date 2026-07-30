@@ -114,6 +114,13 @@ def test_index_repo_dir_walks_and_skips(tmp_path):
     assert shard.repo == "demo/app"
 
 
+def test_index_repo_dir_stamps_parser_version(tmp_path):
+    (tmp_path / "f.py").write_text("def f():\n    pass\n")
+    shard = index_repo_dir(str(tmp_path), "demo/x")
+    from contextlake.kb.parse import PARSER_VERSION
+    assert shard.parser_version == PARSER_VERSION
+
+
 def test_parse_error_does_not_abort_directory(tmp_path):
     (tmp_path / "good.py").write_text("def ok():\n    pass\n")
     (tmp_path / "weird.py").write_bytes(b"\xff\xfe not utf8 def x(:\n")  # tolerated

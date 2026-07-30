@@ -68,6 +68,21 @@ def cmd_doctor(args) -> int:
             st = store.stats()
             _check("store reachable", True,
                    f"{store_dir} · {st.repos} repos, {st.nodes} nodes, {st.edges} edges")
+
+            from ..parse import PARSER_VERSION
+            from ..store.shards import read_shard
+
+            stale = [r.id for r in store.list_repos()
+                     if (sh := read_shard(store_dir, r.id)) is not None
+                     and sh.parser_version != PARSER_VERSION
+                     and any(n.lang in ("c", "cpp") for n in sh.nodes)]
+            if stale:
+                _check("C/C++ shards up to date with the current parser", False,
+                        f"{len(stale)} repo(s) indexed with an older parser -- re-index for "
+                        f"corrected method/class linkage: {', '.join(stale[:5])}"
+                        + ("…" if len(stale) > 5 else ""))
+            else:
+                _check("C/C++ shards up to date with the current parser", True)
         finally:
             store.close()
 
