@@ -3465,6 +3465,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.62.1] - 2026-07-30
+
+### Fixed
+- **`contextlake completion` crashed on Python 3.9-3.11** with `argparse.ArgumentError: argument
+  shell: invalid choice: '==SUPPRESS=='` when run without an explicit shell argument. Root cause:
+  the `shell` positional combined `nargs="?"` + `choices=[...]` + a `SUPPRESS` default (this
+  project's standard subparser-default convention) -- older argparse (fixed by 3.12) validates the
+  `SUPPRESS` sentinel itself against `choices` when the positional is omitted. Fixed by validating
+  the shell value in `cmd_completion()` instead (matching `init`'s existing `--platform` pattern),
+  not via argparse `choices=`. Missed in v2.62.0's own release gate (`release.yml`/`binaries.yml`,
+  both green) because that gate doesn't run the full Python version matrix -- only `ci.yml` does,
+  and it wasn't checked after tagging. Reproduced and confirmed fixed against real Python 3.9 and
+  3.10 (not just the maintainer's own, newer, unaffected interpreter).
+
 ## [2.62.0] - 2026-07-30
 
 ### Added
