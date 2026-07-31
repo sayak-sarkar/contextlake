@@ -567,6 +567,63 @@ def test_render_prompt_without_path_prefix_has_no_scope_line(tmp_path):
     assert "module/subsystem" not in prompt
 
 
+def test_render_prompt_names_its_subsystem_pages_when_they_exist():
+    """Task 16: the whole-repo overview page must NAME its subsystem pages
+    (so a reader knows they exist and where to look) rather than trying to
+    cram everything into one Architecture section."""
+    brief = {
+        "repo": "r", "head": "abc123", "node_count": 10, "edge_count": 0,
+        "langs": {}, "kinds": {}, "top_symbols": [], "packages": [], "files": [],
+        "subsystem_modules": [{"prefix": "moda", "nodes": 900},
+                              {"prefix": "modb", "nodes": 850}],
+    }
+    prompt = render_prompt(brief)
+    assert "moda" in prompt and "modb" in prompt
+    assert "broken into subsystems" in prompt
+    assert "its own dedicated wiki page" in prompt
+    # The instruction must land before the final "Write a wiki page..."
+    # directive, not after it.
+    assert prompt.index("broken into subsystems") < prompt.index("Write a wiki page")
+
+
+def test_render_prompt_no_subsystem_line_when_field_absent_or_empty():
+    """A module-scoped page (or any brief with no subsystems) gets no such
+    line -- the field is per-convention always a list (possibly empty), never
+    a truthy sentinel."""
+    base = {"repo": "r", "head": "abc123", "node_count": 10, "edge_count": 0,
+           "langs": {}, "kinds": {}, "top_symbols": [], "packages": [], "files": []}
+    assert "broken into subsystems" not in render_prompt(base)
+    assert "broken into subsystems" not in render_prompt({**base, "subsystem_modules": []})
+
+
+def test_repo_brief_subsystem_modules_defaults_to_empty_list(tmp_path):
+    """`repo_brief`'s new field follows the same convention as its other
+    optional-ish list fields (packages/files/decisions/external): always
+    present, defaulting to an empty list, never omitted -- so `.get(...)`
+    and a plain truthiness check both behave the same way callers already
+    rely on elsewhere in this dict."""
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    assert brief["subsystem_modules"] == []
+    modules = [{"prefix": "moda", "nodes": 900}]
+    brief_with = repo_brief(tmp_path, "r", subsystem_modules=modules)
+    assert brief_with["subsystem_modules"] == modules
+
+
+def test_generate_page_threads_subsystem_modules_into_its_own_internal_brief(tmp_path):
+    """`generate_page` computes its OWN internal brief via its own
+    `repo_brief()` call -- it does not accept a pre-built brief dict. Verify
+    `subsystem_modules` actually reaches the LLM-generated page's prompt via
+    that internal call, not just a brief a caller builds separately."""
+    _shard(tmp_path)
+    fake = _CapturingLlm(score=0.95)
+    modules = [{"prefix": "moda", "nodes": 900}, {"prefix": "modb", "nodes": 850}]
+    generate_page(fake, tmp_path, "r", verified_at=date(2026, 6, 21),
+                  subsystem_modules=modules)
+    assert len(fake.page_prompts) == 1
+    assert "moda" in fake.page_prompts[0] and "modb" in fake.page_prompts[0]
+
+
 def test_provenance_footer_module_scoped_states_the_scope():
     from contextlake.kb.wiki.generate import provenance_footer
 
@@ -1180,6 +1237,56 @@ def test_cmd_wiki_generates_subsystem_pages_for_a_federated_repo(tmp_path, monke
         assert n.file == "wiki/_modules/fed__mod0.md"   # cites the actual on-disk path
     finally:
         store.close()
+
+
+class _SubsystemEchoingLlm(_FakeLlm):
+    """Echoes `render_prompt`'s subsystem-naming line (when present) back into
+    the generated page body, so a test can assert the ACTUAL WRITTEN wiki page
+    reflects real `cmd_wiki` wiring end to end -- not just that
+    `render_prompt`'s own isolated output contains the names. A plain
+    `_FakeLlm`/`_CapturingLlm` returns a fixed body regardless of prompt
+    content, which would pass even if `subsystem_modules` never reached
+    `generate_page`'s internal brief."""
+
+    def __init__(self, score=0.95):
+        super().__init__(score=score)
+        self.page_prompts: list[str] = []
+
+    def generate(self, prompt, *, system=None):
+        if "Review lens" in prompt:
+            return super().generate(prompt, system=system)
+        self.page_prompts.append(prompt)
+        body = "## Overview\nCatalogService charges orders.\n"
+        for line in prompt.splitlines():
+            if "broken into subsystems" in line:
+                body += f"\n## Architecture\n{line}\n"
+        return body
+
+
+def test_cmd_wiki_whole_repo_page_names_its_subsystem_pages(tmp_path, monkeypatch):
+    """Task 16, end-to-end wiring check: the WHOLE-REPO wiki page WRITTEN TO
+    DISK (not just `render_prompt`'s isolated output) must name its subsystem
+    pages -- this is the real `cmd_wiki` -> `_run_page` -> `generate_page` ->
+    `repo_brief` -> `render_prompt` chain, which a unit test on `render_prompt`
+    alone would not catch a wiring bug in (e.g. `subsystem_modules` computed
+    but never threaded into `generate_page`'s own internal `repo_brief` call)."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+    fake = _SubsystemEchoingLlm(score=0.95)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: fake)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    whole_page = (store_dir / "wiki" / "fed.md").read_text()
+    assert "broken into subsystems" in whole_page
+    for m in range(6):
+        assert f"mod{m}" in whole_page
+
+    # Module pages describe one slice of the repo and must NOT get a
+    # self-referential "this repo is broken into subsystems" line.
+    for m in range(6):
+        module_page = (store_dir / "wiki" / "_modules" / f"fed__mod{m}.md").read_text()
+        assert "broken into subsystems" not in module_page
 
 
 def test_cmd_wiki_module_pages_do_not_leak_repo_root_readme_or_setup_signals(tmp_path, monkeypatch):

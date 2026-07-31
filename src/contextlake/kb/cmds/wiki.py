@@ -269,7 +269,8 @@ def cmd_wiki(args) -> int:
         written = rejected = skipped = failed = 0
         progress = style.Progress(len(targets), label="wiki")
 
-        def _run_page(*, shard, repo_id, wiki_key, path_prefix, wiki_file, label) -> str:
+        def _run_page(*, shard, repo_id, wiki_key, path_prefix, wiki_file, label,
+                      subsystem_modules=None) -> str:
             """Freshness-check, generate+gate, and write ONE wiki page -- either
             the whole-repo page (``path_prefix=None``, ``wiki_key=repo_id``) or a
             module/subsystem slice (``path_prefix=<module prefix>``,
@@ -281,6 +282,13 @@ def cmd_wiki(args) -> int:
             redundant read per module. Returns "written" | "rejected" |
             "skipped" | "failed" | "absent" (no brief, or an empty scoped
             brief -- see the module/index-vs-shard mismatch note below).
+
+            ``subsystem_modules``, when given, is threaded into both the
+            gate's own ``repo_brief``/``render_prompt`` call and the
+            ``generate_page`` call below so the whole-repo page can name its
+            subsystem pages -- callers must only pass this for the whole-repo
+            page (``path_prefix=None``); a module page describing one slice
+            of the repo doesn't itself have "subsystems".
             """
             # Relative to wiki_dir, not just the basename -- a module page lives
             # under wiki/_modules/, so its Node.file citation must say so
@@ -312,7 +320,8 @@ def cmd_wiki(args) -> int:
             # both fields degrade to shard-only (None / skip the live scan),
             # which is exactly repo_brief's documented behavior for that case.
             brief_store = None if path_prefix else store
-            brief = repo_brief(store_dir, repo_id, store=brief_store, path_prefix=path_prefix)
+            brief = repo_brief(store_dir, repo_id, store=brief_store, path_prefix=path_prefix,
+                               subsystem_modules=subsystem_modules)
             # A module `repo_modules()` (SQLite index) said has real content can
             # still come back empty here if the shard (JSON, a different
             # persistence layer -- see _qualifying_modules) disagrees, e.g. a
@@ -322,7 +331,8 @@ def cmd_wiki(args) -> int:
                 return "absent"
             try:
                 page = generate_page(llm, store_dir, repo_id, store=brief_store,
-                                     path_prefix=path_prefix)
+                                     path_prefix=path_prefix,
+                                     subsystem_modules=subsystem_modules)
                 gate = council_gate(llm, page, render_prompt(brief, path_prefix=path_prefix),
                                     accept_score=cfg.llm.accept_score,
                                     council_size=getattr(cfg.llm, "council_size", None))
@@ -352,9 +362,21 @@ def cmd_wiki(args) -> int:
                 progress.advance(repo_id)
                 continue
             node_count = len(shard.nodes)
+            # Computed here (once, before the whole-repo page) rather than
+            # after it, so the whole-repo page can name its subsystem pages
+            # (Task 16) -- reused below for the module-page loop too, so this
+            # is still exactly one `repo_modules()` query per repo per run,
+            # not two. Capped to the same top-N that will actually get a page
+            # generated THIS run (`_MAX_MODULE_PAGES_PER_REPO`) -- naming a
+            # module beyond the cap would point the reader at a subsystem
+            # page that doesn't exist and (per the cap's own stranding note)
+            # may never exist.
+            modules = _qualifying_modules(store, repo_id, node_count)
+            named_modules = modules[:_MAX_MODULE_PAGES_PER_REPO]
             wiki_file = wiki_dir / (repo_id.replace("/", "__") + ".md")
             outcome = _run_page(shard=shard, repo_id=repo_id, wiki_key=repo_id,
-                                path_prefix=None, wiki_file=wiki_file, label=repo_id)
+                                path_prefix=None, wiki_file=wiki_file, label=repo_id,
+                                subsystem_modules=named_modules)
             if outcome == "written":
                 written += 1
             elif outcome == "rejected":
@@ -369,9 +391,9 @@ def cmd_wiki(args) -> int:
             # generated IN ADDITION to (never instead of) the whole-repo page
             # above. Folds into the same written/rejected/skipped/failed
             # counters (the summary line below is now page-level, not
-            # repo-level) and reuses `node_count` from the shard already read
-            # above rather than recomputing it via repo_brief.
-            modules = _qualifying_modules(store, repo_id, node_count)
+            # repo-level). `modules` was already computed above (before the
+            # whole-repo page) so it could be named there -- reused here
+            # as-is, not recomputed.
             if len(modules) > _MAX_MODULE_PAGES_PER_REPO:
                 # `repo_modules()` sorts largest-first (deterministic tiebreak
                 # on ties), and freshness-skip means an unchanged commit picks

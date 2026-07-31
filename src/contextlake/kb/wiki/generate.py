@@ -238,7 +238,8 @@ def _ranked_with_kind_floor(
 
 
 def repo_brief(
-    store_dir, repo_id: str, *, store=None, path_prefix: str | None = None
+    store_dir, repo_id: str, *, store=None, path_prefix: str | None = None,
+    subsystem_modules: list[dict] | None = None,
 ) -> dict | None:
     """Salient, grounded facts about a repo, or None if it has no shard.
 
@@ -281,6 +282,14 @@ def repo_brief(
       (``cmd_wiki`` does exactly that). Only the shard-derived half of
       ``setup_signals``, built from the already-scoped ``all_files``,
       actually scopes by ``path_prefix`` on its own.
+
+    ``subsystem_modules``, when given, is threaded straight into the returned
+    dict (see below) so ``render_prompt`` can tell the model this repo is
+    federated into named subsystems, each with its own dedicated wiki page.
+    It is meaningful only for the whole-repo brief (``path_prefix=None``) --
+    a module/subsystem page describing one slice of a repo doesn't itself
+    have "subsystems", so callers building per-module pages should leave this
+    ``None`` (``cmd_wiki`` does exactly that).
     """
     shard = read_shard(store_dir, repo_id)
     if shard is None:
@@ -359,6 +368,7 @@ def repo_brief(
         "readme_excerpt": _readme_excerpt(store, repo_id),
         "setup_signals": _setup_signals(all_files, store, repo_id),
         "generated_paths_detected": generated_paths_detected,
+        "subsystem_modules": subsystem_modules or [],
     }
 
 
@@ -444,6 +454,15 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
             "attribute each such statement to its source (name the source/link). "
             "Never present external claims as facts about the code without attribution."
         )
+    if brief.get("subsystem_modules"):
+        lines.append("")
+        names = ", ".join(m["prefix"] for m in brief["subsystem_modules"])
+        lines.append(
+            f"This repo is broken into subsystems, each with its own dedicated wiki page: "
+            f"{names}. In the Architecture section, name and briefly describe each subsystem "
+            f"rather than attempting to summarize their internals here -- their own pages "
+            f"cover that in more depth."
+        )
     sections = "Overview"
     if has_setup_signal:
         sections += ", Setup & Run"
@@ -482,7 +501,8 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
 
 
 def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = None,
-                  store=None, path_prefix: str | None = None) -> str | None:
+                  store=None, path_prefix: str | None = None,
+                  subsystem_modules: list[dict] | None = None) -> str | None:
     """Generate a provenance-stamped wiki page (Markdown), or None without a shard.
 
     ``path_prefix``, when given, scopes the page to one module/subsystem of the
@@ -492,8 +512,15 @@ def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = No
     is unambiguous about describing a slice of the repo, not the repo as a
     whole -- a whole-repo page and a module page for the same ``repo_id`` must
     never read as if they describe the same scope.
+
+    ``subsystem_modules``, when given, is passed straight through to
+    ``repo_brief`` (see there) so the whole-repo page names its subsystem
+    pages instead of trying to summarize their internals inline. Callers
+    generating a module/subsystem page (``path_prefix`` set) should leave
+    this ``None``.
     """
-    brief = repo_brief(store_dir, repo_id, store=store, path_prefix=path_prefix)
+    brief = repo_brief(store_dir, repo_id, store=store, path_prefix=path_prefix,
+                       subsystem_modules=subsystem_modules)
     if brief is None:
         return None
     body = llm.generate(render_prompt(brief, path_prefix=path_prefix), system=SYSTEM).strip()
