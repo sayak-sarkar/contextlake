@@ -259,8 +259,8 @@ def repo_brief(
 
     Three fields stay repo-wide regardless of ``path_prefix`` -- a caller
     building per-module pages should know these describe the *whole repo*,
-    not the scoped slice: ``external_context`` (no file/path concept to scope
-    by); ``readme_excerpt`` (when ``store`` is given, reads the repo-root
+    not the scoped slice: ``external`` (built by :func:`external_context`; no
+    file/path concept to scope by); ``readme_excerpt`` (when ``store`` is given, reads the repo-root
     README unconditionally -- so a scoped page's "setup" prose is actually
     whole-repo prose the model will present as if it describes the module);
     and ``setup_signals``' live-checkout scan (the recursive legacy-build-
