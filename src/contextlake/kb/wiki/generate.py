@@ -255,8 +255,19 @@ def repo_brief(
     caller can generate one wiki page per module/subsystem instead of one
     page summarizing an entire repo. Edges are scoped alongside the nodes
     (kept only when both endpoints survive the filter) so degree counts,
-    hubs, and dispatchers reflect the same slice. ``external_context`` stays
-    repo-wide regardless -- it has no file/path concept to scope by.
+    hubs, and dispatchers reflect the same slice.
+
+    Three fields stay repo-wide regardless of ``path_prefix`` -- a caller
+    building per-module pages should know these describe the *whole repo*,
+    not the scoped slice: ``external_context`` (no file/path concept to scope
+    by); ``readme_excerpt`` (when ``store`` is given, reads the repo-root
+    README unconditionally -- so a scoped page's "setup" prose is actually
+    whole-repo prose the model will present as if it describes the module);
+    and ``setup_signals``' live-checkout scan (the recursive legacy-build-
+    tooling walk and the top-level config-file listing both always start from
+    the repo root, not ``path_prefix``, when ``store`` is given -- only the
+    shard-derived half of ``setup_signals``, built from the already-scoped
+    ``all_files``, actually scopes).
     """
     shard = read_shard(store_dir, repo_id)
     if shard is None:

@@ -132,6 +132,13 @@ def test_repo_brief_scopes_to_a_module_path_prefix(tmp_path):
     # a1 -> a2 edge has both endpoints inside "moda".
     assert brief["edge_count"] == 1
     assert brief["edge_count"] < full_brief["edge_count"]
+    # Regression guard for the degree/hub accumulation loop specifically: if it
+    # iterated the unscoped `shard.edges` instead of the scoped `edges`, a1
+    # would pick up an in-degree of 1 from the out-of-scope b1 -> a1 edge and
+    # wrongly show up as a hub alongside a2. Scoped correctly, only a2 has any
+    # in-scope caller (a1 -> a2), so a1 must be absent here.
+    hub_names = {h["name"] for h in brief["hubs"]}
+    assert hub_names == {"a2"}
 
 
 def test_provenance_footer_states_grounding_coverage():
