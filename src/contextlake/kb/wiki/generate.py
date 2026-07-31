@@ -41,9 +41,11 @@ _LEGACY_BUILD_CATEGORIES = {
 # code), so counting them purely from `all_files` would always yield zero on a
 # real repo -- the live-checkout walk below is what actually finds them. Cap on
 # how many filenames (not directories) that walk will examine before giving up,
-# so an uncached, per-request call (dashboard, MCP `get_repo_brief`) can't turn
-# into an unbounded walk over a huge legacy monorepo; generous enough that no
-# real repo's legacy-project-file count is ever truncated by it.
+# so an uncached, per-request call (only the dashboard's repo-detail panel --
+# the MCP `get_repo_brief` tool calls `repo_brief` without `store=`, so it can
+# never trigger this walk) can't turn into an unbounded walk over a huge legacy
+# monorepo; generous enough that no real repo's legacy-project-file count is
+# ever truncated by it.
 _LEGACY_BUILD_WALK_FILE_LIMIT = 200_000
 
 def _grounding_cap(node_count: int) -> int:
@@ -382,7 +384,10 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
             "Every fact below (symbols, dependencies, files) was drawn exclusively "
             "from that module, not the whole repository. Write about this module "
             "only -- do not make claims about the repository as a whole, and do not "
-            "write as if this module IS the whole repository."
+            "write as if this module IS the whole repository. The relation count "
+            "below excludes any relation to a symbol outside this module -- do not "
+            "treat a low count as evidence this module has few dependencies on the "
+            "rest of the repository; it may not, this simply isn't counted here."
         )
     lines += [
         f"Indexed commit: {brief['head']}",
