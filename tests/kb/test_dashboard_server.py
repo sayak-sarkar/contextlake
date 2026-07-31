@@ -142,15 +142,12 @@ def test_repo_wiki_endpoint(served, tmp_path):
     assert missing["found"] is False and missing["module"] == "nope"
 
 
-def test_repo_wiki_route_does_not_hijack_a_repo_literally_named_wiki(tmp_path, monkeypatch):
-    # Regression for the Task 17 fix-round-1 blocking finding: a real repo whose
-    # id itself ends in "/wiki" (a plausible name, e.g. a subproject literally
-    # called "wiki") must still get its own repo-detail payload from
-    # GET /api/repo/team%2Fwiki, not be silently misrouted into the /wiki
-    # sub-route as if "team" were the repo id and "wiki" were the sub-route
-    # marker -- encPath() only percent-encodes each path segment, never the "/"
-    # separators, so `rest` arrives at the dispatch as the literal, unencoded
-    # "team/wiki" either way.
+@pytest.fixture
+def served_with_wiki_collision(tmp_path, monkeypatch):
+    # Two repos: one literally named "team/wiki" (the collision case) and an
+    # ordinary "team/app" (the control case, still exercising the real /wiki
+    # sub-route). Shared by both the raw-slash and percent-encoded variants of
+    # test_repo_wiki_route_does_not_hijack_a_repo_literally_named_wiki below.
     monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
     s = SqliteStore(tmp_path / "index.sqlite")
     nodes = [
@@ -172,21 +169,65 @@ def test_repo_wiki_route_does_not_hijack_a_repo_literally_named_wiki(tmp_path, m
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     try:
-        base = f"http://127.0.0.1:{port}"
-        body = json.loads(_get(base + "/api/repo/team%2Fwiki"))
-        # The correct repo-detail payload for team/wiki, not a wiki-content
-        # payload for team (which would have no "repo"/"brief" keys shaped
-        # like this, and would report repo=="team").
-        assert body["repo"] == "team/wiki"
-        assert body["brief"]["node_count"] == 1
-        assert "WikiRepoSymbol" in {t_["name"] for t_ in body["brief"]["top_symbols"]}
-        # team/app's own /wiki-suffixed request path is unaffected -- still a
-        # real sub-route since "team/app/wiki" is not itself a known repo id.
-        wiki_out = json.loads(_get(base + "/api/repo/team%2Fapp/wiki"))
-        assert wiki_out["repo"] == "team/app" and "brief" not in wiki_out
+        yield f"http://127.0.0.1:{port}"
     finally:
         srv.shutdown()
         s.close()
+
+
+def test_repo_wiki_route_does_not_hijack_a_repo_literally_named_wiki(served_with_wiki_collision):
+    # Regression for the Task 17 fix-round-1 blocking finding: a real repo whose
+    # id itself ends in "/wiki" (a plausible name, e.g. a subproject literally
+    # called "wiki") must still get its own repo-detail payload from
+    # GET /api/repo/team/wiki, not be silently misrouted into the /wiki
+    # sub-route as if "team" were the repo id and "wiki" were the sub-route
+    # marker.
+    #
+    # This MUST use a raw, literal, unencoded "/" between "team" and "wiki" --
+    # not a percent-encoded "%2F" -- because that is the actual wire format a
+    # real browser sends: dashboard.js's encPath() (`id.split("/").map(
+    # encodeURIComponent).join("/")`) percent-encodes each path SEGMENT but
+    # rejoins with a literal "/", never encoding the separators themselves.
+    # The server's dispatch computes
+    # `rest = urllib.parse.urlparse(self.path).path[len("/api/repo/"):]`
+    # directly off the raw request-line path -- urlparse never decodes %2F --
+    # so only a request with a literal "/" byte produces a `rest` value that
+    # actually ends with the literal string "/wiki" and reaches the guarded
+    # branch. A %2F-encoded request (see the sibling test below) never reaches
+    # it at all, encoded or not, fixed or buggy -- it is not a valid regression
+    # test for this bug by itself.
+    base = served_with_wiki_collision
+    body = json.loads(_get(base + "/api/repo/team/wiki"))
+    # The correct repo-detail payload for team/wiki, not a wiki-content
+    # payload for team (which would have no "repo"/"brief" keys shaped
+    # like this, and would report repo=="team").
+    assert body["repo"] == "team/wiki"
+    assert body["brief"]["node_count"] == 1
+    assert "WikiRepoSymbol" in {t_["name"] for t_ in body["brief"]["top_symbols"]}
+    # team/app's own /wiki-suffixed request path is unaffected -- still a
+    # real sub-route since "team/app/wiki" is not itself a known repo id.
+    wiki_out = json.loads(_get(base + "/api/repo/team/app/wiki"))
+    assert wiki_out["repo"] == "team/app" and "brief" not in wiki_out
+
+
+def test_repo_wiki_route_percent_encoded_id_also_resolves_correctly(served_with_wiki_collision):
+    # Companion case, NOT a regression test for the collision bug itself (see
+    # the docstring above): a client that properly percent-encodes the "/"
+    # inside a repo id (GET /api/repo/team%2Fwiki) produces a `rest` value of
+    # the literal characters "team%2Fwiki", which does not end with the
+    # literal string "/wiki" -- so this request never reaches the guarded
+    # branch at all, regardless of whether the guard exists. It falls straight
+    # through to the pre-existing, always-correct fallback
+    # (`repo_id = urllib.parse.unquote(rest)`), which is what this test checks
+    # still resolves to the right repo. Kept as an additional, weaker case
+    # documenting that well-behaved (non-browser) API clients that do escape
+    # slashes also get the right answer -- neither test subsumes the other,
+    # since they exercise different `rest` values through different branches.
+    base = served_with_wiki_collision
+    body = json.loads(_get(base + "/api/repo/team%2Fwiki"))
+    assert body["repo"] == "team/wiki"
+    assert body["brief"]["node_count"] == 1
+    assert "WikiRepoSymbol" in {t_["name"] for t_ in body["brief"]["top_symbols"]}
 
 
 def test_repo_modules_endpoint(served):
