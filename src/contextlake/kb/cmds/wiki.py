@@ -7,7 +7,7 @@ import re
 from ... import style
 from ...logging_setup import log
 from ..config import apply_llm_overrides, load_kb_config
-from ..store.shards import GraphShard, write_shard
+from ..store.shards import GraphShard, read_shard, write_shard
 from ._common import (
     _connect_targets,
     _guard_store,
@@ -199,26 +199,32 @@ def cmd_wiki(args) -> int:
         written = rejected = skipped = failed = 0
         progress = style.Progress(len(targets), label="wiki")
         for repo_id, _ in targets:
-            brief = repo_brief(store_dir, repo_id, store=store)
-            if brief is None:
+            # Freshness check first, off the cheap shard-only head_commit --
+            # repo_brief(..., store=store) below also runs setup_signals'
+            # live-checkout scan, which a skipped (unchanged) repo shouldn't pay for.
+            shard = read_shard(store_dir, repo_id)
+            if shard is None:
                 progress.advance(repo_id)
                 continue
             wiki_file = wiki_dir / (repo_id.replace("/", "__") + ".md")
-            # freshness: skip the (expensive) LLM call when an existing page was
-            # already generated from this repo's current head commit.
-            if not force and wiki_file.exists() and brief.get("head"):
+            head = shard.head_commit
+            if not force and wiki_file.exists() and head:
                 prev = wiki_file.read_text(encoding="utf-8", errors="replace")
                 m = re.search(r"at commit `([^`]+)`", prev)
-                if m and m.group(1) == brief["head"]:
+                if m and m.group(1) == head:
                     # Backfill: a page written before the @wiki partition existed
                     # gets its sections stored/embedded without a new LLM call.
                     if store.get_node(f"{_wiki_partition(repo_id)}:0") is None:
                         _store_wiki_partition(store, store_dir, repo_id, prev,
-                                              wiki_file.name, brief.get("head"),
+                                              wiki_file.name, head,
                                               embedder, vs, cfg.embeddings.batch_size)
                     skipped += 1
                     progress.advance(repo_id)
                     continue
+            brief = repo_brief(store_dir, repo_id, store=store)
+            if brief is None:
+                progress.advance(repo_id)
+                continue
             try:
                 page = generate_page(llm, store_dir, repo_id, store=store)
                 gate = council_gate(llm, page, render_prompt(brief),
