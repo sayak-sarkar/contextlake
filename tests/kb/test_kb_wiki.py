@@ -109,6 +109,31 @@ def test_repo_brief_grounded_count_is_the_union_not_the_sum(tmp_path):
     assert brief["grounded_count"] <= brief["node_count"]
 
 
+def test_repo_brief_scopes_to_a_module_path_prefix(tmp_path):
+    prov = Provenance(source_file="moda/a.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="a1", repo="r", kind="function", name="a1", file="moda/a.py"),
+        Node(id="a2", repo="r", kind="function", name="a2", file="moda/a2.py"),
+        Node(id="b1", repo="r", kind="function", name="b1", file="modb/b.py"),
+        Node(id="pkg", repo="(packages)", kind="package", name="requests"),
+    ]
+    edges = [
+        Edge(src="a1", dst="a2", relation="calls", confidence=Confidence.EXTRACTED,
+             provenance=prov),
+        Edge(src="b1", dst="a1", relation="calls", confidence=Confidence.EXTRACTED,
+             provenance=prov),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    full_brief = repo_brief(tmp_path, "r")
+    brief = repo_brief(tmp_path, "r", path_prefix="moda")
+    assert all(f.startswith("moda") for f in brief["files"])
+    assert brief["node_count"] < full_brief["node_count"]
+    # The cross-module edge (b1 -> a1) must not survive scoping -- only the
+    # a1 -> a2 edge has both endpoints inside "moda".
+    assert brief["edge_count"] == 1
+    assert brief["edge_count"] < full_brief["edge_count"]
+
+
 def test_provenance_footer_states_grounding_coverage():
     from contextlake.kb.wiki.generate import provenance_footer
     brief = {"repo": "r", "head": "abc123", "files": ["a.py"],

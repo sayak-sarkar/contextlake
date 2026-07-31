@@ -237,7 +237,9 @@ def _ranked_with_kind_floor(
     return out[:cap]
 
 
-def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
+def repo_brief(
+    store_dir, repo_id: str, *, store=None, path_prefix: str | None = None
+) -> dict | None:
     """Salient, grounded facts about a repo, or None if it has no shard.
 
     ``store`` is optional and enables two live-checkout filesystem reads that
@@ -246,16 +248,31 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
     bounded scan for legacy build-tooling files. Omit ``store`` and both
     degrade to their shard-only behavior (``readme_excerpt`` becomes ``None``;
     ``setup_signals`` skips the live-checkout scan).
+
+    ``path_prefix``, when given, scopes the brief to nodes whose ``file``
+    starts with it (same "starts with, no separator boundary" semantics as
+    ``repo_subgraph``'s ``path_prefix`` in ``visualize/payload.py``) so a
+    caller can generate one wiki page per module/subsystem instead of one
+    page summarizing an entire repo. Edges are scoped alongside the nodes
+    (kept only when both endpoints survive the filter) so degree counts,
+    hubs, and dispatchers reflect the same slice. ``external_context`` stays
+    repo-wide regardless -- it has no file/path concept to scope by.
     """
     shard = read_shard(store_dir, repo_id)
     if shard is None:
         return None
     nodes = shard.nodes
+    if path_prefix:
+        nodes = [n for n in nodes if n.file and n.file.startswith(path_prefix)]
+        node_ids = {n.id for n in nodes}
+        edges = [e for e in shard.edges if e.src in node_ids and e.dst in node_ids]
+    else:
+        edges = shard.edges
     by_id = {n.id: n for n in nodes}
     degree: Counter = Counter()
     in_degree: Counter = Counter()   # callers -- a hub, worth protecting with tests
     out_degree: Counter = Counter()  # callees -- a dispatcher, where behavior branches
-    for e in shard.edges:
+    for e in edges:
         degree[e.src] += 1
         degree[e.dst] += 1
         in_degree[e.dst] += 1
@@ -294,7 +311,7 @@ def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
         "repo": repo_id,
         "head": shard.head_commit,
         "node_count": len(nodes),
-        "edge_count": len(shard.edges),
+        "edge_count": len(edges),
         "grounded_count": len(grounded_ids),
         "kinds": dict(Counter(n.kind for n in nodes)),
         "langs": dict(Counter(n.lang for n in nodes if n.lang)),
