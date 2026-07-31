@@ -8,6 +8,7 @@ from contextlake.kb import commands as commands_mod
 from contextlake.kb.commands import cmd_wiki
 from contextlake.kb.connectors.enrich import enrich_partition
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
+from contextlake.kb.parse import index_repo_dir
 from contextlake.kb.state import check_schema
 from contextlake.kb.store.shards import GraphShard, write_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -154,6 +155,34 @@ def test_setup_signals_summarizes_legacy_build_tooling_by_category():
     joined = " ".join(signals)
     assert "5 modern MSBuild" in joined or any("vcxproj" in s and "5" in s for s in signals)
     assert any("3" in s and "dsp" in s for s in signals)
+
+
+def test_repo_brief_legacy_build_tooling_counted_from_live_checkout_not_graph(tmp_path):
+    # These extensions are never parsed into graph nodes (they aren't source
+    # code), so this proves the count comes from the live-checkout walk added
+    # to _setup_signals, not from `all_files` -- and that it finds them nested
+    # in subdirectories, not just at the repo root.
+    repo_dir = tmp_path / "checkout"
+    (repo_dir / "subsystem_a" / "tools").mkdir(parents=True)
+    (repo_dir / "subsystem_b").mkdir(parents=True)
+    (repo_dir / "subsystem_a" / "tools" / "legacy.vcxproj").write_text("<Project/>")
+    (repo_dir / "subsystem_b" / "old.dsp").write_text("; msvc6 project\n")
+    (repo_dir / "main.py").write_text("def f():\n    pass\n")
+
+    shard = index_repo_dir(str(repo_dir), "r")
+    write_shard(tmp_path, shard)
+
+    store = SqliteStore(":memory:")
+    store.upsert_repo(Repo(id="r", path=str(repo_dir)))
+
+    brief = repo_brief(tmp_path, "r", store=store)
+    joined = " ".join(brief["setup_signals"])
+    assert "1 modern MSBuild" in joined
+    assert "1 legacy MSVC6 project" in joined
+    # the .vcxproj/.dsp files are not source code, so they must never have
+    # become graph nodes -- the count did not come from `all_files`.
+    assert not any(f.endswith((".vcxproj", ".dsp")) for f in brief["files"])
+    assert not any(n.file and n.file.endswith((".vcxproj", ".dsp")) for n in shard.nodes)
 
 
 def test_repo_brief_flags_generated_paths_by_directory_segment(tmp_path):

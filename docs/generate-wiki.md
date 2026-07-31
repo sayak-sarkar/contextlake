@@ -34,9 +34,11 @@ Decisions — but a section is only ever written when the graph actually has som
 "Setup & Run" needs a README excerpt or a detected config file, and separately flags when an indexed
 file lives under a directory literally named `generated/` (e.g. `src/generated/widgets.py`), so the
 model is warned off presenting that file's contents as hand-authored design. (`setup_signals` also
-has category-counting logic for legacy C/C++ project/workspace files such as `.vcxproj`/`.dsp` --
-today this has no visible effect, since those extensions aren't part of the currently-indexed
-language set and so never reach the graph to be counted.) "Gotchas" needs at least one symbol with
+counts legacy C/C++ project/workspace files such as `.vcxproj`/`.dsp` by category, e.g. "3 legacy
+MSVC6 project (.dsp) file(s) detected" -- since those extensions aren't part of the indexed
+language set and never reach the graph, the count comes from a recursive, bounded scan of the
+repo's live checkout, the same way `setup_signals` already detects `package.json`/`Dockerfile`.)
+"Gotchas" needs at least one symbol with
 real callers in the graph, and states only the caller-count fact ("N caller(s) in the graph, worth
 extra care/tests when changed") — the model is explicitly told not to characterize *why* a symbol
 has many callers, so it never invents a label like "foundational" or "critical infrastructure". A

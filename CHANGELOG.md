@@ -26,14 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Grounded in N/M symbols (X%)", where N is the number of distinct symbols appearing across
   `top_symbols`/`hubs`/`dispatchers` combined and M is the repo's total node count, letting a
   reader judge how much of the repo's surface the grounding sample actually covers.
-- **`setup_signals` gained per-category counting logic for legacy C/C++ project/workspace files**
-  (`.vcxproj`, `.vcproj`, `.dsp`/`.dsw`, `.pbxproj`, `.cdtproject`), so a large legacy repo could be
+- **`setup_signals` gained per-category counting for legacy C/C++ project/workspace files**
+  (`.vcxproj`, `.vcproj`, `.dsp`/`.dsw`, `.pbxproj`, `.cdtproject`), so a large legacy repo is
   summarized as a count (e.g. "3 legacy MSVC6 project (.dsp) file(s) detected") rather than listed
-  file-by-file. **Note:** this counts only files already present in the graph's node set, and none
-  of these extensions are part of the currently-parsed/indexed language set -- so on a real repo
-  today the count is always zero; this is groundwork with no user-visible effect yet, pending a
-  follow-up to source it from the repo's live file listing the way the existing config-file
-  detection (`package.json`, `Dockerfile`, ...) already does.
+  file-by-file. None of these extensions are part of the parsed/indexed language set, so they never
+  become graph nodes -- the count instead comes from a recursive, bounded scan of the repo's live
+  checkout (the same `store`-given, degrade-to-nothing path the existing config-file detection
+  uses for `package.json`/`Dockerfile`), pruning the same vendored/build-output directories the
+  indexer itself skips. The scan stops after 200,000 files visited, so a huge legacy monorepo can't
+  turn an uncached, per-request `repo_brief` call into an unbounded walk. Any match already present
+  in the graph's node set is merged in without double-counting.
 - **`repo_brief` gained a `generated_paths_detected` flag** so the wiki prompt can warn the model
   off treating derived build output as hand-authored design. It fires for an indexed file living
   under a directory literally named `generated/` (e.g. `src/generated/widgets.py`); it also checks

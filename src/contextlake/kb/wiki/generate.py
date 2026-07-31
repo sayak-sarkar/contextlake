@@ -7,10 +7,12 @@ invents. Every page ends with a provenance footer citing the commit and sources.
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from datetime import date
 from pathlib import Path
 
+from ..parse import _SKIP_DIRS
 from ..store.shards import read_shard
 
 # Conventional entry-point/config filenames -- presence-only signal for the
@@ -35,6 +37,15 @@ _LEGACY_BUILD_CATEGORIES = {
     ".pbxproj": "Xcode project (.pbxproj)",
     ".cdtproject": "Eclipse CDT project",
 }
+
+# None of the extensions above are parsed into graph nodes (they aren't source
+# code), so counting them purely from `all_files` would always yield zero on a
+# real repo -- the live-checkout walk below is what actually finds them. Cap on
+# how many filenames (not directories) that walk will examine before giving up,
+# so an uncached, per-request call (dashboard, MCP `get_repo_brief`) can't turn
+# into an unbounded walk over a huge legacy monorepo; generous enough that no
+# real repo's legacy-project-file count is ever truncated by it.
+_LEGACY_BUILD_WALK_FILE_LIMIT = 200_000
 
 def _grounding_cap(node_count: int) -> int:
     """How many symbols to sample into the wiki prompt's ranked lists.
@@ -120,9 +131,15 @@ def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> li
     files (``.vcxproj``, ``.dsp``, ``.pbxproj``, ...) are summarized as a
     per-category count string rather than listed per-file -- a large legacy
     repo can carry hundreds of these, which would drown the presence-only
-    listing above if treated the same way.
+    listing above if treated the same way. None of these extensions are ever
+    parsed into graph nodes (they aren't source code), so counting them from
+    ``all_files`` alone would always be zero on a real repo -- the counts come
+    from a recursive, bounded walk of the live checkout (same ``store``-given
+    guard as (2) above), merged with any matches already in ``all_files``
+    without double-counting a file present in both.
     """
     found = {f for f in all_files if _is_setup_filename(f.rsplit("/", 1)[-1])}
+    base = None
     if store is not None and repo_id is not None:
         r = store.get_repo(repo_id)
         base = Path(r.path) if r and getattr(r, "path", None) else None
@@ -131,10 +148,30 @@ def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> li
                 if entry.is_file() and _is_setup_filename(entry.name):
                     found.add(entry.name)
     by_ext: dict[str, int] = {}
+    counted: set[str] = set()  # relative paths already counted, for merge dedup
     for f in all_files:
         ext = "." + f.rsplit(".", 1)[-1].lower() if "." in f else ""
         if ext in _LEGACY_BUILD_CATEGORIES:
             by_ext[ext] = by_ext.get(ext, 0) + 1
+            counted.add(f)
+    if base is not None and base.is_dir():
+        n_visited = 0
+        stop = False
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+            for fn in filenames:
+                n_visited += 1
+                ext = os.path.splitext(fn)[1].lower()
+                if ext in _LEGACY_BUILD_CATEGORIES:
+                    rel = os.path.relpath(os.path.join(dirpath, fn), base).replace(os.sep, "/")
+                    if rel not in counted:
+                        by_ext[ext] = by_ext.get(ext, 0) + 1
+                        counted.add(rel)
+                if n_visited >= _LEGACY_BUILD_WALK_FILE_LIMIT:
+                    stop = True
+                    break
+            if stop:
+                break
     summary = [f"{n} {_LEGACY_BUILD_CATEGORIES[ext]} file(s) detected"
               for ext, n in sorted(by_ext.items())]
     return sorted(found)[:20] + summary
