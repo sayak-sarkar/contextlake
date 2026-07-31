@@ -141,6 +141,45 @@ def test_repo_brief_scopes_to_a_module_path_prefix(tmp_path):
     assert hub_names == {"a2"}
 
 
+def test_repo_brief_path_prefix_respects_segment_boundary(tmp_path):
+    # "api" is a proper string-prefix of "apiv2" -- a bare `startswith` filter
+    # would wrongly pull apiv2's nodes into api's "scoped" brief. Regression
+    # test for the boundary-aware match: exact match or match + "/".
+    prov = Provenance(source_file="api/a.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="a1", repo="r", kind="function", name="a1", file="api/a.py"),
+        Node(id="a2", repo="r", kind="function", name="a2", file="api/a2.py"),
+        Node(id="v1", repo="r", kind="function", name="v1", file="apiv2/v.py"),
+        Node(id="v2", repo="r", kind="function", name="v2", file="apiv2/v2.py"),
+    ]
+    edges = [
+        Edge(src="a1", dst="a2", relation="calls", confidence=Confidence.EXTRACTED,
+             provenance=prov),
+        Edge(src="v1", dst="v2", relation="calls", confidence=Confidence.EXTRACTED,
+             provenance=prov),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=edges))
+    brief = repo_brief(tmp_path, "r", path_prefix="api")
+    assert brief["node_count"] == 2
+    assert all(f.startswith("api/") for f in brief["files"])
+    assert not any(f.startswith("apiv2") for f in brief["files"])
+    names = {row["name"] for row in brief["top_symbols"]}
+    assert names == {"a1", "a2"}
+    assert "v1" not in names and "v2" not in names
+    # No sibling SQL/foreign-kind stats bleed in either -- kinds must reflect
+    # only api's own 2 nodes.
+    assert brief["kinds"] == {"function": 2}
+
+
+def test_repo_brief_path_prefix_exact_file_match(tmp_path):
+    # A node whose file IS exactly the path_prefix (no trailing content)
+    # must still match -- the exact-match branch of the boundary check.
+    nodes = [Node(id="a1", repo="r", kind="function", name="a1", file="single_module.py")]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=[]))
+    brief = repo_brief(tmp_path, "r", path_prefix="single_module.py")
+    assert brief["node_count"] == 1
+
+
 def test_provenance_footer_states_grounding_coverage():
     from contextlake.kb.wiki.generate import provenance_footer
     brief = {"repo": "r", "head": "abc123", "files": ["a.py"],
@@ -375,6 +414,24 @@ def test_repo_brief_external_empty_without_enrich_partition(tmp_path):
     _shard(tmp_path)
     brief = repo_brief(tmp_path, "r")
     assert brief["external"] == []
+
+
+def test_repo_brief_external_empty_when_module_scoped(tmp_path):
+    # external_context is repo-wide enrichment with no file/path concept to
+    # scope by -- a module-scoped brief must NOT leak it into a module page,
+    # even though the repo genuinely has real enrichment documents (which the
+    # unscoped brief for the same repo does surface, per the assertion below).
+    nodes = [
+        Node(id="a1", repo="r", kind="function", name="a1", file="moda/a.py"),
+        Node(id="b1", repo="r", kind="function", name="b1", file="modb/b.py"),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc", nodes=nodes, edges=[]))
+    _enrich_shard(tmp_path, "r", [("atlassian", "Runbook", "https://x/1", "how to page")])
+    brief = repo_brief(tmp_path, "r", path_prefix="moda")
+    assert brief["external"] == []
+    whole_repo_brief = repo_brief(tmp_path, "r")
+    assert whole_repo_brief["external"] == [
+        {"source": "atlassian", "title": "Runbook", "uri": "https://x/1", "snippet": "how to page"}]
 
 
 def _shard_with_adr(store_dir):

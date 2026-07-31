@@ -250,31 +250,48 @@ def repo_brief(
     ``setup_signals`` skips the live-checkout scan).
 
     ``path_prefix``, when given, scopes the brief to nodes whose ``file``
-    starts with it (same "starts with, no separator boundary" semantics as
-    ``repo_subgraph``'s ``path_prefix`` in ``visualize/payload.py``) so a
-    caller can generate one wiki page per module/subsystem instead of one
-    page summarizing an entire repo. Edges are scoped alongside the nodes
-    (kept only when both endpoints survive the filter) so degree counts,
-    hubs, and dispatchers reflect the same slice.
+    is exactly ``path_prefix`` or starts with ``path_prefix`` plus a ``/``
+    separator (a segment-boundary match, not a bare string prefix -- so a
+    module named ``api`` does NOT also match sibling files under ``apiv2/``,
+    ``core`` does not match ``core_utils/``, etc.) so a caller can generate
+    one wiki page per module/subsystem instead of one page summarizing an
+    entire repo. Edges are scoped alongside the nodes (kept only when both
+    endpoints survive the filter) so degree counts, hubs, and dispatchers
+    reflect the same slice.
 
-    Three fields stay repo-wide regardless of ``path_prefix`` -- a caller
-    building per-module pages should know these describe the *whole repo*,
-    not the scoped slice: ``external`` (built by :func:`external_context`; no
-    file/path concept to scope by); ``readme_excerpt`` (when ``store`` is given, reads the repo-root
-    README unconditionally -- so a scoped page's "setup" prose is actually
-    whole-repo prose the model will present as if it describes the module);
-    and ``setup_signals``' live-checkout scan (the recursive legacy-build-
-    tooling walk and the top-level config-file listing both always start from
-    the repo root, not ``path_prefix``, when ``store`` is given -- only the
-    shard-derived half of ``setup_signals``, built from the already-scoped
-    ``all_files``, actually scopes).
+    Three fields need care from a caller building per-module pages, because
+    each is gated by a *different* mechanism -- do not assume passing
+    ``path_prefix`` alone scopes all of them:
+
+    - ``external`` (built by :func:`external_context`) IS gated directly on
+      ``path_prefix`` **inside this function**: it returns the full
+      repo-wide enrichment set when ``path_prefix`` is ``None``, and an empty
+      list whenever ``path_prefix`` is given -- regardless of ``store`` --
+      since those documents have no file/path concept to scope by and would
+      otherwise leak whole-repo enrichment facts into every module page.
+    - ``readme_excerpt`` and ``setup_signals``' live-checkout scan (the
+      recursive legacy-build-tooling walk and the top-level config-file
+      listing) are gated on ``store`` alone, NOT on ``path_prefix`` -- this
+      function has no logic that scopes them by prefix. When ``store`` is
+      given, both always read from the repo root, regardless of
+      ``path_prefix``, so a module-scoped call that still passes a real
+      ``store`` gets the *whole repo's* README/setup signals presented as if
+      they described just that module. A caller building per-module pages
+      MUST pass ``store=None`` whenever ``path_prefix`` is set to avoid this
+      (``cmd_wiki`` does exactly that). Only the shard-derived half of
+      ``setup_signals``, built from the already-scoped ``all_files``,
+      actually scopes by ``path_prefix`` on its own.
     """
     shard = read_shard(store_dir, repo_id)
     if shard is None:
         return None
     nodes = shard.nodes
     if path_prefix:
-        nodes = [n for n in nodes if n.file and n.file.startswith(path_prefix)]
+        prefix_dir = path_prefix.rstrip("/") + "/"
+        nodes = [
+            n for n in nodes
+            if n.file and (n.file == path_prefix or n.file.startswith(prefix_dir))
+        ]
         node_ids = {n.id for n in nodes}
         edges = [e for e in shard.edges if e.src in node_ids and e.dst in node_ids]
     else:
@@ -338,7 +355,7 @@ def repo_brief(
         "decisions": [{"title": n.name, "file": n.file,
                        "doc": (n.attrs or {}).get("doc")}
                       for n in nodes if n.kind == "adr"][:20],
-        "external": external_context(store_dir, repo_id),
+        "external": [] if path_prefix else external_context(store_dir, repo_id),
         "readme_excerpt": _readme_excerpt(store, repo_id),
         "setup_signals": _setup_signals(all_files, store, repo_id),
         "generated_paths_detected": generated_paths_detected,
