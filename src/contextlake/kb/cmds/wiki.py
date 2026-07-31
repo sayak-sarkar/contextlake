@@ -17,20 +17,39 @@ from .ingest import _embed_documents
 
 
 def _wiki_partition(repo_id: str) -> str:
-    """Store partition holding a repo's wiki-page sections (advisory prose)."""
+    """Store partition holding a repo's wiki-page sections (advisory prose).
+
+    ``repo_id`` here is a store *key*, not necessarily a repo id known to
+    ``store.list_repos()`` -- it's purely string-based (no repo lookup), so a
+    composite module key (``f"{repo}::{module_prefix}"``, see
+    ``_qualifying_modules``) or a cluster page's namespace prefix are equally
+    safe to pass in.
+    """
     return f"@wiki:{repo_id}"
 
 
-def _wiki_section_nodes(repo_id: str, page: str, filename: str):
+def _wiki_section_nodes(repo_id: str, page: str, filename: str, *,
+                        source_repo: str | None = None):
     """Split a wiki page into ``##`` sections -> (nodes, texts) for the ``@wiki``
     partition. Sections embed as advisory prose alongside the code vectors
     (mirroring the ``@connect``/``@ingest`` partition pattern), so a
     natural-language question can land on the wiki's explanation and still cite
     the page file. Ids are per-section-index, so a regenerated page cleanly
-    replaces its predecessor."""
+    replaces its predecessor.
+
+    ``source_repo``, when given, is the actual repo id the page's nodes
+    belong to, stored in ``attrs["source_repo"]`` -- distinct from ``repo_id``
+    when the latter is a composite partition key (a module/subsystem page's
+    ``f"{repo}::{prefix}"``, or a cluster page's namespace prefix), so a
+    consumer filtering wiki nodes by "which real repo does this belong to"
+    gets the actual repo rather than the composite/namespace string. Defaults
+    to ``repo_id`` -- unchanged behavior for existing (whole-repo, cluster)
+    callers.
+    """
     from ..model import Node
 
     part = _wiki_partition(repo_id)
+    attributed_repo = repo_id if source_repo is None else source_repo
     sections, title, buf = [], "Overview", []
     for line in page.splitlines():
         if line.startswith("## "):
@@ -45,16 +64,17 @@ def _wiki_section_nodes(repo_id: str, page: str, filename: str):
     for i, (t, body) in enumerate(sections):
         nodes.append(Node(id=f"{part}:{i}", repo=part, kind="wiki",
                           name=f"{repo_id} wiki: {t}", file=f"wiki/{filename}",
-                          attrs={"advisory": True, "source_repo": repo_id}))
+                          attrs={"advisory": True, "source_repo": attributed_repo}))
         texts.append(f"{t}\n{body}")
     return nodes, texts
 
 
 def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
-                          embedder=None, vs=None, batch_size=64) -> int:
+                          embedder=None, vs=None, batch_size=64, *,
+                          source_repo: str | None = None) -> int:
     """(Re)write a repo's ``@wiki`` partition from its page and embed the sections
     when the semantic tier is up. Returns the number of sections embedded."""
-    nodes, texts = _wiki_section_nodes(repo_id, page, filename)
+    nodes, texts = _wiki_section_nodes(repo_id, page, filename, source_repo=source_repo)
     part = _wiki_partition(repo_id)
     store.clear_repo(part)
     if not nodes:
@@ -65,6 +85,56 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     if embedder is not None and vs is not None:
         return _embed_documents(vs, embedder, part, nodes, texts, batch_size)
     return 0
+
+
+# --- per-subsystem pages for large, genuinely federated repos ---------------
+
+_FEDERATED_NODE_FLOOR = 5000        # below this, one page is fine regardless of shape
+_DOMINANT_MODULE_SHARE = 0.6        # a module owning this share of nodes -> not federated
+# A repo with "hundreds of independent top-level subsystems" (the motivating
+# case) would otherwise trigger hundreds of LLM + council-gate calls in one
+# `wiki` run; cap to the N largest (already sorted largest-first, with a
+# deterministic tiebreak, by `repo_modules`) so a single run stays bounded.
+# NOTE: this permanently strands modules beyond the cap, not just for this
+# run -- a later run with the same head_commit picks the exact same top-N
+# again (freshness-skip) rather than reaching further down the list; only a
+# new commit re-opens the selection, and even then it re-picks a top-N, never
+# specifically the previously-stranded tail. cmd_wiki logs the truncation so
+# this isn't silent; raising the cap (or preferring not-yet-generated modules
+# when filling slots) is future work if the stranding matters in practice.
+_MAX_MODULE_PAGES_PER_REPO = 20
+
+
+def _qualifying_modules(store, repo_id: str, node_count: int) -> list[dict]:
+    """Modules worth their own wiki page: the repo is large AND genuinely
+    federated (no single module dominates it) -- not just one big repo with
+    one big top-level source directory, which the existing whole-repo page
+    already grounds well enough."""
+    if node_count < _FEDERATED_NODE_FLOOR:
+        return []
+    from ..visualize.payload import repo_modules
+
+    modules = repo_modules(store, repo_id)
+    if not modules:
+        return []
+    if modules[0]["nodes"] / node_count > _DOMINANT_MODULE_SHARE:
+        return []
+    return modules
+
+
+def _module_wiki_filename(repo_id: str, prefix: str) -> str:
+    """Filename for a module/subsystem wiki page, sanitized like the whole-repo
+    page (``repo_id.replace("/", "__")``) but applied to both ``repo_id`` and
+    ``prefix`` -- module prefixes returned by ``repo_modules()`` can themselves
+    contain ``/`` (e.g. ``"src/foo"`` from a deeper ``within`` scope), so naive
+    concatenation would try to write into a nonexistent subdirectory or
+    collide with a sibling module's page. Callers must place this under a
+    dedicated subdirectory (``wiki/_modules/``, mirroring ``wiki/_clusters/``
+    for cluster pages) -- otherwise a module page's sanitized name can collide
+    with an unrelated repo's whole-repo page (e.g. module "src" of repo
+    "team/app" and the whole-repo page for a repo literally named
+    "team/app/src" both sanitize to "team__app__src.md")."""
+    return f"{repo_id.replace('/', '__')}__{prefix.replace('/', '__')}.md"
 
 
 def cmd_wiki(args) -> int:
@@ -198,6 +268,81 @@ def cmd_wiki(args) -> int:
 
         written = rejected = skipped = failed = 0
         progress = style.Progress(len(targets), label="wiki")
+
+        def _run_page(*, shard, repo_id, wiki_key, path_prefix, wiki_file, label) -> str:
+            """Freshness-check, generate+gate, and write ONE wiki page -- either
+            the whole-repo page (``path_prefix=None``, ``wiki_key=repo_id``) or a
+            module/subsystem slice (``path_prefix=<module prefix>``,
+            ``wiki_key=f"{repo_id}::{prefix}"``). Shared shape so a module
+            page's freshness/backfill semantics exactly mirror the whole-repo
+            page's rather than being reinvented. ``shard`` is the caller's
+            already-read shard (same for every page of one repo_id, regardless
+            of path_prefix, since head_commit is repo-wide) -- avoids a
+            redundant read per module. Returns "written" | "rejected" |
+            "skipped" | "failed" | "absent" (no brief, or an empty scoped
+            brief -- see the module/index-vs-shard mismatch note below).
+            """
+            # Relative to wiki_dir, not just the basename -- a module page lives
+            # under wiki/_modules/, so its Node.file citation must say so
+            # (unlike the basename-only convention the older cluster-page code
+            # path uses, which is imprecise for its own wiki/_clusters/ pages).
+            rel_filename = wiki_file.relative_to(wiki_dir).as_posix()
+            head = shard.head_commit
+            if not force and wiki_file.exists() and head:
+                prev = wiki_file.read_text(encoding="utf-8", errors="replace")
+                m = re.search(r"at commit `([^`]+)`", prev)
+                if m and m.group(1) == head:
+                    # Backfill: a page written before the @wiki partition existed
+                    # gets its sections stored/embedded without a new LLM call.
+                    if store.get_node(f"{_wiki_partition(wiki_key)}:0") is None:
+                        _store_wiki_partition(store, store_dir, wiki_key, prev,
+                                              rel_filename, head, embedder, vs,
+                                              cfg.embeddings.batch_size,
+                                              source_repo=repo_id)
+                    return "skipped"
+            # `store` unlocks two repo-root-only, never-path_prefix-scoped
+            # live-checkout reads inside repo_brief (readme_excerpt, and
+            # setup_signals' recursive legacy-build-tooling walk + top-level
+            # config listing -- see repo_brief's own docstring, flagged there
+            # by Task 14 as a latent gap for whichever caller first combines
+            # `store` with `path_prefix`). Passing both together on a module
+            # page would present whole-repo README/setup facts as if they
+            # described just this module -- the same mislabeling this task
+            # exists to fix for the title/footer, so omit `store` here and let
+            # both fields degrade to shard-only (None / skip the live scan),
+            # which is exactly repo_brief's documented behavior for that case.
+            brief_store = None if path_prefix else store
+            brief = repo_brief(store_dir, repo_id, store=brief_store, path_prefix=path_prefix)
+            # A module `repo_modules()` (SQLite index) said has real content can
+            # still come back empty here if the shard (JSON, a different
+            # persistence layer -- see _qualifying_modules) disagrees, e.g. a
+            # rebuild race or stale index. Treat that as "nothing to write"
+            # rather than generating a near-empty, ungrounded page.
+            if brief is None or (path_prefix and not brief["node_count"]):
+                return "absent"
+            try:
+                page = generate_page(llm, store_dir, repo_id, store=brief_store,
+                                     path_prefix=path_prefix)
+                gate = council_gate(llm, page, render_prompt(brief, path_prefix=path_prefix),
+                                    accept_score=cfg.llm.accept_score,
+                                    council_size=getattr(cfg.llm, "council_size", None))
+            except Exception as e:  # noqa: BLE001 - one page must not abort the run
+                log(f"  {style.fail(label)}: {e}", inline=True)
+                return "failed"
+            if gate["accepted"]:
+                wiki_file.parent.mkdir(parents=True, exist_ok=True)
+                wiki_file.write_text(page, encoding="utf-8")
+                _store_wiki_partition(store, store_dir, wiki_key, page, rel_filename,
+                                      brief.get("head"), embedder, vs,
+                                      cfg.embeddings.batch_size, source_repo=repo_id)
+                log(f"  {style.ok(label)}: written (score {gate['score']})", inline=True)
+                return "written"
+            log(f"  {style.warn(label)}: rejected by council "
+               f"(score {gate['score']})", inline=True)
+            for issue in gate["issues"][:5]:
+                log(f"      - {issue}")
+            return "rejected"
+
         for repo_id, _ in targets:
             # Freshness check first, off the cheap shard-only head_commit --
             # repo_brief(..., store=store) below also runs setup_signals'
@@ -206,48 +351,58 @@ def cmd_wiki(args) -> int:
             if shard is None:
                 progress.advance(repo_id)
                 continue
+            node_count = len(shard.nodes)
             wiki_file = wiki_dir / (repo_id.replace("/", "__") + ".md")
-            head = shard.head_commit
-            if not force and wiki_file.exists() and head:
-                prev = wiki_file.read_text(encoding="utf-8", errors="replace")
-                m = re.search(r"at commit `([^`]+)`", prev)
-                if m and m.group(1) == head:
-                    # Backfill: a page written before the @wiki partition existed
-                    # gets its sections stored/embedded without a new LLM call.
-                    if store.get_node(f"{_wiki_partition(repo_id)}:0") is None:
-                        _store_wiki_partition(store, store_dir, repo_id, prev,
-                                              wiki_file.name, head,
-                                              embedder, vs, cfg.embeddings.batch_size)
-                    skipped += 1
-                    progress.advance(repo_id)
-                    continue
-            brief = repo_brief(store_dir, repo_id, store=store)
-            if brief is None:
-                progress.advance(repo_id)
-                continue
-            try:
-                page = generate_page(llm, store_dir, repo_id, store=store)
-                gate = council_gate(llm, page, render_prompt(brief),
-                                    accept_score=cfg.llm.accept_score,
-                                    council_size=getattr(cfg.llm, "council_size", None))
-            except Exception as e:  # noqa: BLE001 - one repo must not abort the run
-                log(f"  {style.fail(repo_id)}: {e}", inline=True)
-                failed += 1
-                progress.advance(repo_id)
-                continue
-            if gate["accepted"]:
-                wiki_file.write_text(page, encoding="utf-8")
-                _store_wiki_partition(store, store_dir, repo_id, page,
-                                      wiki_file.name, brief.get("head"),
-                                      embedder, vs, cfg.embeddings.batch_size)
+            outcome = _run_page(shard=shard, repo_id=repo_id, wiki_key=repo_id,
+                                path_prefix=None, wiki_file=wiki_file, label=repo_id)
+            if outcome == "written":
                 written += 1
-                log(f"  {style.ok(repo_id)}: written (score {gate['score']})", inline=True)
-            else:
+            elif outcome == "rejected":
                 rejected += 1
-                log(f"  {style.warn(repo_id)}: rejected by council "
-                    f"(score {gate['score']})", inline=True)
-                for issue in gate["issues"][:5]:
-                    log(f"      - {issue}")
+            elif outcome == "skipped":
+                skipped += 1
+            elif outcome == "failed":
+                failed += 1
+            # "absent": no shard / no brief -- matches the prior silent skip.
+
+            # Per-subsystem pages for large, genuinely federated repos --
+            # generated IN ADDITION to (never instead of) the whole-repo page
+            # above. Folds into the same written/rejected/skipped/failed
+            # counters (the summary line below is now page-level, not
+            # repo-level) and reuses `node_count` from the shard already read
+            # above rather than recomputing it via repo_brief.
+            modules = _qualifying_modules(store, repo_id, node_count)
+            if len(modules) > _MAX_MODULE_PAGES_PER_REPO:
+                # `repo_modules()` sorts largest-first (deterministic tiebreak
+                # on ties), and freshness-skip means an unchanged commit picks
+                # the exact same top-N again next run -- modules beyond the
+                # cap are NOT generated by a later run either, only by a
+                # future commit change (which regenerates the same top-N, not
+                # the tail). Say so plainly rather than silently stranding them.
+                log(f"  {repo_id}: {len(modules)} qualifying modules, generating only "
+                   f"the {_MAX_MODULE_PAGES_PER_REPO} largest this run "
+                   f"({len(modules) - _MAX_MODULE_PAGES_PER_REPO} not generated)",
+                   inline=True)
+            for module in modules[:_MAX_MODULE_PAGES_PER_REPO]:
+                prefix = module["prefix"]
+                module_key = f"{repo_id}::{prefix}"
+                module_label = module_key
+                module_file = wiki_dir / "_modules" / _module_wiki_filename(repo_id, prefix)
+                m_outcome = _run_page(shard=shard, repo_id=repo_id, wiki_key=module_key,
+                                      path_prefix=prefix, wiki_file=module_file,
+                                      label=module_label)
+                if m_outcome == "written":
+                    written += 1
+                elif m_outcome == "rejected":
+                    rejected += 1
+                elif m_outcome == "skipped":
+                    skipped += 1
+                elif m_outcome == "failed":
+                    failed += 1
+                elif m_outcome == "absent":
+                    log(f"  {style.warn(module_label)}: repo_modules() reported this "
+                       "module but its scoped brief came back empty (shard/index "
+                       "mismatch) -- skipping this subsystem page", inline=True)
             progress.advance(repo_id)
         progress.done()
         fail_tail = f", {failed} failed" if failed else ""

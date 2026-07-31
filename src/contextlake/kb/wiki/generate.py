@@ -345,9 +345,19 @@ def repo_brief(
     }
 
 
-def render_prompt(brief: dict) -> str:
+def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
     lines = [
         f"Repository: {brief['repo']}",
+    ]
+    if path_prefix:
+        lines.append(
+            f"Scope: ONLY the `{path_prefix}` module/subsystem of this repository. "
+            "Every fact below (symbols, dependencies, files) was drawn exclusively "
+            "from that module, not the whole repository. Write about this module "
+            "only -- do not make claims about the repository as a whole, and do not "
+            "write as if this module IS the whole repository."
+        )
+    lines += [
         f"Indexed commit: {brief['head']}",
         f"{brief['node_count']} symbols, {brief['edge_count']} relations.",
         f"Languages: {brief['langs']}",
@@ -435,15 +445,18 @@ def render_prompt(brief: dict) -> str:
     return "\n".join(lines)
 
 
-def provenance_footer(brief: dict, verified_at: date | None = None) -> str:
+def provenance_footer(brief: dict, verified_at: date | None = None, *,
+                      path_prefix: str | None = None) -> str:
     cites = ", ".join(f"`{f}`" for f in brief["files"][:10])
     coverage = ""
     if brief.get("grounded_count") is not None and brief.get("node_count"):
         pct = round(100 * brief["grounded_count"] / brief["node_count"], 1)
         coverage = f" Grounded in {brief['grounded_count']}/{brief['node_count']} symbols ({pct}%)."
+    scope = (f"the `{path_prefix}` module of `{brief['repo']}`" if path_prefix
+            else f"`{brief['repo']}`")
     return (
         "\n\n---\n"
-        f"*Generated from the knowledge graph of `{brief['repo']}` at commit "
+        f"*Generated from the knowledge graph of {scope} at commit "
         f"`{brief['head']}` on {verified_at or date.today()}."
         + (f" Sources: {cites}." if cites else "")
         + coverage
@@ -452,10 +465,27 @@ def provenance_footer(brief: dict, verified_at: date | None = None) -> str:
 
 
 def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = None,
-                  store=None) -> str | None:
-    """Generate a provenance-stamped wiki page (Markdown), or None without a shard."""
-    brief = repo_brief(store_dir, repo_id, store=store)
+                  store=None, path_prefix: str | None = None) -> str | None:
+    """Generate a provenance-stamped wiki page (Markdown), or None without a shard.
+
+    ``path_prefix``, when given, scopes the page to one module/subsystem of the
+    repo (see ``repo_brief``) instead of the whole repo -- used for federated
+    repos too large/varied for one whole-repo page to summarize well. The
+    title, prompt framing, and provenance footer are all adjusted so the page
+    is unambiguous about describing a slice of the repo, not the repo as a
+    whole -- a whole-repo page and a module page for the same ``repo_id`` must
+    never read as if they describe the same scope.
+    """
+    brief = repo_brief(store_dir, repo_id, store=store, path_prefix=path_prefix)
     if brief is None:
         return None
-    body = llm.generate(render_prompt(brief), system=SYSTEM).strip()
-    return f"# {repo_id}\n\n{body}{provenance_footer(brief, verified_at)}"
+    body = llm.generate(render_prompt(brief, path_prefix=path_prefix), system=SYSTEM).strip()
+    if path_prefix:
+        title = (
+            f"# {repo_id} — {path_prefix}\n\n"
+            f"*This page covers only the `{path_prefix}` module/subsystem of "
+            f"`{repo_id}`, not the repository as a whole.*"
+        )
+    else:
+        title = f"# {repo_id}"
+    return f"{title}\n\n{body}{provenance_footer(brief, verified_at, path_prefix=path_prefix)}"

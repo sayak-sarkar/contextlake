@@ -464,6 +464,64 @@ def test_generate_page_none_without_shard(tmp_path):
     assert generate_page(_FakeLlm(), tmp_path, "absent") is None
 
 
+def test_generate_page_module_scoped_is_labeled_as_a_module_not_the_whole_repo(tmp_path):
+    """A module/subsystem page (path_prefix given) must be unambiguous that it
+    describes ONE module of the repo, not the repo as a whole -- the exact gap
+    Task 14's reviewer flagged as deferred to this task."""
+    nodes = [
+        Node(id="a1", repo="r", kind="function", name="a1", file="moda/a.py"),
+        Node(id="b1", repo="r", kind="function", name="b1", file="modb/b.py"),
+    ]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc123", nodes=nodes, edges=[]))
+    page = generate_page(_FakeLlm(), tmp_path, "r", verified_at=date(2026, 6, 21),
+                         path_prefix="moda")
+    # Title says the module AND the repo, not just "# r" (which would read as
+    # a whole-repo page).
+    assert page.startswith("# r — moda\n")
+    assert "moda" in page.splitlines()[2]   # the "only this module" caption line
+    # Footer must not claim to describe the whole repo's knowledge graph.
+    assert "the `moda` module of `r`" in page
+    assert "knowledge graph of `r`" not in page
+
+
+def test_generate_page_whole_repo_unaffected_by_module_scoping_changes(tmp_path):
+    """Regression guard: the whole-repo path (path_prefix=None, the default)
+    must render exactly as before -- no module caption, no scoped footer
+    wording."""
+    _shard(tmp_path)
+    page = generate_page(_FakeLlm(), tmp_path, "r", verified_at=date(2026, 6, 21))
+    assert page.startswith("# r\n\n")
+    assert " — " not in page.splitlines()[0]
+    assert "knowledge graph of `r` at commit" in page
+
+
+def test_render_prompt_module_scoped_states_the_scope(tmp_path):
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    prompt = render_prompt(brief, path_prefix="svc")
+    assert "ONLY the `svc` module/subsystem" in prompt
+    assert "do not make claims about the repository as a whole" in prompt
+
+
+def test_render_prompt_without_path_prefix_has_no_scope_line(tmp_path):
+    _shard(tmp_path)
+    brief = repo_brief(tmp_path, "r")
+    prompt = render_prompt(brief)
+    assert "module/subsystem" not in prompt
+
+
+def test_provenance_footer_module_scoped_states_the_scope():
+    from contextlake.kb.wiki.generate import provenance_footer
+
+    brief = {"repo": "r", "head": "abc123", "files": ["moda/a.py"],
+            "node_count": 10, "grounded_count": 5}
+    whole = provenance_footer(brief)
+    scoped = provenance_footer(brief, path_prefix="moda")
+    assert "knowledge graph of `r` at commit" in whole
+    assert "knowledge graph of the `moda` module of `r` at commit" in scoped
+    assert "knowledge graph of `r` at commit" not in scoped   # not mislabeled as whole-repo
+
+
 # --- council --------------------------------------------------------------
 
 def test_parse_review_tolerant():
@@ -907,3 +965,246 @@ def test_cmd_wiki_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkeyp
     assert "Wiki: 3 written, 0 rejected, 0 unchanged (skipped)" in text
     for rid in repo_ids:
         assert (store_dir / "wiki" / f"{rid}.md").exists()
+
+
+# --- per-subsystem pages for federated repos --------------------------------
+
+def test_qualifying_modules_below_node_floor_returns_empty():
+    from contextlake.kb.cmds.wiki import _qualifying_modules
+
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_nodes("r", [
+            Node(id=f"n{i}", repo="r", kind="function", name=f"n{i}", file=f"mod{i % 3}/f{i}.py")
+            for i in range(30)
+        ])
+        # 30 real nodes, but node_count (from the caller's shard) says only 100 --
+        # well under _FEDERATED_NODE_FLOOR, so no subsystem pages regardless of shape.
+        assert _qualifying_modules(s, "r", node_count=100) == []
+    finally:
+        s.close()
+
+
+def test_qualifying_modules_skips_when_one_module_dominates():
+    from contextlake.kb.cmds.wiki import _qualifying_modules
+
+    s = SqliteStore(":memory:")
+    try:
+        nodes = [Node(id=f"big{i}", repo="r", kind="function", name=f"big{i}", file=f"big/f{i}.py")
+                for i in range(4000)]
+        nodes += [Node(id=f"small{i}", repo="r", kind="function", name=f"small{i}",
+                       file=f"small/f{i}.py") for i in range(1000)]
+        s.upsert_nodes("r", nodes)
+        # "big" owns 4000/5000 = 80% > _DOMINANT_MODULE_SHARE -- one big repo with
+        # one big top-level source dir, not a genuinely federated repo.
+        assert _qualifying_modules(s, "r", node_count=5000) == []
+    finally:
+        s.close()
+
+
+def test_qualifying_modules_returns_modules_for_a_federated_repo():
+    from contextlake.kb.cmds.wiki import _qualifying_modules
+
+    s = SqliteStore(":memory:")
+    try:
+        nodes = []
+        for m in range(6):
+            nodes += [Node(id=f"mod{m}_n{i}", repo="r", kind="function", name=f"n{i}",
+                          file=f"mod{m}/f{i}.py") for i in range(900)]
+        s.upsert_nodes("r", nodes)
+        modules = _qualifying_modules(s, "r", node_count=5400)
+        assert len(modules) == 6
+        assert {m["prefix"] for m in modules} == {f"mod{i}" for i in range(6)}
+    finally:
+        s.close()
+
+
+def _setup_federated_repo(tmp_path, *, repo_id="fed", n_modules=6, nodes_per_module=835,
+                          omit_from_shard=None):
+    """A synthetic repo with ``n_modules`` top-level modules of roughly equal
+    size, each comfortably above ``repo_modules()``'s min_nodes floor (5) and,
+    combined, above ``_FEDERATED_NODE_FLOOR`` (5000) -- qualifies as
+    "federated" (large, no dominant module).
+
+    Nodes land in both the SQLite index (what ``repo_modules()`` reads) and
+    the JSON shard (what ``repo_brief()`` reads), mirroring how a real
+    index+shard pair is written together during indexing -- except when
+    ``omit_from_shard`` names a module prefix: that module's nodes are still
+    upserted into the SQLite index (so ``repo_modules()`` keeps reporting it
+    as a real, qualifying module) but left OUT of the shard entirely (so
+    ``repo_brief(path_prefix=that_prefix)`` comes back with zero nodes) --
+    reproducing the two-persistence-layer disagreement `_run_page` must
+    handle gracefully rather than crash on or silently paper over.
+    """
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir(parents=True)
+    (tmp_path / "kb.toml").write_text(_CFG.format(store=store_dir.as_posix()))
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    store.upsert_repo(Repo(id=repo_id, path=str(tmp_path / repo_id)))
+    all_nodes, shard_nodes = [], []
+    for m in range(n_modules):
+        prefix = f"mod{m}"
+        module_nodes = [
+            Node(id=f"{prefix}_n{i}", repo=repo_id, kind="function", name=f"fn{i}",
+                file=f"{prefix}/f{i}.py")
+            for i in range(nodes_per_module)
+        ]
+        all_nodes += module_nodes
+        if prefix != omit_from_shard:
+            shard_nodes += module_nodes
+    store.upsert_nodes(repo_id, all_nodes)
+    store.close()
+    write_shard(store_dir, GraphShard(repo=repo_id, head_commit="fedhead",
+                                      nodes=shard_nodes, edges=[]))
+    return store_dir
+
+
+class _CapturingLlm(_FakeLlm):
+    """Records every non-review generate() prompt (page-generation calls, not
+    the council's own review prompts) so a test can inspect what each page's
+    prompt was actually grounded in."""
+
+    def __init__(self, score=0.95):
+        super().__init__(score=score)
+        self.page_prompts: list[str] = []
+
+    def generate(self, prompt, *, system=None):
+        if "Review lens" not in prompt:
+            self.page_prompts.append(prompt)
+        return super().generate(prompt, system=system)
+
+
+def test_cmd_wiki_generates_subsystem_pages_for_a_federated_repo(tmp_path, monkeypatch):
+    """A large repo with several roughly-equal-sized top-level modules (no
+    single module dominant) gets one subsystem page PER qualifying module, in
+    addition to (not instead of) the whole-repo page -- each page grounded
+    only in that module's nodes and clearly labeled as a module page, not a
+    whole-repo page."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+    fake = _CapturingLlm(score=0.95)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: fake)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    assert (store_dir / "wiki" / "fed.md").exists()
+    modules_dir = store_dir / "wiki" / "_modules"
+    for m in range(6):
+        page_file = modules_dir / f"fed__mod{m}.md"
+        assert page_file.exists(), f"expected a subsystem page for mod{m}"
+        text = page_file.read_text()
+        assert text.startswith(f"# fed — mod{m}\n")
+        assert "module/subsystem of `fed`" in text
+        assert f"the `mod{m}` module of `fed`" in text
+        assert "knowledge graph of `fed` at commit" not in text  # not mislabeled whole-repo
+
+    # 1 whole-repo prompt + 6 module prompts, each module's prompt grounded
+    # only in that module's own files (the scoping is per-module, not shared).
+    # Selected by the "ONLY the `modN`..." scope line, not by filename
+    # substring -- the whole-repo prompt's own "Notable files" list also
+    # mentions mod0's files (sorted() puts them first alphabetically), so a
+    # filename-substring match would ambiguously hit the whole-repo prompt too.
+    assert len(fake.page_prompts) == 7
+    for m in range(6):
+        module_prompt = next(p for p in fake.page_prompts
+                             if f"ONLY the `mod{m}` module/subsystem" in p)
+        for other in range(6):
+            if other != m:
+                assert f"mod{other}/f" not in module_prompt
+
+    # Each module page also lands in its own @wiki partition, attributed to
+    # the REAL repo id (not the composite partition key) via source_repo.
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        n = store.get_node("@wiki:fed::mod0:0")
+        assert n is not None
+        assert n.attrs.get("source_repo") == "fed"
+        assert n.file == "wiki/_modules/fed__mod0.md"   # cites the actual on-disk path
+    finally:
+        store.close()
+
+
+def test_cmd_wiki_module_pages_do_not_leak_repo_root_readme_or_setup_signals(tmp_path, monkeypatch):
+    """repo_brief's readme_excerpt and setup_signals' live-checkout scan are
+    always repo-root-scoped, never path_prefix-scoped (see repo_brief's own
+    docstring, and Task 14's report flagging this as a latent gap for whoever
+    first combines `store` with `path_prefix`) -- a module page must not
+    present those whole-repo facts as if they describe just that module.
+    `cmd_wiki` avoids the leak by not passing `store` into
+    repo_brief/generate_page for a path_prefix'd (module) page."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _setup_federated_repo(tmp_path)
+    repo_root = tmp_path / "fed"
+    repo_root.mkdir(parents=True, exist_ok=True)
+    (repo_root / "README.md").write_text("# Fed\nThis whole repo does many things.\n")
+    (repo_root / "package.json").write_text("{}")
+    fake = _CapturingLlm(score=0.95)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: fake)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    whole_prompt = next(p for p in fake.page_prompts if "ONLY the" not in p)
+    module_prompts = [p for p in fake.page_prompts if "ONLY the" in p]
+    assert len(module_prompts) == 6
+    # The whole-repo page (which DOES pass `store`) legitimately sees these.
+    assert "This whole repo does many things." in whole_prompt
+    assert "package.json" in whole_prompt
+    # No module page may present them as facts about its own scope.
+    for mp in module_prompts:
+        assert "This whole repo does many things." not in mp
+        assert "package.json" not in mp
+
+
+def test_cmd_wiki_skips_module_page_gracefully_on_shard_index_mismatch(tmp_path, monkeypatch):
+    """repo_modules() (SQLite index) and repo_brief() (JSON shard) are two
+    different persistence layers for the same repo. If a module the index says
+    is real comes back with an empty scoped brief (shard/index disagreement),
+    the run must skip just that module -- not crash, and not write a
+    near-empty, ungrounded page."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    # 7 modules so the repo still clears _FEDERATED_NODE_FLOOR even after one
+    # module's nodes are withheld from the shard entirely.
+    store_dir = _setup_federated_repo(tmp_path, n_modules=7, nodes_per_module=850,
+                                      omit_from_shard="mod3")
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    assert (store_dir / "wiki" / "fed.md").exists()
+    modules_dir = store_dir / "wiki" / "_modules"
+    assert not (modules_dir / "fed__mod3.md").exists()   # mismatched module: skipped
+    for m in (0, 1, 2, 4, 5, 6):
+        assert (modules_dir / f"fed__mod{m}.md").exists()  # every other module: unaffected
+
+
+def test_cmd_wiki_module_pages_capped_per_repo(tmp_path, monkeypatch, gls_logs):
+    """`_qualifying_modules` (pinned by spec, uncapped) can return "hundreds"
+    of modules for a legacy federated repo -- the call site caps how many get
+    a page in one run so one `wiki` invocation stays bounded. The cap
+    permanently strands the modules beyond it (not just this run -- see the
+    code comment on `_MAX_MODULE_PAGES_PER_REPO`), so the run must at least
+    say so rather than going silent about the modules it skipped."""
+    from contextlake.kb.cmds.wiki import _MAX_MODULE_PAGES_PER_REPO
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    n_modules = _MAX_MODULE_PAGES_PER_REPO + 5
+    store_dir = _setup_federated_repo(tmp_path, n_modules=n_modules, nodes_per_module=250)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    modules_dir = store_dir / "wiki" / "_modules"
+    written = {p.stem.split("__", 1)[1] for p in modules_dir.glob("fed__mod*.md")}
+    assert len(written) == _MAX_MODULE_PAGES_PER_REPO
+    # repo_modules() sorts (-nodes, prefix) -- all 25 modules tie on node
+    # count, so the tiebreak is a plain string sort of "mod0".."mod24"; the
+    # winning 20 are NOT "mod0".."mod19" (numeric order) but the
+    # lexicographically-first 20 ("mod10" < "mod2" as strings).
+    all_prefixes = sorted(f"mod{i}" for i in range(n_modules))
+    assert written == set(all_prefixes[:_MAX_MODULE_PAGES_PER_REPO])
+    stranded = set(all_prefixes[_MAX_MODULE_PAGES_PER_REPO:])
+    assert stranded and stranded.isdisjoint(written)
+    assert (f"{n_modules} qualifying modules, generating only the "
+           f"{_MAX_MODULE_PAGES_PER_REPO} largest this run "
+           f"(5 not generated)") in gls_logs.text
