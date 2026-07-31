@@ -185,6 +185,24 @@ def test_repo_brief_legacy_build_tooling_counted_from_live_checkout_not_graph(tm
     assert not any(n.file and n.file.endswith((".vcxproj", ".dsp")) for n in shard.nodes)
 
 
+def test_setup_signals_does_not_double_count_a_file_in_both_graph_and_checkout(tmp_path):
+    # A file that is (hypothetically) both already in `all_files` AND present on
+    # disk at the same relative path must be counted once, not twice -- pins the
+    # merge-without-double-counting requirement, which the live-checkout-only
+    # end-to-end test above can't exercise (its all_files never overlaps disk).
+    from contextlake.kb.wiki.generate import _setup_signals
+
+    repo_dir = tmp_path / "checkout"
+    (repo_dir / "sub").mkdir(parents=True)
+    (repo_dir / "sub" / "a.dsp").write_text("; project\n")
+    store = SqliteStore(":memory:")
+    store.upsert_repo(Repo(id="r", path=str(repo_dir)))
+
+    signals = _setup_signals({"sub/a.dsp"}, store, "r")
+    assert any("1 legacy MSVC6 project" in s for s in signals)
+    assert not any("2 legacy" in s for s in signals)
+
+
 def test_repo_brief_flags_generated_paths_by_directory_segment(tmp_path):
     nodes = [Node(id="g1", repo="r", kind="function", name="f",
                   file="src/generated/widgets.py")]

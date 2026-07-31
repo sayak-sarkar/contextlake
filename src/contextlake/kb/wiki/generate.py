@@ -12,7 +12,6 @@ from collections import Counter
 from datetime import date
 from pathlib import Path
 
-from ..parse import _SKIP_DIRS
 from ..store.shards import read_shard
 
 # Conventional entry-point/config filenames -- presence-only signal for the
@@ -155,6 +154,11 @@ def _setup_signals(all_files: set, store=None, repo_id: str | None = None) -> li
             by_ext[ext] = by_ext.get(ext, 0) + 1
             counted.add(f)
     if base is not None and base.is_dir():
+        # Reuse the parser's own skip-dir set (never duplicate it here); imported
+        # lazily, same as `_is_generated_name` below, so this file's module-level
+        # imports stay independent of parse.py's tree-sitter dependency.
+        from ..parse import _SKIP_DIRS
+
         n_visited = 0
         stop = False
         for dirpath, dirnames, filenames in os.walk(base):
