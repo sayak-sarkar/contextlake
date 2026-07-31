@@ -153,6 +153,18 @@
       if (within) url += "?within=" + encodeURIComponent(within);
       return fetchJSON(url);
     },
+    // Wiki content for one repo, optionally scoped to a subsystem/module page
+    // (see server-side repo_wiki()'s docstring for why this is its own route
+    // rather than a ?module= param on repo() -- switching the Wiki tab's
+    // module picker should only re-fetch this section, not the whole
+    // repo-detail payload). The whole-repo page also arrives bundled in
+    // repo()'s own `wiki` key (d.wiki) -- this is only needed for a module.
+    repoWiki: function (id, module) {
+      if (MODE === "static") return Promise.reject(new Error("live only"));
+      var url = "/api/repo/" + encPath(id) + "/wiki";
+      if (module) url += "?module=" + encodeURIComponent(module);
+      return fetchJSON(url);
+    },
     // sequencediagram needs a single symbol seed, not a whole repo, so it's served off
     // /api/impact/diagram (same family as impact() below) rather than /api/repo/.../diagram.
     sequenceDiagram: function (nodeId, hops) {
@@ -668,26 +680,7 @@
         h("div", { class: "cl-md", html: d.readme_html })));
       else pane.appendChild(stateBlock({ kind: "empty", title: "No README found in this repo" }));
     } else if (tab === "wiki") {
-      var w = d.wiki || {};
-      if (!w.found) {
-        pane.appendChild(stateBlock({
-          kind: "empty", title: "No wiki generated for this repo yet",
-          msg: "Generate a curated wiki from this repo's code and history, then refresh.",
-          cmd: "contextlake wiki " + id + " --llm builtin",
-          action: genAction("Generate wiki", "contextlake wiki " + id + " --llm builtin")
-        }));
-        if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id));
-        return;
-      }
-      var wikiHeader = [h("strong", null, "Curated wiki — advisory")];
-      if (w.stale) wikiHeader.push(h("span", { class: "cl-healthchip cl-healthchip--stale" },
-        "STALE — code changed since generation"));
-      var holder = h("div", { class: "cl-advisory" },
-        h("div", { class: "cl-row" }, wikiHeader),
-        h("p", { class: "cl-muted" }, "Not ground truth — verify against the cited source."),
-        h("div", { class: "cl-md", html: w.html || "" }));
-      pane.appendChild(holder);
-      if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id));
+      renderWikiTab(pane, d, id);
     } else if (tab === "owners") {
       if (!d.owners || !d.owners.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No owners", msg: "Derived from git history — none available." })); return; }
       var ot = table(["Owner", "Commits", "Lines", "Share", ""],
@@ -715,6 +708,92 @@
       });
     } else if (tab === "diagrams") {
       renderDiagramsTab(pane, d, id);
+    }
+  }
+
+  // ---- Wiki (repo page) --------------------------------------------------
+  // The repo-overview page arrives bundled in `d.wiki` (repo_detail's own
+  // `_wiki_out` call) -- no extra fetch needed for it. A federated repo's
+  // per-subsystem pages (Task 15/16) are a flat, top-level pick (repo_modules()
+  // with no `within` -- unlike the Diagrams tab's recursive drill-down, a wiki
+  // page is never "too large to render", it's just a choice between distinct
+  // advisory pages, so there's no breadcrumb/auto-descend machinery here).
+  // Picking a module re-fetches via CL.data.repoWiki(id, module) -- its own
+  // lightweight route -- and swaps just this section in place; picking back to
+  // "whole repo" reuses the already-fetched `d.wiki` rather than refetching it.
+  function wikiEmptyState(id, forWhat) {
+    return stateBlock({
+      kind: "empty", title: "No wiki generated for " + forWhat + " yet",
+      msg: "Generate a curated wiki from this repo's code and history, then refresh.",
+      cmd: "contextlake wiki " + id + " --llm builtin",
+      action: genAction("Generate wiki", "contextlake wiki " + id + " --llm builtin")
+    });
+  }
+  function wikiContentNode(w, id, forWhat) {
+    if (!w || !w.found) return wikiEmptyState(id, forWhat);
+    var wikiHeader = [h("strong", null, "Curated wiki — advisory")];
+    if (w.stale) wikiHeader.push(h("span", { class: "cl-healthchip cl-healthchip--stale" },
+      "STALE — code changed since generation"));
+    return h("div", { class: "cl-advisory" },
+      h("div", { class: "cl-row" }, wikiHeader),
+      h("p", { class: "cl-muted" }, "Not ground truth — verify against the cited source."),
+      h("div", { class: "cl-md", html: w.html || "" }));
+  }
+  function renderWikiTab(pane, d, id) {
+    var contentWrap = h("div", null, wikiContentNode(d.wiki, id, "this repo"));
+    pane.appendChild(contentWrap);
+    if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id));
+
+    if (MODE === "static") return; // no /modules route to ask -- see CL.data.repoModules
+    CL.data.repoModules(id).then(function (res) {
+      var mods = (res && res.modules) || [];
+      if (!mods.length) return; // nothing to pick from -- degrade to nothing (no picker)
+      // repoModules() is a generic "top-level dirs with enough nodes" structural
+      // list (the same one the Diagrams tab uses for its scope-down control) --
+      // NOT specific to which modules actually got a subsystem wiki page. Wiki
+      // generation only writes module pages for genuinely federated repos above
+      // its own node floor (see cmds.wiki._qualifying_modules); a small repo with
+      // ordinary src/tests/examples dirs has modules here but no wiki content for
+      // any of them. Probing the single largest module (mods[0] -- repoModules()
+      // sorts largest-first, and generation always covers the largest modules
+      // first) is a cheap one-request proxy for "does this repo have subsystem
+      // wiki pages at all" -- avoids offering a picker whose every option would
+      // just say "not found".
+      return CL.data.repoWiki(id, mods[0].prefix).then(function (probe) {
+        if (!probe || !probe.found) return; // not a wiki-federated repo -- no picker
+        renderPicker(mods);
+      });
+    }).catch(function () { /* module listing is a convenience, not essential -- fail quiet */ });
+
+    function renderPicker(mods) {
+      var loadSeq = 0;
+      var select = h("select", {
+        class: "cl-select", "aria-label": "Wiki scope",
+        onchange: function (ev) {
+          var mod = ev.target.value || null;
+          var mySeq = ++loadSeq;
+          clear(contentWrap);
+          contentWrap.appendChild(skeleton(1));
+          var fetchWiki = mod ? CL.data.repoWiki(id, mod) : Promise.resolve(d.wiki);
+          fetchWiki.then(function (w) {
+            if (mySeq !== loadSeq) return; // a newer selection superseded this one
+            clear(contentWrap);
+            contentWrap.appendChild(wikiContentNode(w, id, mod ? "module “" + mod + "”" : "this repo"));
+          }).catch(function (e) {
+            if (mySeq !== loadSeq) return;
+            clear(contentWrap);
+            contentWrap.appendChild(stateBlock({
+              kind: "error", title: "Couldn't load this wiki page", msg: String(e)
+            }));
+          });
+        }
+      }, [h("option", { value: "" }, "Whole repo — overview")].concat(
+        mods.map(function (m) {
+          return h("option", { value: m.prefix }, m.prefix + " (" + m.nodes + ")");
+        })
+      ));
+      pane.insertBefore(h("div", { class: "cl-row" },
+        h("label", { class: "cl-muted" }, "Subsystem:"), select), contentWrap);
     }
   }
 

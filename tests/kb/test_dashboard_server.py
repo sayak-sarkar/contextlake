@@ -116,6 +116,32 @@ def test_repo_diagram_endpoint_module_param_scopes_the_view(served):
     assert "CatalogService" not in scoped["text"]
 
 
+def test_repo_wiki_endpoint(served, tmp_path):
+    # Whole-repo + a module page written straight to the store's wiki/ dir
+    # (same layout `contextlake wiki` itself writes) -- no server restart
+    # needed since the route reads the filesystem fresh per request.
+    from contextlake.kb.cmds.wiki import _module_wiki_filename
+
+    (tmp_path / "wiki").mkdir(exist_ok=True)
+    (tmp_path / "wiki" / "team__app.md").write_text(
+        "# team/app\n\nGenerated at commit `h1`.\n\nThe **whole repo** page.\n")
+    modules_dir = tmp_path / "wiki" / "_modules"
+    modules_dir.mkdir(parents=True, exist_ok=True)
+    (modules_dir / _module_wiki_filename("team/app", "src")).write_text(
+        "# team/app: src\n\nGenerated at commit `h1`.\n\nThe **src** subsystem.\n")
+
+    whole = json.loads(_get(served + "/api/repo/team/app/wiki"))
+    assert whole["found"] and whole["module"] is None
+    assert "<strong>whole repo</strong>" in whole["html"]
+
+    scoped = json.loads(_get(served + "/api/repo/team/app/wiki?module=src"))
+    assert scoped["found"] and scoped["module"] == "src"
+    assert "<strong>src</strong>" in scoped["html"]
+
+    missing = json.loads(_get(served + "/api/repo/team/app/wiki?module=nope"))
+    assert missing["found"] is False and missing["module"] == "nope"
+
+
 def test_repo_modules_endpoint(served):
     body = json.loads(_get(served + "/api/repo/team/app/modules"))
     assert body["repo"] == "team/app"

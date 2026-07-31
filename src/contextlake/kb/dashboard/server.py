@@ -257,6 +257,10 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     repo_id = urllib.parse.unquote(rest[:-len("/modules")])
                     within = (q.get("within") or [None])[0]
                     return 200, _json_bytes(kbdata.repo_modules(req, repo_id, within=within))
+                if rest.endswith("/wiki"):
+                    repo_id = urllib.parse.unquote(rest[:-len("/wiki")])
+                    module = (q.get("module") or [None])[0]
+                    return 200, _json_bytes(kbdata.repo_wiki(req, sd, repo_id, module=module))
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
             if path == "/api/mcp":

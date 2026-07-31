@@ -259,12 +259,27 @@ def _readme_html(store, repo_id: str) -> str | None:
     return None
 
 
-def _wiki_out(store, store_dir: Path, repo_id: str) -> dict:
+def _wiki_out(store, store_dir: Path, repo_id: str, *, module: str | None = None) -> dict:
     """The generated wiki page rendered to sanitized HTML, with the staleness flag
-    (reuses ``get_wiki`` logic + ``visualize._md_to_html`` / ``repo_slug``)."""
+    (reuses ``get_wiki`` logic + ``visualize._md_to_html`` / ``repo_slug``).
+
+    ``module``, when given, reads a subsystem/module page (``wiki/_modules/``,
+    Task 15's ``_module_wiki_filename`` convention) instead of the whole-repo page
+    -- lazily imported from ``cmds.wiki`` (same lazy-import style this function
+    already uses for ``visualize``) to reuse that filename-sanitization logic
+    rather than duplicating it. The staleness check is unchanged: it still
+    compares against ``repo_id``'s CURRENT ``head_commit`` -- a module page
+    embeds the same ``at commit \\`...\\`` footer text as the whole-repo page
+    (same repo, same commit), so the same regex extraction applies as-is.
+    """
     from ..visualize import _md_to_html, repo_slug
 
-    wiki_file = store_dir / "wiki" / (repo_slug(repo_id) + ".md")
+    if module:
+        from ..cmds.wiki import _module_wiki_filename
+
+        wiki_file = store_dir / "wiki" / "_modules" / _module_wiki_filename(repo_id, module)
+    else:
+        wiki_file = store_dir / "wiki" / (repo_slug(repo_id) + ".md")
     if not wiki_file.exists():
         return {"found": False, "stale": True, "html": None}
     raw = wiki_file.read_text(encoding="utf-8", errors="replace")
@@ -493,6 +508,25 @@ def repo_modules(store, repo_id: str, *, within: str | None = None) -> dict:
 
     return {"repo": sanitize_label(repo_id),
             "modules": viz.repo_modules(store, repo_id, within=within)}
+
+
+def repo_wiki(store, store_dir, repo_id: str, *, module: str | None = None) -> dict:
+    """Wiki content for one repo, optionally scoped to a subsystem/module page
+    (Task 15/16's per-subsystem pages for large federated repos).
+
+    Served as its OWN lightweight route rather than a ``?module=`` query param
+    tacked onto the base ``/api/repo/<id>`` route (which also carries brief/
+    readme/owners/links) -- mirroring the existing ``diagram()``/``repo_modules()``
+    precedent (both already separate sub-routes off ``/api/repo/<id>/...``, not
+    params on the base route). This way the dashboard's Wiki-tab module picker
+    can swap in a different subsystem's page with one small fetch, without
+    re-fetching the rest of the repo-detail payload on every switch.
+    """
+    sd = _store_dir(store, store_dir)
+    out = _wiki_out(store, sd, repo_id, module=module)
+    out["repo"] = sanitize_label(repo_id)
+    out["module"] = module
+    return out
 
 
 def sequence_diagram(store, node_id: str, *, hops: int = 2, max_nodes: int = 500,

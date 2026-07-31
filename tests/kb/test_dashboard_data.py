@@ -136,6 +136,51 @@ def test_repo_detail_brief_readme_wiki_owners(store_dir):
     assert d["links"]["tracked_by"][0]["url"].startswith("https://")
 
 
+def test_repo_wiki_whole_repo_matches_detail_wiki(store_dir):
+    # repo_wiki() is the new standalone route backing the Wiki tab's module
+    # picker (Task 17) -- with no `module`, it must agree with repo_detail's
+    # own bundled `wiki` key (both go through the same _wiki_out()).
+    s, sd = store_dir
+    out = kbdata.repo_wiki(s, sd, "team/app")
+    assert out["repo"] == "team/app" and out["module"] is None
+    assert out["found"] and out["html"]
+    assert out["stale"] is False
+
+
+def test_repo_wiki_module_scoped_page(store_dir):
+    # Module pages live under wiki/_modules/, named via cmds.wiki's own
+    # _module_wiki_filename -- reused here (not reinvented) exactly as
+    # dashboard.data._wiki_out is expected to reuse it.
+    from contextlake.kb.cmds.wiki import _module_wiki_filename
+
+    s, sd = store_dir
+    modules_dir = sd / "wiki" / "_modules"
+    modules_dir.mkdir(parents=True, exist_ok=True)
+    (modules_dir / _module_wiki_filename("team/app", "src")).write_text(
+        "# team/app: src\n\nGenerated at commit `head-app`.\n\n"
+        "- the **payments** subsystem\n"
+    )
+
+    out = kbdata.repo_wiki(s, sd, "team/app", module="src")
+    assert out["repo"] == "team/app" and out["module"] == "src"
+    assert out["found"] and "<strong>payments</strong>" in out["html"]
+    assert out["stale"] is False  # embedded commit matches team/app's current head
+
+    # A module repo_modules() never named (or generation never ran for) is an
+    # honest "not found", not an error -- same degrade as the whole-repo page.
+    missing = kbdata.repo_wiki(s, sd, "team/app", module="does-not-exist")
+    assert missing["found"] is False and missing["html"] is None
+    assert missing["module"] == "does-not-exist"
+
+    # A module page written against an old commit is flagged stale, the same
+    # regex-based staleness check the whole-repo page already uses.
+    (modules_dir / _module_wiki_filename("team/app", "old")).write_text(
+        "# team/app: old\n\nGenerated at commit `stale-commit`.\n"
+    )
+    stale = kbdata.repo_wiki(s, sd, "team/app", module="old")
+    assert stale["found"] and stale["stale"] is True
+
+
 def test_repo_detail_brief_hubs_and_dispatchers_carry_counts(tmp_path):
     sd = tmp_path
     s = SqliteStore(sd / "index.sqlite")
