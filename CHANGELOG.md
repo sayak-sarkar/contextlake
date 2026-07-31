@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.67.0] - 2026-07-31
+
+### Added
+- **Large, genuinely federated repos now get one wiki page per subsystem, in addition to the
+  whole-repo page.** `repo_brief()` gained a `path_prefix` parameter that scopes its grounding
+  (symbols, files, dependencies) to one module/subsystem instead of the whole repo, matched on a
+  segment boundary — scoping to a module named `api` never also pulls in a sibling like `apiv2/`,
+  since the match requires the prefix to be the whole path or followed by a `/`. `contextlake wiki`
+  runs this automatically, no new flag: a repo qualifies once it has at least 5,000 graph nodes AND
+  is genuinely federated (no single top-level module owns more than 60% of them) — a single large
+  repo with one dominant source directory still gets just its one whole-repo page, same as before.
+  Generation is capped at the 20 largest qualifying modules per run (deterministic largest-first,
+  ties broken lexicographically) so one `wiki` invocation on a very large legacy repo stays bounded;
+  each page's title, prompt framing, and provenance footer all say plainly that it covers only that
+  module, never the repository as a whole. Module pages live under `wiki/_modules/` and embed into
+  their own `@wiki:{repo}::{module}` partition (attributed to the real repo id) for `ask`/semantic
+  search. **Known limitation:** the 20-page cap is not a rotating window — a repo with far more than
+  20 qualifying modules will only ever get pages for its 20 largest; the rest stay unwritten across
+  runs until a future improvement lets a run prefer never-yet-paged modules when filling slots.
+- **The whole-repo overview page now names its subsystem pages instead of trying to summarize
+  them.** When a repo has qualifying subsystems (above), the overview's Architecture section
+  explicitly lists and briefly describes each one and points to its own dedicated page, rather than
+  attempting to compress every subsystem's internals into a single section — which got thinner and
+  less grounded the more subsystems a repo actually had. **This only takes effect the next time the
+  overview page is actually regenerated:** a repo already wiki'd at its current commit has its
+  overview skipped as unchanged (subsystem pages still generate fresh regardless), so upgrading to
+  this release doesn't retroactively add naming to an existing overview page — that happens on the
+  repo's next commit change, or a `--force` run (the dashboard Regenerate button's force option
+  works too). **Known limitation:** the named-subsystems
+  list is fixed before subsystem generation runs, so a subsystem that then fails council review or
+  comes back empty (a shard/index mismatch) is still named in the overview as having its own page.
+  A one-off failure self-heals the next time that subsystem's page is generated successfully, but a
+  *persistent* failure does not: once the overview page's own indexed commit stops changing, its
+  freshness check skips regenerating it, freezing the stale claim indefinitely while the named
+  subsystem keeps being retried (and keeps failing) on every run.
+- **Dashboard: the Wiki tab gained a subsystem picker.** A repo with generated subsystem pages now
+  shows a "Subsystem:" dropdown above the wiki content, letting you switch between the whole-repo
+  overview and any subsystem's own page without leaving the tab or re-fetching the rest of the
+  repo's detail panel. The picker only ever lists subsystems that actually have a page written to
+  disk (checked against the real file on disk, not just "this subsystem qualified for one"), so a
+  subsystem beyond the 20-page cap, or one whose generation failed, is never offered as a dead
+  option. New route: `GET /api/repo/<id>/wiki?module=<prefix>`.
+
 ## [2.66.0] - 2026-07-31
 
 ### Added

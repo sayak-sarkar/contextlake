@@ -177,6 +177,13 @@ always visible, not tucked behind anything.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
+**Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generate-wiki.md#per-subsystem-pages-for-large-federated-repos))
+get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
+exist, a "Subsystem:" dropdown appears above the wiki content — pick one to swap in that
+subsystem's own page, or "Whole repo — overview" to go back, without leaving the tab. The dropdown
+only ever lists subsystems that actually have a generated page on disk, so it never offers an
+option that would 404. Live-only, like MCP console/Settings above (no `--site` export).
+
 With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
 carry a **Regenerate** button — see [§11](#11-mutating-routes---allow-mutations).
 

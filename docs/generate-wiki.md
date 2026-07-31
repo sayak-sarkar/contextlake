@@ -49,6 +49,30 @@ one of the named sections.
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).
 
+## Per-subsystem pages for large, federated repos
+
+A repo with at least 5,000 graph nodes, where no single top-level module owns more than 60% of
+them, is treated as genuinely federated — one big source directory doesn't count, but a repo split
+into several comparable subsystems does. `contextlake wiki` generates one additional page per
+qualifying subsystem automatically, no new flag needed, in addition to (never instead of) the
+whole-repo page. Each subsystem page is grounded only in that module's own symbols, files, and
+dependencies (a segment-boundary-correct scope, so a module named `api` never also pulls in a
+sibling like `apiv2/`), and its title, framing, and provenance footer all say plainly that it
+covers only that module, not the repository as a whole. Subsystem pages live under
+`wiki/_modules/` and get their own `@wiki:<repo>::<module>` partition, so a natural-language
+question can land on a subsystem's own explanation, cited back to its own page file.
+
+Generation is capped at the 20 largest qualifying subsystems per run (largest first, by node
+count) so one `wiki` invocation on a very large repo stays bounded — a repo with far more than 20
+qualifying subsystems only gets pages for its 20 largest; the rest go unwritten across runs (the
+run logs how many were skipped, rather than going silent about it). When subsystem pages exist,
+the whole-repo overview page's Architecture section names and briefly describes each one instead
+of trying to summarize their internals inline, and points the reader to its dedicated page. The
+overview page only picks this up the next time it's actually regenerated, though — a repo already
+wiki'd at its current commit has its overview skipped as unchanged (subsystem pages still generate
+fresh), so an existing store only gets the naming after its next commit change, or a `--force` run
+(the dashboard's Regenerate button has a force option too).
+
 ## Searchable prose
 
 Accepted pages also become **searchable prose**: each page's sections are stored in an isolated
