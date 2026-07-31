@@ -240,9 +240,12 @@ def _ranked_with_kind_floor(
 def repo_brief(store_dir, repo_id: str, *, store=None) -> dict | None:
     """Salient, grounded facts about a repo, or None if it has no shard.
 
-    ``store`` is optional and only used for the ``readme_excerpt`` field (a
-    live-checkout filesystem read, unlike everything else here which comes
-    from the indexed shard alone) -- omit it and the field is simply ``None``.
+    ``store`` is optional and enables two live-checkout filesystem reads that
+    everything else here (which comes from the indexed shard alone) doesn't
+    need: the ``readme_excerpt`` field, and ``setup_signals``' recursive,
+    bounded scan for legacy build-tooling files. Omit ``store`` and both
+    degrade to their shard-only behavior (``readme_excerpt`` becomes ``None``;
+    ``setup_signals`` skips the live-checkout scan).
     """
     shard = read_shard(store_dir, repo_id)
     if shard is None:
