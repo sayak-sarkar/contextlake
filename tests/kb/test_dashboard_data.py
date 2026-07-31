@@ -391,6 +391,52 @@ def test_repo_modules_within_param_passes_through_to_visualize():
         s.close()
 
 
+def test_repo_modules_wiki_pages_flag_off_by_default():
+    # The Diagrams tab's drill-down control calls repo_modules() with no
+    # `wiki_pages` -- must not add a `has_page` key at all (not even False),
+    # since computing it is a stat call per module the Diagrams tab has no use
+    # for.
+    s = SqliteStore(":memory:")
+    try:
+        s.upsert_nodes("team/big", [
+            Node(id=f"n{i}", repo="team/big", kind="function", name=f"n{i}",
+                 file="src/x.py") for i in range(8)
+        ])
+        out = kbdata.repo_modules(s, "team/big")
+        assert "has_page" not in out["modules"][0]
+    finally:
+        s.close()
+
+
+def test_repo_modules_wiki_pages_flag_marks_only_generated_pages(tmp_path):
+    # Regression for the Task 17 fix-round-1 Important finding: the module
+    # picker must offer only modules that actually have a generated wiki page
+    # -- computed forward (known prefix -> does its file exist), never by
+    # reverse-mapping a filename back to a prefix (cmds.wiki._module_wiki_filename's
+    # own docstring says that direction is ambiguous).
+    from contextlake.kb.cmds.wiki import _module_wiki_filename
+
+    s = SqliteStore(tmp_path / "index.sqlite")
+    try:
+        s.upsert_nodes("team/big", [
+            Node(id=f"n{i}", repo="team/big", kind="function", name=f"n{i}", file=f)
+            for i, f in enumerate((["src/foo/a.py"] * 6) + (["src/bar/b.py"] * 6))
+        ])
+        modules_dir = tmp_path / "wiki" / "_modules"
+        modules_dir.mkdir(parents=True, exist_ok=True)
+        (modules_dir / _module_wiki_filename("team/big", "src/foo")).write_text(
+            "# team/big: src/foo\n\nGenerated at commit `x`.\n\nfoo subsystem.\n")
+        # "src/bar" structurally qualifies (>= min_nodes) but has no page --
+        # e.g. stranded past _MAX_MODULE_PAGES_PER_REPO, or council-rejected.
+
+        out = kbdata.repo_modules(s, "team/big", within="src", store_dir=tmp_path,
+                                  wiki_pages=True)
+        by_prefix = {m["prefix"]: m["has_page"] for m in out["modules"]}
+        assert by_prefix == {"src/foo": True, "src/bar": False}
+    finally:
+        s.close()
+
+
 def test_sequence_diagram_renders_the_seeds_outgoing_calls(store_dir):
     # app_caller ("checkout") --calls--> app_catalogservice ("CatalogService") in the fixture
     s, _ = store_dir

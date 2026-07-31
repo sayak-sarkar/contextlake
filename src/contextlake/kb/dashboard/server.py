@@ -256,11 +256,34 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 if rest.endswith("/modules"):
                     repo_id = urllib.parse.unquote(rest[:-len("/modules")])
                     within = (q.get("within") or [None])[0]
-                    return 200, _json_bytes(kbdata.repo_modules(req, repo_id, within=within))
+                    wiki_pages = (q.get("wiki") or ["false"])[0].lower() == "true"
+                    return 200, _json_bytes(kbdata.repo_modules(
+                        req, repo_id, within=within, store_dir=sd, wiki_pages=wiki_pages))
                 if rest.endswith("/wiki"):
-                    repo_id = urllib.parse.unquote(rest[:-len("/wiki")])
-                    module = (q.get("module") or [None])[0]
-                    return 200, _json_bytes(kbdata.repo_wiki(req, sd, repo_id, module=module))
+                    # A real repo id can itself end in "/wiki" (e.g. "team/wiki") --
+                    # `rest` reaches here unquoted-but-still-slash-joined (encPath()
+                    # only percent-encodes each segment, never the "/" separators), so
+                    # naively stripping the trailing "/wiki" would silently hijack that
+                    # repo's OWN /api/repo/<id> request into this sub-route, returning a
+                    # wiki-content payload where a repo-detail payload was expected. Check
+                    # whether the FULL rest string is itself a known repo id first, and
+                    # fall through to the ordinary repo_detail handling below if so --
+                    # only treat a trailing "/wiki" as this sub-route's marker when it
+                    # ISN'T also a real repo id in its own right. Residual, deliberately
+                    # left unresolved: if BOTH "team" and "team/wiki" are indexed, a
+                    # module-scoped wiki fetch for "team" via this exact URL shape now
+                    # loses to "team/wiki"'s repo-detail match -- the frontend degrades
+                    # honestly (an unrecognized shape reads as "not found"), which is a
+                    # correctness improvement over the prior silent-wrong-data bug, not
+                    # a full disambiguation. The same inherent id-vs-sub-route collision
+                    # is explicitly out of scope for /rel, /diagram, /modules, /data-flow
+                    # too -- full-match-wins is the prescribed precedence, not a fix to
+                    # chase further here.
+                    full_candidate = urllib.parse.unquote(rest)
+                    if req.get_repo(full_candidate) is None:
+                        repo_id = urllib.parse.unquote(rest[:-len("/wiki")])
+                        module = (q.get("module") or [None])[0]
+                        return 200, _json_bytes(kbdata.repo_wiki(req, sd, repo_id, module=module))
                 repo_id = urllib.parse.unquote(rest)
                 return 200, _json_bytes(kbdata.repo_detail(req, sd, repo_id))
             if path == "/api/mcp":

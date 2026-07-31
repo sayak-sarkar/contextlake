@@ -142,10 +142,98 @@ def test_repo_wiki_endpoint(served, tmp_path):
     assert missing["found"] is False and missing["module"] == "nope"
 
 
+def test_repo_wiki_route_does_not_hijack_a_repo_literally_named_wiki(tmp_path, monkeypatch):
+    # Regression for the Task 17 fix-round-1 blocking finding: a real repo whose
+    # id itself ends in "/wiki" (a plausible name, e.g. a subproject literally
+    # called "wiki") must still get its own repo-detail payload from
+    # GET /api/repo/team%2Fwiki, not be silently misrouted into the /wiki
+    # sub-route as if "team" were the repo id and "wiki" were the sub-route
+    # marker -- encPath() only percent-encodes each path segment, never the "/"
+    # separators, so `rest` arrives at the dispatch as the literal, unencoded
+    # "team/wiki" either way.
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    s = SqliteStore(tmp_path / "index.sqlite")
+    nodes = [
+        Node(id="wiki_sym", repo="team/wiki", kind="class", name="WikiRepoSymbol", lang="python"),
+        Node(id="app_sym", repo="team/app", kind="class", name="AppRepoSymbol", lang="python"),
+    ]
+    s.upsert_repo(Repo(id="team/wiki", path=str(tmp_path), head_commit="hw"))
+    s.upsert_repo(Repo(id="team/app", path=str(tmp_path), head_commit="ha"))
+    write_shard(tmp_path, GraphShard(repo="team/wiki", head_commit="hw",
+                                     nodes=[nodes[0]], edges=[]))
+    write_shard(tmp_path, GraphShard(repo="team/app", head_commit="ha",
+                                     nodes=[nodes[1]], edges=[]))
+    reindex_shard(s, tmp_path, "team/wiki")
+    reindex_shard(s, tmp_path, "team/app")
+    s.mark_indexed("team/wiki", "hw", "2026-06-01T00:00:00Z")
+    s.mark_indexed("team/app", "ha", "2026-06-01T00:00:00Z")
+    port = _free_port()
+    srv = build_dashboard_server(s, tmp_path, host="127.0.0.1", port=port)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{port}"
+        body = json.loads(_get(base + "/api/repo/team%2Fwiki"))
+        # The correct repo-detail payload for team/wiki, not a wiki-content
+        # payload for team (which would have no "repo"/"brief" keys shaped
+        # like this, and would report repo=="team").
+        assert body["repo"] == "team/wiki"
+        assert body["brief"]["node_count"] == 1
+        assert "WikiRepoSymbol" in {t_["name"] for t_ in body["brief"]["top_symbols"]}
+        # team/app's own /wiki-suffixed request path is unaffected -- still a
+        # real sub-route since "team/app/wiki" is not itself a known repo id.
+        wiki_out = json.loads(_get(base + "/api/repo/team%2Fapp/wiki"))
+        assert wiki_out["repo"] == "team/app" and "brief" not in wiki_out
+    finally:
+        srv.shutdown()
+        s.close()
+
+
 def test_repo_modules_endpoint(served):
     body = json.loads(_get(served + "/api/repo/team/app/modules"))
     assert body["repo"] == "team/app"
     assert body["modules"] == []  # fixture nodes have no `file` set -- honestly empty
+
+
+def test_repo_modules_endpoint_wiki_param_flags_only_modules_with_a_generated_page(
+        tmp_path, monkeypatch):
+    # Regression for the Task 17 fix-round-1 Important finding: the module
+    # picker must only ever offer modules that wiki generation actually wrote a
+    # page for -- not the raw structural module list, which can be larger than
+    # generation's own _MAX_MODULE_PAGES_PER_REPO cap (a module beyond the cap
+    # is permanently stranded, per cmds.wiki's own docstring) or can simply
+    # include a module the council never accepted a page for.
+    from contextlake.kb.cmds.wiki import _module_wiki_filename
+
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    s = SqliteStore(tmp_path / "index.sqlite")
+    # three qualifying modules (>= repo_modules' default min_nodes=5 each)
+    nodes = [Node(id=f"n{i}", repo="team/big", kind="function", name=f"n{i}",
+                  lang="python", file=f) for i, f in enumerate(
+        (["src/foo/a.py"] * 6) + (["src/bar/b.py"] * 6) + (["src/baz/c.py"] * 6))]
+    s.upsert_repo(Repo(id="team/big", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="team/big", head_commit="h1", nodes=nodes, edges=[]))
+    reindex_shard(s, tmp_path, "team/big")
+    s.mark_indexed("team/big", "h1", "2026-06-01T00:00:00Z")
+    # only "src/foo" got a generated page -- "src/bar" and "src/baz" are
+    # structurally qualifying modules but have no page on disk (stranded past
+    # the cap, or simply not yet generated/rejected).
+    modules_dir = tmp_path / "wiki" / "_modules"
+    modules_dir.mkdir(parents=True, exist_ok=True)
+    (modules_dir / _module_wiki_filename("team/big", "src/foo")).write_text(
+        "# team/big: src/foo\n\nGenerated at commit `h1`.\n\nThe **foo** subsystem.\n")
+    port = _free_port()
+    srv = build_dashboard_server(s, tmp_path, host="127.0.0.1", port=port)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{port}"
+        deeper = json.loads(_get(base + "/api/repo/team%2Fbig/modules?within=src&wiki=true"))
+        by_prefix = {m["prefix"]: m["has_page"] for m in deeper["modules"]}
+        assert by_prefix == {"src/foo": True, "src/bar": False, "src/baz": False}
+    finally:
+        srv.shutdown()
+        s.close()
 
 
 def test_repo_modules_endpoint_within_param_drills_one_level_deeper(tmp_path, monkeypatch):

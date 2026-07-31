@@ -499,15 +499,38 @@ def diagram(store, repo_id: str, fmt: str, *, max_nodes: int = 500,
     }
 
 
-def repo_modules(store, repo_id: str, *, within: str | None = None) -> dict:
+def repo_modules(store, repo_id: str, *, within: str | None = None,
+                 store_dir=None, wiki_pages: bool = False) -> dict:
     """Path segments worth offering as a "scope to one module" choice on a
     repo's Diagrams tab, per :func:`kb.visualize.payload.repo_modules`. ``within``
     requests the next level down instead of the top-level list -- see that
-    function's docstring for why a repo can need more than one level."""
+    function's docstring for why a repo can need more than one level.
+
+    ``wiki_pages``, when true, adds a ``has_page`` flag to each module -- whether
+    wiki generation actually wrote that module a subsystem page on disk (checked
+    forward, via :func:`cmds.wiki._module_wiki_filename` on the module's own
+    prefix -- that function's own docstring says a reverse filename->prefix
+    mapping would be ambiguous, so this only ever checks "does this known prefix
+    have a page", never the other direction). Wiki generation caps at
+    ``_MAX_MODULE_PAGES_PER_REPO`` pages per repo (see that module), so on a
+    repo with many more qualifying modules than the cap, most will have
+    ``has_page: False`` -- this lets a caller (the dashboard's Wiki-tab module
+    picker) filter to only the modules that will actually resolve, instead of
+    offering dozens of options that 404 forever. Left off by default (a stat
+    call per module) since the Diagrams tab's drill-down control uses this same
+    function and has no use for wiki-page presence."""
     from .. import visualize as viz
 
-    return {"repo": sanitize_label(repo_id),
-            "modules": viz.repo_modules(store, repo_id, within=within)}
+    modules = viz.repo_modules(store, repo_id, within=within)
+    if wiki_pages:
+        from ..cmds.wiki import _module_wiki_filename
+
+        sd = _store_dir(store, store_dir)
+        wiki_modules_dir = sd / "wiki" / "_modules"
+        for m in modules:
+            wiki_file = wiki_modules_dir / _module_wiki_filename(repo_id, m["prefix"])
+            m["has_page"] = wiki_file.exists()
+    return {"repo": sanitize_label(repo_id), "modules": modules}
 
 
 def repo_wiki(store, store_dir, repo_id: str, *, module: str | None = None) -> dict:

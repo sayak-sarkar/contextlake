@@ -147,10 +147,16 @@
     // when a repo's diagram comes back truncated, so small repos never pay for it.
     // `within`, when given, asks for the next level down (that module's own
     // children) instead of the top-level list -- the recursive drill-down.
-    repoModules: function (id, within) {
+    // `wikiPages`, when true, asks the server to add a `has_page` flag to each
+    // module (whether wiki generation actually wrote it a subsystem page) --
+    // used by the Wiki tab's module picker, not the Diagrams tab, so it's opt-in.
+    repoModules: function (id, within, wikiPages) {
       if (MODE === "static") return Promise.reject(new Error("live only"));
       var url = "/api/repo/" + encPath(id) + "/modules";
-      if (within) url += "?within=" + encodeURIComponent(within);
+      var params = [];
+      if (within) params.push("within=" + encodeURIComponent(within));
+      if (wikiPages) params.push("wiki=true");
+      if (params.length) url += "?" + params.join("&");
       return fetchJSON(url);
     },
     // Wiki content for one repo, optionally scoped to a subsystem/module page
@@ -745,24 +751,24 @@
     if (MUTATIONS) pane.appendChild(wikiRegenerateCard(id));
 
     if (MODE === "static") return; // no /modules route to ask -- see CL.data.repoModules
-    CL.data.repoModules(id).then(function (res) {
-      var mods = (res && res.modules) || [];
-      if (!mods.length) return; // nothing to pick from -- degrade to nothing (no picker)
-      // repoModules() is a generic "top-level dirs with enough nodes" structural
-      // list (the same one the Diagrams tab uses for its scope-down control) --
-      // NOT specific to which modules actually got a subsystem wiki page. Wiki
-      // generation only writes module pages for genuinely federated repos above
-      // its own node floor (see cmds.wiki._qualifying_modules); a small repo with
-      // ordinary src/tests/examples dirs has modules here but no wiki content for
-      // any of them. Probing the single largest module (mods[0] -- repoModules()
-      // sorts largest-first, and generation always covers the largest modules
-      // first) is a cheap one-request proxy for "does this repo have subsystem
-      // wiki pages at all" -- avoids offering a picker whose every option would
-      // just say "not found".
-      return CL.data.repoWiki(id, mods[0].prefix).then(function (probe) {
-        if (!probe || !probe.found) return; // not a wiki-federated repo -- no picker
-        renderPicker(mods);
-      });
+    // repoModules(id, null, true) asks the server for a `has_page` flag per
+    // module -- whether wiki generation actually wrote THAT module a subsystem
+    // page on disk. Filtering to has_page modules (rather than the raw list,
+    // which is just "top-level dirs with enough nodes", the same one the
+    // Diagrams tab uses) means the picker only ever offers options that will
+    // actually resolve: a small non-federated repo's ordinary src/tests dirs
+    // are never wiki-federated so filter to [] and the picker doesn't render;
+    // a large federated repo whose module count exceeds the generator's
+    // _MAX_MODULE_PAGES_PER_REPO cap only offers the subset that got a page,
+    // never the stranded tail that would 404 forever. This also drops the
+    // previous "probe the largest module" heuristic entirely -- that approach
+    // would have suppressed the WHOLE picker if the largest module's page
+    // specifically got rejected by the council while smaller ones succeeded;
+    // per-module has_page has no such blind spot.
+    CL.data.repoModules(id, null, true).then(function (res) {
+      var mods = ((res && res.modules) || []).filter(function (m) { return m.has_page; });
+      if (!mods.length) return; // no generated subsystem pages -- degrade to nothing (no picker)
+      renderPicker(mods);
     }).catch(function () { /* module listing is a convenience, not essential -- fail quiet */ });
 
     function renderPicker(mods) {
