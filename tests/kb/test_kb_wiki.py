@@ -4,6 +4,7 @@ from argparse import Namespace
 from datetime import date
 
 import contextlake.kb.llm as llm_pkg
+import contextlake.kb.llm.base as llm_base
 from contextlake.kb import commands as commands_mod
 from contextlake.kb.commands import cmd_wiki
 from contextlake.kb.connectors.enrich import enrich_partition
@@ -916,8 +917,17 @@ def test_cmd_wiki_routes_council_review_to_the_review_provider(tmp_path, monkeyp
             return super().generate(prompt, system=system)
 
     generator.__class__ = reviewer.__class__ = _Recording
+    # The REAL build_review_llm runs, so the review_provider/review_model in the
+    # toml above are what actually split the two roles. It resolves the reviewer
+    # through llm.base.build_llm (a module-global call, not the package attribute
+    # cmd_wiki looks up), so the two seams are patched separately -- and the
+    # reviewer seam asserts the copied cfg really carries the review settings.
+    def _build_reviewer(cfg):
+        assert cfg.provider == "anthropic" and cfg.model == "claude-haiku-4-5"
+        return reviewer
+
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: generator)
-    monkeypatch.setattr(llm_pkg, "build_review_llm", lambda cfg, llm: reviewer)
+    monkeypatch.setattr(llm_base, "build_llm", _build_reviewer)
 
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     assert ("generate", "builtin") in seen
