@@ -149,16 +149,21 @@ def _existing_module_partitions(store, repo_id: str) -> dict[str, str | None]:
     """``{partition key: the wiki file its sections cite}`` for every
     module/subsystem page already stored for ``repo_id``.
 
-    Matched on the partition-key prefix with SQLite's own LIKE wildcards
-    escaped -- ``_`` is a single-character wildcard and appears in a great many
-    real repo ids, so an unescaped pattern would match (and let the caller
-    prune) another repo's partitions. Same escaping idiom as
-    ``visualize.payload.repo_modules``.
+    Matched as a half-open key RANGE rather than a ``LIKE`` prefix pattern:
+    ``nodes.repo_id`` is indexed with SQLite's default BINARY collation, which
+    a range scan uses (``SEARCH nodes USING INDEX ix_nodes_repo``) and a
+    ``LIKE`` does not -- SQLite's LIKE optimization requires
+    ``case_sensitive_like``, which this store doesn't set, so a pattern would
+    degrade to ``SCAN nodes``: a full pass over every node in the store, per
+    repo, on every run. It also sidesteps having to escape LIKE's own
+    wildcards, ``_`` above all, which appears in a great many real repo ids
+    and would otherwise match another repo's partitions.
     """
     head = _module_partition_head(repo_id)
-    pattern = head.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    upper = head[:-1] + chr(ord(head[-1]) + 1)   # "...::" -> "...:;", exclusive
     rows = store.conn.execute(
-        "SELECT repo_id, file FROM nodes WHERE repo_id LIKE ? ESCAPE '\\'", (pattern,)
+        "SELECT repo_id, file FROM nodes WHERE repo_id >= ? AND repo_id < ?",
+        (head, upper),
     ).fetchall()
     out: dict[str, str | None] = {}
     for r in rows:

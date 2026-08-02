@@ -1803,3 +1803,35 @@ def test_include_target_still_ranks_in_by_degree_without_a_floor_slot(tmp_path):
 
     brief = repo_brief(tmp_path, "r")
     assert any(h["name"] == "widget.h" and h["count"] == 5 for h in brief["hubs"])
+
+
+def test_module_partition_lookup_uses_the_repo_id_index(tmp_path):
+    """The orphan-prune lookup runs once per repo on every wiki run, so it must
+    be an index SEARCH, not a SCAN of every node in the store. A LIKE prefix
+    pattern would scan (SQLite's LIKE optimization needs `case_sensitive_like`,
+    which this store doesn't set); a key range uses `ix_nodes_repo`."""
+    from contextlake.kb.cmds.wiki import _existing_module_partitions, _module_partition_head
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    check_schema(store)
+    try:
+        store.upsert_repo(Repo(id="my_repo", path=str(tmp_path / "my_repo")))
+        for part, prefix in (("@wiki:my_repo::api", "api"), ("@wiki:my_repo::web", "web"),
+                             ("@wiki:myXrepo::other", "other"),   # "_" is a LIKE wildcard
+                             ("@wiki:my_repo", "")):              # the whole-repo page
+            store.upsert_nodes(part, [Node(id=f"{part}:0", repo=part, kind="wiki",
+                                           name=f"{part} wiki", file=f"wiki/{prefix}.md")])
+        found = _existing_module_partitions(store, "my_repo")
+        assert set(found) == {"@wiki:my_repo::api", "@wiki:my_repo::web"}
+        assert found["@wiki:my_repo::api"] == "wiki/api.md"
+
+        head = _module_partition_head("my_repo")
+        plan = store.conn.execute(
+            "EXPLAIN QUERY PLAN SELECT repo_id, file FROM nodes "
+            "WHERE repo_id >= ? AND repo_id < ?",
+            (head, head[:-1] + chr(ord(head[-1]) + 1)),
+        ).fetchall()
+        detail = [str(tuple(row)) for row in plan]
+        assert any("ix_nodes_repo" in d for d in detail), detail
+    finally:
+        store.close()
