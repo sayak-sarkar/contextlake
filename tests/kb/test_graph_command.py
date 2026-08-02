@@ -201,6 +201,9 @@ def test_repo_subgraph_path_prefix_does_not_match_sibling_directory(store):
     ])
     nodes, _ = viz.repo_subgraph(store, "r", max_nodes=100, path_prefix="api")
     assert {n.id for n in nodes} == {"a"}
+    # a trailing slash on the prefix must still match normally.
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=100, path_prefix="api/")
+    assert {n.id for n in nodes} == {"a"}
 
 
 def test_repo_modules_ranks_by_size_and_drops_tiny_segments(store):

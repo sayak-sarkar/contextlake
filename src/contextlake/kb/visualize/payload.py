@@ -190,9 +190,10 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     where = "repo_id=?"
     params: list[object] = [repo_id]
     if path_prefix:
-        escaped = path_prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        clean = path_prefix.rstrip("/")
+        escaped = clean.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         where += " AND (file=? OR file LIKE ? ESCAPE '\\')"
-        params.append(path_prefix)
+        params.append(clean)
         params.append(escaped + "/%")
     deg_params = [repo_id, repo_id]
     rows = store.conn.execute(
