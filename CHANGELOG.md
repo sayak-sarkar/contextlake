@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **A public, read-only live demo of the dashboard is now linked from the project homepage and
-  docs footer.** It's the existing `contextlake dashboard --site DIR --sample` static export
+  docs footer.** It's the existing `contextlake kb dashboard --site DIR --sample` static export
   (bundled fictional "acme" fleet, no real data) generated into `site/demo/` by `site/deploy.sh`
   on every deploy, no new tooling.
 - **The wiki council can now review with a different (stronger) model than the one generating the
@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dashboard repo-detail requests on a large repo re-parsed and re-aggregated the entire shard from
   scratch on every single request**, with no caching of any kind. `read_shard` now keeps a small
   in-memory cache of the parsed shard (validated on every read against the file's own mtime/size, so
-  a re-index — same process or a separate `contextlake index` run while `dashboard --serve` stays up
+  a re-index — same process or a separate `contextlake kb index` run while `dashboard --serve` stays up
   — is still picked up correctly), and `repo_brief`'s degree/hubs/dispatchers/top-symbols aggregation
   over every node and edge is cached the same way. The shard cache is bounded by *estimated resident
   bytes*, not entry count: a parsed shard's pydantic objects measured at roughly 13x their on-disk
