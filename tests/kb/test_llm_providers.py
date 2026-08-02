@@ -68,6 +68,24 @@ def test_build_llm_returns_anthropic():
     assert llm.model == "claude-haiku-4-5"
 
 
+@pytest.mark.parametrize("provider, endpoint", [
+    ("anthropic", "https://api.anthropic.com"),
+    ("openai", "https://api.openai.com/v1"),
+    ("ollama", "http://127.0.0.1:11434"),
+])
+def test_build_llm_resolves_base_url_per_provider(provider, endpoint):
+    # Built from a REAL LlmCfg, not a SimpleNamespace: base_url is a declared
+    # field, so a single declared default silently won for every provider and
+    # sent anthropic/openai traffic to the local Ollama port. Only the real
+    # model shape catches that.
+    assert build_llm(LlmCfg(enabled=True, provider=provider)).base_url == endpoint
+
+
+def test_build_llm_explicit_base_url_still_wins():
+    llm = build_llm(LlmCfg(enabled=True, provider="openai", base_url="http://gateway/v1"))
+    assert llm.base_url == "http://gateway/v1"
+
+
 class _FakeCompleted:
     def __init__(self, returncode=0, stdout="", stderr=""):
         self.returncode = returncode

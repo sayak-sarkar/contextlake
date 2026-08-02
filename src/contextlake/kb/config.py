@@ -96,7 +96,12 @@ class LlmCfg(BaseModel):
     # Ollama, else the built-in CPU LLM (needs the `llm-local` extra), else skips.
     provider: str = "auto"
     model: str | None = None
-    base_url: str = "http://127.0.0.1:11434"
+    # the API endpoint. None means "not explicitly set" -> resolved per-provider
+    # at read time (see llm.base.default_base_url), for the same reason as
+    # api_key_env below. A declared default can't work here: one literal wins for
+    # every provider, so an unset base_url used to send provider = "anthropic"
+    # traffic to the local Ollama port.
+    base_url: str | None = None
     council_size: int = 3
     accept_score: float = 0.7
     # env var holding the key (never the key itself). None means "not explicitly

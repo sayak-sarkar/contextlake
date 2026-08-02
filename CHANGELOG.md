@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`[llm] provider = "anthropic"` (or `"openai"`) with no explicit `base_url` sent its API calls to
+  the local Ollama port instead of the real API endpoint.** `LlmCfg.base_url` was a declared field
+  defaulting to `http://127.0.0.1:11434`, so that one literal won for every provider and the
+  per-provider fallbacks in `build_llm` were dead code. `base_url` now defaults to `None` and is
+  resolved per provider at read time (`llm.base.default_base_url`, mirroring `default_api_key_env`
+  and its rationale): `anthropic` → `https://api.anthropic.com`, `openai` →
+  `https://api.openai.com/v1`, `ollama`/`auto` → the local daemon. An explicitly configured
+  `base_url` still wins, so proxies and local openai-compatible servers are unaffected.
 - `release.yml` and `binaries.yml` (both tag-triggered) no longer run independently of `ci.yml`'s
   full Python 3.9-3.14 test matrix. A new `verify-ci` job in each checks that `ci.yml` actually
   completed successfully for the tagged commit before building/publishing anything, and fails the

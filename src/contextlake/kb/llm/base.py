@@ -31,6 +31,24 @@ def default_api_key_env(provider: str) -> str:
     return "ANTHROPIC_API_KEY" if provider == "anthropic" else "OPENAI_API_KEY"
 
 
+def default_base_url(provider: str) -> str:
+    """The API endpoint to use when the config left ``base_url`` unset.
+
+    Resolved at read time for the same reason as ``default_api_key_env``: the
+    ``--llm PROVIDER`` flag reassigns ``cfg.llm.provider`` on an already-built
+    ``LlmCfg`` and pydantic v2 does not re-run validators on assignment. A
+    construction-time default is worse than useless here -- a single declared
+    default (previously the Ollama URL) silently wins for *every* provider, so
+    ``provider = "anthropic"`` with no explicit ``base_url`` would POST to the
+    local Ollama port instead of the Anthropic API.
+    """
+    if provider == "openai":
+        return "https://api.openai.com/v1"
+    if provider == "anthropic":
+        return "https://api.anthropic.com"
+    return "http://127.0.0.1:11434"   # ollama, and auto's ollama probe
+
+
 def build_llm(cfg) -> LlmClient | None:
     """Construct an LlmClient from an LlmCfg, or None when disabled.
 
@@ -45,7 +63,7 @@ def build_llm(cfg) -> LlmClient | None:
 
         return OllamaLlm(
             model=cfg.model or "llama3.1",
-            base_url=getattr(cfg, "base_url", "http://127.0.0.1:11434"),
+            base_url=getattr(cfg, "base_url", None) or default_base_url(provider),
             timeout=getattr(cfg, "timeout", 300),
         )
     if provider == "openai":
@@ -53,7 +71,7 @@ def build_llm(cfg) -> LlmClient | None:
 
         return OpenAILlm(
             model=cfg.model or "gpt-4o-mini",
-            base_url=getattr(cfg, "base_url", "https://api.openai.com/v1"),
+            base_url=getattr(cfg, "base_url", None) or default_base_url(provider),
             api_key_env=getattr(cfg, "api_key_env", None) or default_api_key_env("openai"),
             timeout=getattr(cfg, "timeout", 300),
         )
@@ -62,7 +80,7 @@ def build_llm(cfg) -> LlmClient | None:
 
         return AnthropicLlm(
             model=cfg.model or "claude-opus-4-8",
-            base_url=getattr(cfg, "base_url", "https://api.anthropic.com"),
+            base_url=getattr(cfg, "base_url", None) or default_base_url(provider),
             api_key_env=getattr(cfg, "api_key_env", None) or default_api_key_env("anthropic"),
             max_tokens=getattr(cfg, "max_tokens", 4096),
             timeout=getattr(cfg, "timeout", 300),
@@ -108,7 +126,7 @@ def _resolve_auto_llm(cfg) -> LlmClient | None:
     chat model (e.g. `qwen2.5:3b`) but not the "auto" default (`llama3.1`) --
     would otherwise still get picked and fail on first real generate() call.
     """
-    base_url = getattr(cfg, "base_url", "http://127.0.0.1:11434")
+    base_url = getattr(cfg, "base_url", None) or default_base_url("ollama")
     model = getattr(cfg, "model", None) or "llama3.1"
     if ollama_reachable(base_url) and ollama_has_model(base_url, model):
         from .ollama import OllamaLlm

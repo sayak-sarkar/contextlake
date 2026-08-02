@@ -66,7 +66,7 @@ Two lines is enough (passing `--llm` on the CLI implies `enabled = true`), or se
 enabled  = true
 provider = "ollama"        # auto | builtin | ollama | openai | anthropic | cli
 model    = "qwen2.5:3b"    # provider-specific model id (table below)
-# base_url    = "http://127.0.0.1:11434"   # ollama, or a local openai-compatible server
+# base_url    = "http://127.0.0.1:11434"   # optional: defaults per provider (table below)
 # api_key_env = "OPENAI_API_KEY"           # openai: env var holding the key (never the key)
 # timeout    = 300          # seconds per model call; raise it for a slow CPU (ollama/openai)
 council_size = 3           # review lenses that run (1-3); fewer = fewer calls per page
@@ -77,7 +77,12 @@ accept_score = 0.7         # mean council score a page must clear to be written
 |-----------|------------------------------------------|-------|
 | `builtin` | `Qwen/Qwen2.5-0.5B-Instruct-GGUF`        | a HF GGUF repo id; `model_file` picks the quant |
 | `ollama`  | `qwen2.5:3b`, `llama3.1`, `llama3.2:3b`  | must be `ollama pull`ed first |
-| `openai`  | `gpt-4o-mini`, or your server's model id | `base_url` = the API's `/v1` |
+| `openai`  | `gpt-4o-mini`, or your server's model id | `base_url` defaults to `https://api.openai.com/v1`; point it at a local openai-compatible server to override |
+| `anthropic` | `claude-haiku-4-5`, `claude-opus-4-8`  | `base_url` defaults to `https://api.anthropic.com`; key from `ANTHROPIC_API_KEY` |
+| `cli`     | n/a — the CLI picks its own model         | `command` = the agent CLI to invoke (default `claude`); reuses that CLI's login |
+
+`base_url` is resolved per provider, so you only set it to reach a proxy or a local
+openai-compatible server — never just to make `anthropic`/`openai` work.
 
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
