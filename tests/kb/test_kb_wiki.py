@@ -11,7 +11,7 @@ from contextlake.kb.connectors.enrich import enrich_partition
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.parse import index_repo_dir
 from contextlake.kb.state import check_schema
-from contextlake.kb.store.shards import GraphShard, write_shard
+from contextlake.kb.store.shards import GraphShard, read_shard, write_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
 from contextlake.kb.wiki.council import _parse_review, council_gate, verdict
 from contextlake.kb.wiki.generate import external_context, generate_page, render_prompt, repo_brief
@@ -1081,6 +1081,58 @@ def test_cmd_wiki_builds_advisory_partition(tmp_path, monkeypatch):
         assert n.attrs.get("advisory") is True
     finally:
         store.close()
+
+
+def test_cmd_wiki_links_page_sections_to_the_symbols_they_mention(tmp_path, monkeypatch):
+    """A generated section is prose ABOUT the repo's code -- every symbol it
+    names by hand gets a `documented_by` edge from the symbol to the section,
+    in the shard and in the live index alike."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.upsert_nodes("r", [Node(id="svc", repo="r", kind="class",
+                                  name="CatalogService", file="svc.py")])
+    store.close()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    # section :0 is the page's title stub, :1 is the "## Overview" body that
+    # actually names CatalogService -- only the naming section is linked
+    shard = read_shard(store_dir, "@wiki:r")
+    assert [e.dst for e in shard.edges if e.src == "svc"] == ["@wiki:r:1"]
+    assert all(e.relation == "documented_by" for e in shard.edges)
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        live = store.neighbors("svc", relation="documented_by", direction="out")
+        assert [e.dst for e in live] == ["@wiki:r:1"]
+    finally:
+        store.close()
+
+
+class _SymbolNamingLlm(_FakeLlm):
+    """Writes a page body that names a symbol the federated fixture actually has."""
+
+    def generate(self, prompt, *, system=None):
+        if "Review lens" in prompt:
+            return super().generate(prompt, system=system)
+        return "## Overview\nThe fn3 helper does the work.\n"
+
+
+def test_cmd_wiki_module_pages_link_through_the_real_repo_not_the_partition_key(
+        tmp_path, monkeypatch):
+    """A module page's partition key is the composite `repo::prefix`, which names
+    no repo at all -- symbols must be looked up via the page's real `source_repo`
+    or subsystem pages (the ones that need this most) would link to nothing."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _SymbolNamingLlm(score=0.95))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    shard = read_shard(store_dir, "@wiki:fed::mod0")
+    assert any(e.src == "mod0_n3" and e.dst.startswith("@wiki:fed::mod0:")
+               and e.relation == "documented_by" for e in shard.edges)
 
 
 def test_cmd_wiki_backfills_partition_for_skipped_fresh_pages(tmp_path, monkeypatch):

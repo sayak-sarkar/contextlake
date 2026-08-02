@@ -7,6 +7,7 @@ import re
 from ... import style
 from ...logging_setup import log
 from ..config import apply_llm_overrides, load_kb_config
+from ..connectors.text_match import link_documents_to_symbols
 from ..store.shards import GraphShard, read_shard, shard_path, write_shard
 from ._common import (
     _connect_targets,
@@ -73,15 +74,29 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
                           embedder=None, vs=None, batch_size=64, *,
                           source_repo: str | None = None) -> int:
     """(Re)write a repo's ``@wiki`` partition from its page and embed the sections
-    when the semantic tier is up. Returns the number of sections embedded."""
+    when the semantic tier is up. Returns the number of sections embedded.
+
+    Each section is also linked to the symbols it names (``documented_by``), so
+    "where is this function explained?" is a graph hop. The lookup goes through
+    the page's *real* repo (``source_repo``, falling back to ``repo_id``) rather
+    than the partition key, which for a module page is the composite
+    ``repo::prefix`` and names no repo at all. A cluster page's namespace prefix
+    names no repo either, so those pages link nothing -- correctly, since a
+    cluster page is about many repos, not one. Symbols are repo-scoped, not
+    module-scoped: a module page mentioning a name that also exists in a sibling
+    module links to both, which is why these edges are ``AMBIGUOUS``.
+    """
     nodes, texts = _wiki_section_nodes(repo_id, page, filename, source_repo=source_repo)
     part = _wiki_partition(repo_id)
     store.clear_repo(part)
     if not nodes:
         return 0
+    edges = link_documents_to_symbols(store, source_repo or repo_id, nodes, texts,
+                                      "documented_by", "wiki")
     store.upsert_nodes(part, nodes)
+    store.upsert_edges(part, edges)
     write_shard(store_dir, GraphShard(repo=part, head_commit=head or "wiki",
-                                      nodes=nodes, edges=[]))
+                                      nodes=nodes, edges=edges))
     if embedder is not None and vs is not None:
         return _embed_documents(vs, embedder, part, nodes, texts, batch_size)
     return 0

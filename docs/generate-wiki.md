@@ -105,6 +105,10 @@ natural-language question can land on the wiki's explanation of a subsystem, cit
 and labeled advisory (kind `wiki`), never outranking extracted code facts. Pages written before this
 existed are backfilled on the next `wiki` run without any LLM calls.
 
+Each section is also **linked to the symbols it names** (`documented_by`), so "where is this function
+explained?" is one graph hop from the symbol rather than a text search. Module pages link through the repo
+they belong to, so subsystem pages link too; a cluster page spans many repos and so links to none.
+
 ## Cluster (namespace) wiki
 
 Beyond per-repo pages, `contextlake kb wiki --namespace acme/payments` writes one **cluster page** for a

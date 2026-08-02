@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before and links nothing.
 - Enrichment results (`kb enrich`) now link to the code symbols they mention by name, instead of
   being stored as isolated document nodes with no edges at all.
+- Generated wiki pages (whole-repo and per-subsystem) now link each section to the code symbols it
+  names, closing the last of the four zero-edge pipelines the audit found.
 - GitLab merge requests now link directly to the code files their diff touches (not just their
   repo), via a new `fetch_changes`/`match_files_to_nodes` pair.
 - Figma designs now link directly to code symbols whose name matches a frame or component name,
