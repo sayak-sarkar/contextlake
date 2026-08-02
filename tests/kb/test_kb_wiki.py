@@ -1559,3 +1559,78 @@ def test_cmd_wiki_skips_module_pages_when_the_whole_repo_page_failed(
     assert not (store_dir / "wiki" / "fed.md").exists()
     assert not (store_dir / "wiki" / "_modules").exists()
     assert "not attempting its subsystem pages this run" in gls_logs.text
+
+
+def test_cmd_wiki_prunes_a_module_page_that_no_longer_qualifies(tmp_path, monkeypatch, gls_logs):
+    """A module that stops qualifying (shrinks below `repo_modules()`' floor,
+    or the tree is restructured) used to leave its page, its
+    `@wiki:{repo}::{prefix}` partition and that partition's shard behind
+    forever -- `--force` didn't prune them either -- so `ask`/search kept
+    returning a page describing a module that no longer exists."""
+    from contextlake.kb.store.shards import shard_path
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    page = store_dir / "wiki" / "_modules" / "fed__mod5.md"
+    assert page.exists()
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        assert store.get_node("@wiki:fed::mod5:0") is not None
+        # mod5 stops qualifying: its nodes leave the index repo_modules() reads.
+        store.conn.execute("DELETE FROM nodes WHERE repo_id=? AND file LIKE 'mod5/%'", ("fed",))
+        store.conn.commit()
+    finally:
+        store.close()
+    assert shard_path(store_dir, "@wiki:fed::mod5").exists()
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    assert not page.exists()
+    assert not shard_path(store_dir, "@wiki:fed::mod5").exists()
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        assert store.get_node("@wiki:fed::mod5:0") is None
+        # Every still-qualifying module keeps its page and its partition.
+        for m in range(5):
+            assert (store_dir / "wiki" / "_modules" / f"fed__mod{m}.md").exists()
+            assert store.get_node(f"@wiki:fed::mod{m}:0") is not None
+    finally:
+        store.close()
+    assert "pruned the wiki page for `mod5`" in gls_logs.text
+
+
+def test_cmd_wiki_prunes_every_module_page_when_a_repo_stops_being_federated(
+        tmp_path, monkeypatch):
+    """The headline orphan case: the repo itself stops qualifying (one module
+    now dominates it), so `_qualifying_modules` returns nothing at all. Every
+    module page is then an orphan -- pruning must not be gated on there being
+    a non-empty qualifying list."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    modules_dir = store_dir / "wiki" / "_modules"
+    assert len(list(modules_dir.glob("fed__mod*.md"))) == 6
+
+    # Re-file every module's nodes under one dominant top-level directory.
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        store.conn.execute(
+            "UPDATE nodes SET file = 'all/' || file WHERE repo_id=? AND file IS NOT NULL",
+            ("fed",))
+        store.conn.commit()
+    finally:
+        store.close()
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    assert list(modules_dir.glob("fed__mod*.md")) == []
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        for m in range(6):
+            assert store.get_node(f"@wiki:fed::mod{m}:0") is None
+    finally:
+        store.close()

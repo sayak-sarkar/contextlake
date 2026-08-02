@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page or is getting one this run — so the named set accumulates run over run instead of tracking
   only the current slice — and the truncation log line now says how many modules were deferred to a
   later run instead of claiming they were skipped outright.
+- **Subsystem wiki pages for modules that no longer qualify are now pruned instead of living
+  forever.** A module that shrank below the module floor, or a repo whose tree was restructured (or
+  that stopped qualifying as federated at all, orphaning every one of its module pages), left its
+  page, its `@wiki:{repo}::{module}` partition, that partition's shard and its embeddings behind
+  permanently — `--force` didn't remove them either, since it only regenerates what qualifies today.
+  Every `wiki` run now removes all four for a module that is no longer in the qualifying set; it
+  costs one indexed key-prefix lookup per repo and no LLM call, so it isn't gated behind `--force`.
 - **A failed whole-repo wiki page no longer drags every one of that repo's subsystem pages through
   the same failure.** The whole-repo page and its module pages share one LLM and one council, so an
   unreachable backend cost up to 21 round trips per federated repo before anything was reported.

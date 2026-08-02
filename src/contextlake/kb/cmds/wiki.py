@@ -7,7 +7,7 @@ import re
 from ... import style
 from ...logging_setup import log
 from ..config import apply_llm_overrides, load_kb_config
-from ..store.shards import GraphShard, read_shard, write_shard
+from ..store.shards import GraphShard, read_shard, shard_path, write_shard
 from ._common import (
     _connect_targets,
     _guard_store,
@@ -136,6 +136,85 @@ def _module_page_file(wiki_dir, repo_id: str, prefix: str):
     """On-disk path of one module/subsystem page (the single place that
     composes ``wiki/_modules/`` with :func:`_module_wiki_filename`)."""
     return wiki_dir / "_modules" / _module_wiki_filename(repo_id, prefix)
+
+
+def _module_partition_head(repo_id: str) -> str:
+    """The ``@wiki:{repo}::`` key prefix every module partition of ``repo_id``
+    starts with (the whole-repo page's own key is ``@wiki:{repo}``, without the
+    ``::``, so it can never be matched by this)."""
+    return f"{_wiki_partition(repo_id)}::"
+
+
+def _existing_module_partitions(store, repo_id: str) -> dict[str, str | None]:
+    """``{partition key: the wiki file its sections cite}`` for every
+    module/subsystem page already stored for ``repo_id``.
+
+    Matched on the partition-key prefix with SQLite's own LIKE wildcards
+    escaped -- ``_`` is a single-character wildcard and appears in a great many
+    real repo ids, so an unescaped pattern would match (and let the caller
+    prune) another repo's partitions. Same escaping idiom as
+    ``visualize.payload.repo_modules``.
+    """
+    head = _module_partition_head(repo_id)
+    pattern = head.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    rows = store.conn.execute(
+        "SELECT repo_id, file FROM nodes WHERE repo_id LIKE ? ESCAPE '\\'", (pattern,)
+    ).fetchall()
+    out: dict[str, str | None] = {}
+    for r in rows:
+        out.setdefault(r["repo_id"], r["file"])
+    return out
+
+
+def _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id: str,
+                               modules: list[dict], vs=None) -> int:
+    """Delete every stored module page of ``repo_id`` whose module is not in
+    ``modules`` (the currently-qualifying set). Returns how many were removed.
+
+    A module that shrinks below ``repo_modules()``' floor, or a repo whose
+    directory tree is restructured -- or that stops qualifying as federated at
+    all, in which case EVERY module page is an orphan -- otherwise leaves its
+    page, its ``@wiki:{repo}::{prefix}`` partition and that partition's shard
+    and vectors behind forever, so `ask`/search keep returning a page
+    describing a module that no longer exists. `--force` didn't prune them
+    either: it regenerates what qualifies today and never looks at what used to.
+
+    Run on every run, not only under `--force`: it costs one key-prefix query
+    per repo plus a set difference, and no LLM call. ``modules`` must be the
+    FULL qualifying list, never the subset selected for this run's page
+    generation (see ``_select_module_pages``) -- pruning against the selection
+    would delete the previous run's pages to make room for this run's, and
+    successive runs would thrash instead of accumulating coverage.
+
+    Orphan-ness is judged by the same index the pages were generated from, so
+    a module the index has genuinely lost is pruned here and simply generated
+    again on a later run once the index reports it.
+    """
+    live = {m["prefix"] for m in modules}
+    head = _module_partition_head(repo_id)
+    removed = 0
+    for part, cited_file in sorted(_existing_module_partitions(store, repo_id).items()):
+        prefix = part[len(head):]
+        if prefix in live:
+            continue
+        # The stored citation is authoritative for where the page actually
+        # lives; `_module_wiki_filename`'s "/" -> "__" mapping is lossy, so
+        # re-deriving the name is only the fallback for a partition that
+        # somehow has no file recorded.
+        page = ((store_dir / cited_file) if cited_file
+                else _module_page_file(wiki_dir, repo_id, prefix))
+        page.unlink(missing_ok=True)
+        store.clear_repo(part)
+        try:
+            shard_path(store_dir, part).unlink(missing_ok=True)
+        except ValueError:      # unusable as a path -- nothing was ever written there
+            pass
+        if vs is not None:
+            vs.clear_repo(part)
+        removed += 1
+        log(f"  {repo_id}: pruned the wiki page for `{prefix}`, "
+            "which is no longer a qualifying module", inline=True)
+    return removed
 
 
 def _select_module_pages(modules: list[dict], wiki_dir, repo_id: str,
@@ -417,6 +496,10 @@ def cmd_wiki(args) -> int:
             # is still exactly one `repo_modules()` query per repo per run,
             # not two.
             modules = _qualifying_modules(store, repo_id, node_count)
+            # Before selecting or naming anything: drop pages for modules that
+            # no longer qualify, so the overview below can't name a subsystem
+            # page this run is about to delete.
+            _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id, modules, vs)
             selected = _select_module_pages(modules, wiki_dir, repo_id)
             # Name every module that either already HAS a page from an earlier
             # run or is getting one this run -- never a module that has
