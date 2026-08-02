@@ -13,8 +13,35 @@ permissions:
   contents: read
 
 jobs:
+  verify-ci:
+    name: verify ci.yml passed for this commit
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: Check the full Python 3.9-3.14 CI matrix succeeded on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # ci.yml triggers on push-to-main/PR, never on tags, so it cannot gate us
+          # via a workflow_run trigger keyed on this tag. Instead, look up whatever
+          # ci.yml run already completed for the exact commit this tag points at
+          # (tags are cut from a commit already on main) and refuse to release if
+          # it's missing or red. This is the fix for the v2.62.0 incident where a
+          # red ci.yml run stayed live a full cycle because nothing watched it.
+          sha="${{ github.sha }}"
+          conclusion=$(gh run list --repo "${{ github.repository }}" --workflow=ci.yml \
+            --commit "$sha" --json conclusion,status \
+            --jq '[.[] | select(.status=="completed")][0].conclusion // "missing"')
+          echo "ci.yml conclusion for $sha: $conclusion"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::ci.yml has not passed on commit $sha (conclusion: $conclusion) — refusing to release."
+            exit 1
+          fi
+
   build:
     name: build & validate
+    needs: verify-ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

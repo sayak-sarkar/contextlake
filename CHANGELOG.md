@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `release.yml` and `binaries.yml` (both tag-triggered) no longer run independently of `ci.yml`'s
+  full Python 3.9-3.14 test matrix. A new `verify-ci` job in each checks that `ci.yml` actually
+  completed successfully for the tagged commit before building/publishing anything, and fails the
+  release outright if it didn't. This closes the gap that let v2.62.0 ship with a red `ci.yml` run
+  live for a full release cycle.
+
 ## [2.67.0] - 2026-07-31
 
 ### Added

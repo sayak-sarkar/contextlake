@@ -19,7 +19,30 @@ permissions:
   contents: read
 
 jobs:
+  verify-ci:
+    name: verify ci.yml passed for this commit
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: Check the full Python 3.9-3.14 CI matrix succeeded on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Same gate as release.yml: ci.yml never runs on tags itself, so check
+          # whatever ci.yml run already completed for the commit this tag points at.
+          sha="${{ github.sha }}"
+          conclusion=$(gh run list --repo "${{ github.repository }}" --workflow=ci.yml \
+            --commit "$sha" --json conclusion,status \
+            --jq '[.[] | select(.status=="completed")][0].conclusion // "missing"')
+          echo "ci.yml conclusion for $sha: $conclusion"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::ci.yml has not passed on commit $sha (conclusion: $conclusion) — refusing to build binaries."
+            exit 1
+          fi
+
   build:
+    needs: verify-ci
     strategy:
       fail-fast: false
       matrix:
