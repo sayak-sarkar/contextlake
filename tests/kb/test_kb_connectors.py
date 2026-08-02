@@ -27,6 +27,7 @@ from contextlake.kb.connectors.orchestrate import (
 )
 from contextlake.kb.ids import make_id
 from contextlake.kb.model import Confidence, Node
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 # Mock MCP server exposing the two tools the connector calls.
 _MOCK_SERVER = """
@@ -349,23 +350,31 @@ class _FigmaMetaStub:
 
 
 def test_enrich_repo_figma_merges_real_metadata():
-    conn = _FigmaMetaStub({"name": "Design System"})
-    nodes, edges = enrich_repo_figma(
-        conn, "g/app", links=["https://www.figma.com/design/Xy9/Flow"])
-    design = next(n for n in nodes if n.kind == "design")
-    assert design.attrs["verified"] is True
-    assert design.attrs["name"] == "Design System"
-    assert design.attrs["title"] == "Flow"  # URL-slug title survives alongside it
-    assert len(edges) == 1
+    store = SqliteStore(":memory:")
+    try:
+        conn = _FigmaMetaStub({"name": "Design System"})
+        nodes, edges = enrich_repo_figma(
+            conn, "g/app", store, links=["https://www.figma.com/design/Xy9/Flow"])
+        design = next(n for n in nodes if n.kind == "design")
+        assert design.attrs["verified"] is True
+        assert design.attrs["name"] == "Design System"
+        assert design.attrs["title"] == "Flow"  # URL-slug title survives alongside it
+        assert len(edges) == 1
+    finally:
+        store.close()
 
 
 def test_enrich_repo_figma_unreachable_leaves_slug_only():
-    conn = _FigmaMetaStub(None)  # unreachable/unconfigured
-    nodes, _ = enrich_repo_figma(
-        conn, "g/app", links=["https://www.figma.com/design/Xy9/Flow"])
-    design = next(n for n in nodes if n.kind == "design")
-    assert "verified" not in design.attrs
-    assert design.attrs["title"] == "Flow"
+    store = SqliteStore(":memory:")
+    try:
+        conn = _FigmaMetaStub(None)  # unreachable/unconfigured
+        nodes, _ = enrich_repo_figma(
+            conn, "g/app", store, links=["https://www.figma.com/design/Xy9/Flow"])
+        design = next(n for n in nodes if n.kind == "design")
+        assert "verified" not in design.attrs
+        assert design.attrs["title"] == "Flow"
+    finally:
+        store.close()
 
 
 # --- Slack: build + enrich orchestration ------------------------------------

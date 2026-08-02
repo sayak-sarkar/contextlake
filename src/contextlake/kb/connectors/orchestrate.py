@@ -113,18 +113,25 @@ def enrich_repo_gitlab(connector, repo_id, store):
     return nodes, edges
 
 
-def enrich_repo_figma(connector, repo_id, *, links=()):
+def enrich_repo_figma(connector, repo_id, store, *, links=()):
     """Associate figma.com links to design nodes (names come from the URL slug).
 
     If a Figma MCP is configured, each design's real metadata is fetched
     best-effort and merged in (a real name and/or top structural frame/page
-    names, see :func:`figma.parse_metadata`) alongside a ``verified`` flag.
-    Never blocks the association graph: an unreachable/misconfigured MCP just
-    leaves the design as URL-slug-only, same as before.
+    names, see :func:`figma.parse_metadata`) alongside a ``verified`` flag,
+    and each frame/component name that matches an existing symbol in this
+    repo is additionally linked straight to that symbol (see
+    :func:`figma.match_frame_names_to_symbols`) -- ``AMBIGUOUS``, since a name
+    match is inferred, not a hard fact. Never blocks the association graph: an
+    unreachable/misconfigured MCP just leaves the design as URL-slug-only,
+    same as before. ``store`` is required to look those symbol nodes up --
+    mirrors ``enrich_repo_gitlab``, not previously threaded into this function.
     """
-    from .figma import associate_designs, parse_metadata
+    from .common import link_to_code
+    from .figma import associate_designs, match_frame_names_to_symbols, parse_metadata
 
     nodes, edges = associate_designs(repo_id, links=links, site_hosts=connector.hosts)
+    seen = {(e.src, e.dst, e.relation) for e in edges}
     for n in nodes:
         if n.kind != "design":
             continue
@@ -133,6 +140,18 @@ def enrich_repo_figma(connector, repo_id, *, links=()):
             continue
         n.attrs["verified"] = True
         n.attrs.update(parse_metadata(meta))
+        matches = match_frame_names_to_symbols(store, repo_id, n.attrs)
+        if not matches:
+            continue
+        # link_to_code always re-appends the repo-level "designed_in" fallback
+        # edge that associate_designs already emitted above -- dedupe on the
+        # (src, dst, relation) key so it isn't persisted twice.
+        for e in link_to_code(repo_id, n, matches, "designed_in", "docs"):
+            key = (e.src, e.dst, e.relation)
+            if key in seen:
+                continue
+            seen.add(key)
+            edges.append(e)
     return nodes, edges
 
 

@@ -14,9 +14,10 @@ import os
 import re
 from urllib.parse import unquote
 
+from ..embeddings.index import EMBEDDABLE_KINDS
 from ..ids import make_id
 from ..mcp_client import call_tool
-from ..model import EXTERNAL_REPO, Node
+from ..model import EXTERNAL_REPO, Confidence, Node
 from .common import claims, link_edge, repo_node
 
 DEFAULT_HOSTS = ("figma.com",)
@@ -38,7 +39,7 @@ _XML_NAME_RX = re.compile(r'\bname="([^"]+)"')
 
 __all__ = [
     "DEFAULT_HOSTS", "FigmaConnector", "associate_designs", "classify_figma_link",
-    "design_node", "parse_metadata", "title_of",
+    "design_node", "match_frame_names_to_symbols", "parse_metadata", "title_of",
 ]
 
 
@@ -54,6 +55,42 @@ def parse_metadata(result, *, max_names: int = 8) -> dict:
         names = _XML_NAME_RX.findall(result)[:max_names]
         return {"structure": names} if names else {}
     return {}
+
+
+def match_frame_names_to_symbols(
+    store, repo_id: str, design_attrs: dict
+) -> list[tuple[str, Confidence]]:
+    """Design/frame/component names (:func:`parse_metadata`'s ``name``/``structure``
+    output) matched case-insensitively against this repo's existing symbol node
+    names -- a frame named "Payer" matches a class named ``Payer``. A name match
+    is inferred, not a hard fact like GitLab's diff (see
+    ``gitlab.match_files_to_nodes``), so every match is ``Confidence.AMBIGUOUS``.
+
+    ``Store.nodes_by_name`` is an exact, BINARY-collation lookup -- making it
+    case-insensitive would silently break GitLab's file-path matching, where
+    case *is* significant. The ``Store`` ABC also has no "all nodes for a repo"
+    scan (see ``visualize.payload.repo_subgraph`` for the same gap), so this
+    drops to the same raw-SQL escape hatch that function already uses,
+    restricted to symbol-shaped kinds via ``EMBEDDABLE_KINDS``.
+    """
+    candidate_names = []
+    if design_attrs.get("name"):
+        candidate_names.append(design_attrs["name"])
+    candidate_names.extend(design_attrs.get("structure", []))
+    wanted = {n.lower() for n in candidate_names if n}
+    if not wanted:
+        return []
+    kind_placeholders = ",".join("?" * len(EMBEDDABLE_KINDS))
+    name_placeholders = ",".join("?" * len(wanted))
+    rows = store.conn.execute(
+        f"""
+        SELECT node_id FROM nodes
+        WHERE repo_id = ? AND kind IN ({kind_placeholders}) AND LOWER(name) IN ({name_placeholders})
+        ORDER BY node_id
+        """,
+        (repo_id, *EMBEDDABLE_KINDS, *wanted),
+    ).fetchall()
+    return [(row[0], Confidence.AMBIGUOUS) for row in rows]
 
 
 def classify_figma_link(url: str) -> str | None:

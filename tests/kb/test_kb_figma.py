@@ -4,15 +4,18 @@ plumbing, and best-effort metadata fetch against a spawned mock MCP server."""
 import os
 import sys
 
+import contextlake.kb.connectors.orchestrate as orch
 from contextlake.kb.connectors.figma import (
     FigmaConnector,
     associate_designs,
     classify_figma_link,
     design_node,
+    match_frame_names_to_symbols,
     parse_metadata,
     title_of,
 )
-from contextlake.kb.model import Confidence
+from contextlake.kb.model import Confidence, Node
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 _MOCK_SERVER = """
 from mcp.server.mcpserver import MCPServer
@@ -143,3 +146,83 @@ def test_parse_metadata_xml_bounded_by_max_names():
 def test_parse_metadata_unrecognized_shape_is_empty():
     assert parse_metadata(None) == {}
     assert parse_metadata(42) == {}
+
+
+# --- match_frame_names_to_symbols: name-match designs to code --------------
+
+def test_match_frame_names_to_symbols_matches_case_insensitively():
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("team/api", [
+            Node(id="team_api_payer", repo="team/api", kind="class", name="Payer", file="pay.py"),
+        ])
+        matches = match_frame_names_to_symbols(
+            store, "team/api", {"structure": ["payer", "Unrelated"]})
+        assert matches == [("team_api_payer", Confidence.AMBIGUOUS)]
+    finally:
+        store.close()
+
+
+def test_match_frame_names_to_symbols_handles_missing_attrs():
+    store = SqliteStore(":memory:")
+    try:
+        assert match_frame_names_to_symbols(store, "team/api", {}) == []
+    finally:
+        store.close()
+
+
+def test_match_frame_names_to_symbols_ignores_non_symbol_kinds():
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("team/api", [
+            Node(id="team_api_payer_py", repo="team/api", kind="file", name="Payer", file="Payer"),
+        ])
+        assert match_frame_names_to_symbols(store, "team/api", {"name": "Payer"}) == []
+    finally:
+        store.close()
+
+
+def test_match_frame_names_to_symbols_scopes_to_repo():
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("other/repo", [
+            Node(id="other_payer", repo="other/repo", kind="class", name="Payer", file="pay.py"),
+        ])
+        assert match_frame_names_to_symbols(store, "team/api", {"name": "Payer"}) == []
+    finally:
+        store.close()
+
+
+# --- enrich_repo_figma: designs link to matching code symbols --------------
+
+class _FigmaMetaStub:
+    hosts = ("figma.com",)
+
+    def __init__(self, meta):
+        self._meta = meta
+
+    def fetch_metadata(self, file_key, **kw):
+        return self._meta
+
+
+def test_enrich_repo_figma_links_design_to_matching_symbol():
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("team/api", [
+            Node(id="team_api_payer", repo="team/api", kind="class", name="Payer", file="pay.py"),
+        ])
+        conn = _FigmaMetaStub({"name": "Payer"})
+        nodes, edges = orch.enrich_repo_figma(
+            conn, "team/api", store, links=["https://www.figma.com/design/Xy9/Flow"])
+        design = next(n for n in nodes if n.kind == "design")
+        symbol_edges = [
+            e for e in edges if e.relation == "designed_in" and e.src == "team_api_payer"
+        ]
+        assert len(symbol_edges) == 1
+        assert symbol_edges[0].dst == design.id
+        assert symbol_edges[0].confidence == Confidence.AMBIGUOUS
+        # the repo-level fallback edge from associate_designs is not duplicated
+        repo_edges = [e for e in edges if e.src == "repo_team_api"]
+        assert len(repo_edges) == 1
+    finally:
+        store.close()

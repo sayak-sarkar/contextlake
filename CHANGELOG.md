@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - GitLab merge requests now link directly to the code files their diff touches (not just their
   repo), via a new `fetch_changes`/`match_files_to_nodes` pair.
+- Figma designs now link directly to code symbols whose name matches a frame or component name,
+  when Figma metadata is available (MCP-configured).
 - `connect` now discovers Figma and Slack links in docs by default (built-in URL patterns) -- no
   `[[rules]] type="link_scrape"` config required, matching how GitLab sources were already default-on.
 - New shared text-mention matcher (`connectors/text_match.py`), reused by Slack and by
