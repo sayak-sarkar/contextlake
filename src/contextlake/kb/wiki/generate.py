@@ -8,11 +8,12 @@ invents. Every page ends with a provenance footer citing the commit and sources.
 from __future__ import annotations
 
 import os
-from collections import Counter
+import threading
+from collections import Counter, OrderedDict
 from datetime import date
 from pathlib import Path
 
-from ..store.shards import read_shard
+from ..store.shards import read_shard, shard_path
 
 # Conventional entry-point/config filenames -- presence-only signal for the
 # "Setup & Run" section (never file contents beyond the README excerpt below,
@@ -239,6 +240,122 @@ def _ranked_with_kind_floor(
     return out[:cap]
 
 
+# In-memory cache of repo_brief's shard-derived aggregation (top_symbols/hubs/
+# dispatchers/kinds/langs/etc.) -- the pure-Python Counter/sorted/
+# _ranked_with_kind_floor work below, which is the other size-scaling cost of
+# a repo-detail request alongside the shard JSON parse (see the cache in
+# ``store.shards``). It is a pure function of (shard content, path_prefix), so
+# it's cached separately from -- and does NOT cover -- ``readme_excerpt`` /
+# ``setup_signals``, which read the live checkout and can change without the
+# shard itself changing (e.g. editing the README without re-indexing); those
+# stay computed fresh on every call. Keyed on the shard file's own
+# (mtime_ns, size), so a re-index (which rewrites the shard) invalidates it
+# the same way it invalidates the shard-parse cache.
+_CORE_CACHE_MAX = 256
+_core_cache: OrderedDict[tuple, dict] = OrderedDict()
+_core_cache_lock = threading.Lock()
+
+
+def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
+    nodes = shard.nodes
+    if path_prefix:
+        prefix_dir = path_prefix.rstrip("/") + "/"
+        nodes = [
+            n for n in nodes
+            if n.file and (n.file == path_prefix or n.file.startswith(prefix_dir))
+        ]
+        node_ids = {n.id for n in nodes}
+        edges = [e for e in shard.edges if e.src in node_ids and e.dst in node_ids]
+    else:
+        edges = shard.edges
+    by_id = {n.id: n for n in nodes}
+    degree: Counter = Counter()
+    in_degree: Counter = Counter()   # callers -- a hub, worth protecting with tests
+    out_degree: Counter = Counter()  # callees -- a dispatcher, where behavior branches
+    for e in edges:
+        degree[e.src] += 1
+        degree[e.dst] += 1
+        in_degree[e.dst] += 1
+        out_degree[e.src] += 1
+    cap = _grounding_cap(len(nodes))
+    # Candidates for top_symbols cover every node (defaulting to 0 degree), not
+    # just the ones with an edge, so a kind that never appears in `degree` at
+    # all (e.g. a SQL table, which doesn't call anything) still gets a floor
+    # slot -- top_symbols carries no "count", so a 0-degree row here is not a
+    # fabricated claim, just an honestly-listed symbol.
+    all_node_candidates = sorted(((n.id, degree[n.id]) for n in nodes), key=lambda x: -x[1])
+    top_ids = _ranked_with_kind_floor(all_node_candidates, by_id, cap)
+    top = [by_id[i] for i in top_ids]
+    # hubs/dispatchers keep counts, so their floor only reorders real
+    # candidates (nodes that actually have the relevant degree) -- it must
+    # never manufacture a "0 caller(s)" row for a kind with no real signal.
+    hub_ids = _ranked_with_kind_floor(in_degree.most_common(), by_id, cap)
+    dispatcher_ids = _ranked_with_kind_floor(out_degree.most_common(), by_id, cap)
+    all_files = {n.file for n in nodes if n.file}
+    # Distinct symbols the model actually saw a grounding fact for, across all
+    # three lists combined -- a set union, since a node can legitimately appear
+    # in more than one list. Used to state the coverage ratio in the footer.
+    grounded_ids = set(top_ids) | set(hub_ids) | set(dispatcher_ids)
+    # Reuse the parser's own generated-file detection (never duplicate it here)
+    # so the wiki prompt can warn the model off treating machine-emitted files
+    # as hand-authored design -- by path segment (a "generated/" directory) or
+    # by filename convention (e.g. ``*.designer.cs``), same signal the indexer
+    # itself uses to decide what to skip.
+    from ..parse import _is_generated_name
+
+    generated_paths_detected = any(
+        "generated" in f.lower().split("/") or _is_generated_name(f.rsplit("/", 1)[-1])
+        for f in all_files
+    )
+    return {
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+        "grounded_count": len(grounded_ids),
+        "kinds": dict(Counter(n.kind for n in nodes)),
+        "langs": dict(Counter(n.lang for n in nodes if n.lang)),
+        "top_symbols": [_symbol_row(n) for n in top],
+        # Split combined-degree ranking above into fan-in/fan-out separately --
+        # the dashboard's own risk view (Anatomy tab's hotspots section), not
+        # folded into top_symbols so existing consumers of that field are
+        # unaffected.
+        "hubs": [_symbol_row(by_id[i], count=in_degree[i]) for i in hub_ids],
+        "dispatchers": [_symbol_row(by_id[i], count=out_degree[i]) for i in dispatcher_ids],
+        "packages": [n.name for n in nodes if n.kind == "package"][:20],
+        "files": sorted(all_files)[:20],
+        "decisions": [{"title": n.name, "file": n.file,
+                       "doc": (n.attrs or {}).get("doc")}
+                      for n in nodes if n.kind == "adr"][:20],
+        "generated_paths_detected": generated_paths_detected,
+        "all_files": all_files,
+    }
+
+
+def _repo_brief_core(store_dir, repo_id: str, shard, path_prefix: str | None) -> dict:
+    """``_repo_brief_core_uncached`` memoized by the shard file's (mtime_ns, size)
+    plus ``path_prefix``. Falls back to computing uncached (never raises, never
+    serves a wrong result) if the shard file can't be stat'd for any reason."""
+    try:
+        p = shard_path(store_dir, repo_id)
+        st = p.stat()
+        key = (str(p), st.st_mtime_ns, st.st_size, path_prefix)
+    except (ValueError, OSError):
+        key = None
+    if key is not None:
+        with _core_cache_lock:
+            cached = _core_cache.get(key)
+            if cached is not None:
+                _core_cache.move_to_end(key)
+                return cached
+    core = _repo_brief_core_uncached(shard, path_prefix)
+    if key is not None:
+        with _core_cache_lock:
+            _core_cache[key] = core
+            _core_cache.move_to_end(key)
+            while len(_core_cache) > _CORE_CACHE_MAX:
+                _core_cache.popitem(last=False)
+    return core
+
+
 def repo_brief(
     store_dir, repo_id: str, *, store=None, path_prefix: str | None = None,
     subsystem_modules: list[dict] | None = None,
@@ -296,80 +413,30 @@ def repo_brief(
     shard = read_shard(store_dir, repo_id)
     if shard is None:
         return None
-    nodes = shard.nodes
-    if path_prefix:
-        prefix_dir = path_prefix.rstrip("/") + "/"
-        nodes = [
-            n for n in nodes
-            if n.file and (n.file == path_prefix or n.file.startswith(prefix_dir))
-        ]
-        node_ids = {n.id for n in nodes}
-        edges = [e for e in shard.edges if e.src in node_ids and e.dst in node_ids]
-    else:
-        edges = shard.edges
-    by_id = {n.id: n for n in nodes}
-    degree: Counter = Counter()
-    in_degree: Counter = Counter()   # callers -- a hub, worth protecting with tests
-    out_degree: Counter = Counter()  # callees -- a dispatcher, where behavior branches
-    for e in edges:
-        degree[e.src] += 1
-        degree[e.dst] += 1
-        in_degree[e.dst] += 1
-        out_degree[e.src] += 1
-    cap = _grounding_cap(len(nodes))
-    # Candidates for top_symbols cover every node (defaulting to 0 degree), not
-    # just the ones with an edge, so a kind that never appears in `degree` at
-    # all (e.g. a SQL table, which doesn't call anything) still gets a floor
-    # slot -- top_symbols carries no "count", so a 0-degree row here is not a
-    # fabricated claim, just an honestly-listed symbol.
-    all_node_candidates = sorted(((n.id, degree[n.id]) for n in nodes), key=lambda x: -x[1])
-    top_ids = _ranked_with_kind_floor(all_node_candidates, by_id, cap)
-    top = [by_id[i] for i in top_ids]
-    # hubs/dispatchers keep counts, so their floor only reorders real
-    # candidates (nodes that actually have the relevant degree) -- it must
-    # never manufacture a "0 caller(s)" row for a kind with no real signal.
-    hub_ids = _ranked_with_kind_floor(in_degree.most_common(), by_id, cap)
-    dispatcher_ids = _ranked_with_kind_floor(out_degree.most_common(), by_id, cap)
-    all_files = {n.file for n in nodes if n.file}
-    # Distinct symbols the model actually saw a grounding fact for, across all
-    # three lists combined -- a set union, since a node can legitimately appear
-    # in more than one list. Used to state the coverage ratio in the footer.
-    grounded_ids = set(top_ids) | set(hub_ids) | set(dispatcher_ids)
-    # Reuse the parser's own generated-file detection (never duplicate it here)
-    # so the wiki prompt can warn the model off treating machine-emitted files
-    # as hand-authored design -- by path segment (a "generated/" directory) or
-    # by filename convention (e.g. ``*.designer.cs``), same signal the indexer
-    # itself uses to decide what to skip.
-    from ..parse import _is_generated_name
-
-    generated_paths_detected = any(
-        "generated" in f.lower().split("/") or _is_generated_name(f.rsplit("/", 1)[-1])
-        for f in all_files
-    )
+    core = _repo_brief_core(store_dir, repo_id, shard, path_prefix)
+    all_files = core["all_files"]
     return {
         "repo": repo_id,
         "head": shard.head_commit,
-        "node_count": len(nodes),
-        "edge_count": len(edges),
-        "grounded_count": len(grounded_ids),
-        "kinds": dict(Counter(n.kind for n in nodes)),
-        "langs": dict(Counter(n.lang for n in nodes if n.lang)),
-        "top_symbols": [_symbol_row(n) for n in top],
+        "node_count": core["node_count"],
+        "edge_count": core["edge_count"],
+        "grounded_count": core["grounded_count"],
+        "kinds": core["kinds"],
+        "langs": core["langs"],
+        "top_symbols": core["top_symbols"],
         # Split combined-degree ranking above into fan-in/fan-out separately --
         # the dashboard's own risk view (Anatomy tab's hotspots section), not
         # folded into top_symbols so existing consumers of that field are
         # unaffected.
-        "hubs": [_symbol_row(by_id[i], count=in_degree[i]) for i in hub_ids],
-        "dispatchers": [_symbol_row(by_id[i], count=out_degree[i]) for i in dispatcher_ids],
-        "packages": [n.name for n in nodes if n.kind == "package"][:20],
-        "files": sorted(all_files)[:20],
-        "decisions": [{"title": n.name, "file": n.file,
-                       "doc": (n.attrs or {}).get("doc")}
-                      for n in nodes if n.kind == "adr"][:20],
+        "hubs": core["hubs"],
+        "dispatchers": core["dispatchers"],
+        "packages": core["packages"],
+        "files": core["files"],
+        "decisions": core["decisions"],
         "external": [] if path_prefix else external_context(store_dir, repo_id),
         "readme_excerpt": _readme_excerpt(store, repo_id),
         "setup_signals": _setup_signals(all_files, store, repo_id),
-        "generated_paths_detected": generated_paths_detected,
+        "generated_paths_detected": core["generated_paths_detected"],
         "subsystem_modules": subsystem_modules or [],
     }
 

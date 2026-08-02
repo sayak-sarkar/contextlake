@@ -120,3 +120,72 @@ def test_read_shard_returns_none_for_traversal(tmp_path):
     outside = tmp_path / "secret.json"
     outside.write_text('{"repo": "x"}', encoding="utf-8")
     assert read_shard(tmp_path / "store", "../secret") is None
+
+
+# --- in-memory shard cache (perf regression: dashboard repo-detail slowness) -
+
+def test_read_shard_does_not_reparse_an_unchanged_file(tmp_path, monkeypatch):
+    """A second read_shard() for the same, unchanged file must reuse the cached
+    parse rather than re-running GraphShard.model_validate_json -- the exact
+    per-request cost identified as the dashboard repo-detail slowdown's root
+    cause (JSON parse + pydantic validation, re-run from scratch on every
+    request with no caching of any kind)."""
+    write_shard(tmp_path, _shard())
+    calls = []
+    real_parse = GraphShard.model_validate_json  # bound classmethod, captured pre-patch
+
+    def _tracked(*a, **kw):
+        calls.append(1)
+        return real_parse(*a, **kw)
+
+    monkeypatch.setattr(
+        GraphShard, "model_validate_json",
+        classmethod(lambda cls, *a, **kw: _tracked(*a, **kw)),
+    )
+
+    first = read_shard(tmp_path, "team/api")
+    second = read_shard(tmp_path, "team/api")
+
+    assert len(calls) == 1          # parsed once, not twice
+    assert second is first          # same cached object returned
+    assert second == _shard()       # and it's still correct
+
+
+def test_read_shard_picks_up_a_same_process_rewrite(tmp_path):
+    """write_shard() must invalidate its own cache entry immediately -- a
+    caller that writes then reads back in the same process (e.g. reindex)
+    must never see a stale cached parse, regardless of filesystem mtime
+    resolution."""
+    s = _shard()
+    write_shard(tmp_path, s)
+    assert read_shard(tmp_path, "team/api").nodes[0].name == "CatalogService"
+
+    changed = s.model_copy(deep=True)
+    changed.nodes[0].name = "RenamedService"
+    write_shard(tmp_path, changed)
+
+    assert read_shard(tmp_path, "team/api").nodes[0].name == "RenamedService"
+
+
+def test_read_shard_picks_up_an_external_rewrite(tmp_path):
+    """A shard rewritten by a *different* process (e.g. a `contextlake index`
+    run while `dashboard --serve` stays up) must still be picked up on the
+    next read -- the cache is validated against the file's own (mtime_ns,
+    size) on every call, not just invalidated by this process's own writes."""
+    import os
+
+    from contextlake.kb.store.shards import shard_path
+
+    write_shard(tmp_path, _shard())
+    assert read_shard(tmp_path, "team/api").nodes[0].name == "CatalogService"
+
+    p = shard_path(tmp_path, "team/api")
+    new_content = _shard().model_copy(deep=True)
+    new_content.nodes[0].name = "RenamedService"
+    p.write_text(new_content.model_dump_json(indent=2), encoding="utf-8")
+    # force a distinct (mtime, size) signal so this can't pass by timestamp
+    # luck alone, regardless of filesystem mtime resolution
+    st = p.stat()
+    os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+
+    assert read_shard(tmp_path, "team/api").nodes[0].name == "RenamedService"

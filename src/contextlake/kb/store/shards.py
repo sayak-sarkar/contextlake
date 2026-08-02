@@ -8,6 +8,8 @@ single-global-graph size ceiling that a monolithic graph would hit at scale).
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -18,6 +20,44 @@ from .base import Store
 
 # Soft per-shard size warning; a single repo should never approach this.
 _SHARD_WARN_BYTES = 50 * 1024 * 1024
+
+# In-memory cache of parsed shards, so a long-lived process (the dashboard
+# server, above all -- every ``/api/repo/<id>`` request used to re-read and
+# re-``model_validate_json`` the entire shard from scratch, which is the
+# dominant, size-scaling cost of that endpoint on a large repo) doesn't pay
+# the JSON-parse + pydantic-validation cost again for a shard it already has.
+# Keyed by the resolved shard path, validated on every read against the
+# file's current (mtime_ns, size) so a shard rewritten by a *different*
+# process (a `contextlake index` run while `dashboard --serve` stays up) is
+# still picked up -- never served stale just because it's cached.
+# ``write_shard`` additionally evicts its own entry synchronously, so a
+# same-process write is reflected on the very next read regardless of the
+# filesystem's mtime resolution.
+_CACHE_MAX_SHARDS = 256
+_shard_cache: OrderedDict[str, tuple[int, int, GraphShard]] = OrderedDict()
+_shard_cache_lock = threading.Lock()
+
+
+def _cache_evict(path_key: str) -> None:
+    with _shard_cache_lock:
+        _shard_cache.pop(path_key, None)
+
+
+def _cache_get(path_key: str, mtime_ns: int, size: int) -> GraphShard | None:
+    with _shard_cache_lock:
+        cached = _shard_cache.get(path_key)
+        if cached is None or cached[0] != mtime_ns or cached[1] != size:
+            return None
+        _shard_cache.move_to_end(path_key)
+        return cached[2]
+
+
+def _cache_put(path_key: str, mtime_ns: int, size: int, shard: GraphShard) -> None:
+    with _shard_cache_lock:
+        _shard_cache[path_key] = (mtime_ns, size, shard)
+        _shard_cache.move_to_end(path_key)
+        while len(_shard_cache) > _CACHE_MAX_SHARDS:
+            _shard_cache.popitem(last=False)
 
 
 class GraphShard(BaseModel):
@@ -50,6 +90,7 @@ def write_shard(store_dir: str | Path, shard: GraphShard) -> Path:
     p.write_text(data, encoding="utf-8")
     if len(data.encode("utf-8")) > _SHARD_WARN_BYTES:
         log(f"WARNING: shard for {shard.repo} exceeds {_SHARD_WARN_BYTES // (1024 * 1024)} MiB")
+    _cache_evict(str(p))  # this process's own view must never read back stale
     return p
 
 
@@ -58,9 +99,17 @@ def read_shard(store_dir: str | Path, repo_id: str) -> GraphShard | None:
         p = shard_path(store_dir, repo_id)
     except ValueError:
         return None  # traversal / invalid id -> treat as "no such shard", never read outside
-    if not p.exists():
+    try:
+        st = p.stat()
+    except OSError:
         return None
-    return GraphShard.model_validate_json(p.read_text(encoding="utf-8"))
+    key = str(p)
+    cached = _cache_get(key, st.st_mtime_ns, st.st_size)
+    if cached is not None:
+        return cached
+    shard = GraphShard.model_validate_json(p.read_text(encoding="utf-8"))
+    _cache_put(key, st.st_mtime_ns, st.st_size, shard)
+    return shard
 
 
 # --- bi-temporal history: snapshot each indexed shard by commit ------------

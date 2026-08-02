@@ -40,6 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   completed successfully for the tagged commit before building/publishing anything, and fails the
   release outright if it didn't. This closes the gap that let v2.62.0 ship with a red `ci.yml` run
   live for a full release cycle.
+- **Dashboard repo-detail requests on a large repo re-parsed and re-aggregated the entire shard from
+  scratch on every single request**, with no caching of any kind. `read_shard` now keeps a small
+  in-memory cache of the parsed shard (validated on every read against the file's own mtime/size, so
+  a re-index — same process or a separate `contextlake index` run while `dashboard --serve` stays up
+  — is still picked up correctly), and `repo_brief`'s degree/hubs/dispatchers/top-symbols aggregation
+  over every node and edge is cached the same way. Measured against a synthetic 54k-node/261k-edge
+  shard, a warm repeat request against an unchanged repo dropped from ~2.5s to ~0.24s; the first,
+  cold-cache request is unchanged.
 
 ## [2.67.0] - 2026-07-31
 

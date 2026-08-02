@@ -51,6 +51,45 @@ def test_repo_brief_and_prompt(tmp_path):
     assert "CatalogService" in prompt and "svc.py" in prompt and "requests" in prompt
 
 
+def test_repo_brief_caches_the_shard_aggregation(tmp_path, monkeypatch):
+    """The Counter/sorted/_ranked_with_kind_floor aggregation over every node and
+    edge (the other size-scaling cost of a repo-detail request, alongside the
+    shard JSON parse) must not be re-run for an unchanged shard -- this is the
+    exact per-request, uncached recomputation identified as the dashboard
+    repo-detail slowdown's root cause."""
+    import contextlake.kb.wiki.generate as generate_mod
+
+    _shard(tmp_path)
+    calls = []
+    real = generate_mod._repo_brief_core_uncached
+
+    def _tracked(*a, **kw):
+        calls.append(1)
+        return real(*a, **kw)
+
+    monkeypatch.setattr(generate_mod, "_repo_brief_core_uncached", _tracked)
+
+    first = repo_brief(tmp_path, "r")
+    second = repo_brief(tmp_path, "r")
+
+    assert len(calls) == 1
+    assert second["top_symbols"] == first["top_symbols"]
+
+    # a different path_prefix is a distinct slice -> must recompute, not reuse
+    repo_brief(tmp_path, "r", path_prefix="svc.py")
+    assert len(calls) == 2
+
+    # re-indexing (a shard rewrite) must invalidate the cached aggregation too
+    write_shard(tmp_path, GraphShard(
+        repo="r", head_commit="def456",
+        nodes=[Node(id="only", repo="r", kind="function", name="Only", file="svc.py")],
+        edges=[],
+    ))
+    third = repo_brief(tmp_path, "r")
+    assert len(calls) == 3
+    assert third["node_count"] == 1
+
+
 def test_repo_brief_splits_hubs_and_dispatchers(tmp_path):
     prov = Provenance(source_file="x.py", source_line=1, verified_at=date(2026, 6, 21))
     nodes = [Node(id=nid, repo="r", kind="function", name=nid, file="f.py") for nid in
