@@ -17,8 +17,12 @@ def match_symbol_mentions(
     text: str, symbols: list[Node], *, min_name_len: int = 3
 ) -> list[tuple[str, Confidence]]:
     """(symbol_node_id, Confidence.AMBIGUOUS) for every embeddable symbol whose
-    name appears in `text` as a whole-word match. Longest names are checked
-    first so a short name can't spuriously match inside a longer mention."""
+    name appears in `text` as a whole-word match. Whole-word `\\b` matching
+    prevents substring false-positives (e.g. `charge` won't match inside
+    `charge_order`); the longest-name-first sort only fixes the order of the
+    returned list -- it does not suppress two genuinely distinct,
+    overlapping-name symbols (e.g. `charge` and `chargeOrder`) from both
+    matching if both are present in the text."""
     candidates = [
         s for s in symbols
         if s.kind in EMBEDDABLE_KINDS and s.name and len(s.name) >= min_name_len
