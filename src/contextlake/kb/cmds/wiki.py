@@ -458,9 +458,17 @@ def cmd_wiki(args) -> int:
             if brief is None or (path_prefix and not brief["node_count"]):
                 return "absent"
             try:
+                # `brief` above is exactly the brief this page needs (same
+                # store/path_prefix/subsystem_modules), so hand it over rather
+                # than have generate_page build an identical second one: the
+                # README read, the legacy-build-tooling walk and the
+                # enrichment-shard read are all outside repo_brief's cached
+                # core, so that second build is real I/O -- per page, and a
+                # federated repo generates up to 21 of them in one run.
                 page = generate_page(llm, store_dir, repo_id, store=brief_store,
                                      path_prefix=path_prefix,
-                                     subsystem_modules=subsystem_modules)
+                                     subsystem_modules=subsystem_modules,
+                                     brief=brief)
                 gate = council_gate(review_llm, page, render_prompt(brief, path_prefix=path_prefix),
                                     accept_score=cfg.llm.accept_score,
                                     council_size=getattr(cfg.llm, "council_size", None))

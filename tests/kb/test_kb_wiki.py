@@ -1634,3 +1634,35 @@ def test_cmd_wiki_prunes_every_module_page_when_a_repo_stops_being_federated(
             assert store.get_node(f"@wiki:fed::mod{m}:0") is None
     finally:
         store.close()
+
+
+def test_cmd_wiki_builds_each_page_brief_exactly_once(tmp_path, monkeypatch):
+    """`cmd_wiki` needs the brief itself (for the council's `render_prompt`)
+    and `generate_page` used to build a second, identical one internally --
+    two full briefs per page, and a federated repo generates up to 21 pages in
+    one run. The parts a brief recomputes outside the cached shard aggregation
+    are real I/O (the README read, the recursive legacy-build-tooling walk,
+    the enrichment-shard read), so this is measurable work, not a cache hit."""
+    import contextlake.kb.wiki.generate as gen
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    real = gen.repo_brief
+    scopes: list[str | None] = []
+
+    def _spy(store_dir_arg, repo_id, **kwargs):
+        scopes.append(kwargs.get("path_prefix"))
+        return real(store_dir_arg, repo_id, **kwargs)
+
+    monkeypatch.setattr(gen, "repo_brief", _spy)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    # 7 pages written (1 whole-repo + 6 modules) -> 7 briefs, not 14.
+    assert len(list((store_dir / "wiki" / "_modules").glob("fed__mod*.md"))) == 6
+    assert scopes.count(None) == 1
+    for m in range(6):
+        assert scopes.count(f"mod{m}") == 1
+    assert len(scopes) == 7

@@ -601,7 +601,8 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
 
 def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = None,
                   store=None, path_prefix: str | None = None,
-                  subsystem_modules: list[dict] | None = None) -> str | None:
+                  subsystem_modules: list[dict] | None = None,
+                  brief: dict | None = None) -> str | None:
     """Generate a provenance-stamped wiki page (Markdown), or None without a shard.
 
     ``path_prefix``, when given, scopes the page to one module/subsystem of the
@@ -617,9 +618,22 @@ def generate_page(llm, store_dir, repo_id: str, *, verified_at: date | None = No
     pages instead of trying to summarize their internals inline. Callers
     generating a module/subsystem page (``path_prefix`` set) should leave
     this ``None``.
+
+    ``brief``, when given, is a ``repo_brief`` result the caller has ALREADY
+    built for this exact scope, reused here instead of building a second,
+    identical one. A caller that gates the page on a council review (which
+    needs the brief for its own ``render_prompt`` call) otherwise pays for
+    two full briefs per page -- and the parts of a brief that the shard-level
+    cache deliberately does not cover are live-checkout reads (the README, the
+    recursive legacy-build-tooling walk) plus the enrichment shard read, so
+    the second one is real work, not a cache hit. The caller owns the match:
+    build it with the same ``store``/``path_prefix``/``subsystem_modules``
+    passed here, since those arguments no longer reach ``repo_brief`` when
+    ``brief`` is supplied.
     """
-    brief = repo_brief(store_dir, repo_id, store=store, path_prefix=path_prefix,
-                       subsystem_modules=subsystem_modules)
+    if brief is None:
+        brief = repo_brief(store_dir, repo_id, store=store, path_prefix=path_prefix,
+                           subsystem_modules=subsystem_modules)
     if brief is None:
         return None
     body = llm.generate(render_prompt(brief, path_prefix=path_prefix), system=SYSTEM).strip()

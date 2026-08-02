@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page or is getting one this run — so the named set accumulates run over run instead of tracking
   only the current slice — and the truncation log line now says how many modules were deferred to a
   later run instead of claiming they were skipped outright.
+- **Each wiki page is now built from one `repo_brief`, not two.** `cmd_wiki` needs the brief itself
+  for the council's review prompt, and `generate_page` then built a second, identical one
+  internally. The parts of a brief that sit outside its cached shard aggregation are real I/O — the
+  README read, the recursive legacy-build-tooling walk of the live checkout, the enrichment-shard
+  read — so that was a duplicated filesystem pass per page, up to 21 of them for one federated repo
+  in a single run. `generate_page` now accepts a caller-built `brief` and reuses it.
 - **Subsystem wiki pages for modules that no longer qualify are now pruned instead of living
   forever.** A module that shrank below the module floor, or a repo whose tree was restructured (or
   that stopped qualifying as federated at all, orphaning every one of its module pages), left its
