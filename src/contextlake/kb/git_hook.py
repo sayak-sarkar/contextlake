@@ -44,8 +44,8 @@ def _block(repo_path: str, repo_id: str, config: str | None) -> str:
         f"{MARK_BEGIN}\n"
         "# Re-index this repository into the contextlake knowledge store after each\n"
         "# commit. Detached (&) so the commit returns immediately. Managed by\n"
-        "#   contextlake hook install / uninstall  — do not hand-edit.\n"
-        f'( contextlake{cfg} index "{repo_path}" --repo "{repo_id}" '
+        "#   contextlake kb hook install / uninstall  — do not hand-edit.\n"
+        f'( contextlake{cfg} kb index "{repo_path}" --repo "{repo_id}" '
         ">/dev/null 2>&1 & ) </dev/null\n"
         f"{MARK_END}\n"
     )

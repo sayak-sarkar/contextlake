@@ -155,7 +155,7 @@ def mcp_start(store_dir, *, host: str = "127.0.0.1", port: int = 8766,
     status = mcp_status(store_dir)
     if status["running"]:
         return {"ok": False, "error": "already running", **status}
-    cmd = [sys.executable, "-m", "contextlake", "serve", "--transport", "http",
+    cmd = [sys.executable, "-m", "contextlake", "kb", "serve", "--transport", "http",
           "--host", host, "--port", str(port)]
     if config_path:
         cmd += ["--config", config_path]
@@ -334,7 +334,7 @@ def wiki_generate_start(store_dir, *, repo_id: str | None = None, force: bool = 
     if status["running"]:
         return {"ok": False, "error": "a wiki generation run is already in progress",
                **status}
-    cmd = [sys.executable, "-m", "contextlake", "wiki"]
+    cmd = [sys.executable, "-m", "contextlake", "kb", "wiki"]
     if repo_id:
         cmd.append(repo_id)
     if force:

@@ -65,7 +65,7 @@ def workspace_facts(store, store_dir) -> dict:
 
 
 def _serve_cmd(config_path: str | None) -> str:
-    return "contextlake serve" + (f" --config {config_path}" if config_path else "")
+    return "contextlake kb serve" + (f" --config {config_path}" if config_path else "")
 
 
 def _repos(n: int) -> str:
@@ -94,7 +94,7 @@ def _repo_lines(facts: dict, limit: int = 40) -> str:
     )
     if len(facts["per_repo"]) > limit:
         out += f"\n- … and {len(facts['per_repo']) - limit} more"
-    return out or "- (none indexed yet — run `contextlake index --workspace .`)"
+    return out or "- (none indexed yet — run `contextlake kb index --workspace .`)"
 
 
 def render_agents_md(facts: dict, *, config_path: str | None = None) -> str:
@@ -168,7 +168,7 @@ def mcp_server_entry(config_path: str | None = None) -> dict:
     VS Code's ``.vscode/mcp.json`` -> ``servers``), so this one dict is reused
     for both.
     """
-    args = ["serve"]
+    args = ["kb", "serve"]
     if config_path:
         args += ["--config", config_path]
     return {"command": "contextlake", "args": args}

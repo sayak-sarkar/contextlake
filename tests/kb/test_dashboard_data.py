@@ -531,7 +531,7 @@ def test_mcp_console_lists_the_real_tool_catalog(store_dir):
     assert "graph_stats" in names and "blast_radius" in names
     assert out["semantic_search_available"] is False  # no embeddings.sqlite in this fixture
     entry = out["mcp_json"]["mcpServers"]["contextlake"]
-    assert entry == {"command": "contextlake", "args": ["serve"]}
+    assert entry == {"command": "contextlake", "args": ["kb", "serve"]}
     assert out["vscode_mcp_json"]["servers"]["contextlake"] == entry
 
 
@@ -541,7 +541,7 @@ def test_mcp_console_json_snippet_carries_an_explicit_config_path(store_dir):
     cfg.write_text(f'[kb]\nstore_dir = "{sd.as_posix()}"\n')
     out = kbdata.mcp_console(s, sd, config_path=str(cfg))
     args = out["mcp_json"]["mcpServers"]["contextlake"]["args"]
-    assert args == ["serve", "--config", str(cfg)]
+    assert args == ["kb", "serve", "--config", str(cfg)]
 
 
 def test_settings_shape_and_derived_fields(store_dir, tmp_path, monkeypatch):

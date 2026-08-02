@@ -61,7 +61,7 @@ def test_render_agents_md_is_specific_and_guarded(tmp_path):
         assert "2 repositories" in md
         assert "`team/api`" in md and "`team/ui`" in md  # repo list is specific
         assert "Cite, don't guess" in md  # guardrails present
-        assert "contextlake serve --config /c/kb.toml" in md
+        assert "contextlake kb serve --config /c/kb.toml" in md
     finally:
         store.close()
 
@@ -81,10 +81,19 @@ def test_skill_md_has_frontmatter_and_marker():
     assert MARKER in md  # managed-file marker so steer can refresh idempotently
 
 
+def test_generated_steering_points_at_the_namespaced_serve_command():
+    """.mcp.json and AGENTS.md land in users' repos and are read by an editor,
+    not a terminal -- a stale command here fails opaquely inside the editor.
+    `steer --force` rewrites them; this guards what it writes."""
+    entry = mcp_server_entry(None)
+    assert entry["args"][:2] == ["kb", "serve"]
+    assert entry["args"][0] != "serve"
+
+
 def test_mcp_server_entry():
     assert mcp_server_entry("/c/kb.toml") == {
-        "command": "contextlake", "args": ["serve", "--config", "/c/kb.toml"]}
-    assert mcp_server_entry(None) == {"command": "contextlake", "args": ["serve"]}
+        "command": "contextlake", "args": ["kb", "serve", "--config", "/c/kb.toml"]}
+    assert mcp_server_entry(None) == {"command": "contextlake", "args": ["kb", "serve"]}
 
 
 def test_render_agents_md_sanitizes_a_repo_id_and_package_name_that_embed_markers(tmp_path):
@@ -166,7 +175,7 @@ def test_cmd_steer_writes_vscode_mcp_json_under_servers_key(tmp_path, monkeypatc
     assert "mcpServers" not in vscode
     assert "other" in vscode["servers"]  # preserved
     assert vscode["servers"]["contextlake-kb"]["command"] == "contextlake"
-    assert vscode["servers"]["contextlake-kb"]["args"][0] == "serve"
+    assert vscode["servers"]["contextlake-kb"]["args"][:2] == ["kb", "serve"]
 
 
 def test_cmd_steer_enhances_existing_files_without_clobbering(tmp_path, monkeypatch):

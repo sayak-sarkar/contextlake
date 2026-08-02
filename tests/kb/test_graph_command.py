@@ -837,7 +837,7 @@ def test_cli_graph_overview_on_empty_store_warns_with_index_hint(tmp_path, capsy
     out = tmp_path / "kb" / "graphs" / "overview.html"
     assert out.exists()  # the artifact is still written -- the guard only fixes reporting
     assert style.warn(f"Wrote html (0 nodes, 0 edges) -> {out}: the store is empty.") in text
-    assert "Run `contextlake index` first" in text
+    assert "Run `contextlake kb index` first" in text
     assert style.ok(f"Wrote html (0 nodes, 0 edges) -> {out}") not in text  # not a bare success
 
 

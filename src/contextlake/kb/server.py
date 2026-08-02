@@ -821,7 +821,7 @@ def build_server(
                         return _out(f"No wiki for {target!r} yet" + (why or "")
                                     + " — here is its grounded anatomy (top symbols, "
                                     "packages, languages) from the graph. Run "
-                                    "`contextlake wiki` for prose.", brief=b)
+                                    "`contextlake kb wiki` for prose.", brief=b)
             # not a repo we know: degrade to a semantic/keyword explanation search
             route = SEARCH
 

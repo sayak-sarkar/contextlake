@@ -21,6 +21,37 @@ def test_install_creates_executable_hook(tmp_path):
     assert git_hook.is_installed(str(tmp_path))
 
 
+def test_hook_body_uses_the_namespaced_command(tmp_path):
+    """The hook lands in a file contextlake never revisits, and it backgrounds
+    itself -- so a wrong command here fails with no output at all, and the only
+    symptom is a graph that quietly stops tracking HEAD."""
+    _repo(tmp_path)
+    git_hook.install(str(tmp_path), "team/app")
+    body = (tmp_path / ".git" / "hooks" / "post-commit").read_text()
+    assert "contextlake kb index" in body
+    assert "( contextlake index" not in body
+
+
+def test_install_rewrites_a_hook_carrying_the_pre_namespace_syntax(tmp_path):
+    """Self-healing for hooks written by an older contextlake: re-running
+    `hook install` refreshes the managed block in place, so a user who follows
+    the migration guide is fixed everywhere without hand-editing .git/hooks."""
+    _repo(tmp_path)
+    hook = tmp_path / ".git" / "hooks" / "post-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text(
+        "#!/bin/sh\n"
+        f"{git_hook.MARK_BEGIN}\n"
+        '( contextlake index "/old/path" --repo "team/app" >/dev/null 2>&1 & ) </dev/null\n'
+        f"{git_hook.MARK_END}\n")
+
+    assert git_hook.install(str(tmp_path), "team/app") == "refreshed"
+    body = hook.read_text()
+    assert "contextlake kb index" in body
+    assert '( contextlake index "/old/path"' not in body
+    assert body.count(git_hook.MARK_BEGIN) == 1
+
+
 def test_install_is_idempotent(tmp_path):
     _repo(tmp_path)
     git_hook.install(str(tmp_path), "app")

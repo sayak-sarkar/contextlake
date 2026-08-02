@@ -1,4 +1,4 @@
-"""`contextlake serve` -- run the MCP server."""
+"""`contextlake kb serve` -- run the MCP server."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def cmd_serve(args) -> int:
             # Say so out loud: these two tools silently vanishing from the MCP tool
             # list otherwise reads as a broken server, not an unconfigured tier.
             why = ("no [embeddings] config" if candidate is None
-                   else "no vector store yet — run: contextlake embed")
+                   else "no vector store yet — run: contextlake kb embed")
             log(style.dim(f"semantic_search / hybrid_search not registered ({why}); "
                           "graph search and every other tool work without them"))
 

@@ -102,7 +102,7 @@ def test_add_writes_source_from_flags(tmp_path, gls_logs):
     srcs = _toml(cfg)["sources"]
     assert srcs == [{"type": "atlassian", "name": "jira", "mcp": "https://mcp.example"}]
     assert "jira" in gls_logs.text
-    assert "contextlake connect" in gls_logs.text
+    assert "contextlake kb connect" in gls_logs.text
 
 
 def test_add_applies_set_flags(tmp_path):

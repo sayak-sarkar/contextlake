@@ -1,4 +1,4 @@
-"""`contextlake index` -- walk a workspace, parse every repo into the graph."""
+"""`contextlake kb index` -- walk a workspace, parse every repo into the graph."""
 
 from __future__ import annotations
 
@@ -208,11 +208,11 @@ def cmd_index(args) -> int:
                                     force=force, workers=workers,
                                     repo_filter=repo_filter, **parse_opts)
 
-        # `contextlake index PATH` and `index --source PATH` are the same thing.
+        # `contextlake kb index PATH` and `index --source PATH` are the same thing.
         source = getattr(args, "source", None) or getattr(args, "path", None)
         if not source:
             # Zero-config: with no path/--source/--workspace, index the current
-            # directory so `cd my-repo && contextlake index` just works.
+            # directory so `cd my-repo && contextlake kb index` just works.
             source = "."
             log(f"No --source/--workspace given; indexing the current directory "
                 f"({Path(source).resolve()}). Pass --source PATH or --workspace DIR "
@@ -231,7 +231,7 @@ def cmd_index(args) -> int:
                         f"{', …' if len(nested) > 5 else ''}). Indexing it this way "
                         "bundles everything underneath into ONE repo -- if this is a "
                         "workspace mirroring several repos, use "
-                        "`contextlake index --workspace .` instead, which indexes each "
+                        "`contextlake kb index --workspace .` instead, which indexes each "
                         "nested repo separately under its own identity."
                     ))
             repo_id = getattr(args, "repo", None) or src.resolve().name  # "." -> cwd name

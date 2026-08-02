@@ -1,4 +1,4 @@
-"""`contextlake graph` -- render/serve the knowledge graph."""
+"""`contextlake kb graph` -- render/serve the knowledge graph."""
 
 from __future__ import annotations
 
@@ -145,7 +145,7 @@ def cmd_graph(args) -> int:
         else:
             seeds = viz.seed_ids_from_args(store, args)
             if not seeds:
-                log("usage: contextlake graph (--node ID | --name NAME | --search TEXT | "
+                log("usage: contextlake kb graph (--node ID | --name NAME | --search TEXT | "
                     "--repo R | --overview) [--hops N] [--format html|dot|mermaid|json]")
                 return 2
             nodes, edges = viz.extract_subgraph(
@@ -209,7 +209,7 @@ def cmd_graph(args) -> int:
                 # as a plain "Wrote" success would hide the real problem (nothing
                 # indexed yet), the same trap cmd_index's empty-workspace guard avoids.
                 log(style.warn(f"Wrote {fmt} (0 nodes, 0 edges) -> {out}: the store is empty."))
-                log("  Run `contextlake index` first, then re-run this command.")
+                log("  Run `contextlake kb index` first, then re-run this command.")
             else:
                 log(style.ok(f"Wrote {fmt} ({len(payload['nodes'])} nodes, "
                              f"{len(payload['edges'])} edges) -> {out}"))

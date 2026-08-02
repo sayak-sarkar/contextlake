@@ -1,4 +1,4 @@
-"""`contextlake ingest` -- aggregate external documents into the graph."""
+"""`contextlake kb ingest` -- aggregate external documents into the graph."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def cmd_ingest(args) -> int:
                     jobs.append((s.name or s.type, s.type,
                                  getattr(s, "model_extra", None) or {}))
         if not jobs:
-            log('No document sources. Try: contextlake ingest --path ./docs  '
+            log('No document sources. Try: contextlake kb ingest --path ./docs  '
                 '(or add [[sources]] type="files" path="…" to kb.toml). '
                 f"Available source types: {', '.join(sorted(registry))}")
             return 0

@@ -1,4 +1,4 @@
-"""`contextlake query` -- full-text + as-of search over the graph."""
+"""`contextlake kb query` -- full-text + as-of search over the graph."""
 
 from __future__ import annotations
 
@@ -57,14 +57,14 @@ def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
     return 0
 
 
-_QUERY_USAGE = ('contextlake query "<text>" [--kind K] [--repo R] [--limit N] '
+_QUERY_USAGE = ('contextlake kb query "<text>" [--kind K] [--repo R] [--limit N] '
                "[--as-of C] [--retriever fts|semantic|hybrid]")
 
 
 def _semantic_results(args, store, text, limit):
     """Node ids from the semantic/hybrid retriever, or ``None`` to fall back to fts
     (embedder/vector store unavailable, or the retriever itself failed) -- reuses
-    the exact retriever factories `contextlake eval --retriever` scores, so `query`
+    the exact retriever factories `contextlake kb eval --retriever` scores, so `query`
     never has its own copy of the embedding/rerank logic."""
     from .. import eval as kb_eval
     from ..config import load_kb_config
@@ -131,7 +131,7 @@ def cmd_query(args) -> int:
             # bare dead-end. Already-semantic/hybrid runs skip this (they tried it).
             if retr_kind == "fts" and len(text.split()) > 1:
                 log("  (query is keyword search; for natural-language search try "
-                    "`--retriever semantic` after running `contextlake embed`)")
+                    "`--retriever semantic` after running `contextlake kb embed`)")
             return 0
         for n in results:
             _print_hit(n)

@@ -1,4 +1,4 @@
-"""``contextlake source`` -- manage ``[[sources]]`` blocks in ``kb.toml``.
+"""``contextlake kb source`` -- manage ``[[sources]]`` blocks in ``kb.toml``.
 
 A thin CLI verb (add/list/remove/test/enable/disable) over ``config_edit``'s
 comment-preserving tomlkit mutation. Mutations (add/remove/enable/disable)
@@ -75,7 +75,7 @@ def _prompt_missing(src: dict) -> dict:
             "Source type (atlassian/figma/gitlab/slack/files/web/api/graphql/mcp)", "files")
     if not src.get("name"):
         log("  Source name is a local nickname you pick to reference this "
-            "connection later (contextlake source test <name>) -- it is not "
+            "connection later (contextlake kb source test <name>) -- it is not "
             "your Atlassian site, Figma team, or any other provider-side ID.")
         src["name"] = _ask("Source name", src["type"])
     if not src.get("mcp") and src["type"] in _MCP_DEFAULTS:
@@ -98,7 +98,7 @@ def _read_stdin_value(key: str) -> str | None:
     try:
         if sys.stdin.isatty():
             log(style.fail(f"--from-stdin {key} needs a piped value, e.g.: "
-                            f"printf '%s' \"$TOKEN\" | contextlake source add ... "
+                            f"printf '%s' \"$TOKEN\" | contextlake kb source add ... "
                             f"--from-stdin {key}"))
             return None
     except (AttributeError, ValueError):
@@ -130,9 +130,9 @@ def cmd_source_add(args) -> int:
     pipeline = _pipeline_for(src["type"])
     log(style.ok(f"Added source {style.cyan(src['name'])} (type={src['type']})"))
     if pipeline == "connect":
-        log("  Run `contextlake connect` to enrich the graph from it.")
+        log("  Run `contextlake kb connect` to enrich the graph from it.")
     else:
-        log("  Run `contextlake ingest` to pull it in (then `contextlake embed` for search).")
+        log("  Run `contextlake kb ingest` to pull it in (then `contextlake kb embed` for search).")
     return 0
 
 
@@ -144,7 +144,7 @@ def cmd_source_list(args) -> int:
     file. Keeps `list` and `test` agreeing (see module docstring)."""
     cfg = load_kb_config(getattr(args, "config", None))
     if not cfg.sources:
-        log("No sources configured (add one with `contextlake source add`)")
+        log("No sources configured (add one with `contextlake kb source add`)")
         return 0
 
     log(style.bold(f"{'NAME':<20}{'TYPE':<14}{'PIPELINE':<10}ENABLED"))
@@ -173,7 +173,7 @@ def _not_found_message(args, name: str) -> str:
     target = config_edit.resolve_write_target(
         getattr(args, "config", None), local=getattr(args, "local", False))
     return (f"No source named {style.cyan(name)} in {target} "
-            "(run `contextlake source list` to see the effective config; "
+            "(run `contextlake kb source list` to see the effective config; "
             "it may live in another config file)")
 
 

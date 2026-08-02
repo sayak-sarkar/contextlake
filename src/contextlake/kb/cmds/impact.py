@@ -1,4 +1,4 @@
-"""`contextlake impact` -- blast-radius / dependents analysis."""
+"""`contextlake kb impact` -- blast-radius / dependents analysis."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def cmd_impact(args) -> int:
         from ...logging_setup import use_stderr
         use_stderr()
     if not target:
-        usage = "contextlake impact <node-id-or-symbol> [--repo R] [--hops N] [--limit N]"
+        usage = "contextlake kb impact <node-id-or-symbol> [--repo R] [--hops N] [--limit N]"
         if as_json:
             print(json.dumps({"error": "missing_argument", "usage": usage}, indent=2))
         else:

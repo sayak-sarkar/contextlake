@@ -1,4 +1,4 @@
-"""`contextlake wiki` -- generate provenance-stamped wiki pages, gated by the LLM council."""
+"""`contextlake kb wiki` -- generate provenance-stamped wiki pages, gated by the LLM council."""
 
 from __future__ import annotations
 
@@ -336,7 +336,7 @@ def cmd_wiki(args) -> int:
             wanted = [a for a in (getattr(args, "args", None) or []) if a]
             if wanted:
                 log(f"No indexed repo matches {', '.join(wanted)} — check the exact repo id "
-                    "(see `contextlake status`).")
+                    "(see `contextlake mirror status`).")
                 return 1
             log("No indexed repos (run index first, or pass --workspace/--source)")
             return 0

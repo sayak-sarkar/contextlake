@@ -1,4 +1,4 @@
-"""`contextlake eval` -- run the golden-query regression suite."""
+"""`contextlake kb eval` -- run the golden-query regression suite."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def cmd_eval(args) -> int:
 
     golden_path = getattr(args, "golden", None)
     if not golden_path:
-        log("usage: contextlake eval --golden FILE.json [--limit K]")
+        log("usage: contextlake kb eval --golden FILE.json [--limit K]")
         return 2
     try:
         golden = kb_eval.load_golden(golden_path)

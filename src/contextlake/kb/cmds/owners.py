@@ -1,4 +1,4 @@
-"""`contextlake owners` -- SME-from-commit-history ownership."""
+"""`contextlake kb owners` -- SME-from-commit-history ownership."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def cmd_owners(args) -> int:
         from ...logging_setup import use_stderr
         use_stderr()
     if not target:
-        usage = "contextlake owners <repo|path> [--path SUBDIR] [--limit N]"
+        usage = "contextlake kb owners <repo|path> [--path SUBDIR] [--limit N]"
         if as_json:
             print(json.dumps({"error": "missing_argument", "usage": usage}, indent=2))
         else:

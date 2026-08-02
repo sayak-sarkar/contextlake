@@ -1,4 +1,4 @@
-"""`contextlake embed` -- build the semantic-search vector index."""
+"""`contextlake kb embed` -- build the semantic-search vector index."""
 
 from __future__ import annotations
 
@@ -117,7 +117,7 @@ def cmd_embed(args) -> int:
                     # one-line answer.
                     log(style.warn(f"Embedder unavailable — {type(e).__name__}: {e}"))
                     log(style.dim("  No vectors written. Fix the embedder above, then "
-                                  "re-run: contextlake embed"))
+                                  "re-run: contextlake kb embed"))
                     return 1
                 log(f"Embedding {len(pass_targets)} repo(s) with {embedder.name} "
                     f"into the {vs.name} vector store")
