@@ -26,72 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when they differ, and `contextlake doctor` still checks the generation provider only.
 
 ### Fixed
-- **A `languages` filter listing only `"c"` no longer silently drops all `.h` files.** `.h` files are
-  parsed with the `cpp` grammar internally, so a `["c"]`-only filter previously excluded them entirely.
-  `.h` inclusion is now decided independently of that internal parsing choice: it is indexed whenever
-  either `"c"` or `"cpp"` is enabled, since C/C++ headers are shared infrastructure. The old workaround
-  of listing both languages is no longer necessary (docs updated accordingly).
-- **The graph visualizer's `repo_subgraph(path_prefix=...)` no longer matches a sibling directory
-  that merely shares a string prefix** (e.g. `path_prefix="api"` incorrectly also matched `apiv2/`).
-  It now requires a path-boundary match — the file equals `path_prefix` or starts with `path_prefix`
-  plus `/` — the same fix already applied to the wiki's `repo_brief`.
-- **The per-run cap on subsystem wiki pages no longer permanently strands the tail of a very large
-  federated repo.** A repo with more qualifying modules than the cap (20) gave pages to its 20
-  largest and never reached the rest: a later run with the same head commit re-picked the identical
-  top 20 and freshness-skipped every one of them, and even a new commit re-picked a top 20 rather
-  than the stranded tail. Module slots now go to never-yet-paged modules first (each group keeping
-  the existing largest-first order), so repeated `wiki` runs walk the whole repo while any single
-  run stays bounded by the cap. The whole-repo overview page names every module that already has a
-  page or is getting one this run — so the named set accumulates run over run instead of tracking
-  only the current slice — and the truncation log line now says how many modules were deferred to a
-  later run instead of claiming they were skipped outright.
-- **The wiki footer's grounding-coverage ratio is now comparable between a repo's overview page and
-  its subsystem pages.** The whole-repo denominator counted every node — including file-less ones
-  (import targets, packages, endpoints, topics) that a module-scoped page structurally cannot
-  contain — so identical grounding depth read as systematically worse on the overview. Both halves
-  of the ratio now count file-backed symbols only, and the footer names the unit ("Grounded in N/M
-  **file-backed** symbols") so it can't be read against the prompt's own all-nodes symbol count.
-- **A file-less `#include`/import-target pseudo-node is no longer guaranteed a slot in a whole-repo
-  page's top-symbols/hubs/dispatchers lists.** The per-kind grounding floor exists so a real but
-  structurally low-degree kind (a SQL table) isn't squeezed out by degree ranking; it was also
-  treating `kind="module"` nodes with no file of their own — one per `#include`d name — as a kind
-  deserving that guarantee, putting a row like "module widget.h (?)" in every C/C++ repo's lists.
-  They remain eligible by ordinary degree ranking, so a heavily-included header still ranks in on
-  merit. Other file-less kinds keep their floor slot.
-- **An existing store now picks up the "overview names its subsystem pages" feature without a
-  `--force` regeneration.** The freshness check asked one question — is the commit unchanged? — and
-  skipped the page before the subsystem-naming field was ever consulted, so a repo already wiki'd at
-  its current commit kept an overview page that said nothing about the subsystem pages sitting
-  beside it, indefinitely. A wiki page's footer now records which subsystem pages it names, and the
-  check asks the two questions separately: a page is skipped only when its commit is unchanged AND
-  it already names the subsystems this run would name. A page that names none (every non-federated
-  repo, and every page written before this existed) records none and is still skipped, so there is
-  no fleet-wide regeneration.
-- **Each wiki page is now built from one `repo_brief`, not two.** `cmd_wiki` needs the brief itself
-  for the council's review prompt, and `generate_page` then built a second, identical one
-  internally. The parts of a brief that sit outside its cached shard aggregation are real I/O — the
-  README read, the recursive legacy-build-tooling walk of the live checkout, the enrichment-shard
-  read — so that was a duplicated filesystem pass per page, up to 21 of them for one federated repo
-  in a single run. `generate_page` now accepts a caller-built `brief` and reuses it.
-- **Subsystem wiki pages for modules that no longer qualify are now pruned instead of living
-  forever.** A module that shrank below the module floor, or a repo whose tree was restructured (or
-  that stopped qualifying as federated at all, orphaning every one of its module pages), left its
-  page, its `@wiki:{repo}::{module}` partition, that partition's shard and its embeddings behind
-  permanently — `--force` didn't remove them either, since it only regenerates what qualifies today.
-  Every `wiki` run now removes all four for a module that is no longer in the qualifying set; it
-  costs one indexed key-range lookup per repo and no LLM call, so it isn't gated behind `--force`.
-  Pruning is skipped when the empty module list came from the index not answering (a large repo
-  whose index rows are missing or mid-rebuild) rather than from the repo actually changing shape —
-  the shard and the index are separate layers, and only the second reading is evidence.
-- **A failed whole-repo wiki page no longer drags every one of that repo's subsystem pages through
-  the same failure.** The whole-repo page and its module pages share one LLM and one council, so an
-  unreachable backend cost up to 21 round trips per federated repo before anything was reported.
-  The run now skips that repo's module pages and moves on as soon as its whole-repo page fails.
-- A council rejection now reports how many reviewers **abstained** (`N reviewer(s) returned nothing
-  parseable`) alongside the score. A reviewer that returns nothing — a missing API key, a review CLI
-  not on PATH (`CliLlm` returns `""` on non-zero exit rather than raising) — abstains on every lens
-  and so rejects every page at score 0.0, which was previously indistinguishable from a strict but
-  working council.
 - **`[llm] provider = "anthropic"` (or `"openai"`) with no explicit `base_url` sent its API calls to
   the local Ollama port instead of the real API endpoint.** `LlmCfg.base_url` was a declared field
   defaulting to `http://127.0.0.1:11434`, so that one literal won for every provider and the
@@ -100,11 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and its rationale): `anthropic` → `https://api.anthropic.com`, `openai` →
   `https://api.openai.com/v1`, `ollama`/`auto` → the local daemon. An explicitly configured
   `base_url` still wins, so proxies and local openai-compatible servers are unaffected.
-- `release.yml` and `binaries.yml` (both tag-triggered) no longer run independently of `ci.yml`'s
-  full Python 3.9-3.14 test matrix. A new `verify-ci` job in each checks that `ci.yml` actually
-  completed successfully for the tagged commit before building/publishing anything, and fails the
-  release outright if it didn't. This closes the gap that let v2.62.0 ship with a red `ci.yml` run
-  live for a full release cycle.
 - **Dashboard repo-detail requests on a large repo re-parsed and re-aggregated the entire shard from
   scratch on every single request**, with no caching of any kind. `read_shard` now keeps a small
   in-memory cache of the parsed shard (validated on every read against the file's own mtime/size, so
@@ -122,6 +51,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `repo_brief` observes the shard file's on-disk identity exactly once per call (previously twice,
   one independent `stat()` each for the shard-parse cache and the aggregation cache) so a rewrite
   landing between those two observations can't pair mismatched halves either.
+- **A `languages` filter listing only `"c"` no longer silently drops all `.h` files.** `.h` files are
+  parsed with the `cpp` grammar internally, so a `["c"]`-only filter previously excluded them entirely.
+  `.h` inclusion is now decided independently of that internal parsing choice: it is indexed whenever
+  either `"c"` or `"cpp"` is enabled, since C/C++ headers are shared infrastructure. The old workaround
+  of listing both languages is no longer necessary (docs updated accordingly).
+- **The graph visualizer's `repo_subgraph(path_prefix=...)` no longer matches a sibling directory
+  that merely shares a string prefix** (e.g. `path_prefix="api"` incorrectly also matched `apiv2/`).
+  It now requires a path-boundary match — the file equals `path_prefix` or starts with `path_prefix`
+  plus `/` — the same fix already applied to the wiki's `repo_brief`.
+- **An existing store now picks up the "overview names its subsystem pages" feature without a
+  `--force` regeneration.** The freshness check asked one question — is the commit unchanged? — and
+  skipped the page before the subsystem-naming field was ever consulted, so a repo already wiki'd at
+  its current commit kept an overview page that said nothing about the subsystem pages sitting
+  beside it, indefinitely. A wiki page's footer now records which subsystem pages it names, and the
+  check asks the two questions separately: a page is skipped only when its commit is unchanged AND
+  it already names the subsystems this run would name. A page that names none (every non-federated
+  repo, and every page written before this existed) records none and is still skipped, so there is
+  no fleet-wide regeneration.
+- **The per-run cap on subsystem wiki pages no longer permanently strands the tail of a very large
+  federated repo.** A repo with more qualifying modules than the cap (20) gave pages to its 20
+  largest and never reached the rest: a later run with the same head commit re-picked the identical
+  top 20 and freshness-skipped every one of them, and even a new commit re-picked a top 20 rather
+  than the stranded tail. Module slots now go to never-yet-paged modules first (each group keeping
+  the existing largest-first order), so repeated `wiki` runs walk the whole repo while any single
+  run stays bounded by the cap. The whole-repo overview page names every module that already has a
+  page or is getting one this run — so the named set accumulates run over run instead of tracking
+  only the current slice — and the truncation log line now says how many modules were deferred to a
+  later run instead of claiming they were skipped outright.
+- **Subsystem wiki pages for modules that no longer qualify are now pruned instead of living
+  forever.** A module that shrank below the module floor, or a repo whose tree was restructured (or
+  that stopped qualifying as federated at all, orphaning every one of its module pages), left its
+  page, its `@wiki:{repo}::{module}` partition, that partition's shard and its embeddings behind
+  permanently — `--force` didn't remove them either, since it only regenerates what qualifies today.
+  Every `wiki` run now removes all four for a module that is no longer in the qualifying set; it
+  costs one indexed key-range lookup per repo and no LLM call, so it isn't gated behind `--force`.
+  Pruning is skipped when the empty module list came from the index not answering (a large repo
+  whose index rows are missing or mid-rebuild) rather than from the repo actually changing shape —
+  the shard and the index are separate layers, and only the second reading is evidence.
+- **A failed whole-repo wiki page no longer drags every one of that repo's subsystem pages through
+  the same failure.** The whole-repo page and its module pages share one LLM and one council, so an
+  unreachable backend cost up to 21 round trips per federated repo before anything was reported.
+  The run now skips that repo's module pages and moves on as soon as its whole-repo page fails.
+- **Each wiki page is now built from one `repo_brief`, not two.** `cmd_wiki` needs the brief itself
+  for the council's review prompt, and `generate_page` then built a second, identical one
+  internally. The parts of a brief that sit outside its cached shard aggregation are real I/O — the
+  README read, the recursive legacy-build-tooling walk of the live checkout, the enrichment-shard
+  read — so that was a duplicated filesystem pass per page, up to 21 of them for one federated repo
+  in a single run. `generate_page` now accepts a caller-built `brief` and reuses it.
+- **The wiki footer's grounding-coverage ratio is now comparable between a repo's overview page and
+  its subsystem pages.** The whole-repo denominator counted every node — including file-less ones
+  (import targets, packages, endpoints, topics) that a module-scoped page structurally cannot
+  contain — so identical grounding depth read as systematically worse on the overview. Both halves
+  of the ratio now count file-backed symbols only, and the footer names the unit ("Grounded in N/M
+  **file-backed** symbols") so it can't be read against the prompt's own all-nodes symbol count.
+- **A file-less `#include`/import-target pseudo-node is no longer guaranteed a slot in a whole-repo
+  page's top-symbols/hubs/dispatchers lists.** The per-kind grounding floor exists so a real but
+  structurally low-degree kind (a SQL table) isn't squeezed out by degree ranking; it was also
+  treating `kind="module"` nodes with no file of their own — one per `#include`d name — as a kind
+  deserving that guarantee, putting a row like "module widget.h (?)" in every C/C++ repo's lists.
+  They remain eligible by ordinary degree ranking, so a heavily-included header still ranks in on
+  merit. Other file-less kinds keep their floor slot.
+- A council rejection now reports how many reviewers **abstained** (`N reviewer(s) returned nothing
+  parseable`) alongside the score. A reviewer that returns nothing — a missing API key, a review CLI
+  not on PATH (`CliLlm` returns `""` on non-zero exit rather than raising) — abstains on every lens
+  and so rejects every page at score 0.0, which was previously indistinguishable from a strict but
+  working council.
+- `release.yml` and `binaries.yml` (both tag-triggered) no longer run independently of `ci.yml`'s
+  full Python 3.9-3.14 test matrix. A new `verify-ci` job in each checks that `ci.yml` actually
+  completed successfully for the tagged commit before building/publishing anything, and fails the
+  release outright if it didn't. This closes the gap that let v2.62.0 ship with a red `ci.yml` run
+  live for a full release cycle.
 
 ## [2.67.0] - 2026-07-31
 
