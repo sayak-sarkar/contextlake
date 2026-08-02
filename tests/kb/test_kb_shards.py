@@ -1,5 +1,6 @@
 """Tests for per-repo graph shards + reindex."""
 
+from collections import OrderedDict
 from datetime import date
 
 from contextlake.kb.model import SHARED_REPO, Confidence, Edge, Node, Provenance
@@ -189,3 +190,64 @@ def test_read_shard_picks_up_an_external_rewrite(tmp_path):
     os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
 
     assert read_shard(tmp_path, "team/api").nodes[0].name == "RenamedService"
+
+
+def test_shard_cache_never_caches_a_shard_bigger_than_the_budget(tmp_path, monkeypatch):
+    """A shard whose estimated resident size alone exceeds the whole cache
+    budget must never be cached -- it's still parsed and returned correctly on
+    every call (just without the cross-request speedup), rather than blowing
+    past the memory budget the cache exists to enforce. Regression guard for
+    an entry-count-only cap, which would happily hold this shard regardless
+    of size."""
+    import contextlake.kb.store.shards as shards_mod
+
+    write_shard(tmp_path, _shard())
+    monkeypatch.setattr(shards_mod, "_shard_cache", OrderedDict())
+    monkeypatch.setattr(shards_mod, "_shard_cache_bytes", 0)
+    monkeypatch.setattr(shards_mod, "_CACHE_MAX_BYTES", 1)  # nothing can ever fit
+
+    calls = []
+    real_parse = GraphShard.model_validate_json
+
+    def _tracked(*a, **kw):
+        calls.append(1)
+        return real_parse(*a, **kw)
+
+    monkeypatch.setattr(
+        GraphShard, "model_validate_json",
+        classmethod(lambda cls, *a, **kw: _tracked(*a, **kw)),
+    )
+
+    read_shard(tmp_path, "team/api")
+    read_shard(tmp_path, "team/api")
+
+    assert len(calls) == 2  # never cached -> reparsed on every call
+    assert len(shards_mod._shard_cache) == 0
+
+
+def test_shard_cache_evicts_lru_when_over_the_byte_budget(tmp_path, monkeypatch):
+    """Bounded by *estimated resident bytes*, not just entry count (an
+    entry-count cap alone would happily pin dozens of large repos' shards in
+    memory -- see the cache's docstring). With a budget that fits only one of
+    two same-size shards, reading a second, distinct repo must evict the
+    first (oldest) rather than growing unbounded."""
+    import contextlake.kb.store.shards as shards_mod
+
+    a = _shard()
+    b = a.model_copy(deep=True)
+    b.repo = "team/other"
+    write_shard(tmp_path, a)
+    write_shard(tmp_path, b)
+    size = shard_path(tmp_path, "team/api").stat().st_size
+
+    monkeypatch.setattr(shards_mod, "_shard_cache", OrderedDict())
+    monkeypatch.setattr(shards_mod, "_shard_cache_bytes", 0)
+    monkeypatch.setattr(shards_mod, "_RESIDENT_SIZE_MULTIPLIER", 1)
+    monkeypatch.setattr(shards_mod, "_CACHE_MAX_BYTES", int(size * 1.5))  # room for ~1
+
+    read_shard(tmp_path, "team/api")
+    assert len(shards_mod._shard_cache) == 1
+
+    read_shard(tmp_path, "team/other")
+    assert len(shards_mod._shard_cache) == 1  # api evicted to make room, not grown to 2
+    assert "other" in next(iter(shards_mod._shard_cache))

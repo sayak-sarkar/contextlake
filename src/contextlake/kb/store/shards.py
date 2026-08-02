@@ -33,14 +33,38 @@ _SHARD_WARN_BYTES = 50 * 1024 * 1024
 # ``write_shard`` additionally evicts its own entry synchronously, so a
 # same-process write is reflected on the very next read regardless of the
 # filesystem's mtime resolution.
-_CACHE_MAX_SHARDS = 256
+#
+# Bounded by *estimated resident bytes*, not entry count: a shard's parsed
+# pydantic objects (each Node/Edge, its nested Provenance, enum, several
+# strings) cost far more resident memory than its on-disk JSON -- measured at
+# ~13x on a real 20k-node/97k-edge shard (27.6 MB on disk -> ~363 MB resident,
+# via `resource.getrusage(...).ru_maxrss` before/after a single `read_shard`).
+# An entry-count cap alone (e.g. 256) would happily pin dozens of large repos'
+# shards in memory before ever firing -- a real OOM risk on the ~480-repo
+# fleet this is meant to serve, trading the fixed latency bug for a memory one.
+# `_RESIDENT_SIZE_MULTIPLIER` estimates resident cost from the cheap-to-get
+# on-disk size (rounded up from the measured ratio for safety margin); a
+# single shard that alone would exceed the whole budget is simply never
+# cached (still parsed and returned correctly -- it just loses the cross-request
+# speedup, which is the right trade-off for a single pathological outlier).
+_RESIDENT_SIZE_MULTIPLIER = 15
+# ~2 GiB of *estimated* resident bytes -- sized to comfortably cache at least
+# one repo at the originally-reported scale (a 75 MB on-disk shard estimates
+# to ~1.1 GiB resident at this multiplier) while still bounding total growth
+# to roughly that many large repos at once, not dozens.
+_CACHE_MAX_BYTES = 2 * 1024 * 1024 * 1024
+_CACHE_MAX_SHARDS = 128  # secondary bound: caps overhead if many small shards are hot
 _shard_cache: OrderedDict[str, tuple[int, int, GraphShard]] = OrderedDict()
+_shard_cache_bytes = 0  # running total of estimated resident bytes currently cached
 _shard_cache_lock = threading.Lock()
 
 
 def _cache_evict(path_key: str) -> None:
+    global _shard_cache_bytes
     with _shard_cache_lock:
-        _shard_cache.pop(path_key, None)
+        cached = _shard_cache.pop(path_key, None)
+        if cached is not None:
+            _shard_cache_bytes -= cached[1] * _RESIDENT_SIZE_MULTIPLIER
 
 
 def _cache_get(path_key: str, mtime_ns: int, size: int) -> GraphShard | None:
@@ -53,11 +77,24 @@ def _cache_get(path_key: str, mtime_ns: int, size: int) -> GraphShard | None:
 
 
 def _cache_put(path_key: str, mtime_ns: int, size: int, shard: GraphShard) -> None:
+    global _shard_cache_bytes
+    est_bytes = size * _RESIDENT_SIZE_MULTIPLIER
+    if est_bytes > _CACHE_MAX_BYTES:
+        return  # too big to cache at all -- caller still gets the parsed shard back
     with _shard_cache_lock:
+        old = _shard_cache.pop(path_key, None)
+        if old is not None:
+            _shard_cache_bytes -= old[1] * _RESIDENT_SIZE_MULTIPLIER
         _shard_cache[path_key] = (mtime_ns, size, shard)
-        _shard_cache.move_to_end(path_key)
-        while len(_shard_cache) > _CACHE_MAX_SHARDS:
-            _shard_cache.popitem(last=False)
+        _shard_cache_bytes += est_bytes
+        # Oldest-first eviction (this entry is always last, being just-inserted)
+        # until back under budget. The `len > 1` guard means a single entry that
+        # alone fits the budget (guaranteed by the check above) is never evicted
+        # by this loop -- only entries older than it are.
+        while (_shard_cache_bytes > _CACHE_MAX_BYTES or len(_shard_cache) > _CACHE_MAX_SHARDS) \
+                and len(_shard_cache) > 1:
+            _, evicted = _shard_cache.popitem(last=False)
+            _shard_cache_bytes -= evicted[1] * _RESIDENT_SIZE_MULTIPLIER
 
 
 class GraphShard(BaseModel):

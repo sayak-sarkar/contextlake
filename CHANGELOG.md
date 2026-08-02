@@ -45,9 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in-memory cache of the parsed shard (validated on every read against the file's own mtime/size, so
   a re-index — same process or a separate `contextlake index` run while `dashboard --serve` stays up
   — is still picked up correctly), and `repo_brief`'s degree/hubs/dispatchers/top-symbols aggregation
-  over every node and edge is cached the same way. Measured against a synthetic 54k-node/261k-edge
-  shard, a warm repeat request against an unchanged repo dropped from ~2.5s to ~0.24s; the first,
-  cold-cache request is unchanged.
+  over every node and edge is cached the same way. The shard cache is bounded by *estimated resident
+  bytes*, not entry count: a parsed shard's pydantic objects measured at roughly 13x their on-disk
+  JSON size, so an entry-count cap alone would have risked pinning dozens of large repos' shards in
+  memory on the ~480-repo fleet this targets. Measured against a synthetic 54k-node/261k-edge shard
+  (75 MB on disk), a warm repeat request against an unchanged repo dropped from ~2.5s to ~0.25s with
+  no added memory growth on further repeats; the first, cold-cache request is unchanged.
 
 ## [2.67.0] - 2026-07-31
 

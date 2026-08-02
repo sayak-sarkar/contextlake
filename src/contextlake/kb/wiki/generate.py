@@ -251,12 +251,30 @@ def _ranked_with_kind_floor(
 # stay computed fresh on every call. Keyed on the shard file's own
 # (mtime_ns, size), so a re-index (which rewrites the shard) invalidates it
 # the same way it invalidates the shard-parse cache.
+#
+# Deliberately excludes the repo's full ``all_files`` set: every other field
+# here is capped (<=80 symbols, <=20 files/packages/decisions), but the raw
+# file set is not, so a huge repo would make each cached entry itself large --
+# unlike the shard cache in ``store.shards``, this one has no byte budget, so
+# an unbounded field would defeat the point of bounding it by entry count.
+# ``repo_brief`` recomputes it fresh via ``_scoped_nodes_edges`` instead (a
+# cheap O(n) pass, unlike the aggregation actually being cached here).
+#
+# NOTE for future edits: every list/dict value below is shared, read-only,
+# across every caller that hits the cache -- never mutate a returned field
+# in place (e.g. ``brief["kinds"][...] = ...``); copy it first.
 _CORE_CACHE_MAX = 256
 _core_cache: OrderedDict[tuple, dict] = OrderedDict()
 _core_cache_lock = threading.Lock()
 
 
-def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
+def _scoped_nodes_edges(shard, path_prefix: str | None) -> tuple[list, list]:
+    """``(nodes, edges)`` scoped to ``path_prefix`` (segment-boundary match --
+    see ``repo_brief``'s docstring). Shared by the cached core aggregation
+    below and by ``repo_brief``'s own, deliberately-uncached recomputation of
+    ``all_files`` (kept out of the cached core dict -- see ``_core_cache``'s
+    docstring -- so this one small filtering pass runs twice per call; cheap,
+    unlike the aggregation it's shared with)."""
     nodes = shard.nodes
     if path_prefix:
         prefix_dir = path_prefix.rstrip("/") + "/"
@@ -268,6 +286,11 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
         edges = [e for e in shard.edges if e.src in node_ids and e.dst in node_ids]
     else:
         edges = shard.edges
+    return nodes, edges
+
+
+def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
+    nodes, edges = _scoped_nodes_edges(shard, path_prefix)
     by_id = {n.id: n for n in nodes}
     degree: Counter = Counter()
     in_degree: Counter = Counter()   # callers -- a hub, worth protecting with tests
@@ -326,7 +349,6 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
                        "doc": (n.attrs or {}).get("doc")}
                       for n in nodes if n.kind == "adr"][:20],
         "generated_paths_detected": generated_paths_detected,
-        "all_files": all_files,
     }
 
 
@@ -414,7 +436,10 @@ def repo_brief(
     if shard is None:
         return None
     core = _repo_brief_core(store_dir, repo_id, shard, path_prefix)
-    all_files = core["all_files"]
+    # Recomputed fresh (not part of the cached core -- see _core_cache's
+    # docstring): the full, uncapped file set, needed by _setup_signals.
+    nodes, _ = _scoped_nodes_edges(shard, path_prefix)
+    all_files = {n.file for n in nodes if n.file}
     return {
         "repo": repo_id,
         "head": shard.head_commit,
