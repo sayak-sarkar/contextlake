@@ -90,6 +90,43 @@ def test_repo_brief_caches_the_shard_aggregation(tmp_path, monkeypatch):
     assert third["node_count"] == 1
 
 
+def test_repo_brief_picks_up_a_same_process_rewrite_of_identical_size(tmp_path):
+    """A shard this process rewrites must invalidate the cached aggregation even
+    when the new file's (mtime_ns, size) is indistinguishable from the old
+    one's -- a re-index at an unchanged commit can emit a same-length shard
+    within a single filesystem mtime tick. ``write_shard`` already evicts the
+    shard-PARSE cache for exactly this reason; the aggregation cache keys on
+    the same identity and needs the same treatment, or the freshly re-parsed
+    shard's ``head`` would be served alongside the previous shard's
+    ``top_symbols``. The two observations are pinned to one (mtime, size) here
+    so the fix is guarded structurally, not by racing the clock."""
+    import os
+
+    from contextlake.kb.store.shards import shard_path
+
+    def _write(head, name):
+        write_shard(tmp_path, GraphShard(
+            repo="r", head_commit=head,
+            nodes=[Node(id="n1", repo="r", kind="function", name=name, file="a.py")],
+            edges=[],
+        ))
+
+    p = shard_path(tmp_path, "r")
+    _write("aaa111", "Alpha")
+    size_before, stamp = p.stat().st_size, 1_700_000_000_000_000_000
+    os.utime(p, ns=(stamp, stamp))
+    assert repo_brief(tmp_path, "r")["top_symbols"][0]["name"] == "Alpha"
+
+    _write("bbb222", "Bravo")   # same field widths -> same serialized length
+    os.utime(p, ns=(stamp, stamp))
+    # the test's own premise: nothing about the file's identity changed
+    assert p.stat().st_size == size_before and p.stat().st_mtime_ns == stamp
+
+    after = repo_brief(tmp_path, "r")
+    assert after["head"] == "bbb222"
+    assert after["top_symbols"][0]["name"] == "Bravo"
+
+
 def test_repo_brief_observes_the_shard_file_only_once(tmp_path, monkeypatch):
     """repo_brief must resolve the shard's on-disk identity (path/mtime/size)
     exactly ONCE per call and thread that same observation into the cached

@@ -113,12 +113,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   over every node and edge is cached the same way. The shard cache is bounded by *estimated resident
   bytes*, not entry count: a parsed shard's pydantic objects measured at roughly 13x their on-disk
   JSON size, so an entry-count cap alone would have risked pinning dozens of large repos' shards in
-  memory on the ~480-repo fleet this targets. Measured against a synthetic 54k-node/261k-edge shard
-  (75 MB on disk), a warm repeat request against an unchanged repo dropped from ~2.5s to ~0.25s with
-  no added memory growth on further repeats; the first, cold-cache request is unchanged. `repo_brief`
-  observes the shard file's on-disk identity exactly once per call now (previously twice, one
-  independent `stat()` each for the shard-parse cache and the aggregation cache) so a rewrite landing
-  between those two observations can no longer pair a stale aggregation with a fresh `head`.
+  memory on the multi-hundred-repo fleets this targets. Measured against a synthetic
+  54k-node/261k-edge shard (75 MB on disk), a warm repeat request against an unchanged repo dropped
+  from ~2.5s to ~0.25s with no added memory growth on further repeats; the first, cold-cache request
+  is unchanged. Both caches are correct under a rewrite this process makes itself: `write_shard`
+  drops its entries in each, so a re-index at an unchanged commit that happens to emit a same-length
+  shard within one filesystem mtime tick cannot serve a stale aggregation under a fresh `head`. And
+  `repo_brief` observes the shard file's on-disk identity exactly once per call (previously twice,
+  one independent `stat()` each for the shard-parse cache and the aggregation cache) so a rewrite
+  landing between those two observations can't pair mismatched halves either.
 
 ## [2.67.0] - 2026-07-31
 

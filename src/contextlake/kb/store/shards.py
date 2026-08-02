@@ -40,8 +40,8 @@ _SHARD_WARN_BYTES = 50 * 1024 * 1024
 # ~13x on a real 20k-node/97k-edge shard (27.6 MB on disk -> ~363 MB resident,
 # via `resource.getrusage(...).ru_maxrss` before/after a single `read_shard`).
 # An entry-count cap alone (e.g. 256) would happily pin dozens of large repos'
-# shards in memory before ever firing -- a real OOM risk on the ~480-repo
-# fleet this is meant to serve, trading the fixed latency bug for a memory one.
+# shards in memory before ever firing -- a real OOM risk on the multi-hundred-
+# repo fleets this is meant to serve, trading a latency bug for a memory one.
 # `_RESIDENT_SIZE_MULTIPLIER` estimates resident cost from the cheap-to-get
 # on-disk size (rounded up from the measured ratio for safety margin); a
 # single shard that alone would exceed the whole budget is simply never
@@ -59,12 +59,35 @@ _shard_cache_bytes = 0  # running total of estimated resident bytes currently ca
 _shard_cache_lock = threading.Lock()
 
 
+# Caches held *elsewhere* that are derived from a parsed shard and keyed on the
+# same (path, mtime_ns, size) identity -- ``wiki.generate``'s ``repo_brief``
+# aggregation is the one in tree. They need the same same-process invalidation
+# ``write_shard`` gives this cache, and for the same reason: a rewrite whose
+# (mtime_ns, size) happens to match the previous file's (a re-index at an
+# unchanged commit producing byte-identical-length output, on a filesystem whose
+# real mtime resolution is coarser than a nanosecond) is invisible to an
+# identity check alone. Without this, a derived cache could pair a stale
+# aggregation with the freshly-read shard's ``head_commit`` -- exactly the
+# split-observation mismatch ``read_shard_with_identity`` exists to prevent.
+_derived_invalidators: list = []
+
+
+def register_shard_invalidator(fn) -> None:
+    """Register ``fn(path_key)``, called whenever this process rewrites a shard,
+    so a cache derived from that shard drops its entries for it too."""
+    _derived_invalidators.append(fn)
+
+
 def _cache_evict(path_key: str) -> None:
     global _shard_cache_bytes
     with _shard_cache_lock:
         cached = _shard_cache.pop(path_key, None)
         if cached is not None:
             _shard_cache_bytes -= cached[1] * _RESIDENT_SIZE_MULTIPLIER
+    # Outside the lock: an invalidator takes its own lock, and nesting this one
+    # around it would be the only place the two are ever held together.
+    for fn in _derived_invalidators:
+        fn(path_key)
 
 
 def _cache_get(path_key: str, mtime_ns: int, size: int) -> GraphShard | None:

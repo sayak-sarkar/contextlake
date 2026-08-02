@@ -14,7 +14,11 @@ from collections import Counter, OrderedDict
 from datetime import date
 from pathlib import Path
 
-from ..store.shards import read_shard, read_shard_with_identity
+from ..store.shards import (
+    read_shard,
+    read_shard_with_identity,
+    register_shard_invalidator,
+)
 
 # Conventional entry-point/config filenames -- presence-only signal for the
 # "Setup & Run" section (never file contents beyond the README excerpt below,
@@ -263,7 +267,10 @@ def _ranked_with_kind_floor(
 # shard itself changing (e.g. editing the README without re-indexing); those
 # stay computed fresh on every call. Keyed on the shard file's own
 # (mtime_ns, size), so a re-index (which rewrites the shard) invalidates it
-# the same way it invalidates the shard-parse cache.
+# the same way it invalidates the shard-parse cache -- plus the same explicit
+# same-process invalidation ``write_shard`` performs (see
+# ``_invalidate_for_shard`` below), because that identity alone is not enough
+# for a rewrite this process just made.
 #
 # Deliberately excludes the repo's full ``all_files`` set: every other field
 # here is capped (<=80 symbols, <=20 files/packages/decisions), but the raw
@@ -279,6 +286,26 @@ def _ranked_with_kind_floor(
 _CORE_CACHE_MAX = 256
 _core_cache: OrderedDict[tuple, dict] = OrderedDict()
 _core_cache_lock = threading.Lock()
+
+
+def _invalidate_for_shard(path_key: str) -> None:
+    """Drop every cached aggregation derived from the shard file ``path_key``
+    (one entry per ``path_prefix`` this process has briefed that repo under).
+
+    Registered with ``store.shards`` so a shard THIS process rewrites clears
+    this cache as well, not just the shard-parse cache. The (mtime_ns, size)
+    key alone can miss such a rewrite -- a re-index at an unchanged commit can
+    produce a same-length file within one filesystem mtime tick -- and missing
+    it here is worse than missing it there: the shard would be re-read fresh
+    while this cache still answered from the previous one, putting a stale
+    ``node_count``/``top_symbols`` under a fresh ``head`` in the same brief.
+    """
+    with _core_cache_lock:
+        for key in [k for k in _core_cache if k[0] == path_key]:
+            del _core_cache[key]
+
+
+register_shard_invalidator(_invalidate_for_shard)
 
 
 def _scoped_nodes_edges(shard, path_prefix: str | None) -> tuple[list, list]:
