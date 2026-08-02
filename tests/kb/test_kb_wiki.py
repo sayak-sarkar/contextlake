@@ -1135,6 +1135,50 @@ def test_cmd_wiki_module_pages_link_through_the_real_repo_not_the_partition_key(
                and e.relation == "documented_by" for e in shard.edges)
 
 
+def test_cmd_wiki_backfills_symbol_links_into_a_partition_from_an_older_build(
+        tmp_path, monkeypatch):
+    """Every store that has already run `wiki` has a present, commit-fresh
+    partition -- so the freshness path, not just the first generation, has to
+    backfill the symbol links. Otherwise the feature lands on nobody without a
+    full --force regeneration of the whole fleet."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.upsert_nodes("r", [Node(id="svc", repo="r", kind="class",
+                                  name="CatalogService", file="svc.py")])
+    store.close()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    # rewind to the pre-linking era: the partition is present and its page is
+    # commit-fresh, but its nodes predate linking and it has no edges
+    store = SqliteStore(store_dir / "index.sqlite")
+    old = [store.get_node(f"@wiki:r:{i}") for i in (0, 1)]
+    store.clear_repo("@wiki:r")
+    for n in old:
+        n.attrs.pop("symbol_links", None)
+    store.upsert_nodes("@wiki:r", old)
+    assert store.neighbors("svc", relation="documented_by", direction="out") == []
+    store.close()
+
+    calls = {"n": 0}
+
+    class _CountingLlm(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            calls["n"] += 1
+            return super().generate(prompt, system=system)
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _CountingLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert calls["n"] == 0                    # freshness-skipped: no LLM call
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:                                      # ...but the links are backfilled
+        live = store.neighbors("svc", relation="documented_by", direction="out")
+        assert [e.dst for e in live] == ["@wiki:r:1"]
+    finally:
+        store.close()
+
+
 def test_cmd_wiki_backfills_partition_for_skipped_fresh_pages(tmp_path, monkeypatch):
     """A page that freshness-skips (written before the partition existed) still
     gets its @wiki partition built, without a new LLM call."""

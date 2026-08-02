@@ -65,9 +65,26 @@ def _wiki_section_nodes(repo_id: str, page: str, filename: str, *,
     for i, (t, body) in enumerate(sections):
         nodes.append(Node(id=f"{part}:{i}", repo=part, kind="wiki",
                           name=f"{repo_id} wiki: {t}", file=f"wiki/{filename}",
-                          attrs={"advisory": True, "source_repo": attributed_repo}))
+                          attrs={"advisory": True, "source_repo": attributed_repo,
+                                 "symbol_links": True}))
         texts.append(f"{t}\n{body}")
     return nodes, texts
+
+
+def _partition_needs_backfill(store, wiki_key: str) -> bool:
+    """Whether ``wiki_key``'s stored partition predates something this build
+    writes, and so must be re-stored even though its page is commit-fresh.
+
+    Two eras to catch: no partition at all, and a partition written before
+    section->symbol linking existed. The marker lives on the *nodes*
+    (``attrs["symbol_links"]``) rather than being inferred from whether the
+    partition has edges, because "this page mentions no symbols" is a perfectly
+    normal zero-edge outcome -- the page's own title stub section is always one
+    -- and inferring from edges would re-store and re-embed those pages on
+    every single run, forever.
+    """
+    first = store.get_node(f"{_wiki_partition(wiki_key)}:0")
+    return first is None or not first.attrs.get("symbol_links")
 
 
 def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
@@ -488,9 +505,16 @@ def cmd_wiki(args) -> int:
                     # run would name.
                     want = subsystem_names(subsystem_modules)
                     if recorded_subsystems(prev) == want:
-                        # Backfill: a page written before the @wiki partition existed
-                        # gets its sections stored/embedded without a new LLM call.
-                        if store.get_node(f"{_wiki_partition(wiki_key)}:0") is None:
+                        # Backfill: a page written before the @wiki partition
+                        # existed -- or before that partition carried symbol
+                        # links -- gets its sections (re)stored, linked and
+                        # embedded without a new LLM call. The second case is
+                        # the whole reason linking lands at all on a store that
+                        # has run `wiki` before: its pages are commit-fresh, so
+                        # every one of them would otherwise skip this write and
+                        # stay edge-free until an unrelated commit moved or the
+                        # user paid a full --force regeneration of the fleet.
+                        if _partition_needs_backfill(store, wiki_key):
                             _store_wiki_partition(store, store_dir, wiki_key, prev,
                                                   rel_filename, head, embedder, vs,
                                                   cfg.embeddings.batch_size,
