@@ -92,7 +92,9 @@ term-searchable source must be configured: either an `mcp` source with `tool` an
 an `atlassian` source. Sources without these capabilities (e.g. a plain `files` or `web` source) are
 skipped gracefully. Each repo's enrichment documents are stored in their own partition so they can be
 re-fetched without clobbering prior results, and are embedded (when the semantic tier is enabled) so they
-surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). After
+surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). A result
+that names one of the repo's symbols is also linked straight to it (`documented_by`), so the enrichment
+lands on the graph rather than beside it. After
 `contextlake kb wiki` runs, enrichment docs are incorporated into the curated wiki as an attributed "External
 context" section, grounded to the code graph's terms.
 

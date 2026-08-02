@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kb ingest --for-repo <repo>` flag (per-source equivalent: `for_repo` on a `[[sources]]` entry)
   that says which indexed repo the documents are about. Without it, ingest behaves exactly as
   before and links nothing.
+- Enrichment results (`kb enrich`) now link to the code symbols they mention by name, instead of
+  being stored as isolated document nodes with no edges at all.
 - GitLab merge requests now link directly to the code files their diff touches (not just their
   repo), via a new `fetch_changes`/`match_files_to_nodes` pair.
 - Figma designs now link directly to code symbols whose name matches a frame or component name,

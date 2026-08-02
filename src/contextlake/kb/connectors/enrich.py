@@ -19,6 +19,7 @@ from ..sources.base import Document
 from ..store.shards import GraphShard, write_shard
 from ..wiki.generate import repo_brief
 from .mcp_query import _cfg_get, _normalize, mcp_tool_query
+from .text_match import link_documents_to_symbols
 
 
 def enrich_partition(repo_id: str) -> str:
@@ -97,6 +98,11 @@ def run_enrich_repo(
     in ``cfg.sources``, and store the results in its ``@enrich:<repo_id>``
     partition (clear-then-write, so re-running never accumulates duplicates).
 
+    Each stored result is additionally matched (whole-word) against ``repo_id``'s
+    own symbol names, so a document that names a symbol gets a ``documented_by``
+    edge straight to it rather than only existing as an isolated node -- the
+    partition used to be written with ``edges=[]`` unconditionally.
+
     Returns the number of documents stored (0 with no terms or no results).
     """
     terms = build_terms(store_dir, repo_id)
@@ -117,9 +123,16 @@ def run_enrich_repo(
             nodes.append(_document_node(part, doc, _cfg_get(src, "type")))
             texts.append(doc.text)
 
+    # An enrichment result is, by construction, a document about THIS repo -- so
+    # link each one to the symbols of it the result actually names. The edges are
+    # stored under the enrichment partition, so the clear_repo below drops a
+    # previous run's along with its nodes.
+    edges = link_documents_to_symbols(store, repo_id, nodes, texts, "documented_by", "enrich")
+
     store.clear_repo(part)
     store.upsert_nodes(part, nodes)
-    write_shard(store_dir, GraphShard(repo=part, head_commit="enrich", nodes=nodes, edges=[]))
+    store.upsert_edges(part, edges)
+    write_shard(store_dir, GraphShard(repo=part, head_commit="enrich", nodes=nodes, edges=edges))
 
     # Clear this partition's stale vectors unconditionally (mirroring the graph
     # store.clear_repo above) -- a source that stops returning a doc a prior run

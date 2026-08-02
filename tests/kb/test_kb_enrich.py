@@ -240,6 +240,39 @@ def test_enrich_repo_no_sources_clears_partition_returns_zero(tmp_path):
         store.close()
 
 
+def test_enrich_repo_links_documents_to_the_symbols_they_mention(tmp_path, monkeypatch):
+    store_dir = tmp_path / "kbstore"
+    _seed_shard(store_dir)
+    store = _store(store_dir)
+    try:
+        # the matcher reads symbols out of the index, not the shard
+        store.upsert_nodes(REPO, [
+            Node(id="n2", repo=REPO, kind="function", name="chargeCard", file="app/billing.py"),
+        ])
+        docs = [
+            Document(id="d1", title="Runbook", text="chargeCard retries twice", uri="https://x/1"),
+            Document(id="d2", title="Offsite", text="lunch is at noon", uri="https://x/2"),
+        ]
+        monkeypatch.setattr(enrich, "search_source", lambda src, terms, timeout=None: docs)
+        cfg = KbConfig(sources=[SourceCfg(type="atlassian", name="site-a")])
+
+        assert run_enrich_repo(store, store_dir, cfg, REPO) == 2
+
+        part = enrich_partition(REPO)
+        shard = read_shard(store_dir, part)
+        assert any(e.src == "n2" and e.dst == f"{part}:d1" and e.relation == "documented_by"
+                   for e in shard.edges)
+        # a result mentioning nothing gets no edges at all, not even the repo-level one
+        assert not any(e.dst == f"{part}:d2" for e in shard.edges)
+        assert [e.dst for e in store.neighbors("n2", direction="out")] == [f"{part}:d1"]
+
+        # a re-run replaces the partition's edges rather than accumulating them
+        assert run_enrich_repo(store, store_dir, cfg, REPO) == 2
+        assert [e.dst for e in store.neighbors("n2", direction="out")] == [f"{part}:d1"]
+    finally:
+        store.close()
+
+
 def test_enrich_repo_no_terms_returns_zero_without_touching_store(tmp_path):
     store_dir = tmp_path / "kbstore"
     store = _store(store_dir)
