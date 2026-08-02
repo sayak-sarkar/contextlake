@@ -1,11 +1,6 @@
 # Configuration files with sensitive data
-.gitlab_sync.ini
 .contextlake.ini
 .contextlake.kb.toml
-
-# Cache files
-/tmp/*.txt
-/tmp/*.json
 
 # Python cache
 __pycache__/
@@ -36,10 +31,13 @@ coverage.xml
 # Local project planning notes (may reference private data — never published)
 .notes/
 
-
 # Local end-to-end testing sandbox: cloned public repos + isolated contextlake store.
 # Never committed (transient test data, can be large).
 playground/
 
 # Claude Code session state: agent worktrees, job scratch dirs. Local only.
 .claude/
+
+# superpowers:subagent-driven-development plan workspaces (task briefs, review
+# packages, progress ledger). Self-cleaning, but must never enter git history.
+.superpowers/
