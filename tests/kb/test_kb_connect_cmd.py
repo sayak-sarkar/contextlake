@@ -5,7 +5,9 @@ from argparse import Namespace
 
 import contextlake.kb.connectors.orchestrate as orch
 import contextlake.kb.references as refs
+from contextlake.kb.cmds.connect import _rule_patterns
 from contextlake.kb.commands import cmd_connect
+from contextlake.kb.config import RuleCfg
 from contextlake.kb.connectors.orchestrate import connect_partition
 from contextlake.kb.state import check_schema
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -158,6 +160,21 @@ def test_connect_returns_nonzero_when_all_sources_fail(tmp_path, monkeypatch):
 
 def test_partition_name():
     assert connect_partition("group/app") == "@connect:group/app"
+
+
+def test_rule_patterns_includes_builtin_defaults_when_unconfigured():
+    branch_key, link_patterns = _rule_patterns([])  # no [[rules]] at all
+    assert branch_key is None
+    assert any("figma.com" in p for p in link_patterns)
+    assert any("slack.com" in p for p in link_patterns)
+
+
+def test_rule_patterns_explicit_link_scrape_rule_still_works_alongside_defaults():
+    rules = [RuleCfg(type="link_scrape", pattern=r"https://internal\.wiki/\S+")]
+    branch_key, link_patterns = _rule_patterns(rules)
+    assert any("internal" in p for p in link_patterns)
+    assert any("figma.com" in p for p in link_patterns)  # built-ins still present
+    assert any("slack.com" in p for p in link_patterns)
 
 
 _FIGMA_CONFIG = """

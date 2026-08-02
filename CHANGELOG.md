@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `connect` now discovers Figma and Slack links in docs by default (built-in URL patterns) -- no
+  `[[rules]] type="link_scrape"` config required, matching how GitLab sources were already default-on.
 - New shared text-mention matcher (`connectors/text_match.py`), reused by Slack and by
   ingested/enriched/wiki content to find which code symbols a piece of text is actually about.
 - Connectors can now link external content directly to the code it's about via a new shared

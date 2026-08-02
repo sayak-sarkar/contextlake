@@ -11,12 +11,26 @@ from ._common import (
     _watch_loop,
 )
 
+# Built-in doc-link patterns, always merged into the configured `link_scrape`
+# patterns -- so Figma/Slack link discovery works with zero `[[rules]]` config,
+# the same way GitLab sources are already discovered without one.
+_DEFAULT_LINK_PATTERNS = {
+    # Trailing chars excluded from the capture so a markdown-linked or
+    # sentence-trailing URL (`[flow](https://.../Flow)`, `...archives/C1.`)
+    # doesn't drag `)`/`.`/etc. into the file key or channel id. `:` stays
+    # allowed -- real Figma `node-id` query values can carry it unencoded.
+    "figma.com": r"https://(?:www\.)?figma.com/(?:file|design)/[^\s)\]>.,;'\"}]+",
+    "slack.com": r"https://[\w-]+\.slack.com/archives/[^\s)\]>.,;'\"}]+",
+}
+
 
 def _rule_patterns(rules) -> tuple[str | None, list[str]]:
     """Pull the issue-key pattern and doc-link patterns out of configured rules.
 
     A ``link_scrape`` rule may carry a single ``pattern`` or a ``patterns`` list
-    (the latter is what the example config uses); both are accepted.
+    (the latter is what the example config uses); both are accepted. The
+    built-in Figma/Slack patterns (``_DEFAULT_LINK_PATTERNS``) are always
+    merged in, deduplicated against whatever was explicitly configured.
     """
     branch_key = None
     link_patterns = []
@@ -30,6 +44,9 @@ def _rule_patterns(rules) -> tuple[str | None, list[str]]:
             link_patterns.extend(
                 p for p in (extra.get("patterns") or []) if isinstance(p, str)
             )
+    for builtin_pattern in _DEFAULT_LINK_PATTERNS.values():
+        if builtin_pattern not in link_patterns:
+            link_patterns.append(builtin_pattern)
     return branch_key, link_patterns
 
 
