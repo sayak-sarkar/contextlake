@@ -272,7 +272,13 @@ def cmd_wiki(args) -> int:
         render_cluster_prompt,
     )
     from ..wiki.council import LENSES, council_gate
-    from ..wiki.generate import generate_page, render_prompt, repo_brief
+    from ..wiki.generate import (
+        generate_page,
+        recorded_subsystems,
+        render_prompt,
+        repo_brief,
+        subsystem_names,
+    )
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "wiki"):
@@ -416,7 +422,9 @@ def cmd_wiki(args) -> int:
             ``generate_page`` call below so the whole-repo page can name its
             subsystem pages -- callers must only pass this for the whole-repo
             page (``path_prefix=None``); a module page describing one slice
-            of the repo doesn't itself have "subsystems".
+            of the repo doesn't itself have "subsystems". It is also half of
+            the freshness check: a page is only skipped when its commit is
+            unchanged AND it already names these same subsystems.
             """
             # Relative to wiki_dir, not just the basename -- a module page lives
             # under wiki/_modules/, so its Node.file citation must say so
@@ -428,14 +436,28 @@ def cmd_wiki(args) -> int:
                 prev = wiki_file.read_text(encoding="utf-8", errors="replace")
                 m = re.search(r"at commit `([^`]+)`", prev)
                 if m and m.group(1) == head:
-                    # Backfill: a page written before the @wiki partition existed
-                    # gets its sections stored/embedded without a new LLM call.
-                    if store.get_node(f"{_wiki_partition(wiki_key)}:0") is None:
-                        _store_wiki_partition(store, store_dir, wiki_key, prev,
-                                              rel_filename, head, embedder, vs,
-                                              cfg.embeddings.batch_size,
-                                              source_repo=repo_id)
-                    return "skipped"
+                    # An unchanged commit means the page's CONTENT inputs are
+                    # unchanged -- it does NOT mean the page was generated with
+                    # the generation inputs in force today. A store wiki'd
+                    # before subsystem naming shipped (or whose module set
+                    # moved without a commit moving) is commit-fresh and
+                    # field-stale; skipping on the commit alone froze it that
+                    # way until its commit changed or --force was passed. Ask
+                    # the two questions separately: the page's own footer
+                    # records what it names, so compare that against what this
+                    # run would name.
+                    want = subsystem_names(subsystem_modules)
+                    if recorded_subsystems(prev) == want:
+                        # Backfill: a page written before the @wiki partition existed
+                        # gets its sections stored/embedded without a new LLM call.
+                        if store.get_node(f"{_wiki_partition(wiki_key)}:0") is None:
+                            _store_wiki_partition(store, store_dir, wiki_key, prev,
+                                                  rel_filename, head, embedder, vs,
+                                                  cfg.embeddings.batch_size,
+                                                  source_repo=repo_id)
+                        return "skipped"
+                    log(f"  {label}: commit unchanged, but the page does not name the "
+                        "subsystem pages this repo now has — regenerating it", inline=True)
             # `store` unlocks two repo-root-only, never-path_prefix-scoped
             # live-checkout reads inside repo_brief (readme_excerpt, and
             # setup_signals' recursive legacy-build-tooling walk + top-level

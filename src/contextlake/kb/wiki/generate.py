@@ -8,6 +8,7 @@ invents. Every page ends with a provenance footer citing the commit and sources.
 from __future__ import annotations
 
 import os
+import re
 import threading
 from collections import Counter, OrderedDict
 from datetime import date
@@ -580,9 +581,39 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
     return "\n".join(lines)
 
 
+# The footer records which subsystem pages a whole-repo page names, so a
+# caller can answer "was this page generated with the current set of
+# generation inputs?" separately from "is its commit unchanged?". Those two
+# questions have different answers: a store wiki'd before subsystem naming
+# existed, or one whose module set changed without a commit changing, is
+# commit-fresh but field-stale, and a freshness check that only asks about the
+# commit freezes it that way until the commit moves or `--force` is passed.
+_SUBSYSTEM_FOOTER_RE = re.compile(r"Subsystem pages: (`[^*]+`)\.")
+
+
+def subsystem_names(subsystem_modules: list[dict] | None) -> str:
+    """Canonical, order-independent rendering of a page's named subsystems --
+    the comparable form of both what a page RECORDS (see
+    :func:`recorded_subsystems`) and what a caller is about to generate."""
+    return ",".join(sorted(m["prefix"] for m in subsystem_modules or []))
+
+
+def recorded_subsystems(page: str) -> str:
+    """The subsystems an already-written page's footer says it names, in
+    :func:`subsystem_names` form. ``""`` for a page that names none -- which is
+    also what a page written before subsystem naming existed returns, so a
+    non-federated repo's existing page is never regenerated just for this."""
+    m = _SUBSYSTEM_FOOTER_RE.search(page)
+    return ",".join(sorted(re.findall(r"`([^`]+)`", m.group(1)))) if m else ""
+
+
 def provenance_footer(brief: dict, verified_at: date | None = None, *,
                       path_prefix: str | None = None) -> str:
     cites = ", ".join(f"`{f}`" for f in brief["files"][:10])
+    named = ", ".join(f"`{m['prefix']}`"
+                      for m in sorted(brief.get("subsystem_modules") or [],
+                                      key=lambda m: m["prefix"]))
+    subsystems = f" Subsystem pages: {named}." if named else ""
     coverage = ""
     if brief.get("grounded_count") is not None and brief.get("node_count"):
         pct = round(100 * brief["grounded_count"] / brief["node_count"], 1)
@@ -595,6 +626,7 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
         f"`{brief['head']}` on {verified_at or date.today()}."
         + (f" Sources: {cites}." if cites else "")
         + coverage
+        + subsystems
         + "*"
     )
 

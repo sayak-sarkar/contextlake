@@ -32,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page or is getting one this run — so the named set accumulates run over run instead of tracking
   only the current slice — and the truncation log line now says how many modules were deferred to a
   later run instead of claiming they were skipped outright.
+- **An existing store now picks up the "overview names its subsystem pages" feature without a
+  `--force` regeneration.** The freshness check asked one question — is the commit unchanged? — and
+  skipped the page before the subsystem-naming field was ever consulted, so a repo already wiki'd at
+  its current commit kept an overview page that said nothing about the subsystem pages sitting
+  beside it, indefinitely. A wiki page's footer now records which subsystem pages it names, and the
+  check asks the two questions separately: a page is skipped only when its commit is unchanged AND
+  it already names the subsystems this run would name. A page that names none (every non-federated
+  repo, and every page written before this existed) records none and is still skipped, so there is
+  no fleet-wide regeneration.
 - **Each wiki page is now built from one `repo_brief`, not two.** `cmd_wiki` needs the brief itself
   for the council's review prompt, and `generate_page` then built a second, identical one
   internally. The parts of a brief that sit outside its cached shard aggregation are real I/O — the

@@ -1666,3 +1666,49 @@ def test_cmd_wiki_builds_each_page_brief_exactly_once(tmp_path, monkeypatch):
     for m in range(6):
         assert scopes.count(f"mod{m}") == 1
     assert len(scopes) == 7
+
+
+def test_cmd_wiki_backfills_subsystem_naming_onto_an_unchanged_commit(
+        tmp_path, monkeypatch, gls_logs):
+    """A store wiki'd BEFORE subsystem naming shipped never gained it: the
+    freshness check asked only "is the commit unchanged?", so the overview page
+    was skipped and kept saying nothing about the subsystem pages sitting
+    beside it -- until its commit moved or `--force` was passed. A page's own
+    footer now records what it names, so "does this page need this field?" is
+    asked separately from "has the commit changed?"."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _SubsystemEchoingLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    # Rewind the overview page to its pre-feature shape: same commit, same
+    # provenance footer, but no subsystem naming and no record of any.
+    page_file = store_dir / "wiki" / "fed.md"
+    pre_feature = "\n".join(
+        line for line in page_file.read_text().splitlines()
+        if "broken into subsystems" not in line
+    ).replace(" Subsystem pages: " + ", ".join(f"`mod{m}`" for m in range(6)) + ".", "")
+    page_file.write_text(pre_feature)
+    assert "broken into subsystems" not in pre_feature
+    assert "Subsystem pages:" not in pre_feature
+    assert "at commit `fedhead`" in pre_feature      # commit is unchanged
+
+    second = _SubsystemEchoingLlm(score=0.95)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: second)
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    refreshed = page_file.read_text()
+    assert "broken into subsystems" in refreshed
+    for m in range(6):
+        assert f"`mod{m}`" in refreshed.rsplit("---", 1)[-1]   # recorded in the footer
+    assert "does not name the subsystem pages this repo now has" in gls_logs.text
+    # Only the overview was regenerated -- the module pages are commit-fresh
+    # AND field-fresh, so a stale field on one page must not drag them along.
+    assert len(second.page_prompts) == 1
+
+    # Now that the field is current, an unchanged commit skips again: the
+    # decoupled check must not turn into "always regenerate".
+    third = _SubsystemEchoingLlm(score=0.95)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: third)
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert third.page_prompts == []

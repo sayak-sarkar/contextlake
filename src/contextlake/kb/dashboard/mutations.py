@@ -274,11 +274,16 @@ def wiki_generate_estimate(store, store_dir, *, repo_id: str | None = None,
                            force: bool = False) -> dict:
     """Read-only, no LLM call: how many repos would actually regenerate.
 
-    Replicates ``cmds.wiki.cmd_wiki``'s exact freshness-skip check (the
-    ``at commit `<sha>``` provenance-footer regex) so the dashboard can show a
-    real count before the user confirms a run. With ``force``, every targeted
-    repo counts as "would regenerate" -- the estimate makes that cost explicit
-    instead of it being a surprise after the run has already started.
+    Replicates the COMMIT half of ``cmds.wiki.cmd_wiki``'s freshness-skip check
+    (the ``at commit `<sha>``` provenance-footer regex) so the dashboard can
+    show a real count before the user confirms a run. Deliberately not the
+    whole check: ``cmd_wiki`` also regenerates a commit-unchanged page whose
+    recorded subsystem pages no longer match the repo's current modules, and
+    answering that here would mean running ``repo_modules`` per repo on an
+    interactive request. So this is a lower bound -- a run can regenerate more
+    than estimated, never fewer. With ``force``, every targeted repo counts as
+    "would regenerate" -- the estimate makes that cost explicit instead of it
+    being a surprise after the run has already started.
     """
     from ..wiki.generate import repo_brief
 
