@@ -8,6 +8,7 @@ import contextlake.kb.llm.base as llm_base
 from contextlake.kb import commands as commands_mod
 from contextlake.kb.commands import cmd_wiki
 from contextlake.kb.connectors.enrich import enrich_partition
+from contextlake.kb.ids import make_id
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.parse import index_repo_dir
 from contextlake.kb.state import check_schema
@@ -1106,6 +1107,34 @@ def test_cmd_wiki_links_page_sections_to_the_symbols_they_mention(tmp_path, monk
     try:
         live = store.neighbors("svc", relation="documented_by", direction="out")
         assert [e.dst for e in live] == ["@wiki:r:1"]
+    finally:
+        store.close()
+
+
+def test_cmd_wiki_does_not_attach_its_own_pages_to_the_repos_external_links(
+        tmp_path, monkeypatch):
+    """The repo-level `documented_by` edge is what the "external knowledge"
+    surfaces read (`get_repo_links`, the dashboard's `_links_for`) -- and a wiki
+    page is contextlake's OWN output, not a third-party cross-link like a Jira
+    issue or a Figma frame. Probed the way those surfaces read it: outgoing
+    neighbours of the repo node."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.upsert_nodes("r", [Node(id="svc", repo="r", kind="class",
+                                  name="CatalogService", file="svc.py")])
+    store.close()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    shard = read_shard(store_dir, "@wiki:r")
+    assert not any(e.src == make_id("repo", "r") for e in shard.edges)
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        assert store.neighbors(make_id("repo", "r"), direction="out") == []
+        # ...while the symbol-side links the page exists for are still there
+        assert store.neighbors("svc", relation="documented_by", direction="out")
     finally:
         store.close()
 

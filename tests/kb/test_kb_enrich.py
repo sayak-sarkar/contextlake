@@ -12,6 +12,7 @@ from contextlake.kb.connectors.enrich import (
     run_enrich_repo,
     search_source,
 )
+from contextlake.kb.ids import make_id
 from contextlake.kb.model import Confidence, Edge, Node, Provenance
 from contextlake.kb.sources.base import Document
 from contextlake.kb.state import check_schema
@@ -265,6 +266,13 @@ def test_enrich_repo_links_documents_to_the_symbols_they_mention(tmp_path, monke
         # a result mentioning nothing gets no edges at all, not even the repo-level one
         assert not any(e.dst == f"{part}:d2" for e in shard.edges)
         assert [e.dst for e in store.neighbors("n2", direction="out")] == [f"{part}:d1"]
+        # ...but a result that DOES mention something keeps its repo-level edge:
+        # an enrichment hit is genuinely third-party knowledge about the repo, so
+        # it belongs in the "external knowledge" surfaces (`get_repo_links` /
+        # the dashboard's `_links_for`). Deliberately unlike the wiki, whose
+        # pages are contextlake's own output and are symbol-linked only.
+        assert [e.dst for e in store.neighbors(make_id("repo", REPO), direction="out")
+                if e.relation == "documented_by"] == [f"{part}:d1"]
 
         # a re-run replaces the partition's edges rather than accumulating them
         assert run_enrich_repo(store, store_dir, cfg, REPO) == 2

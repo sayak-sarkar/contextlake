@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enrichment results (`kb enrich`) now link to the code symbols they mention by name, instead of
   being stored as isolated document nodes with no edges at all.
 - Generated wiki pages (whole-repo and per-subsystem) now link each section to the code symbols it
-  names, closing the last of the four zero-edge pipelines the audit found.
+  names, closing the last of the four zero-edge pipelines the audit found. Only the symbols are
+  linked, not the repo as a whole: a repo's external-knowledge links (Jira / Confluence / Figma /
+  GitLab) stay free of contextlake's own generated pages.
 - GitLab merge requests now link directly to the code files their diff touches (not just their
   repo), via a new `fetch_changes`/`match_files_to_nodes` pair.
 - Figma designs now link directly to code symbols whose name matches a frame or component name,
@@ -29,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Slack channels now link to specific code symbols mentioned in their message text, using the same
   text-mention matcher shared with ingest/enrich/wiki content.
 - Connectors can now link external content directly to the code it's about via a new shared
-  `link_to_code` primitive (the existing repo-level edge is always kept alongside it).
+  `link_to_code` primitive (the existing repo-level edge is kept alongside it, except for wiki pages).
 - **A public, read-only live demo of the dashboard is now linked from the project homepage and
   docs footer.** It's the existing `contextlake kb dashboard --site DIR --sample` static export
   (bundled fictional "acme" fleet, no real data) generated into `site/demo/` by `site/deploy.sh`

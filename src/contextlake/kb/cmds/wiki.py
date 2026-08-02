@@ -102,6 +102,11 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     cluster page is about many repos, not one. Symbols are repo-scoped, not
     module-scoped: a module page mentioning a name that also exists in a sibling
     module links to both, which is why these edges are ``AMBIGUOUS``.
+
+    Only the symbol-side edges are written (``repo_fallback=False``): the
+    repo-level edge feeds the "external knowledge" panels (``get_repo_links``,
+    the dashboard's ``_links_for``), and a wiki page is contextlake's own output,
+    not a third-party cross-link like a Jira issue or a Figma frame.
     """
     nodes, texts = _wiki_section_nodes(repo_id, page, filename, source_repo=source_repo)
     part = _wiki_partition(repo_id)
@@ -109,7 +114,7 @@ def _store_wiki_partition(store, store_dir, repo_id, page, filename, head,
     if not nodes:
         return 0
     edges = link_documents_to_symbols(store, source_repo or repo_id, nodes, texts,
-                                      "documented_by", "wiki")
+                                      "documented_by", "wiki", repo_fallback=False)
     store.upsert_nodes(part, nodes)
     store.upsert_edges(part, edges)
     write_shard(store_dir, GraphShard(repo=part, head_commit=head or "wiki",

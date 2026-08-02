@@ -107,7 +107,9 @@ existed are backfilled on the next `wiki` run without any LLM calls.
 
 Each section is also **linked to the symbols it names** (`documented_by`), so "where is this function
 explained?" is one graph hop from the symbol rather than a text search. Module pages link through the repo
-they belong to, so subsystem pages link too; a cluster page spans many repos and so links to none.
+they belong to, so subsystem pages link too; a cluster page spans many repos and so links to none. Only the
+symbols get these edges, never the repo as a whole -- a repo's **Links** panel is for external knowledge
+(Jira, Confluence, Figma, GitLab), and a wiki page is contextlake's own output, not a cross-link.
 
 ## Cluster (namespace) wiki
 

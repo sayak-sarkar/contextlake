@@ -78,7 +78,8 @@ def symbol_nodes_for_repo(store, repo_id: str) -> list[Node]:
 
 def link_documents_to_symbols(store, repo_id: str | None, nodes: list[Node],
                               texts: list[str], relation: str,
-                              source_file: str) -> list[Edge]:
+                              source_file: str, *,
+                              repo_fallback: bool = True) -> list[Edge]:
     """Edges from ``repo_id``'s code symbols to every document node whose own text
     mentions them by name -- the shared body of the ingest / enrich / wiki
     "link this prose to the code it talks about" step.
@@ -86,9 +87,17 @@ def link_documents_to_symbols(store, repo_id: str | None, nodes: list[Node],
     ``nodes``/``texts`` are the parallel document-node and document-body lists
     each of those pipelines already builds. Direction follows
     :func:`common.link_to_code`: an edge runs *from* the matched code symbol *to*
-    the document (``documented_by``), plus that function's always-present
-    repo-level fallback edge, so a document that mentions anything is also
-    attached to the repo as a whole.
+    the document (``documented_by``).
+
+    ``repo_fallback`` controls that function's repo-level fallback edge
+    (``repo_<id> -> document``), which attaches a matching document to the repo
+    as a whole. It is on for ingest and enrich, whose documents are genuinely
+    third-party knowledge *about* the repo, and off for the wiki -- the repo-level
+    edge is what the "external knowledge" surfaces read (``get_repo_links``,
+    the dashboard's ``_links_for``), and contextlake's own generated wiki prose
+    is not external knowledge, so listing it there mislabels our own output as a
+    third-party cross-link. The wiki's symbol-side edges are unaffected: "where
+    is this function explained?" is still a graph hop.
 
     Returns no edges at all -- not even the repo-level fallback -- when
     ``repo_id`` is absent or names nothing indexed (see
@@ -96,7 +105,7 @@ def link_documents_to_symbols(store, repo_id: str | None, nodes: list[Node],
     exactly as edge-free as it was before. The symbol lookup is a full per-repo
     scan, so it happens once per call, never once per document.
     """
-    from .common import link_to_code
+    from .common import edge_from, link_to_code
 
     symbols = symbol_nodes_for_repo(store, repo_id) if repo_id else []
     if not symbols:
@@ -104,6 +113,13 @@ def link_documents_to_symbols(store, repo_id: str | None, nodes: list[Node],
     edges: list[Edge] = []
     for node, text in zip(nodes, texts):
         matches = match_symbol_mentions(text or "", symbols)
-        if matches:
+        if not matches:
+            continue
+        if repo_fallback:
             edges.extend(link_to_code(repo_id, node, matches, relation, source_file))
+        else:
+            edges.extend(
+                edge_from(code_id, node, relation, source_file, confidence=confidence)
+                for code_id, confidence in matches
+            )
     return edges
