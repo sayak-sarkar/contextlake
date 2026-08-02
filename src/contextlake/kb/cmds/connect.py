@@ -54,9 +54,9 @@ def _build_enrichers(sources, store):
     """Turn configured sources into callables ``fn(repo_id, keys, links, symbol_keys)``
     that return ``(nodes, edges)``. Atlassian sources discover their sites up front
     and are the only ones that use ``symbol_keys`` (per-symbol ticket attribution);
-    every other source ignores it. ``store`` is threaded through to GitLab and
-    Figma sources, which need it to match diff-touched files / frame names to
-    existing code nodes.
+    every other source ignores it. ``store`` is threaded through to GitLab, Figma,
+    and Slack sources, which need it to match diff-touched files / frame names /
+    message-mentioned symbols to existing code nodes.
     Returns ``(enrichers, names)``."""
     from ..connectors.orchestrate import (
         build_atlassian,
@@ -107,8 +107,8 @@ def _build_enrichers(sources, store):
             conn = build_slack(s)
             log(f"  source {s.name!r} (slack): ready")
             enrichers.append(
-                lambda repo_id, keys, links, symbol_keys, c=conn:
-                enrich_repo_slack(c, repo_id, links=links)
+                lambda repo_id, keys, links, symbol_keys, c=conn, st=store:
+                enrich_repo_slack(c, repo_id, st, links=links)
             )
             names.append(s.name)
     return enrichers, names

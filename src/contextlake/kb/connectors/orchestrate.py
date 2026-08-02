@@ -9,7 +9,7 @@ re-indexing a repo's code never clobbers its connector links and vice versa.
 from __future__ import annotations
 
 from ..ids import make_id
-from ..model import Confidence
+from ..model import Confidence, Node
 from .atlassian import (
     DEFAULT_MCP_URL,
     AtlassianConnector,
@@ -155,19 +155,80 @@ def enrich_repo_figma(connector, repo_id, store, *, links=()):
     return nodes, edges
 
 
-def enrich_repo_slack(connector, repo_id, *, links=()):
+def _symbol_nodes_for_repo(store, repo_id: str) -> list[Node]:
+    """This repo's semantically-meaningful symbol nodes (``EMBEDDABLE_KINDS``),
+    for text-mention matching against free text (e.g. Slack message bodies).
+
+    The ``Store`` ABC has no "all nodes for a repo" scan (see
+    ``figma.match_frame_names_to_symbols`` and ``visualize.payload.repo_subgraph``
+    for the same gap), so this drops to the same raw-SQL escape hatch those
+    already use. Unlike Figma's name-only lookup, :func:`text_match.match_symbol_mentions`
+    needs real ``Node`` objects -- but only ever reads ``.id``/``.kind``/``.name``, so
+    those three columns are selected directly (no ``store.get_node`` N+1 -- a repo can
+    carry thousands of symbols, and this runs on every Slack-enriched repo with a live
+    channel history, not just once at index time).
+    """
+    from ..embeddings.index import EMBEDDABLE_KINDS
+
+    kind_placeholders = ",".join("?" * len(EMBEDDABLE_KINDS))
+    rows = store.conn.execute(
+        f"""
+        SELECT node_id, kind, name FROM nodes
+        WHERE repo_id = ? AND kind IN ({kind_placeholders})
+        ORDER BY node_id
+        """,
+        (repo_id, *EMBEDDABLE_KINDS),
+    ).fetchall()
+    return [Node(id=row[0], repo=repo_id, kind=row[1], name=row[2]) for row in rows]
+
+
+def enrich_repo_slack(connector, repo_id, store, *, links=()):
     """Associate slack.com links to channel/message nodes (from the URL itself).
 
     If a Slack MCP is configured, each channel is additionally checked for
-    reachability and flagged ``verified``; this is best-effort and never blocks
-    the association graph.
+    reachability (flagged ``verified``) and its recent message history is
+    fetched best-effort and matched (whole-word) against this repo's existing
+    symbol names via :func:`text_match.match_symbol_mentions`; any symbol
+    mentioned gets a direct ``discussed_in`` edge, ``Confidence.AMBIGUOUS``
+    (same as Figma's frame-name matching -- a text mention is inferred, not a
+    hard fact). Both checks are best-effort and never block the association
+    graph. ``store`` is required to look those symbol nodes up -- mirrors
+    ``enrich_repo_gitlab``/``enrich_repo_figma``, not previously threaded into
+    this function.
+
+    A channel keeps its existing repo-level ``referenced_in`` edge (from a doc
+    link, see :func:`slack.associate_slack`) *and* gains a second repo-level
+    ``discussed_in`` edge here (``link_to_code``'s always-present fallback) when
+    its history actually mentions a symbol -- these are deliberately NOT deduped
+    against each other, unlike Figma's identical-relation case: "referenced in
+    docs" and "discussed in messages" are different facts with different
+    provenance, the same reasoning that already lets GitLab's per-file
+    ``touches`` edges coexist with its own repo-level ``tracked_by`` edge.
     """
+    from .common import link_to_code
     from .slack import associate_slack
+    from .text_match import match_symbol_mentions
 
     nodes, edges = associate_slack(repo_id, links=links, site_hosts=connector.hosts)
+    symbols: list[Node] | None = None
     for n in nodes:
-        if n.kind == "channel" and connector.verify(n.name):
+        if n.kind != "channel":
+            continue
+        if connector.verify(n.name):
             n.attrs["verified"] = True
+        messages = connector.fetch_messages(n.name)
+        if not messages:
+            continue
+        if symbols is None:  # fetched at most once per call, only if some channel has messages
+            symbols = _symbol_nodes_for_repo(store, repo_id)
+        if not symbols:
+            continue
+        # One matcher pass over all of a channel's messages joined -- \b word-boundary
+        # matching is unaffected by the newline join, and match_symbol_mentions already
+        # dedupes by symbol id internally, so there's no need to loop per message.
+        matches = match_symbol_mentions("\n".join(messages), symbols)
+        if matches:
+            edges.extend(link_to_code(repo_id, n, matches, "discussed_in", "slack"))
     return nodes, edges
 
 

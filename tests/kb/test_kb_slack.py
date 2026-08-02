@@ -4,13 +4,15 @@ plumbing, and best-effort verification against a spawned mock MCP server."""
 import os
 import sys
 
+import contextlake.kb.connectors.orchestrate as orch
 from contextlake.kb.connectors.slack import (
     SlackConnector,
     associate_slack,
     classify_slack_link,
     slack_node,
 )
-from contextlake.kb.model import Confidence
+from contextlake.kb.model import Confidence, Node
+from contextlake.kb.store.sqlite_store import SqliteStore
 
 _MOCK_SERVER = """
 from mcp.server.mcpserver import MCPServer
@@ -144,3 +146,75 @@ def test_fetch_messages_uses_configured_history_tool(tmp_path):
     c = SlackConnector("s", mcp_command="placeholder", history_tool="conversations_history")
     c._spawn = lambda: (sys.executable, _server(tmp_path), None)
     assert c.fetch_messages("C1", limit=10) == ["charge() is throwing", "Payer looks fine"]
+
+
+# --- enrich_repo_slack: channels link to mentioned symbols --------------------
+
+def _charge_node() -> Node:
+    return Node(id="team_api_charge", repo="team/api", kind="function", name="charge",
+                file="pay.py")
+
+
+def _symbol_edges(edges):
+    return [e for e in edges if e.src == "team_api_charge" and e.relation == "discussed_in"]
+
+
+def test_enrich_repo_slack_links_channel_to_mentioned_symbols(monkeypatch):
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("team/api", [_charge_node()])
+        connector = SlackConnector("team-slack", mcp_url="http://fake")
+        monkeypatch.setattr(
+            connector, "fetch_messages", lambda channel, **kw: ["charge() is broken"])
+        monkeypatch.setattr(connector, "verify", lambda channel: True)
+        nodes, edges = orch.enrich_repo_slack(
+            connector, "team/api", store, links=["https://team.slack.com/archives/C123"],
+        )
+        channel = next(n for n in nodes if n.kind == "channel")
+        assert channel.attrs.get("verified") is True
+        symbol_edges = _symbol_edges(edges)
+        assert len(symbol_edges) == 1
+        assert symbol_edges[0].dst == channel.id
+        assert symbol_edges[0].confidence == Confidence.AMBIGUOUS
+        # deliberately NOT deduped against associate_slack's own channel edge --
+        # "referenced in docs" (referenced_in) and "discussed in messages"
+        # (discussed_in) are different facts, so both repo-level edges survive.
+        repo_edges = {e.relation for e in edges if e.src == "repo_team_api" and e.dst == channel.id}
+        assert repo_edges == {"referenced_in", "discussed_in"}
+    finally:
+        store.close()
+
+
+def test_enrich_repo_slack_dedupes_repeated_symbol_mentions(monkeypatch):
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("team/api", [_charge_node()])
+        connector = SlackConnector("team-slack", mcp_url="http://fake")
+        monkeypatch.setattr(
+            connector, "fetch_messages",
+            lambda channel, **kw: ["charge() is broken", "still seeing charge() fail"],
+        )
+        monkeypatch.setattr(connector, "verify", lambda channel: False)
+        nodes, edges = orch.enrich_repo_slack(
+            connector, "team/api", store, links=["https://team.slack.com/archives/C123"],
+        )
+        assert len(_symbol_edges(edges)) == 1
+    finally:
+        store.close()
+
+
+def test_enrich_repo_slack_no_messages_produces_no_symbol_edges(monkeypatch):
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("team/api", [_charge_node()])
+        connector = SlackConnector("team-slack", mcp_url="http://fake")
+        monkeypatch.setattr(connector, "fetch_messages", lambda channel, **kw: [])
+        monkeypatch.setattr(connector, "verify", lambda channel: False)
+        nodes, edges = orch.enrich_repo_slack(
+            connector, "team/api", store, links=["https://team.slack.com/archives/C123"],
+        )
+        assert _symbol_edges(edges) == []
+        # the plain channel->repo association still stands, untouched
+        assert any(e.relation == "referenced_in" for e in edges)
+    finally:
+        store.close()

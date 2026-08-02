@@ -388,22 +388,33 @@ class _SlackMetaStub:
     def verify(self, channel, **kw):
         return self._reachable
 
+    def fetch_messages(self, channel, **kw):
+        return []
+
 
 def test_enrich_repo_slack_flags_verified_channel():
-    conn = _SlackMetaStub(True)
-    nodes, edges = enrich_repo_slack(
-        conn, "g/app", links=["https://acme.slack.com/archives/C1"])
-    channel = next(n for n in nodes if n.kind == "channel")
-    assert channel.attrs["verified"] is True
-    assert len(edges) == 1 and edges[0].relation == "referenced_in"
+    store = SqliteStore(":memory:")
+    try:
+        conn = _SlackMetaStub(True)
+        nodes, edges = enrich_repo_slack(
+            conn, "g/app", store, links=["https://acme.slack.com/archives/C1"])
+        channel = next(n for n in nodes if n.kind == "channel")
+        assert channel.attrs["verified"] is True
+        assert len(edges) == 1 and edges[0].relation == "referenced_in"
+    finally:
+        store.close()
 
 
 def test_enrich_repo_slack_unreachable_is_not_flagged():
-    conn = _SlackMetaStub(False)
-    nodes, _ = enrich_repo_slack(
-        conn, "g/app", links=["https://acme.slack.com/archives/C1"])
-    channel = next(n for n in nodes if n.kind == "channel")
-    assert "verified" not in channel.attrs
+    store = SqliteStore(":memory:")
+    try:
+        conn = _SlackMetaStub(False)
+        nodes, _ = enrich_repo_slack(
+            conn, "g/app", store, links=["https://acme.slack.com/archives/C1"])
+        channel = next(n for n in nodes if n.kind == "channel")
+        assert "verified" not in channel.attrs
+    finally:
+        store.close()
 
 
 class _SourceCfgStub:

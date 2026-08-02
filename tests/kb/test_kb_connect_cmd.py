@@ -254,6 +254,9 @@ class _SlackStub:
     def verify(self, channel, **kw):
         return True
 
+    def fetch_messages(self, channel, **kw):
+        return []
+
 
 def test_connect_persists_slack_channels(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
