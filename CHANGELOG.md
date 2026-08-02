@@ -42,11 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kb hook install` writes (`contextlake kb index`), the `.mcp.json` / `.vscode/mcp.json` entry and
   the AGENTS.md / CLAUDE.md / windsurfrules / Kiro bodies `kb steer` writes (`contextlake kb serve`),
   the dashboard's own subprocess spawns, and the usage/next-step hints across the knowledge commands.
-  The dashboard UI's own copy-paste commands moved too — every empty/unavailable state's suggested
-  command, the Wiki tab's "Generate wiki" snippet, and the MCP card's `--transport http` example —
-  along with `init`'s next-step lines, the mirror commands' "narrow to just the failures" retry
-  hints, and the "port already in use" / "`[llm]` isn't enabled" notices `kb dashboard --serve`
-  prints.
+  The dashboard UI's own copy-paste commands moved too: every empty/unavailable state's suggested
+  command, the Wiki tab's "Generate wiki" snippet, and the MCP card's `--transport http` example.
+  So did `init`'s next-step lines, the mirror commands' "narrow to just the failures" retry hints,
+  and the "port already in use" / "`[llm]` isn't enabled" notices `kb dashboard --serve` prints.
 
 ### Deprecated
 - **The old flat spellings (`contextlake fetch`, `contextlake index`, …) still work in this release
