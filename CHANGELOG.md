@@ -50,7 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   JSON size, so an entry-count cap alone would have risked pinning dozens of large repos' shards in
   memory on the ~480-repo fleet this targets. Measured against a synthetic 54k-node/261k-edge shard
   (75 MB on disk), a warm repeat request against an unchanged repo dropped from ~2.5s to ~0.25s with
-  no added memory growth on further repeats; the first, cold-cache request is unchanged.
+  no added memory growth on further repeats; the first, cold-cache request is unchanged. `repo_brief`
+  observes the shard file's on-disk identity exactly once per call now (previously twice, one
+  independent `stat()` each for the shard-parse cache and the aggregation cache) so a rewrite landing
+  between those two observations can no longer pair a stale aggregation with a fresh `head`.
 
 ## [2.67.0] - 2026-07-31
 

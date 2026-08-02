@@ -13,7 +13,7 @@ from collections import Counter, OrderedDict
 from datetime import date
 from pathlib import Path
 
-from ..store.shards import read_shard, shard_path
+from ..store.shards import read_shard, read_shard_with_identity
 
 # Conventional entry-point/config filenames -- presence-only signal for the
 # "Setup & Run" section (never file contents beyond the README excerpt below,
@@ -352,16 +352,18 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
     }
 
 
-def _repo_brief_core(store_dir, repo_id: str, shard, path_prefix: str | None) -> dict:
-    """``_repo_brief_core_uncached`` memoized by the shard file's (mtime_ns, size)
-    plus ``path_prefix``. Falls back to computing uncached (never raises, never
-    serves a wrong result) if the shard file can't be stat'd for any reason."""
-    try:
-        p = shard_path(store_dir, repo_id)
-        st = p.stat()
-        key = (str(p), st.st_mtime_ns, st.st_size, path_prefix)
-    except (ValueError, OSError):
-        key = None
+def _repo_brief_core(
+    identity: tuple[str, int, int] | None, shard, path_prefix: str | None,
+) -> dict:
+    """``_repo_brief_core_uncached`` memoized by ``identity`` (the shard file's
+    own ``(path, mtime_ns, size)``, as returned by
+    ``read_shard_with_identity`` alongside ``shard`` itself -- NOT re-derived
+    here via a second ``stat()`` call, which would race a concurrent rewrite
+    between the two observations; see that function's docstring) plus
+    ``path_prefix``. Falls back to computing uncached (never raises, never
+    serves a wrong result) when ``identity`` is ``None`` (the shard couldn't be
+    stat'd at all)."""
+    key = (*identity, path_prefix) if identity is not None else None
     if key is not None:
         with _core_cache_lock:
             cached = _core_cache.get(key)
@@ -432,10 +434,10 @@ def repo_brief(
     have "subsystems", so callers building per-module pages should leave this
     ``None`` (``cmd_wiki`` does exactly that).
     """
-    shard = read_shard(store_dir, repo_id)
+    shard, identity = read_shard_with_identity(store_dir, repo_id)
     if shard is None:
         return None
-    core = _repo_brief_core(store_dir, repo_id, shard, path_prefix)
+    core = _repo_brief_core(identity, shard, path_prefix)
     # Recomputed fresh (not part of the cached core -- see _core_cache's
     # docstring): the full, uncapped file set, needed by _setup_signals.
     nodes, _ = _scoped_nodes_edges(shard, path_prefix)

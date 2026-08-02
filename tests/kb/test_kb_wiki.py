@@ -90,6 +90,36 @@ def test_repo_brief_caches_the_shard_aggregation(tmp_path, monkeypatch):
     assert third["node_count"] == 1
 
 
+def test_repo_brief_observes_the_shard_file_only_once(tmp_path, monkeypatch):
+    """repo_brief must resolve the shard's on-disk identity (path/mtime/size)
+    exactly ONCE per call and thread that same observation into the cached
+    aggregation, rather than re-``stat()``-ing independently to build the
+    aggregation cache's key. Two independent observations would open a race:
+    a shard rewritten by another process between them would key the cached
+    aggregation under the NEW file's identity while its content was actually
+    computed from the OLD shard -- silently pairing a stale `node_count`/
+    `top_symbols` with a fresh `head` on every subsequent cache hit, until the
+    next rewrite. Guards the fix structurally rather than by timing a race."""
+    import contextlake.kb.store.shards as shards_mod
+
+    _shard(tmp_path)
+    calls = []
+    real_shard_path = shards_mod.shard_path
+
+    def _tracked(store_dir, repo_id):
+        calls.append(repo_id)
+        return real_shard_path(store_dir, repo_id)
+
+    monkeypatch.setattr(shards_mod, "shard_path", _tracked)
+
+    repo_brief(tmp_path, "r")
+
+    # exactly one observation of THIS repo's own shard -- a second, separate
+    # call (e.g. external_context's own read of the unrelated enrich-partition
+    # shard) is unrelated and not what this guards against.
+    assert calls.count("r") == 1
+
+
 def test_repo_brief_splits_hubs_and_dispatchers(tmp_path):
     prov = Provenance(source_file="x.py", source_line=1, verified_at=date(2026, 6, 21))
     nodes = [Node(id=nid, repo="r", kind="function", name=nid, file="f.py") for nid in

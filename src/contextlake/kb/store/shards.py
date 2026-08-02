@@ -131,21 +131,43 @@ def write_shard(store_dir: str | Path, shard: GraphShard) -> Path:
     return p
 
 
-def read_shard(store_dir: str | Path, repo_id: str) -> GraphShard | None:
+def read_shard_with_identity(
+    store_dir: str | Path, repo_id: str,
+) -> tuple[GraphShard | None, tuple[str, int, int] | None]:
+    """Like :func:`read_shard`, but also returns the exact ``(path, mtime_ns,
+    size)`` identity this particular shard was read/validated against.
+
+    For a caller that derives its OWN cache from the shard (``wiki.generate``'s
+    ``repo_brief``): re-``stat()``-ing the file a second time to build that
+    cache's key would open a race window the width of the parse itself -- a
+    shard rewritten by another process in between would make the second stat
+    key a derived cache entry under the *new* file's identity while its content
+    was actually computed from the *old* shard this call returned, silently
+    mismatching one field (e.g. ``head``) against another (e.g. ``node_count``)
+    on every subsequent cache hit until the next rewrite. Passing this same
+    identity through instead means there is only ever one observation of the
+    file per call, so no such window exists.
+    """
     try:
         p = shard_path(store_dir, repo_id)
     except ValueError:
-        return None  # traversal / invalid id -> treat as "no such shard", never read outside
+        return None, None  # traversal / invalid id -> treat as "no such shard"
     try:
         st = p.stat()
     except OSError:
-        return None
+        return None, None
     key = str(p)
+    identity = (key, st.st_mtime_ns, st.st_size)
     cached = _cache_get(key, st.st_mtime_ns, st.st_size)
     if cached is not None:
-        return cached
+        return cached, identity
     shard = GraphShard.model_validate_json(p.read_text(encoding="utf-8"))
     _cache_put(key, st.st_mtime_ns, st.st_size, shard)
+    return shard, identity
+
+
+def read_shard(store_dir: str | Path, repo_id: str) -> GraphShard | None:
+    shard, _ = read_shard_with_identity(store_dir, repo_id)
     return shard
 
 
