@@ -376,7 +376,7 @@ def cmd_init(args) -> int:
                 "Mode, gitlab = a GitLab MCP server, mcp = any other MCP server.")
             src_type = _ask("Source type (atlassian/figma/gitlab/mcp)", "atlassian")
             log("  Source name is a local nickname you pick to reference this "
-                "connection later (contextlake source test <name>) -- it is not "
+                "connection later (contextlake kb source test <name>) -- it is not "
                 "your Atlassian site, Figma team, or any other provider-side ID.")
             src_name = _ask("Source name", src_type)
             src = {"type": src_type, "name": src_name}
@@ -400,8 +400,8 @@ def cmd_init(args) -> int:
                 log("")
                 log(f"{style.ok('source')} Added {style.cyan(src_name)} "
                     f"(type={src_type}) to {kb_config_file}")
-                log(f"  Run {style.cyan('contextlake source list')} to review, or "
-                    f"{style.cyan('contextlake source test ' + src_name)} "
+                log(f"  Run {style.cyan('contextlake kb source list')} to review, or "
+                    f"{style.cyan('contextlake kb source test ' + src_name)} "
                     "to check reachability.")
                 log("")
 
@@ -437,7 +437,7 @@ def cmd_init(args) -> int:
         log(f"  {style.cyan('contextlake bootstrap')}")
     else:
         log("Next: mirror your repositories:")
-        log(f"  {style.cyan('contextlake sync')}")
+        log(f"  {style.cyan('contextlake mirror sync')}")
     if not wrote_any and not force:
         log(style.dim("\n(nothing written — config already existed; --force to overwrite)"))
     return 0

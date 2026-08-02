@@ -505,7 +505,7 @@ def fetch_gitlab_projects(gitlab_group, config):
     if not all_projects:
         if patterns:
             log(style.warn(f"No projects matched --repos {patterns} — "
-                           "check the pattern against `contextlake status`"))
+                           "check the pattern against `contextlake mirror status`"))
         else:
             log(style.warn("Fetched 0 projects — check the group name and your token's "
                            "read_api access before trusting this result"))
@@ -1221,7 +1221,7 @@ def update_repositories(work_dir, config):
     if buckets["errors"]:
         _report_list("Failed", buckets["errors"], limit=5)
         log("  Re-run to retry, or narrow to just the failures: "
-            "contextlake update --repos <name>")
+            "contextlake mirror update --repos <name>")
 
 
 def switch_repository_branches(work_dir, config, gitlab_group):
@@ -1274,7 +1274,7 @@ def switch_repository_branches(work_dir, config, gitlab_group):
     if buckets["errors"]:
         _report_list("Failed", buckets["errors"], limit=5)
         log("  Re-run to retry, or narrow to just the failures: "
-            "contextlake branches --repos <name>")
+            "contextlake mirror branches --repos <name>")
 
 
 def _report_list(label, items, limit=10):

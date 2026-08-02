@@ -365,9 +365,9 @@
         msg: staticMiss
           ? "This static export carries detail for a representative slice of repos. Run the live server to browse every repo with no caps."
           : "The data source didn't respond (" + e.message + ").",
-        cmd: staticMiss ? "contextlake dashboard --serve" : null,
+        cmd: staticMiss ? "contextlake kb dashboard --serve" : null,
         action: staticMiss
-          ? genAction("Run live server", "contextlake dashboard --serve")
+          ? genAction("Run live server", "contextlake kb dashboard --serve")
           : h("button", { class: "cl-btn", type: "button", onclick: function () { CL.router.render(); } }, "Retry")
       }));
     });
@@ -433,7 +433,7 @@
       if (!ov.repos || !ov.repos.length) {
         body.appendChild(stateBlock({
           kind: "empty", title: "No repos indexed yet",
-          msg: "Index a workspace to fill the lake.", cmd: "contextlake index"
+          msg: "Index a workspace to fill the lake.", cmd: "contextlake kb index"
         }));
         return body;
       }
@@ -731,8 +731,8 @@
     return stateBlock({
       kind: "empty", title: "No wiki generated for " + forWhat + " yet",
       msg: "Generate a curated wiki from this repo's code and history, then refresh.",
-      cmd: "contextlake wiki " + id + " --llm builtin",
-      action: genAction("Generate wiki", "contextlake wiki " + id + " --llm builtin")
+      cmd: "contextlake kb wiki " + id + " --llm builtin",
+      action: genAction("Generate wiki", "contextlake kb wiki " + id + " --llm builtin")
     });
   }
   function wikiContentNode(w, id, forWhat) {
@@ -895,8 +895,8 @@
     if (MODE === "static") { pane.appendChild(stateBlock({
       kind: "unavailable", title: "Diagrams are live-only",
       msg: "This static export has no running server behind it.",
-      cmd: "contextlake dashboard --serve",
-      action: genAction("Run live server", "contextlake dashboard --serve")
+      cmd: "contextlake kb dashboard --serve",
+      action: genAction("Run live server", "contextlake kb dashboard --serve")
     })); return; }
     var kinds = (d.brief && d.brief.kinds) || {};
     var available = {};
@@ -1090,7 +1090,7 @@
           pane.appendChild(stateBlock({
             kind: "unavailable", title: "Live server required",
             msg: "Run the live dashboard to see file-level table reads/writes.",
-            cmd: "contextlake dashboard --serve"
+            cmd: "contextlake kb dashboard --serve"
           }));
           return;
         }
@@ -1162,8 +1162,8 @@
           return stateBlock({
             kind: "unavailable", title: "Not precomputed in this snapshot",
             msg: "This static export ships a representative slice. Run the live server to trace any symbol with no caps.",
-            cmd: "contextlake dashboard --serve",
-            action: genAction("Run live server", "contextlake dashboard --serve")
+            cmd: "contextlake kb dashboard --serve",
+            action: genAction("Run live server", "contextlake kb dashboard --serve")
           });
         }
         if (imp.ambiguous && imp.candidates && imp.candidates.length) {
@@ -1268,8 +1268,8 @@
         seqWrap.appendChild(stateBlock({
           kind: "unavailable", title: "Sequence diagram is live-only",
           msg: "This static export has no running server behind it.",
-          cmd: "contextlake dashboard --serve",
-          action: genAction("Run live server", "contextlake dashboard --serve")
+          cmd: "contextlake kb dashboard --serve",
+          action: genAction("Run live server", "contextlake kb dashboard --serve")
         }));
       } else {
         var seqBody = h("div"); seqWrap.appendChild(seqBody);
@@ -1302,8 +1302,8 @@
     if (MODE === "static") { renderInto("path-body", stateBlock({
       kind: "unavailable", title: "Path is live-only",
       msg: "This static export has no running server behind it.",
-      cmd: "contextlake dashboard --serve",
-      action: genAction("Run live server", "contextlake dashboard --serve")
+      cmd: "contextlake kb dashboard --serve",
+      action: genAction("Run live server", "contextlake kb dashboard --serve")
     })); return; }
     var body = h("div", { class: "cl-panel__body" });
     body.appendChild(h("p", { class: "cl-muted" },
@@ -1376,7 +1376,7 @@
           sc.appendChild(h("div", { class: "cl-row" },
             h("button", { class: "cl-btn", type: "button", onclick: function () { go("#/repo/" + r); } }, r),
             h("span", { class: "cl-healthchip cl-healthchip--stale" }, "HEAD moved"),
-            h("code", null, "contextlake index")));
+            h("code", null, "contextlake kb index")));
         });
         body.appendChild(sc);
       }
@@ -1415,7 +1415,7 @@
       var q = field.value.trim(); searchState.q = q;
       clear(results);
       if (searchState.mode === "semantic" && MODE === "static") {
-        results.appendChild(stateBlock({ kind: "unavailable", title: "Semantic search is live-only", msg: "Needs the running server.", cmd: "contextlake serve" }));
+        results.appendChild(stateBlock({ kind: "unavailable", title: "Semantic search is live-only", msg: "Needs the running server.", cmd: "contextlake kb serve" }));
         return;
       }
       if (!q) { results.appendChild(stateBlock({ kind: "empty", title: "Search symbols across the fleet" })); return; }
@@ -1547,8 +1547,8 @@
     renderInto(bodyId, stateBlock({
       kind: "unavailable", title: title,
       msg: "This static export has no running server behind it.",
-      cmd: "contextlake dashboard --serve",
-      action: genAction("Run live server", "contextlake dashboard --serve")
+      cmd: "contextlake kb dashboard --serve",
+      action: genAction("Run live server", "contextlake kb dashboard --serve")
     }));
   }
   function copyCard(title, text) {
@@ -1591,7 +1591,7 @@
     var card = h("div", { class: "cl-card" },
       h("strong", null, "HTTP-transport MCP server"),
       h("p", { class: "cl-muted" },
-        "A separate ", h("code", null, "contextlake serve --transport http"),
+        "A separate ", h("code", null, "contextlake kb serve --transport http"),
         " process this dashboard can start/stop -- not the stdio server your editor spawns."));
     var row = h("div", { class: "cl-row" },
       h("span", null, "Status"),
@@ -1632,8 +1632,8 @@
     var card = h("div", { class: "cl-card" },
       h("strong", null, "Regenerate wiki" + (repoId ? "" : " — fleet-wide")),
       h("p", { class: "cl-muted" },
-        repoId ? "Runs contextlake wiki for this repo only."
-              : "Runs contextlake wiki for every indexed repo — skips repos already up to date unless Force is checked."));
+        repoId ? "Runs contextlake kb wiki for this repo only."
+              : "Runs contextlake kb wiki for every indexed repo — skips repos already up to date unless Force is checked."));
     var statusLine = h("div", { class: "cl-row" }, h("span", null, "Idle"));
     var forceCheck = h("input", { type: "checkbox" });
     var logBox = h("pre", { class: "cl-snippet", hidden: true });
@@ -1719,7 +1719,7 @@
         body.appendChild(table(["Name", "Type", "Enabled"],
           d.sources.map(function (s) { return [s.name, s.type, s.enabled ? "Yes" : "No"]; })));
       } else {
-        body.appendChild(stateBlock({ kind: "empty", title: "No connectors configured", cmd: "contextlake source add <name> --type <type>" }));
+        body.appendChild(stateBlock({ kind: "empty", title: "No connectors configured", cmd: "contextlake kb source add <name> --type <type>" }));
       }
       body.appendChild(h("p", { class: "cl-muted" }, "Read-only — edit ", h("code", null, "kb.toml"), " directly to change any of this."));
       return body;

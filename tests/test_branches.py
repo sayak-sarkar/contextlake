@@ -198,7 +198,7 @@ def test_switch_repository_branches_summary_names_the_retry_command_on_failure(
 
     text = gls_logs.text
     assert "Failed:" in text
-    assert "contextlake branches --repos" in text
+    assert "contextlake mirror branches --repos" in text
 
 
 def test_switch_repository_branches_summary_line_warns_on_partial_failure(

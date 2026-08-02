@@ -86,14 +86,14 @@ def test_sample_site_is_offline_and_well_formed(tmp_path):
 
 
 def test_wiki_tab_generate_command_matches_docs_and_actually_works(tmp_path):
-    """docs/dashboard.md documents `contextlake wiki <repo-id> --llm builtin` as
+    """docs/dashboard.md documents `contextlake kb wiki <repo-id> --llm builtin` as
     the copy-paste command the Wiki tab's "Generate wiki" action offers -- and
-    without --llm (and no [llm] config), `contextlake wiki` silently no-ops, so
+    without --llm (and no [llm] config), `contextlake kb wiki` silently no-ops, so
     a flag-less copied command wouldn't just mismatch the docs, it wouldn't do
     anything."""
     build_dashboard_site(tmp_path / "store", tmp_path / "out", sample=True)
     js = (tmp_path / "out" / "dashboard.js").read_text(encoding="utf-8")
-    assert '"contextlake wiki " + id + " --llm builtin"' in js
+    assert '"contextlake kb wiki " + id + " --llm builtin"' in js
 
 
 def _real_store_with_readme(store_dir, readme, wiki=None):

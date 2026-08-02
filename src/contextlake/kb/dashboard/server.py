@@ -523,7 +523,7 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
             # bad first impression for an error this ordinary and this
             # actionable.
             log(style.warn(f"Could not start the dashboard on {host}:{port} — {e}"))
-            log(style.dim("  Another `contextlake dashboard --serve` may already be "
+            log(style.dim("  Another `contextlake kb dashboard --serve` may already be "
                           "running on this port -- pick another with --port, or stop "
                           "the existing one."))
             return 1
@@ -543,7 +543,7 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
             else:
                 log(style.dim("--llm-chat was set, but [llm] isn't enabled in this "
                               "config -- chat stays free/router-only. Configure [llm] "
-                              "in kb.toml (same setting `contextlake wiki` uses) to turn "
+                              "in kb.toml (same setting `contextlake kb wiki` uses) to turn "
                               "synthesis on."))
         if open_browser:
             import webbrowser
