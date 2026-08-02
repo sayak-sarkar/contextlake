@@ -488,6 +488,19 @@ def test_h_extension_uses_cpp_grammar_without_losing_plain_c_defs(tmp_path):
     assert distance.kind == "function"
 
 
+def test_index_repo_dir_languages_c_only_still_includes_h_files(tmp_path):
+    # ".h" is classified internally as "cpp" (see LANG_BY_EXT), but a
+    # languages=["c"] filter must still index headers -- C/C++ headers are
+    # shared infrastructure, so either language enabled should satisfy ".h".
+    (tmp_path / "point.h").write_text("struct Point {\n    int x;\n};\n")
+    (tmp_path / "point.c").write_text(
+        "#include \"point.h\"\nint zero(void) {\n    return 0;\n}\n")
+    shard = index_repo_dir(str(tmp_path), "demo/point_c_only", languages=["c"])
+    names = {n.name for n in shard.nodes}
+    assert "Point" in names   # from point.h, not silently dropped
+    assert "zero" in names    # from point.c
+
+
 def test_parse_rust():
     src = (b"use std::io::Read;\nstruct Server { addr: String }\ntrait Handler { fn go(&self); }\n"
            b"enum State { On }\nfn mk() -> Server { work(); Server { addr: String::new() } }\n")

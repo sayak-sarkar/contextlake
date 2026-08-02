@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when they differ, and `contextlake doctor` still checks the generation provider only.
 
 ### Fixed
+- **A `languages` filter listing only `"c"` no longer silently drops all `.h` files.** `.h` files are
+  parsed with the `cpp` grammar internally, so a `["c"]`-only filter previously excluded them entirely.
+  `.h` inclusion is now decided independently of that internal parsing choice: it is indexed whenever
+  either `"c"` or `"cpp"` is enabled, since C/C++ headers are shared infrastructure. The old workaround
+  of listing both languages is no longer necessary (docs updated accordingly).
 - **The graph visualizer's `repo_subgraph(path_prefix=...)` no longer matches a sibling directory
   that merely shares a string prefix** (e.g. `path_prefix="api"` incorrectly also matched `apiv2/`).
   It now requires a path-boundary match — the file equals `path_prefix` or starts with `path_prefix`

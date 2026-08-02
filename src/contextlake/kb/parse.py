@@ -851,6 +851,13 @@ def index_repo_dir(
     root = Path(repo_path)
     allowed_exts = {ext for ext, lang in LANG_BY_EXT.items()
                     if not languages or lang in languages}
+    # ".h" is classified as "cpp" internally (see LANG_BY_EXT), but C and C++
+    # headers are shared infrastructure -- a user who filters to just "c"
+    # almost certainly still wants its headers indexed, not silently dropped.
+    # So ".h" inclusion is decided by either language being enabled, not by
+    # which single language it happens to be parsed as.
+    if languages and ("c" in languages or "cpp" in languages):
+        allowed_exts.add(".h")
     index_hcl = not languages or "hcl" in languages
     index_sql = not languages or "sql" in languages
     ignore = load_ignore_patterns(root)
