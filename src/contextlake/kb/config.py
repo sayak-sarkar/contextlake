@@ -115,6 +115,14 @@ class LlmCfg(BaseModel):
     max_tokens: int = 4096  # anthropic/openai response cap; wiki pages are short
     command: str | None = None  # provider="cli": the agent CLI to invoke
     args: list[str] | None = None  # provider="cli": override the per-CLI preset args
+    # Council reviewer override. Unset (the default) means the council reviews with
+    # the very same client that generated the page -- exactly the historical
+    # behavior. Set it to gate a cheap local generator with a stronger judge, e.g.
+    # provider = "builtin" + review_provider = "anthropic". Opt-in on purpose: it
+    # costs pages x council_size extra calls against the review provider, so it is
+    # never inferred from a stray API key in the environment.
+    review_provider: str | None = None
+    review_model: str | None = None
 
 
 class KbConfig(BaseModel):

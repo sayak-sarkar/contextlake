@@ -17,6 +17,25 @@ with a provenance footer citing the commit and sources, then puts the draft thro
 council**, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
 above a configurable threshold. Nothing that fails review is written.
 
+By default the council reviews with the **same model that wrote the page** — so a small local model both
+drafts and grades its own work, and the tiny built-in 0.5B in particular tends to rubber-stamp almost
+everything. To gate a cheap local generator with a stronger judge, point the council at its own provider:
+
+```toml
+[llm]
+provider = "builtin"           # keep generation local and free
+review_provider = "anthropic"  # …but have a real model decide what gets published
+review_model = "claude-haiku-4-5"   # optional; defaults to the provider's own default
+```
+
+`review_provider` accepts the same values as `provider` and wins unconditionally, so the inverse split
+(generate with a strong model, review with a cheap one) works too. It is strictly opt-in and never
+inferred from a stray API key in your environment, because it is not free: a run makes
+**pages × `council_size`** review calls against that provider (3 lenses per page by default — lower
+`council_size` to 1 to cut it threefold). Note that `contextlake doctor` checks the *generation* provider
+only, so a missing key for the review provider shows up as a run where every page is rejected with
+`N reviewer(s) returned nothing parseable` rather than as a doctor warning.
+
 How many symbols get sampled into that grounding set scales with the repo's own size —
 `max(15, min(80, node_count // 1500))` — instead of a flat count of 15. Below about 24,000 graph
 nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,

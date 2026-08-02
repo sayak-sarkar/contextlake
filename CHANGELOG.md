@@ -7,7 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The wiki council can now review with a different (stronger) model than the one generating the
+  pages**, via two new `[llm]` keys: `review_provider` and `review_model`. Until now a single client
+  served both roles, so a local-only setup had the tiny built-in 0.5B grading its own drafts — a
+  near-constant rubber-stamp. Setting `provider = "builtin"` + `review_provider = "anthropic"` keeps
+  generation local and free while a real model decides what actually gets published; the inverse
+  split (generate strong, review cheap) works too, since `review_provider` wins unconditionally. The
+  reviewer's `model`, `api_key_env` and `base_url` are re-resolved for the review provider rather
+  than inherited from the generator. Left unset — the default — the council reviews with the
+  generating client exactly as before. Strictly opt-in and never inferred from an API key that
+  happens to be in the environment: it costs **pages × `council_size`** extra calls against the
+  review provider (drop `council_size` to 1 to cut that threefold). The run banner names both models
+  when they differ, and `contextlake doctor` still checks the generation provider only.
+
 ### Fixed
+- A council rejection now reports how many reviewers **abstained** (`N reviewer(s) returned nothing
+  parseable`) alongside the score. A reviewer that returns nothing — a missing API key, a review CLI
+  not on PATH (`CliLlm` returns `""` on non-zero exit rather than raising) — abstains on every lens
+  and so rejects every page at score 0.0, which was previously indistinguishable from a strict but
+  working council.
 - **`[llm] provider = "anthropic"` (or `"openai"`) with no explicit `base_url` sent its API calls to
   the local Ollama port instead of the real API endpoint.** `LlmCfg.base_url` was a declared field
   defaulting to `http://127.0.0.1:11434`, so that one literal won for every provider and the

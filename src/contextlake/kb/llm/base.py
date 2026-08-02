@@ -100,6 +100,36 @@ def build_llm(cfg) -> LlmClient | None:
     raise ValueError(f"unknown llm provider: {provider!r}")
 
 
+def build_review_llm(cfg, llm: LlmClient) -> LlmClient:
+    """The client the wiki council reviews with.
+
+    Returns ``llm`` itself -- the generator -- unless ``[llm] review_provider`` is
+    set, so an unconfigured run behaves exactly as it always has: one client for
+    both roles. When it IS set it wins unconditionally, including over a
+    generation provider that is already a real backend, which also allows the
+    inverse split (generate with a strong model, review with a cheap one).
+
+    Deliberately never inferred from the environment. A stray ANTHROPIC_API_KEY or
+    a `claude` on PATH is not consent to bill a pay-per-token account for
+    pages x council_size review calls -- the same reasoning ``cli.CliLlm`` applies
+    to its own provider.
+    """
+    provider = (getattr(cfg, "review_provider", None) or "").lower()
+    if not provider:
+        return llm
+    # model, api_key_env and base_url must be re-resolved rather than inherited:
+    # all three were resolved for the GENERATION provider, and carrying them over
+    # would e.g. send a builtin GGUF repo id as an Anthropic model name.
+    review_cfg = cfg.model_copy(update={
+        "provider": provider,
+        "model": getattr(cfg, "review_model", None),
+        "api_key_env": None,
+        "base_url": None,
+    })
+    # `or llm`: only reachable for review_provider = "auto" resolving to nothing.
+    return build_llm(review_cfg) or llm
+
+
 def _build_builtin_llm(cfg):
     """Construct the built-in CPU LLM. The actionable missing-extra error is
     raised lazily, at first generate()."""

@@ -71,7 +71,15 @@ model    = "qwen2.5:3b"    # provider-specific model id (table below)
 # timeout    = 300          # seconds per model call; raise it for a slow CPU (ollama/openai)
 council_size = 3           # review lenses that run (1-3); fewer = fewer calls per page
 accept_score = 0.7         # mean council score a page must clear to be written
+# review_provider = "anthropic"      # optional: have the COUNCIL review with a different
+# review_model    = "claude-haiku-4-5"  # (usually stronger) backend than the one generating
 ```
+
+Unset, `review_provider` means the council reviews with the same client that generated the page —
+the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
+`pages × council_size` extra calls against that provider, so it is opt-in and never inferred from an
+API key that happens to be in your environment. See
+[Generate the wiki](generate-wiki.md) for the full rationale.
 
 | provider  | example `model`                          | notes |
 |-----------|------------------------------------------|-------|

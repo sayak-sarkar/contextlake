@@ -8,7 +8,7 @@ from contextlake.kb.config import KbConfig, LlmCfg, apply_llm_overrides
 from contextlake.kb.llm import anthropic as anth_mod
 from contextlake.kb.llm import cli as cli_mod
 from contextlake.kb.llm.anthropic import AnthropicLlm
-from contextlake.kb.llm.base import build_llm
+from contextlake.kb.llm.base import build_llm, build_review_llm
 from contextlake.kb.llm.cli import CliLlm
 
 
@@ -84,6 +84,55 @@ def test_build_llm_resolves_base_url_per_provider(provider, endpoint):
 def test_build_llm_explicit_base_url_still_wins():
     llm = build_llm(LlmCfg(enabled=True, provider="openai", base_url="http://gateway/v1"))
     assert llm.base_url == "http://gateway/v1"
+
+
+class _FakeGenerator:
+    name = "builtin"
+
+    def generate(self, prompt, *, system=None):
+        return ""
+
+
+def test_build_review_llm_returns_the_generator_when_unconfigured():
+    """Load-bearing: with no review_provider the council keeps reviewing with the
+    very same client that generated the page -- byte-for-byte the old behavior."""
+    cfg = LlmCfg(enabled=True, provider="builtin")
+    llm = object()
+    assert build_review_llm(cfg, llm) is llm
+
+
+def test_build_review_llm_builds_the_configured_reviewer():
+    """A cheap local generator gated by a stronger judge. model/api_key_env/base_url
+    must be re-resolved for the REVIEW provider, never inherited -- inheriting would
+    send the builtin's GGUF repo id as an Anthropic model name and point the request
+    at the generator's endpoint."""
+    cfg = LlmCfg(enabled=True, provider="builtin", model="Example/Tiny-GGUF",
+                 base_url="http://127.0.0.1:11434", api_key_env="SOME_OTHER_KEY",
+                 review_provider="anthropic", review_model="claude-haiku-4-5")
+    reviewer = build_review_llm(cfg, _FakeGenerator())
+    assert isinstance(reviewer, AnthropicLlm)
+    assert reviewer.model == "claude-haiku-4-5"
+    assert reviewer.base_url == "https://api.anthropic.com"
+    assert reviewer.api_key_env == "ANTHROPIC_API_KEY"
+
+
+def test_build_review_llm_review_model_is_optional():
+    """review_provider alone is enough; the reviewer falls back to its provider's
+    own default model rather than inheriting the generator's."""
+    cfg = LlmCfg(enabled=True, provider="builtin", model="Example/Tiny-GGUF",
+                 review_provider="anthropic")
+    reviewer = build_review_llm(cfg, _FakeGenerator())
+    assert isinstance(reviewer, AnthropicLlm) and reviewer.model == "claude-opus-4-8"
+
+
+def test_build_review_llm_wins_over_a_real_generation_provider():
+    """Precedence is unconditional, which also enables the inverse split: generate
+    with an expensive model, review with a cheap local one."""
+    cfg = LlmCfg(enabled=True, provider="anthropic", review_provider="ollama",
+                 review_model="qwen2.5:3b")
+    reviewer = build_review_llm(cfg, _FakeGenerator())
+    assert reviewer.name == "ollama" and reviewer.model == "qwen2.5:3b"
+    assert reviewer.base_url == "http://127.0.0.1:11434"
 
 
 class _FakeCompleted:

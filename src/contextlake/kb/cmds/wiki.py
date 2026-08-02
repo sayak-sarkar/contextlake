@@ -137,9 +137,27 @@ def _module_wiki_filename(repo_id: str, prefix: str) -> str:
     return f"{repo_id.replace('/', '__')}__{prefix.replace('/', '__')}.md"
 
 
+def _reviewed_by(llm, review_llm) -> str:
+    """Banner suffix naming the reviewer, only when it isn't the generator."""
+    return "" if review_llm is llm else f" reviewed by {review_llm.name}"
+
+
+def _abstain_note(gate: dict) -> str:
+    """Rejection-log suffix counting reviewers that returned nothing parseable.
+
+    Worth surfacing because a *broken* reviewer and a *strict* one look identical
+    otherwise: a reviewer that errors back an empty string (a missing API key, a
+    CLI not on PATH -- CliLlm returns "" on non-zero exit rather than raising)
+    abstains on every lens, which rejects every page at score 0.0. Without this
+    the run reads as a page-quality problem instead of a misconfiguration.
+    """
+    abstained = gate.get("abstained") or 0
+    return f", {abstained} reviewer(s) returned nothing parseable" if abstained else ""
+
+
 def cmd_wiki(args) -> int:
     """Generate provenance-stamped wiki pages from the graph, gated by an LLM council."""
-    from ..llm import build_llm
+    from ..llm import build_llm, build_review_llm
     from ..wiki.cluster import (
         cluster_fingerprint,
         cluster_page_name,
@@ -166,12 +184,18 @@ def cmd_wiki(args) -> int:
             log("LLM tier disabled — pass --llm builtin|ollama|openai "
                 "(or set [llm] enabled = true in kb.toml)")
             return 0
-        if llm.name == "builtin":
+        # The council reviews with `review_llm`, which IS `llm` unless [llm]
+        # review_provider names a different backend -- letting a cheap local
+        # generator be gated by a stronger judge (or the inverse).
+        review_llm = build_review_llm(cfg.llm, llm)
+        if review_llm.name == "builtin":
             # The builtin 0.5B is a weak reviewer (near-constant ~0.95 scores, mostly
             # rubber-stamping) -- still functional, but a real backend gates meaningfully.
             log("Note: the builtin model is a weak council reviewer (tends to accept "
-                "almost everything). For meaningful accept/reject gating, configure a "
-                "real backend: --llm anthropic|openai|ollama|cli.")
+                "almost everything). For meaningful accept/reject gating, point the "
+                "council at a real backend: set [llm] review_provider = "
+                "\"anthropic\"|\"openai\"|\"ollama\"|\"cli\" (keeping generation local), "
+                "or switch both with --llm.")
         targets = _connect_targets(args, store)
         if not targets:
             wanted = [a for a in (getattr(args, "args", None) or []) if a]
@@ -184,7 +208,7 @@ def cmd_wiki(args) -> int:
         wiki_dir = store_dir / "wiki"
         wiki_dir.mkdir(parents=True, exist_ok=True)
         log(f"Generating wiki for {len(targets)} repo(s) with {llm.name} "
-            f"(council of {len(LENSES)})")
+            f"(council of {len(LENSES)}{_reviewed_by(llm, review_llm)})")
         # Semantic tier (optional): accepted pages also embed into the @wiki
         # partition so NL search can land on the prose (labeled advisory).
         if cfg.embeddings.enabled:
@@ -209,7 +233,7 @@ def cmd_wiki(args) -> int:
                 log("No namespaces to generate cluster wiki for (index some repos first)")
                 return 0
             log(f"Generating cluster wiki for {len(ns_list)} namespace(s) with {llm.name} "
-                f"(council of {len(LENSES)})")
+                f"(council of {len(LENSES)}{_reviewed_by(llm, review_llm)})")
             all_edges = cross_repo_edges(store)   # scan the store once, not per namespace
             written = rejected = skipped = failed = 0
             progress = style.Progress(len(ns_list), label="wiki-cluster")
@@ -230,7 +254,7 @@ def cmd_wiki(args) -> int:
                         continue
                 try:
                     page = generate_cluster_page(llm, brief)
-                    gate = council_gate(llm, page, render_cluster_prompt(brief),
+                    gate = council_gate(review_llm, page, render_cluster_prompt(brief),
                                         accept_score=cfg.llm.accept_score,
                                         council_size=getattr(cfg.llm, "council_size", None))
                 except Exception as e:  # noqa: BLE001 - one cluster must not abort the run
@@ -249,7 +273,7 @@ def cmd_wiki(args) -> int:
                 else:
                     rejected += 1
                     log(f"  {style.warn(ns)}: rejected by council "
-                        f"(score {gate['score']})", inline=True)
+                        f"(score {gate['score']}{_abstain_note(gate)})", inline=True)
                 progress.advance(ns)
             progress.done()
             fail_tail = f", {failed} failed" if failed else ""
@@ -333,7 +357,7 @@ def cmd_wiki(args) -> int:
                 page = generate_page(llm, store_dir, repo_id, store=brief_store,
                                      path_prefix=path_prefix,
                                      subsystem_modules=subsystem_modules)
-                gate = council_gate(llm, page, render_prompt(brief, path_prefix=path_prefix),
+                gate = council_gate(review_llm, page, render_prompt(brief, path_prefix=path_prefix),
                                     accept_score=cfg.llm.accept_score,
                                     council_size=getattr(cfg.llm, "council_size", None))
             except Exception as e:  # noqa: BLE001 - one page must not abort the run
@@ -348,7 +372,7 @@ def cmd_wiki(args) -> int:
                 log(f"  {style.ok(label)}: written (score {gate['score']})", inline=True)
                 return "written"
             log(f"  {style.warn(label)}: rejected by council "
-               f"(score {gate['score']})", inline=True)
+               f"(score {gate['score']}{_abstain_note(gate)})", inline=True)
             for issue in gate["issues"][:5]:
                 log(f"      - {issue}")
             return "rejected"

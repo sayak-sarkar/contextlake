@@ -4,6 +4,6 @@ Nothing here runs unless ``[llm] enabled = true``. The ``LlmClient`` interface
 keeps generation provider-agnostic; a local Ollama provider ships first.
 """
 
-from .base import LlmClient, build_llm
+from .base import LlmClient, build_llm, build_review_llm
 
-__all__ = ["LlmClient", "build_llm"]
+__all__ = ["LlmClient", "build_llm", "build_review_llm"]
