@@ -22,7 +22,7 @@ def _wiki_partition(repo_id: str) -> str:
     ``repo_id`` here is a store *key*, not necessarily a repo id known to
     ``store.list_repos()`` -- it's purely string-based (no repo lookup), so a
     composite module key (``f"{repo}::{module_prefix}"``, see
-    ``_qualifying_modules``) or a cluster page's namespace prefix are equally
+    ``_module_page_plan``) or a cluster page's namespace prefix are equally
     safe to pass in.
     """
     return f"@wiki:{repo_id}"
@@ -100,21 +100,41 @@ _DOMINANT_MODULE_SHARE = 0.6        # a module owning this share of nodes -> not
 _MAX_MODULE_PAGES_PER_REPO = 20
 
 
-def _qualifying_modules(store, repo_id: str, node_count: int) -> list[dict]:
-    """Modules worth their own wiki page: the repo is large AND genuinely
-    federated (no single module dominates it) -- not just one big repo with
-    one big top-level source directory, which the existing whole-repo page
-    already grounds well enough."""
+def _module_page_plan(store, repo_id: str, node_count: int) -> tuple[list[dict], bool]:
+    """``(modules worth their own wiki page, may we prune stale module pages?)``
+
+    A module qualifies when the repo is large AND genuinely federated (no
+    single module dominates it) -- not just one big repo with one big
+    top-level source directory, which the existing whole-repo page already
+    grounds well enough.
+
+    The second value exists because an empty module list has two very
+    different causes, and one of them must NOT authorize
+    ``_prune_orphan_module_pages`` to delete every module page this repo has:
+
+    - The repo genuinely stopped qualifying -- too small now (judged from the
+      shard, which the caller has in hand), or one module has come to dominate
+      it (the index did report modules, so it is answering). Every existing
+      module page really is an orphan; pruning is correct.
+    - ``node_count`` (the shard) says the repo is still large, but
+      ``repo_modules`` (the SQLite index -- a different persistence layer,
+      which ``_run_page`` already handles disagreeing) reports no module
+      structure at all. That is an index that is empty, mid-rebuild or
+      otherwise not answering, not evidence the repo's modules are gone.
+      Deleting on it would cost a full LLM regeneration per page plus the
+      embeddings until then, so this run leaves the pages alone and a later
+      run (with a working index) prunes if they really are stale.
+    """
     if node_count < _FEDERATED_NODE_FLOOR:
-        return []
+        return [], True
     from ..visualize.payload import repo_modules
 
     modules = repo_modules(store, repo_id)
     if not modules:
-        return []
+        return [], False
     if modules[0]["nodes"] / node_count > _DOMINANT_MODULE_SHARE:
-        return []
-    return modules
+        return [], True
+    return modules, True
 
 
 def _module_wiki_filename(repo_id: str, prefix: str) -> str:
@@ -184,8 +204,8 @@ def _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id: str,
     describing a module that no longer exists. `--force` didn't prune them
     either: it regenerates what qualifies today and never looks at what used to.
 
-    Run on every run, not only under `--force`: it costs one key-prefix query
-    per repo plus a set difference, and no LLM call. ``modules`` must be the
+    Run on every run, not only under `--force`: it costs one indexed key-range
+    query per repo plus a set difference, and no LLM call. ``modules`` must be the
     FULL qualifying list, never the subset selected for this run's page
     generation (see ``_select_module_pages``) -- pruning against the selection
     would delete the previous run's pages to make room for this run's, and
@@ -479,7 +499,7 @@ def cmd_wiki(args) -> int:
                                subsystem_modules=subsystem_modules)
             # A module `repo_modules()` (SQLite index) said has real content can
             # still come back empty here if the shard (JSON, a different
-            # persistence layer -- see _qualifying_modules) disagrees, e.g. a
+            # persistence layer -- see _module_page_plan) disagrees, e.g. a
             # rebuild race or stale index. Treat that as "nothing to write"
             # rather than generating a near-empty, ungrounded page.
             if brief is None or (path_prefix and not brief["node_count"]):
@@ -530,11 +550,14 @@ def cmd_wiki(args) -> int:
             # (Task 16) -- reused below for the module-page loop too, so this
             # is still exactly one `repo_modules()` query per repo per run,
             # not two.
-            modules = _qualifying_modules(store, repo_id, node_count)
+            modules, may_prune = _module_page_plan(store, repo_id, node_count)
             # Before selecting or naming anything: drop pages for modules that
             # no longer qualify, so the overview below can't name a subsystem
-            # page this run is about to delete.
-            _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id, modules, vs)
+            # page this run is about to delete. Skipped when the empty module
+            # list came from an index that isn't answering rather than from
+            # the repo actually changing shape (see `_module_page_plan`).
+            if may_prune:
+                _prune_orphan_module_pages(store, store_dir, wiki_dir, repo_id, modules, vs)
             selected = _select_module_pages(modules, wiki_dir, repo_id)
             # Name every module that either already HAS a page from an earlier
             # run or is getting one this run -- never a module that has

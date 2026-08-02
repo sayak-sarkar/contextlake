@@ -1217,8 +1217,8 @@ def test_cmd_wiki_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkeyp
 
 # --- per-subsystem pages for federated repos --------------------------------
 
-def test_qualifying_modules_below_node_floor_returns_empty():
-    from contextlake.kb.cmds.wiki import _qualifying_modules
+def test_module_page_plan_below_node_floor_returns_empty():
+    from contextlake.kb.cmds.wiki import _module_page_plan
 
     s = SqliteStore(":memory:")
     try:
@@ -1228,13 +1228,15 @@ def test_qualifying_modules_below_node_floor_returns_empty():
         ])
         # 30 real nodes, but node_count (from the caller's shard) says only 100 --
         # well under _FEDERATED_NODE_FLOOR, so no subsystem pages regardless of shape.
-        assert _qualifying_modules(s, "r", node_count=100) == []
+        # Pruning IS authorized: "the repo is too small now" is judged from the
+        # caller's shard, not from the index having answered.
+        assert _module_page_plan(s, "r", node_count=100) == ([], True)
     finally:
         s.close()
 
 
-def test_qualifying_modules_skips_when_one_module_dominates():
-    from contextlake.kb.cmds.wiki import _qualifying_modules
+def test_module_page_plan_skips_when_one_module_dominates():
+    from contextlake.kb.cmds.wiki import _module_page_plan
 
     s = SqliteStore(":memory:")
     try:
@@ -1245,13 +1247,15 @@ def test_qualifying_modules_skips_when_one_module_dominates():
         s.upsert_nodes("r", nodes)
         # "big" owns 4000/5000 = 80% > _DOMINANT_MODULE_SHARE -- one big repo with
         # one big top-level source dir, not a genuinely federated repo.
-        assert _qualifying_modules(s, "r", node_count=5000) == []
+        # No module qualifies, but the index DID report modules, so its silence
+        # isn't what produced the empty list -- pruning stays authorized.
+        assert _module_page_plan(s, "r", node_count=5000) == ([], True)
     finally:
         s.close()
 
 
-def test_qualifying_modules_returns_modules_for_a_federated_repo():
-    from contextlake.kb.cmds.wiki import _qualifying_modules
+def test_module_page_plan_returns_modules_for_a_federated_repo():
+    from contextlake.kb.cmds.wiki import _module_page_plan
 
     s = SqliteStore(":memory:")
     try:
@@ -1260,7 +1264,8 @@ def test_qualifying_modules_returns_modules_for_a_federated_repo():
             nodes += [Node(id=f"mod{m}_n{i}", repo="r", kind="function", name=f"n{i}",
                           file=f"mod{m}/f{i}.py") for i in range(900)]
         s.upsert_nodes("r", nodes)
-        modules = _qualifying_modules(s, "r", node_count=5400)
+        modules, may_prune = _module_page_plan(s, "r", node_count=5400)
+        assert may_prune
         assert len(modules) == 6
         assert {m["prefix"] for m in modules} == {f"mod{i}" for i in range(6)}
     finally:
@@ -1477,7 +1482,7 @@ def test_cmd_wiki_skips_module_page_gracefully_on_shard_index_mismatch(tmp_path,
 
 
 def test_cmd_wiki_module_pages_capped_per_repo(tmp_path, monkeypatch, gls_logs):
-    """`_qualifying_modules` (pinned by spec, uncapped) can return "hundreds"
+    """`_module_page_plan` (pinned by spec, uncapped) can return "hundreds"
     of modules for a legacy federated repo -- the call site caps how many get
     a page in one run so one `wiki` invocation stays bounded. The run must say
     which modules it deferred rather than going silent about them."""
@@ -1624,7 +1629,7 @@ def test_cmd_wiki_prunes_a_module_page_that_no_longer_qualifies(tmp_path, monkey
 def test_cmd_wiki_prunes_every_module_page_when_a_repo_stops_being_federated(
         tmp_path, monkeypatch):
     """The headline orphan case: the repo itself stops qualifying (one module
-    now dominates it), so `_qualifying_modules` returns nothing at all. Every
+    now dominates it), so `_module_page_plan` returns nothing at all. Every
     module page is then an orphan -- pruning must not be gated on there being
     a non-empty qualifying list."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1833,5 +1838,38 @@ def test_module_partition_lookup_uses_the_repo_id_index(tmp_path):
         ).fetchall()
         detail = [str(tuple(row)) for row in plan]
         assert any("ix_nodes_repo" in d for d in detail), detail
+    finally:
+        store.close()
+
+
+def test_cmd_wiki_does_not_prune_when_the_index_reports_no_modules_at_all(tmp_path, monkeypatch):
+    """`node_count` comes from the shard and `repo_modules()` from the SQLite
+    index -- two persistence layers that can disagree. A large repo whose index
+    rows are missing (empty, mid-rebuild) reports no modules, which must NOT be
+    read as "this repo's modules are gone": pruning on it would delete every
+    module page, partition and vector the repo has, each costing a full LLM
+    regeneration to get back."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    modules_dir = store_dir / "wiki" / "_modules"
+    assert len(list(modules_dir.glob("fed__mod*.md"))) == 6
+
+    # The shard is untouched (the repo is still large); only the index rows go.
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        store.conn.execute("DELETE FROM nodes WHERE repo_id=?", ("fed",))
+        store.conn.commit()
+    finally:
+        store.close()
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    assert len(list(modules_dir.glob("fed__mod*.md"))) == 6
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        for m in range(6):
+            assert store.get_node(f"@wiki:fed::mod{m}:0") is not None
     finally:
         store.close()
