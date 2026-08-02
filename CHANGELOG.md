@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Connectors can now link external content directly to the code it's about via a new shared
+  `link_to_code` primitive (the existing repo-level edge is always kept alongside it).
 - **A public, read-only live demo of the dashboard is now linked from the project homepage and
   docs footer.** It's the existing `contextlake kb dashboard --site DIR --sample` static export
   (bundled fictional "acme" fleet, no real data) generated into `site/demo/` by `site/deploy.sh`

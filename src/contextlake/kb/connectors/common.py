@@ -49,3 +49,18 @@ def link_edge(repo_id: str, ext: Node, relation: str, source_file: str, *,
     """A repo -> external-knowledge edge (e.g. tracked_by / documented_by / designed_in)."""
     return edge_from(make_id("repo", repo_id), ext, relation, source_file,
                      confidence=confidence, verified_at=verified_at)
+
+
+def link_to_code(repo_id: str, ext: Node, code_matches: list[tuple[str, Confidence]],
+                 relation: str, source_file: str, *,
+                 verified_at: date | None = None) -> list[Edge]:
+    """External-node -> code edges for every matched code node, PLUS the existing
+    repo-level fallback edge (always present, even with zero matches) so nothing
+    that already reads the repo-level edge regresses."""
+    edges = [
+        edge_from(code_id, ext, relation, source_file,
+                  confidence=confidence, verified_at=verified_at)
+        for code_id, confidence in code_matches
+    ]
+    edges.append(link_edge(repo_id, ext, relation, source_file, verified_at=verified_at))
+    return edges

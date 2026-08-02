@@ -16,6 +16,7 @@ from contextlake.kb.connectors.atlassian import (
     parse_search_issues,
     repo_node,
 )
+from contextlake.kb.connectors.common import link_to_code
 from contextlake.kb.connectors.orchestrate import (
     build_slack,
     connect_partition,
@@ -24,7 +25,8 @@ from contextlake.kb.connectors.orchestrate import (
     enrich_repo_slack,
     reconcile,
 )
-from contextlake.kb.model import Confidence
+from contextlake.kb.ids import make_id
+from contextlake.kb.model import Confidence, Node
 
 # Mock MCP server exposing the two tools the connector calls.
 _MOCK_SERVER = """
@@ -153,6 +155,31 @@ def test_link_edge():
     assert e.confidence == Confidence.INFERRED
     assert e.provenance.source_file == "branch:feature/PROJ-1-x"
     assert e.provenance.verified_at is not None
+
+
+def test_link_to_code_creates_symbol_edges_and_keeps_repo_edge():
+    ext = Node(id=make_id("gitlab", "mr", "team/api", "42"), repo="(external)",
+                kind="mr", name="MR #42")
+    edges = link_to_code(
+        "team/api", ext,
+        [("team_api_pay_py", Confidence.EXTRACTED), ("team_api_payer_py", Confidence.EXTRACTED)],
+        "touches", "gitlab",
+    )
+    assert len(edges) == 3  # 2 symbol edges + 1 repo-level fallback edge
+    assert {e.src for e in edges[:2]} == {"team_api_pay_py", "team_api_payer_py"}
+    assert all(e.dst == ext.id and e.relation == "touches" for e in edges[:2])
+    assert all(e.confidence == Confidence.EXTRACTED for e in edges[:2])
+    repo_edge = edges[-1]
+    assert repo_edge.src == make_id("repo", "team/api")
+    assert repo_edge.relation == "touches"
+
+
+def test_link_to_code_with_no_matches_still_returns_repo_edge():
+    ext = Node(id=make_id("gitlab", "mr", "team/api", "43"), repo="(external)",
+                kind="mr", name="MR #43")
+    edges = link_to_code("team/api", ext, [], "touches", "gitlab")
+    assert len(edges) == 1
+    assert edges[0].src == make_id("repo", "team/api")
 
 
 # --- URL claiming + classification -----------------------------------------
