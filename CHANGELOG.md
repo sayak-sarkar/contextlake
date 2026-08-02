@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A public, read-only live demo of the dashboard is now linked from the project homepage and
+  docs footer.** It's the existing `contextlake dashboard --site DIR --sample` static export
+  (bundled fictional "acme" fleet, no real data) generated into `site/demo/` by `site/deploy.sh`
+  on every deploy, no new tooling.
 - **The wiki council can now review with a different (stronger) model than the one generating the
   pages**, via two new `[llm]` keys: `review_provider` and `review_model`. Until now a single client
   served both roles, so a local-only setup had the tiny built-in 0.5B grading its own drafts — a

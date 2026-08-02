@@ -641,7 +641,7 @@ def shell(meta, body, toc_html) -> str:
 <footer><div class="f-in">
   <span class="tagline">{FOOT_MARK}Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a>{FOOT_GH}{FOOT_PYPI}
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a>{FOOT_GH}{FOOT_PYPI}
   </nav>
 </div></footer>
 {THEME_JS}

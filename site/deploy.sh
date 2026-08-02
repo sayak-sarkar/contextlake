@@ -17,6 +17,10 @@ echo "==> building docs + syncing assets"
 # knowledge-layer extra is absent, so a lean environment still ships the lexical index).
 "$PY" "$HERE/tools/gen_search_index.py" || true
 
+echo "==> building the public read-only demo dashboard (bundled fictional fleet)"
+rm -rf "$HERE/demo"
+"$PY" -m contextlake dashboard --site "$HERE/demo" --sample
+
 WT="$(mktemp -d)"
 cleanup() { git -C "$REPO" worktree remove --force "$WT" 2>/dev/null || true; }
 trap cleanup EXIT
@@ -31,6 +35,7 @@ git -C "$WT" reset --hard origin/gh-pages --quiet
 cp "$HERE"/*.html "$HERE"/docs.css "$HERE"/tokens.css "$HERE"/cmdk.css "$HERE"/cmdk.js "$HERE"/fonts.css "$HERE"/manifest.webmanifest "$HERE"/sitemap.xml "$HERE"/llms.txt "$HERE"/llms-full.txt "$HERE"/search-index.json "$WT"/
 cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$HERE"/*.svg "$WT"/ 2>/dev/null || true
 cp -r "$HERE"/fonts "$WT"/
+cp -r "$HERE"/demo "$WT"/
 
 # cache-bust the linked assets: GitHub Pages serves static files with a 4h
 # max-age, and we reuse filenames (docs.css, fonts.css, graph-embed.html), so a
