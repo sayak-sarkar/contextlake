@@ -1525,3 +1525,37 @@ def test_cmd_wiki_module_page_selection_rotates_onto_the_unpaged_tail(tmp_path, 
     assert len(scoped) == n_modules - _MAX_MODULE_PAGES_PER_REPO
     for prefix in all_prefixes - first_run:
         assert any(f"ONLY the `{prefix}` module/subsystem" in p for p in scoped)
+
+
+def test_cmd_wiki_skips_module_pages_when_the_whole_repo_page_failed(
+        tmp_path, monkeypatch, gls_logs):
+    """A federated repo's whole-repo page and its module pages all go through
+    the same LLM + council, so a failure on the whole-repo page (backend
+    unreachable, auth rejected) will repeat for every module page. The run
+    must fail that repo fast instead of paying up to 21 round trips first."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_federated_repo(tmp_path)
+
+    class _BoomLlm(_FakeLlm):
+        def __init__(self):
+            super().__init__(score=0.95)
+            self.page_prompts: list[str] = []
+
+        def generate(self, prompt, *, system=None):
+            if "Review lens" in prompt:
+                return super().generate(prompt, system=system)
+            self.page_prompts.append(prompt)
+            raise RuntimeError("llm unreachable")
+
+    boom = _BoomLlm()
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: boom)
+
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 1
+
+    # Exactly one generation attempt: the whole-repo page. No module page was
+    # attempted, so none exist and none cost a round trip.
+    assert len(boom.page_prompts) == 1
+    assert "ONLY the" not in boom.page_prompts[0]
+    assert not (store_dir / "wiki" / "fed.md").exists()
+    assert not (store_dir / "wiki" / "_modules").exists()
+    assert "not attempting its subsystem pages this run" in gls_logs.text

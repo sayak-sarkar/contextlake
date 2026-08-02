@@ -442,6 +442,16 @@ def cmd_wiki(args) -> int:
                 skipped += 1
             elif outcome == "failed":
                 failed += 1
+                # Fail fast: the whole-repo page and every module page of this
+                # repo go through the same LLM + council, so whatever broke
+                # here (backend unreachable, auth rejected, model missing)
+                # will almost certainly break each of up to
+                # _MAX_MODULE_PAGES_PER_REPO module pages too. Reporting the
+                # failure now costs 1 round trip instead of 21.
+                log(f"  {repo_id}: whole-repo page failed — not attempting its "
+                    "subsystem pages this run", inline=True)
+                progress.advance(repo_id)
+                continue
             # "absent": no shard / no brief -- matches the prior silent skip.
 
             # Per-subsystem pages for large, genuinely federated repos --

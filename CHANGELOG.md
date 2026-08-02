@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page or is getting one this run — so the named set accumulates run over run instead of tracking
   only the current slice — and the truncation log line now says how many modules were deferred to a
   later run instead of claiming they were skipped outright.
+- **A failed whole-repo wiki page no longer drags every one of that repo's subsystem pages through
+  the same failure.** The whole-repo page and its module pages share one LLM and one council, so an
+  unreachable backend cost up to 21 round trips per federated repo before anything was reported.
+  The run now skips that repo's module pages and moves on as soon as its whole-repo page fails.
 - A council rejection now reports how many reviewers **abstained** (`N reviewer(s) returned nothing
   parseable`) alongside the score. A reviewer that returns nothing — a missing API key, a review CLI
   not on PATH (`CliLlm` returns `""` on non-zero exit rather than raising) — abstains on every lens
