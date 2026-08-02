@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 588" width="900" height="588" role="img" aria-label="contextlake knowledge graph node kinds and edge relations"><defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#41606a"/></marker></defs><rect x="0" y="0" width="900" height="588" fill="none"/>
 <text x="26" y="30" font-size="20" font-weight="700" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">The knowledge graph vocabulary</text>
-<text x="26" y="52" font-size="12.5" fill="#41606a" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">node kinds and edge relations, colored exactly as <tspan font-family="'JetBrains Mono',ui-monospace,monospace">contextlake graph</tspan> renders them</text>
+<text x="26" y="52" font-size="12.5" fill="#41606a" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">node kinds and edge relations, colored exactly as <tspan font-family="'JetBrains Mono',ui-monospace,monospace">contextlake kb graph</tspan> renders them</text>
 <text x="26" y="74" font-size="13" font-weight="700" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Node kinds</text>
 <text x="26" y="96" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">SYMBOLS</text>
 <rect x="26" y="103" width="15" height="15" rx="4" fill="#fb8500" stroke="#0E2A33" stroke-opacity=".18"/>

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 132" width="970" height="132" role="img" aria-label="contextlake sync pipeline" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 132" width="970" height="132" role="img" aria-label="contextlake mirror sync pipeline" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">
 <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#137A8B"/></marker></defs>
-<text x="24" y="26" font-size="13" font-weight="600" fill="#41606a" letter-spacing=".02em">contextlake sync</text>
+<text x="24" y="26" font-size="13" font-weight="600" fill="#41606a" letter-spacing=".02em">contextlake mirror sync</text>
 <rect x="24" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
 <text x="90" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">fetch</text>
 <text x="90" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">list repos</text>
