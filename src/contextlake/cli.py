@@ -62,28 +62,69 @@ _SCALAR_FLAGS = (
 # so the CLI accepts the same vocabulary. Purely additive; the canonical verbs stay.
 _ALIASES = {"who-knows": "owners", "blast-radius": "impact"}
 
-# Groups the flat 29-command list by task, for the root --help's categorized
-# listing (replacing argparse's own alphabetical-ish flat dump). Every command
-# name must appear in exactly one group -- see test_every_command_is_categorized.
+# The two command namespaces. The CLI does two unrelated jobs -- mirroring git
+# repositories and building/serving the knowledge layer over them -- so each verb
+# now lives under the noun it belongs to (`contextlake mirror fetch`,
+# `contextlake kb index`). `kb` is the same word already user-visible in kb.toml,
+# the `contextlake[kb]` extra, and _KB_COMMANDS below.
+_MIRROR_NS = "mirror"
+_KB_NS = "kb"
+_NAMESPACES = (_MIRROR_NS, _KB_NS)
+
+# Groups the command list by task, for the root --help's categorized listing
+# (replacing argparse's own alphabetical-ish flat dump). Each entry is
+# (namespace-or-None, title, names); a namespace of None means the command stays
+# top-level. Every command name must appear in exactly one group -- see
+# test_every_registered_command_is_categorized_exactly_once. This stays five
+# groups even though there are only two namespaces: the task grouping is what a
+# reader navigates by, the namespace is only how it is typed.
 _COMMAND_CATEGORIES = (
-    ("Get started", ("version", "init", "completion", "bootstrap", "doctor")),
-    ("Mirror a fleet", ("fetch", "clone", "update", "branches", "verify", "status",
-                        "sync", "audit")),
-    ("Build the knowledge graph", ("index", "source", "connect", "embed", "ingest",
-                                   "enrich", "wiki", "lint", "eval")),
-    ("Explore & search", ("query", "graph", "owners", "impact", "dashboard")),
-    ("Serve to editors", ("serve", "steer", "hook")),
+    (None, "Get started", ("version", "init", "completion", "bootstrap", "doctor")),
+    (_MIRROR_NS, "Mirror a fleet", ("fetch", "clone", "update", "branches", "verify",
+                                    "status", "sync", "audit")),
+    (_KB_NS, "Build the knowledge graph", ("index", "source", "connect", "embed",
+                                           "ingest", "enrich", "wiki", "lint", "eval")),
+    (_KB_NS, "Explore & search", ("query", "graph", "owners", "impact", "dashboard")),
+    (_KB_NS, "Serve to editors", ("serve", "steer", "hook")),
 )
 
+# canonical command name -> the namespace it is typed under. Commands absent from
+# this map (version, init, completion, bootstrap, doctor) are top-level: init and
+# bootstrap span BOTH tiers, version/completion belong to neither, and doctor is
+# the diagnostic you reach for when nothing else works -- none of them should sit
+# behind a namespace.
+_NAMESPACE_OF = {name: ns for ns, _, names in _COMMAND_CATEGORIES if ns for name in names}
 
-def _categorized_commands_text(choices):
+# The old flat spellings (a bare `contextlake fetch`) still parse, hidden from --help,
+# and warn once on stderr. They go away in the NEXT major, not this one:
+# contextlake itself wrote the old forms into files it does not revisit (git
+# post-commit hooks, .mcp.json / AGENTS.md), and a hard cutover would break those
+# silently -- no error the user ever sees, just a graph that quietly stops
+# updating. `kb hook install` / `kb steer --force` rewrite them in place.
+_DEPRECATION_REMOVED_IN = "v3.0.0"
+
+
+def _qualified(name):
+    """``fetch`` -> ``mirror fetch``: how a command is typed now. Used wherever
+    an error message names a command, so nothing in the CLI ever teaches the
+    deprecated flat spelling back to the user."""
+    ns = _NAMESPACE_OF.get(_ALIASES.get(name, name))
+    return f"{ns} {name}" if ns else name
+
+
+def _categorized_commands_text(choices, *, namespace=None):
     """A grouped-by-task replacement for the subparsers action's own flat
-    listing (suppressed per-command in ``command()`` above), built from the
-    live subparser objects so each description always matches the command's
-    own --help -- no separate copy to drift out of sync. Long descriptions
-    (bootstrap, dashboard, ...) are wrapped and re-indented to the terminal
-    width instead of hard-wrapping mid-word past column 80 -- RawDescription-
-    HelpFormatter never touches the epilog, so nothing else does this for us."""
+    listing (suppressed by _RootHelpFormatter), built from the live subparser
+    objects so each description always matches the command's own --help -- no
+    separate copy to drift out of sync. Long descriptions (bootstrap,
+    dashboard, ...) are wrapped and re-indented to the terminal width instead
+    of hard-wrapping mid-word past column 80 -- RawDescriptionHelpFormatter
+    never touches the epilog, so nothing else does this for us.
+
+    ``namespace`` restricts the listing to one namespace's groups (for that
+    namespace parser's own --help, where the prefix is already in the usage
+    line); the root listing shows every group and spells the prefix out.
+    """
     from . import style
 
     _REVERSE_ALIASES = {canon: alias for alias, canon in _ALIASES.items()}
@@ -92,8 +133,12 @@ def _categorized_commands_text(choices):
     cont_indent = " " * (len(indent) + label_col + 1)
 
     lines = ["Commands, by task:"]
-    for title, names in _COMMAND_CATEGORIES:
-        lines.append(f"\n  {title}:")
+    for ns, title, names in _COMMAND_CATEGORIES:
+        if namespace is not None and ns != namespace:
+            continue
+        heading = title if (namespace is not None or ns is None) else \
+            f"{title} (contextlake {ns} <command>)"
+        lines.append(f"\n  {heading}:")
         for name in names:
             alias = _REVERSE_ALIASES.get(name)
             label = f"{name} ({alias})" if alias else name
@@ -120,6 +165,10 @@ class _RootArgumentParser(argparse.ArgumentParser):
     # ever changes the wording, this degrades gracefully to the fallback
     # super().error() dump below -- never a crash, just the old UX.
     _BAD_COMMAND_RE = re.compile(r"^argument <command>: invalid choice: '([^']+)'")
+    # Set on each namespace parser (`mirror` / `kb`) so its own error text can
+    # tell "typo inside this namespace" from "that command lives at the top
+    # level". None on the root and on every leaf.
+    _namespace_name = None
     # parse_args() (called once, on the root parser -- see main()) is where argparse
     # reports leftover tokens no subparser consumed; a flag that exists on a DIFFERENT
     # subcommand than the one invoked (e.g. `bootstrap --local`, --local is init/source
@@ -194,9 +243,20 @@ class _RootArgumentParser(argparse.ArgumentParser):
         suggestion = _ALIASES.get(matches[0], matches[0]) if matches else None
 
         lines = [style.fail(f"Unknown command: {bad!r}")]
-        if suggestion:
+        root_choices = getattr(self, "_root_choices", {})
+        if self._namespace_name and bad in root_choices and bad not in _NAMESPACE_OF:
+            # `contextlake kb doctor`: not a typo at all -- doctor/init/bootstrap/
+            # version/completion deliberately stay top-level, and reaching for one
+            # a level too deep is the single most predictable namespace mistake.
             lines.append("")
-            lines.append(f"Did you mean: {suggestion}?")
+            lines.append(f"{bad!r} is a top-level command: run 'contextlake {bad}'.")
+        elif suggestion:
+            # At the root, teach the namespaced spelling -- the flat one still
+            # parses but is deprecated, so suggesting it would teach the form
+            # we are retiring.
+            shown = suggestion if self._namespace_name else _qualified(suggestion)
+            lines.append("")
+            lines.append(f"Did you mean: {shown}?")
         lines.append("")
         lines.append(f"Run '{self.prog} --help' to see all commands.")
         return "\n".join(lines) + "\n"
@@ -220,13 +280,21 @@ class _RootArgumentParser(argparse.ArgumentParser):
         for the lifetime of the process, and this is reachable from a
         subparser's own error() too (not just the root's), since argparse
         defaults every add_parser() to this same class (see build_parser()).
+
+        Always built from the ROOT's choices (which still carry every leaf, via
+        the deprecated flat spelling), never from a namespace parser's own
+        subset -- otherwise whichever parser happened to error first would
+        poison the class-level cache with a partial registry. The two namespace
+        parsers themselves are skipped: they re-declare the whole pre-verb flag
+        surface, so leaving them in would report e.g. --local as "used by: init,
+        kb, mirror, source".
         """
         cached = getattr(_RootArgumentParser, "_flags_by_command_cache", None)
         if cached is not None:
             return cached
         reg = {}
-        for name, subparser in getattr(self, "_command_choices", {}).items():
-            if name in _ALIASES:
+        for name, subparser in getattr(self, "_root_choices", {}).items():
+            if name in _ALIASES or name in _NAMESPACES:
                 continue
             reg[name] = set(subparser._option_string_actions.keys()) - self._META_FLAGS
         _RootArgumentParser._flags_by_command_cache = reg
@@ -246,8 +314,10 @@ class _RootArgumentParser(argparse.ArgumentParser):
         if bad is None:
             return None
         argv = getattr(self, "_last_argv", None) or []
-        choices = getattr(self, "_command_choices", {})
-        command = next((t for t in argv if t in choices), None)
+        choices = getattr(self, "_root_choices", {})
+        # Skip the namespace token: in `contextlake mirror fetch --local` the flag
+        # belongs to (or doesn't belong to) `fetch`, not to `mirror`.
+        command = next((t for t in argv if t in choices and t not in _NAMESPACES), None)
         canonical = _ALIASES.get(command, command)
         flags_by_command = self._flags_by_command()
 
@@ -259,8 +329,9 @@ class _RootArgumentParser(argparse.ArgumentParser):
                          if bad in flags and cmd != canonical)
         if used_by and canonical:
             lines = [style.fail(f"{bad!r} isn't a flag on {canonical!r}"), "",
-                     f"It's used by: {', '.join(used_by)}.", "",
-                     f"Run '{self.prog} {canonical} --help' to see {canonical}'s own flags."]
+                     f"It's used by: {', '.join(_qualified(c) for c in used_by)}.", "",
+                     f"Run 'contextlake {_qualified(canonical)} --help' to see "
+                     f"{canonical}'s own flags."]
             return "\n".join(lines) + "\n"
 
         this_commands_flags = flags_by_command.get(canonical, set())
@@ -305,7 +376,7 @@ _KB_COMMANDS = frozenset({
 # Namespace defaults for every flag. Subparsers use SUPPRESS argument defaults so a
 # flag given before the command survives the subparser pass; these seed the rest.
 _DEFAULTS = {
-    "command": None, "args": [],
+    "command": None, "subcommand": None, "args": [],
     # global
     "verbose": False, "quiet": False, "log_file": None, "config": None,
     # completion
@@ -504,6 +575,9 @@ def _root_hidden_flags(p):
 
 def build_parser():
     """Build the argument parser. Kept separate from main() so it is testable."""
+    # The flag registry is a process-wide cache of a fixed parser shape; drop it
+    # so a rebuilt parser can never be described by a previous build's registry.
+    _RootArgumentParser._flags_by_command_cache = None
     parser = _RootArgumentParser(
         prog="contextlake",
         description="A local context layer for AI tools: mirror your repositories, "
@@ -513,14 +587,15 @@ def build_parser():
         allow_abbrev=False,
         epilog="""
 Get started:
-  contextlake init                          guided setup: write your config (start here)
-  contextlake bootstrap                     one command: mirror + index + connect + steer
-  contextlake index .                       index the current repo into the local graph
-  contextlake query "CatalogService"          search the graph (cited file:line hits)
-  contextlake serve                         expose the graph to your editor over MCP
-  contextlake dashboard --serve --sample    explore a demo fleet, zero setup
+  contextlake init                           guided setup: write your config (start here)
+  contextlake bootstrap                      one command: mirror + index + connect + steer
+  contextlake kb index .                     index the current repo into the local graph
+  contextlake kb query "CatalogService"      search the graph (cited file:line hits)
+  contextlake kb serve                       expose the graph to your editor over MCP
+  contextlake kb dashboard --serve --sample  explore a demo fleet, zero setup
 
-Run 'contextlake <command> --help' for that command's flags and examples.
+Run 'contextlake mirror' or 'contextlake kb' to list a namespace's commands, and
+'contextlake [mirror|kb] <command> --help' for that command's flags and examples.
 
 Docs:   https://sayak.in/contextlake
 Issues: https://github.com/sayak-sarkar/contextlake/issues
@@ -536,12 +611,61 @@ Issues: https://github.com/sayak-sarkar/contextlake/issues
     # sub.choices is mutated in place as add_parser() is called below, so this
     # reference is fully populated by the time error() can ever run.
     parser._command_choices = sub.choices
+    parser._root_choices = sub.choices
+
+    def namespace(name, description, epilog):
+        """A command namespace (`contextlake mirror ...`): its own parser, its
+        own subparsers, and the same pre-verb flag surface the root carries --
+        so `contextlake mirror --dry-run fetch` parses exactly like the
+        `contextlake --dry-run mirror fetch` form always has. Order matters:
+        _add_mirror(hidden=True) is what supplies --repos, which is why
+        _root_hidden_flags deliberately does not re-add it (see its own note)."""
+        np = sub.add_parser(name, help=description, description=description,
+                            epilog=epilog, formatter_class=_RootHelpFormatter,
+                            allow_abbrev=False)
+        _add_global(np)
+        _add_mirror(np, hidden=True)
+        _root_hidden_flags(np)
+        nsub = np.add_subparsers(dest="subcommand", metavar="<command>",
+                                 title="commands", required=False)
+        np._command_choices = nsub.choices
+        np._root_choices = sub.choices
+        np._namespace_name = name
+        return np, nsub
+
+    mirror_ns, mirror_sub = namespace(
+        _MIRROR_NS,
+        "mirror repositories from your forge into a local workspace",
+        "\nRun 'contextlake mirror <command> --help' for that command's flags "
+        "and examples.\n")
+    kb_ns, kb_sub = namespace(
+        _KB_NS,
+        "build, explore, and serve the local knowledge layer over your repositories",
+        "\nRun 'contextlake kb <command> --help' for that command's flags "
+        "and examples.\n")
+    parser._namespace_parsers = {_MIRROR_NS: mirror_ns, _KB_NS: kb_ns}
+    _namespace_subs = {_MIRROR_NS: mirror_sub, _KB_NS: kb_sub}
 
     def command(name, help_, *, aliases=(), epilog=None):
-        p = sub.add_parser(name, help=help_, description=help_, aliases=list(aliases),
-                           epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter,
-                           allow_abbrev=False)
+        """Register a leaf under its namespace -- so its prog, usage line, and
+        --help all read `contextlake kb index` -- then alias the same parser
+        object back onto the root for the deprecated flat spelling. One parser,
+        two reachable paths: there is no second definition to drift, and the
+        deprecated form's --help teaches the namespaced usage line."""
+        ns = _NAMESPACE_OF.get(name)
+        target = _namespace_subs[ns] if ns else sub
+        p = target.add_parser(name, help=help_, description=help_, aliases=list(aliases),
+                              epilog=epilog,
+                              formatter_class=argparse.RawDescriptionHelpFormatter,
+                              allow_abbrev=False)
         _add_global(p)
+        if ns:
+            # Deprecated flat spelling. Registered straight into the name map
+            # rather than via add_parser(help=...) so it never appears in any
+            # help listing -- discoverability moves to the namespace immediately,
+            # compatibility does not.
+            for spelling in (name, *aliases):
+                sub._name_parser_map[spelling] = p
         return p
 
     # `--version` (a flag, exits during parsing) is the documented way to check
@@ -555,10 +679,10 @@ Issues: https://github.com/sayak-sarkar/contextlake/issues
     p = command("init", "guided setup: write your mirror + knowledge-layer config",
                 epilog="""
 Examples:
-  contextlake init                       interactive setup (prompts with defaults)
-  contextlake init --yes                 non-interactive, all defaults
+  contextlake init        interactive setup (prompts with defaults)
+  contextlake init --yes  non-interactive, all defaults
   contextlake init --platform github --group my-org --yes
-  contextlake init --local               write config to THIS directory, not ~/
+  contextlake init --local  write config to THIS directory, not ~/
 
 Without --local or --config, init writes ~/.contextlake.ini + ~/.contextlake/kb.toml
 (the global config every directory falls back to). --local writes
@@ -595,8 +719,8 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                 "register shell tab-completion for the current shell (bash/zsh/fish)",
                 epilog="""
 Examples:
-  contextlake completion        auto-detect $SHELL and register
-  contextlake completion zsh    register for zsh explicitly
+  contextlake completion      auto-detect $SHELL and register
+  contextlake completion zsh  register for zsh explicitly
 
 Also happens automatically, once, the first time any command runs in a real
 interactive terminal (skip this with CONTEXTLAKE_NO_AUTO_COMPLETION=1) -- this
@@ -617,31 +741,31 @@ than $SHELL. Uses the exact mechanism `init` uses (see docs/usage.md
     for name, help_, epilog in (
         ("fetch", "enumerate the GitLab projects you can access and cache the list", """
 Examples:
-  contextlake fetch                             list every accessible GitLab project
-  contextlake fetch --repos 'team/api,billing'  only projects matching this filter
+  contextlake mirror fetch                             list every accessible GitLab project
+  contextlake mirror fetch --repos 'team/api,billing'  only projects matching this filter
                 """),
         ("clone", "clone repositories missing from the local workspace", """
 Examples:
-  contextlake clone              clone whatever's missing from the workspace
-  contextlake clone --dry-run    show what would be cloned, change nothing
+  contextlake mirror clone            clone whatever's missing from the workspace
+  contextlake mirror clone --dry-run  show what would be cloned, change nothing
                 """),
         ("update", "fetch + fast-forward every existing clone", """
 Examples:
-  contextlake update                             fetch + fast-forward every clone
-  contextlake update --repos 'team/api,billing'  only these repos
+  contextlake mirror update                             fetch + fast-forward every clone
+  contextlake mirror update --repos 'team/api,billing'  only these repos
                 """),
         ("branches", "switch each repo to its most active development branch", """
 Examples:
-  contextlake branches             switch every repo to its most active branch
-  contextlake branches --dry-run   show what would switch, change nothing
+  contextlake mirror branches            switch every repo to its most active branch
+  contextlake mirror branches --dry-run  show what would switch, change nothing
                 """),
         ("verify", "compare the local workspace against GitLab (read-only)", """
 Examples:
-  contextlake verify   compare the workspace against GitLab, change nothing
+  contextlake mirror verify  compare the workspace against GitLab, change nothing
                 """),
         ("status", "show sync state without changing anything", """
 Examples:
-  contextlake status   show sync state, change nothing
+  contextlake mirror status  show sync state, change nothing
                 """),
     ):
         _add_mirror(command(name, help_, epilog=epilog))
@@ -649,17 +773,17 @@ Examples:
     p = command("sync", "full mirror: fetch + clone + update + branches + verify",
                 epilog="""
 Examples:
-  contextlake sync                    full synchronization
-  contextlake sync --dry-run          show what would happen, change nothing
-  contextlake sync --auto-stash       stash dirty trees before updating
+  contextlake mirror sync               full synchronization
+  contextlake mirror sync --dry-run     show what would happen, change nothing
+  contextlake mirror sync --auto-stash  stash dirty trees before updating
                 """)
     _add_mirror(p)
     _add_report(p, no_audit=True)
 
     p = command("audit", "per-repo health and age report (JSON + CSV)", epilog="""
 Examples:
-  contextlake audit                            per-repo health/age report (JSON + CSV)
-  contextlake audit --report /tmp/audit.json   write the report to a custom path
+  contextlake mirror audit                           per-repo health/age report (JSON + CSV)
+  contextlake mirror audit --report /tmp/audit.json  write the report to a custom path
                 """)
     _add_mirror(p)
     _add_report(p)
@@ -669,10 +793,10 @@ Examples:
                 "connect, embed, enrich, wiki, steering",
                 epilog="""
 Examples:
-  contextlake bootstrap                          the full turnkey run
-  contextlake bootstrap --no-sync                repos already cloned; skip the mirror
-  contextlake bootstrap --no-embed --no-wiki     no model configured yet
-  contextlake bootstrap --workspace ~/src        index this directory instead of work_dir
+  contextlake bootstrap                       the full turnkey run
+  contextlake bootstrap --no-sync             repos already cloned; skip the mirror
+  contextlake bootstrap --no-embed --no-wiki  no model configured yet
+  contextlake bootstrap --workspace ~/src     index this directory instead of work_dir
                 """)
     _add_mirror(p)
     _add_report(p, no_audit=True)
@@ -703,10 +827,10 @@ Examples:
     p = command("index", "parse repositories into the local knowledge graph",
                 epilog="""
 Examples:
-  contextlake index                   index the current directory
-  contextlake index path/to/repo      index one repo (same as --source)
-  contextlake index --workspace ~/w   index every git repo under a folder
-  contextlake index --force           full re-index (default is incremental)
+  contextlake kb index                  index the current directory
+  contextlake kb index path/to/repo     index one repo (same as --source)
+  contextlake kb index --workspace ~/w  index every git repo under a folder
+  contextlake kb index --force          full re-index (default is incremental)
                 """)
     p.add_argument("path", nargs="?", default=_S,
                    help="a repo directory or graph-shard JSON to index (default: cwd)")
@@ -727,11 +851,11 @@ Examples:
                 "(Atlassian / Jira / Figma / GitLab / MCP)",
                 epilog="""
 Examples:
-  contextlake source add jira --type atlassian --mcp https://mcp.atlassian.com/v1/mcp/authv2
-  contextlake source add jira --type atlassian --local   scope it to this project, not global
-  contextlake source list
-  contextlake source test jira
-  contextlake source disable jira
+  contextlake kb source add jira --type atlassian --mcp https://mcp.atlassian.com/v1/mcp/authv2
+  contextlake kb source add jira --type atlassian --local  scope it to this project, not global
+  contextlake kb source list
+  contextlake kb source test jira
+  contextlake kb source disable jira
 
 `list` and `test` show the effective (merged) config -- the same precedence
 chain `connect`/`ingest`/`wiki` use -- so a source defined in a local
@@ -759,7 +883,7 @@ fail (exit 1).
     p.add_argument("--from-stdin", default=_S, metavar="KEY",
                    help="add: read this option's value from stdin instead of the "
                         "command line, so a secret never lands in shell history "
-                        "(e.g. printf '%%s' \"$TOKEN\" | contextlake source add jira "
+                        "(e.g. printf '%%s' \"$TOKEN\" | contextlake kb source add jira "
                         "--from-stdin token)")
 
     p = command("connect", "enrich the graph from configured sources "
@@ -807,12 +931,12 @@ fail (exit 1).
     p = command("hook", "install a git post-commit hook that re-indexes a repo on commit",
                 epilog="""
 Examples:
-  contextlake hook install                    wire the repo in the current directory
-  contextlake hook install --workspace ~/src  wire every git repo under a mirror
-  contextlake hook status --workspace ~/src   show which repos are wired
-  contextlake hook uninstall                  remove the hook (restores any prior one)
+  contextlake kb hook install                    wire the repo in the current directory
+  contextlake kb hook install --workspace ~/src  wire every git repo under a mirror
+  contextlake kb hook status --workspace ~/src   show which repos are wired
+  contextlake kb hook uninstall                  remove the hook (restores any prior one)
 
-The hook runs `contextlake index <repo>` detached after each commit, so the graph
+The hook runs `contextlake kb index <repo>` detached after each commit, so the graph
 stays current without a manual re-index. It re-uses the repo's stored id (or the
 directory name) so it updates the same node, never a duplicate.
                 """)
@@ -820,7 +944,7 @@ directory name) so it updates the same node, never a duplicate.
     # skips it (see its own note): nargs="?" + choices= + this codebase's
     # SUPPRESS-default convention makes argparse on Python 3.9-3.11 validate the
     # SUPPRESS sentinel itself against choices when the positional is omitted,
-    # so a bare `contextlake hook` died with "invalid choice: '==SUPPRESS=='"
+    # so a bare `contextlake kb hook` died with "invalid choice: '==SUPPRESS=='"
     # instead of defaulting to install. cmd_hook() already rejects an unknown
     # action with its own message, so nothing is lost.
     p.add_argument("action", nargs="?", default=_S,
@@ -835,8 +959,8 @@ directory name) so it updates the same node, never a duplicate.
     p = command("serve", "serve the knowledge graph to AI tools over MCP",
                 epilog="""
 Examples:
-  contextlake serve                        stdio transport (editor-managed)
-  contextlake serve --transport http       HTTP transport on --host/--port
+  contextlake kb serve                   stdio transport (editor-managed)
+  contextlake kb serve --transport http  HTTP transport on --host/--port
                 """)
     p.add_argument("--transport", choices=["stdio", "http"], default=_S,
                    help="MCP transport (default stdio)")
@@ -845,10 +969,10 @@ Examples:
     p = command("query", "search the graph from the terminal (cited file:line hits)",
                 epilog="""
 Examples:
-  contextlake query "CatalogService"
-  contextlake query charge --kind function --repo billing-service
-  contextlake query charge --repo billing-service --as-of a1b2c3
-  contextlake query "how do we charge a card" --retriever semantic
+  contextlake kb query "CatalogService"
+  contextlake kb query charge --kind function --repo billing-service
+  contextlake kb query charge --repo billing-service --as-of a1b2c3
+  contextlake kb query "how do we charge a card" --retriever semantic
                 """)
     p.add_argument("args", nargs="*", metavar="text", help="the search text")
     p.add_argument("--kind", default=_S, help="filter by node kind")
@@ -859,24 +983,24 @@ Examples:
     p.add_argument("--retriever", choices=("fts", "semantic", "hybrid"), default=_S,
                    help="fts (default, keyword) / semantic (embeddings) / hybrid "
                         "(semantic seed + graph rerank) -- semantic and hybrid need "
-                        "`contextlake embed` to have run first, or this degrades to fts")
+                        "`contextlake kb embed` to have run first, or this degrades to fts")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted text")
 
     p = command("graph", "visualize a bounded subgraph (HTML/dot/mermaid/JSON)",
                 epilog="""
 Examples:
-  contextlake graph --overview                        repos-as-nodes fleet view
-  contextlake graph --name CatalogService --hops 2      neighbourhood of a symbol
-  contextlake graph --repo acme/app --format classdiagram   UML class diagram (Mermaid)
-  contextlake graph --node ID --format sequencediagram      call-order trace (Mermaid)
-  contextlake graph --repo acme/app --format statediagram   entity state machine (Mermaid)
-  contextlake graph --repo acme/app --format erdiagram       table/view ER diagram (Mermaid)
-  contextlake graph --repo acme/app --format deploymentdiagram   Terraform diagram (Mermaid)
-  contextlake graph --serve                           live click-to-expand UI
-  contextlake graph --site                            offline cross-linked site
-  contextlake graph --c4 --group-depth 2              composed namespace (C4) diagram
-  contextlake graph --c4 --c1                         + external-system boxes (C1)
+  contextlake kb graph --overview                                  repos-as-nodes fleet view
+  contextlake kb graph --name CatalogService --hops 2              neighbourhood of a symbol
+  contextlake kb graph --repo acme/app --format classdiagram       UML class diagram (Mermaid)
+  contextlake kb graph --node ID --format sequencediagram          call-order trace (Mermaid)
+  contextlake kb graph --repo acme/app --format statediagram       entity state machine (Mermaid)
+  contextlake kb graph --repo acme/app --format erdiagram          table/view ER diagram (Mermaid)
+  contextlake kb graph --repo acme/app --format deploymentdiagram  Terraform diagram (Mermaid)
+  contextlake kb graph --serve                                     live click-to-expand UI
+  contextlake kb graph --site                                      offline cross-linked site
+  contextlake kb graph --c4 --group-depth 2                        composed namespace (C4) diagram
+  contextlake kb graph --c4 --c1                                   + external-system boxes (C1)
                 """)
     p.add_argument("args", nargs="*", metavar="query",
                    help="full-text seed (same as --search)")
@@ -988,9 +1112,9 @@ Examples:
                           "enrichment docs",
                 epilog="""
 Examples:
-  contextlake enrich                        enrich every indexed repo
-  contextlake enrich group/app              enrich just this repo
-  contextlake enrich --workspace ~/src      enrich every repo under a mirror
+  contextlake kb enrich                    enrich every indexed repo
+  contextlake kb enrich group/app          enrich just this repo
+  contextlake kb enrich --workspace ~/src  enrich every repo under a mirror
 
 Unlike `connect` (which reconciles issue keys/links found *in* a repo), enrich
 never inspects the repo's text -- it turns the repo's own name and top symbols
@@ -1007,9 +1131,9 @@ source what it has. Results land in an isolated `@enrich:<repo>` partition.
                              "relationships / impact / health / search",
                 epilog="""
 Examples:
-  contextlake dashboard --serve --sample    explore a demo fleet, zero setup
-  contextlake dashboard --serve             the live dashboard over your store
-  contextlake dashboard --site out/         static offline export (see --anonymize)
+  contextlake kb dashboard --serve --sample  explore a demo fleet, zero setup
+  contextlake kb dashboard --serve           the live dashboard over your store
+  contextlake kb dashboard --site out/       static offline export (see --anonymize)
                 """)
     p.add_argument("--serve", action="store_true", default=_S,
                    help="serve the live dashboard (default; uses --host/--port)")
@@ -1043,9 +1167,16 @@ Examples:
 
     parser.set_defaults(**_DEFAULTS)
     # The full categorized map goes first (what's available), the hand-picked
-    # "Get started" recipes and doc links (already in `epilog`) follow.
+    # "Get started" recipes and doc links (already in `epilog`) follow. Built
+    # from the ROOT's choices, which still carry every leaf via the deprecated
+    # flat spelling, so one lookup table serves both levels.
     parser.epilog = ("\n" + _categorized_commands_text(parser._command_choices)
                      + "\n" + parser.epilog)
+    for ns_name, ns_parser in parser._namespace_parsers.items():
+        ns_parser.epilog = ("\n"
+                            + _categorized_commands_text(parser._command_choices,
+                                                         namespace=ns_name)
+                            + "\n" + (ns_parser.epilog or ""))
     return parser
 
 
@@ -1189,7 +1320,7 @@ def _bootstrap(args, config, work_dir, gitlab_group):
                 sys.exit(1)
 
     log("")
-    serve = "contextlake serve" + (f" --config {kb_args.config}" if kb_args.config else "")
+    serve = "contextlake kb serve" + (f" --config {kb_args.config}" if kb_args.config else "")
     if failures:
         log(style.warn(f"Bootstrap finished with {len(failures)} failed stage(s): "
                        f"{', '.join(failures)}."))
@@ -1198,6 +1329,45 @@ def _bootstrap(args, config, work_dir, gitlab_group):
         sys.exit(1)
     log(style.ok(f"Bootstrap complete — workspace ready at {work_dir}."))
     log(f"  Editors are wired (.mcp.json + steering). Start the knowledge server: {serve}")
+
+
+def _warn_deprecated_spelling(name, ns, *, quiet=False):
+    """One line, on STDERR. Never stdout: lint/query/owners/impact all have
+    --json and `graph --format json|graphml|cypher|dot|mermaid` writes
+    machine-readable stdout, so a notice there would corrupt every one of those
+    pipes. Silenced by -q and by CONTEXTLAKE_NO_DEPRECATION, so a team's CI logs
+    stay clean while they migrate."""
+    if quiet or os.environ.get("CONTEXTLAKE_NO_DEPRECATION"):
+        return
+    from . import style
+
+    print(style.warn(
+        f"'contextlake {name}' is deprecated; use 'contextlake {ns} {name}' "
+        f"(the flat form is removed in {_DEPRECATION_REMOVED_IN}). "
+        "Silence this with CONTEXTLAKE_NO_DEPRECATION=1.", stream=sys.stderr),
+        file=sys.stderr)
+
+
+def _resolve_command(args, parser):
+    """Collapse the two-level command tree onto the single dispatch key the rest
+    of the CLI already keys off (``args.command``), so _KB_COMMANDS, the mirror
+    elif chain, and kb.cmds.dispatch all keep working unchanged.
+
+    Both `contextlake mirror fetch` and the deprecated flat `contextlake mirror fetch`
+    come out of here as ``command == "fetch"``; only the flat form warns.
+    """
+    if args.command in _NAMESPACES:
+        if args.subcommand is None:
+            # `contextlake mirror` with no verb is a first keystroke, not an
+            # error -- show that namespace's front door, exactly as bare
+            # `contextlake` shows the root's.
+            parser._namespace_parsers[args.command].print_help()
+            sys.exit(0)
+        args.command = args.subcommand
+        return
+    ns = _NAMESPACE_OF.get(_ALIASES.get(args.command, args.command))
+    if ns:
+        _warn_deprecated_spelling(args.command, ns, quiet=args.quiet)
 
 
 def main(argv=None):
@@ -1220,10 +1390,11 @@ def main(argv=None):
     except ImportError:
         pass
     args = parser.parse_args(argv)
-    args.command = _ALIASES.get(args.command, args.command)
 
     # --plain is a friendlier spelling of NO_COLOR=1 -- same code path, so
     # every glyph/colour decision downstream stays in one place (style.py).
+    # Set before _resolve_command so a namespace's help and the deprecation
+    # notice honour it too.
     if getattr(args, "plain", False):
         os.environ["NO_COLOR"] = "1"
 
@@ -1232,6 +1403,9 @@ def main(argv=None):
     if args.command is None:
         parser.print_help()
         sys.exit(0)
+
+    _resolve_command(args, parser)
+    args.command = _ALIASES.get(args.command, args.command)
 
     # Same output `--version` prints (parser.prog is "contextlake"), just also
     # reachable as a subcommand.

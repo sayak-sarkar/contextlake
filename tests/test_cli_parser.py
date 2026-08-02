@@ -4,7 +4,13 @@ help epilog. See docs/... review notes for the source of these findings.
 
 import pytest
 
-from contextlake.cli import _ALIASES, _COMMAND_CATEGORIES, _KB_COMMANDS, build_parser
+from contextlake.cli import (
+    _ALIASES,
+    _COMMAND_CATEGORIES,
+    _KB_COMMANDS,
+    _NAMESPACES,
+    build_parser,
+)
 
 
 def test_abbreviated_long_flags_are_rejected():
@@ -36,7 +42,9 @@ def test_unknown_command_suggests_the_closest_real_one(capsys):
     assert exc.value.code == 2
     err = capsys.readouterr().err
     assert "Unknown command: 'fetc'" in err
-    assert "Did you mean: fetch?" in err
+    # The suggestion teaches the namespaced spelling, never the deprecated flat
+    # one -- suggesting `fetch` would point the user at the form being retired.
+    assert "Did you mean: mirror fetch?" in err
     assert "invalid choice" not in err
 
 
@@ -47,7 +55,7 @@ def test_unknown_command_suggests_the_canonical_verb_not_an_alias(capsys):
     with pytest.raises(SystemExit):
         build_parser().parse_args(["blast-radiu"])
     err = capsys.readouterr().err
-    assert "Did you mean: impact?" in err
+    assert "Did you mean: kb impact?" in err
     assert "blast-radius" not in err
 
 
@@ -229,19 +237,36 @@ def test_every_mirror_command_has_an_examples_epilog(name):
     inconsistency a user hits the moment they run e.g. `update --help`."""
     parser = build_parser()._command_choices[name]
     assert "Examples:" in (parser.epilog or "")
-    assert f"contextlake {name}" in parser.epilog
+    # The worked examples must show the namespaced spelling; a leftover bare
+    # `contextlake update` here is the highest-traffic place the retired form
+    # could survive unnoticed.
+    assert f"contextlake mirror {name}" in parser.epilog
 
 
 def test_every_registered_command_is_categorized_exactly_once():
     """The categorized --help listing must never silently drop (or double-list)
     a real command -- every canonical name registered on the root parser
-    (excluding aliases, which _COMMAND_CATEGORIES never lists separately) has
-    to appear in exactly one category."""
+    (excluding aliases, which _COMMAND_CATEGORIES never lists separately, and
+    the two namespace nouns, which are containers rather than commands) has to
+    appear in exactly one category."""
     all_commands = {name for name in build_parser()._command_choices
-                    if name not in _ALIASES}
-    categorized = [name for _, names in _COMMAND_CATEGORIES for name in names]
+                    if name not in _ALIASES and name not in _NAMESPACES}
+    categorized = [name for _, _, names in _COMMAND_CATEGORIES for name in names]
     assert len(categorized) == len(set(categorized)), "a command is listed twice"
     assert set(categorized) == all_commands
+
+
+def test_each_namespace_registers_exactly_its_categorized_commands():
+    """The namespace subparsers and the categorized listing are built from the
+    same table, so a command can never be listed under `kb` in --help while
+    only being reachable under `mirror` (or not at all)."""
+    parser = build_parser()
+    for ns in _NAMESPACES:
+        registered = {name for name in parser._namespace_parsers[ns]._command_choices
+                      if name not in _ALIASES}
+        expected = {name for cat_ns, _, names in _COMMAND_CATEGORIES if cat_ns == ns
+                    for name in names}
+        assert registered == expected, ns
 
 
 def test_long_command_descriptions_wrap_to_terminal_width_not_mid_line(monkeypatch):
@@ -275,7 +300,7 @@ def test_root_help_shows_the_categorized_list_not_the_flat_one(capsys):
         build_parser().parse_args(["--help"])
     out = capsys.readouterr().out
     assert "Commands, by task:" in out
-    assert "Mirror a fleet:" in out
+    assert "Mirror a fleet (contextlake mirror <command>):" in out
     assert "owners (who-knows)" in out
     # the old flat argparse listing (one un-grouped line per command) is gone
     assert "\ncommands:\n" not in out
