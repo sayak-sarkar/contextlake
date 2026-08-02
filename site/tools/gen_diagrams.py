@@ -129,7 +129,7 @@ def architecture_overview(fname):
 
 def taxonomy(fname):
     """The knowledge-graph vocabulary: node kinds + edge relations, colored
-    EXACTLY as ``contextlake graph`` renders them (colors imported from the
+    EXACTLY as ``contextlake kb graph`` renders them (colors imported from the
     package so the doc diagram can never drift from the real output)."""
     from contextlake.kb.visualize import (
         KIND_COLORS, RELATION_COLORS, DEFAULT_EDGE_COLOR, CONF_META,
@@ -167,7 +167,7 @@ def taxonomy(fname):
                  f'fill="{INK}" font-family="{FF}">The knowledge graph vocabulary</text>')
     parts.append(f'<text x="{pad}" y="52" font-size="12.5" fill="{MUTED}" '
                  f'font-family="{FF}">node kinds and edge relations, colored exactly as '
-                 f'<tspan font-family="{FM}">contextlake graph</tspan> renders them</text>')
+                 f'<tspan font-family="{FM}">contextlake kb graph</tspan> renders them</text>')
 
     # left column: node kinds
     y = top
@@ -272,8 +272,8 @@ palette("brand-palette.svg")
 pipeline(
     [("fetch", "list repos"), ("clone", "missing"), ("update", "pull"),
      ("branches", "most active"), ("verify", "structure"), ("audit", "health")],
-    "pipeline-sync.svg", "contextlake sync pipeline",
-    sub="contextlake sync")
+    "pipeline-sync.svg", "contextlake mirror sync pipeline",
+    sub="contextlake mirror sync")
 
 # the bootstrap pipeline (knowledge layer / quickstart)
 pipeline(

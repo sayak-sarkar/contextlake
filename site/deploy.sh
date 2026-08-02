@@ -19,7 +19,7 @@ echo "==> building docs + syncing assets"
 
 echo "==> building the public read-only demo dashboard (bundled fictional fleet)"
 rm -rf "$HERE/demo"
-"$PY" -m contextlake dashboard --site "$HERE/demo" --sample
+"$PY" -m contextlake kb dashboard --site "$HERE/demo" --sample
 
 WT="$(mktemp -d)"
 cleanup() { git -C "$REPO" worktree remove --force "$WT" 2>/dev/null || true; }

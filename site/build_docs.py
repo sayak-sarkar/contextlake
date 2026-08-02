@@ -107,13 +107,13 @@ PAGES = [
      "pebble-doc.png",
      [("dashboard.html", "Dashboard"), ("visualize.html", "Visualize the graph")]),
     ("visualize.html", "docs/visualize.md", "Visualize the graph", "Visualize the graph",
-     "Use it", "Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, "
+     "Use it", "Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, "
      "or a class diagram, plus the composed namespace C4 diagram.",
      "pebble-doc.png",
      [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
     ("ownership.html", "docs/ownership.md", "Ownership and SMEs", "Ownership and SMEs",
      "Use it", "Find who owns a repo or path and who to ask, ranked recency-weighted from git "
-     "history (`contextlake owners` / `who_knows`), no config or index required.",
+     "history (`contextlake kb owners` / `who_knows`), no config or index required.",
      "pebble-doc.png",
      [("serve.html", "Serve (MCP)"), ("dashboard.html", "Dashboard")]),
     ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",
