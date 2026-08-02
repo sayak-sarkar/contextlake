@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when they differ, and `contextlake doctor` still checks the generation provider only.
 
 ### Fixed
+- **The per-run cap on subsystem wiki pages no longer permanently strands the tail of a very large
+  federated repo.** A repo with more qualifying modules than the cap (20) gave pages to its 20
+  largest and never reached the rest: a later run with the same head commit re-picked the identical
+  top 20 and freshness-skipped every one of them, and even a new commit re-picked a top 20 rather
+  than the stranded tail. Module slots now go to never-yet-paged modules first (each group keeping
+  the existing largest-first order), so repeated `wiki` runs walk the whole repo while any single
+  run stays bounded by the cap. The whole-repo overview page names every module that already has a
+  page or is getting one this run — so the named set accumulates run over run instead of tracking
+  only the current slice — and the truncation log line now says how many modules were deferred to a
+  later run instead of claiming they were skipped outright.
 - A council rejection now reports how many reviewers **abstained** (`N reviewer(s) returned nothing
   parseable`) alongside the score. A reviewer that returns nothing — a missing API key, a review CLI
   not on PATH (`CliLlm` returns `""` on non-zero exit rather than raising) — abstains on every lens

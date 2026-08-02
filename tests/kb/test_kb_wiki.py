@@ -1460,10 +1460,8 @@ def test_cmd_wiki_skips_module_page_gracefully_on_shard_index_mismatch(tmp_path,
 def test_cmd_wiki_module_pages_capped_per_repo(tmp_path, monkeypatch, gls_logs):
     """`_qualifying_modules` (pinned by spec, uncapped) can return "hundreds"
     of modules for a legacy federated repo -- the call site caps how many get
-    a page in one run so one `wiki` invocation stays bounded. The cap
-    permanently strands the modules beyond it (not just this run -- see the
-    code comment on `_MAX_MODULE_PAGES_PER_REPO`), so the run must at least
-    say so rather than going silent about the modules it skipped."""
+    a page in one run so one `wiki` invocation stays bounded. The run must say
+    which modules it deferred rather than going silent about them."""
     from contextlake.kb.cmds.wiki import _MAX_MODULE_PAGES_PER_REPO
 
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -1478,12 +1476,52 @@ def test_cmd_wiki_module_pages_capped_per_repo(tmp_path, monkeypatch, gls_logs):
     assert len(written) == _MAX_MODULE_PAGES_PER_REPO
     # repo_modules() sorts (-nodes, prefix) -- all 25 modules tie on node
     # count, so the tiebreak is a plain string sort of "mod0".."mod24"; the
-    # winning 20 are NOT "mod0".."mod19" (numeric order) but the
-    # lexicographically-first 20 ("mod10" < "mod2" as strings).
+    # winning 20 on a first run (nothing paged yet, so pure size-rank) are NOT
+    # "mod0".."mod19" (numeric order) but the lexicographically-first 20
+    # ("mod10" < "mod2" as strings).
     all_prefixes = sorted(f"mod{i}" for i in range(n_modules))
     assert written == set(all_prefixes[:_MAX_MODULE_PAGES_PER_REPO])
-    stranded = set(all_prefixes[_MAX_MODULE_PAGES_PER_REPO:])
-    assert stranded and stranded.isdisjoint(written)
-    assert (f"{n_modules} qualifying modules, generating only the "
-           f"{_MAX_MODULE_PAGES_PER_REPO} largest this run "
-           f"(5 not generated)") in gls_logs.text
+    deferred = set(all_prefixes[_MAX_MODULE_PAGES_PER_REPO:])
+    assert deferred and deferred.isdisjoint(written)
+    assert (f"{n_modules} qualifying modules, generating "
+           f"{_MAX_MODULE_PAGES_PER_REPO} this run "
+           "(5 deferred to a later run)") in gls_logs.text
+
+
+def test_cmd_wiki_module_page_selection_rotates_onto_the_unpaged_tail(tmp_path, monkeypatch):
+    """The per-run cap must bound ONE run, not permanently strand the tail: a
+    repo with more qualifying modules than the cap used to give pages to the
+    same top-N forever (an unchanged commit re-picked the identical top-N and
+    freshness-skipped every one of them). A second run must now reach the
+    modules the first run deferred -- while leaving the first run's pages
+    alone, so the two runs accumulate coverage instead of thrashing."""
+    from contextlake.kb.cmds.wiki import _MAX_MODULE_PAGES_PER_REPO
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    n_modules = _MAX_MODULE_PAGES_PER_REPO + 5
+    store_dir = _setup_federated_repo(tmp_path, n_modules=n_modules, nodes_per_module=250)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    modules_dir = store_dir / "wiki" / "_modules"
+    first_run = {p.stem.split("__", 1)[1] for p in modules_dir.glob("fed__mod*.md")}
+    assert len(first_run) == _MAX_MODULE_PAGES_PER_REPO
+    first_run_mtimes = {p.name: p.stat().st_mtime_ns for p in modules_dir.glob("fed__mod*.md")}
+
+    # Second run: same head_commit, same store, no --force.
+    second = _CapturingLlm(score=0.95)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: second)
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    after = {p.stem.split("__", 1)[1] for p in modules_dir.glob("fed__mod*.md")}
+    all_prefixes = {f"mod{i}" for i in range(n_modules)}
+    assert after == all_prefixes, "the deferred tail never got its pages"
+    # The pages the first run wrote are untouched, not regenerated or deleted.
+    for name, mtime in first_run_mtimes.items():
+        assert (modules_dir / name).stat().st_mtime_ns == mtime
+
+    # Only the 5 previously-deferred modules cost an LLM call this run.
+    scoped = [p for p in second.page_prompts if "ONLY the" in p]
+    assert len(scoped) == n_modules - _MAX_MODULE_PAGES_PER_REPO
+    for prefix in all_prefixes - first_run:
+        assert any(f"ONLY the `{prefix}` module/subsystem" in p for p in scoped)

@@ -93,15 +93,10 @@ _FEDERATED_NODE_FLOOR = 5000        # below this, one page is fine regardless of
 _DOMINANT_MODULE_SHARE = 0.6        # a module owning this share of nodes -> not federated
 # A repo with "hundreds of independent top-level subsystems" (the motivating
 # case) would otherwise trigger hundreds of LLM + council-gate calls in one
-# `wiki` run; cap to the N largest (already sorted largest-first, with a
-# deterministic tiebreak, by `repo_modules`) so a single run stays bounded.
-# NOTE: this permanently strands modules beyond the cap, not just for this
-# run -- a later run with the same head_commit picks the exact same top-N
-# again (freshness-skip) rather than reaching further down the list; only a
-# new commit re-opens the selection, and even then it re-picks a top-N, never
-# specifically the previously-stranded tail. cmd_wiki logs the truncation so
-# this isn't silent; raising the cap (or preferring not-yet-generated modules
-# when filling slots) is future work if the stranding matters in practice.
+# `wiki` run; cap how many pages one run generates so a single run stays
+# bounded. Which modules fill those slots is decided by
+# `_select_module_pages` (never-yet-paged first), so the cap bounds one run
+# without stranding the tail across runs.
 _MAX_MODULE_PAGES_PER_REPO = 20
 
 
@@ -135,6 +130,36 @@ def _module_wiki_filename(repo_id: str, prefix: str) -> str:
     "team/app" and the whole-repo page for a repo literally named
     "team/app/src" both sanitize to "team__app__src.md")."""
     return f"{repo_id.replace('/', '__')}__{prefix.replace('/', '__')}.md"
+
+
+def _module_page_file(wiki_dir, repo_id: str, prefix: str):
+    """On-disk path of one module/subsystem page (the single place that
+    composes ``wiki/_modules/`` with :func:`_module_wiki_filename`)."""
+    return wiki_dir / "_modules" / _module_wiki_filename(repo_id, prefix)
+
+
+def _select_module_pages(modules: list[dict], wiki_dir, repo_id: str,
+                         cap: int = _MAX_MODULE_PAGES_PER_REPO) -> list[dict]:
+    """Which of ``modules`` get a page generated THIS run, at most ``cap``.
+
+    Modules with no page on disk yet come first (each group keeping
+    ``repo_modules()``' deterministic largest-first order), then the
+    already-paged ones. Without this, a repo with hundreds of qualifying
+    modules gave pages to its N largest and permanently stranded the rest:
+    a later run with the same head_commit re-picked the exact same top-N
+    (and freshness-skipped every one of them), and a new commit re-picked a
+    top-N too, never the tail. Preferring the never-paged tail means
+    repeated `wiki` runs walk the whole repo instead, while each single run
+    stays bounded by ``cap``.
+
+    A repo's first run has no module pages at all, so this degrades to
+    exactly the old largest-first top-N.
+    """
+    fresh, paged = [], []
+    for m in modules:
+        target = paged if _module_page_file(wiki_dir, repo_id, m["prefix"]).exists() else fresh
+        target.append(m)
+    return (fresh + paged)[:cap]
 
 
 def _reviewed_by(llm, review_llm) -> str:
@@ -390,13 +415,21 @@ def cmd_wiki(args) -> int:
             # after it, so the whole-repo page can name its subsystem pages
             # (Task 16) -- reused below for the module-page loop too, so this
             # is still exactly one `repo_modules()` query per repo per run,
-            # not two. Capped to the same top-N that will actually get a page
-            # generated THIS run (`_MAX_MODULE_PAGES_PER_REPO`) -- naming a
-            # module beyond the cap would point the reader at a subsystem
-            # page that doesn't exist and (per the cap's own stranding note)
-            # may never exist.
+            # not two.
             modules = _qualifying_modules(store, repo_id, node_count)
-            named_modules = modules[:_MAX_MODULE_PAGES_PER_REPO]
+            selected = _select_module_pages(modules, wiki_dir, repo_id)
+            # Name every module that either already HAS a page from an earlier
+            # run or is getting one this run -- never a module that has
+            # neither, which would point the reader at a page that doesn't
+            # exist. Since `_select_module_pages` rotates through the tail,
+            # the named set grows run over run until every qualifying module
+            # is covered, then stays put.
+            selected_prefixes = {m["prefix"] for m in selected}
+            named_modules = [
+                m for m in modules
+                if m["prefix"] in selected_prefixes
+                or _module_page_file(wiki_dir, repo_id, m["prefix"]).exists()
+            ]
             wiki_file = wiki_dir / (repo_id.replace("/", "__") + ".md")
             outcome = _run_page(shard=shard, repo_id=repo_id, wiki_key=repo_id,
                                 path_prefix=None, wiki_file=wiki_file, label=repo_id,
@@ -415,25 +448,24 @@ def cmd_wiki(args) -> int:
             # generated IN ADDITION to (never instead of) the whole-repo page
             # above. Folds into the same written/rejected/skipped/failed
             # counters (the summary line below is now page-level, not
-            # repo-level). `modules` was already computed above (before the
-            # whole-repo page) so it could be named there -- reused here
-            # as-is, not recomputed.
-            if len(modules) > _MAX_MODULE_PAGES_PER_REPO:
-                # `repo_modules()` sorts largest-first (deterministic tiebreak
-                # on ties), and freshness-skip means an unchanged commit picks
-                # the exact same top-N again next run -- modules beyond the
-                # cap are NOT generated by a later run either, only by a
-                # future commit change (which regenerates the same top-N, not
-                # the tail). Say so plainly rather than silently stranding them.
-                log(f"  {repo_id}: {len(modules)} qualifying modules, generating only "
-                   f"the {_MAX_MODULE_PAGES_PER_REPO} largest this run "
-                   f"({len(modules) - _MAX_MODULE_PAGES_PER_REPO} not generated)",
+            # repo-level). `selected` was already computed above (before the
+            # whole-repo page) so its modules could be named there -- reused
+            # here as-is, not recomputed.
+            if len(modules) > len(selected):
+                # Not stranded: `_select_module_pages` puts never-paged
+                # modules first, so the modules skipped here are the ones a
+                # subsequent run picks up. Say how many are still waiting so
+                # the operator knows to re-run rather than assuming the repo
+                # is fully covered.
+                log(f"  {repo_id}: {len(modules)} qualifying modules, generating "
+                   f"{len(selected)} this run "
+                   f"({len(modules) - len(selected)} deferred to a later run)",
                    inline=True)
-            for module in modules[:_MAX_MODULE_PAGES_PER_REPO]:
+            for module in selected:
                 prefix = module["prefix"]
                 module_key = f"{repo_id}::{prefix}"
                 module_label = module_key
-                module_file = wiki_dir / "_modules" / _module_wiki_filename(repo_id, prefix)
+                module_file = _module_page_file(wiki_dir, repo_id, prefix)
                 m_outcome = _run_page(shard=shard, repo_id=repo_id, wiki_key=module_key,
                                       path_prefix=prefix, wiki_file=module_file,
                                       label=module_label)
