@@ -25,7 +25,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   review provider (drop `council_size` to 1 to cut that threefold). The run banner names both models
   when they differ, and `contextlake doctor` still checks the generation provider only.
 
+### Changed
+- **BREAKING: the commands are now namespaced under `mirror` and `kb`.** The CLI had grown to 29
+  flat top-level commands doing two unrelated jobs — mirroring git repositories, and building and
+  serving the knowledge layer over them — and `--help` had stopped being navigable. Each verb now
+  lives under the noun it belongs to: `contextlake mirror fetch|clone|update|branches|verify|status|
+  sync|audit`, and `contextlake kb index|source|connect|embed|ingest|enrich|wiki|lint|eval|query|
+  graph|owners|impact|dashboard|serve|steer|hook`. `kb` is the word already user-visible in
+  `kb.toml`, the `contextlake[kb]` install extra, and the knowledge-layer package. **Five commands
+  did not move:** `init` and `bootstrap` span both tiers (bootstrap runs mirror + index + connect +
+  embed + enrich + wiki + steer, and ships to users as a systemd `ExecStart`), `version` and
+  `completion` belong to neither, and `doctor` is the diagnostic you reach for when nothing else
+  works. The `who-knows` and `blast-radius` aliases survive under `kb`. Shell tab-completion needs
+  no re-registration — it reads the live parser.
+- Every command string contextlake generates now uses the namespaced form: the post-commit hook
+  `kb hook install` writes (`contextlake kb index`), the `.mcp.json` / `.vscode/mcp.json` entry and
+  the AGENTS.md / CLAUDE.md / windsurfrules / Kiro bodies `kb steer` writes (`contextlake kb serve`),
+  the dashboard's own subprocess spawns, and the usage/next-step hints across the knowledge commands.
+
+### Deprecated
+- **The old flat spellings (`contextlake fetch`, `contextlake index`, …) still work in this release
+  and are removed in v3.0.0.** They parse exactly as before but are hidden from `--help`, and print
+  one line naming the new form. The notice goes to **stderr only** — `lint`, `query`, `owners` and
+  `impact` all have `--json`, and `graph --format json|graphml|cypher|dot|mermaid` writes
+  machine-readable stdout, so a line there would corrupt those pipes. Silence it with `-q` or
+  `CONTEXTLAKE_NO_DEPRECATION=1` while a team migrates.
+- **Two post-upgrade steps most users will not think of.** A hard cutover was rejected precisely
+  because contextlake wrote the old forms into files it does not revisit, where breakage is silent:
+  re-run **`contextlake kb hook install`** (or `--workspace DIR`) so already-installed post-commit
+  hooks are rewritten — otherwise re-indexing stops with no visible error when the old form goes
+  away — and **`contextlake kb steer --force`** so `.mcp.json` and `AGENTS.md` point at
+  `contextlake kb serve`. Both rewrite their managed block in place.
+
 ### Fixed
+- **A bare `contextlake hook` exited 2 with `invalid choice: '==SUPPRESS=='` on Python 3.9–3.11**
+  instead of defaulting to `install` as its own `--help` promises. The optional `action` positional
+  paired `choices=` with contextlake's SUPPRESS-default convention — the same argparse trap already
+  documented on the `completion` positional, where argparse validates the SUPPRESS sentinel itself
+  against `choices` when the positional is omitted. `cmd_hook()` already rejects an unknown action
+  with a clearer message, so no validation was lost.
 - **`[llm] provider = "anthropic"` (or `"openai"`) with no explicit `base_url` sent its API calls to
   the local Ollama port instead of the real API endpoint.** `LlmCfg.base_url` was a declared field
   defaulting to `http://127.0.0.1:11434`, so that one literal won for every provider and the
