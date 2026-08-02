@@ -14,6 +14,7 @@ import urllib.parse
 
 from ..ids import make_id
 from ..model import EXTERNAL_REPO, Confidence, Node
+from ..store.base import Store
 from .common import link_edge, repo_node
 
 
@@ -51,6 +52,27 @@ class GitLabConnector:
         issues = self._run(f"projects/{enc}/issues?state=opened&per_page={self.per_page}")
         return mrs, issues
 
+    def fetch_changes(self, repo_id: str, mr_iid: str) -> list[str]:
+        """Changed file paths for one MR's diff (live). Never raises -- an
+        unreachable GitLab or a malformed response yields an empty list, same
+        style as fetch().
+
+        Uses ``.../merge_requests/:iid/diffs``, not ``.../changes``: verified
+        live against a public GitLab project that ``/changes`` wraps the diff
+        inside the whole MR object under a ``changes`` key (a dict), while
+        ``/diffs`` returns a bare array of per-file diff objects -- matching
+        ``_run``'s existing list-only contract (see ``_glab``) with no extra
+        unwrapping and no change to that shared method.
+        """
+        enc = self._project_path(repo_id)
+        try:
+            diffs = self._run(f"projects/{enc}/merge_requests/{mr_iid}/diffs")
+        except Exception:
+            return []
+        if not isinstance(diffs, list):
+            return []
+        return [d["new_path"] for d in diffs if isinstance(d, dict) and d.get("new_path")]
+
 
 # --- pure graph mapping (no network) ---------------------------------------
 
@@ -62,6 +84,25 @@ def _item_node(repo_id: str, kind: str, sigil: str, item: dict) -> Node:
     }.items() if v}
     return Node(id=make_id("gitlab", kind, repo_id, str(iid)), repo=EXTERNAL_REPO,
                 kind=kind, name=f"{repo_id}{sigil}{iid}", attrs=attrs)
+
+
+def match_files_to_nodes(
+    store: Store, repo_id: str, file_paths: list[str]
+) -> list[tuple[str, Confidence]]:
+    """Existing code-file nodes for repo_id whose ``file`` matches one of file_paths.
+
+    A GitLab diff's file list is a hard fact -- a diff literally lists changed
+    files -- so every match is ``Confidence.EXTRACTED``, not an inference.
+    File nodes are indexed with ``name == file`` by every producer (see
+    ``manifest.py``'s and ``parse.py``'s file-node construction), so an exact
+    per-path ``Store.nodes_by_name(path, kind="file", repo=repo_id)`` lookup
+    finds them without a repo-wide scan (``Store`` has no such scan method).
+    """
+    matches: list[tuple[str, Confidence]] = []
+    for path in file_paths:
+        for node in store.nodes_by_name(path, kind="file", repo=repo_id):
+            matches.append((node.id, Confidence.EXTRACTED))
+    return matches
 
 
 def associate_gitlab(repo_id: str, mrs, issues) -> tuple[list, list]:

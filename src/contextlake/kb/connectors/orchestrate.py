@@ -8,6 +8,7 @@ re-indexing a repo's code never clobbers its connector links and vice versa.
 
 from __future__ import annotations
 
+from ..ids import make_id
 from ..model import Confidence
 from .atlassian import (
     DEFAULT_MCP_URL,
@@ -79,12 +80,37 @@ def build_slack(src):
     )
 
 
-def enrich_repo_gitlab(connector, repo_id):
-    """Link a repo to its open merge requests and issues (live fetch)."""
-    from .gitlab import associate_gitlab
+def enrich_repo_gitlab(connector, repo_id, store):
+    """Link a repo to its open merge requests and issues (live fetch), and each
+    MR to the code files its diff actually touches.
+
+    A GitLab diff is a hard fact, not an inference (see
+    ``gitlab.match_files_to_nodes``), so every touched-file edge is
+    ``Confidence.EXTRACTED``. ``store`` is required to look those file nodes
+    up -- it was not previously threaded into this function.
+    """
+    from .common import link_to_code
+    from .gitlab import associate_gitlab, match_files_to_nodes
 
     mrs, issues = connector.fetch(repo_id)
-    return associate_gitlab(repo_id, mrs, issues)
+    nodes, edges = associate_gitlab(repo_id, mrs, issues)
+    by_id = {n.id: n for n in nodes}
+    for mr in mrs:
+        iid = str(mr.get("iid") or "")
+        if not iid:
+            continue
+        # Mirrors gitlab._item_node's id recipe exactly -- attrs carries no
+        # `iid` key to match on, so the node id itself is the reliable link.
+        mr_node = by_id.get(make_id("gitlab", "mr", repo_id, iid))
+        if mr_node is None:
+            continue
+        files = connector.fetch_changes(repo_id, iid)
+        if not files:
+            continue
+        matches = match_files_to_nodes(store, repo_id, files)
+        if matches:
+            edges.extend(link_to_code(repo_id, mr_node, matches, "touches", "gitlab"))
+    return nodes, edges
 
 
 def enrich_repo_figma(connector, repo_id, *, links=()):

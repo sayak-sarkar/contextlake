@@ -4,8 +4,12 @@ from argparse import Namespace
 
 import contextlake.kb.connectors.orchestrate as orch
 from contextlake.kb.commands import cmd_connect
-from contextlake.kb.connectors.gitlab import GitLabConnector, associate_gitlab
-from contextlake.kb.model import Confidence, Repo
+from contextlake.kb.connectors.gitlab import (
+    GitLabConnector,
+    associate_gitlab,
+    match_files_to_nodes,
+)
+from contextlake.kb.model import Confidence, Node, Repo
 from contextlake.kb.state import check_schema
 from contextlake.kb.store.sqlite_store import SqliteStore
 
@@ -37,6 +41,32 @@ def test_fetch_without_group_uses_repo_id():
     assert "solo%2Frepo" in fake.calls[0]
 
 
+def test_fetch_changes_returns_file_paths(monkeypatch):
+    connector = GitLabConnector("team/api")
+    monkeypatch.setattr(connector, "_run", lambda path: [
+        {"new_path": "pay.py"}, {"new_path": "payer.py"}, {"new_path": "unrelated.md"},
+    ])
+    files = connector.fetch_changes("team/api", "42")
+    assert files == ["pay.py", "payer.py", "unrelated.md"]
+
+
+def test_fetch_changes_returns_empty_on_failure(monkeypatch):
+    connector = GitLabConnector("team/api")
+    monkeypatch.setattr(connector, "_run", lambda path: (_ for _ in ()).throw(RuntimeError("boom")))
+    assert connector.fetch_changes("team/api", "42") == []
+
+
+def test_match_files_to_nodes_finds_existing_file_nodes():
+    store = SqliteStore(":memory:")
+    store.upsert_nodes("team/api", [
+        Node(id="team_api_pay_py", repo="team/api", kind="file", name="pay.py", file="pay.py"),
+        Node(id="team_api_other_py", repo="team/api", kind="file",
+             name="other.py", file="other.py"),
+    ])
+    matches = match_files_to_nodes(store, "team/api", ["pay.py", "missing.py"])
+    assert matches == [("team_api_pay_py", Confidence.EXTRACTED)]
+
+
 # --- pure mapping ----------------------------------------------------------
 
 def test_associate_gitlab():
@@ -60,6 +90,51 @@ def test_associate_gitlab_skips_idless_items():
     assert {n.kind for n in nodes} == {"repo"}  # the malformed MR is skipped
 
 
+# --- enrich_repo_gitlab: MR-to-touched-file wiring -------------------------
+
+class _StubGLWithChanges:
+    name = "gl"
+
+    def __init__(self, files):
+        self._files = files
+
+    def fetch(self, repo_id):
+        return ([{"iid": 7, "title": "Add X", "state": "opened", "web_url": "u"}], [])
+
+    def fetch_changes(self, repo_id, mr_iid):
+        assert mr_iid == "7"
+        return self._files
+
+
+def test_enrich_repo_gitlab_links_mr_to_touched_file_nodes():
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("team/api", [
+            Node(id="team_api_pay_py", repo="team/api", kind="file", name="pay.py", file="pay.py"),
+        ])
+        nodes, edges = orch.enrich_repo_gitlab(
+            _StubGLWithChanges(["pay.py", "missing.py"]), "team/api", store)
+        mr = next(n for n in nodes if n.kind == "mr")
+        touch_edges = [e for e in edges if e.relation == "touches"]
+        assert {e.src for e in touch_edges} == {"team_api_pay_py", "repo_team_api"}
+        assert all(e.dst == mr.id for e in touch_edges)
+        file_edge = next(e for e in touch_edges if e.src == "team_api_pay_py")
+        assert file_edge.confidence == Confidence.EXTRACTED
+    finally:
+        store.close()
+
+
+def test_enrich_repo_gitlab_no_file_matches_skips_touches_edges():
+    store = SqliteStore(":memory:")
+    try:
+        nodes, edges = orch.enrich_repo_gitlab(
+            _StubGLWithChanges(["missing.py"]), "team/api", store)
+        assert {n.kind for n in nodes} == {"repo", "mr"}
+        assert not [e for e in edges if e.relation == "touches"]
+    finally:
+        store.close()
+
+
 # --- connect integration (no association rules needed for gitlab) ----------
 
 class _StubGL:
@@ -68,6 +143,9 @@ class _StubGL:
     def fetch(self, repo_id):
         return ([{"iid": 1, "title": "MR", "state": "opened", "web_url": "u"}],
                 [{"iid": 2, "title": "Issue", "state": "opened", "web_url": "u"}])
+
+    def fetch_changes(self, repo_id, mr_iid):
+        return []
 
 
 _CFG = '[kb]\nstore_dir = "{store}"\n\n[[sources]]\ntype = "gitlab"\nname = "gl"\ngroup = "team"\n'

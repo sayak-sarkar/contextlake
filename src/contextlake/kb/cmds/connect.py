@@ -50,11 +50,13 @@ def _rule_patterns(rules) -> tuple[str | None, list[str]]:
     return branch_key, link_patterns
 
 
-def _build_enrichers(sources):
+def _build_enrichers(sources, store):
     """Turn configured sources into callables ``fn(repo_id, keys, links, symbol_keys)``
     that return ``(nodes, edges)``. Atlassian sources discover their sites up front
     and are the only ones that use ``symbol_keys`` (per-symbol ticket attribution);
-    every other source ignores it. Returns ``(enrichers, names)``."""
+    every other source ignores it. ``store`` is threaded through to GitLab sources
+    only, which need it to match diff-touched files to existing code nodes.
+    Returns ``(enrichers, names)``."""
     from ..connectors.orchestrate import (
         build_atlassian,
         build_figma,
@@ -96,8 +98,8 @@ def _build_enrichers(sources):
             conn = build_gitlab(s)
             log(f"  source {s.name!r} (gitlab): ready")
             enrichers.append(
-                lambda repo_id, keys, links, symbol_keys, c=conn:
-                enrich_repo_gitlab(c, repo_id)
+                lambda repo_id, keys, links, symbol_keys, c=conn, st=store:
+                enrich_repo_gitlab(c, repo_id, st)
             )
             names.append(s.name)
         elif s.type == "slack":
@@ -151,7 +153,7 @@ def cmd_connect(args) -> int:
             log('No association rules configured (add [[rules]] type="branch_key"/"link_scrape")')
             return 0
 
-        enrichers, names = _build_enrichers(sources)
+        enrichers, names = _build_enrichers(sources, store)
         if not enrichers:
             log("No usable connector sources; nothing to connect")
             return 1
