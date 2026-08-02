@@ -5,6 +5,7 @@ from __future__ import annotations
 from ... import style
 from ...logging_setup import log
 from ..config import load_kb_config
+from ..connectors.text_match import link_documents_to_symbols
 from ..store.shards import GraphShard, write_shard
 from ._common import (
     _open_store,
@@ -33,7 +34,14 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size) -> int:
 
 def cmd_ingest(args) -> int:
     """Aggregate external documents (built-in + plugin sources) into the graph and,
-    when embeddings are enabled, the semantic store."""
+    when embeddings are enabled, the semantic store.
+
+    Documents land in their own synthetic ``@ingest:<name>`` partition, which by
+    itself says nothing about which *real* repo they describe. ``--for-repo``
+    (or ``for_repo`` on a ``[[sources]]`` entry) supplies that association, and
+    is what makes text-mention linking possible: without it there is no code to
+    link to and the partition stays edge-free, exactly as it was before.
+    """
     from ..model import Node
     from ..sources import build_source, discover_sources
 
@@ -42,16 +50,20 @@ def cmd_ingest(args) -> int:
         cfg = load_kb_config(getattr(args, "config", None))
         registry = discover_sources()
         # Zero-config fast path: `ingest --path DIR [--source-type files]`.
-        jobs = []  # (name, type, options)
+        jobs = []  # (name, type, options, for_repo)
         cli_path = getattr(args, "path", None)
         if cli_path:
             jobs.append(("cli", getattr(args, "source_type", None) or "files",
-                         {"path": cli_path}))
+                         {"path": cli_path}, getattr(args, "for_repo", None) or None))
         else:
             for s in cfg.sources:
                 if s.type in registry and s.enabled:
-                    jobs.append((s.name or s.type, s.type,
-                                 getattr(s, "model_extra", None) or {}))
+                    # `for_repo` is ours, not the source's -- pop it out of the
+                    # extras (a copy: `model_extra` is the model's own dict) so it
+                    # never reaches the source constructor as an unknown kwarg.
+                    options = dict(getattr(s, "model_extra", None) or {})
+                    jobs.append((s.name or s.type, s.type, options,
+                                 options.pop("for_repo", None)))
         if not jobs:
             log('No document sources. Try: contextlake kb ingest --path ./docs  '
                 '(or add [[sources]] type="files" path="…" to kb.toml). '
@@ -68,9 +80,18 @@ def cmd_ingest(args) -> int:
                                         backend=cfg.embeddings.vector_backend,
                                         chunk_size=cfg.embeddings.vector_chunk_size)
 
+        # Warn once, up front, about a `--for-repo`/`for_repo` naming nothing
+        # indexed: silently linking nothing is indistinguishable from a typo.
+        indexed = {r.id for r in store.list_repos()}
+        for name, _t, _o, for_repo in jobs:
+            if for_repo and for_repo not in indexed:
+                log(style.summary_line(
+                    "warn", f"{name}: {for_repo!r} is not an indexed repo — its documents "
+                            "will be stored but linked to nothing (index it first)"))
+
         total = embedded = failed = 0
         try:
-            for name, stype, options in jobs:
+            for name, stype, options, for_repo in jobs:
                 src = build_source(stype, **options)
                 if src is None:
                     log(f"  {name}: unknown source type {stype!r}, skipping", inline=True)
@@ -92,10 +113,16 @@ def cmd_ingest(args) -> int:
                 if not nodes:
                     log(f"  {name}: no documents", inline=True)
                     continue
+                # Documents are ABOUT a repo (`--for-repo`); link each one to the
+                # symbols of that repo it names. Stored under this ingest
+                # partition so a re-run's clear_repo above drops them with it.
+                edges = link_documents_to_symbols(store, for_repo, nodes, texts,
+                                                  "documented_by", "ingest")
                 store.clear_repo(repo_id)
                 store.upsert_nodes(repo_id, nodes)
+                store.upsert_edges(repo_id, edges)
                 write_shard(store_dir, GraphShard(repo=repo_id, head_commit="ingest",
-                                                  nodes=nodes, edges=[]))
+                                                  nodes=nodes, edges=edges))
                 total += len(nodes)
                 msg = f"  {name}: {len(nodes)} document(s)"
                 if embedder is not None and vs is not None:

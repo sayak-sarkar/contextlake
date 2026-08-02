@@ -1107,6 +1107,10 @@ Examples:
     p.add_argument("--path", default=_S, help="the path (or URL/endpoint) to ingest")
     p.add_argument("--source-type", dest="source_type", default=_S,
                    help="source type for --path (default 'files')")
+    p.add_argument("--for-repo", dest="for_repo", default=_S,
+                   help="the indexed repo these documents are ABOUT: every symbol a "
+                        "document mentions by name gets linked to it (per-source "
+                        "equivalent: for_repo = \"…\" on a [[sources]] entry)")
 
     p = command("enrich", "query connected sources with codebase terms and store "
                           "enrichment docs",

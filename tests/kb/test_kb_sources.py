@@ -6,8 +6,11 @@ import json
 import pytest
 
 from contextlake.cli import main
+from contextlake.kb.model import Node
 from contextlake.kb.sources import build_source, discover_sources
 from contextlake.kb.sources.files import FilesSource
+from contextlake.kb.state import check_schema
+from contextlake.kb.store.shards import read_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
 
 
@@ -332,6 +335,108 @@ def test_cmd_ingest_writes_document_nodes(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "2 document(s)" in out
     assert "✓ Ingest complete: 2 document(s) aggregated" in out   # glyph-prefixed summary
+
+
+def _seed_indexed_symbol(store_dir, repo_id="team/api"):
+    """An indexed repo carrying one function symbol, so ingest has real code to
+    match document text against."""
+    store_dir.mkdir(parents=True, exist_ok=True)
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        check_schema(store)
+        store.upsert_nodes(repo_id, [
+            Node(id="team_api_chargeCard", repo=repo_id, kind="function",
+                 name="chargeCard", file="billing.py"),
+        ])
+    finally:
+        store.close()
+
+
+def test_cmd_ingest_links_documents_to_the_symbols_they_mention(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "runbook.md").write_text("If chargeCard fails, check the gateway logs.\n")
+    (docs_dir / "offsite.md").write_text("Lunch is at noon.\n")
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    _seed_indexed_symbol(tmp_path / "kb")
+
+    with pytest.raises(SystemExit) as e:
+        main(["ingest", "--path", str(docs_dir), "--for-repo", "team/api",
+              "--config", str(cfg)])
+    assert e.value.code == 0
+
+    shard = read_shard(tmp_path / "kb", "@ingest:cli")
+    runbook = "@ingest:cli:runbook.md"
+    assert any(e.src == "team_api_chargeCard" and e.dst == runbook
+               and e.relation == "documented_by" for e in shard.edges)
+    # a document mentioning nothing gets no edges at all, not even the repo-level one
+    assert not any(e.dst == "@ingest:cli:offsite.md" for e in shard.edges)
+
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    try:  # live in the index too, not only in the shard
+        out = store.neighbors("team_api_chargeCard", direction="out")
+        assert [e.dst for e in out] == [runbook]
+    finally:
+        store.close()
+
+
+def test_cmd_ingest_without_a_target_repo_writes_no_edges(tmp_path, monkeypatch):
+    """The safe default: with no `--for-repo`, ingest has no notion of which
+    indexed repo a document is about, so it links nothing -- exactly as before."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "runbook.md").write_text("If chargeCard fails, check the gateway logs.\n")
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    _seed_indexed_symbol(tmp_path / "kb")
+
+    with pytest.raises(SystemExit) as e:
+        main(["ingest", "--path", str(docs_dir), "--config", str(cfg)])
+    assert e.value.code == 0
+    assert read_shard(tmp_path / "kb", "@ingest:cli").edges == []
+
+
+def test_cmd_ingest_source_config_can_name_its_target_repo(tmp_path, monkeypatch):
+    """`for_repo` on a `[[sources]]` entry is the config-driven equivalent of
+    `--for-repo`, and must not leak into the source constructor's options."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "runbook.md").write_text("If chargeCard fails, check the gateway logs.\n")
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n'
+        '[[sources]]\ntype = "files"\nname = "docs"\n'
+        f'path = "{docs_dir}"\nfor_repo = "team/api"\n'
+    )
+    _seed_indexed_symbol(tmp_path / "kb")
+
+    with pytest.raises(SystemExit) as e:
+        main(["ingest", "--config", str(cfg)])
+    assert e.value.code == 0
+    shard = read_shard(tmp_path / "kb", "@ingest:docs")
+    assert any(e.src == "team_api_chargeCard" for e in shard.edges)
+
+
+def test_cmd_ingest_unknown_target_repo_warns_and_links_nothing(tmp_path, capsys,
+                                                                monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    (docs_dir / "runbook.md").write_text("If chargeCard fails, check the gateway logs.\n")
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
+    _seed_indexed_symbol(tmp_path / "kb")
+
+    with pytest.raises(SystemExit) as e:
+        main(["ingest", "--path", str(docs_dir), "--for-repo", "team/typo",
+              "--config", str(cfg)])
+    assert e.value.code == 0
+    assert "team/typo" in capsys.readouterr().out          # a typo is never silent
+    assert read_shard(tmp_path / "kb", "@ingest:cli").edges == []
 
 
 def test_cmd_ingest_skips_disabled_sources(tmp_path, capsys, monkeypatch):

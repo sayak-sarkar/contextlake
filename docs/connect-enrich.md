@@ -104,7 +104,13 @@ semantic search spans code *and* docs together:
 
 ```bash
 contextlake kb ingest --path ./docs        # zero-config: ingest a folder of files
+contextlake kb ingest --path ./docs --for-repo group/app   # …and link it to that repo's code
 ```
+
+`--for-repo` names the **already-indexed repo the documents are about**. Every symbol a document mentions
+by name gets a `documented_by` edge to that document, so "where is this function explained?" is a graph
+hop instead of a search. Without it, documents are still stored and embedded, they just link to nothing.
+The per-source equivalent is `for_repo = "group/app"` on a `[[sources]]` entry.
 
 Sources follow a tiny seam, so common ones are **built-in and config-only** while anything heavier is a
 **loosely-coupled plugin**: bake in the common, plugin the rest:
