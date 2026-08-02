@@ -155,33 +155,6 @@ def enrich_repo_figma(connector, repo_id, store, *, links=()):
     return nodes, edges
 
 
-def _symbol_nodes_for_repo(store, repo_id: str) -> list[Node]:
-    """This repo's semantically-meaningful symbol nodes (``EMBEDDABLE_KINDS``),
-    for text-mention matching against free text (e.g. Slack message bodies).
-
-    The ``Store`` ABC has no "all nodes for a repo" scan (see
-    ``figma.match_frame_names_to_symbols`` and ``visualize.payload.repo_subgraph``
-    for the same gap), so this drops to the same raw-SQL escape hatch those
-    already use. Unlike Figma's name-only lookup, :func:`text_match.match_symbol_mentions`
-    needs real ``Node`` objects -- but only ever reads ``.id``/``.kind``/``.name``, so
-    those three columns are selected directly (no ``store.get_node`` N+1 -- a repo can
-    carry thousands of symbols, and this runs on every Slack-enriched repo with a live
-    channel history, not just once at index time).
-    """
-    from ..embeddings.index import EMBEDDABLE_KINDS
-
-    kind_placeholders = ",".join("?" * len(EMBEDDABLE_KINDS))
-    rows = store.conn.execute(
-        f"""
-        SELECT node_id, kind, name FROM nodes
-        WHERE repo_id = ? AND kind IN ({kind_placeholders})
-        ORDER BY node_id
-        """,
-        (repo_id, *EMBEDDABLE_KINDS),
-    ).fetchall()
-    return [Node(id=row[0], repo=repo_id, kind=row[1], name=row[2]) for row in rows]
-
-
 def enrich_repo_slack(connector, repo_id, store, *, links=()):
     """Associate slack.com links to channel/message nodes (from the URL itself).
 
@@ -207,7 +180,7 @@ def enrich_repo_slack(connector, repo_id, store, *, links=()):
     """
     from .common import link_to_code
     from .slack import associate_slack
-    from .text_match import match_symbol_mentions
+    from .text_match import match_symbol_mentions, symbol_nodes_for_repo
 
     nodes, edges = associate_slack(repo_id, links=links, site_hosts=connector.hosts)
     symbols: list[Node] | None = None
@@ -220,7 +193,7 @@ def enrich_repo_slack(connector, repo_id, store, *, links=()):
         if not messages:
             continue
         if symbols is None:  # fetched at most once per call, only if some channel has messages
-            symbols = _symbol_nodes_for_repo(store, repo_id)
+            symbols = symbol_nodes_for_repo(store, repo_id)
         if not symbols:
             continue
         # One matcher pass over all of a channel's messages joined -- \b word-boundary
