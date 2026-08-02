@@ -20,6 +20,10 @@ m = MCPServer("mock-slack")
 def conversations_info(channel: str) -> dict:
     return {"channel": channel, "name": "general"}
 
+@m.tool()
+def conversations_history(channel: str, limit: int = 50) -> dict:
+    return {"messages": [{"text": "charge() is throwing"}, {"text": "Payer looks fine"}]}
+
 m.run()
 """
 
@@ -124,3 +128,19 @@ def test_verify_uses_configured_tool_name(tmp_path):
     c = SlackConnector("s", mcp_command="placeholder", verify_tool="conversations_info")
     c._spawn = lambda: (sys.executable, _server(tmp_path), None)
     assert c.verify("C1") is True
+
+
+def test_fetch_messages_returns_text_bodies(tmp_path):
+    c = SlackConnector("s", mcp_command="placeholder")
+    c._spawn = lambda: (sys.executable, _server(tmp_path), None)
+    assert c.fetch_messages("C1") == ["charge() is throwing", "Payer looks fine"]
+
+
+def test_fetch_messages_empty_without_mcp():
+    assert SlackConnector("s").fetch_messages("C1") == []
+
+
+def test_fetch_messages_uses_configured_history_tool(tmp_path):
+    c = SlackConnector("s", mcp_command="placeholder", history_tool="conversations_history")
+    c._spawn = lambda: (sys.executable, _server(tmp_path), None)
+    assert c.fetch_messages("C1", limit=10) == ["charge() is throwing", "Payer looks fine"]

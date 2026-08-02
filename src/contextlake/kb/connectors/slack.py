@@ -24,6 +24,7 @@ from .common import claims, link_edge, repo_node
 
 DEFAULT_HOSTS = ("slack.com",)
 DEFAULT_VERIFY_TOOL = "conversations_info"
+DEFAULT_HISTORY_TOOL = "conversations_history"
 
 # A Slack permalink is https://<workspace>.slack.com/archives/<CHANNEL>[/p<TS16>].
 # The message timestamp is embedded with no dot as 16 digits; the real Slack
@@ -33,8 +34,8 @@ _MESSAGE_RX = re.compile(r"/archives/([A-Z0-9]+)/p(\d{16})\b")
 _CHANNEL_RX = re.compile(r"/archives/([A-Z0-9]+)(?:[/?#]|$)")
 
 __all__ = [
-    "DEFAULT_HOSTS", "DEFAULT_VERIFY_TOOL", "SlackConnector", "associate_slack",
-    "classify_slack_link", "slack_node",
+    "DEFAULT_HISTORY_TOOL", "DEFAULT_HOSTS", "DEFAULT_VERIFY_TOOL", "SlackConnector",
+    "associate_slack", "classify_slack_link", "slack_node",
 ]
 
 
@@ -87,12 +88,14 @@ class SlackConnector:
     def __init__(self, name: str, *, mcp_url: str | None = None,
                  mcp_command: str | None = None, hosts=DEFAULT_HOSTS,
                  verify_tool: str = DEFAULT_VERIFY_TOOL,
+                 history_tool: str = DEFAULT_HISTORY_TOOL,
                  auth_dir: str | None = None, timeout: float = 120):
         self.name = name
         self.mcp_url = mcp_url
         self.mcp_command = mcp_command
         self.hosts = tuple(hosts)
         self.verify_tool = verify_tool
+        self.history_tool = history_tool
         self.auth_dir = auth_dir
         self.timeout = timeout
 
@@ -121,3 +124,23 @@ class SlackConnector:
         except Exception:  # noqa: BLE001 - verification is best-effort
             return False
         return bool(res)
+
+    def fetch_messages(self, channel: str, *, limit: int = 50) -> list[str]:
+        """Raw message text bodies for a channel (live, best-effort).
+
+        Returns ``[]`` when no MCP is configured or the call fails/returns an
+        unexpected shape. Never raises: fetching must not break the
+        association graph, same contract as :meth:`verify`.
+        """
+        if not (self.mcp_url or self.mcp_command):
+            return []
+        cmd, args, env = self._spawn()
+        try:
+            result = call_tool(cmd, args, self.history_tool, {"channel": channel, "limit": limit},
+                               timeout=self.timeout, env=env)
+        except Exception:  # noqa: BLE001 - fetching is best-effort
+            return []
+        if not isinstance(result, dict):
+            return []
+        messages = result.get("messages", [])
+        return [m["text"] for m in messages if isinstance(m, dict) and m.get("text")]

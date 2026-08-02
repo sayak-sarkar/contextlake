@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[[rules]] type="link_scrape"` config required, matching how GitLab sources were already default-on.
 - New shared text-mention matcher (`connectors/text_match.py`), reused by Slack and by
   ingested/enriched/wiki content to find which code symbols a piece of text is actually about.
+- Slack connector can now fetch channel message text (previously it only ever parsed Slack links
+  found in docs) -- lays the groundwork for linking discussions to the code they're about.
 - Connectors can now link external content directly to the code it's about via a new shared
   `link_to_code` primitive (the existing repo-level edge is always kept alongside it).
 - **A public, read-only live demo of the dashboard is now linked from the project homepage and
