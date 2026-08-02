@@ -32,6 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page or is getting one this run — so the named set accumulates run over run instead of tracking
   only the current slice — and the truncation log line now says how many modules were deferred to a
   later run instead of claiming they were skipped outright.
+- **The wiki footer's grounding-coverage ratio is now comparable between a repo's overview page and
+  its subsystem pages.** The whole-repo denominator counted every node — including file-less ones
+  (import targets, packages, endpoints, topics) that a module-scoped page structurally cannot
+  contain — so identical grounding depth read as systematically worse on the overview. Both halves
+  of the ratio now count file-backed symbols only, and the footer names the unit ("Grounded in N/M
+  **file-backed** symbols") so it can't be read against the prompt's own all-nodes symbol count.
+- **A file-less `#include`/import-target pseudo-node is no longer guaranteed a slot in a whole-repo
+  page's top-symbols/hubs/dispatchers lists.** The per-kind grounding floor exists so a real but
+  structurally low-degree kind (a SQL table) isn't squeezed out by degree ranking; it was also
+  treating `kind="module"` nodes with no file of their own — one per `#include`d name — as a kind
+  deserving that guarantee, putting a row like "module widget.h (?)" in every C/C++ repo's lists.
+  They remain eligible by ordinary degree ranking, so a heavily-included header still ranks in on
+  merit. Other file-less kinds keep their floor slot.
 - **An existing store now picks up the "overview names its subsystem pages" feature without a
   `--force` regeneration.** The freshness check asked one question — is the commit unchanged? — and
   skipped the page before the subsystem-naming field was ever consulted, so a repo already wiki'd at

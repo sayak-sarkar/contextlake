@@ -172,11 +172,15 @@ def test_repo_brief_grounded_count_is_the_union_not_the_sum(tmp_path):
     # _shard: 3 nodes (svc, charge, pkg), cap=15 so top_ids covers all 3;
     # in_degree only has "charge" (called once), out_degree only has "svc"
     # (calls once) -- top_ids/hub_ids/dispatcher_ids overlap heavily, so the
-    # union (3) must differ from a naive sum (3 + 1 + 1 == 5).
+    # union must differ from a naive sum (3 + 1 + 1 == 5). The file-less "pkg"
+    # node then drops out of the coverage numerator, which counts file-backed
+    # symbols only so the ratio means the same thing on a whole-repo page and
+    # on one of its module pages.
     _shard(tmp_path)
     brief = repo_brief(tmp_path, "r")
-    assert brief["grounded_count"] == 3
-    assert brief["grounded_count"] <= brief["node_count"]
+    assert brief["grounded_count"] == 2
+    assert brief["coverage_total"] == 2      # svc + charge; "pkg" has no file
+    assert brief["grounded_count"] <= brief["coverage_total"] <= brief["node_count"]
 
 
 def test_repo_brief_scopes_to_a_module_path_prefix(tmp_path):
@@ -253,9 +257,24 @@ def test_repo_brief_path_prefix_exact_file_match(tmp_path):
 def test_provenance_footer_states_grounding_coverage():
     from contextlake.kb.wiki.generate import provenance_footer
     brief = {"repo": "r", "head": "abc123", "files": ["a.py"],
-            "node_count": 200, "grounded_count": 15}
+            "node_count": 200, "coverage_total": 180, "grounded_count": 15}
     footer = provenance_footer(brief)
-    assert "Grounded in 15/200 symbols" in footer
+    # The denominator is the file-backed population, not every node, and says
+    # so -- the prompt's own "N symbols" line counts both, and two differently
+    # scoped numbers under one name read as a contradiction.
+    assert "Grounded in 15/180 file-backed symbols (8.3%)" in footer
+
+
+def test_provenance_footer_coverage_falls_back_to_node_count_pre_field():
+    """A brief built before `coverage_total` existed still states a ratio (off
+    `node_count`); a legitimate zero must not be treated as "field missing"."""
+    from contextlake.kb.wiki.generate import provenance_footer
+    legacy = {"repo": "r", "head": "abc123", "files": [],
+             "node_count": 200, "grounded_count": 15}
+    assert "Grounded in 15/200 file-backed symbols" in provenance_footer(legacy)
+    empty = {"repo": "r", "head": "abc123", "files": [],
+            "node_count": 200, "coverage_total": 0, "grounded_count": 0}
+    assert "Grounded in" not in provenance_footer(empty)
 
 
 def test_grounding_cap_scales_with_repo_size():
@@ -1712,3 +1731,75 @@ def test_cmd_wiki_backfills_subsystem_naming_onto_an_unchanged_commit(
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: third)
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     assert third.page_prompts == []
+
+
+def test_coverage_ratio_is_comparable_between_a_repo_and_its_module_page(tmp_path):
+    """The "Grounded in N/M ... (P%)" fact must mean the same thing on a
+    whole-repo page and on one of its module pages. A module-scoped brief can
+    structurally contain only file-backed nodes, so counting file-less nodes
+    (import targets, packages, endpoints) on the whole-repo side alone made
+    identical grounding depth read as systematically worse on the overview."""
+    from contextlake.kb.wiki.generate import provenance_footer
+
+    nodes = [Node(id=f"fn{i}", repo="r", kind="function", name=f"fn{i}",
+                 file=f"mod/f{i}.py", lang="cpp") for i in range(30)]
+    # File-less #include targets: present on the whole-repo side, structurally
+    # impossible on the module page's side.
+    nodes += [Node(id=f"inc{i}", repo="(shared)", kind="module", name=f"w{i}.h", lang="cpp")
+              for i in range(5)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=[]))
+
+    whole = repo_brief(tmp_path, "r")
+    module = repo_brief(tmp_path, "r", path_prefix="mod")
+
+    # Same underlying symbols, so the same ratio -- the whole-repo brief's
+    # extra file-less nodes must not deflate it.
+    assert whole["node_count"] == 35 and module["node_count"] == 30
+    assert whole["coverage_total"] == module["coverage_total"] == 30
+    assert whole["grounded_count"] == module["grounded_count"]
+    ratio = "Grounded in 15/30 file-backed symbols (50.0%)"
+    assert ratio in provenance_footer(whole)
+    assert ratio in provenance_footer(module, path_prefix="mod")
+
+
+def test_kind_floor_does_not_reserve_a_slot_for_a_file_less_include_target(tmp_path):
+    """`parse.py` emits a file-less `kind="module"` node per imported/`#include`d
+    module name. Those are import TARGETS, not symbols the repo defines, and the
+    per-kind floor was guaranteeing every C/C++ whole-repo page one -- rendered
+    to the model as e.g. "module widget.h (?), 2 caller(s)". They stay eligible
+    by ordinary degree ranking; they just aren't handed a slot."""
+    prov = Provenance(source_file="f.cpp", verified_at=date.today())
+    nodes = [Node(id=f"fn{i}", repo="r", kind="function", name=f"fn{i}",
+                 file=f"src/f{i}.cpp", lang="cpp") for i in range(20)]
+    nodes.append(Node(id="inc", repo="(shared)", kind="module", name="widget.h", lang="cpp"))
+    edges = [Edge(src=f"fn{i}", dst="fn0", relation="calls",
+                 confidence=Confidence.INFERRED, provenance=prov) for i in range(1, 20)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+
+    brief = repo_brief(tmp_path, "r")
+    # cap is 15 and there are 20 real, higher-ranked functions: with no floor
+    # slot the zero-degree include target does not make the cut.
+    assert all(t["kind"] != "module" for t in brief["top_symbols"])
+    assert len(brief["top_symbols"]) == 15
+    # A real but structurally low-degree KIND still gets its floor slot -- the
+    # narrow exclusion must not disable the floor itself.
+    nodes.append(Node(id="tbl", repo="r", kind="table", name="Orders",
+                     file="db/schema.sql", lang="sql"))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+    assert any(t["name"] == "Orders" for t in repo_brief(tmp_path, "r")["top_symbols"])
+
+
+def test_include_target_still_ranks_in_by_degree_without_a_floor_slot(tmp_path):
+    """Excluding file-less module nodes from the floor's universe must not
+    exclude them from the lists entirely -- a heavily-`#include`d header is a
+    legitimate degree-ranked hub, it just isn't guaranteed a slot."""
+    prov = Provenance(source_file="f.cpp", verified_at=date.today())
+    nodes = [Node(id=f"fn{i}", repo="r", kind="function", name=f"fn{i}",
+                 file=f"src/f{i}.cpp", lang="cpp") for i in range(5)]
+    nodes.append(Node(id="inc", repo="(shared)", kind="module", name="widget.h", lang="cpp"))
+    edges = [Edge(src=f"fn{i}", dst="inc", relation="imports",
+                 confidence=Confidence.EXTRACTED, provenance=prov) for i in range(5)]
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h", nodes=nodes, edges=edges))
+
+    brief = repo_brief(tmp_path, "r")
+    assert any(h["name"] == "widget.h" and h["count"] == 5 for h in brief["hubs"])

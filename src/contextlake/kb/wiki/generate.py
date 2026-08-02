@@ -219,6 +219,17 @@ def _ranked_with_kind_floor(
     caller only passed nodes with nonzero degree) gets no floor slot, since
     there's nothing here to represent it. Callers that want a zero-degree
     kind included must include it as a (id, 0) candidate themselves.
+
+    One exception to "every distinct kind gets a slot": a file-less
+    ``kind="module"`` node is not a symbol the repo defines, it is the
+    *target* of an import/``#include`` (``parse.py`` emits one per imported
+    module name, with no file of its own). Guaranteeing those a slot put a row
+    like "module widget.h (?), 2 caller(s)" in every C/C++ whole-repo page's
+    ranked lists -- the floor exists to keep a real but structurally
+    low-degree kind (a SQL table) visible, not to promote a pseudo-node. They
+    stay eligible by ordinary degree ranking below, just not guaranteed.
+    Narrow on purpose: other file-less kinds (``package``, ``endpoint``,
+    ``topic``) are real, nameable things and keep their floor slot.
     """
     by_kind: dict[str, list[str]] = {}
     order: list[str] = []
@@ -226,7 +237,8 @@ def _ranked_with_kind_floor(
         node = by_id.get(nid)
         if node is None:
             continue
-        by_kind.setdefault(node.kind, []).append(nid)
+        if node.kind != "module" or node.file:
+            by_kind.setdefault(node.kind, []).append(nid)
         order.append(nid)
     floor_ids = [ids[0] for ids in by_kind.values()][:cap]
     floor_set = set(floor_ids)
@@ -319,7 +331,15 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
     # Distinct symbols the model actually saw a grounding fact for, across all
     # three lists combined -- a set union, since a node can legitimately appear
     # in more than one list. Used to state the coverage ratio in the footer.
-    grounded_ids = set(top_ids) | set(hub_ids) | set(dispatcher_ids)
+    #
+    # Both halves of that ratio count file-backed nodes only. A module-scoped
+    # brief can structurally contain nothing else (its filter is on `file`),
+    # so counting file-less nodes -- import targets, packages, endpoints,
+    # topics -- on the whole-repo side alone made the SAME grounding depth
+    # read as systematically worse on a repo's overview page than on its own
+    # subsystem pages, for a reason that has nothing to do with coverage.
+    file_backed = {n.id for n in nodes if n.file}
+    grounded_ids = (set(top_ids) | set(hub_ids) | set(dispatcher_ids)) & file_backed
     # Reuse the parser's own generated-file detection (never duplicate it here)
     # so the wiki prompt can warn the model off treating machine-emitted files
     # as hand-authored design -- by path segment (a "generated/" directory) or
@@ -335,6 +355,7 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
         "node_count": len(nodes),
         "edge_count": len(edges),
         "grounded_count": len(grounded_ids),
+        "coverage_total": len(file_backed),
         "kinds": dict(Counter(n.kind for n in nodes)),
         "langs": dict(Counter(n.lang for n in nodes if n.lang)),
         "top_symbols": [_symbol_row(n) for n in top],
@@ -449,6 +470,7 @@ def repo_brief(
         "node_count": core["node_count"],
         "edge_count": core["edge_count"],
         "grounded_count": core["grounded_count"],
+        "coverage_total": core["coverage_total"],
         "kinds": core["kinds"],
         "langs": core["langs"],
         "top_symbols": core["top_symbols"],
@@ -615,9 +637,20 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
                                       key=lambda m: m["prefix"]))
     subsystems = f" Subsystem pages: {named}." if named else ""
     coverage = ""
-    if brief.get("grounded_count") is not None and brief.get("node_count"):
-        pct = round(100 * brief["grounded_count"] / brief["node_count"], 1)
-        coverage = f" Grounded in {brief['grounded_count']}/{brief['node_count']} symbols ({pct}%)."
+    # Both sides of the ratio count file-backed symbols only (see
+    # `_repo_brief_core_uncached`), so a whole-repo page and one of its module
+    # pages are comparable. `node_count` is the fallback for a hand-built
+    # brief that predates the field -- `is None`, not `or`, so a legitimate 0
+    # isn't silently replaced. The unit is named in the sentence because the
+    # prompt's own "N symbols" line counts every node, file-backed or not, and
+    # two different numbers with the same name read as a contradiction.
+    total = brief.get("coverage_total")
+    if total is None:
+        total = brief.get("node_count")
+    if brief.get("grounded_count") is not None and total:
+        pct = round(100 * brief["grounded_count"] / total, 1)
+        coverage = (f" Grounded in {brief['grounded_count']}/{total} "
+                    f"file-backed symbols ({pct}%).")
     scope = (f"the `{path_prefix}` module of `{brief['repo']}`" if path_prefix
             else f"`{brief['repo']}`")
     return (

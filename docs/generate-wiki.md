@@ -44,9 +44,14 @@ dispatchers) carry proportionally more grounding depth, bounded so the prompt st
 Within that sample, `top_symbols` reserves at least one slot per distinct symbol kind (e.g. a SQL
 table node, which has no call edges) so a structurally low-degree kind is never squeezed out
 entirely by pure degree-ranking; `hubs`/`dispatchers` never do this backfill with a fabricated
-zero-count row, since those two carry a real caller/callee count claim. The provenance footer also
-states the resulting coverage as a fact — "Grounded in N/M symbols (X%)" — the count of distinct
-symbols the sample actually touched versus the repo's total node count.
+zero-count row, since those two carry a real caller/callee count claim. One kind is excluded from
+that reservation: a file-less `module` node is an import/`#include` **target**, not a symbol the
+repo defines, so it is not handed a guaranteed slot (it still ranks in on its own degree, as a
+heavily-included header legitimately does). The provenance footer also states the resulting
+coverage as a fact — "Grounded in N/M file-backed symbols (X%)" — the count of distinct symbols the
+sample actually touched versus the repo's file-backed symbol count. Both sides count file-backed
+nodes only, so the ratio means the same thing on a whole-repo page and on one of its per-subsystem
+pages, which can structurally contain nothing else.
 
 The page has a fixed section order — Overview, Setup & Run, Architecture, Dependencies, Gotchas,
 Decisions — but a section is only ever written when the graph actually has something to ground it:
