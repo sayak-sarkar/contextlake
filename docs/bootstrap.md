@@ -40,11 +40,11 @@ Every stage is standalone, idempotent, and composable. Use these flows to build 
 | Use case | Command(s) |
 |---|---|
 | Blank to fully enriched workspace | `contextlake init` then `contextlake bootstrap` |
-| Add a connector, re-enrich the wiki | `contextlake source add jira ...` then `contextlake enrich` then `contextlake wiki` |
-| Single repo, enriched | `contextlake index .` then `contextlake source add ...` then `contextlake enrich` then `contextlake wiki` then `contextlake serve` |
-| Refresh enrichment only | `contextlake enrich` then `contextlake wiki --force` |
-| Manage or inspect sources | `contextlake source list` or `contextlake source test <name>` or `contextlake doctor` |
-| Disable a noisy source | `contextlake source disable <name>` then re-run `contextlake enrich` |
+| Add a connector, re-enrich the wiki | `contextlake kb source add jira ...` then `contextlake kb enrich` then `contextlake kb wiki` |
+| Single repo, enriched | `contextlake kb index .` then `contextlake kb source add ...` then `contextlake kb enrich` then `contextlake kb wiki` then `contextlake kb serve` |
+| Refresh enrichment only | `contextlake kb enrich` then `contextlake kb wiki --force` |
+| Manage or inspect sources | `contextlake kb source list` or `contextlake kb source test <name>` or `contextlake doctor` |
+| Disable a noisy source | `contextlake kb source disable <name>` then re-run `contextlake kb enrich` |
 
 `contextlake bootstrap` runs the full pipeline (mirror, index, connect, embed, enrich, wiki, steer) end to
 end, so `init` plus `bootstrap` takes a blank workspace to a mirrored, indexed, embedded,
@@ -69,13 +69,13 @@ For continuous freshness without a schedule, install a git `post-commit` hook th
 moment you commit to it:
 
 ```bash
-contextlake hook install                     # the repo in the current directory
-contextlake hook install --workspace ~/src   # every git repo under a mirror
-contextlake hook status  --workspace ~/src   # which repos are wired
-contextlake hook uninstall                   # remove it (any pre-existing hook is kept)
+contextlake kb hook install                     # the repo in the current directory
+contextlake kb hook install --workspace ~/src   # every git repo under a mirror
+contextlake kb hook status  --workspace ~/src   # which repos are wired
+contextlake kb hook uninstall                   # remove it (any pre-existing hook is kept)
 ```
 
-The hook runs `contextlake index <repo>` detached (so the commit returns immediately) and re-uses the
+The hook runs `contextlake kb index <repo>` detached (so the commit returns immediately) and re-uses the
 repo's stored id, so it updates the same graph node rather than a duplicate. Mirror-wide syncing (fetch
 new clones, prune) still belongs to `bootstrap` on a schedule; the hook keeps *local edits* current
 between syncs.

@@ -149,7 +149,7 @@ a 3B-8B model writes much better wiki pages than the 0.5B built-in.
 curl -fsSL https://ollama.com/install.sh | sh   # installs + starts the daemon
 ollama pull qwen2.5:3b                            # ~1.9GB, one-time
 contextlake bootstrap --llm ollama --llm-model qwen2.5:3b   # whole layer in one command
-# or per repo:  contextlake wiki <repo> --llm ollama --llm-model qwen2.5:3b
+# or per repo:  contextlake kb wiki <repo> --llm ollama --llm-model qwen2.5:3b
 ```
 
 contextlake defaults `base_url` to `http://127.0.0.1:11434`, so usually nothing else to set.

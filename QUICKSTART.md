@@ -55,7 +55,7 @@ docker pull ghcr.io/sayak-sarkar/contextlake   # if you use the image
 
 Then confirm with `contextlake --version` and re-check your environment with
 `contextlake doctor`. Your existing store and config carry forward — the graph
-re-indexes incrementally on your next `index`/`sync`, so there is nothing to migrate by
+re-indexes incrementally on your next `kb index`/`mirror sync`, so there is nothing to migrate by
 hand. See the [changelog](CHANGELOG.md) for what changed between versions.
 
 ### Install scenarios & flag cheatsheet
@@ -194,7 +194,7 @@ Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `-
 workspace. To register the server with **Claude Code** explicitly:
 
 ```bash
-claude mcp add contextlake-kb -- contextlake serve --config ~/.contextlake/kb.toml
+claude mcp add contextlake-kb -- contextlake kb serve --config ~/.contextlake/kb.toml
 ```
 
 **Windsurf / Devin** and **Kiro** pick up the generated config and rules

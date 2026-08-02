@@ -2,7 +2,7 @@
 
 Semantic search (optional) adds natural-language retrieval on top of the graph, so you can find code by
 what it does even when you don't know its name. Enable `[embeddings]` in the config (local-first, vectors
-come from an Ollama model by default, so code never leaves the machine), run `contextlake embed` to
+come from an Ollama model by default, so code never leaves the machine), run `contextlake kb embed` to
 vectorize the indexed nodes into a local store, and `serve` then exposes two retrieval tools:
 
 - **`semantic_search`** for queries where the exact symbol name is unknown.
@@ -50,12 +50,12 @@ the C# and Python payment paths together. `--retriever fts|semantic|hybrid` pick
 graph-propagation ranking:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
 </p>
 
 ## Measuring retrieval quality
 
-`contextlake eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file**, each entry pairs
+`contextlake kb eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file**, each entry pairs
 a query with the node ids it should return:
 
 ```json
@@ -67,7 +67,7 @@ a query with the node ids it should return:
 }
 ```
 
-Then `contextlake eval --golden queries.json` reports **precision@k / recall@k / MRR** plus a **cost**
+Then `contextlake kb eval --golden queries.json` reports **precision@k / recall@k / MRR** plus a **cost**
 dimension (estimated tokens per query, and precision per 1k tokens), so "route to the cheapest sufficient
 source" becomes a number, not a vibe. Score any retriever with `--retriever fts|semantic|hybrid`
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by

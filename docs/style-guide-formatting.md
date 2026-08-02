@@ -127,7 +127,7 @@ Never default to "he" or "she". Use diverse, realistic names in examples.
 ## Diagrams and visuals
 
 - **Code-grounded, always.** Every diagram traces to real structure. The knowledge-graph taxonomy diagram
-  imports its colors from `kb/visualize.py` so it matches `contextlake graph` output exactly.
+  imports its colors from `kb/visualize.py` so it matches `contextlake kb graph` output exactly.
 - **Generated, not hand-drawn.** Flat diagrams come from `site/tools/gen_diagrams.py` (SVG, brand palette,
   transparent), rasterized with cairosvg where a PNG is needed. Don't use an image model for a flat
   diagram; it garbles labels. Painterly Pebble scene art is a separate, decorative register.

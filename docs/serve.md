@@ -1,6 +1,6 @@
 # Serve it to your editor (MCP)
 
-The third layer. Once the [knowledge layer](knowledge-layer.md) is built, `contextlake serve`
+The third layer. Once the [knowledge layer](knowledge-layer.md) is built, `contextlake kb serve`
 exposes it as an **MCP server**, so any MCP client (Claude Code, Windsurf, VS Code, Kiro, Cursor,
 Postman, …) can query the graph directly instead of grepping.
 
@@ -20,7 +20,7 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 resource with the store counts.
 
 `semantic_search` / `hybrid_search` are the two exceptions: they register **only when
-embeddings exist** (an `[embeddings]` section in `kb.toml` and a `contextlake embed`
+embeddings exist** (an `[embeddings]` section in `kb.toml` and a `contextlake kb embed`
 run). Without that, the server starts fine and says so, the two tools are simply
 absent from the tool list, and everything above still works.
 
@@ -29,7 +29,7 @@ absent from the tool list, and everything above still works.
 From your workspace root:
 
 ```bash
-contextlake steer --config ~/.contextlake/kb.toml
+contextlake kb steer --config ~/.contextlake/kb.toml
 ```
 
 This writes the per-tool steering files so agents pick up the workspace context and the MCP
@@ -37,7 +37,7 @@ server natively:
 
 - **`AGENTS.md`** (overview, the knowledge tools, and guardrails), a thin **`CLAUDE.md`** that
   imports it, **`.windsurfrules`**, and **`.kiro/steering/`**.
-- A merged **`.mcp.json`** entry for the `contextlake serve` server (Claude Code, Windsurf,
+- A merged **`.mcp.json`** entry for the `contextlake kb serve` server (Claude Code, Windsurf,
   Cursor, and other clients that read this file) and a merged **`.vscode/mcp.json`** entry for
   VS Code, which uses a different top-level key (`servers`, not `mcpServers`): a distinct
   schema, so it gets its own file rather than reusing `.mcp.json`.
@@ -56,7 +56,7 @@ name is kept as-is; custom layers like `.devin/` are left untouched.
 Claude Code:
 
 ```bash
-claude mcp add contextlake-kb -- contextlake serve --config ~/.contextlake/kb.toml
+claude mcp add contextlake-kb -- contextlake kb serve --config ~/.contextlake/kb.toml
 ```
 
 Windsurf, add the same server in its MCP config (Cascade's *MCP Servers* panel, or
@@ -74,7 +74,7 @@ Windsurf, add the same server in its MCP config (Cascade's *MCP Servers* panel, 
 ```
 
 VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from the
-`mcpServers` files above; `contextlake steer` writes this automatically):
+`mcpServers` files above; `contextlake kb steer` writes this automatically):
 
 ```json
 {
@@ -90,8 +90,8 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
-server the way it can for the clients above. Add `contextlake serve` there yourself, once, in
-Devin's own MCP settings. What `contextlake steer` *does* give Devin (and any agent that reads
+server the way it can for the clients above. Add `contextlake kb serve` there yourself, once, in
+Devin's own MCP settings. What `contextlake kb steer` *does* give Devin (and any agent that reads
 plain workspace context) is `AGENTS.md`: the portable part travels; the MCP wiring itself
 doesn't.
 

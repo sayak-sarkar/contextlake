@@ -57,7 +57,7 @@ Instead of a bare block, write the full unit so the reader knows what it does an
 To build the graph for every repo under a folder, run `index` with `--workspace`:
 
 ```bash
-contextlake index --workspace ~/work
+contextlake kb index --workspace ~/work
 ```
 
 The run is incremental, so only repos whose HEAD moved are re-indexed. You should see a per-repo
@@ -72,11 +72,11 @@ summary ending in a line like `4 repos, 29 nodes, 28 edges`.
 Connect your editor to contextlake over MCP so your assistant answers from your indexed repos.
 
 ## Prerequisites
-- A built graph (`contextlake index`).
+- A built graph (`contextlake kb index`).
 - One of: Claude Code, Windsurf, or Kiro.
 
 ## Steps
-1. Run `contextlake steer` to write the MCP config and editor steering files.
+1. Run `contextlake kb steer` to write the MCP config and editor steering files.
 2. Restart your editor so it picks up the new MCP server.
 
 ## Verification

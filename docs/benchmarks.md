@@ -190,7 +190,7 @@ Different tools bill differently, so the honest answer differs per platform.
 
 The measurements above are straightforward to reproduce on your own repositories:
 
-1. Index your repos (`contextlake bootstrap` or `contextlake index --workspace …`).
+1. Index your repos (`contextlake bootstrap` or `contextlake kb index --workspace …`).
 2. Pick a handful of representative questions your team actually asks.
 3. For each, measure **both** the contextlake MCP response (the JSON the agent
    receives) and the baseline your agent would otherwise gather (`grep` output + the

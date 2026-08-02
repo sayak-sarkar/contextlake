@@ -1,11 +1,11 @@
 # Index the code graph
 
-Indexing turns your mirrored repos into a queryable knowledge graph. `contextlake index --workspace
+Indexing turns your mirrored repos into a queryable knowledge graph. `contextlake kb index --workspace
 ~/work` walks every git repo under a folder and builds the graph. Runs are incremental by default;
 `--force` rebuilds from scratch.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>
 
 ## Incremental and time-travel
@@ -43,7 +43,7 @@ and lockfiles from the graph.
 `contextlake doctor` checks the environment (FTS5, `git` / `glab` on PATH, the store, the embedder, and the
 ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
 doesn't affect the exit code) any C/C++ shard indexed with an older parser version than the one currently
-installed -- a nudge to re-index that repo so it picks up parser-correctness fixes. `contextlake lint`
+installed -- a nudge to re-index that repo so it picks up parser-correctness fixes. `contextlake kb lint`
 audits the graph itself, reporting **stale repos** (HEAD moved since they were indexed) and **dangling
 edges** (an edge whose endpoint node is missing). Both exit non-zero on problems, so they're CI-friendly.
 
@@ -53,7 +53,7 @@ Indexing builds a typed graph of your source. tree-sitter extracts files, classe
 interfaces, imports, an intra-repo **call graph**, and an **inheritance graph** (`inherits` edges for
 `extends` / `implements` / base classes), so "what extends `BaseController`?" is one hop, and changing a
 base class shows its subclasses in `blast_radius`. Every node kind and edge relation below is colored and
-styled the same way here, in `contextlake graph`, and in the dashboard:
+styled the same way here, in `contextlake kb graph`, and in the dashboard:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: node kinds (symbols like class/function/method, containers like file/module/package/repo, service surfaces like endpoint/topic, cross-source issue/page/design, and the namespace boundary) each with their color, and edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, inherits, references) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
@@ -101,7 +101,7 @@ references across files in a repo. `resource` nodes are semantically searchable.
 
 Resolution is repo-wide, so a block address defined identically in separate root-module directories (for
 example `environments/prod` and `environments/staging`) surfaces as an `AMBIGUOUS` edge; directory-scoped
-resolution is a future refinement. Render it with `contextlake graph --repo <repo> --format
+resolution is a future refinement. Render it with `contextlake kb graph --repo <repo> --format
 deploymentdiagram` (a Mermaid flowchart grouped by inferred category: network/compute/storage/
 database/security/module), see [Visualize](visualize.md).
 
@@ -113,7 +113,7 @@ semantically searchable.
 
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a **deliberate undercount**. Render it with
-`contextlake graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
+`contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
 
 ### Architecture decisions (ADRs)
 
@@ -133,7 +133,7 @@ Guarded assignments to a status/state/stage field (`if order.status == Created: 
 become `transitions_to` edges between `state` nodes, labeled with the method that makes the transition.
 Only *guarded* transitions are emitted: the source state must be established by a preceding comparison on
 the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
-and C# (regex, every edge `INFERRED`). Render with `contextlake graph --repo <repo> --format statediagram`
+and C# (regex, every edge `INFERRED`). Render with `contextlake kb graph --repo <repo> --format statediagram`
 (a Mermaid entity state machine), see [Visualize](visualize.md).
 
 `transitions_to` is deliberately **not** in `impact`'s default relation set: unlike a table schema a
@@ -148,7 +148,7 @@ literal `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in 
 SQL text looks the same embedded anywhere) becomes a `reads` or `writes` edge from the file to the
 `table`/`view` node the SQL DDL extractor already found, resolved by name across the whole repo the same
 way an FK `references` edge is. A query against a table this repo never defines is an honest miss, not a
-guessed link. `reads`/`writes` are in `impact`'s default relation set, so `contextlake impact <table>`
+guessed link. `reads`/`writes` are in `impact`'s default relation set, so `contextlake kb impact <table>`
 answers "what code touches this table" out of the box.
 
 ### Web topology: endpoints and routes
@@ -190,13 +190,13 @@ Indexing also reads manifests (`pyproject.toml`, `package.json`, `*.csproj`, `po
 finding a definition to cross-repo `blast_radius` ("what could break if I change this"); see
 [the full tool list under Serve](serve.md).
 
-The same change-impact walk is a one-liner from the shell: `contextlake impact <symbol> [--hops N]` lists
+The same change-impact walk is a one-liner from the shell: `contextlake kb impact <symbol> [--hops N]` lists
 what calls / depends on a node, no editor needed. When a symbol name (e.g. `Node`, `Catalog`) is defined in
 more than one repo, `impact` lists the candidates and you narrow it with `--repo <repo>` rather than
 getting a silent best-guess.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
 
 ## See also

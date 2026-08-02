@@ -32,37 +32,37 @@ partition, so re-indexing a repo's code never disturbs its external links. Confi
 
 ## Managing sources: the `source` command family
 
-Editing `kb.toml` by hand works, but for everyday use `contextlake source` commands let you add, test, and
+Editing `kb.toml` by hand works, but for everyday use `contextlake kb source` commands let you add, test, and
 manage connectors without touching the config file. They rewrite `kb.toml` while preserving your comments,
 and work alongside hand-editing if you mix approaches.
 
 The commands:
 
-- **`contextlake source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
+- **`contextlake kb source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
   type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to `kb.toml`. Pass
   `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
   (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below): `--set
   token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
   value from stdin instead of the command line, so a secret never lands in shell history: `printf '%s'
-  "$TOKEN" | contextlake source add jira --type atlassian --from-stdin token`.
+  "$TOKEN" | contextlake kb source add jira --type atlassian --from-stdin token`.
 
-- **`contextlake source list`**: show all configured connectors (the effective merged config from
+- **`contextlake kb source list`**: show all configured connectors (the effective merged config from
   `~/.contextlake/kb.toml`, `.contextlake/kb.toml` if present, and the built-in defaults), with
   reachability status.
-- **`contextlake source test SOURCE`**: verify that a specific connector works. Reaches its API, reads
+- **`contextlake kb source test SOURCE`**: verify that a specific connector works. Reaches its API, reads
   credentials from the configured env var, lists available items. Shows you exactly what each source will
   ingest without running a full `connect`.
-- **`contextlake source enable|disable SOURCE`**: toggle a connector on/off in the config by name, so you
+- **`contextlake kb source enable|disable SOURCE`**: toggle a connector on/off in the config by name, so you
   can pause one without deleting it.
-- **`contextlake source remove SOURCE`**: delete a connector entry by name.
+- **`contextlake kb source remove SOURCE`**: delete a connector entry by name.
 
 An example workflow:
 
 ```bash
-contextlake source add                # interactive: what type? which workspace?
-contextlake source list               # show what you've configured + status
-contextlake source test my-atlassian  # does it work? what's in scope?
-contextlake connect                   # now link repos to their items
+contextlake kb source add                # interactive: what type? which workspace?
+contextlake kb source list               # show what you've configured + status
+contextlake kb source test my-atlassian  # does it work? what's in scope?
+contextlake kb connect                   # now link repos to their items
 ```
 
 `init` can also prompt you to connect a source during first-run setup, and `doctor` reports per-source
@@ -76,34 +76,34 @@ agent. The dashboard and the graph legend use these same tiers.
 
 ## Query-driven enrichment
 
-`contextlake enrich` performs **query-driven enrichment**: it derives search terms from each repo's code
+`contextlake kb enrich` performs **query-driven enrichment**: it derives search terms from each repo's code
 graph (the repo's name and its top symbols by graph degree) and queries your connected sources (Atlassian
 Rovo search, or any `mcp` source with a `tool` and `arg_template` configured) with those terms, then stores
 the returned documents in a searchable, embedded `@enrich:<repo>` partition, idempotent and re-runnable
 across the whole fleet or a single repo:
 
 ```bash
-contextlake enrich --workspace ~/work     # all indexed repos
-contextlake enrich acme/catalog-api         # one repo
+contextlake kb enrich --workspace ~/work     # all indexed repos
+contextlake kb enrich acme/catalog-api         # one repo
 ```
 
-Prerequisites: the code graph must be **indexed first** (`contextlake index`), and at least one
+Prerequisites: the code graph must be **indexed first** (`contextlake kb index`), and at least one
 term-searchable source must be configured: either an `mcp` source with `tool` and `arg_template` keys, or
 an `atlassian` source. Sources without these capabilities (e.g. a plain `files` or `web` source) are
 skipped gracefully. Each repo's enrichment documents are stored in their own partition so they can be
 re-fetched without clobbering prior results, and are embedded (when the semantic tier is enabled) so they
 surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). After
-`contextlake wiki` runs, enrichment docs are incorporated into the curated wiki as an attributed "External
+`contextlake kb wiki` runs, enrichment docs are incorporated into the curated wiki as an attributed "External
 context" section, grounded to the code graph's terms.
 
 ## Aggregating documents (RAG)
 
-Not everything lives in code. `contextlake ingest` pulls **external documents** into the same knowledge
+Not everything lives in code. `contextlake kb ingest` pulls **external documents** into the same knowledge
 layer, they become `kind="document"` graph nodes and, when embeddings are on, their bodies are embedded so
 semantic search spans code *and* docs together:
 
 ```bash
-contextlake ingest --path ./docs        # zero-config: ingest a folder of files
+contextlake kb ingest --path ./docs        # zero-config: ingest a folder of files
 ```
 
 Sources follow a tiny seam, so common ones are **built-in and config-only** while anything heavier is a
@@ -136,7 +136,7 @@ class ConfluenceSource:
         yield Document(id="123", title="Runbook", text="...", uri="https://...")
 ```
 
-`contextlake ingest` then discovers `type = "confluence"` automatically. Five sources ship built-in:
+`contextlake kb ingest` then discovers `type = "confluence"` automatically. Five sources ship built-in:
 `files`, `web`, `api`, `graphql`, and `mcp`. **`web`** fetches URLs and ingests their readable text
 (stdlib-only):
 

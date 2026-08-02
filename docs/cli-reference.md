@@ -11,15 +11,16 @@ A mistyped command suggests the closest real one instead of dumping the full com
 $ contextlake fetc
 ✗ Unknown command: 'fetc'
 
-Did you mean: fetch?
+Did you mean: mirror fetch?
 
 Run 'contextlake --help' to see all commands.
 ```
 
 The match runs against every command name **and its aliases** (`blast-radius` for `impact`, `who-knows`
-for `owners`), then shows the canonical verb, matching what `--help` teaches.
+for `owners`), then shows the canonical, namespaced verb, matching what `--help` teaches -- never the
+deprecated flat spelling.
 
-Flags never match on a partial name or abbreviation. `contextlake index --work-d /tmp` reports
+Flags never match on a partial name or abbreviation. `contextlake kb index --work-d /tmp` reports
 `unrecognized arguments: --work-d` rather than silently guessing you meant `--workspace`: a prefix is
 treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
 
@@ -27,7 +28,7 @@ A genuine character-level typo of a real flag on the command you invoked (a tran
 letter -- not a shortened prefix) does get a suggestion, scoped to that command's own flags:
 
 ```
-$ contextlake index --worksapce .
+$ contextlake kb index --worksapce .
 ✗ Unknown flag: '--worksapce'
 
 Did you mean: --workspace?
@@ -40,7 +41,7 @@ reporting it as simply unrecognized:
 $ contextlake bootstrap --local
 ✗ '--local' isn't a flag on 'bootstrap'
 
-It's used by: init, source.
+It's used by: init, kb source.
 
 Run 'contextlake bootstrap --help' to see bootstrap's own flags.
 ```
@@ -50,7 +51,7 @@ flag lands where the value should be) names the real problem instead of arguing 
 entirely:
 
 ```
-$ contextlake dashboard --serve --workspace --open
+$ contextlake kb dashboard --serve --workspace --open
 ✗ '--workspace' needs a value, but the next token ('--open') is itself a recognized flag
 
 Put the value right after --workspace, e.g. '--workspace <value> --open'.
@@ -67,8 +68,8 @@ entirely.
 
 ## Advanced/resilience flags
 
-The 8 mirror-tier commands (`fetch`/`clone`/`update`/`branches`/`verify`/`status`/`sync`/`audit`) each
-take a further ~14 retry/backoff/worker-pool/safety-check flags (`--max-retries`,
+The 8 `mirror`-tier commands (`mirror fetch`/`clone`/`update`/`branches`/`verify`/`status`/`sync`/`audit`)
+each take a further ~14 retry/backoff/worker-pool/safety-check flags (`--max-retries`,
 `--backoff-initial`/`--backoff-max`, `--adaptive-workers`, `--protect-working-branches`,
 `--safe-branches`, `--require-clean-workspace`, `--auto-stash`, and their `--no-` counterparts) --
 automation levers, not something to guess at from a bare `--help`. Every one already has a
@@ -77,33 +78,36 @@ default `--help` listing; run `contextlake <command> --help-advanced` to see the
 
 `contextlake --help` groups all 29 commands by task (Get started / Mirror a fleet / Build the
 knowledge graph / Explore & search / Serve to editors) directly in its own output -- the tables below
-are the same commands, organized for reference rather than a first read.
+are the same commands, organized for reference rather than a first read. Each knowledge-layer verb
+below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb query`, ...); `init`,
+`bootstrap`, `version`, `completion`, and `doctor` span both tiers or neither, so they stay top-level.
 
 ## Knowledge-layer commands
 
 | Command | What it does |
 | --- | --- |
-| `source` | add / list / remove / test / enable / disable knowledge-source connectors |
-| `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
-| `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
-| `enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
-| `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
-| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
-| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
-| `owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `who-knows`, `--json`) |
-| `impact` | Change-impact / blast radius: what depends on a symbol (alias `blast-radius`, `--json`) |
-| `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
-| `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
-| `eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
-| `lint` | Graph health audit: stale repos, dangling edges (`--json`) |
+| `kb source` | add / list / remove / test / enable / disable knowledge-source connectors |
+| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
+| `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
+| `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
+| `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
+| `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
+| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
+| `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
+| `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
+| `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
+| `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
+| `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
+| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
+| `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
-| `serve` | Expose the graph over MCP (stdio or `--transport http`) |
-| `steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
+| `kb serve` | Expose the graph over MCP (stdio or `--transport http`) |
+| `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 
-The mirror-tier commands (`fetch`, `clone`, `update`, `branches`, `verify`, `sync`, `status`, `audit`)
-are covered under [Mirror repositories](usage.md).
+The `mirror`-tier commands (`mirror fetch`, `mirror clone`, `mirror update`, `mirror branches`,
+`mirror verify`, `mirror sync`, `mirror status`, `mirror audit`) are covered under
+[Mirror repositories](usage.md).
 
 ## See also
 

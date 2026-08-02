@@ -57,15 +57,15 @@ every one of its flags — generated live from the same parser that runs the com
 drift out of sync with the actual CLI surface. Uses
 [argcomplete](https://github.com/kislyuk/argcomplete) (pure Python, no dependencies of its own).
 
-**Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `index
+**Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `kb index
 --workspace`) accepts `--repos PATTERN`, a comma-separated **glob/substring** filter
 over your repo paths, so you can mirror and index just a handful instead of the whole
 group. Ideal for a demo or a try-before-fleet run:
 
 ```bash
 contextlake bootstrap --repos "team/api,billing,frontend/*"   # mirror + index just these
-contextlake sync --repos "team/*"                             # sync one namespace
-contextlake index --workspace ~/work --repos "billing/core,team/api"
+contextlake mirror sync --repos "team/*"                             # sync one namespace
+contextlake kb index --workspace ~/work --repos "billing/core,team/api"
 ```
 
 Each pattern matches if it's a substring of, or a glob against, the repo's
@@ -78,25 +78,25 @@ near-universal `rm`/`cp`/`make` convention) to show what would happen without cl
 switching a single branch:
 
 ```bash
-contextlake update -n
+contextlake mirror update -n
 # DRY RUN: no repositories will be cloned, updated, or switched
 ```
 
 Pair it with `--repos` to preview a change scoped to just the repos you're about to touch.
 
-`contextlake sync` runs the whole mirror pipeline end to end; each stage is also
+`contextlake mirror sync` runs the whole mirror pipeline end to end; each stage is also
 available as its own command:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-sync.png" alt="The contextlake sync pipeline: fetch, then clone, then update, then branches, then verify, then audit." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-sync.png" alt="The contextlake mirror sync pipeline: fetch, then clone, then update, then branches, then verify, then audit." width="760">
 </p>
 
-### `status`: check current synchronization status
+### `mirror status`: check current synchronization status
 
 Shows the current state of your workspace compared to GitLab.
 
 ```bash
-contextlake status
+contextlake mirror status
 ```
 
 **Example output:**
@@ -116,12 +116,12 @@ Extra:                    1        # cloned locally but not on GitLab
 
 A fully synced workspace shows `0` for both.
 
-### `fetch`: fetch all GitLab projects
+### `mirror fetch`: fetch all GitLab projects
 
 Retrieves all repositories from the specified GitLab group and caches them locally.
 
 ```bash
-contextlake fetch
+contextlake mirror fetch
 ```
 
 This command:
@@ -131,12 +131,12 @@ This command:
 - Skips archived repositories
 - Caches results in `/tmp/gitlab_projects.txt` and `/tmp/gitlab_projects.json`
 
-### `clone`: clone missing repositories
+### `mirror clone`: clone missing repositories
 
 Clones any repositories that exist in GitLab but are missing locally.
 
 ```bash
-contextlake clone
+contextlake mirror clone
 ```
 
 This command:
@@ -154,12 +154,12 @@ it can't leak into `ps` output or `.git/config`. Without a token it uses `glab r
 clone` (glab's own auth) when glab is installed, else plain `git clone` over HTTPS.
 Set `clone_method = git` or `glab` to force one path.
 
-### `update`: update existing repositories
+### `mirror update`: update existing repositories
 
 Fetches and pulls the latest changes for all local repositories.
 
 ```bash
-contextlake update
+contextlake mirror update
 ```
 
 This command:
@@ -169,12 +169,12 @@ This command:
 - Handles detached HEAD states appropriately
 - Reports repositories that are already up to date
 
-### `branches`: switch to most active branches
+### `mirror branches`: switch to most active branches
 
 Analyzes all repositories and switches them to their most active development branch.
 
 ```bash
-contextlake branches
+contextlake mirror branches
 ```
 
 This command:
@@ -191,12 +191,12 @@ that is both busy and recently touched wins. Two alternatives exist: `commits` (
 commit count, the legacy behaviour) and `recency` (most recent commit). Archived repos,
 repos without branches, and detached-HEAD states are skipped.
 
-### `verify`: verify repository structure
+### `mirror verify`: verify repository structure
 
 Checks that the local workspace structure matches GitLab exactly.
 
 ```bash
-contextlake verify
+contextlake mirror verify
 ```
 
 This command:
@@ -207,12 +207,12 @@ This command:
 - Lists missing repositories (in GitLab but not local)
 - Reports synchronization status
 
-### `sync`: full synchronization
+### `mirror sync`: full synchronization
 
 Runs the complete synchronization pipeline in sequence.
 
 ```bash
-contextlake sync
+contextlake mirror sync
 ```
 
 This command executes:
@@ -224,15 +224,15 @@ This command executes:
 5. `verify` - Verify structure
 6. `audit` - Report repo health & age (skip with `--no-audit`)
 
-### `audit`: repo health & age report
+### `mirror audit`: repo health & age report
 
 Scans every local clone and reports which repos are effectively empty and how old/active
 they are. Runs automatically at the end of `sync`/`bootstrap`, or on demand:
 
 ```bash
-contextlake audit                       # summary to console + report to <cache_dir>/repo_audit.json
-contextlake audit --report ./audit.json # choose where the per-repo JSON + .csv are written
-contextlake sync --no-audit             # run sync without the audit step
+contextlake mirror audit                       # summary to console + report to <cache_dir>/repo_audit.json
+contextlake mirror audit --report ./audit.json # choose where the per-repo JSON + .csv are written
+contextlake mirror sync --no-audit             # run sync without the audit step
 ```
 
 It classifies each repo as **empty** (no commits/files), **readme-only** (just a template
@@ -298,20 +298,20 @@ The only thing that blocks an `update` is a *dirty working tree*.
 
 ```bash
 # Repository is on feature/my-feature branch (not in safe branches)
-contextlake branches
+contextlake mirror branches
 
 # Output:
 # [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped branch switch (on working branch: feature/my-feature)
 ```
 
-> A plain `contextlake update` would instead **pull `feature/my-feature`** here,
+> A plain `contextlake mirror update` would instead **pull `feature/my-feature`** here,
 > since the working tree is clean.
 
 #### Scenario 2: Uncommitted Changes
 
 ```bash
 # Repository has uncommitted changes
-contextlake update
+contextlake mirror update
 
 # Output:
 # [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped (unsafe: Uncommitted changes detected)
@@ -321,7 +321,7 @@ contextlake update
 
 ```bash
 # Repository has uncommitted changes, auto-stash enabled
-contextlake --auto-stash update
+contextlake --auto-stash mirror update
 
 # Output:
 # [2026-06-16 10:00:00] ⚠ backend/services/api-gateway: Changes stashed successfully
@@ -331,7 +331,7 @@ contextlake --auto-stash update
 ### Customization
 
 These resilience/safety flags are kept out of `contextlake <command> --help`'s default listing (run
-`contextlake update --help-advanced` to see them alongside every other mirror-tier command's flags) --
+`contextlake mirror update --help-advanced` to see them alongside every other mirror-tier command's flags) --
 they're automation levers, not something to guess at interactively, and every one has the
 `.contextlake.ini` equivalent below as its primary home.
 
@@ -348,7 +348,7 @@ auto_stash = false
 
 ```bash
 # Or via CLI
-contextlake --safe-branches main,master,develop,staging --auto-stash update
+contextlake --safe-branches main,master,develop,staging --auto-stash mirror update
 ```
 
 ### Disabling safety checks
@@ -357,7 +357,7 @@ If you want to disable safety checks (not recommended for production workflows):
 
 ```bash
 # Disable all safety checks
-contextlake --no-protect-working-branches --no-require-clean-workspace update
+contextlake --no-protect-working-branches --no-require-clean-workspace mirror update
 ```
 
 **Warning**: Disabling safety checks can lead to conflicts, lost work, or corruption of your local branches. Only disable if you understand the risks.
@@ -386,7 +386,7 @@ Before setting up cron jobs, ensure you have:
 3. **Test the command manually first**:
 
    ```bash
-   cd /home/user/work && contextlake sync
+   cd /home/user/work && contextlake mirror sync
    ```
 
 ### Basic daily sync
@@ -398,7 +398,7 @@ Run a full synchronization daily at 2 AM:
 crontab -e
 
 # Add the following line (replace paths as needed)
-0 2 * * * cd /home/user/work && /usr/bin/contextlake sync >> /tmp/contextlake.log 2>&1
+0 2 * * * cd /home/user/work && /usr/bin/contextlake mirror sync >> /tmp/contextlake.log 2>&1
 ```
 
 **Note**: This uses the configuration from `~/.contextlake.ini`. No need to specify work_dir or gitlab_group in the cron command.
@@ -408,7 +408,7 @@ crontab -e
 Update repositories hourly without changing branches (for CI/CD environments):
 
 ```bash
-0 * * * * cd /home/user/work && /usr/bin/contextlake update >> /tmp/gitlab_hourly.log 2>&1
+0 * * * * cd /home/user/work && /usr/bin/contextlake mirror update >> /tmp/gitlab_hourly.log 2>&1
 ```
 
 ### Weekly full sync with branch management
@@ -416,7 +416,7 @@ Update repositories hourly without changing branches (for CI/CD environments):
 Run full sync including branch switching weekly on Sunday at 3 AM:
 
 ```bash
-0 3 * * 0 cd /home/user/work && /usr/bin/contextlake sync >> /tmp/gitlab_weekly.log 2>&1
+0 3 * * 0 cd /home/user/work && /usr/bin/contextlake mirror sync >> /tmp/gitlab_weekly.log 2>&1
 ```
 
 ### Multiple workspaces
@@ -440,10 +440,10 @@ EOF
 # Add to crontab
 
 # Sync primary workspace daily
-0 2 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_primary.ini sync >> /tmp/gitlab_primary.log 2>&1
+0 2 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_primary.ini mirror sync >> /tmp/gitlab_primary.log 2>&1
 
 # Sync secondary workspace every 6 hours
-0 */6 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_secondary.ini update >> /tmp/gitlab_secondary.log 2>&1
+0 */6 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_secondary.ini mirror update >> /tmp/gitlab_secondary.log 2>&1
 ```
 
 ### Monitoring and alerts
@@ -455,7 +455,7 @@ Add email notifications for failures:
 cat > /home/user/scripts/contextlake_wrapper.sh << 'EOF'
 #!/bin/bash
 cd /home/user/work
-contextlake sync >> /tmp/contextlake.log 2>&1
+contextlake mirror sync >> /tmp/contextlake.log 2>&1
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
@@ -491,19 +491,19 @@ EOF
 
 | Symptom | What to do |
 | --- | --- |
-| **"Cache file not found"** | Run `contextlake fetch` first to populate the projects cache. |
+| **"Cache file not found"** | Run `contextlake mirror fetch` first to populate the projects cache. |
 | **"Permission denied" during cloning** | Make sure `glab` is authenticated (`glab auth login`) and you can reach the repositories. |
 | **"Timeout" errors** | Raise the relevant `*_timeout` settings, check connectivity, or lower `max_workers` (set it to `1` to run serially). Behind a TLS-inspecting proxy, set `GITLAB_TOKEN` so enumeration uses the built-in HTTP client. |
 | **"Detached HEAD" states** | Handled automatically, the repo is skipped for pulls rather than failing. |
-| **Nested `.git` directories** | A repo cloned into a subfolder of itself. `contextlake verify` flags it; fix by moving the inner tree up one level and removing the empty folder. |
+| **Nested `.git` directories** | A repo cloned into a subfolder of itself. `contextlake mirror verify` flags it; fix by moving the inner tree up one level and removing the empty folder. |
 | **Cron job not running** | Check `crontab -l`, use absolute paths, and test the exact command in a shell first; inspect cron logs (`grep CRON /var/log/syslog`). See [Scheduling and automation](#scheduling-and-automation). |
 | **Large log files** | Set up log rotation, see [Scheduling and automation](#scheduling-and-automation). |
 
 ## Best practices
 
-1. **Initial Setup**: Run `contextlake sync` once to set up full workspace
-2. **Regular Updates**: Use `contextlake update` for frequent, fast updates
-3. **Branch Management**: Run `contextlake branches` periodically to stay on active branches
+1. **Initial Setup**: Run `contextlake mirror sync` once to set up full workspace
+2. **Regular Updates**: Use `contextlake mirror update` for frequent, fast updates
+3. **Branch Management**: Run `contextlake mirror branches` periodically to stay on active branches
 4. **Monitoring**: Check logs regularly for errors or failures
 5. **Backup**: Commit workspace state to git before major branch switches
 6. **Testing**: Test cron commands manually before adding to crontab

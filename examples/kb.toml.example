@@ -20,7 +20,7 @@ languages = ["csharp", "typescript", "python"]
 # index_workers = 8
 
 [embeddings]
-# Semantic/NL search tier. Off by default; when enabled, run `contextlake embed`
+# Semantic/NL search tier. Off by default; when enabled, run `contextlake kb embed`
 # to vectorize indexed nodes and `serve` then exposes a `semantic_search` tool.
 enabled = false
 # Provider: "auto" (default) | "builtin" | "ollama" | "openai".
@@ -68,7 +68,7 @@ batch_size = 64
 vector_backend = "auto"
 
 [llm]
-# LLM tier for `contextlake wiki` (curated pages + a verification council).
+# LLM tier for `contextlake kb wiki` (curated pages + a verification council).
 # Off by default. Provider: "auto" (default) | "builtin" | "ollama" | "openai".
 #   auto    -> reachable local Ollama, else the built-in CPU LLM (if installed), else skip.
 #   builtin -> in-process small GGUF via llama-cpp-python.
@@ -97,7 +97,7 @@ accept_score = 0.7      # mean council score required to publish a page
 #   api_key_env = "OPENAI_API_KEY"             # env var with the key; never the key itself
 
 # --- Knowledge-source connectors (0..N) -------------------------------------
-# `contextlake connect` runs these after indexing to link repos to external
+# `contextlake kb connect` runs these after indexing to link repos to external
 # knowledge. Each Atlassian org is its own connector with its own auth session;
 # set a distinct `auth_dir` per org so their OAuth caches never collide.
 [[sources]]

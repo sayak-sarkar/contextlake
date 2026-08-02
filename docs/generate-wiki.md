@@ -7,10 +7,10 @@ per repo, with a provenance footer citing the commit and sources it was built fr
 
 Enable `[llm]` in the config (generation runs on a local Ollama model by default, prompts never leave the
 machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ollama` | `openai` |
-`anthropic` | `cli`), for example `contextlake wiki acme/catalog-api --llm builtin`, which enables the tier
+`anthropic` | `cli`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables the tier
 inline and scopes generation to the named repo(s).
 
-Run `contextlake wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
+Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
 symbols, dependencies, files, and — when the repo's own checkout is available — an excerpt of its README
 and which conventional entry-point/config files it has, e.g. `package.json`, `Dockerfile`, `manage.py`)
 with a provenance footer citing the commit and sources, then puts the draft through a **verification
@@ -77,7 +77,7 @@ see [Model providers](model-providers.md).
 
 A repo with at least 5,000 graph nodes, where no single top-level module owns more than 60% of
 them, is treated as genuinely federated — one big source directory doesn't count, but a repo split
-into several comparable subsystems does. `contextlake wiki` generates one additional page per
+into several comparable subsystems does. `contextlake kb wiki` generates one additional page per
 qualifying subsystem automatically, no new flag needed, in addition to (never instead of) the
 whole-repo page. Each subsystem page is grounded only in that module's own symbols, files, and
 dependencies (a segment-boundary-correct scope, so a module named `api` never also pulls in a
@@ -107,7 +107,7 @@ existed are backfilled on the next `wiki` run without any LLM calls.
 
 ## Cluster (namespace) wiki
 
-Beyond per-repo pages, `contextlake wiki --namespace acme/payments` writes one **cluster page** for a
+Beyond per-repo pages, `contextlake kb wiki --namespace acme/payments` writes one **cluster page** for a
 whole group of repos (everything under that repo-id prefix), narrating how they fit together: which
 services call which over HTTP, publish/consume which events, and share which packages, split into coupling
 *within* the namespace and coupling to repos *outside* it. Use `--namespaces --depth N` to generate one
@@ -123,7 +123,7 @@ cluster brief already computes, no new metric. Cluster pages are served over MCP
 
 ## Incorporating connector enrichment
 
-When `contextlake enrich` has populated a repo's `@enrich:<repo>` enrichment documents (via Atlassian or
+When `contextlake kb enrich` has populated a repo's `@enrich:<repo>` enrichment documents (via Atlassian or
 MCP search sources), the wiki synthesizer draws on them and incorporates an "External context" section
 into each repo's curated page. Each external fact is directly quoted from its source (Confluence page,
 Jira issue, or MCP search result) and attributed by source URL or name, never presented as a free
@@ -137,7 +137,7 @@ from, and a **STALE** badge if the indexed commit has since moved.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
-With `contextlake dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
+With `contextlake kb dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
 Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
 background — see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes---allow-mutations).
 

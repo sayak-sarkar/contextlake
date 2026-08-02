@@ -11,7 +11,7 @@ These five are mechanical. A linter can check them, and reviewers should.
 - **Second person.** Address the reader as "you". The reader owns the lake. Reserve "we" for a genuine
   maintainer recommendation ("we recommend Ollama at scale"), never as a synonym for "you".
 - **Present tense.** "`sync` fetches and updates every repo", not "will fetch".
-- **Active voice.** "Run `contextlake index`", not "the index should be run". Passive is fine only when the
+- **Active voice.** "Run `contextlake kb index`", not "the index should be run". Passive is fine only when the
   actor is genuinely unknown or irrelevant, or in an error message where you don't want to blame the reader.
 - **Imperative for steps.** Every step in a task starts with a verb: "Install", "Run", "Open", "Verify".
 - **Contractions welcome.** "you'll", "it's", "let's", "don't". This is the heart of the warmth. Avoid a
@@ -52,7 +52,7 @@ These are contextlake's signature, and they're also just good technical writing.
 - **Anthropomorphism:** no "allows you to", "lets you", or "enables you to". Use a reader-focused verb:
   "Use the dashboard to inspect a repo", not "the dashboard lets you inspect a repo". (Software may still
   "detect", "display", "read", or "prompt".)
-- **"please"** in instructions. Write "To view the graph, run `contextlake graph`", not "Please run".
+- **"please"** in instructions. Write "To view the graph, run `contextlake kb graph`", not "Please run".
 - **"click here" / "read this"** as link text. See the [formatting page](style-guide-formatting.md).
 - **Exclamation points** in body copy. One is allowed, rarely, in the warmest microcopy.
 

@@ -96,7 +96,7 @@ the image on locked-down or offline machines.
 
 ```bash
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
-docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake index
+docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
 ```
 </details>
 
@@ -147,26 +147,26 @@ neither. Once installed, `contextlake`, `python -m contextlake`, and
 
 You don't need GitLab or any config to try contextlake on a repo you already have.
 No install? Run it once with [`uvx`](https://docs.astral.sh/uv/): prefix any command
-below with `uvx --from "contextlake[kb]"` (e.g. `uvx --from "contextlake[kb]" contextlake index --source .`).
+below with `uvx --from "contextlake[kb]"` (e.g. `uvx --from "contextlake[kb]" contextlake kb index --source .`).
 
 ```bash
-contextlake index                     # parse the current repo into a local knowledge graph
-contextlake graph --overview --open   # open the interactive graph in your browser
-contextlake serve                     # …or serve it to your AI IDE over MCP
+contextlake kb index                     # parse the current repo into a local knowledge graph
+contextlake kb graph --overview --open   # open the interactive graph in your browser
+contextlake kb serve                     # …or serve it to your AI IDE over MCP
 ```
 
 **Wire it into your editor in one line**, no config file needed (it uses the local
 `~/.contextlake/kb` store you just built):
 
 ```bash
-claude mcp add contextlake-kb -- contextlake serve      # Claude Code
-# zero-install variant: claude mcp add contextlake-kb -- uvx --from "contextlake[kb]" contextlake serve
+claude mcp add contextlake-kb -- contextlake kb serve      # Claude Code
+# zero-install variant: claude mcp add contextlake-kb -- uvx --from "contextlake[kb]" contextlake kb serve
 ```
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph.jpg" alt="The contextlake graph visualizer showing a repository's symbols as a navigable node graph, with a type-glyph legend, search, and a corner minimap" width="840">
 </p>
-<p align="center"><em><code>contextlake graph</code>, a whole codebase as one offline, navigable graph.</em></p>
+<p align="center"><em><code>contextlake kb graph</code>, a whole codebase as one offline, navigable graph.</em></p>
 
 Everything lands in a local store (`~/.contextlake/kb`), nothing leaves your machine. Index
 any path with `--source PATH`, or every git repo under a directory with `--workspace DIR`.
@@ -193,8 +193,8 @@ gitlab_group = your-gitlab-group
 ```
 
 ```bash
-contextlake status      # see where you stand (read-only)
-contextlake sync        # fetch → clone → update → branches → verify → audit
+contextlake mirror status      # see where you stand (read-only)
+contextlake mirror sync        # fetch → clone → update → branches → verify → audit
 ```
 
 Auth is one env var: the platform's token (`GITLAB_TOKEN` / `GITHUB_TOKEN` /
@@ -212,36 +212,38 @@ of**.
 ## Commands at a glance
 
 Run any command as `contextlake <command>`; each has scoped help via
-`contextlake <command> --help`. Per-command docs live with their layer: the
-**mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**;
-the **knowledge-layer** commands (`index`, `embed`, `connect`, `wiki`, `query`, `owners`,
-`impact`, `graph`, …) in **[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**,
-and `serve`/`steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**.
+`contextlake <command> --help`. Each verb lives under the noun it belongs to — `mirror` for
+mirroring git repositories, `kb` for the knowledge layer — except `init`, `bootstrap`,
+`version`, `completion`, and `doctor`, which span both tiers or neither. Per-command docs live
+with their layer: the **mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**;
+the **knowledge-layer** commands (`kb index`, `kb embed`, `kb connect`, `kb wiki`, `kb query`,
+`kb owners`, `kb impact`, `kb graph`, …) in **[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**,
+and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**.
 
 | Command | What it does |
 | --- | --- |
 | `init` | **Guided setup**: write your mirror + knowledge-layer config (`--yes` for non-interactive) |
-| `status` | Show the workspace sync state vs GitLab (read-only) |
-| `sync` | The full pipeline: fetch → clone → update → branches → verify → audit |
-| `fetch` · `clone` · `update` | The sync steps, individually |
-| `branches` | Switch each repo to its most active branch |
-| `verify` · `audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
+| `mirror status` | Show the workspace sync state vs GitLab (read-only) |
+| `mirror sync` | The full pipeline: fetch → clone → update → branches → verify → audit |
+| `mirror fetch` · `mirror clone` · `mirror update` | The sync steps, individually |
+| `mirror branches` | Switch each repo to its most active branch |
+| `mirror verify` · `mirror audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
 | `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + steer (`--no-enrich` to skip) |
-| `index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
-| `source` | **Manage connectors**: `add`/`list`/`remove`/`test`/`enable`/`disable` knowledge sources; edits `kb.toml` for you, comments preserved |
-| `connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
-| `embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
-| `enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
-| `ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
-| `query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
-| `owners` (alias `who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
-| `impact` (alias `blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
-| `graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
-| `dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
-| `serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
-| `steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
-| `lint` · `doctor` · `eval` | Graph health · environment check · retrieval-quality scoring |
+| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
+| `kb source` | **Manage connectors**: `add`/`list`/`remove`/`test`/`enable`/`disable` knowledge sources; edits `kb.toml` for you, comments preserved |
+| `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
+| `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
+| `kb enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
+| `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
+| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
+| `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
+| `kb owners` (alias `kb who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
+| `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
+| `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
+| `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
+| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
+| `kb steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
+| `kb lint` · `doctor` · `kb eval` | Graph health · environment check · retrieval-quality scoring |
 
 Global options apply to any command: `--dry-run` (preview without changing anything),
 `-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`, `--version`. Output is colorized on
@@ -266,11 +268,11 @@ Full guide: **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextl
 
 ### The dashboard
 
-`contextlake dashboard --serve` opens a local, offline-first window into everything the
+`contextlake kb dashboard --serve` opens a local, offline-first window into everything the
 knowledge layer builds: a fleet overview, per-repo anatomy, the cross-repo architecture
 graph, change-impact (blast radius), health, search, and a **Chat** tab to ask questions
 about the fleet in plain language (free graph router always on, LLM-synthesized prose
-opt-in via `--llm-chat`). Try it with zero setup via `contextlake dashboard --serve --sample`.
+opt-in via `--llm-chat`). Try it with zero setup via `contextlake kb dashboard --serve --sample`.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table layout switcher." width="820">

@@ -50,7 +50,7 @@ rest still print; only the color wrapped around them is gone.
 ## The stdout / stderr split
 
 The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like) stay on stdout. That
-split means `contextlake wiki >> run.log` (or any stdout redirect) captures clean detail lines with no bar
+split means `contextlake kb wiki >> run.log` (or any stdout redirect) captures clean detail lines with no bar
 artifacts or `\r` clutter, since the bar never touches stdout. When output isn't a TTY (piped, cron, a
 redirected stderr), the bar itself auto-downgrades to periodic plain summary lines instead of repainting in
 place. When both streams share one terminal (the default interactive case), the bar and the detail lines
@@ -82,12 +82,12 @@ separately.
   at score 0.0, which otherwise looks identical to a very strict council. A capable backend
   (`--llm ollama`/`anthropic`/`openai`) produces far fewer rejections, see
   [Model providers](model-providers.md).
-- **`contextlake serve --transport http` prints its bind URL** once it starts listening (`✓ MCP server on
+- **`contextlake kb serve --transport http` prints its bind URL** once it starts listening (`✓ MCP server on
   http://127.0.0.1:8765  (Ctrl-C to stop)`), so you don't have to guess the host/port before pointing an
   editor at it. `stdio` transport has no address to report and stays quiet on that line.
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
-  a hint to run `contextlake index` first, instead of logging the same success line it would for a
+  a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
   populated graph.
 - **A single-writer lock message** naming another process means two runs targeted one store at once (see
   the git-hook note under [Bootstrap and keep fresh](bootstrap.md)).

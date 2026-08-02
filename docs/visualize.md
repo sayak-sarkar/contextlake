@@ -1,17 +1,17 @@
 # Visualize the graph
 
-`contextlake graph` draws a **bounded** slice of the graph. The whole thing (hundreds of thousands of
+`contextlake kb graph` draws a **bounded** slice of the graph. The whole thing (hundreds of thousands of
 nodes) is far too large to render, so every view is scoped from a seed and capped:
 
 ```bash
-contextlake graph --overview --open                 # repos-as-nodes: the architecture map
-contextlake graph --name CatalogService --kind class  # a symbol's neighbourhood (default 2 hops)
-contextlake graph --node <id> --hops 3              # expand around an exact node id
-contextlake graph --search "payment" --open         # seed from a full-text search
-contextlake graph --repo acme/catalog-api           # one repo's internal code graph
+contextlake kb graph --overview --open                 # repos-as-nodes: the architecture map
+contextlake kb graph --name CatalogService --kind class  # a symbol's neighbourhood (default 2 hops)
+contextlake kb graph --node <id> --hops 3              # expand around an exact node id
+contextlake kb graph --search "payment" --open         # seed from a full-text search
+contextlake kb graph --repo acme/catalog-api           # one repo's internal code graph
 ```
 
-`contextlake graph --repo <repo>` renders one repo's internal code graph to a single self-contained HTML
+`contextlake kb graph --repo <repo>` renders one repo's internal code graph to a single self-contained HTML
 page: nodes coloured by kind and sized by degree, edges by relation, with an in-page layout switcher,
 search, and a minimap; it opens straight from `file://`:
 
@@ -40,13 +40,13 @@ Output is chosen with `--format`:
   the view stays readable). Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`,
   `breadthfirst`, `circle`, `grid`) in the page, set the initial one with `--layout`. `--open` launches the
   browser; `--cdn` produces a small online-only file instead.
-- **`dot`**, Graphviz (`contextlake graph ... --format dot | dot -Tsvg > g.svg`).
+- **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces
   / structs with their methods as members, and `inherits` edges as inheritance arrows (`<|--` extends,
-  `<|..` implements). Great for a PR or design doc: `contextlake graph --repo acme/app --format classdiagram`.
+  `<|..` implements). Great for a PR or design doc: `contextlake kb graph --repo acme/app --format classdiagram`.
 - **`sequencediagram`**, a **Mermaid call-order trace** from one seeded function, each caller's callees
-  ordered by call-site line, the order they actually appear in the source: `contextlake graph --name
+  ordered by call-site line, the order they actually appear in the source: `contextlake kb graph --name
   process_order --format sequencediagram`. Needs exactly one seed (`--node`/`--name`/`--search`, not
   `--repo`/`--overview`; there's no single obvious ordering across unrelated seeds), and depth follows
   the view's own `--hops`. Recursion/cycles stop cleanly (a function already on the current call path
@@ -55,13 +55,13 @@ Output is chosen with `--format`:
   (`if order.status == Created: order.status = Paid`) become transitions, labeled with the method that
   makes them. Only *guarded* transitions are emitted: the source state must be established by a preceding
   comparison on the same field, so a diagram never claims a transition the code doesn't actually establish
-  (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake graph --repo
+  (an honest undercount, not a guess). Best with `--repo`, like `classdiagram`: `contextlake kb graph --repo
   acme/app --format statediagram`. A `--name`/`--node` seed can reach the state nodes (via the file that
   declares them) but not their transitions past the view's `--hops`; use `--repo` for the full picture.
   Multiple entities in view each get their own composite block; a single-entity view renders flat.
 - **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
   `references` edges, from the SQL DDL extractor (see [Index & Code Graph](index-code-graph.md)):
-  `contextlake graph --repo acme/app --format erdiagram`. No attribute/column data (the extractor
+  `contextlake kb graph --repo acme/app --format erdiagram`. No attribute/column data (the extractor
   only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
   relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
   so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL** — an
@@ -69,32 +69,32 @@ Output is chosen with `--format`:
   text anywhere) renders an empty diagram with guidance, not a bug.
 - **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
   definitions grouped by an inferred category (network/compute/storage/database/security/module),
-  from the HCL extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake graph --repo
+  from the HCL extractor (see [Index & Code Graph](index-code-graph.md)): `contextlake kb graph --repo
   acme/infra --format deploymentdiagram`. Category is a keyword heuristic over the resource type prefix (e.g.
   `aws_security_group.web` -> security); `depends_on` edges reconstructed from `var.`/`module.`/
   type-name interpolation references draw the connections between resources. A single-category view
   renders flat (no subgraph wrapper). **Terraform-only** (HCL is the only IaC language the extractor
   parses): a repo with no `.tf` files renders an empty diagram with guidance, not a bug.
 - **`graphml`**, the standard [GraphML](http://graphml.graphdrawing.org/) interchange format for
-  [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake graph --repo
+  [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake kb graph --repo
   acme/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,
   file, line, lang / relation, confidence, weight) as GraphML `<data>` keys, so Gephi's own filter and
   color-by-attribute tools work directly against them — not just a bare shape.
 - **`cypher`**, `CREATE` statements for a [Neo4j](https://neo4j.com/)/[FalkorDB](https://www.falkordb.com/)
-  import: `contextlake graph --repo acme/app --format cypher --output g.cypher`, then `cypher-shell -f
+  import: `contextlake kb graph --repo acme/app --format cypher --output g.cypher`, then `cypher-shell -f
   g.cypher` (or FalkorDB's own loader). Node labels come from `kind`, relationship types from `relation`
   — both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
   quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).
 - **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
   `--format graphml` instead — real typed attributes, not a bespoke shape to parse).
 
-For interactive exploration of a large graph, `contextlake graph --serve` runs a local web UI where
+For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
 pre-rendering all of it.
 
 ## Composed namespace C4 diagram
 
-`contextlake graph --c4` renders a different kind of view: a composed **C4-Context/Container** diagram over
+`contextlake kb graph --c4` renders a different kind of view: a composed **C4-Context/Container** diagram over
 the whole fleet, namespaces are the boundaries, repos are the containers inside them, and the aggregated
 `depends_on`, HTTP `flow`, and event `flow` edges become the labeled inter-service connections (grouped by
 flavor and weight, e.g. `http x3`). It renders graph data that `index`/`connect` already extracted, so it
@@ -104,8 +104,8 @@ Because it only draws coupling the graph already resolved (weight-ranked), it do
 folding event-flow in alongside HTTP keeps it from telling an HTTP-only half story:
 
 ```bash
-contextlake graph --c4 --group-depth 2 --open       # HTML, open in the browser
-contextlake graph --c4 --format dot > c4.dot        # clustered DOT, copy-pasteable
+contextlake kb graph --c4 --group-depth 2 --open       # HTML, open in the browser
+contextlake kb graph --c4 --format dot > c4.dot        # clustered DOT, copy-pasteable
 ```
 
 Output is chosen with `--format`: `html` (default, an interactive page with namespace boundaries as
@@ -121,7 +121,7 @@ calls over HTTP that never resolves to any indexed repo's exposed route, connect
 `calls_external x<weight>` edge, drawn outside every namespace boundary:
 
 ```bash
-contextlake graph --c4 --c1 --group-depth 2 --open
+contextlake kb graph --c4 --c1 --group-depth 2 --open
 ```
 
 **Deliberately unclassified.** contextlake can't tell a genuine third-party dependency (Stripe,

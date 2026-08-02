@@ -1,5 +1,5 @@
 {
-  "_comment": "A tiny golden set for the sample-graph fixture — score it with: contextlake eval --golden examples/fixtures/golden-queries.json (add --retriever semantic|hybrid once embeddings are built). Each entry is one query-shape.",
+  "_comment": "A tiny golden set for the sample-graph fixture — score it with: contextlake kb eval --golden examples/fixtures/golden-queries.json (add --retriever semantic|hybrid once embeddings are built). Each entry is one query-shape.",
   "queries": [
     {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
     {"query": "catalog service", "expected": ["demo_app_catalogservice"]},

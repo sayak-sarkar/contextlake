@@ -40,10 +40,10 @@ Any setting can be overridden per-invocation. The config file is the recommended
 values; use flags for one-off overrides:
 
 ```bash
-contextlake --work-dir /path/to/workspace sync   # override work_dir
-contextlake --group my-gitlab-group sync          # override the group
-contextlake --config /path/to/custom.ini sync     # use a different config file
-contextlake --work-dir /home/user/dev --group your-gitlab-group status  # combine
+contextlake --work-dir /path/to/workspace mirror sync   # override work_dir
+contextlake --group my-gitlab-group mirror sync          # override the group
+contextlake --config /path/to/custom.ini mirror sync     # use a different config file
+contextlake --work-dir /home/user/dev --group your-gitlab-group mirror status  # combine
 ```
 
 ## Directory-scoped config
@@ -55,7 +55,7 @@ platform, group, or knowledge-layer sources, scope a config to a project instead
 ```bash
 cd ~/work/some-project
 contextlake init --local        # writes .contextlake.ini + .contextlake.kb.toml here
-contextlake source add jira --type atlassian --local   # scopes a source the same way
+contextlake kb source add jira --type atlassian --local   # scopes a source the same way
 ```
 
 Every command run from that directory (or any subdirectory underneath it) picks up this local config
