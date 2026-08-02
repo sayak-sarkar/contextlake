@@ -193,6 +193,16 @@ def test_repo_subgraph_path_prefix_escapes_sql_wildcards(store):
     assert {n.id for n in nodes} == {"a"}
 
 
+def test_repo_subgraph_path_prefix_does_not_match_sibling_directory(store):
+    # "api" must scope to the "api/" module only, not also match a sibling
+    # directory that merely starts with the same characters, like "apiv2/".
+    store.upsert_nodes("r", [
+        _node_with_file("a", "api/x.py"), _node_with_file("b", "apiv2/x.py"),
+    ])
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=100, path_prefix="api")
+    assert {n.id for n in nodes} == {"a"}
+
+
 def test_repo_modules_ranks_by_size_and_drops_tiny_segments(store):
     files = (["src/a.py"] * 8) + (["vendor/b.py"] * 3) + (["scripts/c.py"] * 1)
     store.upsert_nodes("r", [

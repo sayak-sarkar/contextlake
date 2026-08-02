@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when they differ, and `contextlake doctor` still checks the generation provider only.
 
 ### Fixed
+- **The graph visualizer's `repo_subgraph(path_prefix=...)` no longer matches a sibling directory
+  that merely shares a string prefix** (e.g. `path_prefix="api"` incorrectly also matched `apiv2/`).
+  It now requires a path-boundary match — the file equals `path_prefix` or starts with `path_prefix`
+  plus `/` — the same fix already applied to the wiki's `repo_brief`.
 - **The per-run cap on subsystem wiki pages no longer permanently strands the tail of a very large
   federated repo.** A repo with more qualifying modules than the cap (20) gave pages to its 20
   largest and never reached the rest: a later run with the same head commit re-picked the identical

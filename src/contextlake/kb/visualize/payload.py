@@ -180,15 +180,20 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     ``maxEdges`` bump is genuinely a safety margin, not the load-bearing limit);
     everyone else should leave it ``None``.
 
-    ``path_prefix``, when given, scopes to nodes whose ``file`` starts with it --
+    ``path_prefix``, when given, scopes to nodes whose ``file`` is exactly
+    ``path_prefix`` or starts with ``path_prefix`` plus a ``/`` (segment-boundary
+    match, not a plain string prefix -- ``path_prefix="api"`` must not also match
+    a sibling directory like ``apiv2/``; see ``repo_brief``'s identical fix) --
     the "one module at a time" view for repos too large to render meaningfully in
     one slice (see ``repo_modules`` for the prefixes worth offering a caller).
     """
     where = "repo_id=?"
     params: list[object] = [repo_id]
     if path_prefix:
-        where += " AND file LIKE ? ESCAPE '\\'"
-        params.append(path_prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
+        escaped = path_prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        where += " AND (file=? OR file LIKE ? ESCAPE '\\')"
+        params.append(path_prefix)
+        params.append(escaped + "/%")
     deg_params = [repo_id, repo_id]
     rows = store.conn.execute(
         f"""
