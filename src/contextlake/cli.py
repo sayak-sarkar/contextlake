@@ -816,8 +816,14 @@ The hook runs `contextlake index <repo>` detached after each commit, so the grap
 stays current without a manual re-index. It re-uses the repo's stored id (or the
 directory name) so it updates the same node, never a duplicate.
                 """)
+    # No choices=[...] here, for the same reason the `completion` positional
+    # skips it (see its own note): nargs="?" + choices= + this codebase's
+    # SUPPRESS-default convention makes argparse on Python 3.9-3.11 validate the
+    # SUPPRESS sentinel itself against choices when the positional is omitted,
+    # so a bare `contextlake hook` died with "invalid choice: '==SUPPRESS=='"
+    # instead of defaulting to install. cmd_hook() already rejects an unknown
+    # action with its own message, so nothing is lost.
     p.add_argument("action", nargs="?", default=_S,
-                   choices=["install", "uninstall", "status"],
                    help="install (default) | uninstall | status")
     p.add_argument("path", nargs="?", default=_S,
                    help="repo directory to wire (default: the current directory)")

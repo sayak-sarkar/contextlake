@@ -297,6 +297,17 @@ def test_completion_accepts_any_value_at_parse_time_not_just_the_three_shells():
     assert build_parser().parse_args(["completion", "powershell"]).shell == "powershell"
 
 
+def test_hook_action_accepts_any_value_at_parse_time_not_just_the_three_actions():
+    """Same Python 3.9-3.11 argparse trap as `completion` above: `hook`'s
+    `action` is nargs="?" with a SUPPRESS default, so a `choices=` list there
+    made a bare `contextlake hook` (documented to default to install) die with
+    "invalid choice: '==SUPPRESS=='" on those versions. cmd_hook() rejects an
+    unknown action itself, with a better message than argparse's."""
+    parser = build_parser()
+    assert parser.parse_args(["hook"]).action is None
+    assert parser.parse_args(["hook", "nonsense"]).action == "nonsense"
+
+
 def test_completion_is_not_a_kb_command():
     """Shell completion has nothing to do with the knowledge layer -- it must
     work in the base (mirror-only) install, not require the [kb] extra."""
