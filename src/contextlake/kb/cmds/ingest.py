@@ -5,7 +5,7 @@ from __future__ import annotations
 from ... import style
 from ...logging_setup import log
 from ..config import load_kb_config
-from ..connectors.text_match import link_documents_to_symbols
+from ..connectors.text_match import link_documents_to_symbols, symbol_nodes_for_repo
 from ..store.shards import GraphShard, write_shard
 from ._common import (
     _open_store,
@@ -82,12 +82,14 @@ def cmd_ingest(args) -> int:
 
         # Warn once, up front, about a `--for-repo`/`for_repo` naming nothing
         # indexed: silently linking nothing is indistinguishable from a typo.
-        indexed = {r.id for r in store.list_repos()}
+        # Asked of the same table the linking itself reads (nodes), not of the
+        # repos table -- a repo row with no indexed symbols would otherwise pass
+        # this check and still link nothing.
         for name, _t, _o, for_repo in jobs:
-            if for_repo and for_repo not in indexed:
+            if for_repo and not symbol_nodes_for_repo(store, for_repo):
                 log(style.summary_line(
-                    "warn", f"{name}: {for_repo!r} is not an indexed repo — its documents "
-                            "will be stored but linked to nothing (index it first)"))
+                    "warn", f"{name}: {for_repo!r} has no indexed symbols — its documents "
+                            "will be stored but linked to nothing (index that repo first)"))
 
         total = embedded = failed = 0
         try:

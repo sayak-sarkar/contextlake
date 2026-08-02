@@ -352,7 +352,8 @@ def _seed_indexed_symbol(store_dir, repo_id="team/api"):
         store.close()
 
 
-def test_cmd_ingest_links_documents_to_the_symbols_they_mention(tmp_path, monkeypatch):
+def test_cmd_ingest_links_documents_to_the_symbols_they_mention(tmp_path, capsys,
+                                                                monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
@@ -366,6 +367,7 @@ def test_cmd_ingest_links_documents_to_the_symbols_they_mention(tmp_path, monkey
         main(["ingest", "--path", str(docs_dir), "--for-repo", "team/api",
               "--config", str(cfg)])
     assert e.value.code == 0
+    assert "team/api" not in capsys.readouterr().out   # a valid target never warns
 
     shard = read_shard(tmp_path / "kb", "@ingest:cli")
     runbook = "@ingest:cli:runbook.md"
