@@ -1,0 +1,1229 @@
+{
+  "edges": [
+    {
+      "attrs": {},
+      "confidence": "AMBIGUOUS",
+      "context": "ambiguous",
+      "dst": "demo_fixture_svc_core_base_py_basehandler_handle_8",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 15,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "AMBIGUOUS",
+      "context": "ambiguous",
+      "dst": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 15,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_app_domain_ledger_cs_ipostable_5",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_app_domain_ledger_cs",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_app_domain_ledger_cs_ipostable_post_5",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_app_domain_ledger_cs_ipostable_5",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_app_domain_ledger_cs",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_app_domain_ledger_cs_ledger_post_9",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 9,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_app_domain_ledger_cs_ledger_recalculate_10",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 10,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_native_include_widget_h_widget_3",
+      "provenance": {
+        "source_file": "native/include/widget.h",
+        "source_line": 3,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_native_include_widget_h",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_native_src_widget_cpp_widget_area_7",
+      "provenance": {
+        "source_file": "native/src/widget.cpp",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_native_include_widget_h_widget_3",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_native_src_widget_cpp_widget_draw_3",
+      "provenance": {
+        "source_file": "native/src/widget.cpp",
+        "source_line": 3,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_native_include_widget_h_widget_3",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_api_routes_py_execute_15",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 15,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_api_routes_py_list_orders_7",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_api_routes_py_query_11",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 11,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_base_py_basehandler_5",
+      "provenance": {
+        "source_file": "svc/core/base.py",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_base_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_base_py_basehandler_handle_8",
+      "provenance": {
+        "source_file": "svc/core/base.py",
+        "source_line": 8,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_base_py_basehandler_5",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_base_py_basehandler_render_11",
+      "provenance": {
+        "source_file": "svc/core/base.py",
+        "source_line": 11,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_base_py_basehandler_5",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_base_py_make_logger_15",
+      "provenance": {
+        "source_file": "svc/core/base.py",
+        "source_line": 15,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_base_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 13,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_orders_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 4,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_orders_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_orders_py_orderhandler_load_9",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 9,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_web_src_models_ts_order_1",
+      "provenance": {
+        "source_file": "web/src/models.ts",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_web_src_models_ts",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_web_src_models_ts_orderstate_3",
+      "provenance": {
+        "source_file": "web/src/models.ts",
+        "source_line": 3,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_web_src_models_ts",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_web_src_models_ts_orderstore_5",
+      "provenance": {
+        "source_file": "web/src/models.ts",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_web_src_models_ts",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "demo_fixture_web_src_models_ts_orderstore_add_7",
+      "provenance": {
+        "source_file": "web/src/models.ts",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_web_src_models_ts_orderstore_5",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "module_flask",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "imports",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "module_json",
+      "provenance": {
+        "source_file": "svc/core/base.py",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "imports",
+      "src": "demo_fixture_svc_core_base_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "module_logging",
+      "provenance": {
+        "source_file": "svc/core/base.py",
+        "source_line": 2,
+        "verified_at": "DATE"
+      },
+      "relation": "imports",
+      "src": "demo_fixture_svc_core_base_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "module_system",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "imports",
+      "src": "demo_fixture_app_domain_ledger_cs",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "module_widget_h",
+      "provenance": {
+        "source_file": "native/src/widget.cpp",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "imports",
+      "src": "demo_fixture_native_src_widget_cpp",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "pkg_npm_axios",
+      "provenance": {
+        "source_file": "package.json",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "depends_on",
+      "src": "demo_fixture_package_json",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "pkg_npm_demo_web",
+      "provenance": {
+        "source_file": "package.json",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "publishes",
+      "src": "demo_fixture_package_json",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": "ROUTE",
+      "dst": "endpoint_v1_orders",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 6,
+        "verified_at": "DATE"
+      },
+      "relation": "exposes",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_app_domain_ledger_cs_ipostable_5",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "inherits",
+      "src": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_app_domain_ledger_cs_ledger_recalculate_10",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 9,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_app_domain_ledger_cs_ledger_post_9",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_db_schema_sql_table_customers",
+      "provenance": {
+        "source_file": "db/schema.sql",
+        "source_line": 8,
+        "verified_at": "DATE"
+      },
+      "relation": "references",
+      "src": "demo_fixture_db_schema_sql_table_orders",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_db_schema_sql_table_orders",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 12,
+        "verified_at": "DATE"
+      },
+      "relation": "writes",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_db_schema_sql_table_orders",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 8,
+        "verified_at": "DATE"
+      },
+      "relation": "reads",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_infra_main_tf_var_region",
+      "provenance": {
+        "source_file": "infra/main.tf",
+        "source_line": 6,
+        "verified_at": "DATE"
+      },
+      "relation": "depends_on",
+      "src": "demo_fixture_infra_main_tf_aws_s3_bucket_assets",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_native_src_widget_cpp_widget_area_7",
+      "provenance": {
+        "source_file": "native/src/widget.cpp",
+        "source_line": 4,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_native_src_widget_cpp_widget_draw_3",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_svc_api_routes_py_execute_15",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 12,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_svc_api_routes_py_query_11",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_svc_api_routes_py_query_11",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 8,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_svc_api_routes_py_list_orders_7",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_base_py_basehandler_5",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 4,
+        "verified_at": "DATE"
+      },
+      "relation": "inherits",
+      "src": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_base_py_basehandler_render_11",
+      "provenance": {
+        "source_file": "svc/core/base.py",
+        "source_line": 9,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_svc_core_base_py_basehandler_handle_8",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_base_py_basehandler_render_11",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 14,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "demo_fixture_svc_core_orders_py_orderhandler_load_9",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 6,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
+      "weight": 1.0
+    }
+  ],
+  "head_commit": "0000000000000000000000000000000000000000",
+  "nodes": [
+    {
+      "attrs": {
+        "doc": "# Use a single store ## Status Accepted"
+      },
+      "file": "docs/adr/0001-use-a-single-store.md",
+      "id": "demo_fixture_docs_adr_0001_use_a_single_store_md_adr_use_a_single_store",
+      "kind": "adr",
+      "lang": null,
+      "line_end": null,
+      "line_start": null,
+      "name": "Use a single store",
+      "qualified_name": "docs/adr/0001-use-a-single-store.md",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "doc": "Root of the handler hierarchy."
+      },
+      "file": "svc/core/base.py",
+      "id": "demo_fixture_svc_core_base_py_basehandler_5",
+      "kind": "class",
+      "lang": "python",
+      "line_end": 12,
+      "line_start": 5,
+      "name": "BaseHandler",
+      "qualified_name": "svc/core/base.py::BaseHandler",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "ecosystem": "npm"
+      },
+      "file": null,
+      "id": "pkg_npm_axios",
+      "kind": "package",
+      "lang": "npm",
+      "line_end": null,
+      "line_start": null,
+      "name": "axios",
+      "qualified_name": null,
+      "repo": "(packages)"
+    },
+    {
+      "attrs": {
+        "ecosystem": "npm"
+      },
+      "file": null,
+      "id": "pkg_npm_demo_web",
+      "kind": "package",
+      "lang": "npm",
+      "line_end": null,
+      "line_start": null,
+      "name": "demo-web",
+      "qualified_name": null,
+      "repo": "(packages)"
+    },
+    {
+      "attrs": {
+        "signature": "()"
+      },
+      "file": "app/Domain/Ledger.cs",
+      "id": "demo_fixture_app_domain_ledger_cs_ipostable_post_5",
+      "kind": "method",
+      "lang": "csharp",
+      "line_end": 5,
+      "line_start": 5,
+      "name": "Post",
+      "qualified_name": "app/Domain/Ledger.cs::IPostable.Post",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "()"
+      },
+      "file": "app/Domain/Ledger.cs",
+      "id": "demo_fixture_app_domain_ledger_cs_ledger_post_9",
+      "kind": "method",
+      "lang": "csharp",
+      "line_end": 9,
+      "line_start": 9,
+      "name": "Post",
+      "qualified_name": "app/Domain/Ledger.cs::Ledger.Post",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "()"
+      },
+      "file": "app/Domain/Ledger.cs",
+      "id": "demo_fixture_app_domain_ledger_cs_ledger_recalculate_10",
+      "kind": "method",
+      "lang": "csharp",
+      "line_end": 10,
+      "line_start": 10,
+      "name": "Recalculate",
+      "qualified_name": "app/Domain/Ledger.cs::Ledger.Recalculate",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "()"
+      },
+      "file": "svc/api/routes.py",
+      "id": "demo_fixture_svc_api_routes_py_list_orders_7",
+      "kind": "function",
+      "lang": "python",
+      "line_end": 8,
+      "line_start": 7,
+      "name": "list_orders",
+      "qualified_name": "svc/api/routes.py::list_orders",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "()"
+      },
+      "file": "svc/core/orders.py",
+      "id": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "kind": "function",
+      "lang": "python",
+      "line_end": 15,
+      "line_start": 13,
+      "name": "bootstrap",
+      "qualified_name": "svc/core/orders.py::bootstrap",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "(name)"
+      },
+      "file": "svc/core/base.py",
+      "id": "demo_fixture_svc_core_base_py_make_logger_15",
+      "kind": "function",
+      "lang": "python",
+      "line_end": 16,
+      "line_start": 15,
+      "name": "make_logger",
+      "qualified_name": "svc/core/base.py::make_logger",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "(o: Order)"
+      },
+      "file": "web/src/models.ts",
+      "id": "demo_fixture_web_src_models_ts_orderstore_add_7",
+      "kind": "method",
+      "lang": "typescript",
+      "line_end": 7,
+      "line_start": 7,
+      "name": "add",
+      "qualified_name": "web/src/models.ts::OrderStore.add",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "(self, payload)"
+      },
+      "file": "svc/core/base.py",
+      "id": "demo_fixture_svc_core_base_py_basehandler_handle_8",
+      "kind": "method",
+      "lang": "python",
+      "line_end": 9,
+      "line_start": 8,
+      "name": "handle",
+      "qualified_name": "svc/core/base.py::BaseHandler.handle",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "(self, payload)"
+      },
+      "file": "svc/core/base.py",
+      "id": "demo_fixture_svc_core_base_py_basehandler_render_11",
+      "kind": "method",
+      "lang": "python",
+      "line_end": 12,
+      "line_start": 11,
+      "name": "render",
+      "qualified_name": "svc/core/base.py::BaseHandler.render",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "(self, payload)"
+      },
+      "file": "svc/core/orders.py",
+      "id": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
+      "kind": "method",
+      "lang": "python",
+      "line_end": 7,
+      "line_start": 5,
+      "name": "handle",
+      "qualified_name": "svc/core/orders.py::OrderHandler.handle",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "(self, payload)"
+      },
+      "file": "svc/core/orders.py",
+      "id": "demo_fixture_svc_core_orders_py_orderhandler_load_9",
+      "kind": "method",
+      "lang": "python",
+      "line_end": 10,
+      "line_start": 9,
+      "name": "load",
+      "qualified_name": "svc/core/orders.py::OrderHandler.load",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "(sql)"
+      },
+      "file": "svc/api/routes.py",
+      "id": "demo_fixture_svc_api_routes_py_execute_15",
+      "kind": "function",
+      "lang": "python",
+      "line_end": 16,
+      "line_start": 15,
+      "name": "execute",
+      "qualified_name": "svc/api/routes.py::execute",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "(sql)"
+      },
+      "file": "svc/api/routes.py",
+      "id": "demo_fixture_svc_api_routes_py_query_11",
+      "kind": "function",
+      "lang": "python",
+      "line_end": 12,
+      "line_start": 11,
+      "name": "query",
+      "qualified_name": "svc/api/routes.py::query",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "app/Domain/Ledger.cs",
+      "id": "demo_fixture_app_domain_ledger_cs",
+      "kind": "file",
+      "lang": "csharp",
+      "line_end": null,
+      "line_start": null,
+      "name": "app/Domain/Ledger.cs",
+      "qualified_name": null,
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "app/Domain/Ledger.cs",
+      "id": "demo_fixture_app_domain_ledger_cs_ipostable_5",
+      "kind": "interface",
+      "lang": "csharp",
+      "line_end": 5,
+      "line_start": 5,
+      "name": "IPostable",
+      "qualified_name": "app/Domain/Ledger.cs::IPostable",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "app/Domain/Ledger.cs",
+      "id": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "kind": "class",
+      "lang": "csharp",
+      "line_end": 11,
+      "line_start": 7,
+      "name": "Ledger",
+      "qualified_name": "app/Domain/Ledger.cs::Ledger",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "db/schema.sql",
+      "id": "demo_fixture_db_schema_sql_table_customers",
+      "kind": "table",
+      "lang": "sql",
+      "line_end": null,
+      "line_start": 1,
+      "name": "customers",
+      "qualified_name": "db/schema.sql::customers",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "db/schema.sql",
+      "id": "demo_fixture_db_schema_sql_table_orders",
+      "kind": "table",
+      "lang": "sql",
+      "line_end": null,
+      "line_start": 6,
+      "name": "orders",
+      "qualified_name": "db/schema.sql::orders",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "infra/main.tf",
+      "id": "demo_fixture_infra_main_tf_aws_s3_bucket_assets",
+      "kind": "resource",
+      "lang": "hcl",
+      "line_end": 7,
+      "line_start": 5,
+      "name": "aws_s3_bucket.assets",
+      "qualified_name": "infra/main.tf::aws_s3_bucket.assets",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "infra/main.tf",
+      "id": "demo_fixture_infra_main_tf_var_region",
+      "kind": "variable",
+      "lang": "hcl",
+      "line_end": 3,
+      "line_start": 1,
+      "name": "var.region",
+      "qualified_name": "infra/main.tf::var.region",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "native/include/widget.h",
+      "id": "demo_fixture_native_include_widget_h",
+      "kind": "file",
+      "lang": "cpp",
+      "line_end": null,
+      "line_start": null,
+      "name": "native/include/widget.h",
+      "qualified_name": null,
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "native/include/widget.h",
+      "id": "demo_fixture_native_include_widget_h_widget_3",
+      "kind": "class",
+      "lang": "cpp",
+      "line_end": 7,
+      "line_start": 3,
+      "name": "Widget",
+      "qualified_name": "native/include/widget.h::Widget",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "native/src/widget.cpp",
+      "id": "demo_fixture_native_src_widget_cpp",
+      "kind": "file",
+      "lang": "cpp",
+      "line_end": null,
+      "line_start": null,
+      "name": "native/src/widget.cpp",
+      "qualified_name": null,
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "native/src/widget.cpp",
+      "id": "demo_fixture_native_src_widget_cpp_widget_area_7",
+      "kind": "method",
+      "lang": "cpp",
+      "line_end": 9,
+      "line_start": 7,
+      "name": "Area",
+      "qualified_name": "native/src/widget.cpp::Widget.Area",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "native/src/widget.cpp",
+      "id": "demo_fixture_native_src_widget_cpp_widget_draw_3",
+      "kind": "method",
+      "lang": "cpp",
+      "line_end": 5,
+      "line_start": 3,
+      "name": "Draw",
+      "qualified_name": "native/src/widget.cpp::Widget.Draw",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "package.json",
+      "id": "demo_fixture_package_json",
+      "kind": "file",
+      "lang": "manifest",
+      "line_end": null,
+      "line_start": null,
+      "name": "package.json",
+      "qualified_name": null,
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "svc/api/routes.py",
+      "id": "demo_fixture_svc_api_routes_py",
+      "kind": "file",
+      "lang": "python",
+      "line_end": null,
+      "line_start": null,
+      "name": "svc/api/routes.py",
+      "qualified_name": null,
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "svc/core/base.py",
+      "id": "demo_fixture_svc_core_base_py",
+      "kind": "file",
+      "lang": "python",
+      "line_end": null,
+      "line_start": null,
+      "name": "svc/core/base.py",
+      "qualified_name": null,
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "svc/core/orders.py",
+      "id": "demo_fixture_svc_core_orders_py",
+      "kind": "file",
+      "lang": "python",
+      "line_end": null,
+      "line_start": null,
+      "name": "svc/core/orders.py",
+      "qualified_name": null,
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "svc/core/orders.py",
+      "id": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "kind": "class",
+      "lang": "python",
+      "line_end": 10,
+      "line_start": 4,
+      "name": "OrderHandler",
+      "qualified_name": "svc/core/orders.py::OrderHandler",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "web/src/models.ts",
+      "id": "demo_fixture_web_src_models_ts",
+      "kind": "file",
+      "lang": "typescript",
+      "line_end": null,
+      "line_start": null,
+      "name": "web/src/models.ts",
+      "qualified_name": null,
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "web/src/models.ts",
+      "id": "demo_fixture_web_src_models_ts_order_1",
+      "kind": "interface",
+      "lang": "typescript",
+      "line_end": 1,
+      "line_start": 1,
+      "name": "Order",
+      "qualified_name": "web/src/models.ts::Order",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "web/src/models.ts",
+      "id": "demo_fixture_web_src_models_ts_orderstate_3",
+      "kind": "enum",
+      "lang": "typescript",
+      "line_end": 3,
+      "line_start": 3,
+      "name": "OrderState",
+      "qualified_name": "web/src/models.ts::OrderState",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": "web/src/models.ts",
+      "id": "demo_fixture_web_src_models_ts_orderstore_5",
+      "kind": "class",
+      "lang": "typescript",
+      "line_end": 8,
+      "line_start": 5,
+      "name": "OrderStore",
+      "qualified_name": "web/src/models.ts::OrderStore",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {},
+      "file": null,
+      "id": "endpoint_v1_orders",
+      "kind": "endpoint",
+      "lang": null,
+      "line_end": null,
+      "line_start": null,
+      "name": "/v1/orders",
+      "qualified_name": "/v1/orders",
+      "repo": "(shared)"
+    },
+    {
+      "attrs": {},
+      "file": null,
+      "id": "module_flask",
+      "kind": "module",
+      "lang": "python",
+      "line_end": null,
+      "line_start": null,
+      "name": "flask",
+      "qualified_name": null,
+      "repo": "(shared)"
+    },
+    {
+      "attrs": {},
+      "file": null,
+      "id": "module_json",
+      "kind": "module",
+      "lang": "python",
+      "line_end": null,
+      "line_start": null,
+      "name": "json",
+      "qualified_name": null,
+      "repo": "(shared)"
+    },
+    {
+      "attrs": {},
+      "file": null,
+      "id": "module_logging",
+      "kind": "module",
+      "lang": "python",
+      "line_end": null,
+      "line_start": null,
+      "name": "logging",
+      "qualified_name": null,
+      "repo": "(shared)"
+    },
+    {
+      "attrs": {},
+      "file": null,
+      "id": "module_system",
+      "kind": "module",
+      "lang": "csharp",
+      "line_end": null,
+      "line_start": null,
+      "name": "System",
+      "qualified_name": null,
+      "repo": "(shared)"
+    },
+    {
+      "attrs": {},
+      "file": null,
+      "id": "module_widget_h",
+      "kind": "module",
+      "lang": "cpp",
+      "line_end": null,
+      "line_start": null,
+      "name": "widget.h",
+      "qualified_name": null,
+      "repo": "(shared)"
+    }
+  ],
+  "parser_version": "1",
+  "repo": "demo/fixture"
+}

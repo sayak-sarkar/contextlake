@@ -16,6 +16,8 @@ import fnmatch
 import logging
 import os
 import re
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
@@ -837,6 +839,267 @@ def parse_source(
     return nodes, edges, calls, inherits
 
 
+# Extraction "kinds" a walked file can be dispatched as, in the precedence the
+# dispatch has always used: HCL, SQL and ADR are matched by extension/path before
+# the code table, and a manifest is the fallback for a file that matched nothing
+# else. The sets are disjoint in practice (no manifest filename carries a code
+# extension), so precedence only ever settles hypotheticals -- but it is written
+# out rather than left implicit because the oversize and generated-file checks
+# below key off it.
+_HCL, _SQL, _ADR, _CODE, _MANIFEST = "hcl", "sql", "adr", "code", "manifest"
+
+
+@dataclass
+class WalkCounts:
+    """Per-repo tallies reported in the one summary line ``index_repo_dir`` logs.
+
+    Held by the caller rather than returned by the walker so the summary can be
+    logged *after* reference resolution, exactly where it always was, without
+    depending on generator return values.
+    """
+
+    files: int = 0
+    generated: int = 0
+    oversize: int = 0
+    ignored: int = 0
+
+
+@dataclass(frozen=True)
+class SourceFile:
+    """One file the walk selected, already read, with its dispatch kind resolved."""
+
+    rel: str
+    source: bytes
+    kind: str
+    lang: str  # only meaningful for kind == _CODE
+
+
+@dataclass
+class RefCollector:
+    """Repo-wide unresolved ``(src_id, target_name, file, line)`` references.
+
+    Every extractor emits references whose target may live in another file, so
+    they can only be resolved once the whole repo is walked. One structure keeps
+    the six reference streams -- and, crucially, the fixed order they are resolved
+    in -- in a single place; edge order in the shard depends on that order.
+    """
+
+    calls: list[tuple[str, str, str, int]] = field(default_factory=list)
+    inherits: list[tuple[str, str, str, int]] = field(default_factory=list)
+    hcl: list[tuple[str, str, str, int]] = field(default_factory=list)
+    sql: list[tuple[str, str, str, int]] = field(default_factory=list)
+    data_reads: list[tuple[str, str, str, int]] = field(default_factory=list)
+    data_writes: list[tuple[str, str, str, int]] = field(default_factory=list)
+
+    def resolved_edges(self, by_id: dict[str, Node]) -> list[Edge]:
+        # Target-kind sets are module-level names defined further down the file,
+        # so they are read here at call time rather than bound at class creation.
+        streams = (
+            (self.calls, "calls", _CALLABLE_KINDS),
+            (self.inherits, "inherits", _INHERITABLE_KINDS),
+            (self.hcl, "depends_on", _HCL_KINDS),
+            (self.sql, "references", _SQL_KINDS),
+            (self.data_reads, "reads", _SQL_KINDS),
+            (self.data_writes, "writes", _SQL_KINDS),
+        )
+        edges: list[Edge] = []
+        for refs, relation, target_kinds in streams:
+            edges.extend(_resolve_name_refs(
+                refs, by_id, relation=relation, target_kinds=target_kinds))
+        return edges
+
+
+def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
+               index_hcl: bool, index_sql: bool) -> str | None:
+    """Which extractor owns this file, or None if nothing indexes it.
+
+    ``languages`` gates code, HCL and SQL only: a manifest or an ADR is never
+    language-specific, so filtering to ``--languages python`` must not hide the
+    repo's package manifests or decision records.
+    """
+    if index_hcl and ext in HCL_EXTS:
+        return _HCL
+    if index_sql and ext in SQL_EXTS:
+        return _SQL
+    if ext == ".md" and is_adr_path(rel):
+        return _ADR
+    if ext in allowed_exts:
+        return _CODE
+    return _MANIFEST if is_manifest(fn) else None
+
+
+def _ignored(rel: str, patterns: list[str]) -> bool:
+    return bool(patterns) and match_ignore(rel, patterns)
+
+
+def _oversize(fpath: Path, kind: str, max_file_bytes: int) -> bool:
+    """Whether a file exceeds the size limit, decided by stat alone (never a read).
+
+    Manifests are exempt: the limit exists to keep data blobs and vendored
+    bundles out of the *code* graph, and a manifest is small by construction.
+    An unstattable path is not reported as oversize — the read below produces
+    the one, accurate skip message for it instead.
+    """
+    if kind == _MANIFEST:
+        return False
+    try:
+        return fpath.stat().st_size > max_file_bytes
+    except OSError:
+        return False
+
+
+def _generated(kind: str, skip_generated: bool, probe: Callable[[], bool]) -> bool:
+    """Whether generated/derived code should be skipped, deferring the (possibly
+    expensive) ``probe`` until the cheap guards have passed."""
+    return skip_generated and kind == _CODE and probe()
+
+
+def _select_file(
+    fpath: Path, rel: str, fn: str, *, allowed_exts: set[str], index_hcl: bool,
+    index_sql: bool, ignore: list[str], max_file_bytes: int, skip_generated: bool,
+    counts: WalkCounts,
+) -> SourceFile | None:
+    """One file's full accept/skip decision, read included; None means skipped.
+
+    Every skip increments its counter here rather than being dropped silently —
+    the summary line ``index_repo_dir`` logs is the only place a user learns that
+    a file was passed over.
+    """
+    ext = os.path.splitext(fn)[1]
+    kind = _file_kind(fn, ext, rel, allowed_exts=allowed_exts,
+                      index_hcl=index_hcl, index_sql=index_sql)
+    if kind is None:
+        return None
+    if _ignored(rel, ignore):
+        counts.ignored += 1
+        return None
+    # Generated code by name, and oversized blobs by stat — both decided without
+    # reading the file.
+    if _generated(kind, skip_generated, lambda: _is_generated_name(fn)):
+        counts.generated += 1
+        return None
+    if _oversize(fpath, kind, max_file_bytes):
+        counts.oversize += 1
+        return None
+    try:
+        source = fpath.read_bytes()
+    except OSError as e:
+        log(f"  skip {rel}: {e}")
+        return None
+    if _generated(kind, skip_generated, lambda: _has_generated_header(source)):
+        counts.generated += 1
+        return None
+    return SourceFile(rel=rel, source=source, kind=kind,
+                      lang=LANG_BY_EXT[ext] if kind == _CODE else "")
+
+
+def _walk_source_files(
+    root: Path, *, allowed_exts: set[str], index_hcl: bool, index_sql: bool,
+    max_file_bytes: int, skip_generated: bool, counts: WalkCounts,
+) -> Iterator[SourceFile]:
+    """Yield every indexable file under ``root``, already read into memory.
+
+    Owns all of the "should this file be looked at at all" policy: pruned
+    directories, the per-repo ignore file, generated/derived code, and the
+    oversize limit.
+    """
+    ignore = load_ignore_patterns(root)
+    for dirpath, dirnames, filenames in os.walk(root):
+        relbase = os.path.relpath(dirpath, root)
+        relbase = "" if relbase == "." else relbase.replace(os.sep, "/")
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS
+                       and not _ignored(f"{relbase}/{d}".lstrip("/"), ignore)]
+        for fn in filenames:
+            fpath = Path(dirpath) / fn
+            # ADR/decision-record markdown (docs/adr/, decisions/, ...) is
+            # recognised by relative path, not by name, so rel is built for every
+            # candidate before anything is classified or skipped.
+            rel = str(fpath.relative_to(root))
+            sf = _select_file(fpath, rel, fn, allowed_exts=allowed_exts,
+                              index_hcl=index_hcl, index_sql=index_sql, ignore=ignore,
+                              max_file_bytes=max_file_bytes,
+                              skip_generated=skip_generated, counts=counts)
+            if sf is not None:
+                yield sf
+
+
+def _parse_code(repo_id: str, sf: SourceFile, refs: RefCollector,
+                ) -> tuple[list[Node], list[Edge]]:
+    nodes, edges, calls, inh = parse_source(repo_id, sf.rel, sf.source, sf.lang)
+    refs.calls.extend(calls)
+    refs.inherits.extend(inh)
+    # cross-repo flow surfaces: HTTP endpoints + message topics; repo-local
+    # frontend routes (web-topology), entity state machines (state-diagram source
+    # data), and intra-repo dataflow (which tables/views this file reads/writes)
+    hn, he = extract_http_flow(repo_id, sf.rel, sf.source, sf.lang)
+    en, ee = extract_event_flow(repo_id, sf.rel, sf.source, sf.lang)
+    wn, we = extract_web_flow(repo_id, sf.rel, sf.source, sf.lang)
+    sn, se = extract_state_flow(repo_id, sf.rel, sf.source, sf.lang)
+    dr, dw = extract_data_refs(repo_id, sf.rel, sf.source)
+    refs.data_reads.extend(dr)
+    refs.data_writes.extend(dw)
+    nodes += hn + en + wn + sn
+    edges += he + ee + we + se
+    return nodes, edges
+
+
+def _parse_hcl_file(repo_id: str, sf: SourceFile, refs: RefCollector,
+                    ) -> tuple[list[Node], list[Edge]]:
+    nodes, hcl_refs = parse_hcl(repo_id, sf.rel, sf.source)
+    refs.hcl.extend(hcl_refs)
+    return nodes, []
+
+
+def _parse_sql_file(repo_id: str, sf: SourceFile, refs: RefCollector,
+                    ) -> tuple[list[Node], list[Edge]]:
+    nodes, sql_refs = parse_sql(repo_id, sf.rel, sf.source)
+    refs.sql.extend(sql_refs)
+    return nodes, []
+
+
+def _parse_adr_file(repo_id: str, sf: SourceFile, _refs: RefCollector,
+                    ) -> tuple[list[Node], list[Edge]]:
+    return parse_adr(repo_id, sf.rel, sf.source), []
+
+
+def _parse_manifest_file(repo_id: str, sf: SourceFile, _refs: RefCollector,
+                         ) -> tuple[list[Node], list[Edge]]:
+    return parse_manifest(repo_id, sf.rel, sf.source)
+
+
+# Extraction kind -> parser, all sharing one signature so the orchestrator below
+# is a lookup rather than a multi-way branch. A new file kind is a table entry
+# plus a `_file_kind` clause; nothing in index_repo_dir changes.
+_PARSERS: dict[str, Callable[[str, SourceFile, RefCollector],
+                             tuple[list[Node], list[Edge]]]] = {
+    _CODE: _parse_code,
+    _HCL: _parse_hcl_file,
+    _SQL: _parse_sql_file,
+    _ADR: _parse_adr_file,
+    _MANIFEST: _parse_manifest_file,
+}
+
+
+def _extension_filter(languages: list[str] | None) -> tuple[set[str], bool, bool]:
+    """The ``languages`` filter resolved to (code extensions, index HCL?, index SQL?).
+
+    No filter means everything; HCL and SQL are opted in by name because neither
+    lives in ``LANG_BY_EXT``.
+    """
+    allowed_exts = {ext for ext, lang in LANG_BY_EXT.items()
+                    if not languages or lang in languages}
+    # ".h" is classified as "cpp" internally (see LANG_BY_EXT), but C and C++
+    # headers are shared infrastructure -- a user who filters to just "c"
+    # almost certainly still wants its headers indexed, not silently dropped.
+    # So ".h" inclusion is decided by either language being enabled, not by
+    # which single language it happens to be parsed as.
+    if languages and ("c" in languages or "cpp" in languages):
+        allowed_exts.add(".h")
+    return (allowed_exts,
+            not languages or "hcl" in languages,
+            not languages or "sql" in languages)
+
+
 def index_repo_dir(
     repo_path: str, repo_id: str, head_commit: str | None = None,
     languages: list[str] | None = None, *,
@@ -848,127 +1111,35 @@ def index_repo_dir(
     and code files larger than ``max_file_bytes`` are skipped — both reported, never
     silent — to keep legacy monorepos from exploding the graph and the index time.
     """
-    root = Path(repo_path)
-    allowed_exts = {ext for ext, lang in LANG_BY_EXT.items()
-                    if not languages or lang in languages}
-    # ".h" is classified as "cpp" internally (see LANG_BY_EXT), but C and C++
-    # headers are shared infrastructure -- a user who filters to just "c"
-    # almost certainly still wants its headers indexed, not silently dropped.
-    # So ".h" inclusion is decided by either language being enabled, not by
-    # which single language it happens to be parsed as.
-    if languages and ("c" in languages or "cpp" in languages):
-        allowed_exts.add(".h")
-    index_hcl = not languages or "hcl" in languages
-    index_sql = not languages or "sql" in languages
-    ignore = load_ignore_patterns(root)
+    allowed_exts, index_hcl, index_sql = _extension_filter(languages)
     shard = GraphShard(repo=repo_id, head_commit=head_commit, parser_version=PARSER_VERSION)
     by_id: dict[str, Node] = {}
-    all_calls: list[tuple[str, str, str, int]] = []
-    all_inherits: list[tuple[str, str, str, int]] = []
-    all_hcl_refs: list[tuple[str, str, str, int]] = []
-    all_sql_refs: list[tuple[str, str, str, int]] = []
-    all_data_reads: list[tuple[str, str, str, int]] = []
-    all_data_writes: list[tuple[str, str, str, int]] = []
-    n_files = n_generated = n_oversize = n_ignored = 0
+    refs = RefCollector()
+    counts = WalkCounts()
 
-    for dirpath, dirnames, filenames in os.walk(root):
-        relbase = os.path.relpath(dirpath, root)
-        relbase = "" if relbase == "." else relbase.replace(os.sep, "/")
-        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS
-                       and not (ignore and match_ignore(f"{relbase}/{d}".lstrip("/"), ignore))]
-        for fn in filenames:
-            ext = os.path.splitext(fn)[1]
-            is_code = ext in allowed_exts
-            is_hcl = index_hcl and ext in HCL_EXTS
-            is_sql = index_sql and ext in SQL_EXTS
-            is_man = is_manifest(fn)
-            fpath = Path(dirpath) / fn
-            rel = str(fpath.relative_to(root))
-            # ADR/decision-record markdown (docs/adr/, decisions/, ...) needs the
-            # relative path to test, so rel is computed before the skip check below
-            # rather than after it, unlike every other kind here.
-            is_adr = ext == ".md" and is_adr_path(rel)
-            if not is_code and not is_hcl and not is_sql and not is_man and not is_adr:
-                continue
-            if ignore and match_ignore(rel, ignore):
-                n_ignored += 1
-                continue
-            # Skip generated/derived code by name, and oversized blobs by stat —
-            # both without reading the file.
-            if is_code and skip_generated and _is_generated_name(fn):
-                n_generated += 1
-                continue
-            if is_code or is_hcl or is_sql or is_adr:
-                try:
-                    if fpath.stat().st_size > max_file_bytes:
-                        n_oversize += 1
-                        continue
-                except OSError:
-                    pass
-            try:
-                source = fpath.read_bytes()
-            except OSError as e:
-                log(f"  skip {rel}: {e}")
-                continue
-            if is_code and skip_generated and _has_generated_header(source):
-                n_generated += 1
-                continue
-            try:
-                if is_hcl:
-                    nodes, hcl_refs = parse_hcl(repo_id, rel, source)
-                    edges = []
-                    all_hcl_refs.extend(hcl_refs)
-                elif is_sql:
-                    nodes, sql_refs = parse_sql(repo_id, rel, source)
-                    edges = []
-                    all_sql_refs.extend(sql_refs)
-                elif is_adr:
-                    nodes = parse_adr(repo_id, rel, source)
-                    edges = []
-                elif is_code:
-                    nodes, edges, calls, inh = parse_source(repo_id, rel, source,
-                                                            LANG_BY_EXT[ext])
-                    all_calls.extend(calls)
-                    all_inherits.extend(inh)
-                    # cross-repo flow surfaces: HTTP endpoints + message topics;
-                    # repo-local frontend routes (web-topology), entity state
-                    # machines (state-diagram source data), and intra-repo
-                    # dataflow (which tables/views this file reads/writes)
-                    hn, he = extract_http_flow(repo_id, rel, source, LANG_BY_EXT[ext])
-                    en, ee = extract_event_flow(repo_id, rel, source, LANG_BY_EXT[ext])
-                    wn, we = extract_web_flow(repo_id, rel, source, LANG_BY_EXT[ext])
-                    sn, se = extract_state_flow(repo_id, rel, source, LANG_BY_EXT[ext])
-                    dr, dw = extract_data_refs(repo_id, rel, source)
-                    all_data_reads.extend(dr)
-                    all_data_writes.extend(dw)
-                    nodes += hn + en + wn + sn
-                    edges += he + ee + we + se
-                else:
-                    nodes, edges = parse_manifest(repo_id, rel, source)
-            except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
-                log(f"  skip {rel}: parse error: {e}")
-                continue
-            n_files += 1
-            for node in nodes:
-                by_id[node.id] = node  # dedupe shared nodes (e.g. packages, modules)
-            shard.edges.extend(edges)
+    for sf in _walk_source_files(
+        Path(repo_path), allowed_exts=allowed_exts,
+        index_hcl=index_hcl, index_sql=index_sql,
+        max_file_bytes=max_file_bytes, skip_generated=skip_generated, counts=counts,
+    ):
+        try:
+            nodes, edges = _PARSERS[sf.kind](repo_id, sf, refs)
+        except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
+            log(f"  skip {sf.rel}: parse error: {e}")
+            continue
+        counts.files += 1
+        for node in nodes:
+            by_id[node.id] = node  # dedupe shared nodes (e.g. packages, modules)
+        shard.edges.extend(edges)
 
+    # Order matters and is load-bearing: `shard.nodes` is populated *before*
+    # _resolve_pending_methods, which then re-kinds those same Node objects in
+    # place through by_id's references.
     shard.nodes.extend(by_id.values())
     _resolve_pending_methods(by_id, shard.edges)
-    shard.edges.extend(_resolve_name_refs(
-        all_calls, by_id, relation="calls", target_kinds=_CALLABLE_KINDS))
-    shard.edges.extend(_resolve_name_refs(
-        all_inherits, by_id, relation="inherits", target_kinds=_INHERITABLE_KINDS))
-    shard.edges.extend(_resolve_name_refs(
-        all_hcl_refs, by_id, relation="depends_on", target_kinds=_HCL_KINDS))
-    shard.edges.extend(_resolve_name_refs(
-        all_sql_refs, by_id, relation="references", target_kinds=_SQL_KINDS))
-    shard.edges.extend(_resolve_name_refs(
-        all_data_reads, by_id, relation="reads", target_kinds=_SQL_KINDS))
-    shard.edges.extend(_resolve_name_refs(
-        all_data_writes, by_id, relation="writes", target_kinds=_SQL_KINDS))
-    log(f"  parsed {n_files} file(s); skipped {n_generated} generated, "
-        f"{n_oversize} oversized, {n_ignored} ignored", level=logging.DEBUG)
+    shard.edges.extend(refs.resolved_edges(by_id))
+    log(f"  parsed {counts.files} file(s); skipped {counts.generated} generated, "
+        f"{counts.oversize} oversized, {counts.ignored} ignored", level=logging.DEBUG)
     return shard
 
 

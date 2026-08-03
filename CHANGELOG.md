@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
 
 ### Changed
+- `index_repo_dir` is decomposed into a file walker, a parser registry and a ref collector; it was
+  the most complex function in the codebase and sits on the critical path of every index run. Shard
+  output is unchanged, proven by a new golden-shard test that also passes against the pre-change
+  code, so it is a genuine regression check rather than a snapshot of the new behaviour.
 - **Breaking:** a mirror run that had failures now exits 1. `mirror fetch`/`clone`/`update`/
   `branches`/`verify`/`sync` (and `bootstrap`'s mirror stage) exited 0 no matter how much of the
   fleet failed — `mirror sync` reported success with a ✓ even when every single clone failed. Nothing
