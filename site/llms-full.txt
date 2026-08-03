@@ -3687,6 +3687,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Preview (opt-in, pending visual approval):** the graph page's layout dropdown gains a
+  `dagre (preview)` option -- a layered/directed dagre layout that also renders nodes as real
+  HTML cards (border-radius, shadow, real typography) instead of canvas circles, and marches
+  ants along the selected node's edges. Selecting any other layout leaves the existing canvas
+  rendering completely unchanged; this is a look to judge before it becomes anyone's default.
+  Card rendering is skipped above 400 nodes (the status bar says so) and on the fleet overview.
+- Vendored `cytoscape-dagre` 4.0.0 and `cytoscape-dom-node` 2.1.0 (both MIT, ~46 KB + ~11 KB)
+  alongside `cytoscape.min.js`, so the preview above works offline like the rest of the page.
+  `cytoscape-dagre` bundles dagre itself, so there is no separate dagre file. `app.js`
+  feature-detects both and drops the preview option if they did not load. They load on every
+  graph page (a ~57 KB inline cost, or one shared sibling file each in a `--site` build);
+  neither does anything until the preview layout is selected.
 - `contextlake kb serve` now accepts `--transport sse`, the legacy HTTP+SSE transport, alongside
   the existing `stdio`/`http` (Streamable HTTP) options -- for MCP clients that only support SSE
   and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serve.md#transports).
@@ -3747,6 +3759,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of being silently dropped.
 
 ### Changed
+- Vendored cytoscape.js bumped 3.30.2 -> 3.34.0 (bugfix/feature releases within 3.x; the graph
+  page's existing default rendering is unaffected). `--cdn` now pins the same version.
 - **BREAKING: the commands are now namespaced under `mirror` and `kb`.** The CLI had grown to 29
   flat top-level commands doing two unrelated jobs, mirroring git repositories, and building and
   serving the knowledge layer over them, and `--help` had stopped being navigable. Each verb now
@@ -3783,6 +3797,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   namespaced form is the only one that parses. See the two required post-upgrade steps above.
 
 ### Fixed
+- **Neither the dashboard's Links panel nor the `get_repo_links` MCP tool showed a repo's
+  GitLab-diff or Slack cross-links.** Both listed only `tracked_by` (Jira), `documented_by`
+  (Confluence), `designed_in` (Figma), `has_merge_request` and `has_issue`, so the newer
+  `touched_by` (a merge request whose diff touches the repo's code), `discussed_in` (a Slack
+  channel whose history mentions its symbols) and `referenced_in` (a Slack channel linked from
+  its docs) edges reached the graph and were invisible on both surfaces. All eight relations now
+  come from one shared list, so a connector adding a relation lights up both doors or neither.
+- **A `repo=`-scoped semantic/hybrid search missed a repo's own linked connector/enrichment
+  content.** `VectorStore.search`/`SqliteVecStore.search` filtered `repo_id` by exact match only, so
+  a query scoped to `repo="team/api"` never matched rows written under the `@connect:team/api` /
+  `@enrich:team/api` partitions that `connect`/`enrich` deliberately isolate on write (see
+  `connect_partition`/`enrich_partition`) -- even though that content is directly linked to the
+  repo's own code via real graph edges. Both `search()` implementations now widen a repo filter to
+  match the literal repo id or either of its connector/enrichment partitions.
 - **`contextlake kb serve --transport http` printed a bind URL that 404s.** It reported the bare
   `http://127.0.0.1:8765`, but Streamable HTTP is served at the SDK's `streamable_http_path`
   (`/mcp`), which contextlake does not override, so a client pointed at the printed URL got a 404
