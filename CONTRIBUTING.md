@@ -6,9 +6,10 @@ reports, fixes, and well-scoped features are all welcome.
 
 ## Ground rules
 
-- **Keep it lean.** This tool does one thing: mirror the GitLab repositories you
-  can access and keep each on its most active branch. Features that don't serve
-  that mission are a hard sell.
+- **Keep it lean.** contextlake is three layers you adopt one at a time: mirror
+  your repos, build an optional knowledge graph over them, serve that graph to
+  AI tools over MCP. Features that don't serve one of those three jobs are a
+  hard sell.
 - **No network in tests.** Everything that shells out to `git` or `glab` must be
   faked. A passing test suite should never touch GitLab.
 - **No real filesystem/dotfile mutation in tests, either.** `tests/conftest.py`'s
@@ -97,7 +98,11 @@ a scope:
 <type>(<scope>): <subject>
 
 type:  feat | fix | docs | test | refactor | chore | ci | build | perf | style
-scope: cli | core | config | safety | fetch | clone | update | branches | verify | logging | docs | ci
+scope: whatever the change is actually about -- cli | core | config | safety | fetch | clone |
+       update | branches | verify | logging for the mirror core; kb | graph | wiki | serve |
+       dashboard | connect | connectors | embed | ingest | enrich for the optional knowledge
+       layer; docs | site | release | test | ci apply across both. Not a fixed enum: a scope
+       narrow enough to search for later beats forcing a change into the nearest listed one.
 ```
 
 Examples:

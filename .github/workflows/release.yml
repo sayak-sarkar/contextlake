@@ -19,7 +19,7 @@ jobs:
     permissions:
       actions: read
     steps:
-      - name: Check the full Python 3.9-3.14 CI matrix succeeded on this commit
+      - name: Check the full Python 3.9-3.13 CI matrix succeeded on this commit
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -45,7 +45,7 @@ each layer above it is optional.
    **14 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
-   Atlassian / Figma / GitLab.
+   Atlassian / Figma / GitLab / Slack.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
@@ -252,8 +252,9 @@ a TTY and plain when piped; set `NO_COLOR` to force-disable.
 ## Knowledge layer
 
 Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge
-graph** and serves it to AI tools over **MCP**. It can link repos to their Atlassian / Figma /
-GitLab items, add **semantic search**, write a curated **wiki**, **visualize** the graph
+graph** and serves it to AI tools over **MCP**. It can link repos directly to the Atlassian /
+Figma / GitLab / Slack items and code symbols that reference them, add **semantic search**,
+write a curated **wiki**, **visualize** the graph
 (offline interactive HTML, fleet overview, a symbol's neighbourhood, or a single repo), and
 generate per-tool **steering files** + a skills library. Most of it needs no model; the rest
 works with a local Ollama or any OpenAI-compatible endpoint.
