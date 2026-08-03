@@ -977,10 +977,17 @@ Examples:
   contextlake kb serve --transport http  Streamable HTTP on --host/--port
   contextlake kb serve --transport sse   legacy HTTP+SSE, for clients that
                                           don't yet speak Streamable HTTP
+
+The http/sse transports print a bearer token to stderr at startup and require
+it on every request (Authorization: Bearer <token>); set CONTEXTLAKE_MCP_TOKEN
+to pin one across restarts. stdio needs no token. See docs/serve.md.
                 """)
     p.add_argument("--transport", choices=["stdio", "http", "sse"], default=_S,
                    help="MCP transport (default stdio; http = Streamable HTTP, "
                         "sse = legacy HTTP+SSE for older clients)")
+    p.add_argument("--allow-remote", dest="allow_remote", action="store_true", default=_S,
+                   help="--transport http/sse: permit a non-loopback --host "
+                        "(refused otherwise; the graph would face the network)")
     _add_net(p)
 
     p = command("query", "search the graph from the terminal (cited file:line hits)",

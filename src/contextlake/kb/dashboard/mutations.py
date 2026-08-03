@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import signal
 import subprocess
 import sys
@@ -137,6 +138,14 @@ def _pid_alive(pid: int) -> bool:
 
 
 def mcp_status(store_dir) -> dict:
+    """Liveness + connection details for a dashboard-started HTTP MCP server.
+
+    Includes the server's bearer ``token``: the spawned child's stderr is
+    discarded, so the pidfile is the only place that value survives, and without
+    it a user who reloads the page can never authenticate to the server the
+    dashboard started for them. server.py only calls this behind
+    ``allow_mutations``, which is already loopback-only.
+    """
     pf = _mcp_pidfile(store_dir)
     if not pf.exists():
         return {"running": False}
@@ -159,15 +168,30 @@ def mcp_start(store_dir, *, host: str = "127.0.0.1", port: int = 8766,
           "--host", host, "--port", str(port)]
     if config_path:
         cmd += ["--config", config_path]
+
+    # The HTTP transport requires a bearer token, and the child announces its own
+    # on stderr -- which is DEVNULL'd here, so letting it mint one would start a
+    # server nobody could authenticate to, this dashboard included. Mint it on
+    # this side and pin it through the child's environment instead.
+    from ..server import TOKEN_ENV
+
+    token = secrets.token_urlsafe(32)
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                            start_new_session=True)
+                            start_new_session=True, env={**os.environ, TOKEN_ENV: token})
     time.sleep(0.3)
     if proc.poll() is not None:
         return {"ok": False, "error": f"process exited immediately (code {proc.returncode})"}
     pf = _mcp_pidfile(store_dir)
     pf.parent.mkdir(parents=True, exist_ok=True)
-    pf.write_text(json.dumps({"pid": proc.pid, "host": host, "port": port}))
-    return {"ok": True, "running": True, "pid": proc.pid, "host": host, "port": port}
+    # The pidfile now carries a credential, so it is a secret file: created 0600
+    # (and re-tightened if it already existed, since touch() won't narrow an
+    # existing mode) *before* the token is written into it.
+    pf.touch(mode=0o600, exist_ok=True)
+    pf.chmod(0o600)
+    pf.write_text(json.dumps(
+        {"pid": proc.pid, "host": host, "port": port, "token": token}))
+    return {"ok": True, "running": True, "pid": proc.pid, "host": host, "port": port,
+            "token": token}
 
 
 def mcp_stop(store_dir) -> dict:

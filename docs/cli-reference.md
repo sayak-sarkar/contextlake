@@ -103,7 +103,7 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
-| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`) |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 
 The `mirror`-tier commands (`mirror fetch`, `mirror clone`, `mirror update`, `mirror branches`,

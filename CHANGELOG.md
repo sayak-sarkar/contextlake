@@ -70,6 +70,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
   file order still comes from directory traversal, so do not compare shard hashes between CI runners.
   The regression guard is in-process.
+- **Security (breaking for `kb serve --transport http`/`sse`):** the MCP network transports now
+  require authentication. They previously had none, no Origin validation, and no warning, so
+  `kb serve --transport http --host 0.0.0.0` published every indexed symbol, file path, docstring
+  and owner identity to the network. A bearer token is minted at startup and printed once to
+  stderr; requests without it get `401`, a hostile `Origin` gets `403`, a hostile `Host` gets
+  `421`. Set `CONTEXTLAKE_MCP_TOKEN` to pin a stable token for a client config. A non-loopback
+  `--host` is refused unless `--allow-remote` is passed. There is no TLS: the transport is meant
+  for loopback or a tunnel, and says so at startup.
+
+  **stdio is completely unaffected** and needs no token. That is the default and what every
+  documented editor integration uses, so most setups need no change.
+
+  The dashboard's "start MCP server" card spawns that same command with its stderr discarded,
+  which would have thrown the token away and left the card advertising a server nobody could
+  connect to. It now mints the token itself, passes it to the child, stores it in a `0600`
+  pidfile, and shows it on the card.
 - **Security:** `--llm-chat` is now refused with a non-loopback `--host`, the same guard
   `--allow-mutations` already had. The per-launch token that gates the chat route is served inside
   `/dashboard.js`, so anyone who could reach the bind could read the token and drive the configured

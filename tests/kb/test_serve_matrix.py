@@ -18,6 +18,13 @@ as a full product and checks, for every cell:
      this project treats a silently-vanished tool as a bug, not a UX nicety
      (see serve.py's own comment: "these two tools silently vanishing... reads
      as a broken server, not an unconfigured tier").
+
+The second half of the file (RC-P1-1 / F-5) covers the *other* axis the
+transport choice decides: whether the server is reachable over a socket, and so
+whether it must authenticate. Those tests drive the real ASGI app
+(``build_http_app``) through starlette's TestClient rather than the CLI, because
+the SDK's ``run_streamable_http_async``/``run_sse_async`` go straight into
+``uvicorn.Server.serve()`` -- no test can reach the app they build.
 """
 
 from __future__ import annotations
@@ -140,6 +147,223 @@ def test_serve_matrix_registers_expected_tools_and_logs_why_not(
     assert captured.get("transport") == resolved_transport
     if resolved_transport == "stdio":
         assert "http://" not in msgs
+        # stdio is a pipe the editor owns: no socket, so no token (RC-P1-1).
+        assert captured.get("token") is None
     else:
         path = {"streamable-http": "/mcp", "sse": "/sse"}[resolved_transport]
         assert f"http://127.0.0.1:8765{path}" in msgs
+        # ...and every socket transport gets one, in every cell of the matrix.
+        assert captured.get("token")
+
+
+# --------------------------------------------------------------------------
+# RC-P1-1 / F-5: authentication + Origin validation on the HTTP transports.
+# --------------------------------------------------------------------------
+
+TOKEN = "test-token-not-a-real-secret"  # synthetic; never a minted value
+
+# The Host the SDK's own rebinding check expects for the default bind. Without
+# this base_url, TestClient sends `Host: testserver` and every request 421s
+# before it ever reaches an assertion about auth.
+LOOPBACK_BASE = "http://127.0.0.1:8765"
+
+_JSON_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream",
+}
+_INITIALIZE = {
+    "jsonrpc": "2.0", "id": 1, "method": "initialize",
+    "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+               "clientInfo": {"name": "test", "version": "1"}},
+}
+
+
+@pytest.fixture
+def http_app(tmp_path):
+    """The real streamable-http ASGI app over an empty store, token-gated."""
+    from starlette.testclient import TestClient
+
+    from contextlake.kb.server import build_http_app
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    app = build_http_app(store, transport="streamable-http", host="127.0.0.1",
+                         token=TOKEN)
+    try:
+        with TestClient(app, base_url=LOOPBACK_BASE) as client:
+            yield client
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize("headers", [
+    pytest.param({}, id="no-authorization-header"),
+    pytest.param({"Authorization": f"Bearer {TOKEN}x"}, id="wrong-token"),
+    pytest.param({"Authorization": TOKEN}, id="token-without-the-bearer-scheme"),
+    pytest.param({"Authorization": "Basic dXNlcjpwYXNz"}, id="wrong-scheme"),
+    # Sent pre-encoded because httpx refuses to encode a non-ASCII str header.
+    # On the wire this is exactly what a hostile client can send, and it must
+    # come back 401: comparing on str would raise TypeError inside
+    # hmac.compare_digest and turn the attempt into a 500.
+    pytest.param({"Authorization": "Bearer tökén".encode("latin-1")},
+                 id="non-ascii-token"),
+])
+def test_http_transport_rejects_anything_but_the_right_bearer_token(http_app, headers):
+    r = http_app.post("/mcp", json=_INITIALIZE, headers={**_JSON_HEADERS, **headers})
+    assert r.status_code == 401
+    # RFC 6750: the client is told which scheme to retry with.
+    assert r.headers.get("www-authenticate") == "Bearer"
+
+
+def test_http_transport_serves_tools_with_the_right_bearer_token(http_app):
+    auth = {**_JSON_HEADERS, "Authorization": f"Bearer {TOKEN}"}
+
+    init = http_app.post("/mcp", json=_INITIALIZE, headers=auth)
+    assert init.status_code == 200
+
+    listed = http_app.post(
+        "/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, headers=auth)
+    assert listed.status_code == 200
+    names = {t["name"] for t in listed.json()["result"]["tools"]}
+    assert _ALWAYS_ON_TOOLS <= names
+
+
+def test_bearer_scheme_match_is_case_insensitive(http_app):
+    """RFC 7235 makes the auth scheme case-insensitive; clients do send "bearer"."""
+    r = http_app.post("/mcp", json=_INITIALIZE,
+                      headers={**_JSON_HEADERS, "Authorization": f"bearer {TOKEN}"})
+    assert r.status_code == 200
+
+
+@pytest.mark.parametrize("header,value,expected", [
+    # Origin validation is the MCP spec's explicit requirement for HTTP
+    # transports; 403 and 421 are the SDK's own codes for the two checks.
+    ("Origin", "http://evil.example", 403),
+    ("Host", "evil.example", 421),
+])
+def test_default_loopback_bind_still_validates_origin_and_host(
+    http_app, header, value, expected,
+):
+    """Passing our own TransportSecuritySettings *replaces* the SDK's loopback
+    auto-enable (it only builds its own when transport_security is None), so the
+    default --host 127.0.0.1 path is exactly where a careless allow-list would
+    have regressed. Asserted with a valid token, so only the header is on trial.
+    """
+    r = http_app.post("/mcp", json=_INITIALIZE, headers={
+        **_JSON_HEADERS, "Authorization": f"Bearer {TOKEN}", header: value})
+    assert r.status_code == expected
+
+
+def test_a_browser_origin_on_the_bound_host_is_accepted(http_app):
+    r = http_app.post("/mcp", json=_INITIALIZE, headers={
+        **_JSON_HEADERS, "Authorization": f"Bearer {TOKEN}",
+        "Origin": "http://localhost:3000"})
+    assert r.status_code == 200
+
+
+def test_sse_transport_is_gated_by_the_same_token(tmp_path):
+    """The legacy transport is a socket too -- and its /messages/ POST endpoint
+    is as sensitive as /sse itself, so the gate wraps the whole app."""
+    from starlette.testclient import TestClient
+
+    from contextlake.kb.server import build_http_app
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    try:
+        app = build_http_app(store, transport="sse", host="127.0.0.1", token=TOKEN)
+        with TestClient(app, base_url=LOOPBACK_BASE) as client:
+            for path in ("/sse", "/messages/"):
+                assert client.get(path).status_code == 401
+                assert client.post(path, json={}).status_code == 401
+    finally:
+        store.close()
+
+
+def test_stdio_takes_the_sdk_run_path_untouched(tmp_path, monkeypatch):
+    """The default, most-used transport must be byte-for-byte the old behaviour:
+    MCPServer.run(transport="stdio"), no host/port, no middleware, no token."""
+    from contextlake.kb import server as server_mod
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    calls: list[dict] = []
+    monkeypatch.setattr(server_mod.MCPServer, "run",
+                        lambda self, **kw: calls.append(kw))
+    monkeypatch.setattr(
+        server_mod, "build_http_app",
+        lambda *a, **k: pytest.fail("stdio must not build an HTTP app"))
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    try:
+        server_mod.run_server(store, transport="stdio")
+    finally:
+        store.close()
+    assert calls == [{"transport": "stdio"}]
+
+
+def test_env_token_is_reused_and_blank_env_fails_closed(monkeypatch):
+    """A pinned CONTEXTLAKE_MCP_TOKEN survives restarts; a blank one (a shell
+    expanding an unset var) must mint a fresh token, never disable auth."""
+    from contextlake.kb.server import TOKEN_ENV, resolve_token
+
+    monkeypatch.setenv(TOKEN_ENV, "  pinned-token-synthetic  ")
+    assert resolve_token() == ("pinned-token-synthetic", True)
+
+    for blank in ("", "   "):
+        monkeypatch.setenv(TOKEN_ENV, blank)
+        token, from_env = resolve_token()
+        assert from_env is False
+        assert len(token) >= 32
+
+    monkeypatch.delenv(TOKEN_ENV)
+    first, from_env = resolve_token()
+    assert from_env is False
+    assert first != resolve_token()[0]  # freshly minted per launch
+
+
+@pytest.mark.parametrize("transport", ["http", "sse"])
+def test_non_loopback_host_is_refused_without_allow_remote(
+    tmp_path, gls_logs, monkeypatch, transport,
+):
+    cfg, _ = _kb_config(tmp_path, embeddings_enabled=False)
+    monkeypatch.setattr("contextlake.kb.server.run_server",
+                        lambda *a, **k: pytest.fail("must not start a server"))
+
+    args = _serve_args(cfg, transport)
+    args.host = "0.0.0.0"
+    assert commands_mod.cmd_serve(args) == 1
+
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "--allow-remote" in msgs
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "::1"])
+def test_loopback_binds_need_no_opt_in(tmp_path, monkeypatch, host):
+    """Including both IPv6 spellings in LOOPBACK_HOSTS is the point: `--host ::1`
+    is a loopback bind and must not be mistaken for a network one."""
+    cfg, _ = _kb_config(tmp_path, embeddings_enabled=False)
+    monkeypatch.setattr("contextlake.kb.server.run_server", lambda *a, **k: None)
+
+    args = _serve_args(cfg, "http")
+    args.host = host
+    assert commands_mod.cmd_serve(args) == 0
+
+
+def test_allow_remote_starts_the_server_and_warns(tmp_path, gls_logs, monkeypatch, capsys):
+    cfg, _ = _kb_config(tmp_path, embeddings_enabled=False)
+    captured: dict = {}
+    monkeypatch.setattr("contextlake.kb.server.run_server",
+                        lambda store, **kw: captured.update(kw))
+
+    args = _serve_args(cfg, "http")
+    args.host, args.allow_remote = "0.0.0.0", True
+    assert commands_mod.cmd_serve(args) == 0
+
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "--allow-remote" in msgs and "0.0.0.0" in msgs
+    # The token reaches the server but never the logger: log() feeds a rotating
+    # file handler, and a credential outliving the process in a log file would
+    # be a worse leak than the unauthenticated socket this replaced.
+    token = captured["token"]
+    assert token and token not in msgs
+    assert token in capsys.readouterr().err

@@ -1599,6 +1599,22 @@
         ? ("Running — pid " + status.pid + " on " + status.host + ":" + status.port)
         : "Stopped"));
     card.appendChild(row);
+    // The HTTP transport requires Authorization: Bearer <token>. The server was
+    // spawned with its stderr discarded, so this card is the only place that
+    // token is ever shown -- omitting it would leave a "Running" server no
+    // client could actually connect to.
+    // Endpoint shown scheme-less on purpose: the static-site export asserts
+    // dashboard.js contains no absolute URL at all (nothing may be fetched off
+    // the machine), and the card's own text already says this is the plain-HTTP
+    // transport. The /mcp path is the part worth stating -- the bare root 404s.
+    if (status.running && status.token) {
+      card.appendChild(h("div", { class: "cl-row" },
+        h("span", null, "Endpoint (http)"),
+        h("code", null, status.host + ":" + status.port + "/mcp")));
+      card.appendChild(h("div", { class: "cl-row" },
+        h("span", null, "Bearer token"),
+        h("code", null, status.token)));
+    }
     var actions = h("div", { class: "cl-actions" });
     function act(label, action, confirmMsg) {
       var btn = h("button", { class: "cl-btn", type: "button" }, label);

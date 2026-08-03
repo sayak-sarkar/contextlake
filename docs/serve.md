@@ -93,16 +93,64 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 
 - **`stdio`** — the default. The editor/agent spawns `contextlake kb serve` itself and talks to
   it over stdin/stdout; this is what `steer`-generated `.mcp.json`/`.vscode/mcp.json` entries use.
+  No token, no network: the pipe belongs to the process that spawned it.
 - **`http`** — Streamable HTTP, the MCP spec's current standard network transport (`--host`/
   `--port`, default `127.0.0.1:8765`). Point clients at `http://127.0.0.1:8765/mcp`, not the bare
   host:port: the endpoint is the `/mcp` path, and the root returns 404. Prefer this transport for
-  any new remote/network wiring.
+  any new remote/network wiring. **Authenticated** — see below.
 - **`sse`** — the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
   marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
   for clients that haven't moved off it yet; contextlake follows that guidance rather than
   dropping it. Its endpoint is `http://127.0.0.1:8765/sse`. Use `sse` only if your client
   specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
-  distinct, separate option from HTTP) — pick `http` first.
+  distinct, separate option from HTTP) — pick `http` first. Authenticated exactly like `http`.
+
+### Authenticating the network transports
+
+The graph answers with real file paths, symbol names, docstrings and owner identities, so the
+socket transports do not serve it to anyone who connects.
+
+**A bearer token, printed once to stderr at startup:**
+
+```
+$ contextlake kb serve --transport http
+✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
+  Bearer token: <a fresh 43-character token>
+  Clients must send: Authorization: Bearer <token>
+  Pin a stable one across restarts with $CONTEXTLAKE_MCP_TOKEN.
+```
+
+Every request needs `Authorization: Bearer <token>`; without it the server answers `401`. The
+token goes to stderr only — never to stdout, never to the log file — so it does not outlive the
+process anywhere you did not put it.
+
+**Pin it for a client config.** A fresh token per launch is fine when you copy it by hand and
+useless when a config file has to hold it. Set `CONTEXTLAKE_MCP_TOKEN` and the server uses that
+value instead of minting one (an empty or whitespace-only value is treated as unset, and a fresh
+token is minted — it never turns authentication off):
+
+```bash
+export CONTEXTLAKE_MCP_TOKEN='pick-your-own-long-random-string'
+contextlake kb serve --transport http
+```
+
+**Origin and Host are validated** on every request, as the MCP spec requires for HTTP transports:
+a request whose `Origin` is not the bound host (or a loopback address) gets `403`, and one whose
+`Host` does not name this server gets `421`. That is what stops a web page you visit from
+reaching your loopback MCP server through DNS rebinding.
+
+**Non-loopback binds must be opted into.** `--host` outside `127.0.0.1` / `localhost` / `::1` is
+refused unless you pass `--allow-remote`, and prints a warning when you do:
+
+```bash
+contextlake kb serve --transport http --host 0.0.0.0        # refused, exits 1
+contextlake kb serve --transport http --host 0.0.0.0 --allow-remote
+```
+
+Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
+to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (`0.0.0.0`) only
+answers requests whose `Host` is a loopback name, because the Host check has no way to know which
+address you meant — bind the address clients will actually name (`--host 192.0.2.10`).
 
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file

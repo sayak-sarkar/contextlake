@@ -561,18 +561,38 @@ def test_get_wiki_serves_cluster_page_by_namespace(tmp_path):
 
 # --- run_server transport dispatch ------------------------------------------
 #
-# The three transports are NOT interchangeable at the .run() kwarg level: the
-# installed SDK's run_sse_async() has a strict keyword-only signature (host,
-# port, sse_path, message_path, transport_security -- no **kwargs catch-all),
-# so passing streamable-http-only options like stateless_http/json_response to
-# it raises TypeError. These tests pin the exact kwargs each transport gets.
+# The transports are NOT interchangeable at the SDK-kwarg level: sse_app() takes
+# (sse_path, message_path, transport_security, host) and would raise
+# TypeError('unexpected keyword argument') on streamable-http-only options like
+# stateless_http/json_response. And only the HTTP family builds an ASGI app at
+# all -- stdio still goes straight through MCPServer.run(). These tests pin the
+# exact kwargs each transport gets. (Who may *reach* those apps is
+# test_serve_matrix.py's second half.)
 
 class _FakeServer:
     def __init__(self):
         self.calls = []
+        self.apps = []
 
     def run(self, **kwargs):
         self.calls.append(kwargs)
+
+    def sse_app(self, **kwargs):
+        self.apps.append(("sse_app", kwargs))
+        return object()
+
+    def streamable_http_app(self, **kwargs):
+        self.apps.append(("streamable_http_app", kwargs))
+        return object()
+
+
+def _fake_uvicorn(monkeypatch):
+    """Capture uvicorn.run's args instead of binding a socket and blocking."""
+    import uvicorn
+
+    served = []
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: served.append((app, kw)))
+    return served
 
 
 def test_run_server_stdio_passes_no_network_kwargs(monkeypatch):
@@ -582,30 +602,63 @@ def test_run_server_stdio_passes_no_network_kwargs(monkeypatch):
     server_mod.run_server(store=None, transport="stdio")
 
     assert fake.calls == [{"transport": "stdio"}]
+    assert fake.apps == []  # stdio builds no ASGI app and needs no token
 
 
 def test_run_server_streamable_http_passes_stateless_and_json_response(monkeypatch):
     fake = _FakeServer()
     monkeypatch.setattr(server_mod, "build_server", lambda *a, **kw: fake)
+    served = _fake_uvicorn(monkeypatch)
 
-    server_mod.run_server(store=None, transport="streamable-http", host="0.0.0.0", port=9999)
+    server_mod.run_server(store=None, transport="streamable-http", host="0.0.0.0",
+                          port=9999, token="t-synthetic")
 
-    assert fake.calls == [{
-        "transport": "streamable-http", "host": "0.0.0.0", "port": 9999,
-        "stateless_http": True, "json_response": True,
-    }]
+    assert fake.calls == []  # the HTTP family no longer goes through .run()
+    (name, kwargs), = fake.apps
+    assert name == "streamable_http_app"
+    assert kwargs["stateless_http"] is True and kwargs["json_response"] is True
+    assert kwargs["host"] == "0.0.0.0"
+    assert kwargs["transport_security"].enable_dns_rebinding_protection is True
+
+    (app, serve_kwargs), = served
+    assert isinstance(app, server_mod.BearerAuthMiddleware)
+    assert serve_kwargs["host"] == "0.0.0.0" and serve_kwargs["port"] == 9999
 
 
 def test_run_server_sse_passes_host_port_only(monkeypatch):
     """Regression guard: sse must NOT receive stateless_http/json_response --
-    the SDK's run_sse_async() has no **kwargs catch-all and would raise
+    the SDK's sse_app() has no **kwargs catch-all and would raise
     TypeError('unexpected keyword argument') if it did."""
     fake = _FakeServer()
     monkeypatch.setattr(server_mod, "build_server", lambda *a, **kw: fake)
+    served = _fake_uvicorn(monkeypatch)
 
-    server_mod.run_server(store=None, transport="sse", host="0.0.0.0", port=9999)
+    server_mod.run_server(store=None, transport="sse", host="0.0.0.0", port=9999,
+                          token="t-synthetic")
 
-    assert fake.calls == [{"transport": "sse", "host": "0.0.0.0", "port": 9999}]
+    (name, kwargs), = fake.apps
+    assert name == "sse_app"
+    assert set(kwargs) == {"transport_security", "host"}
+    assert kwargs["host"] == "0.0.0.0"
+
+    (app, serve_kwargs), = served
+    assert isinstance(app, server_mod.BearerAuthMiddleware)
+    assert serve_kwargs["host"] == "0.0.0.0" and serve_kwargs["port"] == 9999
+
+
+def test_run_server_mints_a_token_when_the_caller_forgets_one(monkeypatch):
+    """No code path may start an unauthenticated socket, even one that omits
+    the token cmds/serve.py normally supplies (and prints)."""
+    fake = _FakeServer()
+    monkeypatch.setattr(server_mod, "build_server", lambda *a, **kw: fake)
+    monkeypatch.delenv(server_mod.TOKEN_ENV, raising=False)
+    served = _fake_uvicorn(monkeypatch)
+
+    server_mod.run_server(store=None, transport="streamable-http")
+
+    (app, _), = served
+    assert isinstance(app, server_mod.BearerAuthMiddleware)
+    assert len(app._token) >= 32
 
 
 def test_sse_app_builds_a_real_asgi_app_with_the_expected_routes(tmp_path):

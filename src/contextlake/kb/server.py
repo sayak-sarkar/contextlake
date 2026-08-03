@@ -5,21 +5,40 @@ Streamable HTTP. Every text field returned is passed through ``sanitize_label``
 first, so hostile repo content can't inject into an agent's context. Results are
 structured + cited (each edge carries its source file and verified date); the
 graph is an index, so inferred edges should be verified against the source.
+
+The two transport families have deliberately different security postures. stdio
+is a pipe the editor spawns and owns -- there is no socket to reach and no
+third party to authenticate, so it stays exactly as it was. The HTTP-family
+transports are a listening socket, and what they answer (every indexed file
+path, symbol name, docstring and owner identity) is precisely what an attacker
+would want, so they get a bearer token and the MCP spec's required Host/Origin
+validation. See :func:`build_http_app`.
 """
 
 from __future__ import annotations
 
+import hmac
 import json
+import os
 import re
+import secrets
 from collections import deque
 from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel
 
 from .model import EXTERNAL_LINK_RELATIONS, Edge, Node
 from .security import sanitize_label
 from .store.base import Store
+
+# Transports that open a socket, and so need authenticating. The values are the
+# SDK's own transport names, not the CLI's (`kb serve --transport http` maps to
+# "streamable-http" in cmds/serve.py).
+HTTP_TRANSPORTS = frozenset({"streamable-http", "sse"})
+
+TOKEN_ENV = "CONTEXTLAKE_MCP_TOKEN"
 
 _INSTRUCTIONS = (
     "Query the local code knowledge graph instead of grepping. Results are cited "
@@ -853,31 +872,164 @@ def build_server(
     return mcp
 
 
+def resolve_token() -> tuple[str, bool]:
+    """The bearer token for an HTTP-family transport, and whether it came from env.
+
+    ``CONTEXTLAKE_MCP_TOKEN`` exists so a client config can pin one stable token
+    instead of chasing a freshly-minted one on every launch. Empty or whitespace
+    is treated as unset and a fresh token is minted rather than honoured: an env
+    var a shell expanded to "" must not be the difference between a server only
+    its operator can reach and one anybody can.
+    """
+    env = (os.environ.get(TOKEN_ENV) or "").strip()
+    return (env, True) if env else (secrets.token_urlsafe(32), False)
+
+
+def _host_header_form(host: str) -> str:
+    """An IPv6 literal is bracketed in a Host header (RFC 3986), bare as a bind."""
+    return f"[{host}]" if ":" in host and not host.startswith("[") else host
+
+
+def transport_security(host: str) -> TransportSecuritySettings:
+    """Host/Origin allow-list for an HTTP-family bind.
+
+    This is the MCP spec's Origin-validation requirement for HTTP transports,
+    enforced by the SDK's own ``TransportSecurityMiddleware`` rather than a
+    second implementation here.
+
+    The loopback names are included unconditionally, not only for a loopback
+    bind, and that is load-bearing: ``MCPServer.sse_app`` /
+    ``.streamable_http_app`` auto-build protective settings *only* when
+    ``transport_security is None``, so passing our own replaces theirs. Deriving
+    the list purely from ``host`` would have hardened the remote bind while
+    quietly disarming the default ``--host 127.0.0.1`` one.
+
+    A wildcard bind keeps the same consequence documented for the local HTTP
+    servers in :func:`..http_base.allowed_host_headers`: bound to ``0.0.0.0``, a
+    request naming the machine's LAN address in ``Host`` is refused, because
+    that address is not in this list. Bind the address clients will actually
+    name (``--host 192.0.2.10``).
+
+    No port here, deliberately: every entry ends in the SDK's ``:*`` wildcard,
+    matching what the SDK itself builds for a loopback bind. A request reaching
+    this process already arrived on the port we bound, so a Host header naming
+    a different one is a client mistake rather than an attack a stricter list
+    would catch. (The wildcard requires *some* port, so a bare ``Host: example``
+    with no port is refused either way.)
+    """
+    hosts = {f"{h}:*" for h in ("127.0.0.1", "localhost", "[::1]")}
+    hosts.add(f"{_host_header_form(host)}:*")
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=sorted(hosts),
+        allowed_origins=sorted(f"http://{h}" for h in hosts),
+    )
+
+
+async def _send_unauthorized(send) -> None:
+    body = b'{"error":"unauthorized"}'
+    await send({"type": "http.response.start", "status": 401, "headers": [
+        (b"content-type", b"application/json"),
+        (b"content-length", str(len(body)).encode("ascii")),
+        # RFC 6750: name the scheme to retry with, without a realm -- there is
+        # no authorization server here, just a process-local shared secret.
+        (b"www-authenticate", b"Bearer"),
+    ]})
+    await send({"type": "http.response.body", "body": body})
+
+
+class BearerAuthMiddleware:
+    """ASGI gate requiring ``Authorization: Bearer <token>`` on every HTTP request.
+
+    Deliberately not the SDK's own auth hook. That one is OAuth-shaped:
+    ``AuthSettings`` makes ``issuer_url`` a required field and ``MCPServer``
+    refuses a ``token_verifier`` without it, so routing one process-local shared
+    secret through it would mean advertising an authorization server that does
+    not exist. A shared secret is a middleware, so it is one.
+
+    Non-HTTP scopes pass straight through -- notably ``lifespan``, which is what
+    starts the SDK's session manager; gating that would leave the app never
+    started rather than merely unauthenticated.
+    """
+
+    def __init__(self, app, token: str) -> None:
+        self.app = app
+        self._token = token.encode("utf-8")
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope.get("type") != "http" or self._authorized(scope):
+            await self.app(scope, receive, send)
+            return
+        await _send_unauthorized(send)
+
+    def _authorized(self, scope) -> bool:
+        for key, value in scope.get("headers") or ():
+            if key.lower() != b"authorization":
+                continue
+            scheme, _, presented = value.partition(b" ")
+            # Compared as bytes end to end: hmac.compare_digest raises TypeError
+            # on a str carrying non-ASCII, which would surface a hostile token
+            # as a 500 instead of a 401.
+            return (scheme.lower() == b"bearer"
+                    and hmac.compare_digest(presented.strip(), self._token))
+        return False
+
+
+def build_http_app(
+    store: Store, *, transport: str, host: str, token: str,
+    embedder=None, vector_store=None,
+):
+    """The token-gated, Origin-checked ASGI app for an HTTP-family transport.
+
+    Split out of :func:`run_server` so the security properties are assertable
+    without binding a socket: the SDK's ``run_streamable_http_async`` /
+    ``run_sse_async`` go straight into ``uvicorn.Server.serve()``, so a test can
+    never reach the app they build.
+
+    sse is the legacy HTTP+SSE transport (superseded by streamable-http in the
+    MCP spec, kept for older clients that only speak SSE -- see docs/serve.md);
+    its ``/messages/`` POST endpoint is behind the same gate as ``/sse``.
+    """
+    server = build_server(store, embedder=embedder, vector_store=vector_store)
+    security = transport_security(host)
+    if transport == "sse":
+        app = server.sse_app(transport_security=security, host=host)
+    else:
+        app = server.streamable_http_app(
+            stateless_http=True, json_response=True,
+            transport_security=security, host=host)
+    return BearerAuthMiddleware(app, token)
+
+
 def run_server(
     store: Store, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8765,
-    embedder=None, vector_store=None,
+    embedder=None, vector_store=None, token: str | None = None,
 ) -> None:
     """Build and run the MCP server (blocking).
 
-    host/port are network-transport options, passed to .run() rather than the
-    server constructor. stdio has no such options and .run()'s stdio branch
-    ignores them entirely if passed (see mcp.server.mcpserver.MCPServer.run).
+    stdio takes the SDK's ``.run()`` path untouched, with no token and no
+    host/port: it is a pipe the editor already owns, it is the default and by
+    far the most-used transport, and a handshake added there would break every
+    existing editor entry to fix an exposure it does not have.
 
-    streamable-http and sse are NOT interchangeable at the .run() kwarg level:
-    sse's run_sse_async() has a strict keyword-only signature (host, port,
-    sse_path, message_path, transport_security -- no **kwargs catch-all), so
-    passing streamable-http-only options like stateless_http/json_response to
-    it raises TypeError. Branch per transport rather than passing one kwarg set
-    to all three.
-
-    sse is the legacy HTTP+SSE transport (superseded by streamable-http in the
-    MCP spec, kept for older clients that only speak SSE -- see docs/serve.md).
+    The HTTP-family transports build their app here instead of via ``.run()``,
+    because ``.run()`` offers no seam to wrap the app in
+    :class:`BearerAuthMiddleware`. ``token`` should be supplied by the caller
+    (cmds/serve.py, which also prints it); a missing one is minted rather than
+    left off, so no code path can start an unauthenticated socket.
     """
-    server = build_server(store, embedder=embedder, vector_store=vector_store)
-    if transport == "streamable-http":
-        server.run(transport=transport, host=host, port=port,
-                   stateless_http=True, json_response=True)
-    elif transport == "sse":
-        server.run(transport=transport, host=host, port=port)
-    else:
-        server.run(transport=transport)
+    if transport not in HTTP_TRANSPORTS:
+        build_server(store, embedder=embedder, vector_store=vector_store).run(
+            transport=transport)
+        return
+
+    import uvicorn
+
+    app = build_http_app(
+        store, transport=transport, host=host, token=token or resolve_token()[0],
+        embedder=embedder, vector_store=vector_store)
+    # warning, not the SDK's INFO: cmds/serve.py already prints the one banner
+    # line a user needs ("MCP server on http://host:port/path"), and uvicorn's
+    # own startup banner plus per-request access log would bury the token line
+    # printed right beside it. Errors still surface.
+    uvicorn.run(app, host=host, port=port, log_level="warning")

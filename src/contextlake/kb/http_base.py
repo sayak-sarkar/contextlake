@@ -53,11 +53,21 @@ MAX_BODY_BYTES = 1_000_000
 # reading a host out of *JSON* must still type-check first: an unhashable value
 # raises TypeError from `in`, which is a 500 where a 400 belongs.
 #
-# Deliberately narrow. `::1` is loopback in principle but is not listed: these
-# servers are stdlib `ThreadingHTTPServer`s, which are AF_INET, so accepting
-# `::1` here would trade a clear refusal for a confusing bind failure. Widen
-# only alongside a server that can actually bind what's added.
-LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost"})
+# This is a *bind* set, deliberately distinct from `allowed_host_headers`'s
+# *Host-header* set: this one answers "is this bind private?", that one answers
+# "may this request in?".
+#
+# It once held only the IPv4 spellings, because the only readers were stdlib
+# `ThreadingHTTPServer`s (AF_INET), where accepting `::1` would have traded a
+# clear refusal for a confusing bind failure -- on the rule that it should widen
+# only alongside a server that can actually bind what's added. The MCP server's
+# network transports are that server: they run under uvicorn and do bind IPv6.
+# Both spellings are listed because the same address is written `::1` as a bind
+# and `[::1]` in a Host header, and someone who binds one form should not be
+# told it is remote. A stdlib server handed `::1` now fails at bind rather than
+# at the guard, which is the honest error: the address is genuinely private, it
+# is that server that cannot serve it.
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
 
 
 class BadRequest(ValueError):

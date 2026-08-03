@@ -182,6 +182,39 @@ def test_mcp_status_ignores_stale_pidfile(tmp_path):
     assert mut.mcp_status(tmp_path) == {"running": False}
 
 
+def test_mcp_start_pins_a_token_the_dashboard_can_show(tmp_path, monkeypatch):
+    """The child's stderr is DEVNULL'd, so if it minted its own bearer token the
+    dashboard would start a server nobody could authenticate to. The token must
+    be minted here, passed through the child's env, and survive in the pidfile so
+    the card still has it after a page reload."""
+    from contextlake.kb.server import TOKEN_ENV
+
+    seen = {}
+
+    class _Proc:
+        pid = _alive_pid()
+
+        def poll(self):
+            return None  # still running
+
+    def _fake_popen(cmd, **kw):
+        seen["cmd"], seen["env"] = cmd, kw["env"]
+        return _Proc()
+
+    monkeypatch.setattr(mut.subprocess, "Popen", _fake_popen)
+    monkeypatch.setattr(mut.time, "sleep", lambda _s: None)
+
+    started = mut.mcp_start(tmp_path, port=8766)
+
+    token = seen["env"][TOKEN_ENV]
+    assert token and started["token"] == token
+    assert "--transport" in seen["cmd"] and "http" in seen["cmd"]
+    # Survives a reload: the status endpoint re-reads it from the pidfile.
+    assert mut.mcp_status(tmp_path)["token"] == token
+    # It is a credential on disk now, so the pidfile must not be world-readable.
+    assert (mut._mcp_pidfile(tmp_path).stat().st_mode & 0o077) == 0
+
+
 def _alive_pid():
     """A pid guaranteed alive for the duration of the test: our own process."""
     import os

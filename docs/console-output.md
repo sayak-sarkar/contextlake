@@ -87,6 +87,13 @@ separately.
   suffix for `sse` -- so you don't have to guess the host/port/path before pointing an editor at it.
   Both URLs include the path because neither transport is served at the bare root: that really is a 404.
   `stdio` transport has no address to report and stays quiet on that line.
+- **The network transports print their bearer token right under that URL, on stderr.** A socket that
+  serves the whole graph needs a credential, and a credential you cannot find is the same as a server
+  you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
+  discovered. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
+  disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
+  it instead of echoing the value. `stdio` prints no token because it needs none. See
+  [Serve](serve.md).
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a

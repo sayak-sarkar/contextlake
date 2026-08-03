@@ -215,7 +215,8 @@ the browser: **Sync now** on a repo page (`git pull --ff-only` + reindex), **Add
 repo** on the fleet overview (clone a URL into `--workspace` + index it),
 **Start / Stop / Restart** for a separate `contextlake kb serve --transport http`
 process on the MCP console tab (not the stdio server your editor spawns -- this
-dashboard can't see or manage that one), and **Regenerate** wiki (single-repo on
+dashboard can't see or manage that one; see below for its bearer token), and
+**Regenerate** wiki (single-repo on
 that repo's Wiki tab, or fleet-wide on Settings — runs the exact `contextlake kb
 wiki` CLI as a background process, detached from the request that started it, so
 it keeps running even if you close the browser tab).
@@ -225,9 +226,18 @@ checkbox to bypass that freshness check and regenerate everything in scope
 regardless (the estimate updates to reflect that before you confirm, too — a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
+The MCP server this card starts is itself authenticated (see
+[Serve](serve.md#authenticating-the-network-transports)): the HTTP transport requires
+`Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
+output discarded, the dashboard mints that token instead of letting the server print one, and
+the card shows it alongside the endpoint — that card is the only place it appears. **Restart
+mints a new one**, so any client pinned to the old token must be re-pointed at the value the
+card then shows. The token is kept in `<store>/dashboard/mcp-server.pid`, created `0600`, so it
+survives a page reload.
+
 Refused outright with `--sample` (the demo fleet is fictional -- nothing on disk to
-sync/clone) and with any `--host` other than `127.0.0.1`/`localhost` (mutating
-routes are loopback-only by design). A random per-launch token is minted at
+sync/clone) and with any non-loopback `--host` (`127.0.0.1`, `localhost` and `::1` are the
+loopback binds; mutating routes are loopback-only by design). A random per-launch token is minted at
 startup and wired into the served page; every `POST` must carry it in an
 `X-Contextlake-Token` header matching exactly, and the request's `Host` header
 must name this host:port -- both close the classic localhost-server holes (a

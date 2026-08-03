@@ -717,7 +717,10 @@ def test_serve_http_logs_the_configured_host_and_port(tmp_path, gls_logs, monkey
     cfg = _kb_config(tmp_path)
     monkeypatch.setattr("contextlake.kb.server.run_server", lambda *a, **kw: None)
 
-    rc = commands_mod.cmd_serve(_serve_args(cfg, transport="http", host="0.0.0.0", port=9999))
+    # allow_remote: a non-loopback bind is refused without it (see
+    # test_serve_matrix.py). Passed here so this test stays about the log line.
+    rc = commands_mod.cmd_serve(_serve_args(
+        cfg, transport="http", host="0.0.0.0", port=9999, allow_remote=True))
 
     assert rc == 0
     msgs = "\n".join(r.getMessage() for r in gls_logs.records)
@@ -741,7 +744,8 @@ def test_serve_sse_dispatches_the_legacy_transport_and_logs_the_bind_url(
         "contextlake.kb.server.run_server",
         lambda *a, **kw: calls.append((a, kw)))
 
-    rc = commands_mod.cmd_serve(_serve_args(cfg, transport="sse", host="0.0.0.0", port=9999))
+    rc = commands_mod.cmd_serve(_serve_args(
+        cfg, transport="sse", host="0.0.0.0", port=9999, allow_remote=True))
 
     assert rc == 0
     assert len(calls) == 1
