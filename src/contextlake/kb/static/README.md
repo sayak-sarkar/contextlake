@@ -52,6 +52,15 @@ removes itself from the dropdown rather than offering a mode that would do nothi
 > and plain `kb graph --serve` (`build_graph_server`) both inline the libs, and
 > `--site` writes them as siblings.
 
+> **Known gap — the preview cannot be the *initial* layout from the CLI.**
+> `to_html(..., layout="dagre")` works (it validates against `html_render.LAYOUTS`,
+> which contains `dagre`), but `kb graph --layout dagre` is rejected before it gets
+> there: `cli.py` restates the layout names as two hard-coded argparse `choices`
+> lists rather than importing `LAYOUTS`, and neither was updated when the preview was
+> added. So the preview is reachable only by picking it from the in-page dropdown.
+> The fix is for those two lists to read `LAYOUTS` — deliberately not done here,
+> since it is a change to `cli.py`, not to these assets.
+
 ## Why there is no SVG-export library here
 
 The page's `SVG` button is hand-rolled in `app.js` (`svgText()`), not backed by a
