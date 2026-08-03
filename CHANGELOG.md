@@ -29,6 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
   its own partial number, and the core job measures the whole package while skipping `tests/kb`,
   so its honest total is ~23% and no shared floor can fit both.
+- Combinatorial test coverage for the places where options interact rather than act alone: a
+  provider-resolution matrix (embedder/LLM/vector-store builders across every provider, backend
+  and enabled/disabled combination), a serve matrix (transport x embedder-present x
+  vector-store-present, asserting the actually-registered MCP tool set), and a boundary matrix
+  (every `limit`/`hops`/`max_*` at zero, one, either side of the default and very large, plus
+  empty and single-file repos and `None`-valued node fields flowing through the payload, diagram
+  and MCP-model layers). The provider names are discovered from the source rather than hardcoded,
+  so a new provider is covered automatically. This is the class of gap that let the `--llm-chat`
+  non-loopback hole exist: the vulnerability was an untested cell of a flag matrix.
 - Supply-chain scanning: a `security` workflow running `pip-audit` over the full dependency
   surface (dev plus every `kb` extra), a `ruff --select S` security-lint pass, and CodeQL for
   Python, on push to main, on pull requests, and weekly so newly-disclosed CVEs surface against an
