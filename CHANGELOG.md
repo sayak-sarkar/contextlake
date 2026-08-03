@@ -10,18 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - **A config file found by directory search can no longer make contextlake execute a program.**
   `.contextlake.kb.toml` is discovered by walking up from the current directory, so a repository you
-  cloned could ship one setting `[llm] provider = "cli"` + `command`/`args` — handed straight to
+  cloned could ship one setting `[llm] provider = "cli"` + `command`/`args`, handed straight to
   `subprocess.run` by the next `kb wiki`, `kb enrich`, or `dashboard --llm-chat`. The same hole existed
   in `[[sources]]`, whose `command`/`args`/`mcp_command` spawn an MCP server over stdio. Those keys are
   now honoured only from `~/.contextlake/kb.toml` or an explicit `--config` path; from a discovered file
-  they are dropped with a warning naming the file and the key. Nothing else is distrusted — `store_dir`,
+  they are dropped with a warning naming the file and the key. Nothing else is distrusted: `store_dir`,
   `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers keep working
   from a project-local file exactly as before, so directory-scoped config is unaffected. Passing
   `--config` on that same file still honours it: naming the file is the explicit act the gate asks for.
 
 ### Added
 - `CONTEXTLAKE_NO_LOCAL_CONFIG=1` skips ancestor config discovery entirely, for both
-  `.contextlake.ini` and `.contextlake.kb.toml` — only the global file and an explicit `--config` are
+  `.contextlake.ini` and `.contextlake.kb.toml`; only the global file and an explicit `--config` are
   read. Intended for CI, containers, and anywhere untrusted checkouts are handled in bulk, where opting
   out of the whole tier is simpler to reason about than the per-key gate above.
 - CI now enforces a coverage floor (`--cov-fail-under=88`) on the full-suite job, so a silent
@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Shard output is now reproducible. Indexing the same commit twice produced different shard bytes
   every time, because the tree-sitter query cursor returns captures in an order that varies between
-  runs. The set of nodes and edges was always correct — only their order moved — but it made
+  runs. The set of nodes and edges was always correct (only their order moved), but it made
   `archive_shard`'s documented "a repo re-indexed at the same commit overwrites identically"
   invariant false, and defeated any checksum-based reasoning about whether an index is current.
   Captures are now sorted at the single extraction site, and `PARSER_VERSION` is bumped to `2`.
@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   neither flagged nor rebuilt on its own.
 
   Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
-  file order still comes from directory traversal — do not compare shard hashes between CI runners.
+  file order still comes from directory traversal, so do not compare shard hashes between CI runners.
   The regression guard is in-process.
 - **Security:** `--llm-chat` is now refused with a non-loopback `--host`, the same guard
   `--allow-mutations` already had. The per-launch token that gates the chat route is served inside
@@ -84,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Security:** the dashboard and graph servers now pin the `Host` header on `GET` as well as
   `POST`. Only `POST` checked it, so a page whose domain re-resolved to `127.0.0.1` (DNS
   rebinding) could read the entire code graph cross-origin: `/api/overview`, `/api/repo/<id>`,
-  `/api/search`, `/graph/*` — file paths, symbol names, owner identities. Static assets are
+  `/api/search`, `/graph/*`: file paths, symbol names, owner identities. Static assets are
   deliberately *not* exempt, because `dashboard.js` carries the per-process token and exempting
   it would hand a rebinding page the key to the mutating routes. One consequence worth knowing:
   a server bound with `--host 0.0.0.0` and browsed via its LAN address now returns 403; use
@@ -99,11 +99,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The no-install launcher is renamed `contextlake.py` -> `run-contextlake.py`.** At the repo root
   it shadowed the installed package: `python -m ...` puts the working directory first on
   `sys.path`, so `python -m pytest` from a clone failed with `No module named 'contextlake.cli';
-  'contextlake' is not a package` before collecting a single test — the first command many
+  'contextlake' is not a package` before collecting a single test, the first command many
   contributors type. `CONTRIBUTING.md` had documented the workaround; it now documents reality
   instead, and CI runs `python -m pytest --collect-only` so the trap cannot come back. No
   compatibility shim is left behind, because a file at the old path would recreate the exact
-  problem. The installed `contextlake` command and the standalone binaries are unaffected — both
+  problem. The installed `contextlake` command and the standalone binaries are unaffected: both
   resolve through the package entry point, never the root file.
 - All the local HTTP servers now share one base (`kb/http_base.py`) carrying the Host check, the
   JSON error envelope and the exception guard. The three servers had drifted apart, which is the
@@ -114,21 +114,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   code, so it is a genuine regression check rather than a snapshot of the new behaviour.
 - **Breaking:** a mirror run that had failures now exits 1. `mirror fetch`/`clone`/`update`/
   `branches`/`verify`/`sync` (and `bootstrap`'s mirror stage) exited 0 no matter how much of the
-  fleet failed — `mirror sync` reported success with a ✓ even when every single clone failed. Nothing
+  fleet failed. `mirror sync` reported success with a ✓ even when every single clone failed. Nothing
   unattended could tell a healthy mirror from a dead one: the cron wrapper in `docs/usage.md` tests
   `$?` and so never fired, and the `Type=oneshot` systemd unit in `examples/` was always recorded as
   succeeding, leaving `systemctl is-failed` and any `OnFailure=` hook with nothing to fire on. Each
   stage now returns its own ok/failed/skipped counts, `sync` exits on the total across all stages,
   and the sync finale is a ⚠ rather than a ✓ when anything failed.
 
-  What counts as a failure is exactly what each stage already logged as an error — no repo is
+  What counts as a failure is exactly what each stage already logged as an error, so no repo is
   reclassified. Skipped work (already up to date, protected branch, dry run) is never a failure;
   neither is a `verify` that reports repos missing or extra (only a cloned path with no `.git`,
   which is corruption). `fetch` fails on 0 projects only when no `--repos`/`repo_filter` is in
   play, since 0 matches for a narrow pattern is a legitimate answer.
 
   **Migrating:** if a script or CI job relies on a mirror command always exiting 0, add
-  `--exit-zero-on-partial`. If it already checks the exit status, it starts working as intended —
+  `--exit-zero-on-partial`. If it already checks the exit status, it starts working as intended,
   expect jobs to go red that were silently failing before.
 
 ## [4.0.0] - 2026-08-04
