@@ -118,7 +118,7 @@ def test_cmd_hook_dispatch(tmp_path, action, monkeypatch, gls_logs):
 
     if action != "install":
         git_hook.install(str(tmp_path), tmp_path.name)
-    args = build_parser().parse_args(["hook", action])
+    args = build_parser().parse_args(["kb", "hook", action])
     for k, v in _DEFAULTS.items():
         if not hasattr(args, k):
             setattr(args, k, v)
@@ -144,7 +144,7 @@ def test_hook_install_warns_on_unresolved_repo_id(tmp_path, monkeypatch, gls_log
     _repo(repo)
     monkeypatch.chdir(repo)
 
-    args = build_parser().parse_args(["hook", "install", "--config", "/does/not/exist.toml"])
+    args = build_parser().parse_args(["kb", "hook", "install", "--config", "/does/not/exist.toml"])
     for k, v in _DEFAULTS.items():
         if not hasattr(args, k):
             setattr(args, k, v)
@@ -165,7 +165,7 @@ def test_cmd_hook_status_shows_dim_dot_when_not_installed(tmp_path, monkeypatch,
     from contextlake.cli import _DEFAULTS, build_parser
     from contextlake.kb import commands as kb
 
-    args = build_parser().parse_args(["hook", "status"])
+    args = build_parser().parse_args(["kb", "hook", "status"])
     for k, v in _DEFAULTS.items():
         if not hasattr(args, k):
             setattr(args, k, v)

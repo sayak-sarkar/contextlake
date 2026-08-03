@@ -53,12 +53,12 @@ def test_no_command_pollutes_synced_repo_trees(tmp_path):
     cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n')
 
     # drive every generating verb that walks the mirror
-    assert _run(["index", "--config", str(cfg), "--workspace", str(mirror)]) == 0
-    assert _run(["graph", "--config", str(cfg), "--overview"]) == 0
-    assert _run(["query", "f", "--config", str(cfg)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(mirror)]) == 0
+    assert _run(["kb", "graph", "--config", str(cfg), "--overview"]) == 0
+    assert _run(["kb", "query", "f", "--config", str(cfg)]) == 0
     # steering at the mirror ROOT is the deliberate carve-out (root is not a repo);
     # it must still never leak into an individual repo tree below it
-    assert _run(["steer", "--config", str(cfg), "--out", str(mirror)]) == 0
+    assert _run(["kb", "steer", "--config", str(cfg), "--out", str(mirror)]) == 0
 
     after = {repo_a: _snapshot(repo_a), repo_b: _snapshot(repo_b)}
     assert after == before, "a command wrote inside a synced repo tree — INV-1 violated"

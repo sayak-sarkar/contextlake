@@ -61,7 +61,7 @@ class _SpyProgress:
 
 def test_index_then_query_round_trip(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
 
     # the store on disk is populated
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
@@ -71,7 +71,7 @@ def test_index_then_query_round_trip(tmp_path, capsys):
 
     # query finds it (cited)
     capsys.readouterr()
-    assert _run(["query", "CatalogService", "--config", str(cfg)]) == 0
+    assert _run(["kb", "query", "CatalogService", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out
     assert "CatalogService" in out and "demo/app" in out
 
@@ -84,9 +84,9 @@ def test_query_retriever_semantic_degrades_to_fts_without_embeddings(tmp_path, c
     store_dir = tmp_path / "kb"
     cfg = tmp_path / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n\n[embeddings]\nenabled = false\n')
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
-    assert _run(["query", "CatalogService", "--config", str(cfg),
+    assert _run(["kb", "query", "CatalogService", "--config", str(cfg),
                 "--retriever", "semantic"]) == 0
     captured = capsys.readouterr()
     assert "CatalogService" in captured.out
@@ -102,14 +102,14 @@ def test_query_retriever_semantic_respects_kind_filter(tmp_path, capsys, monkeyp
     from contextlake.kb.cmds import query as query_mod
 
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
 
     monkeypatch.setattr(
         query_mod, "_semantic_results",
         lambda args, store, text, limit: ["demo_app_catalogservice", "demo_app_charge"])
 
     capsys.readouterr()
-    assert _run(["query", "anything", "--config", str(cfg),
+    assert _run(["kb", "query", "anything", "--config", str(cfg),
                 "--retriever", "semantic", "--kind", "function"]) == 0
     out = capsys.readouterr().out
     assert "charge" in out and "CatalogService" not in out
@@ -123,7 +123,7 @@ def test_index_workspace_indexes_each_repo(tmp_path):
     (ws / "r2" / "b.py").write_text("class C:\n    def m(self):\n        pass\n")
     cfg = _kb_config(tmp_path)
 
-    assert _run(["index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
     assert {r.id for r in store.list_repos()} == {"r1", "r2"}
     assert store.nodes_by_name("f") and store.nodes_by_name("C")
@@ -159,7 +159,7 @@ def test_index_transparently_migrates_a_store_from_the_old_id_scheme(tmp_path):
     write_shard(store_dir, GraphShard(repo=old_id, nodes=[], edges=[]))
     store.close()
 
-    assert _run(["index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
 
     store = SqliteStore(store_dir / "index.sqlite")
     ids = {r.id for r in store.list_repos()}
@@ -175,7 +175,7 @@ def test_index_empty_workspace_fails_honestly(tmp_path, capsys):
     ws = tmp_path / "empty-ws"
     ws.mkdir()
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--workspace", str(ws)]) == 1
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 1
     assert "No git repositories found" in capsys.readouterr().out
 
 
@@ -185,7 +185,7 @@ def test_index_without_source_indexes_cwd(tmp_path, monkeypatch):
     proj.mkdir()
     (proj / "app.py").write_text("def widget():\n    pass\n")
     monkeypatch.chdir(proj)  # no --source/--workspace -> index the current directory
-    assert _run(["index", "--config", str(cfg)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg)]) == 0
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
     assert store.nodes_by_name("widget")  # cwd got indexed
     assert {r.id for r in store.list_repos()} == {"proj"}  # repo id = cwd dir name
@@ -203,14 +203,14 @@ def test_index_without_source_warns_when_cwd_bundles_nested_repos(tmp_path, monk
     _bare_git_repo(workspace / "nested-repo")
     (workspace / "nested-repo" / "app.py").write_text("def widget():\n    pass\n")
     monkeypatch.chdir(workspace)
-    assert _run(["index", "--config", str(cfg)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out
     assert "nested-repo" in out and "--workspace ." in out
 
 
 def test_index_missing_source_errors_cleanly(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
-    code = _run(["index", "--config", str(cfg), "--source", str(tmp_path / "nope.json")])
+    code = _run(["kb", "index", "--config", str(cfg), "--source", str(tmp_path / "nope.json")])
     out = capsys.readouterr().out
     assert code == 1
     assert "Traceback" not in out and "Cannot read" in out
@@ -220,7 +220,7 @@ def test_index_invalid_shard_errors_cleanly(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
     bad = tmp_path / "bad.json"
     bad.write_text('{"nodes": []}')  # valid JSON, missing required 'repo'
-    code = _run(["index", "--config", str(cfg), "--source", str(bad)])
+    code = _run(["kb", "index", "--config", str(cfg), "--source", str(bad)])
     out = capsys.readouterr().out
     assert code == 1
     assert "Traceback" not in out and "not a valid graph shard" in out
@@ -228,7 +228,7 @@ def test_index_invalid_shard_errors_cleanly(tmp_path, capsys):
 
 def test_query_without_text_is_usage_error(tmp_path):
     cfg = _kb_config(tmp_path)
-    assert _run(["query", "--config", str(cfg)]) == 2
+    assert _run(["kb", "query", "--config", str(cfg)]) == 2
 
 
 def test_doctor_reports_ok(tmp_path, capsys):
@@ -355,11 +355,11 @@ def test_read_only_commands_do_not_import_tomlkit_eagerly(tmp_path):
         "cfg = os.path.join(d, 'kb.toml')\n"
         "open(cfg, 'w').write('[kb]\\nstore_dir = \"' + d + '/kb\"\\n')\n"
         "try:\n"
-        "    main(['index', '--config', cfg, '--source', " + repr(fixture) + "])\n"
+        "    main(['kb', 'index', '--config', cfg, '--source', " + repr(fixture) + "])\n"
         "except SystemExit as e:\n"
         "    assert e.code == 0\n"
         "try:\n"
-        "    main(['query', 'CatalogService', '--config', cfg])\n"
+        "    main(['kb', 'query', 'CatalogService', '--config', cfg])\n"
         "except SystemExit as e:\n"
         "    assert e.code == 0\n"
         "assert 'tomlkit' not in sys.modules, 'tomlkit imported by index/query'\n"
@@ -398,7 +398,7 @@ def test_index_workspace_repos_filter(tmp_path):
         _bare_git_repo(ws / r)
         (ws / r / "m.py").write_text("class X:\n    pass\n")
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws),
                  "--repos", "billing/*,team/api"]) == 0
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
     assert {r.id for r in store.list_repos()} == {"core", "reports", "api"}
@@ -410,7 +410,7 @@ def test_index_workspace_repos_filter_no_match_fails(tmp_path, capsys):
     _bare_git_repo(ws / "team/api")
     (ws / "team/api" / "m.py").write_text("class X:\n    pass\n")
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--workspace", str(ws),
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws),
                  "--repos", "zzz-nope"]) == 1
     assert "matching --repos" in capsys.readouterr().out
 
@@ -445,7 +445,7 @@ def test_index_workspace_reports_progress_and_drops_inline_bar_from_stdout(
     _SpyProgress.instances = []
     monkeypatch.setattr(commands_mod.style, "Progress", _SpyProgress)
 
-    assert _run(["index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
 
     assert len(_SpyProgress.instances) == 1
     p = _SpyProgress.instances[0]
@@ -490,7 +490,7 @@ def test_index_workspace_summary_points_at_the_log_on_partial_failure(
 
     monkeypatch.setattr(parse_mod, "index_repo_dir", _flaky)
 
-    rc = _run(["index", "--config", str(cfg), "--workspace", str(ws)])
+    rc = _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)])
     assert rc == 1
 
     text = capsys.readouterr().out
@@ -501,10 +501,10 @@ def test_index_workspace_summary_points_at_the_log_on_partial_failure(
 def test_owners_unknown_repo_suggests_close_id(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
     # indexing the fixture creates repo id 'demo/app'
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
     # a prefix-stripped id ('app') should point at the stored 'demo/app'
-    rc = _run(["owners", "app", "--config", str(cfg)])
+    rc = _run(["kb", "owners", "app", "--config", str(cfg)])
     out = capsys.readouterr().out
     assert rc == 1
     assert "demo/app" in out and "Did you mean" in out
@@ -512,9 +512,9 @@ def test_owners_unknown_repo_suggests_close_id(tmp_path, capsys):
 
 def test_graph_unknown_repo_suggests_close_id(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
-    rc = _run(["graph", "--repo", "demo/ap", "--format", "json", "--config", str(cfg)])
+    rc = _run(["kb", "graph", "--repo", "demo/ap", "--format", "json", "--config", str(cfg)])
     captured = capsys.readouterr()  # json format redirects logs to stderr
     assert rc == 1
     assert "demo/app" in (captured.out + captured.err)
@@ -522,10 +522,10 @@ def test_graph_unknown_repo_suggests_close_id(tmp_path, capsys):
 
 def test_query_no_match_multiword_hints_semantic_search(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
     # a multi-word natural-language query with no keyword hit gets a semantic hint
-    assert _run(["query", "how does the loyalty flow work", "--config", str(cfg)]) == 0
+    assert _run(["kb", "query", "how does the loyalty flow work", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out
     assert "No matches" in out
     assert "embed" in out and "semantic" in out.lower()
@@ -537,10 +537,10 @@ def test_query_json_emits_a_clean_parseable_array(tmp_path, capsys):
     import json
 
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    assert _run(["query", "CatalogService", "--config", str(cfg), "--json"]) == 0
+    assert _run(["kb", "query", "CatalogService", "--config", str(cfg), "--json"]) == 0
     captured = capsys.readouterr()  # --json redirects logs to stderr like graph does
     assert captured.out.strip(), "payload must be on stdout"
     hits = json.loads(captured.out)
@@ -558,7 +558,7 @@ def test_query_json_empty_argument_is_still_valid_json(tmp_path, capsys):
     import json
 
     cfg = _kb_config(tmp_path)
-    rc = _run(["query", "", "--config", str(cfg), "--json"])
+    rc = _run(["kb", "query", "", "--config", str(cfg), "--json"])
     captured = capsys.readouterr()
     assert rc == 2
     payload = json.loads(captured.out)
@@ -569,10 +569,10 @@ def test_owners_json_emits_a_clean_parseable_object(tmp_path, capsys):
     import json
 
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    assert _run(["owners", "demo/app", "--config", str(cfg), "--json"]) == 0
+    assert _run(["kb", "owners", "demo/app", "--config", str(cfg), "--json"]) == 0
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert payload["repo"] == "demo/app"
@@ -584,10 +584,10 @@ def test_owners_json_unknown_repo_reports_the_error_as_json_too(tmp_path, capsys
     import json
 
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    rc = _run(["owners", "app", "--config", str(cfg), "--json"])
+    rc = _run(["kb", "owners", "app", "--config", str(cfg), "--json"])
     captured = capsys.readouterr()
     assert rc == 1
     payload = json.loads(captured.out)
@@ -599,7 +599,7 @@ def test_owners_json_empty_argument_is_still_valid_json(tmp_path, capsys):
     import json
 
     cfg = _kb_config(tmp_path)
-    rc = _run(["owners", "", "--config", str(cfg), "--json"])
+    rc = _run(["kb", "owners", "", "--config", str(cfg), "--json"])
     captured = capsys.readouterr()
     assert rc == 2
     payload = json.loads(captured.out)
@@ -616,10 +616,10 @@ def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
     import json
 
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    assert _run(["lint", "--config", str(cfg), "--json"]) == 1
+    assert _run(["kb", "lint", "--config", str(cfg), "--json"]) == 1
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert set(payload) == {"repos", "checked", "stale", "dangling",
@@ -631,7 +631,7 @@ def test_impact_json_empty_argument_is_still_valid_json(tmp_path, capsys):
     import json
 
     cfg = _kb_config(tmp_path)
-    rc = _run(["impact", "", "--config", str(cfg), "--json"])
+    rc = _run(["kb", "impact", "", "--config", str(cfg), "--json"])
     captured = capsys.readouterr()
     assert rc == 2
     payload = json.loads(captured.out)
@@ -642,10 +642,10 @@ def test_impact_json_unknown_target_reports_the_error_as_json_too(tmp_path, caps
     import json
 
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    rc = _run(["impact", "TotallyBogusSymbol", "--config", str(cfg), "--json"])
+    rc = _run(["kb", "impact", "TotallyBogusSymbol", "--config", str(cfg), "--json"])
     captured = capsys.readouterr()
     assert rc == 1
     payload = json.loads(captured.out)
@@ -656,10 +656,10 @@ def test_impact_json_emits_a_clean_parseable_object(tmp_path, capsys):
     import json
 
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    rc = _run(["impact", "CatalogService", "--config", str(cfg), "--json"])
+    rc = _run(["kb", "impact", "CatalogService", "--config", str(cfg), "--json"])
     captured = capsys.readouterr()
     assert rc == 0
     payload = json.loads(captured.out)
@@ -670,10 +670,10 @@ def test_impact_json_emits_a_clean_parseable_object(tmp_path, capsys):
 
 def test_query_no_match_singleword_no_hint(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
     # a single-token lookup (a symbol) stays quiet: no semantic-hint noise
-    assert _run(["query", "NoSuchSymbol", "--config", str(cfg)]) == 0
+    assert _run(["kb", "query", "NoSuchSymbol", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out
     assert "No matches" in out
     assert "semantic" not in out.lower()

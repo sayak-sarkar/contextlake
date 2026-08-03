@@ -320,7 +320,7 @@ def test_cmd_ingest_writes_document_nodes(tmp_path, capsys, monkeypatch):
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "kb"}"\n')
 
     with pytest.raises(SystemExit) as e:
-        main(["ingest", "--path", str(docs_dir), "--config", str(cfg)])
+        main(["kb", "ingest", "--path", str(docs_dir), "--config", str(cfg)])
     assert e.value.code == 0
 
     store = SqliteStore(tmp_path / "kb" / "index.sqlite")
@@ -364,7 +364,7 @@ def test_cmd_ingest_links_documents_to_the_symbols_they_mention(tmp_path, capsys
     _seed_indexed_symbol(tmp_path / "kb")
 
     with pytest.raises(SystemExit) as e:
-        main(["ingest", "--path", str(docs_dir), "--for-repo", "team/api",
+        main(["kb", "ingest", "--path", str(docs_dir), "--for-repo", "team/api",
               "--config", str(cfg)])
     assert e.value.code == 0
     assert "team/api" not in capsys.readouterr().out   # a valid target never warns
@@ -396,7 +396,7 @@ def test_cmd_ingest_without_a_target_repo_writes_no_edges(tmp_path, monkeypatch)
     _seed_indexed_symbol(tmp_path / "kb")
 
     with pytest.raises(SystemExit) as e:
-        main(["ingest", "--path", str(docs_dir), "--config", str(cfg)])
+        main(["kb", "ingest", "--path", str(docs_dir), "--config", str(cfg)])
     assert e.value.code == 0
     assert read_shard(tmp_path / "kb", "@ingest:cli").edges == []
 
@@ -417,7 +417,7 @@ def test_cmd_ingest_source_config_can_name_its_target_repo(tmp_path, monkeypatch
     _seed_indexed_symbol(tmp_path / "kb")
 
     with pytest.raises(SystemExit) as e:
-        main(["ingest", "--config", str(cfg)])
+        main(["kb", "ingest", "--config", str(cfg)])
     assert e.value.code == 0
     shard = read_shard(tmp_path / "kb", "@ingest:docs")
     assert any(e.src == "team_api_chargeCard" for e in shard.edges)
@@ -434,7 +434,7 @@ def test_cmd_ingest_unknown_target_repo_warns_and_links_nothing(tmp_path, capsys
     _seed_indexed_symbol(tmp_path / "kb")
 
     with pytest.raises(SystemExit) as e:
-        main(["ingest", "--path", str(docs_dir), "--for-repo", "team/typo",
+        main(["kb", "ingest", "--path", str(docs_dir), "--for-repo", "team/typo",
               "--config", str(cfg)])
     assert e.value.code == 0
     assert "team/typo" in capsys.readouterr().out          # a typo is never silent
@@ -457,7 +457,7 @@ def test_cmd_ingest_skips_disabled_sources(tmp_path, capsys, monkeypatch):
     )
 
     with pytest.raises(SystemExit) as e:
-        main(["ingest", "--config", str(cfg)])
+        main(["kb", "ingest", "--config", str(cfg)])
     assert e.value.code == 0
     assert "No document sources" in capsys.readouterr().out
 

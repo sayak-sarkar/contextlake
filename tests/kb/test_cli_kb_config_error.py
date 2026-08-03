@@ -17,7 +17,7 @@ def test_missing_config_path_exits_clean_not_traceback(tmp_path, capsys):
     call misses everything it logs (real stdout doesn't)."""
     missing = tmp_path / "does-not-exist.toml"
     with pytest.raises(SystemExit) as exc:
-        cli.main(["index", "--config", str(missing), "--workspace", str(tmp_path)])
+        cli.main(["kb", "index", "--config", str(missing), "--workspace", str(tmp_path)])
     assert exc.value.code == 1
     out = capsys.readouterr().out
     assert "not found" in out

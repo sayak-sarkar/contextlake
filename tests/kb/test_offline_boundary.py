@@ -43,28 +43,28 @@ def _cfg(tmp_path) -> Path:
 def test_core_commands_run_with_network_blocked(tmp_path, no_network):
     cfg = _cfg(tmp_path)
     # index -> query -> visualize -> lint, all with every outbound connection blocked
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
-    assert _run(["query", "CatalogService", "--config", str(cfg)]) == 0
-    assert _run(["graph", "--config", str(cfg), "--overview"]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "query", "CatalogService", "--config", str(cfg)]) == 0
+    assert _run(["kb", "graph", "--config", str(cfg), "--overview"]) == 0
     # lint runs offline too; it exits 1 here only because a JSON-fixture repo has no
     # matching git HEAD (a normal "stale" health finding), never a network error.
-    assert _run(["lint", "--config", str(cfg)]) in (0, 1)
+    assert _run(["kb", "lint", "--config", str(cfg)]) in (0, 1)
 
 
 def test_embed_offline_is_a_graceful_noop(tmp_path, no_network):
     # embeddings are opt-in/off by default; with no embedder the command degrades to a
     # clean no-op (exit 0) rather than reaching out — never a hard failure offline.
     cfg = _cfg(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
-    assert _run(["embed", "--config", str(cfg)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "embed", "--config", str(cfg)]) == 0
 
 
 def test_connect_degrades_not_fails_offline(tmp_path, no_network):
     # `connect` is the online exception, but with no connector configured + no network
     # it must degrade (skip/warn, exit 0), never crash — so running fully offline is safe.
     cfg = _cfg(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
-    assert _run(["connect", "--config", str(cfg)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "connect", "--config", str(cfg)]) == 0
 
 
 def test_dashboard_site_builds_offline(tmp_path, no_network):
@@ -72,5 +72,5 @@ def test_dashboard_site_builds_offline(tmp_path, no_network):
     # connections blocked — it reads only the committed fixture + local templates.
     cfg = _cfg(tmp_path)
     out = tmp_path / "dash"
-    assert _run(["dashboard", "--config", str(cfg), "--site", str(out), "--sample"]) == 0
+    assert _run(["kb", "dashboard", "--config", str(cfg), "--site", str(out), "--sample"]) == 0
     assert (out / "index.html").exists() and (out / "data.json").exists()

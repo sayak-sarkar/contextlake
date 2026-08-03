@@ -17,8 +17,9 @@ Run 'contextlake --help' to see all commands.
 ```
 
 The match runs against every command name **and its aliases** (`blast-radius` for `impact`, `who-knows`
-for `owners`), then shows the canonical, namespaced verb, matching what `--help` teaches -- never the
-deprecated flat spelling.
+for `owners`), then shows the canonical, namespaced verb, matching what `--help` teaches. This is also
+what answers the retired flat spellings: `contextlake fetch` no longer parses, so it fails here like any
+other unknown command and is pointed at `mirror fetch`.
 
 Flags never match on a partial name or abbreviation. `contextlake kb index --work-d /tmp` reports
 `unrecognized arguments: --work-d` rather than silently guessing you meant `--workspace`: a prefix is

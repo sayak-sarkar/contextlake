@@ -95,19 +95,11 @@ _COMMAND_CATEGORIES = (
 # behind a namespace.
 _NAMESPACE_OF = {name: ns for ns, _, names in _COMMAND_CATEGORIES if ns for name in names}
 
-# The old flat spellings (a bare `contextlake fetch`) still parse, hidden from --help,
-# and warn once on stderr. They go away in the NEXT major, not this one:
-# contextlake itself wrote the old forms into files it does not revisit (git
-# post-commit hooks, .mcp.json / AGENTS.md), and a hard cutover would break those
-# silently -- no error the user ever sees, just a graph that quietly stops
-# updating. `kb hook install` / `kb steer --force` rewrite them in place.
-_DEPRECATION_REMOVED_IN = "v3.0.0"
-
 
 def _qualified(name):
-    """``fetch`` -> ``mirror fetch``: how a command is typed now. Used wherever
-    an error message names a command, so nothing in the CLI ever teaches the
-    deprecated flat spelling back to the user."""
+    """``fetch`` -> ``mirror fetch``: the only spelling that parses. Used wherever
+    an error message names a command, so a user who types the old flat form is
+    always shown where the verb actually lives now."""
     ns = _NAMESPACE_OF.get(_ALIASES.get(name, name))
     return f"{ns} {name}" if ns else name
 
@@ -251,9 +243,12 @@ class _RootArgumentParser(argparse.ArgumentParser):
             lines.append("")
             lines.append(f"{bad!r} is a top-level command: run 'contextlake {bad}'.")
         elif suggestion:
-            # At the root, teach the namespaced spelling -- the flat one still
-            # parses but is deprecated, so suggesting it would teach the form
-            # we are retiring.
+            # At the root, teach the namespaced spelling. This is also what
+            # answers a bare `contextlake fetch` after the namespacing cutover:
+            # the old flat name is still in the suggestion pool (it names a real
+            # command, just one level down), so an exact match on it resolves to
+            # "Did you mean: mirror fetch?" through the ordinary unknown-command
+            # path -- no compatibility shim involved.
             shown = suggestion if self._namespace_name else _qualified(suggestion)
             lines.append("")
             lines.append(f"Did you mean: {shown}?")
@@ -281,19 +276,19 @@ class _RootArgumentParser(argparse.ArgumentParser):
         subparser's own error() too (not just the root's), since argparse
         defaults every add_parser() to this same class (see build_parser()).
 
-        Always built from the ROOT's choices (which still carry every leaf, via
-        the deprecated flat spelling), never from a namespace parser's own
-        subset -- otherwise whichever parser happened to error first would
-        poison the class-level cache with a partial registry. The two namespace
-        parsers themselves are skipped: they re-declare the whole pre-verb flag
-        surface, so leaving them in would report e.g. --local as "used by: init,
-        kb, mirror, source".
+        Always built from `_all_parsers` (every leaf across both tiers, set
+        identically on the root and on each namespace parser), never from a
+        parser's own `_command_choices` subset -- otherwise whichever parser
+        happened to error first would poison the class-level cache with a
+        partial registry. The two namespace parsers themselves are skipped:
+        they re-declare the whole pre-verb flag surface, so leaving them in
+        would report e.g. --local as "used by: init, kb, mirror, source".
         """
         cached = getattr(_RootArgumentParser, "_flags_by_command_cache", None)
         if cached is not None:
             return cached
         reg = {}
-        for name, subparser in getattr(self, "_root_choices", {}).items():
+        for name, subparser in getattr(self, "_all_parsers", {}).items():
             if name in _ALIASES or name in _NAMESPACES:
                 continue
             reg[name] = set(subparser._option_string_actions.keys()) - self._META_FLAGS
@@ -314,7 +309,7 @@ class _RootArgumentParser(argparse.ArgumentParser):
         if bad is None:
             return None
         argv = getattr(self, "_last_argv", None) or []
-        choices = getattr(self, "_root_choices", {})
+        choices = getattr(self, "_all_parsers", {})
         # Skip the namespace token: in `contextlake mirror fetch --local` the flag
         # belongs to (or doesn't belong to) `fetch`, not to `mirror`.
         command = next((t for t in argv if t in choices and t not in _NAMESPACES), None)
@@ -608,10 +603,20 @@ Issues: https://github.com/sayak-sarkar/contextlake/issues
 
     sub = parser.add_subparsers(dest="command", metavar="<command>",
                                 title="commands", required=False)
-    # sub.choices is mutated in place as add_parser() is called below, so this
-    # reference is fully populated by the time error() can ever run.
-    parser._command_choices = sub.choices
+    # Every leaf parser across BOTH tiers, keyed by verb (aliases included), plus
+    # the two namespace parsers -- the flat lookup table the help listing, the
+    # "did you mean" suggester and the cross-command flag registry all read. It
+    # is deliberately NOT the root's parse choices: since the namespacing cutover
+    # only `mirror`/`kb` and the five top-level commands parse at the root.
+    # Mutated in place below, so every reference to it is fully populated by the
+    # time a parser can error or print help.
+    all_parsers = {}
+    # `_command_choices` = what THIS level describes and suggests from (the root
+    # covers every verb, a namespace parser only its own); `_root_choices` = what
+    # actually parses at the root. At the root the two now differ.
+    parser._command_choices = all_parsers
     parser._root_choices = sub.choices
+    parser._all_parsers = all_parsers
 
     def namespace(name, description, epilog):
         """A command namespace (`contextlake mirror ...`): its own parser, its
@@ -630,7 +635,9 @@ Issues: https://github.com/sayak-sarkar/contextlake/issues
                                  title="commands", required=False)
         np._command_choices = nsub.choices
         np._root_choices = sub.choices
+        np._all_parsers = all_parsers
         np._namespace_name = name
+        all_parsers[name] = np
         return np, nsub
 
     mirror_ns, mirror_sub = namespace(
@@ -648,10 +655,9 @@ Issues: https://github.com/sayak-sarkar/contextlake/issues
 
     def command(name, help_, *, aliases=(), epilog=None):
         """Register a leaf under its namespace -- so its prog, usage line, and
-        --help all read `contextlake kb index` -- then alias the same parser
-        object back onto the root for the deprecated flat spelling. One parser,
-        two reachable paths: there is no second definition to drift, and the
-        deprecated form's --help teaches the namespaced usage line."""
+        --help all read `contextlake kb index` -- and record it in `all_parsers`
+        so the root's help listing and error messages can still describe a verb
+        they no longer parse."""
         ns = _NAMESPACE_OF.get(name)
         target = _namespace_subs[ns] if ns else sub
         p = target.add_parser(name, help=help_, description=help_, aliases=list(aliases),
@@ -659,13 +665,8 @@ Issues: https://github.com/sayak-sarkar/contextlake/issues
                               formatter_class=argparse.RawDescriptionHelpFormatter,
                               allow_abbrev=False)
         _add_global(p)
-        if ns:
-            # Deprecated flat spelling. Registered straight into the name map
-            # rather than via add_parser(help=...) so it never appears in any
-            # help listing -- discoverability moves to the namespace immediately,
-            # compatibility does not.
-            for spelling in (name, *aliases):
-                sub._name_parser_map[spelling] = p
+        for spelling in (name, *aliases):
+            all_parsers[spelling] = p
         return p
 
     # `--version` (a flag, exits during parsing) is the documented way to check
@@ -1175,8 +1176,8 @@ Examples:
     parser.set_defaults(**_DEFAULTS)
     # The full categorized map goes first (what's available), the hand-picked
     # "Get started" recipes and doc links (already in `epilog`) follow. Built
-    # from the ROOT's choices, which still carry every leaf via the deprecated
-    # flat spelling, so one lookup table serves both levels.
+    # from `all_parsers`, which carries every leaf across both tiers, so one
+    # lookup table serves both levels.
     parser.epilog = ("\n" + _categorized_commands_text(parser._command_choices)
                      + "\n" + parser.epilog)
     for ns_name, ns_parser in parser._namespace_parsers.items():
@@ -1338,30 +1339,11 @@ def _bootstrap(args, config, work_dir, gitlab_group):
     log(f"  Editors are wired (.mcp.json + steering). Start the knowledge server: {serve}")
 
 
-def _warn_deprecated_spelling(name, ns, *, quiet=False):
-    """One line, on STDERR. Never stdout: lint/query/owners/impact all have
-    --json and `graph --format json|graphml|cypher|dot|mermaid` writes
-    machine-readable stdout, so a notice there would corrupt every one of those
-    pipes. Silenced by -q and by CONTEXTLAKE_NO_DEPRECATION, so a team's CI logs
-    stay clean while they migrate."""
-    if quiet or os.environ.get("CONTEXTLAKE_NO_DEPRECATION"):
-        return
-    from . import style
-
-    print(style.warn(
-        f"'contextlake {name}' is deprecated; use 'contextlake {ns} {name}' "
-        f"(the flat form is removed in {_DEPRECATION_REMOVED_IN}). "
-        "Silence this with CONTEXTLAKE_NO_DEPRECATION=1.", stream=sys.stderr),
-        file=sys.stderr)
-
-
 def _resolve_command(args, parser):
     """Collapse the two-level command tree onto the single dispatch key the rest
     of the CLI already keys off (``args.command``), so _KB_COMMANDS, the mirror
-    elif chain, and kb.cmds.dispatch all keep working unchanged.
-
-    Both `contextlake mirror fetch` and the deprecated flat `contextlake mirror fetch`
-    come out of here as ``command == "fetch"``; only the flat form warns.
+    elif chain, and kb.cmds.dispatch all keep working unchanged: `contextlake
+    mirror fetch` comes out of here as ``command == "fetch"``.
     """
     if args.command in _NAMESPACES:
         if args.subcommand is None:
@@ -1371,10 +1353,6 @@ def _resolve_command(args, parser):
             parser._namespace_parsers[args.command].print_help()
             sys.exit(0)
         args.command = args.subcommand
-        return
-    ns = _NAMESPACE_OF.get(_ALIASES.get(args.command, args.command))
-    if ns:
-        _warn_deprecated_spelling(args.command, ns, quiet=args.quiet)
 
 
 def main(argv=None):
@@ -1400,8 +1378,7 @@ def main(argv=None):
 
     # --plain is a friendlier spelling of NO_COLOR=1 -- same code path, so
     # every glyph/colour decision downstream stays in one place (style.py).
-    # Set before _resolve_command so a namespace's help and the deprecation
-    # notice honour it too.
+    # Set before _resolve_command so a namespace's own help honours it too.
     if getattr(args, "plain", False):
         os.environ["NO_COLOR"] = "1"
 

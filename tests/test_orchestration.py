@@ -97,7 +97,7 @@ def test_main_dispatches_to_command(monkeypatch, command, target):
     called = {"n": 0}
     _patch_config(monkeypatch)
     monkeypatch.setattr(cli, target, lambda *a, **k: called.__setitem__("n", called["n"] + 1))
-    cli.main([command])
+    cli.main(["mirror", command])
     assert called["n"] == 1
 
 
@@ -108,7 +108,7 @@ def test_main_sync_runs_full_pipeline(monkeypatch, capsys):
         monkeypatch.setattr(cli, name, lambda *a, _n=name, **k: order.append(_n))
     monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
     _patch_config(monkeypatch)
-    cli.main(["sync"])
+    cli.main(["mirror", "sync"])
     assert order == [
         "fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
         "switch_repository_branches", "verify_structure",
@@ -131,7 +131,7 @@ def test_main_sync_headers_audit_stage_when_enabled(monkeypatch, capsys):
         monkeypatch.setattr(cli, name, lambda *a, **k: None)
     monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
     _patch_config(monkeypatch)
-    cli.main(["sync"])
+    cli.main(["mirror", "sync"])
     out = capsys.readouterr().out
     assert "▶ Audit repositories (health & age)" in out
 
@@ -143,7 +143,7 @@ def test_main_sync_skips_audit_header_with_no_audit(monkeypatch, capsys):
     run_audit_calls = []
     monkeypatch.setattr(cli, "run_audit", lambda *a, **k: run_audit_calls.append(1))
     _patch_config(monkeypatch)
-    cli.main(["sync", "--no-audit"])
+    cli.main(["mirror", "sync", "--no-audit"])
     out = capsys.readouterr().out
     assert "▶ Audit repositories (health & age)" not in out
     assert not run_audit_calls

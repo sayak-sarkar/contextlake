@@ -79,7 +79,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   embed + enrich + wiki + steer, and ships to users as a systemd `ExecStart`), `version` and
   `completion` belong to neither, and `doctor` is the diagnostic you reach for when nothing else
   works. The `who-knows` and `blast-radius` aliases survive under `kb`. Shell tab-completion needs
-  no re-registration — it reads the live parser.
+  no re-registration — it reads the live parser. **This is a hard cutover with no compatibility
+  window:** the old flat spellings do not parse at all. `contextlake fetch` fails as an ordinary
+  unknown command, and the existing suggester answers it with `Did you mean: mirror fetch?` — the
+  same treatment any other unknown command gets, not a special case.
+- **Two post-upgrade steps, both required.** contextlake wrote the old flat forms into files it does
+  not revisit, and there is no grace period covering them: re-run **`contextlake kb hook install`**
+  (or `--workspace DIR`) so already-installed post-commit hooks are rewritten — otherwise
+  re-indexing stops with no visible error — and **`contextlake kb steer --force`** so `.mcp.json`
+  and `AGENTS.md` point at `contextlake kb serve`. Both rewrite their managed block in place, and
+  `hook install` detects and replaces a block still carrying the old syntax.
 - Every command string contextlake generates now uses the namespaced form: the post-commit hook
   `kb hook install` writes (`contextlake kb index`), the `.mcp.json` / `.vscode/mcp.json` entry and
   the AGENTS.md / CLAUDE.md / windsurfrules / Kiro bodies `kb steer` writes (`contextlake kb serve`),
@@ -89,19 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   So did `init`'s next-step lines, the mirror commands' "narrow to just the failures" retry hints,
   and the "port already in use" / "`[llm]` isn't enabled" notices `kb dashboard --serve` prints.
 
-### Deprecated
-- **The old flat spellings (`contextlake fetch`, `contextlake index`, …) still work in this release
-  and are removed in v3.0.0.** They parse exactly as before but are hidden from `--help`, and print
-  one line naming the new form. The notice goes to **stderr only** — `lint`, `query`, `owners` and
-  `impact` all have `--json`, and `graph --format json|graphml|cypher|dot|mermaid` writes
-  machine-readable stdout, so a line there would corrupt those pipes. Silence it with `-q` or
-  `CONTEXTLAKE_NO_DEPRECATION=1` while a team migrates.
-- **Two post-upgrade steps most users will not think of.** A hard cutover was rejected precisely
-  because contextlake wrote the old forms into files it does not revisit, where breakage is silent:
-  re-run **`contextlake kb hook install`** (or `--workspace DIR`) so already-installed post-commit
-  hooks are rewritten — otherwise re-indexing stops with no visible error when the old form goes
-  away — and **`contextlake kb steer --force`** so `.mcp.json` and `AGENTS.md` point at
-  `contextlake kb serve`. Both rewrite their managed block in place.
+### Removed
+- **The old flat command spellings (`contextlake fetch`, `contextlake index`, …).** They are gone
+  outright, along with the deprecation notice and its `CONTEXTLAKE_NO_DEPRECATION` opt-out — the
+  namespaced form is the only one that parses. See the two required post-upgrade steps above.
 
 ### Fixed
 - **`contextlake kb serve --transport http` printed a bind URL that 404s.** It reported the bare

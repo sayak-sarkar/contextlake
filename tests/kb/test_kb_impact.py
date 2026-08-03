@@ -52,7 +52,7 @@ def test_cmd_impact_cli_lists_dependents(tmp_path, capsys):
     cfg = tmp_path / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path}"\n')
     with pytest.raises(SystemExit) as e:
-        main(["impact", "S", "--config", str(cfg), "--hops", "3"])
+        main(["kb", "impact", "S", "--config", str(cfg), "--hops", "3"])
     assert e.value.code == 0
     out = capsys.readouterr().out
     assert "Impact of changing" in out and "A" in out
@@ -60,7 +60,7 @@ def test_cmd_impact_cli_lists_dependents(tmp_path, capsys):
 
 def test_cmd_impact_usage_error_without_target():
     with pytest.raises(SystemExit) as e:
-        main(["impact"])
+        main(["kb", "impact"])
     assert e.value.code == 2
 
 
@@ -123,7 +123,7 @@ def test_cmd_impact_ambiguous_name_lists_repos(tmp_path, capsys):
     cfg = tmp_path / "kb.toml"
     cfg.write_text(f'[kb]\nstore_dir = "{tmp_path}"\n')
     with pytest.raises(SystemExit) as e:
-        main(["impact", "Node", "--config", str(cfg)])
+        main(["kb", "impact", "Node", "--config", str(cfg)])
     assert e.value.code == 1
     out = capsys.readouterr().out
     assert "ambiguous" in out and "--repo a" in out and "--repo b" in out

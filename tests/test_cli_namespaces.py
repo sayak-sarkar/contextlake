@@ -1,10 +1,11 @@
 """The two-level command tree (`contextlake mirror <verb>` / `contextlake kb
-<verb>`) and the deprecation shim that keeps the old flat spellings working.
+<verb>`), and the hard cutover that retired the old flat spellings.
 
-The shim exists because contextlake wrote the old forms into files it does not
-revisit -- the git post-commit hook it installs and the .mcp.json / AGENTS.md it
-generates -- where a hard cutover fails *silently*: no error the user ever sees,
-just a graph that quietly stops updating.
+There is no compatibility window: `contextlake fetch` does not parse. It fails
+as an ordinary unknown command, with the suggester pointing at `mirror fetch`.
+The files contextlake wrote the old forms into (the git post-commit hook, the
+.mcp.json / AGENTS.md steering block) are repaired by re-running
+`contextlake kb hook install` / `contextlake kb steer --force`.
 """
 
 import pytest
@@ -12,7 +13,6 @@ import pytest
 from contextlake.cli import (
     _ALIASES,
     _COMMAND_CATEGORIES,
-    _DEPRECATION_REMOVED_IN,
     _NAMESPACE_OF,
     _NAMESPACES,
     _resolve_command,
@@ -46,9 +46,8 @@ def test_every_moved_command_parses_under_its_namespace(name):
 
 @pytest.mark.parametrize("name", MOVED)
 def test_every_moved_command_reports_its_namespaced_prog(name):
-    """One parser object serves both spellings, and it is created under the
-    namespace -- so even the deprecated `contextlake fetch --help` prints the
-    namespaced usage line, teaching the form the user should switch to."""
+    """The leaf is created under its namespace, so its prog, usage line and
+    --help all read `contextlake kb index` -- one spelling, everywhere."""
     leaf = build_parser()._command_choices[name]
     assert leaf.prog == f"contextlake {_NAMESPACE_OF[name]} {name}"
 
@@ -61,7 +60,11 @@ def test_top_level_commands_did_not_move(name):
     assert _resolve([name]).command == name
 
 
-def test_namespaced_and_flat_spellings_resolve_to_the_same_parser_object():
+def test_the_roots_lookup_table_holds_the_namespaces_own_parser_object():
+    """The root no longer PARSES a moved verb, but it still has to describe one
+    (the categorized --help listing, the cross-command flag registry). It reads
+    the very same parser object the namespace parses with, so there is no second
+    definition to drift."""
     parser = build_parser()
     for name, ns in _NAMESPACE_OF.items():
         assert (parser._command_choices[name]
@@ -154,65 +157,56 @@ def test_namespace_help_drops_the_redundant_prefix_from_its_group_titles(capsys)
     assert "contextlake kb <command>)" not in out
 
 
-# --- the deprecation shim ---------------------------------------------------
+# --- the flat spellings are gone -------------------------------------------
 
 @pytest.mark.parametrize("name", MOVED)
-def test_flat_spelling_still_parses_and_warns(name, capsys):
-    args = _resolve([name, *REQUIRED_ARGS.get(name, ())])
-    assert args.command == name
-    err = capsys.readouterr().err
-    assert f"'contextlake {name}' is deprecated" in err
-    assert f"use 'contextlake {_NAMESPACE_OF[name]} {name}'" in err
-    assert _DEPRECATION_REMOVED_IN in err
+def test_no_moved_command_parses_at_the_root_any_more(name, capsys):
+    """The hard cutover: there is no compatibility shim, so every moved verb is
+    an unknown command at the root. This is the guard against one quietly
+    reappearing in the root's choices."""
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args([name, *REQUIRED_ARGS.get(name, ())])
+    assert exc.value.code == 2
+    assert f"Unknown command: {name!r}" in capsys.readouterr().err
 
 
-def test_the_warning_never_touches_stdout(capsys):
-    """lint/query/owners/impact all have --json and `graph --format
-    json|graphml|cypher|dot|mermaid` writes machine-readable stdout -- a notice
-    there would corrupt every one of those pipes."""
-    _resolve(["query", "CatalogService"])
+@pytest.mark.parametrize("alias", sorted(_ALIASES))
+def test_the_flat_aliases_are_gone_too(alias, capsys):
+    with pytest.raises(SystemExit):
+        build_parser().parse_args([alias, "Foo"])
+    assert f"Unknown command: {alias!r}" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("name", MOVED)
+def test_a_flat_spelling_is_answered_with_its_namespaced_form(name, capsys):
+    """Nothing special-cased: the old name still names a real command, so the
+    ordinary unknown-command suggester matches it exactly and _qualified()
+    renders where it lives now."""
+    with pytest.raises(SystemExit):
+        build_parser().parse_args([name])
+    assert f"Did you mean: {_NAMESPACE_OF[name]} {name}?" in capsys.readouterr().err
+
+
+def test_no_leftover_deprecation_notice_on_the_namespaced_form(capsys):
+    """Nothing warns any more -- and stdout in particular stays clean, which is
+    what lint/query/owners/impact `--json` and `graph --format
+    json|graphml|cypher|dot|mermaid` pipes depend on."""
+    _resolve(["kb", "query", "CatalogService"])
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert "deprecated" in captured.err
+    assert captured.err == ""
 
 
-@pytest.mark.parametrize("argv", [["mirror", "fetch"], ["kb", "index"], ["doctor"],
-                                  ["bootstrap"], ["init"], ["version"]])
-def test_no_warning_for_the_namespaced_or_top_level_forms(argv, capsys):
-    _resolve(argv)
-    assert "deprecated" not in capsys.readouterr().err
-
-
-def test_the_warning_names_the_alias_the_user_actually_typed(capsys):
-    _resolve(["blast-radius", "Foo"])
-    err = capsys.readouterr().err
-    assert "'contextlake blast-radius' is deprecated" in err
-    assert "use 'contextlake kb blast-radius'" in err
-
-
-def test_quiet_suppresses_the_warning(capsys):
-    _resolve(["-q", "status"])
-    assert "deprecated" not in capsys.readouterr().err
-
-
-def test_the_env_var_suppresses_the_warning(monkeypatch, capsys):
-    """So a team's CI logs stay clean while they migrate."""
-    monkeypatch.setenv("CONTEXTLAKE_NO_DEPRECATION", "1")
-    _resolve(["status"])
-    assert "deprecated" not in capsys.readouterr().err
-
-
-def test_the_warning_does_not_break_dispatch(monkeypatch, capsys):
-    """End to end through main(): the notice is additive -- the deprecated verb
-    still reaches its handler with the same arguments."""
+def test_a_namespaced_command_still_reaches_its_handler(monkeypatch, capsys):
+    """End to end through main(), the path the old flat form used to take."""
     from contextlake import cli
 
     seen = {}
     monkeypatch.setattr(cli, "show_status",
                         lambda work_dir, config, group: seen.update(ran=True))
-    cli.main(["status"])
+    cli.main(["mirror", "status"])
     assert seen == {"ran": True}
-    assert "deprecated" in capsys.readouterr().err
+    assert "deprecated" not in capsys.readouterr().err
 
 
 # --- error messages ---------------------------------------------------------

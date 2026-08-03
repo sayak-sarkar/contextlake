@@ -21,13 +21,13 @@ TRISTATE = [
 
 @pytest.mark.parametrize("flag", TRISTATE)
 def test_tristate_flags_default_to_none(flag):
-    args = build_parser().parse_args(["status"])
+    args = build_parser().parse_args(["mirror", "status"])
     assert getattr(args, flag) is None, f"{flag} should be None when not passed"
 
 
 def test_no_flags_preserve_config_values():
     """The core of bug #1: with no CLI flags, config-file values must survive."""
-    args = build_parser().parse_args(["sync"])
+    args = build_parser().parse_args(["mirror", "sync"])
     config = {
         "protect_working_branches": "true",
         "require_clean_workspace": "true",
@@ -39,28 +39,28 @@ def test_no_flags_preserve_config_values():
 
 
 def test_negated_flag_sets_false():
-    args = build_parser().parse_args(["sync", "--no-protect-working-branches"])
+    args = build_parser().parse_args(["mirror", "sync", "--no-protect-working-branches"])
     config = {"protect_working_branches": "true"}
     result = apply_cli_overrides(args, config)
     assert result["protect_working_branches"] == "false"
 
 
 def test_positive_flag_sets_true():
-    args = build_parser().parse_args(["update", "--auto-stash"])
+    args = build_parser().parse_args(["mirror", "update", "--auto-stash"])
     config = {"auto_stash": "false"}
     result = apply_cli_overrides(args, config)
     assert result["auto_stash"] == "true"
 
 
 def test_dry_run_flag():
-    args = build_parser().parse_args(["sync", "--dry-run"])
+    args = build_parser().parse_args(["mirror", "sync", "--dry-run"])
     config = apply_cli_overrides(args, {})
     assert config["dry_run"] == "true"
 
 
 def test_scalar_overrides_applied_and_stringified():
     args = build_parser().parse_args(
-        ["clone", "--max-retries", "5", "--safe-branches", "main,trunk"]
+        ["mirror", "clone", "--max-retries", "5", "--safe-branches", "main,trunk"]
     )
     config = apply_cli_overrides(args, {})
     assert config["max_retries"] == "5"
@@ -68,7 +68,7 @@ def test_scalar_overrides_applied_and_stringified():
 
 
 def test_scalar_not_passed_leaves_config_untouched():
-    args = build_parser().parse_args(["clone"])
+    args = build_parser().parse_args(["mirror", "clone"])
     config = {"max_retries": "9"}
     result = apply_cli_overrides(args, config)
     assert result["max_retries"] == "9"
@@ -76,10 +76,10 @@ def test_scalar_not_passed_leaves_config_untouched():
 
 @pytest.mark.parametrize("provider", ["anthropic", "cli"])
 @pytest.mark.parametrize("argv", [
-    ["wiki", "--llm", "{provider}"],
+    ["kb", "wiki", "--llm", "{provider}"],
     ["bootstrap", "--llm", "{provider}"],
-    # root hidden flag, pre-subparser style: `contextlake --llm X wiki`
-    ["--llm", "{provider}", "wiki"],
+    # root hidden flag, pre-subparser style: `contextlake --llm X kb wiki`
+    ["--llm", "{provider}", "kb", "wiki"],
 ])
 def test_llm_flag_accepts_anthropic_and_cli_providers(argv, provider):
     """--llm anthropic / --llm cli must not be rejected by argparse `choices`."""

@@ -62,7 +62,7 @@ def test_empty_for_non_repo(tmp_path):
 def test_cmd_owners_cli_lists_contributors(repo, capsys):
     _commit(repo, "a.py", 3, "Alice", "alice@x.io", "2026-05-01 10:00:00 +0000")
     with pytest.raises(SystemExit) as e:
-        main(["owners", str(repo)])
+        main(["kb", "owners", str(repo)])
     assert e.value.code == 0
     out = capsys.readouterr().out
     assert "Alice" in out and "Owners" in out
@@ -70,5 +70,5 @@ def test_cmd_owners_cli_lists_contributors(repo, capsys):
 
 def test_cmd_owners_usage_error_without_target():
     with pytest.raises(SystemExit) as e:
-        main(["owners"])
+        main(["kb", "owners"])
     assert e.value.code == 2

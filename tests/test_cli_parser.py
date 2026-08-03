@@ -19,12 +19,12 @@ def test_abbreviated_long_flags_are_rejected():
     new flag creates an ambiguity."""
     parser = build_parser()
     with pytest.raises(SystemExit):
-        parser.parse_args(["fetch", "--work-d", "/tmp/x"])
+        parser.parse_args(["mirror", "fetch", "--work-d", "/tmp/x"])
 
 
 def test_full_long_flags_still_work():
     parser = build_parser()
-    args = parser.parse_args(["fetch", "--work-dir", "/tmp/x"])
+    args = parser.parse_args(["mirror", "fetch", "--work-dir", "/tmp/x"])
     assert args.work_dir == "/tmp/x"
 
 
@@ -109,7 +109,7 @@ def test_unrecognized_flag_inside_a_subcommand_still_reports_correctly(capsys):
     path, argparse's own subparser error, not the root <command> positional)
     already worked before this fix -- must keep working identically."""
     with pytest.raises(SystemExit):
-        build_parser().parse_args(["index", "--work-d", "/tmp"])
+        build_parser().parse_args(["kb", "index", "--work-d", "/tmp"])
     err = capsys.readouterr().err
     assert "unrecognized arguments: --work-d" in err
 
@@ -129,7 +129,7 @@ def test_flag_valid_on_a_different_command_names_that_command(capsys):
 
 def test_flag_typo_on_the_invoked_command_suggests_the_real_flag(capsys):
     with pytest.raises(SystemExit) as exc:
-        build_parser().parse_args(["index", "--worksapce", "."])
+        build_parser().parse_args(["kb", "index", "--worksapce", "."])
     assert exc.value.code == 2
     err = capsys.readouterr().err
     assert "Unknown flag: '--worksapce'" in err
@@ -148,7 +148,7 @@ def test_flag_valid_elsewhere_check_runs_before_same_command_fuzzy_guess(capsys)
 
 def test_unrecognized_flag_with_no_close_match_anywhere_falls_back(capsys):
     with pytest.raises(SystemExit) as exc:
-        build_parser().parse_args(["index", "--totally-bogus-flag"])
+        build_parser().parse_args(["kb", "index", "--totally-bogus-flag"])
     assert exc.value.code == 2
     err = capsys.readouterr().err
     assert "unrecognized arguments: --totally-bogus-flag" in err
@@ -160,7 +160,7 @@ def test_value_taking_flag_followed_by_another_flag_names_the_real_problem(capsy
     argument" reads as "you forgot a value", when the real issue is --open
     landing where --workspace's value belongs."""
     with pytest.raises(SystemExit) as exc:
-        build_parser().parse_args(["dashboard", "--serve", "--workspace", "--open"])
+        build_parser().parse_args(["kb", "dashboard", "--serve", "--workspace", "--open"])
     assert exc.value.code == 2
     err = capsys.readouterr().err
     assert "'--workspace' needs a value" in err
@@ -173,7 +173,7 @@ def test_value_taking_flag_genuinely_missing_a_value_keeps_argparses_message(cap
     another flag) after it has no better explanation to offer -- must not
     regress to a worse or misleading message."""
     with pytest.raises(SystemExit):
-        build_parser().parse_args(["dashboard", "--workspace"])
+        build_parser().parse_args(["kb", "dashboard", "--workspace"])
     err = capsys.readouterr().err
     assert "expected one argument" in err
     assert "needs a value" not in err
@@ -185,7 +185,7 @@ def test_mirror_command_help_hides_resilience_flags_by_default(capsys):
     each already has a .contextlake.ini equivalent, so hiding them costs
     nothing. Default --help should show only the 4 common mirror flags."""
     with pytest.raises(SystemExit):
-        build_parser().parse_args(["fetch", "--help"])
+        build_parser().parse_args(["mirror", "fetch", "--help"])
     out = capsys.readouterr().out
     assert "--work-dir" in out
     assert "--dry-run" in out
@@ -195,7 +195,7 @@ def test_mirror_command_help_hides_resilience_flags_by_default(capsys):
 
 def test_mirror_command_help_advanced_reveals_resilience_flags(capsys):
     with pytest.raises(SystemExit):
-        build_parser().parse_args(["fetch", "--help-advanced"])
+        build_parser().parse_args(["mirror", "fetch", "--help-advanced"])
     out = capsys.readouterr().out
     assert "--max-retries" in out
     assert "max retry attempts for failed operations" in out
@@ -206,7 +206,7 @@ def test_resilience_flags_still_parse_even_though_hidden():
     """Hiding help text must not remove the flag itself -- these are still the
     documented way to override the sync INI from the command line."""
     args = build_parser().parse_args(
-        ["fetch", "--max-retries", "5", "--auto-stash"])
+        ["mirror", "fetch", "--max-retries", "5", "--auto-stash"])
     assert args.max_retries == 5
     assert args.auto_stash is True
 
@@ -215,7 +215,7 @@ def test_typo_suggester_still_matches_a_hidden_resilience_flag(capsys):
     """The flag-typo suggester reads _option_string_actions directly, not the
     visible help text, so a hidden flag must still get a real suggestion."""
     with pytest.raises(SystemExit) as exc:
-        build_parser().parse_args(["fetch", "--max-retrie", "5"])
+        build_parser().parse_args(["mirror", "fetch", "--max-retrie", "5"])
     err = capsys.readouterr().err
     assert exc.value.code == 2
     assert "Did you mean: --max-retries?" in err
@@ -227,7 +227,7 @@ def test_help_advanced_on_the_wrong_command_gives_argparses_plain_message(capsys
     message -- that path is for real domain flags, and a 9-command 'used by:
     audit, bootstrap, ...' list for a help flag is noise, not help."""
     with pytest.raises(SystemExit) as exc:
-        build_parser().parse_args(["index", "--help-advanced"])
+        build_parser().parse_args(["kb", "index", "--help-advanced"])
     err = capsys.readouterr().err
     assert exc.value.code == 2
     assert "isn't a flag on" not in err
@@ -242,9 +242,8 @@ def test_help_advanced_is_not_a_root_flag():
         build_parser().parse_args(["--help-advanced"])
 
 
-@pytest.mark.parametrize("name", [
-    "fetch", "clone", "update", "branches", "verify", "status", "audit",
-])
+@pytest.mark.parametrize("name", ["fetch", "clone", "update", "branches", "verify",
+                                  "status", "audit"])
 def test_every_mirror_command_has_an_examples_epilog(name):
     """Before this fix, only sync/bootstrap/init/etc. carried a worked example
     in their own --help; the plain mirror-core commands did not, an
@@ -343,8 +342,8 @@ def test_hook_action_accepts_any_value_at_parse_time_not_just_the_three_actions(
     "invalid choice: '==SUPPRESS=='" on those versions. cmd_hook() rejects an
     unknown action itself, with a better message than argparse's."""
     parser = build_parser()
-    assert parser.parse_args(["hook"]).action is None
-    assert parser.parse_args(["hook", "nonsense"]).action == "nonsense"
+    assert parser.parse_args(["kb", "hook"]).action is None
+    assert parser.parse_args(["kb", "hook", "nonsense"]).action == "nonsense"
 
 
 def test_completion_is_not_a_kb_command():
@@ -365,7 +364,7 @@ def test_auto_register_completion_runs_once_and_does_not_swallow_the_real_exit_c
     calls = []
     monkeypatch.setattr(init_cmd, "maybe_auto_register_completion", lambda **kw: calls.append(1))
     with pytest.raises(SystemExit) as exc:
-        cli.main(["serve", "--config", "/definitely/does/not/exist.toml"])
+        cli.main(["kb", "serve", "--config", "/definitely/does/not/exist.toml"])
     assert calls == [1]
     assert exc.value.code == 1
 
@@ -387,14 +386,14 @@ def test_auto_register_completion_is_skipped_for_init_and_completion(monkeypatch
 
 
 def test_n_is_a_short_form_of_dry_run():
-    args = build_parser().parse_args(["sync", "-n"])
+    args = build_parser().parse_args(["mirror", "sync", "-n"])
     assert args.dry_run is True
 
 
 def test_plain_flag_is_available_globally():
-    root_args = build_parser().parse_args(["--plain", "status"])
+    root_args = build_parser().parse_args(["--plain", "mirror", "status"])
     assert root_args.plain is True
-    sub_args = build_parser().parse_args(["status", "--plain"])
+    sub_args = build_parser().parse_args(["mirror", "status", "--plain"])
     assert sub_args.plain is True
 
 

@@ -274,7 +274,7 @@ def test_graph_c4_dot_writes_cluster_subgraph(tmp_path):
     cfg = _seed_and_configure(tmp_path)
     out = tmp_path / "c4.dot"
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--group-depth", "2", "--format", "dot",
+        main(["kb", "graph", "--c4", "--group-depth", "2", "--format", "dot",
               "--output", str(out), "--config", str(cfg)])
     assert e.value.code == 0
     text = out.read_text(encoding="utf-8")
@@ -289,7 +289,7 @@ def test_graph_c4_repos_filter_scopes_namespaces(tmp_path):
     cfg = _seed_and_configure(tmp_path)
     out = tmp_path / "c4-scoped.dot"
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--group-depth", "2", "--repos", "acme/pay*",
+        main(["kb", "graph", "--c4", "--group-depth", "2", "--repos", "acme/pay*",
               "--format", "dot", "--output", str(out), "--config", str(cfg)])
     assert e.value.code == 0
     text = out.read_text(encoding="utf-8")
@@ -307,7 +307,7 @@ def test_graph_c4_default_html_has_vendored_cytoscape_and_parent_nodes(tmp_path)
     cfg = _seed_and_configure(tmp_path)
     out = tmp_path / "c4.html"
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--group-depth", "2",
+        main(["kb", "graph", "--c4", "--group-depth", "2",
               "--output", str(out), "--config", str(cfg)])
     assert e.value.code == 0
     html = out.read_text(encoding="utf-8")
@@ -352,7 +352,7 @@ def test_graph_c4_default_html_has_vendored_cytoscape_and_parent_nodes(tmp_path)
 def test_graph_c4_default_output_filename_is_c4_html(tmp_path):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--group-depth", "2", "--config", str(cfg)])
+        main(["kb", "graph", "--c4", "--group-depth", "2", "--config", str(cfg)])
     assert e.value.code == 0
     default_path = tmp_path / "kb" / "graphs" / "c4.html"
     assert default_path.exists()
@@ -363,7 +363,7 @@ def test_graph_c4_mermaid_rejected(tmp_path, capsys):
     diagrams_before = set((tmp_path / "kb" / "graphs").glob("*")) \
         if (tmp_path / "kb" / "graphs").exists() else set()
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--format", "mermaid", "--config", str(cfg)])
+        main(["kb", "graph", "--c4", "--format", "mermaid", "--config", str(cfg)])
     assert e.value.code != 0
     diagrams_after = set((tmp_path / "kb" / "graphs").glob("*")) \
         if (tmp_path / "kb" / "graphs").exists() else set()
@@ -375,7 +375,7 @@ def test_graph_c4_mermaid_rejected(tmp_path, capsys):
 def test_graph_c4_erdiagram_rejected(tmp_path, capsys):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--format", "erdiagram", "--config", str(cfg)])
+        main(["kb", "graph", "--c4", "--format", "erdiagram", "--config", str(cfg)])
     assert e.value.code != 0
     err = capsys.readouterr().err
     assert "not supported for --c4" in err
@@ -384,7 +384,7 @@ def test_graph_c4_erdiagram_rejected(tmp_path, capsys):
 def test_graph_c4_deployment_rejected(tmp_path, capsys):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--format", "deploymentdiagram", "--config", str(cfg)])
+        main(["kb", "graph", "--c4", "--format", "deploymentdiagram", "--config", str(cfg)])
     assert e.value.code != 0
     err = capsys.readouterr().err
     assert "not supported for --c4" in err
@@ -393,14 +393,14 @@ def test_graph_c4_deployment_rejected(tmp_path, capsys):
 def test_graph_c4_classdiagram_rejected(tmp_path):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--format", "classdiagram", "--config", str(cfg)])
+        main(["kb", "graph", "--c4", "--format", "classdiagram", "--config", str(cfg)])
     assert e.value.code != 0
 
 
 def test_graph_c4_json_format(tmp_path, capsys):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--group-depth", "2", "--format", "json",
+        main(["kb", "graph", "--c4", "--group-depth", "2", "--format", "json",
               "--config", str(cfg)])
     assert e.value.code == 0
     import json
@@ -412,7 +412,7 @@ def test_graph_c4_json_format(tmp_path, capsys):
 def test_graph_c1_without_c4_is_rejected(tmp_path, capsys):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c1", "--config", str(cfg)])
+        main(["kb", "graph", "--c1", "--config", str(cfg)])
     assert e.value.code != 0
     err = capsys.readouterr().err
     assert "--c1" in err and "--c4" in err
@@ -421,7 +421,7 @@ def test_graph_c1_without_c4_is_rejected(tmp_path, capsys):
 def test_graph_c4_c1_json_includes_the_system(tmp_path, capsys):
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--c1", "--group-depth", "2", "--format", "json",
+        main(["kb", "graph", "--c4", "--c1", "--group-depth", "2", "--format", "json",
               "--config", str(cfg)])
     assert e.value.code == 0
     import json
@@ -435,7 +435,7 @@ def test_graph_c4_without_c1_json_has_no_system(tmp_path, capsys):
     --c4 output when --c1 isn't passed."""
     cfg = _seed_and_configure(tmp_path)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--c4", "--group-depth", "2", "--format", "json",
+        main(["kb", "graph", "--c4", "--group-depth", "2", "--format", "json",
               "--config", str(cfg)])
     assert e.value.code == 0
     import json

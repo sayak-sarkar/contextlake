@@ -23,14 +23,14 @@ def _captured_log(monkeypatch):
 
 def test_allow_mutations_refused_with_sample(monkeypatch):
     lines = _captured_log(monkeypatch)
-    args = _args(["dashboard", "--serve", "--sample", "--allow-mutations"])
+    args = _args(["kb", "dashboard", "--serve", "--sample", "--allow-mutations"])
     assert cmd_dashboard(args) == 1
     assert any("--sample" in line for line in lines)
 
 
 def test_allow_mutations_refused_with_non_loopback_host(monkeypatch):
     lines = _captured_log(monkeypatch)
-    args = _args(["dashboard", "--serve", "--allow-mutations", "--host", "0.0.0.0"])
+    args = _args(["kb", "dashboard", "--serve", "--allow-mutations", "--host", "0.0.0.0"])
     assert cmd_dashboard(args) == 1
     assert any("loopback" in line for line in lines)
 
@@ -46,6 +46,6 @@ def test_allow_mutations_accepted_with_loopback_host(tmp_path, monkeypatch):
         return 0
 
     monkeypatch.setattr("contextlake.kb.dashboard.server.serve_dashboard", fake_serve)
-    args = _args(["dashboard", "--serve", "--allow-mutations", "--host", "127.0.0.1"])
+    args = _args(["kb", "dashboard", "--serve", "--allow-mutations", "--host", "127.0.0.1"])
     assert cmd_dashboard(args) == 0
     assert called["allow_mutations"] is True

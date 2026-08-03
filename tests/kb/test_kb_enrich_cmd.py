@@ -6,7 +6,7 @@ from argparse import Namespace
 from datetime import date
 
 import contextlake.kb.connectors.enrich as enrich
-from contextlake.cli import build_parser
+from contextlake.cli import _resolve_command, build_parser
 from contextlake.kb.commands import cmd_enrich
 from contextlake.kb.connectors.enrich import enrich_partition
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
@@ -105,7 +105,9 @@ def test_enrich_no_term_searchable_sources_is_a_noop(tmp_path, monkeypatch):
 
 
 def test_parser_registers_enrich_positional_repo():
-    args = build_parser().parse_args(["enrich", "x/y"])
+    parser = build_parser()
+    args = parser.parse_args(["kb", "enrich", "x/y"])
+    _resolve_command(args, parser)
     assert args.command == "enrich"
     assert args.args == ["x/y"]
 

@@ -50,9 +50,11 @@ def _toml(p):
 # --- CLI wiring ----------------------------------------------------------------
 
 def test_cli_parses_source_add_type_name():
-    from contextlake.cli import build_parser
+    from contextlake.cli import _resolve_command, build_parser
 
-    args = build_parser().parse_args(["source", "add", "jira", "--type", "atlassian"])
+    parser = build_parser()
+    args = parser.parse_args(["kb", "source", "add", "jira", "--type", "atlassian"])
+    _resolve_command(args, parser)
     assert args.command == "source"
     assert args.action == "add"
     assert args.name == "jira"
@@ -65,7 +67,7 @@ def test_cli_dispatches_source_list_through_kb_commands(tmp_path, gls_logs):
 
     cfg = tmp_path / "kb.toml"
     cfg.write_text("")  # an explicit --config path must exist (kb/config.py:ConfigError)
-    args = build_parser().parse_args(["source", "list", "--config", str(cfg)])
+    args = build_parser().parse_args(["kb", "source", "list", "--config", str(cfg)])
     for k, v in _DEFAULTS.items():
         if not hasattr(args, k):
             setattr(args, k, v)

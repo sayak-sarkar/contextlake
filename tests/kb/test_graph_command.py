@@ -899,33 +899,33 @@ def _run(argv):
 
 def test_cli_graph_formats_and_seeds(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
     # --name seed -> mermaid to stdout (charge is reachable from CatalogService)
-    assert _run(["graph", "--config", str(cfg), "--name", "CatalogService", "--kind", "class",
+    assert _run(["kb", "graph", "--config", str(cfg), "--name", "CatalogService", "--kind", "class",
                  "--hops", "1", "--format", "mermaid"]) == 0
     out = capsys.readouterr().out
     assert out.startswith("graph LR") and "CatalogService" in out
 
     # --node seed -> json to a file
     target = tmp_path / "g.json"
-    assert _run(["graph", "--config", str(cfg), "--node", "demo_app_catalogservice",
+    assert _run(["kb", "graph", "--config", str(cfg), "--node", "demo_app_catalogservice",
                  "--format", "json", "--output", str(target)]) == 0
     d = json.loads(target.read_text())
     assert any(n["id"] == "demo_app_catalogservice" for n in d["nodes"])
 
     # default html lands in --output
     html = tmp_path / "g.html"
-    assert _run(["graph", "--config", str(cfg), "--search", "Order",
+    assert _run(["kb", "graph", "--config", str(cfg), "--search", "Order",
                  "--output", str(html)]) == 0
     assert html.exists() and _CDN_URL not in html.read_text()
 
 
 def test_cli_graph_requires_a_seed(tmp_path):
     cfg = _kb_config(tmp_path)
-    assert _run(["index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
-    assert _run(["graph", "--config", str(cfg)]) == 2  # no seed -> usage error
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    assert _run(["kb", "graph", "--config", str(cfg)]) == 2  # no seed -> usage error
 
 
 def test_cli_graph_overview_on_empty_store_warns_with_index_hint(tmp_path, capsys):
@@ -935,7 +935,7 @@ def test_cli_graph_overview_on_empty_store_warns_with_index_hint(tmp_path, capsy
     # capsys (not gls_logs) matches this file's convention for commands invoked
     # through main(), which rebinds the console handler via setup_logging().
     cfg = _kb_config(tmp_path)
-    assert _run(["graph", "--config", str(cfg), "--overview"]) == 0
+    assert _run(["kb", "graph", "--config", str(cfg), "--overview"]) == 0
 
     text = capsys.readouterr().out
     out = tmp_path / "kb" / "graphs" / "overview.html"
@@ -1290,7 +1290,7 @@ def test_cli_json_format_is_not_edge_capped_by_default(tmp_path, capsys):
     # user explicitly passes --max-edges.
     cfg = _write_dense_repo_config(tmp_path, leaves=20)  # 20 + 20*19 = 400 edges
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--repo", "r", "--format", "json", "--config", str(cfg)])
+        main(["kb", "graph", "--repo", "r", "--format", "json", "--config", str(cfg)])
     assert e.value.code == 0
     parsed = json.loads(capsys.readouterr().out)
     assert len(parsed["edges"]) == 400  # uncapped
@@ -1299,7 +1299,7 @@ def test_cli_json_format_is_not_edge_capped_by_default(tmp_path, capsys):
 def test_cli_mermaid_format_is_edge_capped_by_default(tmp_path, capsys):
     cfg = _write_dense_repo_config(tmp_path, leaves=20)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--repo", "r", "--format", "mermaid", "--config", str(cfg)])
+        main(["kb", "graph", "--repo", "r", "--format", "mermaid", "--config", str(cfg)])
     assert e.value.code == 0
     out = capsys.readouterr().out
     assert out.count("-->") == 400  # the default max_edges cap for Mermaid formats
@@ -1310,7 +1310,7 @@ def test_cli_explicit_max_edges_overrides_default_for_any_format(tmp_path, capsy
     # to capping (json/html/dot) -- the user asked for it, so apply it.
     cfg = _write_dense_repo_config(tmp_path, leaves=20)
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--repo", "r", "--format", "json", "--max-edges", "10",
+        main(["kb", "graph", "--repo", "r", "--format", "json", "--max-edges", "10",
               "--config", str(cfg)])
     assert e.value.code == 0
     parsed = json.loads(capsys.readouterr().out)
@@ -1330,7 +1330,7 @@ def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, ca
     cfg.write_text(f'[kb]\nstore_dir = "{kb.as_posix()}"\n')
 
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--repo", "r", "--format", "json", "--max-nodes", "1",
+        main(["kb", "graph", "--repo", "r", "--format", "json", "--max-nodes", "1",
               "--config", str(cfg)])
     assert e.value.code == 0
     out = capsys.readouterr().out
@@ -1351,7 +1351,7 @@ def test_config_warning_does_not_corrupt_json_stdout(tmp_path, capsys):
     cfg.write_text(f'[kb]\nstore_dir = "{kb.as_posix()}"\nbadkey = 1\n')  # triggers a warning
 
     with pytest.raises(SystemExit) as e:
-        main(["graph", "--repo", "r", "--format", "json", "--config", str(cfg)])
+        main(["kb", "graph", "--repo", "r", "--format", "json", "--config", str(cfg)])
     assert e.value.code == 0
     out = capsys.readouterr().out
     parsed = json.loads(out)  # must parse: no warning prepended
