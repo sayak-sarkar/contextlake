@@ -338,8 +338,8 @@ def test_read_only_commands_do_not_import_tomlkit_eagerly(tmp_path):
     of source_cmd/config_edit are lazy. Run in a subprocess: other tests in
     this session may already have imported tomlkit, which would make an
     in-process sys.modules check unreliable. The subprocess cwd is pinned to
-    tmp_path (not the repo root), since a repo-root contextlake.py shadows
-    the installed package for plain `python` invocations."""
+    tmp_path (not the repo root) on general principle: this test isn't about
+    repo-root state, so it shouldn't run from a directory that has any."""
     import subprocess
     import sys
 

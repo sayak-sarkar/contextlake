@@ -52,9 +52,9 @@ pytest --cov=contextlake --cov-report=term-missing   # with coverage
 pytest tests/test_clone.py -k retries -q             # a single test
 ```
 
-Run the suite as `pytest`, not `python -m pytest`: the latter puts the repo root
-first on `sys.path`, where the bare `contextlake.py` shim shadows the installed
-package and every import fails.
+`pytest` and `python -m pytest` both work from the repo root. The bare-script
+launcher lives at `run-contextlake.py`, a name deliberately chosen so it can
+never collide with the installed `contextlake` package on `sys.path`.
 
 CI runs exactly `ruff check` + `pytest` across Python 3.9–3.13, so if those two
 pass locally you're in good shape.

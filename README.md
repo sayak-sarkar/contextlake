@@ -141,7 +141,7 @@ rm -f  ~/.contextlake.ini         # mirror config (optional)
 `BITBUCKET_TOKEN` / `GITEA_TOKEN`); on GitLab an authenticated
 [`glab`](https://gitlab.com/gitlab-org/cli) works instead. The knowledge layer needs
 neither. Once installed, `contextlake`, `python -m contextlake`, and
-`python3 contextlake.py` are equivalent.
+`python3 run-contextlake.py` are equivalent.
 
 ## Quickstart: one repo, no setup
 

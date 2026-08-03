@@ -153,7 +153,7 @@ rm -f  ~/.contextlake.ini         # mirror config (optional)
 `BITBUCKET_TOKEN` / `GITEA_TOKEN`); on GitLab an authenticated
 [`glab`](https://gitlab.com/gitlab-org/cli) works instead. The knowledge layer needs
 neither. Once installed, `contextlake`, `python -m contextlake`, and
-`python3 contextlake.py` are equivalent.
+`python3 run-contextlake.py` are equivalent.
 
 ## Quickstart: one repo, no setup
 
@@ -358,7 +358,7 @@ extra downloads or warnings. Plain **`[kb]`** is the graph + full-text search on
 `[kb-local]` for the embedder and `[kb-vec]` for the ANN backend if you prefer to pick.
 
 This gives you the `contextlake` command. (`python -m contextlake` and
-`python3 contextlake.py` work too.)
+`python3 run-contextlake.py` work too.)
 
 ### Update to a newer version
 

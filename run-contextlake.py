@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bare-script launcher for contextlake.
 
-Lets the tool run without installation via ``python3 contextlake.py <command>``.
+Lets the tool run without installation via ``python3 run-contextlake.py <command>``.
 It puts the ``src/`` layout on ``sys.path`` (ahead of the cwd) so that
 ``import contextlake`` resolves to the package under ``src/contextlake`` rather
 than to this launcher file, then delegates to the package CLI.
@@ -20,7 +20,7 @@ def _maybe_reexec_into_venv() -> None:
     """Re-exec under the project ``.venv`` when this interpreter can't run the
     knowledge layer.
 
-    Running ``./contextlake.py`` uses whatever ``python3`` is on the shebang —
+    Running ``./run-contextlake.py`` uses whatever ``python3`` is on the shebang —
     often a bare system Python without the ``[kb]`` extra, so ``index`` / ``graph``
     / ``wiki`` (and the post-sync steps of ``bootstrap``) silently no-op. If the
     current interpreter lacks the extra's marker dependency (``pydantic``) but a

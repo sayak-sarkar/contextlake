@@ -24,6 +24,13 @@ jobs:
           pip install -e ".[dev]"
       - name: Lint (ruff)
         run: ruff check src tests
+      # Guards against the repo-root bare-script launcher (run-contextlake.py)
+      # regaining the package's own name: `python -m pytest`, unlike the
+      # `pytest` console script, puts the repo root first on sys.path, so a
+      # file there named contextlake.py shadows the installed package and
+      # every import fails before a single test collects.
+      - name: Verify python -m pytest collects (no root-shim shadowing)
+        run: python -m pytest --collect-only -q --ignore=tests/kb
       - name: Test core (no knowledge layer)
         run: pytest --ignore=tests/kb --cov=contextlake --cov-report=term-missing
 

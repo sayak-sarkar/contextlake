@@ -42,7 +42,7 @@ extra downloads or warnings. Plain **`[kb]`** is the graph + full-text search on
 `[kb-local]` for the embedder and `[kb-vec]` for the ANN backend if you prefer to pick.
 
 This gives you the `contextlake` command. (`python -m contextlake` and
-`python3 contextlake.py` work too.)
+`python3 run-contextlake.py` work too.)
 
 ### Update to a newer version
 

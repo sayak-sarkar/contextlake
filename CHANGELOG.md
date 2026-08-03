@@ -85,6 +85,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mutation port) were fixed at the same time.
 
 ### Changed
+- **The no-install launcher is renamed `contextlake.py` -> `run-contextlake.py`.** At the repo root
+  it shadowed the installed package: `python -m ...` puts the working directory first on
+  `sys.path`, so `python -m pytest` from a clone failed with `No module named 'contextlake.cli';
+  'contextlake' is not a package` before collecting a single test — the first command many
+  contributors type. `CONTRIBUTING.md` had documented the workaround; it now documents reality
+  instead, and CI runs `python -m pytest --collect-only` so the trap cannot come back. No
+  compatibility shim is left behind, because a file at the old path would recreate the exact
+  problem. The installed `contextlake` command and the standalone binaries are unaffected — both
+  resolve through the package entry point, never the root file.
 - All the local HTTP servers now share one base (`kb/http_base.py`) carrying the Host check, the
   JSON error envelope and the exception guard. The three servers had drifted apart, which is the
   structural reason the `GET`/`POST` gap above existed at all.
