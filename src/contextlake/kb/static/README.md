@@ -45,10 +45,12 @@ they were vendored:
 `app.js` feature-detects both: if either script did not load, the preview option
 removes itself from the dropdown rather than offering a mode that would do nothing.
 
-> **Known gap:** `kb/visualize/serve.py`'s lazy `--serve` site serves a hard-coded
-> asset list (`app.css` / `app.js` / `cytoscape.min.js`) and does not yet serve these
-> two files, so the preview option is absent there. `--format html` (inlined) and
-> `--site` (sibling files) both have it.
+> **Known gap — one surface only:** `serve.py::build_site_server` (reached by
+> `kb graph --serve --overview`) serves a hard-coded asset list
+> (`app.css` / `app.js` / `cytoscape.min.js`) and does not yet serve these two files,
+> so the preview option is absent there. Every other surface has it: `--format html`
+> and plain `kb graph --serve` (`build_graph_server`) both inline the libs, and
+> `--site` writes them as siblings.
 
 To update: download the pinned version from jsDelivr, replace the file, then bump the
 version **here** *and* the matching `_CDN_URL` / `_EXT_CDN_URLS` constants in

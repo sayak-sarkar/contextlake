@@ -107,10 +107,11 @@
   .ck .ln{width:18px;height:0;border-top:2px solid var(--muted);flex:none}
   .ck .ln.dashed{border-top-style:dashed}
   .ck .ln.dotted{border-top-style:dotted}
-  /* overflow:hidden so the HTML-card layer (dagre preview) can't push the whole page
-     into a scrollbar; the canvas/minimap/empty-state children never overflow anyway */
-  #cy{grid-area:cy;min-width:0;min-height:0;position:relative;overflow:hidden;
-    background:var(--cy-bg)}
+  #cy{grid-area:cy;min-width:0;min-height:0;position:relative;background:var(--cy-bg)}
+  /* Cards live in a layer that extends past the container, which would otherwise push
+     the whole PAGE into scrollbars. Scoped to the preview (the flag is set by
+     enterDomMode/exitDomMode) so the default rendering is untouched by this rule. */
+  body[data-render="cards"] #cy{overflow:hidden}
   #info{grid-area:inspect;overflow-y:auto;background:var(--surface);
     border-left:1px solid var(--line);padding:14px;font-size:12px;display:none}
   body[data-inspect="open"] #info{display:block}

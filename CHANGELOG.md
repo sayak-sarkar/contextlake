@@ -17,7 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vendored `cytoscape-dagre` 4.0.0 and `cytoscape-dom-node` 2.1.0 (both MIT, ~46 KB + ~11 KB)
   alongside `cytoscape.min.js`, so the preview above works offline like the rest of the page.
   `cytoscape-dagre` bundles dagre itself, so there is no separate dagre file. `app.js`
-  feature-detects both and drops the preview option if they did not load.
+  feature-detects both and drops the preview option if they did not load. They load on every
+  graph page (a ~57 KB inline cost, or one shared sibling file each in a `--site` build);
+  neither does anything until the preview layout is selected.
 - `contextlake kb serve` now accepts `--transport sse`, the legacy HTTP+SSE transport, alongside
   the existing `stdio`/`http` (Streamable HTTP) options -- for MCP clients that only support SSE
   and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serve.md#transports).

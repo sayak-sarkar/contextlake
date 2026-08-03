@@ -334,6 +334,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     // in CSS), so every gesture keeps falling through to cytoscape as it does today.
     domRenderer = cy.domNode({ domContainer: domBox, interactiveSelector: false });
     nodes.addClass("cl-dom");
+    document.body.dataset.render = "cards";   // scopes #cy{overflow:hidden} to the preview
     domOn = true;
     syncDomVisibility(); refreshDomFx();
     noteMode("preview: HTML cards");
@@ -351,6 +352,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     });
     if(domBox && domBox.parentNode){ domBox.parentNode.removeChild(domBox); }
     domBox = null;
+    delete document.body.dataset.render;
     noteMode("");
   }
   function applyRenderMode(name){
