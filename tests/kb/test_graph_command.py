@@ -430,6 +430,32 @@ def test_graphml_export_is_well_formed_xml_with_attributes(store):
     assert "n_kind" in kinds and "n_name" in kinds
 
 
+def test_graphml_export_of_a_repo_carries_its_linked_external_nodes(store):
+    """The point of widening repo_subgraph: an export a person hands to Gephi or
+    Neo4j should carry the repo's linked MRs/designs/threads, not code alone.
+    repo_subgraph is tested directly elsewhere; this pins the whole
+    repo_subgraph -> to_payload -> renderer chain, where a repo-scoped filter
+    anywhere downstream would silently drop the external node again."""
+    store.upsert_nodes("team/api", [
+        Node(id="team_api_pay_py", repo="team/api", kind="file", name="pay.py"),
+    ])
+    mr = Node(id="gitlab_mr_team_api_42", repo="(external)", kind="mr", name="MR #42")
+    store.upsert_nodes("(external)", [mr])
+    store.upsert_edges("team/api", [Edge(src="team_api_pay_py", dst=mr.id, relation="touches",
+                                         confidence=Confidence.EXTRACTED,
+                                         provenance=Provenance(source_file="gitlab",
+                                                               verified_at=date(2026, 8, 3)))])
+    payload = viz.to_payload(*viz.repo_subgraph(store, "team/api"))
+    # GraphML renumbers ids to n0/n1, so the MR shows up by its kind/name data keys
+    graphml = viz.to_graphml(payload)
+    assert '<data key="n_kind">mr</data>' in graphml
+    assert '<data key="n_name">MR #42</data>' in graphml
+    assert graphml.count("<node id=") == 2  # the file AND the MR, not code alone
+    cypher = viz.to_cypher(payload)
+    assert mr.id in cypher  # Cypher keeps the real id as a property
+    assert "`touches`" in cypher
+
+
 def test_graphml_escapes_xml_special_characters_in_attribute_values():
     payload = viz.to_payload(
         [_node("n1", name='A<B>&"weird"')], [],
