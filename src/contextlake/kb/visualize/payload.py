@@ -165,7 +165,32 @@ def extract_subgraph(store: Store, seed_ids, *, hops: int = 2, max_nodes: int = 
 def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
                   max_edges: int | None = None, path_prefix: str | None = None,
                   meta: dict | None = None) -> tuple[list[Node], list[Edge]]:
-    """One repo's internal graph: its nodes (capped) and the edges among them.
+    """One repo's internal graph: its nodes (capped), plus any node exactly one
+    hop out via an outbound edge, and the edges among/to them.
+
+    The one-hop widening is what lets a linked GitLab MR, Figma design, Slack
+    channel, or wiki page section (all now reachable via a real outbound edge
+    from a code node -- see ``link_to_code``/``link_documents_to_symbols``)
+    actually show up in an export instead of being silently dropped by the
+    old "both endpoints must be in-repo" filter. It is deliberately NOT
+    restricted to sentinel/partition repos (``(external)``, ``@wiki:...``) --
+    a node in any OTHER repo qualifies too, the same way a genuinely cross-repo
+    edge would. The one exception: a neighbor that belongs to THIS SAME repo
+    (``node.repo == repo_id``) never counts as "one hop external" -- it was
+    either already selected above, or deliberately excluded by ``max_nodes``
+    (truncated a dense repo) or ``path_prefix`` (scoped to one module); letting
+    it back in one hop later would silently defeat both caps' whole purpose.
+    This does not recurse: a one-hop node's own neighbors are never walked, so
+    the widening can't cascade into a second hop.
+
+    **Truncation caps:** one-hop external nodes are exempt from ``max_nodes``
+    (they're additive, bounded by however many one-hop neighbors exist -- the
+    node cap governs the size of the *repo-internal* selection query, which
+    runs before any of this). Their edges DO count toward ``max_edges``,
+    though: once an edge reaches the page, a Mermaid renderer can't tell an
+    internal edge from a one-hop external one, so exempting them would
+    reopen the exact ``maxEdges`` render-failure ``max_edges`` exists to
+    prevent.
 
     ``max_edges`` is opt-in (``None`` = no additional edge cap beyond whatever
     ``max_nodes`` induces) -- **not on by default**, because not every consumer
@@ -218,19 +243,44 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     edges: list[Edge] = []
     edge_keys: set[tuple] = set()
     edge_truncated = False
+    external_ids: set[str] = set()
+    ext_cache: dict[str, Node | None] = {}  # avoids a get_node() per repeated dst
     for nid in ids:
         if max_edges is not None and len(edges) >= max_edges:
             edge_truncated = True
             break
         for e in store.neighbors(nid, direction="out"):
-            if e.dst in seen:
-                k = (e.src, e.dst, e.relation)
-                if k not in edge_keys:
-                    edge_keys.add(k)
-                    edges.append(e)
-                    if max_edges is not None and len(edges) >= max_edges:
-                        edge_truncated = True
-                        break
+            k = (e.src, e.dst, e.relation)
+            if k in edge_keys:
+                continue
+            is_external = False
+            if e.dst not in seen:
+                # a neighbor outside this query's own selection -- resolve it
+                # BEFORE the max_edges check below, so an edge that turns out
+                # to be unqualified is never counted against the cap (that
+                # would make the cap dishonest: fewer real edges returned than
+                # max_edges implies). Two cases don't qualify as "one hop
+                # external": no such node at all (a dangling edge), or a node
+                # that belongs to THIS SAME repo -- i.e. one excluded by
+                # max_nodes/path_prefix, not a genuinely external link. Letting
+                # those back in would defeat both caps' whole purpose.
+                if e.dst not in ext_cache:
+                    ext_cache[e.dst] = store.get_node(e.dst)
+                node = ext_cache[e.dst]
+                if node is None or node.repo == repo_id:
+                    continue
+                is_external = True
+            if max_edges is not None and len(edges) >= max_edges:
+                edge_truncated = True
+                break
+            edge_keys.add(k)
+            edges.append(e)
+            if is_external:
+                # e.g. a linked GitLab MR, Figma design, Slack channel, or wiki
+                # page section, all reachable via a real outbound edge from a
+                # code node. Never walked further (one hop only).
+                external_ids.add(e.dst)
+    nodes.extend(ext_cache[nid] for nid in external_ids)  # already resolved, non-None
     truncated = node_truncated or edge_truncated
     if truncated:
         log(f"  truncated: repo {repo_id!r} subgraph exceeds max_nodes={max_nodes}"

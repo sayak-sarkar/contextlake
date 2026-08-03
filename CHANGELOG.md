@@ -51,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Connector-produced nodes (GitLab MRs/issues, Figma designs, Slack channels) are now embedded and
   semantically searchable, closing the third leg of the consolidation gap (unified in keyword
   search, now-linked in the graph, now embeddable).
+- `graph` exports (GraphML/Cypher/DOT/Mermaid) now include linked external nodes (GitLab MRs, Figma
+  designs, Slack channels, wiki page sections) one hop out from the code they're linked to, not just
+  code, so the edges the earlier consolidation work now creates actually show up in an export instead
+  of being silently dropped.
 
 ### Changed
 - **BREAKING: the commands are now namespaced under `mirror` and `kb`.** The CLI had grown to 29

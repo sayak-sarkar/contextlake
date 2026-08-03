@@ -94,14 +94,77 @@ def test_extract_skips_unknown_seed(store):
     assert {n.id for n in nodes} == {"a"}
 
 
-def test_repo_subgraph_is_internal_only(store):
+def test_repo_subgraph_includes_one_hop_neighbors_outside_the_repo(store):
+    # a->x used to be dropped entirely (both endpoints had to be in-repo); it's
+    # now surfaced one hop out -- the same shape as a linked GitLab MR/Figma
+    # design/Slack channel/wiki section one hop from the code that links to it,
+    # whether the neighbor sits in a sentinel/partition repo or (as here) just
+    # another ordinary repo -- the widening isn't restricted by node.repo.
     store.upsert_repo(Repo(id="r", path="/r"))
     store.upsert_nodes("r", [_node("a", repo="r"), _node("b", repo="r")])
     store.upsert_nodes("other", [_node("x", repo="other")])
     store.upsert_edges("r", [_edge("a", "b"), _edge("a", "x")])  # a->x leaves the repo
     nodes, edges = viz.repo_subgraph(store, "r", max_nodes=100)
-    assert {n.id for n in nodes} == {"a", "b"}
-    assert [(e.src, e.dst) for e in edges] == [("a", "b")]  # external edge excluded
+    assert {n.id for n in nodes} == {"a", "b", "x"}
+    assert {(e.src, e.dst) for e in edges} == {("a", "b"), ("a", "x")}
+
+
+def test_repo_subgraph_includes_one_hop_external_nodes(store):
+    # matches the shape of a real cross-tool link: a code file `touches` a
+    # GitLab MR node that lives in the (external) sentinel repo, with no node
+    # of its own in `team/api` -- it must still surface one hop out.
+    store.upsert_nodes("team/api", [
+        Node(id="team_api_pay_py", repo="team/api", kind="file", name="pay.py"),
+    ])
+    mr = Node(id="gitlab_mr_team_api_42", repo="(external)", kind="mr", name="MR #42")
+    store.upsert_nodes("(external)", [mr])
+    store.upsert_edges("team/api", [Edge(src="team_api_pay_py", dst=mr.id, relation="touches",
+                                         confidence=Confidence.EXTRACTED,
+                                         provenance=Provenance(source_file="gitlab",
+                                                               verified_at=date(2026, 8, 3)))])
+    nodes, edges = viz.repo_subgraph(store, "team/api")
+    assert mr.id in {n.id for n in nodes}
+    assert (("team_api_pay_py", mr.id) in {(e.src, e.dst) for e in edges})
+
+
+def test_repo_subgraph_one_hop_external_nodes_do_not_recurse(store):
+    # a one-hop node's OWN neighbors must never be walked -- otherwise the
+    # widening cascades past one hop, which the spec explicitly rules out.
+    store.upsert_nodes("r", [_node("a", repo="r")])
+    store.upsert_nodes("other", [_node("x", repo="other"), _node("y", repo="other")])
+    store.upsert_edges("r", [_edge("a", "x")])
+    store.upsert_edges("other", [_edge("x", "y")])  # a second hop -- must not appear
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=100)
+    ids = {n.id for n in nodes}
+    assert ids == {"a", "x"}
+    assert "y" not in ids
+    assert ("x", "y") not in {(e.src, e.dst) for e in edges}
+
+
+def test_repo_subgraph_one_hop_external_nodes_exempt_from_max_nodes(store):
+    # the node cap governs the repo-internal selection query; one-hop external
+    # nodes are additive on top of it, not counted against it.
+    store.upsert_nodes("r", [_node("a", repo="r")])
+    store.upsert_nodes("other", [_node(f"x{i}", repo="other") for i in range(5)])
+    store.upsert_edges("r", [_edge("a", f"x{i}") for i in range(5)])
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=1)
+    ids = {n.id for n in nodes}
+    assert "a" in ids
+    assert {f"x{i}" for i in range(5)} <= ids  # none dropped by max_nodes=1
+
+
+def test_repo_subgraph_one_hop_external_edges_count_toward_max_edges(store):
+    # unlike max_nodes, one-hop edges DO count toward max_edges -- once an edge
+    # reaches the page, a Mermaid renderer can't distinguish an internal edge
+    # from a one-hop external one, so exempting them would reopen the exact
+    # render failure max_edges exists to prevent.
+    store.upsert_nodes("r", [_node("a", repo="r")])
+    store.upsert_nodes("other", [_node(f"x{i}", repo="other") for i in range(5)])
+    store.upsert_edges("r", [_edge("a", f"x{i}") for i in range(5)])
+    meta: dict = {}
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=100, max_edges=2, meta=meta)
+    assert len(edges) == 2
+    assert meta["truncated"] is True
 
 
 def test_repo_subgraph_truncation_keeps_highest_degree_nodes(store):
@@ -113,6 +176,21 @@ def test_repo_subgraph_truncation_keeps_highest_degree_nodes(store):
     store.upsert_edges("r", [_edge("zzz", f"e{i}") for i in range(5)])
     nodes, _ = viz.repo_subgraph(store, "r", max_nodes=1)
     assert [n.id for n in nodes] == ["zzz"]
+
+
+def test_repo_subgraph_max_nodes_eviction_does_not_leak_back_in_as_one_hop(store):
+    # a same-repo node excluded by max_nodes truncation must NOT reappear via
+    # the one-hop-external widening -- that would silently defeat the cap the
+    # exact use case (a dense repo) it exists for.
+    store.upsert_nodes("r", [_node("hub", kind="class")]
+                       + [_node(f"leaf{i}") for i in range(30)])
+    store.upsert_edges("r", [_edge("hub", f"leaf{i}") for i in range(30)])
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=5)
+    assert len(nodes) == 5
+    ids = {n.id for n in nodes}
+    # every edge returned must land between two of the surviving 5 nodes --
+    # none of the evicted leaf nodes leaked back in as "one hop out"
+    assert all(e.src in ids and e.dst in ids for e in edges)
 
 
 def _dense_hub(store, leaves=20):
