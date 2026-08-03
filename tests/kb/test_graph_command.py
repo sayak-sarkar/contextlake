@@ -1528,7 +1528,12 @@ def test_png_and_svg_exports_produce_real_output_in_both_render_modes(store, tmp
             assert not cards                              # vector shapes, no HTML
             assert root.findall(f".//{svgns}ellipse")
         else:
-            # card mode really engaged, and the PNG capture left it exactly as it was
+            # card mode really engaged, and the PNG capture left it exactly as it was.
+            # BOTH halves are load-bearing and were verified by sabotage: dropping the
+            # class re-add gives cardsAfter == 0, dropping the size re-apply gives
+            # restored is False. cardsAfter is not redundant — "restored" is computed by
+            # iterating .cl-dom, so it stays vacuously true when the class is never
+            # restored and nothing is iterated.
             assert state["render"] == "cards" and state["cards"] == 4
             assert state["cardsAfter"] == 4 and state["restored"] is True
             assert len(cards) == 4                        # every node kept its HTML card

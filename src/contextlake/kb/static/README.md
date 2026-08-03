@@ -55,10 +55,13 @@ removes itself from the dropdown rather than offering a mode that would do nothi
 ## Why there is no SVG-export library here
 
 The page's `SVG` button is hand-rolled in `app.js` (`svgText()`), not backed by a
-vendored extension. `cytoscape-svg` — the obvious candidate — replays cytoscape's
-**canvas** draw path through `canvas2svg`, so it can only ever emit what the canvas
-renderer draws. In the `dagre (preview)` mode the nodes are HTML cards that the canvas
-never draws at all, so that library would silently export a graph of blank nodes. The
+vendored extension. `cytoscape-svg` — the obvious candidate — drives cytoscape's own
+**canvas** renderer into an SVG-emitting Canvas2D shim: `src/convert-to-svg.js` in
+v0.4.0 does `new C2S(width, height)` (canvas2svg) and then
+`renderer.drawElements(buffCxt, zsortedEles)`, returning `getSerializedSvg()`. So it
+emits exactly what the canvas draws — and in the `dagre (preview)` mode the canvas node
+is deliberately blanked (`node.cl-dom` in `app.js`'s `graphStyle`) because the visible
+node is an HTML card. That library would therefore export a graph of blank nodes. The
 hand-rolled serializer instead reads cytoscape's geometry and wraps each card in an SVG
 `foreignObject`, which is the one construct that can carry real HTML.
 
