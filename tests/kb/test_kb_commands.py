@@ -721,6 +721,35 @@ def test_serve_http_logs_the_configured_host_and_port(tmp_path, gls_logs, monkey
     assert style.ok("MCP server on http://0.0.0.0:9999") in msgs
 
 
+def test_serve_sse_dispatches_the_legacy_transport_and_logs_the_bind_url(
+    tmp_path, gls_logs, monkeypatch
+):
+    # --transport sse is a distinct, real SDK transport (legacy HTTP+SSE), not
+    # an alias for stdio or http -- assert it reaches run_server as "sse"
+    # exactly, and (like http) reports its bind URL since it also listens on
+    # a host:port.
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    cfg = _kb_config(tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        "contextlake.kb.server.run_server",
+        lambda *a, **kw: calls.append((a, kw)))
+
+    rc = commands_mod.cmd_serve(_serve_args(cfg, transport="sse", host="0.0.0.0", port=9999))
+
+    assert rc == 0
+    assert len(calls) == 1
+    _, kwargs = calls[0]
+    assert kwargs["transport"] == "sse"
+    assert kwargs["host"] == "0.0.0.0"
+    assert kwargs["port"] == 9999
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "Serving knowledge graph over MCP (sse)" in msgs
+    # SSE clients connect at the sse_path, not the bare root -- unlike
+    # streamable-http, printing the bare host:port would send them to a 404.
+    assert style.ok("MCP server on http://0.0.0.0:9999/sse") in msgs
+
+
 def test_serve_stdio_does_not_log_a_bind_url(tmp_path, gls_logs, monkeypatch):
     # stdio has no bind address -- it must stay silent on that front (and stdout
     # is reserved for the MCP JSON-RPC stream, not human-facing banners).

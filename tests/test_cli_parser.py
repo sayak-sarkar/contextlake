@@ -28,6 +28,20 @@ def test_full_long_flags_still_work():
     assert args.work_dir == "/tmp/x"
 
 
+def test_kb_serve_accepts_the_sse_transport():
+    """sse is a real, distinct MCP transport (legacy HTTP+SSE) alongside stdio
+    and http -- not an alias for either -- so the parser must accept it."""
+    parser = build_parser()
+    args = parser.parse_args(["kb", "serve", "--transport", "sse"])
+    assert args.transport == "sse"
+
+
+def test_kb_serve_still_rejects_an_unknown_transport():
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["kb", "serve", "--transport", "carrier-pigeon"])
+
+
 def test_root_epilog_links_to_docs_and_issues():
     epilog = build_parser().epilog
     assert "https://sayak.in/contextlake" in epilog

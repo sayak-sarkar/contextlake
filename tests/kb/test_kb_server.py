@@ -6,6 +6,7 @@ from datetime import date
 import pytest
 from mcp import Client
 
+from contextlake.kb import server as server_mod
 from contextlake.kb.model import Confidence, Edge, Node, Provenance, Repo
 from contextlake.kb.server import build_server
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -554,5 +555,71 @@ def test_get_wiki_serves_cluster_page_by_namespace(tmp_path):
         # an unknown target (no repo page, no cluster page) is not found
         miss = asyncio.run(_call(server, "get_wiki", {"repo": "no/such"}))
         assert miss.structured_content["found"] is False
+    finally:
+        s.close()
+
+
+# --- run_server transport dispatch ------------------------------------------
+#
+# The three transports are NOT interchangeable at the .run() kwarg level: the
+# installed SDK's run_sse_async() has a strict keyword-only signature (host,
+# port, sse_path, message_path, transport_security -- no **kwargs catch-all),
+# so passing streamable-http-only options like stateless_http/json_response to
+# it raises TypeError. These tests pin the exact kwargs each transport gets.
+
+class _FakeServer:
+    def __init__(self):
+        self.calls = []
+
+    def run(self, **kwargs):
+        self.calls.append(kwargs)
+
+
+def test_run_server_stdio_passes_no_network_kwargs(monkeypatch):
+    fake = _FakeServer()
+    monkeypatch.setattr(server_mod, "build_server", lambda *a, **kw: fake)
+
+    server_mod.run_server(store=None, transport="stdio")
+
+    assert fake.calls == [{"transport": "stdio"}]
+
+
+def test_run_server_streamable_http_passes_stateless_and_json_response(monkeypatch):
+    fake = _FakeServer()
+    monkeypatch.setattr(server_mod, "build_server", lambda *a, **kw: fake)
+
+    server_mod.run_server(store=None, transport="streamable-http", host="0.0.0.0", port=9999)
+
+    assert fake.calls == [{
+        "transport": "streamable-http", "host": "0.0.0.0", "port": 9999,
+        "stateless_http": True, "json_response": True,
+    }]
+
+
+def test_run_server_sse_passes_host_port_only(monkeypatch):
+    """Regression guard: sse must NOT receive stateless_http/json_response --
+    the SDK's run_sse_async() has no **kwargs catch-all and would raise
+    TypeError('unexpected keyword argument') if it did."""
+    fake = _FakeServer()
+    monkeypatch.setattr(server_mod, "build_server", lambda *a, **kw: fake)
+
+    server_mod.run_server(store=None, transport="sse", host="0.0.0.0", port=9999)
+
+    assert fake.calls == [{"transport": "sse", "host": "0.0.0.0", "port": 9999}]
+
+
+def test_sse_app_builds_a_real_asgi_app_with_the_expected_routes(tmp_path):
+    """Live smoke test of the real (unmocked) sse transport code path: a full
+    client/server MCP round-trip over sse needs a running event loop juggling a
+    server task and a client task concurrently, which isn't practical in a
+    synchronous unit test -- but building the actual Starlette ASGI app via the
+    same `mcp.server.mcpserver.MCPServer.sse_app()` method run_server()'s
+    "sse" branch drives is, and it exercises the real SDK, not a mock."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    try:
+        app = build_server(s).sse_app(host="127.0.0.1")
+        paths = {route.path for route in app.routes}
+        assert "/sse" in paths
+        assert "/messages" in paths
     finally:
         s.close()
