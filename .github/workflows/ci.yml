@@ -46,5 +46,15 @@ jobs:
           pip install -e ".[dev,kb]"
       - name: Lint (ruff)
         run: ruff check src tests
+      # The coverage floor lives here, on the full-suite job, and deliberately
+      # nowhere else. It is not in pyproject's `addopts`, because that would
+      # apply `--cov-fail-under` to *every* pytest invocation -- a narrow
+      # `pytest -k something` run reports a few percent and would then "fail"
+      # for a reason that has nothing to do with the code under test.
+      # The core job above is likewise floor-free on purpose: it skips
+      # tests/kb while still measuring the whole `contextlake` package, so its
+      # honest total is ~23% and any floor meaningful here would break it.
+      # Measured 92% at the time of writing; 88 leaves headroom for the small
+      # per-version differences across the 3.10-3.13 matrix. Ratchet upward.
       - name: Test full suite
-        run: pytest --cov=contextlake --cov-report=term-missing
+        run: pytest --cov=contextlake --cov-report=term-missing --cov-fail-under=88

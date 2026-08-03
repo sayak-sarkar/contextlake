@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CI now enforces a coverage floor (`--cov-fail-under=88`) on the full-suite job, so a silent
+  drop from the current 92% can no longer pass green. The floor is deliberately only on that one
+  job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
+  its own partial number, and the core job measures the whole package while skipping `tests/kb`,
+  so its honest total is ~23% and no shared floor can fit both.
+
 ## [4.0.0] - 2026-08-04
 
 **Migrating from v3.0.0:** replace `contextlake init --yes` / `-y` with `contextlake init
