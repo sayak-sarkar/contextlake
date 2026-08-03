@@ -24,7 +24,7 @@ from .styling import (
 if TYPE_CHECKING:  # avoid importing the model at call time; we only need types here
     from ..store.base import Store
 
-_CDN_URL = "https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"
+_CDN_URL = "https://cdn.jsdelivr.net/npm/cytoscape@3.34.0/dist/cytoscape.min.js"
 
 # contextlake brand palette (see BRANDING.md): a lake seen in cross-section.
 

@@ -6,8 +6,8 @@ These files are bundled so `contextlake graph --format html` renders **offline**
 ## cytoscape.min.js
 
 - **Library:** [cytoscape.js](https://js.cytoscape.org/)
-- **Version:** 3.30.2
-- **Source:** `https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js`
+- **Version:** 3.34.0
+- **Source:** `https://cdn.jsdelivr.net/npm/cytoscape@3.34.0/dist/cytoscape.min.js`
 - **License:** MIT — © The Cytoscape Consortium. Compatible with contextlake's MIT license.
 
 `kb/visualize/html_render.py::to_html` inlines this file into the generated HTML by

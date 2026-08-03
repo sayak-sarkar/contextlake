@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of being silently dropped.
 
 ### Changed
+- Vendored cytoscape.js bumped 3.30.2 -> 3.34.0 (bugfix/feature releases within 3.x; the graph
+  page's existing default rendering is unaffected). `--cdn` now pins the same version.
 - **BREAKING: the commands are now namespaced under `mirror` and `kb`.** The CLI had grown to 29
   flat top-level commands doing two unrelated jobs — mirroring git repositories, and building and
   serving the knowledge layer over them — and `--help` had stopped being navigable. Each verb now
