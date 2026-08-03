@@ -564,7 +564,7 @@ def _root_hidden_flags(p):
     add("--format", choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram",
                              "statediagram", "erdiagram", "deploymentdiagram", "graphml",
                              "cypher", "json"])
-    add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid"])
+    add("--layout", choices=["cose", "concentric", "breadthfirst", "circle", "grid", "dagre"])
     add("--site", nargs="?", const="")
 
 
@@ -1053,8 +1053,10 @@ Examples:
                         "(network/compute/storage/database/security), Terraform-only; "
                         "graphml = Gephi/yEd import; cypher = Neo4j/FalkorDB CREATE statements)")
     p.add_argument("--layout", default=_S,
-                   choices=["cose", "concentric", "breadthfirst", "circle", "grid"],
-                   help="html: initial layout (default cose; switchable in the page)")
+                   choices=["cose", "concentric", "breadthfirst", "circle", "grid", "dagre"],
+                   help="html: initial layout (default cose; switchable in the page; "
+                        "dagre is a preview -- layered/directed, renders nodes as HTML "
+                        "cards below 400 nodes)")
     p.add_argument("--output", default=_S,
                    help="write to this path (default <store>/graphs/graph.html; "
                         "else stdout for non-html)")

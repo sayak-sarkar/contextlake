@@ -126,6 +126,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   namespaced form is the only one that parses. See the two required post-upgrade steps above.
 
 ### Fixed
+- **`contextlake kb graph --layout dagre` was unreachable from the CLI.** The renderer has
+  supported `dagre` since the preview landed, but `cli.py` restates the layout names as two
+  hard-coded `argparse` `choices` lists instead of importing the renderer's `LAYOUTS` tuple, and
+  neither was updated -- so the preview was only reachable from the in-page dropdown. Both lists
+  now include `dagre`.
 - **Neither the dashboard's Links panel nor the `get_repo_links` MCP tool showed a repo's
   GitLab-diff or Slack cross-links.** Both listed only `tracked_by` (Jira), `documented_by`
   (Confluence), `designed_in` (Figma), `has_merge_request` and `has_issue`, so the newer
