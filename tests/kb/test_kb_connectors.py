@@ -25,6 +25,7 @@ from contextlake.kb.connectors.orchestrate import (
     enrich_repo_slack,
     reconcile,
 )
+from contextlake.kb.connectors.slack import DEFAULT_HISTORY_TOOL, DEFAULT_VERIFY_TOOL
 from contextlake.kb.ids import make_id
 from contextlake.kb.model import Confidence, Node
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -427,10 +428,20 @@ class _SourceCfgStub:
 def test_build_slack_reads_source_cfg():
     src = _SourceCfgStub(name="slack-1", mcp="https://mcp.example/slack",
                          hosts=["acme.slack.com"], verify_tool="custom_tool",
-                         auth_dir="~/auth/slack", timeout=30)
+                         history_tool="custom_history", auth_dir="~/auth/slack", timeout=30)
     conn = build_slack(src)
     assert conn.name == "slack-1"
     assert conn.mcp_url == "https://mcp.example/slack"
     assert conn.hosts == ("acme.slack.com",)
     assert conn.verify_tool == "custom_tool"
+    assert conn.history_tool == "custom_history"
     assert conn.timeout == 30
+
+
+def test_build_slack_defaults_both_tool_names():
+    # `history_tool` is as unstandardized across Slack MCP servers as
+    # `verify_tool` -- both must be reachable from config, and both must fall
+    # back to the module default when a source doesn't set them.
+    conn = build_slack(_SourceCfgStub(name="slack-2", mcp="https://mcp.example/slack"))
+    assert conn.verify_tool == DEFAULT_VERIFY_TOOL
+    assert conn.history_tool == DEFAULT_HISTORY_TOOL

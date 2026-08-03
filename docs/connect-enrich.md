@@ -24,7 +24,9 @@ queries connected sources with codebase-derived terms and stores what comes back
 - **Slack**: links repos to the channels and messages that discuss them, classifying `slack.com` permalinks
   (`/archives/<channel>` and `/archives/<channel>/p<ts>`) into channel/message links. Reachability is
   checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
-  MCP servers, so the verification tool name is configurable (`verify_tool`, default `conversations_info`).
+  MCP servers, so the verification tool name is configurable (`verify_tool`, default `conversations_info`),
+  as is the tool used to read a channel's recent messages (`history_tool`, default `conversations_history`).
+  Any code symbol those messages mention by name is linked straight to the channel.
 
 Adding another connector is a small, self-contained module, and its output lands in an isolated graph
 partition, so re-indexing a repo's code never disturbs its external links. Configure connectors by copying
@@ -222,7 +224,8 @@ accept: `auth_dir`, an isolated OAuth-cache directory (set a distinct one per At
 `mcp-remote` caches never collide); `mcp_command`, a local stdio MCP command to launch instead of a remote
 endpoint (e.g. `"figma-mcp --stdio"` or `"slack-mcp --stdio"`); `hosts`, the list of hostnames a Figma/Slack
 source claims links for (defaults to `["figma.com"]`/`["slack.com"]`); `verify_tool`, the Slack MCP tool
-name used for reachability checks (default `conversations_info`); `group`, a GitLab group prefixed to each
+name used for reachability checks (default `conversations_info`); `history_tool`, the Slack MCP tool name
+used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
 repo's path to form the project id; and `per_page`, the API page size (default `50`).
 
 ## See also

@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   text-mention matcher shared with ingest/enrich/wiki content.
 - Connectors can now link external content directly to the code it's about via a new shared
   `link_to_code` primitive (the existing repo-level edge is kept alongside it, except for wiki pages).
+- The Slack MCP tool used to read a channel's messages is configurable as `history_tool` on a
+  `[[sources]]` entry (default `conversations_history`), alongside the existing `verify_tool`. Slack
+  MCP servers don't agree on a tool name, so without this a non-default server silently produced no
+  message links at all.
 - **A public, read-only live demo of the dashboard is now linked from the project homepage and
   docs footer.** It's the existing `contextlake kb dashboard --site DIR --sample` static export
   (bundled fictional "acme" fleet, no real data) generated into `site/demo/` by `site/deploy.sh`

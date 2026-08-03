@@ -67,7 +67,12 @@ def build_gitlab(src):
 
 def build_slack(src):
     """Construct a Slack connector from a SourceCfg."""
-    from .slack import DEFAULT_HOSTS, DEFAULT_VERIFY_TOOL, SlackConnector
+    from .slack import (
+        DEFAULT_HISTORY_TOOL,
+        DEFAULT_HOSTS,
+        DEFAULT_VERIFY_TOOL,
+        SlackConnector,
+    )
 
     extra = getattr(src, "model_extra", None) or {}
     return SlackConnector(
@@ -76,6 +81,7 @@ def build_slack(src):
         mcp_command=extra.get("mcp_command"),
         hosts=extra.get("hosts", DEFAULT_HOSTS),
         verify_tool=extra.get("verify_tool", DEFAULT_VERIFY_TOOL),
+        history_tool=extra.get("history_tool", DEFAULT_HISTORY_TOOL),
         auth_dir=extra.get("auth_dir"),
         timeout=extra.get("timeout", 120),
     )
