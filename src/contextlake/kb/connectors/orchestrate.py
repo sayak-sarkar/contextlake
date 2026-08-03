@@ -169,8 +169,10 @@ def enrich_repo_figma(connector, repo_id, store, *, links=(), embedder=None, vec
         if not matches:
             continue
         # link_to_code always re-appends the repo-level "designed_in" fallback
-        # edge that associate_designs already emitted above -- dedupe on the
-        # (src, dst, relation) key so it isn't persisted twice.
+        # edge that associate_designs already emitted above. cmd_connect's
+        # merged_edges dict (connect.py, keyed on src/dst/relation) is the real
+        # dedup boundary and would collapse it anyway -- this keeps the pair out
+        # of the returned list too, so a direct caller isn't handed a duplicate.
         for e in link_to_code(repo_id, n, matches, "designed_in", "docs"):
             key = (e.src, e.dst, e.relation)
             if key in seen:
@@ -201,8 +203,9 @@ def enrich_repo_slack(connector, repo_id, store, *, links=(), embedder=None, vec
     its history actually mentions a symbol -- these are deliberately NOT deduped
     against each other, unlike Figma's identical-relation case: "referenced in
     docs" and "discussed in messages" are different facts with different
-    provenance, the same reasoning that already lets GitLab's per-file
-    ``touches`` edges coexist with its own repo-level ``tracked_by`` edge.
+    provenance, the same reasoning that already lets GitLab's repo-level
+    ``touches`` edge coexist with its own repo-level ``has_merge_request`` edge
+    (``tracked_by`` is Atlassian's relation, not GitLab's).
     When an ``embedder``/``vector_store`` pair is configured, the channel
     nodes built here are also embedded so they're semantically searchable.
     """
