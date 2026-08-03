@@ -20,7 +20,9 @@ policy lives here once and each server inherits it:
   down the socket by ``BaseHTTPRequestHandler``;
 * :func:`qs_int` -- query-param integers that clamp instead of raising, so a
   hostile ``?hops=99999`` costs nothing;
-* :func:`allowed_host_headers` -- the accepted ``Host`` values for a bind.
+* :func:`allowed_host_headers` -- the accepted ``Host`` values for a bind;
+* :data:`LOOPBACK_HOSTS` -- what "off the network" means for a *bind address*,
+  which is a different question from which ``Host`` headers are answered.
 
 New local servers subclass :class:`LocalHttpHandler`. Anything that re-derives
 this policy inline is the bug this module exists to prevent.
@@ -34,13 +36,28 @@ from http.server import BaseHTTPRequestHandler
 
 from ..logging_setup import get_logger
 
-__all__ = ["BadRequest", "LocalHttpHandler", "allowed_host_headers", "host_pinning_hint",
-           "qs_int"]
+__all__ = ["LOOPBACK_HOSTS", "BadRequest", "LocalHttpHandler", "allowed_host_headers",
+           "host_pinning_hint", "qs_int"]
 
 # Cap on a request body we're willing to buffer. These servers are loopback
 # developer tools, not upload endpoints; every POST they accept is a small JSON
 # object.
 MAX_BODY_BYTES = 1_000_000
+
+# Bind addresses that keep a server unreachable from the network. Every caller
+# that decides "is this bind safe enough to enable a privileged feature on"
+# reads this one set: the `--llm-chat` exposure (F-3) existed because the only
+# such check lived inline in one command's `--allow-mutations` branch and the
+# second flag added beside it never got a copy. A set, not a predicate, so an
+# unexpected host (a sentinel, None) is simply absent rather than parsed. Callers
+# reading a host out of *JSON* must still type-check first: an unhashable value
+# raises TypeError from `in`, which is a 500 where a 400 belongs.
+#
+# Deliberately narrow. `::1` is loopback in principle but is not listed: these
+# servers are stdlib `ThreadingHTTPServer`s, which are AF_INET, so accepting
+# `::1` here would trade a clear refusal for a confusing bind failure. Widen
+# only alongside a server that can actually bind what's added.
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost"})
 
 
 class BadRequest(ValueError):

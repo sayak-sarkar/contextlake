@@ -70,6 +70,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
   file order still comes from directory traversal — do not compare shard hashes between CI runners.
   The regression guard is in-process.
+- **Security:** `--llm-chat` is now refused with a non-loopback `--host`, the same guard
+  `--allow-mutations` already had. The per-launch token that gates the chat route is served inside
+  `/dashboard.js`, so anyone who could reach the bind could read the token and drive the configured
+  LLM provider at the operator's expense. Host-header pinning does not cover this: pinning is a
+  browser control, and a plain `curl -H 'Host: localhost:PORT' http://<lan-ip>:PORT/dashboard.js`
+  satisfies it and returns the token.
+- **Security:** the dashboard's `POST /api/mcp/serve` no longer accepts an arbitrary bind address.
+  A caller-supplied `host` went into the MCP server unvalidated, so a token holder could publish
+  the whole graph on `0.0.0.0` over a transport with no authentication. The host must now be
+  loopback and the port unprivileged; anything else is a `400`, including a wrong-typed JSON value,
+  which previously raised and surfaced as a `500`.
 - **Security:** the dashboard and graph servers now pin the `Host` header on `GET` as well as
   `POST`. Only `POST` checked it, so a page whose domain re-resolved to `127.0.0.1` (DNS
   rebinding) could read the entire code graph cross-origin: `/api/overview`, `/api/repo/<id>`,

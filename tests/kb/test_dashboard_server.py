@@ -802,6 +802,73 @@ def test_mcp_serve_route_requires_known_action(served_with_mutations):
     assert status == 400
 
 
+@pytest.mark.parametrize("action", ["start", "restart"])
+@pytest.mark.parametrize(
+    "host",
+    ["0.0.0.0", "192.0.2.10", "::", "evil.example.com",
+     # A JSON body is arbitrary client input: a wrong-typed host must read as a
+     # rejected request (400), never a server fault (500). An unhashable value
+     # would raise TypeError out of the `in` test if it weren't type-checked.
+     ["0.0.0.0"], {"host": "0.0.0.0"}, 1234, True],
+)
+def test_mcp_serve_route_refuses_a_non_loopback_bind(served_with_mutations, action, host):
+    """The MCP server this route spawns is unauthenticated, so its bind address
+    can't be caller-controlled: one token (read out of /dashboard.js, or used by
+    script injected into the page) would otherwise turn a loopback dashboard
+    into a public graph server that outlives it. ``restart`` is covered too --
+    it is ``mcp_start`` behind a different name, and a guard on only one of the
+    two spawning actions is no guard. Every cell here 400s *before* any process
+    is spawned, which is why this test can sweep them without cleaning up."""
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + "/api/mcp/serve", {"action": action, "host": host},
+                         token=token)
+    assert status == 400
+    assert "loopback" in body["error"]
+
+
+@pytest.mark.parametrize("port", [80, 443, 1023, -1, 70000])
+def test_mcp_serve_route_refuses_a_privileged_or_out_of_range_port(
+        served_with_mutations, port):
+    """Nothing this tool spawns should want a privileged port; a request for one
+    is a mistake or an attempt to squat a service port. (0 and "" are absent
+    from this list on purpose: ``payload.get("port") or 8766`` reads both as
+    "unset", so they take the default -- asserting a refusal for them would
+    encode a spawn-the-real-server path as a requirement.)"""
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + "/api/mcp/serve", {"action": "start", "port": port},
+                         token=token)
+    assert status == 400
+    assert "port must be" in body["error"]
+
+
+@pytest.mark.parametrize("action", ["start", "restart"])
+def test_mcp_serve_route_dispatches_the_right_spawner_with_loopback_defaults(
+        served_with_mutations, monkeypatch, action):
+    """The accepting half of the bind guard: start and restart share one branch,
+    so a swapped ternary there would send every 'restart' to mcp_start (and vice
+    versa) while every refusal test above still passed. Stubs stand in for the
+    real spawners -- this pins the dispatch and the defaults a request that omits
+    host/port lands on, without leaving an MCP process behind."""
+    seen = {}
+
+    def _fake(name):
+        def spawn(store_dir, **kw):
+            seen.update(name=name, **kw)
+            return {"ok": True, "running": True}
+        return spawn
+
+    # Patched on the mutations module, not on server.py: server.py holds a
+    # reference to the module and resolves the attribute per call.
+    monkeypatch.setattr("contextlake.kb.dashboard.mutations.mcp_start", _fake("start"))
+    monkeypatch.setattr("contextlake.kb.dashboard.mutations.mcp_restart", _fake("restart"))
+
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + "/api/mcp/serve", {"action": action}, token=token)
+    assert status == 200 and body["ok"] is True
+    assert seen["name"] == action
+    assert seen["host"] == "127.0.0.1" and seen["port"] == 8766
+
+
 def test_mutation_returns_409_when_store_is_locked(served_with_mutations, tmp_path):
     # StoreLock treats same-pid re-entry as the same writer, not a live peer (a
     # single process's own threads must never deadlock each other) -- so a real

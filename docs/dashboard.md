@@ -46,7 +46,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
 | `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
-| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. |
+| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. Loopback host only. |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
@@ -236,6 +236,11 @@ loopback bind, respectively). A mutation takes the store's single-writer lock
 for its own duration only, so a concurrent CLI command sees a clean `409`
 instead of an interleaved write.
 
+The MCP server those Start/Restart actions spawn is constrained to a loopback bind
+and an unprivileged port (1024-65535), whatever the request asks for. That transport
+has no authentication of its own, so a caller-chosen bind would let one token turn
+this loopback-only dashboard into a public graph server that outlives it.
+
 The `Host` check applies to **every** request, `GET` included, and to every route
 including the static assets -- the read API is your whole code graph, and the
 served `dashboard.js` carries that per-launch token. The same rule now guards
@@ -271,6 +276,11 @@ per-launch token `--allow-mutations` uses (§11), and every chat request while i
 must carry that token -- a page other than this dashboard can't silently trigger a
 paid call. The free layer needs no token, same risk level as any other read-only
 `/api/*` route. Live-only, like MCP console/Settings above (no `--site` export).
+
+Loopback host only, for the same reason `--allow-mutations` is (§11): that token is
+served inside `/dashboard.js`, so on a non-loopback bind anyone who can reach the port
+can read it and spend your provider budget. `--llm-chat --host 0.0.0.0` is refused at
+startup.
 
 ---
 

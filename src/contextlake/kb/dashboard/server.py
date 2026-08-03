@@ -36,7 +36,14 @@ import urllib.parse
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from ..http_base import LocalHttpHandler, allowed_host_headers, host_pinning_hint, qs_int
+from ..http_base import (
+    LOOPBACK_HOSTS,
+    BadRequest,
+    LocalHttpHandler,
+    allowed_host_headers,
+    host_pinning_hint,
+    qs_int,
+)
 from ..lock import StoreBusy, StoreLock
 from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
@@ -52,6 +59,44 @@ def _static(name: str) -> str:
 
 def _json_bytes(obj) -> bytes:
     return json.dumps(obj).encode("utf-8")
+
+
+def _mcp_bind(payload: dict) -> tuple[str, int]:
+    """Validate the caller-supplied bind address for ``POST /api/mcp/serve``.
+
+    The MCP transport this route starts has no authentication of its own: reach
+    the port, read the whole graph (file paths, symbol names, owner identities).
+    Whatever this route is handed becomes that server's bind address, so an
+    unvalidated ``host`` lets a single dashboard token -- held by anyone who got
+    script into the page, or who read it out of ``/dashboard.js`` -- convert a
+    loopback-only dashboard into a public, unauthenticated graph server that
+    outlives the dashboard process. The dashboard's own loopback bind does not
+    cover the child it spawns, so the constraint is re-asserted here.
+
+    Privileged ports are refused because nothing this tool starts should ever
+    want one, and a request asking for 80 is either a mistake or an attempt to
+    squat a service port.
+
+    The shipped UI sends neither field (``dashboard.js``'s ``mcpServe(action)``
+    posts only ``action``), so both defaults stay in force for every real
+    click; this only constrains a hand-built request.
+    """
+    host = payload.get("host") or "127.0.0.1"
+    # isinstance first: `["0.0.0.0"] in frozenset` raises TypeError (unhashable),
+    # which would surface as a 500 -- a JSON body is arbitrary client input, so a
+    # wrong-typed field has to read as a rejected request, not a server fault.
+    if not isinstance(host, str) or host not in LOOPBACK_HOSTS:
+        raise BadRequest(
+            f"host must be a loopback address ({', '.join(sorted(LOOPBACK_HOSTS))}), "
+            f"not {host!r}: the MCP transport is unauthenticated, so a non-local bind "
+            f"would publish the whole graph.")
+    # A non-numeric port keeps falling through to send_guarded's generic 400 --
+    # that's a malformed request, not a policy refusal, and it never reaches the
+    # range check below because int() raises first.
+    port = int(payload.get("port") or 8766)
+    if not 1024 <= port <= 65535:
+        raise BadRequest(f"port must be between 1024 and 65535, not {port}")
+    return host, port
 
 
 def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: int = 8765,
@@ -358,16 +403,14 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     return 200, _json_bytes(kbmut.add_repo(req, store_dir, ws_dir, url))
                 if path == "/api/mcp/serve":
                     action = payload.get("action")
-                    if action == "start":
-                        return 200, _json_bytes(kbmut.mcp_start(
-                            store_dir, host=payload.get("host") or "127.0.0.1",
-                            port=int(payload.get("port") or 8766), config_path=config_path))
+                    if action in ("start", "restart"):
+                        mcp_host, mcp_port = _mcp_bind(payload)
+                        spawn = kbmut.mcp_start if action == "start" else kbmut.mcp_restart
+                        return 200, _json_bytes(spawn(
+                            store_dir, host=mcp_host, port=mcp_port,
+                            config_path=config_path))
                     if action == "stop":
                         return 200, _json_bytes(kbmut.mcp_stop(store_dir))
-                    if action == "restart":
-                        return 200, _json_bytes(kbmut.mcp_restart(
-                            store_dir, host=payload.get("host") or "127.0.0.1",
-                            port=int(payload.get("port") or 8766), config_path=config_path))
                     return 400, b'{"error":"action must be start, stop, or restart"}'
                 return 404, b'{"error":"not found"}'
             finally:
