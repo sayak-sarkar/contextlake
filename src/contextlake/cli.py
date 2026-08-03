@@ -24,9 +24,11 @@ from . import __version__
 from .config import DEFAULT_CONFIG, ConfigError, expand_path, get_cache_paths, load_config
 from .core import (
     FetchError,
+    StageResult,
     clone_missing_repos,
     configure_network_resilience,
     fetch_gitlab_projects,
+    fetch_result,
     show_status,
     switch_repository_branches,
     update_repositories,
@@ -378,6 +380,7 @@ _DEFAULTS = {
     "shell": None,
     # mirror
     "work_dir": None, "group": None, "report": None, "no_audit": False,
+    "exit_zero_on_partial": False,
     "max_retries": None, "backoff_initial": None, "backoff_max": None,
     "min_workers": None, "error_threshold": None, "safe_branches": None,
     # bootstrap
@@ -466,6 +469,9 @@ def _add_mirror(p, hidden=False):
              "filter (e.g. 'team/api,billing,frontend/*') — great for a demo subset")
     add("-n", "--dry-run", action="store_true", dest="dry_run",
         help="show what would happen without cloning, updating, or switching branches")
+    add("--exit-zero-on-partial", action="store_true", dest="exit_zero_on_partial",
+        help="exit 0 even when some repositories failed; the default is to exit 1 so "
+             "an unattended run (cron, systemd OnFailure=) can see a broken mirror")
 
     # Resilience/tuning knobs: real automation levers (retry/backoff/worker-pool/
     # safety-check overrides), but nobody guesses these from a bare --help -- every
@@ -1247,11 +1253,17 @@ def _bootstrap(args, config, work_dir, gitlab_group):
     if not getattr(args, "no_sync", False):
         _stage("Mirror repositories from GitLab")
         try:
-            fetch_gitlab_projects(gitlab_group, config)
-            clone_missing_repos(work_dir, config, gitlab_group)
-            update_repositories(work_dir, config)
-            switch_repository_branches(work_dir, config, gitlab_group)
-            verify_structure(work_dir, config, gitlab_group)
+            mirror = fetch_result(fetch_gitlab_projects(gitlab_group, config), config)
+            mirror += clone_missing_repos(work_dir, config, gitlab_group)
+            mirror += update_repositories(work_dir, config)
+            mirror += switch_repository_branches(work_dir, config, gitlab_group)
+            mirror += verify_structure(work_dir, config, gitlab_group)
+            # Same rule the mirror commands' exit code follows: a fleet that
+            # failed to clone is not a completed stage. Recorded (not raised) so
+            # the knowledge stages still run against what did land.
+            if mirror.failed and not getattr(args, "exit_zero_on_partial", False):
+                failures.append(f"Mirror repositories from GitLab "
+                                f"({mirror.failed} failed)")
         except FetchError as e:
             # Enumeration failed (often a VPN/proxy drop) after its own retries.
             # Existing clones are untouched, so the knowledge stages still run against
@@ -1504,27 +1516,34 @@ def main(argv=None):
         log("DRY RUN: no repositories will be cloned, updated, or switched")
     log("")
 
+    # Stages that mirror repositories report what they did; the rest (audit,
+    # status, bootstrap -- which owns its own exit) leave this empty.
+    result = StageResult()
     try:
         if args.command == "fetch":
-            fetch_gitlab_projects(gitlab_group, config)
+            result = fetch_result(fetch_gitlab_projects(gitlab_group, config), config)
         elif args.command == "clone":
-            clone_missing_repos(work_dir, config, gitlab_group)
+            result = clone_missing_repos(work_dir, config, gitlab_group)
         elif args.command == "update":
-            update_repositories(work_dir, config)
+            result = update_repositories(work_dir, config)
         elif args.command == "branches":
-            switch_repository_branches(work_dir, config, gitlab_group)
+            result = switch_repository_branches(work_dir, config, gitlab_group)
         elif args.command == "verify":
-            verify_structure(work_dir, config, gitlab_group)
+            result = verify_structure(work_dir, config, gitlab_group)
         elif args.command == "sync":
             log("Starting full synchronization...")
             log("")
             log(style.header("Mirror repositories from GitLab"))
-            fetch_gitlab_projects(gitlab_group, config)
-            clone_missing_repos(work_dir, config, gitlab_group)
-            update_repositories(work_dir, config)
-            switch_repository_branches(work_dir, config, gitlab_group)
-            verify_structure(work_dir, config, gitlab_group)
-            log(style.summary_line("ok", "Full synchronization complete"))
+            result = fetch_result(fetch_gitlab_projects(gitlab_group, config), config)
+            result += clone_missing_repos(work_dir, config, gitlab_group)
+            result += update_repositories(work_dir, config)
+            result += switch_repository_branches(work_dir, config, gitlab_group)
+            result += verify_structure(work_dir, config, gitlab_group)
+            # The finale glyph has to track the same total the exit code does: a ✓
+            # over a run where every clone failed is the hollow success this whole
+            # result type exists to stop.
+            log(style.summary_line("ok" if not result.failed else "warn",
+                                   "Full synchronization complete"))
             if not getattr(args, "no_audit", False):
                 log("")
                 log(style.header("Audit repositories (health & age)"))
@@ -1545,6 +1564,21 @@ def main(argv=None):
     except Exception as e:  # noqa: BLE001 - top-level guard reports and exits
         log(f"Error: {e}")
         sys.exit(1)
+
+    # Decided outside the try so the intent is unmistakable and no future
+    # except-clause can swallow it. Before this, every mirror command exited 0 no
+    # matter how much of the fleet failed, so nothing unattended -- the cron
+    # wrapper in docs/usage.md, the oneshot systemd unit in examples/ -- could
+    # tell a healthy mirror from a dead one.
+    if result.failed:
+        if getattr(args, "exit_zero_on_partial", False):
+            log(style.dim(f"{result.failed} operation(s) failed; exiting 0 "
+                          "(--exit-zero-on-partial)"))
+        else:
+            log(style.warn(f"{result.failed} operation(s) failed — exiting "
+                           f"{result.exit_code}. Pass --exit-zero-on-partial to keep "
+                           "the previous always-zero exit status."))
+            sys.exit(result.exit_code)
 
 
 if __name__ == "__main__":

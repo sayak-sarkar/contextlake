@@ -13,6 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 
@@ -49,6 +50,34 @@ def _float(config, key, default):
         return float(config.get(key, default))
     except (TypeError, ValueError):
         return float(default)
+
+
+@dataclass(frozen=True)
+class StageResult:
+    """What one mirror stage did, in counts its caller can act on.
+
+    Every stage used to return None, so `mirror sync` exited 0 even when every
+    single clone failed -- an unattended run (examples/contextlake.service and
+    .timer) could never trip systemd's OnFailure=, and a fleet that silently
+    stopped mirroring looked identical to a healthy one. Stages add together so
+    `sync` decides on the whole pipeline's total rather than its last stage.
+
+    ``skipped`` covers work deliberately not done (already up to date, protected
+    branch, dry run): counted for the record, never a failure.
+    """
+
+    ok: int = 0
+    failed: int = 0
+    skipped: int = 0
+
+    def __add__(self, other: "StageResult") -> "StageResult":
+        return StageResult(self.ok + other.ok,
+                           self.failed + other.failed,
+                           self.skipped + other.skipped)
+
+    @property
+    def exit_code(self) -> int:
+        return 1 if self.failed else 0
 
 
 def to_local_path(path_with_namespace, gitlab_group):
@@ -513,6 +542,26 @@ def fetch_gitlab_projects(gitlab_group, config):
         label = "matching" if patterns else "total"
         log(f"{style.ok()} Fetched {style.bold(str(len(all_projects)))} {label} projects")
     return all_projects
+
+
+def fetch_result(projects, config) -> StageResult:
+    """Score a completed enumeration for the dispatch layer's exit code.
+
+    Deliberately a separate function rather than a different return type on
+    `fetch_gitlab_projects`: the project map is what `load_gitlab_projects` and
+    every downstream stage consume, so fetch keeps returning the dict.
+
+    An empty fetch counts as a failure only when nothing was filtering it. With
+    no --repos/repo_filter, 0 projects means the group name or the token's
+    read_api access is wrong (fetch warns exactly that above) and an unattended
+    run must not call that a success; with a filter in play, 0 matches is a
+    legitimate answer to a narrow pattern and stays a clean exit. Hard failures
+    (network, auth, missing glab) never reach here -- they raise FetchError.
+    """
+    count = len(projects)
+    if not count and not repo_filter_patterns(config):
+        return StageResult(failed=1)
+    return StageResult(ok=count)
 
 
 def _write_caches(all_projects, cache_json, cache_file):
@@ -1082,13 +1131,23 @@ def _summarize(buckets):
     return ", ".join(f"{len(v)} {k}" for k, v in buckets.items())
 
 
+def _bucket_result(buckets, ok_keys, skipped_keys):
+    """Fold a stage's result buckets into a StageResult, without recounting:
+    ``errors`` is the failure bucket every loop already sorts into."""
+    return StageResult(
+        ok=sum(len(buckets[k]) for k in ok_keys),
+        failed=len(buckets["errors"]),
+        skipped=sum(len(buckets[k]) for k in skipped_keys),
+    )
+
+
 def clone_missing_repos(work_dir, config, gitlab_group):
     """Clone every active GitLab project that is not already present locally."""
     log("Cloning missing repositories...")
 
     projects = load_gitlab_projects(config, gitlab_group)
     if not projects:
-        return
+        return StageResult()
 
     local_repos = set(get_local_repos(work_dir))
     max_workers = _int(config, "max_workers", "8")
@@ -1113,7 +1172,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
     log(f"To clone: {len(to_clone)}")
     if not to_clone:
         log("No missing repositories to clone")
-        return
+        return StageResult()
 
     successes, skipped, failures, dry = [], [], [], []
     done = 0
@@ -1169,6 +1228,10 @@ def clone_missing_repos(work_dir, config, gitlab_group):
     log(style.ok("Clone complete: " + _summarize({
         "successful": successes, "skipped": skipped, "dry-run": dry, "failed": failures,
     })))
+    # A dry run cloned nothing, so it is skipped work, not a success -- only
+    # `failures` (what the loop already classified as an error) drives the exit code.
+    return StageResult(ok=len(successes), failed=len(failures),
+                       skipped=len(skipped) + len(dry))
 
 
 def update_repositories(work_dir, config):
@@ -1222,6 +1285,9 @@ def update_repositories(work_dir, config):
         _report_list("Failed", buckets["errors"], limit=5)
         log("  Re-run to retry, or narrow to just the failures: "
             "contextlake mirror update --repos <name>")
+    return _bucket_result(buckets,
+                          ok_keys=("updated", "unchanged", "switched"),
+                          skipped_keys=("skipped", "empty", "dry-run"))
 
 
 def switch_repository_branches(work_dir, config, gitlab_group):
@@ -1231,7 +1297,7 @@ def switch_repository_branches(work_dir, config, gitlab_group):
     projects = load_gitlab_projects(config, gitlab_group)
     if not projects:
         log("No projects loaded")
-        return
+        return StageResult()
 
     local_repos = get_local_repos(work_dir)
     max_workers = _int(config, "max_workers", "8")
@@ -1275,6 +1341,9 @@ def switch_repository_branches(work_dir, config, gitlab_group):
         _report_list("Failed", buckets["errors"], limit=5)
         log("  Re-run to retry, or narrow to just the failures: "
             "contextlake mirror branches --repos <name>")
+    return _bucket_result(buckets,
+                          ok_keys=("switched", "already"),
+                          skipped_keys=("skipped", "empty", "dry-run"))
 
 
 def _report_list(label, items, limit=10):
@@ -1311,7 +1380,7 @@ def verify_structure(work_dir, config, gitlab_group):
     projects = load_gitlab_projects(config, gitlab_group)
     if not projects:
         log("No projects loaded")
-        return
+        return StageResult()
 
     local_repos = get_local_repos(work_dir)
     valid, missing, extra, invalid = [], [], [], []
@@ -1329,6 +1398,13 @@ def verify_structure(work_dir, config, gitlab_group):
     _report_list("Missing repositories", missing)
     _report_list("Extra repositories", extra)
     _report_list("Nested repositories (repo inside another repo)", nested)
+    # Only `invalid` fails the run: a path that is in the project list and on disk
+    # but has no .git is real corruption. `missing` is routine (archived projects
+    # are never cloned), and `extra`/`nested` are the advisories the summary
+    # already marks ⚠ -- failing on those would exit 1 on almost every real
+    # workspace and train everyone to ignore the exit code.
+    return StageResult(ok=len(valid), failed=len(invalid),
+                       skipped=len(missing) + len(extra))
 
 
 def _status_summary(active, local, synced, missing, extra, width=None):

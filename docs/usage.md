@@ -468,6 +468,23 @@ chmod +x /home/user/scripts/contextlake_wrapper.sh
 0 2 * * * /home/user/scripts/contextlake_wrapper.sh
 ```
 
+### Exit codes
+
+`mirror fetch`, `clone`, `update`, `branches`, `verify` and `sync` exit `0` when nothing failed and
+`1` when anything did — including a partial run, where some repositories synced and others did not.
+`sync` aggregates across all five stages, so one failed clone fails the whole run, and `bootstrap`
+counts a failed mirror stage the same way it counts a failed knowledge-layer stage. (`mirror status`
+and `mirror audit` only report; they do not fail on what they find.)
+
+Work that was deliberately skipped (already up to date, a protected working branch, `--dry-run`) is
+never a failure, and `mirror verify` fails only on a cloned path that is not a valid git repository,
+not on repos that are merely missing or extra.
+
+`Ctrl-C` exits `130`; a bad `--config` path exits `1`.
+
+Pass `--exit-zero-on-partial` to exit `0` anyway when some repositories failed — the failures are
+still reported, they just do not fail the job.
+
 ### Log rotation
 
 To prevent log files from growing indefinitely, set up log rotation:

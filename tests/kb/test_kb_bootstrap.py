@@ -6,16 +6,32 @@ import pytest
 
 import contextlake.cli as cli
 import contextlake.kb.commands as kb
+from contextlake import core
 
 _CORE = ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
          "switch_repository_branches", "verify_structure"]
 _KB = ["cmd_index", "cmd_connect", "cmd_embed", "cmd_enrich", "cmd_wiki", "cmd_steer"]
 
 
+def _core_return(name):
+    """fetch hands back the project map the later stages consume; the rest hand back
+    a StageResult, which is what bootstrap now scores its mirror stage on."""
+    return {"grp/a": {}} if name == "fetch_gitlab_projects" else core.StageResult()
+
+
+def _stub_core(monkeypatch, calls=None):
+    for name in _CORE:
+        def _stub(*a, _n=name, **k):
+            if calls is not None:
+                calls.append(_n)
+            return _core_return(_n)
+
+        monkeypatch.setattr(cli, name, _stub)
+
+
 def _record(monkeypatch):
     calls = []
-    for name in _CORE:
-        monkeypatch.setattr(cli, name, lambda *a, _n=name, **k: calls.append(_n))
+    _stub_core(monkeypatch, calls)
     for name in _KB:
         monkeypatch.setattr(kb, name, lambda a, _n=name: (calls.append(_n), 0)[1])
     return calls
@@ -61,8 +77,7 @@ def test_bootstrap_enrich_targets_all_workspace_repos(monkeypatch, tmp_path):
     no positional args and _connect_targets short-circuits on workspace before
     consulting args - belt-and-suspenders, not a currently reachable bug."""
     seen = {}
-    for name in _CORE:
-        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    _stub_core(monkeypatch)
     for name in _KB:
         monkeypatch.setattr(kb, name, lambda a, _n=name: (seen.__setitem__(_n, a), 0)[1])
     cli._bootstrap(_args(args=["stray-repo-filter"]), {}, str(tmp_path), "grp")
@@ -83,6 +98,26 @@ def test_bootstrap_continues_past_a_failing_stage_then_exits_nonzero(monkeypatch
                        {}, str(tmp_path), "grp")
     assert exc.value.code == 1
     assert calls == ["cmd_index", "cmd_steer"]
+
+
+def test_bootstrap_records_a_failed_mirror_stage_and_exits_nonzero(monkeypatch, tmp_path):
+    """A mirror that failed to clone is a failed stage, exactly like a failing kb
+    stage: recorded and exited on, but never allowed to abort the rest -- the
+    knowledge layer still gets built from the repos that did land."""
+    calls = _record(monkeypatch)
+    monkeypatch.setattr(cli, "clone_missing_repos",
+                        lambda *a, **k: (calls.append("clone_missing_repos"),
+                                         core.StageResult(failed=1))[1])
+    with pytest.raises(SystemExit) as exc:
+        cli._bootstrap(_args(), {}, str(tmp_path), "grp")
+    assert exc.value.code == 1
+    assert calls == _CORE + _KB   # every stage still ran, in order
+
+
+def test_bootstrap_exit_zero_on_partial_forgives_a_failed_mirror_stage(monkeypatch, tmp_path):
+    _record(monkeypatch)
+    monkeypatch.setattr(cli, "clone_missing_repos", lambda *a, **k: core.StageResult(failed=1))
+    cli._bootstrap(_args(exit_zero_on_partial=True), {}, str(tmp_path), "grp")
 
 
 def test_bootstrap_exits_nonzero_when_a_stage_returns_failure(monkeypatch, tmp_path):
@@ -111,8 +146,7 @@ def test_bootstrap_honors_explicit_workspace(monkeypatch, tmp_path):
     """--workspace must win over the mirror's work_dir (it used to be silently
     ignored), and the steering files follow it."""
     seen = {}
-    for name in _CORE:
-        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    _stub_core(monkeypatch)
     for name in _KB:
         monkeypatch.setattr(kb, name, lambda a, _n=name: (seen.__setitem__(_n, a), 0)[1])
     elsewhere = tmp_path / "elsewhere"
@@ -123,8 +157,7 @@ def test_bootstrap_honors_explicit_workspace(monkeypatch, tmp_path):
 
 def test_bootstrap_passes_kb_config_not_sync_config(monkeypatch, tmp_path):
     seen = {}
-    for name in _CORE:
-        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    _stub_core(monkeypatch)
     for name in _KB:
         monkeypatch.setattr(kb, name, lambda a, _n=name: (seen.__setitem__(_n, a), 0)[1])
     cli._bootstrap(_args(no_sync=True, config="/sync.ini", kb_config="/kb.toml"),

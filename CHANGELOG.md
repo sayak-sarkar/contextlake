@@ -29,6 +29,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
   its own partial number, and the core job measures the whole package while skipping `tests/kb`,
   so its honest total is ~23% and no shared floor can fit both.
+- `--exit-zero-on-partial` on every mirror command (and `bootstrap`), for anyone whose scripts
+  depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
+
+### Changed
+- **Breaking:** a mirror run that had failures now exits 1. `mirror fetch`/`clone`/`update`/
+  `branches`/`verify`/`sync` (and `bootstrap`'s mirror stage) exited 0 no matter how much of the
+  fleet failed — `mirror sync` reported success with a ✓ even when every single clone failed. Nothing
+  unattended could tell a healthy mirror from a dead one: the cron wrapper in `docs/usage.md` tests
+  `$?` and so never fired, and the `Type=oneshot` systemd unit in `examples/` was always recorded as
+  succeeding, leaving `systemctl is-failed` and any `OnFailure=` hook with nothing to fire on. Each
+  stage now returns its own ok/failed/skipped counts, `sync` exits on the total across all stages,
+  and the sync finale is a ⚠ rather than a ✓ when anything failed.
+
+  What counts as a failure is exactly what each stage already logged as an error — no repo is
+  reclassified. Skipped work (already up to date, protected branch, dry run) is never a failure;
+  neither is a `verify` that reports repos missing or extra (only a cloned path with no `.git`,
+  which is corruption). `fetch` fails on 0 projects only when no `--repos`/`repo_filter` is in
+  play, since 0 matches for a narrow pattern is a legitimate answer.
+
+  **Migrating:** if a script or CI job relies on a mirror command always exiting 0, add
+  `--exit-zero-on-partial`. If it already checks the exit status, it starts working as intended —
+  expect jobs to go red that were silently failing before.
 
 ## [4.0.0] - 2026-08-04
 

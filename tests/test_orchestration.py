@@ -20,6 +20,30 @@ def _patch_config(monkeypatch):
     monkeypatch.setattr(cli, "load_config", lambda path=None: dict(_FAKE_CFG))
 
 
+def _stage_return(name):
+    """What a stubbed pipeline stage has to hand back for cli.main() to score the
+    run: fetch still returns the project map every later stage consumes, the rest
+    return a StageResult. Returning None here would make the CLI's exit-code
+    aggregation blow up -- deliberately, since a stage that reports nothing is the
+    silent failure the result type was added to end."""
+    return dict(PROJECTS) if name == "fetch_gitlab_projects" else core.StageResult()
+
+
+def _stub_stages(monkeypatch, names, record=None):
+    """Replace each named cli-level stage with a stub that records its name."""
+    for name in names:
+        def _stub(*a, _n=name, **k):
+            if record is not None:
+                record.append(_n)
+            return _stage_return(_n)
+
+        monkeypatch.setattr(cli, name, _stub)
+
+
+_PIPELINE = ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
+             "switch_repository_branches", "verify_structure"]
+
+
 @pytest.fixture
 def cached_projects(monkeypatch):
     monkeypatch.setattr(core, "load_gitlab_projects", lambda config, group: dict(PROJECTS))
@@ -96,16 +120,19 @@ def test_show_status_counts(tmp_path, base_config, monkeypatch, gls_logs):
 def test_main_dispatches_to_command(monkeypatch, command, target):
     called = {"n": 0}
     _patch_config(monkeypatch)
-    monkeypatch.setattr(cli, target, lambda *a, **k: called.__setitem__("n", called["n"] + 1))
+
+    def _stub(*a, **k):
+        called["n"] += 1
+        return _stage_return(target)
+
+    monkeypatch.setattr(cli, target, _stub)
     cli.main(["mirror", command])
     assert called["n"] == 1
 
 
 def test_main_sync_runs_full_pipeline(monkeypatch, capsys):
     order = []
-    for name in ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
-                 "switch_repository_branches", "verify_structure"]:
-        monkeypatch.setattr(cli, name, lambda *a, _n=name, **k: order.append(_n))
+    _stub_stages(monkeypatch, _PIPELINE, record=order)
     monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
     _patch_config(monkeypatch)
     cli.main(["mirror", "sync"])
@@ -126,9 +153,7 @@ def test_main_sync_runs_full_pipeline(monkeypatch, capsys):
 
 
 def test_main_sync_headers_audit_stage_when_enabled(monkeypatch, capsys):
-    for name in ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
-                 "switch_repository_branches", "verify_structure"]:
-        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    _stub_stages(monkeypatch, _PIPELINE)
     monkeypatch.setattr(cli, "run_audit", lambda *a, **k: None)
     _patch_config(monkeypatch)
     cli.main(["mirror", "sync"])
@@ -137,9 +162,7 @@ def test_main_sync_headers_audit_stage_when_enabled(monkeypatch, capsys):
 
 
 def test_main_sync_skips_audit_header_with_no_audit(monkeypatch, capsys):
-    for name in ["fetch_gitlab_projects", "clone_missing_repos", "update_repositories",
-                 "switch_repository_branches", "verify_structure"]:
-        monkeypatch.setattr(cli, name, lambda *a, **k: None)
+    _stub_stages(monkeypatch, _PIPELINE)
     run_audit_calls = []
     monkeypatch.setattr(cli, "run_audit", lambda *a, **k: run_audit_calls.append(1))
     _patch_config(monkeypatch)
