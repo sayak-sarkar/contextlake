@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `contextlake kb serve` now accepts `--transport sse`, the legacy HTTP+SSE transport, alongside
+  the existing `stdio`/`http` (Streamable HTTP) options -- for MCP clients that only support SSE
+  and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serve.md#transports).
 - Ingested documents now link to the code symbols they mention by name, via a new
   `kb ingest --for-repo <repo>` flag (per-source equivalent: `for_repo` on a `[[sources]]` entry)
   that says which indexed repo the documents are about. Without it, ingest behaves exactly as

@@ -241,7 +241,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
-| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
+| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`/`sse`) |
 | `kb steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
 | `kb lint` · `doctor` · `kb eval` | Graph health · environment check · retrieval-quality scoring |
 
