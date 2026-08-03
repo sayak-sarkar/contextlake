@@ -253,7 +253,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
-| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`) |
+| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`/`sse`) |
 | `kb steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
 | `kb lint` · `doctor` · `kb eval` | Graph health · environment check · retrieval-quality scoring |
 
@@ -2634,6 +2634,23 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 }
 ```
 
+## Transports
+
+`contextlake kb serve --transport <stdio|http|sse>` (default `stdio`):
+
+- **`stdio`**, the default. The editor/agent spawns `contextlake kb serve` itself and talks to
+  it over stdin/stdout; this is what `steer`-generated `.mcp.json`/`.vscode/mcp.json` entries use.
+- **`http`**, Streamable HTTP, the MCP spec's current standard network transport (`--host`/
+  `--port`, default `127.0.0.1:8765`). Point clients at `http://127.0.0.1:8765/mcp`, not the bare
+  host:port: the endpoint is the `/mcp` path, and the root returns 404. Prefer this transport for
+  any new remote/network wiring.
+- **`sse`**, the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
+  marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
+  for clients that haven't moved off it yet; contextlake follows that guidance rather than
+  dropping it. Its endpoint is `http://127.0.0.1:8765/sse`. Use `sse` only if your client
+  specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
+  distinct, separate option from HTTP), pick `http` first.
+
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
@@ -3531,7 +3548,7 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
-| `kb serve` | Expose the graph over MCP (stdio or `--transport http`) |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 
 The `mirror`-tier commands (`mirror fetch`, `mirror clone`, `mirror update`, `mirror branches`,
@@ -3633,9 +3650,11 @@ separately.
   at score 0.0, which otherwise looks identical to a very strict council. A capable backend
   (`--llm ollama`/`anthropic`/`openai`) produces far fewer rejections, see
   [Model providers](model-providers.md).
-- **`contextlake kb serve --transport http` prints its bind URL** once it starts listening (`✓ MCP server on
-  http://127.0.0.1:8765  (Ctrl-C to stop)`), so you don't have to guess the host/port before pointing an
-  editor at it. `stdio` transport has no address to report and stays quiet on that line.
+- **`contextlake kb serve --transport http`/`sse` prints its bind URL** once it starts listening --
+  `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the same with an `/sse`
+  suffix for `sse` -- so you don't have to guess the host/port/path before pointing an editor at it.
+  Both URLs include the path because neither transport is served at the bare root: that really is a 404.
+  `stdio` transport has no address to report and stays quiet on that line.
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
@@ -3667,6 +3686,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `contextlake kb serve` now accepts `--transport sse`, the legacy HTTP+SSE transport, alongside
+  the existing `stdio`/`http` (Streamable HTTP) options -- for MCP clients that only support SSE
+  and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serve.md#transports).
 - Ingested documents now link to the code symbols they mention by name, via a new
   `kb ingest --for-repo <repo>` flag (per-source equivalent: `for_repo` on a `[[sources]]` entry)
   that says which indexed repo the documents are about. Without it, ingest behaves exactly as
@@ -3760,6 +3782,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `contextlake kb serve`. Both rewrite their managed block in place.
 
 ### Fixed
+- **`contextlake kb serve --transport http` printed a bind URL that 404s.** It reported the bare
+  `http://127.0.0.1:8765`, but Streamable HTTP is served at the SDK's `streamable_http_path`
+  (`/mcp`), which contextlake does not override, so a client pointed at the printed URL got a 404
+  and the root looked like a dead server. The line now prints `http://127.0.0.1:8765/mcp`, matching
+  the `/sse` path already reported for `--transport sse`. `steer`-generated MCP config is
+  unaffected: it wires the `stdio` transport by command, never by URL.
 - **A bare `contextlake hook` exited 2 with `invalid choice: '==SUPPRESS=='` on Python 3.9–3.11**
   instead of defaulting to `install` as its own `--help` promises. The optional `action` positional
   paired `choices=` with contextlake's SUPPRESS-default convention, the same argparse trap already
