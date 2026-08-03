@@ -563,7 +563,7 @@ def _root_hidden_flags(p):
                  "--max-fanout", "--group-depth"):
         add(flag, type=int)
     add("--llm", choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"])
-    add("--transport", choices=["stdio", "http"])
+    add("--transport", choices=["stdio", "http", "sse"])
     add("--retriever", choices=("fts", "semantic", "hybrid"))
     add("--direction", choices=["in", "out", "both"])
     add("--format", choices=["html", "dot", "mermaid", "classdiagram", "sequencediagram",
@@ -960,10 +960,13 @@ directory name) so it updates the same node, never a duplicate.
                 epilog="""
 Examples:
   contextlake kb serve                   stdio transport (editor-managed)
-  contextlake kb serve --transport http  HTTP transport on --host/--port
+  contextlake kb serve --transport http  Streamable HTTP on --host/--port
+  contextlake kb serve --transport sse   legacy HTTP+SSE, for clients that
+                                          don't yet speak Streamable HTTP
                 """)
-    p.add_argument("--transport", choices=["stdio", "http"], default=_S,
-                   help="MCP transport (default stdio)")
+    p.add_argument("--transport", choices=["stdio", "http", "sse"], default=_S,
+                   help="MCP transport (default stdio; http = Streamable HTTP, "
+                        "sse = legacy HTTP+SSE for older clients)")
     _add_net(p)
 
     p = command("query", "search the graph from the terminal (cited file:line hits)",

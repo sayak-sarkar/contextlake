@@ -17,8 +17,16 @@ def cmd_serve(args) -> int:
     vector_store = None
     interrupted = False
     try:
-        # CLI exposes "http"; the MCP SDK calls it "streamable-http".
-        transport = "streamable-http" if getattr(args, "transport", None) == "http" else "stdio"
+        # CLI exposes "http"; the MCP SDK calls it "streamable-http". "sse" (the
+        # legacy HTTP+SSE transport) passes through unchanged -- it's a real,
+        # separate transport in the SDK, not an alias for either of the other two.
+        cli_transport = getattr(args, "transport", None)
+        if cli_transport == "http":
+            transport = "streamable-http"
+        elif cli_transport == "sse":
+            transport = "sse"
+        else:
+            transport = "stdio"
         host = getattr(args, "host", None) or "127.0.0.1"
         port = getattr(args, "port", None) or 8765
 
@@ -55,6 +63,12 @@ def cmd_serve(args) -> int:
             # stdio has no bind address to report; http does, and a blocking
             # server that never says where it listens reads as broken, not busy.
             log(style.ok(f"MCP server on http://{host}:{port}  (Ctrl-C to stop)"))
+        elif transport == "sse":
+            # Unlike streamable-http, the SSE client endpoint is NOT the bare
+            # host:port -- it's the SDK's sse_path ("/sse" by default, see
+            # mcp.server.mcpserver.MCPServer.sse_app). Printing the bare root
+            # here would send an SSE client to a 404.
+            log(style.ok(f"MCP server on http://{host}:{port}/sse  (Ctrl-C to stop)"))
         run_server(store, transport=transport, host=host, port=port,
                    embedder=embedder, vector_store=vector_store)
         return 0

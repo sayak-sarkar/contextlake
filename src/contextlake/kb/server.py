@@ -860,10 +860,25 @@ def run_server(
 ) -> None:
     """Build and run the MCP server (blocking).
 
-    host/port/stateless_http/json_response are streamable-http-only options,
-    passed to .run() rather than the server constructor. .run()'s stdio branch
-    ignores unknown kwargs entirely (see mcp.server.mcpserver.MCPServer.run), so
-    passing them unconditionally here is harmless for transport="stdio".
+    host/port are network-transport options, passed to .run() rather than the
+    server constructor. stdio has no such options and .run()'s stdio branch
+    ignores them entirely if passed (see mcp.server.mcpserver.MCPServer.run).
+
+    streamable-http and sse are NOT interchangeable at the .run() kwarg level:
+    sse's run_sse_async() has a strict keyword-only signature (host, port,
+    sse_path, message_path, transport_security -- no **kwargs catch-all), so
+    passing streamable-http-only options like stateless_http/json_response to
+    it raises TypeError. Branch per transport rather than passing one kwarg set
+    to all three.
+
+    sse is the legacy HTTP+SSE transport (superseded by streamable-http in the
+    MCP spec, kept for older clients that only speak SSE -- see docs/serve.md).
     """
-    build_server(store, embedder=embedder, vector_store=vector_store).run(
-        transport=transport, host=host, port=port, stateless_http=True, json_response=True)
+    server = build_server(store, embedder=embedder, vector_store=vector_store)
+    if transport == "streamable-http":
+        server.run(transport=transport, host=host, port=port,
+                   stateless_http=True, json_response=True)
+    elif transport == "sse":
+        server.run(transport=transport, host=host, port=port)
+    else:
+        server.run(transport=transport)
