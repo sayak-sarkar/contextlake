@@ -57,7 +57,7 @@ each layer above it is optional.
    **14 languages** plus **Terraform** infrastructure, **SQL** schema, and package manifests
    (npm / PyPI / NuGet / Maven), add **semantic search**, a council-verified **wiki** (each page
    reviewed and scored before publishing, low-confidence pages dropped), and **connectors** to
-   Atlassian / Figma / GitLab.
+   Atlassian / Figma / GitLab / Slack.
 3. **Serve**: expose it all over **MCP** and an offline interactive **graph visualizer**, so
    agents can answer *"where is `X` defined?"* or *"who calls `Y`?"* instead of grepping.
 
@@ -264,8 +264,9 @@ a TTY and plain when piped; set `NO_COLOR` to force-disable.
 ## Knowledge layer
 
 Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge
-graph** and serves it to AI tools over **MCP**. It can link repos to their Atlassian / Figma /
-GitLab items, add **semantic search**, write a curated **wiki**, **visualize** the graph
+graph** and serves it to AI tools over **MCP**. It can link repos directly to the Atlassian /
+Figma / GitLab / Slack items and code symbols that reference them, add **semantic search**,
+write a curated **wiki**, **visualize** the graph
 (offline interactive HTML, fleet overview, a symbol's neighbourhood, or a single repo), and
 generate per-tool **steering files** + a skills library. Most of it needs no model; the rest
 works with a local Ollama or any OpenAI-compatible endpoint.
@@ -3686,6 +3687,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-08-03
+
 ### Added
 - **Preview (opt-in, pending visual approval):** the graph page's layout dropdown gains a
   `dagre (preview)` option -- a layered/directed dagre layout that also renders nodes as real
@@ -3693,6 +3696,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ants along the selected node's edges. Selecting any other layout leaves the existing canvas
   rendering completely unchanged; this is a look to judge before it becomes anyone's default.
   Card rendering is skipped above 400 nodes (the status bar says so) and on the fleet overview.
+- The graph page can now be saved as **SVG** as well as PNG -- a new `SVG` button beside the
+  existing `PNG` one. The PNG button is unchanged (still cytoscape's own canvas render), and it
+  keeps working while the `dagre (preview)` card rendering is on: the capture temporarily reverts
+  the cards to canvas nodes and restores them afterwards. Expect that PNG to look sparse in card
+  mode -- it is the classic circles-and-glyphs picture at the wider spacing dagre laid out for
+  cards. The SVG is the format that keeps the card look: it embeds each card as real HTML in a
+  `foreignObject`, which browsers render but Inkscape/Illustrator ignore. Hand-rolled, no new
+  vendored library.
 - Vendored `cytoscape-dagre` 4.0.0 and `cytoscape-dom-node` 2.1.0 (both MIT, ~46 KB + ~11 KB)
   alongside `cytoscape.min.js`, so the preview above works offline like the rest of the page.
   `cytoscape-dagre` bundles dagre itself, so there is no separate dagre file. `app.js`
@@ -3797,6 +3808,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   namespaced form is the only one that parses. See the two required post-upgrade steps above.
 
 ### Fixed
+- **`contextlake kb graph --layout dagre` was unreachable from the CLI.** The renderer has
+  supported `dagre` since the preview landed, but `cli.py` restates the layout names as two
+  hard-coded `argparse` `choices` lists instead of importing the renderer's `LAYOUTS` tuple, and
+  neither was updated -- so the preview was only reachable from the in-page dropdown. Both lists
+  now include `dagre`.
 - **Neither the dashboard's Links panel nor the `get_repo_links` MCP tool showed a repo's
   GitLab-diff or Slack cross-links.** Both listed only `tracked_by` (Jira), `documented_by`
   (Confluence), `designed_in` (Figma), `has_merge_request` and `has_issue`, so the newer
