@@ -2,8 +2,11 @@
 
 import os
 
+import pytest
+
 from contextlake.config import (
     DEFAULT_CONFIG,
+    ConfigError,
     find_ancestor_config,
     get_cache_paths,
     load_config,
@@ -50,6 +53,28 @@ def test_config_path_values_are_tilde_expanded(tmp_path, monkeypatch):
     assert config["work_dir"] == os.path.expanduser("~/repos")
     assert config["cache_dir"] == os.path.expanduser("~/.cache/gs")
     assert "~" not in config["work_dir"]
+
+
+def test_missing_explicit_config_path_is_a_hard_error(tmp_path, monkeypatch):
+    """A --config path that doesn't exist must fail loudly, not silently fall
+    through the precedence chain to ~/.contextlake.ini -- which can point at a
+    completely different workspace than intended. Mirrors kb.toml's identical
+    guard (see kb/test_kb_config.py's test of the same name)."""
+    _isolate_globals(monkeypatch, tmp_path)
+    with pytest.raises(ConfigError, match="not found"):
+        load_config(str(tmp_path / "does-not-exist.ini"))
+
+
+def test_missing_explicit_config_path_does_not_fall_back_to_global(tmp_path, monkeypatch):
+    """The exact near-miss this guards against: a real global config exists (as
+    it would on the user's own machine) and a typo'd/not-yet-created --config
+    path must never silently resolve to it."""
+    _isolate_globals(monkeypatch, tmp_path)
+    real_global = tmp_path / "real-global.ini"
+    real_global.write_text("[contextlake]\ngitlab_group = real-group\n")
+    monkeypatch.setattr("contextlake.config.CONFIG_FILE", str(real_global))
+    with pytest.raises(ConfigError):
+        load_config(str(tmp_path / "typo-d.ini"))
 
 
 def test_get_cache_paths_joins_dir_and_names():

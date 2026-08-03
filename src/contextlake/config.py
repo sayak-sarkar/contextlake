@@ -23,6 +23,11 @@ def expand_path(value):
     """Expand ~ and environment variables in a path-like config value."""
     return os.path.expanduser(os.path.expandvars(value)) if value else value
 
+
+class ConfigError(RuntimeError):
+    """An explicit --config path was invalid."""
+
+
 # Default Configuration
 DEFAULT_CONFIG = {
     'work_dir': os.path.expanduser('~/work'),
@@ -97,7 +102,24 @@ def load_config(config_path=None):
     specific) source wins on conflicting keys. "Local" is the nearest ancestor
     directory (walking up from cwd) with a ``.contextlake.ini`` -- like a
     project-root config that every subdirectory underneath it inherits.
+
+    An explicit ``--config`` path that doesn't exist is a hard error, not a
+    silent no-op: without this, a typo'd or not-yet-created path falls through
+    to the next file in the precedence chain -- typically ``~/.contextlake.ini``,
+    which can point at a completely different workspace than the one the caller
+    meant to target. The other, auto-discovered files in the chain are
+    legitimately optional and keep silently no-op'ing when absent. ``ConfigError``
+    is shared with ``kb.load_kb_config``, which applies the identical guard to
+    kb.toml.
     """
+    if config_path and not os.path.exists(expand_path(config_path)):
+        raise ConfigError(
+            f"--config path not found: {config_path}\n"
+            "Refusing to fall back to the next config in the precedence chain "
+            "(~/.contextlake.ini, or the nearest ancestor directory's "
+            ".contextlake.ini), which may point at a different workspace than "
+            "the one you meant to use."
+        )
     config = DEFAULT_CONFIG.copy()
     local_config_file = find_ancestor_config(LOCAL_CONFIG_FILE)
     _merge(config, CONFIG_FILE)               # global (~/.contextlake.ini)

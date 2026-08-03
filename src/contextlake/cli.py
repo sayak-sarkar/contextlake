@@ -21,7 +21,7 @@ import sys
 import textwrap
 
 from . import __version__
-from .config import DEFAULT_CONFIG, expand_path, get_cache_paths, load_config
+from .config import DEFAULT_CONFIG, ConfigError, expand_path, get_cache_paths, load_config
 from .core import (
     FetchError,
     clone_missing_repos,
@@ -1453,7 +1453,6 @@ def main(argv=None):
         except KeyboardInterrupt:
             log("Operation cancelled by user")
             sys.exit(130)
-        from .kb.config import ConfigError
         try:
             sys.exit(kb_commands.dispatch(args.command, args))
         except ConfigError as e:
@@ -1465,7 +1464,11 @@ def main(argv=None):
 
     # Load configuration (honouring an explicit --config path if given), then
     # overlay any CLI overrides on top.
-    config = load_config(args.config)
+    try:
+        config = load_config(args.config)
+    except ConfigError as e:
+        log(str(e))
+        sys.exit(1)
     config = apply_cli_overrides(args, config)
     # --repos scopes the whole mirror pipeline to a subset (fetch narrows the cache;
     # clone/update/branches/verify/status key off it; bootstrap also filters indexing).

@@ -20,7 +20,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..config import expand_path, find_ancestor_config
+from ..config import ConfigError, expand_path, find_ancestor_config  # noqa: F401 -- re-exported
 from ..logging_setup import log
 
 try:  # Python 3.11+
@@ -145,10 +145,6 @@ class KbConfig(BaseModel):
     @property
     def store_path(self) -> Path:
         return Path(expand_path(self.store_dir))
-
-
-class ConfigError(RuntimeError):
-    """An explicit --config path was invalid."""
 
 
 def _read_toml(path: str | None) -> dict:

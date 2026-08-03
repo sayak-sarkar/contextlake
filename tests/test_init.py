@@ -167,6 +167,16 @@ def test_init_rejects_unknown_platform(tmp_path, monkeypatch):
     assert not (tmp_path / ".contextlake.ini").exists()
 
 
+def test_init_rejects_missing_group_non_interactive(tmp_path, monkeypatch):
+    """A `--yes` init with no --group must refuse rather than fabricate a
+    placeholder group (e.g. "your-org") that silently produces an unusable
+    config -- neither generated file should exist afterward."""
+    rc = _run(tmp_path, monkeypatch, platform="github", group=None)
+    assert rc == 2
+    assert not (tmp_path / ".contextlake.ini").exists()
+    assert not (tmp_path / ".contextlake/kb.toml").exists()
+
+
 def test_init_never_writes_a_token(tmp_path, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "ghp-secret-value")
     _run(tmp_path, monkeypatch, platform="github", group="acme")

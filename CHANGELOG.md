@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `contextlake init` no longer writes a config naming a group/org/workspace that doesn't exist.
+  Previously, `init --yes` without `--group` silently wrote `gitlab_group = your-org`, and the
+  stale-placeholder safety net never caught it because it checked for a different literal
+  (`your-gitlab-group`). The same placeholder was also reachable interactively by accepting the
+  suggested default. `group` now has no default at all: an empty value (either path) is refused
+  with a clear message and exit code 2, before any file is written.
+- The mirror `.contextlake.ini` side of `--config` now hard-fails when the given path doesn't
+  exist, matching `kb.toml`'s existing behavior -- previously it silently fell through to the next
+  config in the precedence chain (typically `~/.contextlake.ini`), which can point at a completely
+  different workspace than the one you meant to use. `ConfigError` now lives in `config.py`
+  (re-exported from `kb/config.py` for compatibility).
+
 ## [3.0.0] - 2026-08-03
 
 ### Added

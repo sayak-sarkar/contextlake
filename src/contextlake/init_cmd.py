@@ -317,9 +317,21 @@ def cmd_init(args) -> int:
         return 2
 
     # --- group / work dir ---------------------------------------------------
-    default_group = getattr(args, "group", None) or "your-org"
-    group = _ask("Group / org / workspace to mirror", default_group) if interactive \
-        else default_group
+    # No placeholder fallback here: group/org/workspace is the one prompt with
+    # no value that's ever actually right to guess, on either path. Offering
+    # "your-org" as an acceptable default (interactive, accept via enter) or
+    # silently substituting it (--yes, no --group) both write a config naming
+    # a group that doesn't exist -- caught once already when the --yes path
+    # did this and the stale-placeholder detector below didn't fire, because
+    # it checks a different literal. Refusing to write a placeholder at all
+    # makes that check's exact spelling stop mattering.
+    group = getattr(args, "group", None) or ""
+    if interactive:
+        group = _ask("Group / org / workspace to mirror", group)
+    if not group:
+        log(f"{style.warn('group')} No group/org/workspace given -- pass "
+            "--group or answer the prompt; there's no safe default to guess.")
+        return 2
     # cwd, not a fixed literal: `init` is run from wherever the user wants this
     # workspace to live (this is the whole point of --local), so "here" is the
     # only default that's ever actually right -- a hardcoded guess is wrong for
