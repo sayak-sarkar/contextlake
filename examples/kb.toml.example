@@ -140,6 +140,8 @@ name = "team"
 # mcp = "https://mcp.example/slack"     # a hosted Slack MCP endpoint
 # mcp_command = "slack-mcp --stdio"     # or a local stdio MCP command
 # verify_tool = "conversations_info"    # tool name varies by server; override if yours differs
+# history_tool = "conversations_history"  # ditto, for reading a channel's messages: any code
+#                                         # symbol they mention by name is linked to the channel
 # Verification degrades gracefully if unset -- links are still classified and stored.
 
 # --- Association rules (0..N) -----------------------------------------------
