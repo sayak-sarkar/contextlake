@@ -25,15 +25,32 @@ if TYPE_CHECKING:  # avoid importing the model at call time; we only need types 
     from ..store.base import Store
 
 _CDN_URL = "https://cdn.jsdelivr.net/npm/cytoscape@3.34.0/dist/cytoscape.min.js"
+# Layout/rendering extensions behind the opt-in "dagre (preview)" layout. Both are
+# small next to cytoscape itself (~46 KB + ~11 KB), and cytoscape-dagre bundles dagre,
+# so there is no separate dagre file to vendor.
+_EXT_CDN_URLS = {
+    "cytoscape-dagre.min.js":
+        "https://cdn.jsdelivr.net/npm/cytoscape-dagre@4.0.0/dist/cytoscape-dagre.min.js",
+    "cytoscape-dom-node.js":
+        "https://cdn.jsdelivr.net/npm/cytoscape-dom-node@2.1.0/dist/index.global.js",
+}
+# every JS asset the page loads, in load order (cytoscape must come first: the
+# dom-node global build self-registers against window.cytoscape on load)
+_LIB_FILES = ("cytoscape.min.js", *_EXT_CDN_URLS)
 
 # contextlake brand palette (see BRANDING.md): a lake seen in cross-section.
 
 
+def _static_js(name: str) -> str:
+    """A vendored static JS file's text, made safe to inline in a <script>."""
+    from importlib.resources import files
+    js = (files("contextlake.kb") / "static" / name).read_text(encoding="utf-8")
+    return js.replace("</script", "<\\/script")
+
+
 def _cytoscape_js() -> str:
     """The vendored cytoscape.min.js text, made safe to inline in a <script>."""
-    from importlib.resources import files
-    js = (files("contextlake.kb") / "static" / "cytoscape.min.js").read_text(encoding="utf-8")
-    return js.replace("</script", "<\\/script")
+    return _static_js("cytoscape.min.js")
 
 
 def _app_css() -> str:
@@ -49,7 +66,12 @@ def _app_js() -> str:
     return js.replace("</script", "<\\/script")
 
 
-LAYOUTS = ("cose", "concentric", "breadthfirst", "circle", "grid")
+LAYOUTS = ("cose", "concentric", "breadthfirst", "circle", "grid", "dagre")
+# "dagre" is an opt-in *preview* of a different look: a layered dagre layout whose
+# nodes are drawn as real HTML cards (cytoscape-dom-node) instead of canvas circles.
+# It is last in the list and never the default — picking any other layout leaves the
+# existing canvas rendering exactly as it was.
+_LAYOUT_LABELS = {"dagre": "dagre (preview)"}
 
 
 def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
@@ -57,20 +79,21 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
             assets: str = "inline", site: bool = False) -> str:
     """A single self-contained HTML page rendering the subgraph with cytoscape.js.
 
-    Default inlines the vendored lib + CSS/JS so the file works offline / air-gapped;
+    Default inlines the vendored libs + CSS/JS so the file works offline / air-gapped;
     pass ``cdn=True`` for a small online-only file. ``assets="sibling"`` references
-    ``cytoscape.min.js`` / ``app.css`` / ``app.js`` as relative files instead of
-    inlining them — used by ``build_site`` so a folder of cross-linked pages shares
+    the vendored JS (``cytoscape.min.js`` + the two layout/render extensions) and
+    ``app.css`` / ``app.js`` as relative files instead of inlining them — used by ``build_site`` so a folder of cross-linked pages shares
     one copy of each asset rather than inlining ~1 MB per page. ``site=True`` enables
     cross-page navigation (overview repo nodes carry an ``href`` to their repo page).
     ``live=True`` wires node taps to a ``/neighbors`` endpoint (used by ``serve_graph``).
     """
     if cdn:
-        lib_tag = f'<script src="{_CDN_URL}"></script>'
+        urls = (_CDN_URL, *_EXT_CDN_URLS.values())
+        lib_tag = "\n".join(f'<script src="{u}"></script>' for u in urls)
     elif assets == "sibling":
-        lib_tag = '<script src="cytoscape.min.js"></script>'
+        lib_tag = "\n".join(f'<script src="{n}"></script>' for n in _LIB_FILES)
     else:
-        lib_tag = f"<script>{_cytoscape_js()}</script>"
+        lib_tag = "\n".join(f"<script>{_static_js(n)}</script>" for n in _LIB_FILES)
     if assets == "sibling":
         style_block = '<link rel="stylesheet" href="app.css">'
         app_js_block = '</script>\n<script src="app.js"></script>'
@@ -134,7 +157,8 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
         keys_inner += f'<div class="kgroup"><h3>Languages</h3>{lang_key}</div>'
     legend_keys = (f'<details class="legend-keys"><summary>Legend key</summary>'
                    f'{keys_inner}</details>') if keys_inner else ""
-    options = "".join(f'<option value="{n}">{n}</option>' for n in LAYOUTS)
+    options = "".join(f'<option value="{n}">{_LAYOUT_LABELS.get(n, n)}</option>'
+                      for n in LAYOUTS)
     meta = json.dumps(payload.get("meta", {}))
     return (_HTML_TEMPLATE
             .replace("__STYLE_BLOCK__", style_block)
@@ -413,8 +437,8 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     """Emit a folder of cross-linked, offline HTML pages sharing one set of assets.
 
     Writes ``index.html`` + ``overview.html`` + one ``repo-<slug>.html`` per repo
-    that has parsed nodes, plus a single shared ``cytoscape.min.js`` / ``app.css`` /
-    ``app.js`` (referenced, not inlined — so the folder stays small instead of
+    that has parsed nodes, plus a single shared copy of each vendored JS lib +
+    ``app.css`` / ``app.js`` (referenced, not inlined — so the folder stays small instead of
     repeating ~1 MB per page). Overview repo nodes link to their repo page; every
     page links back to the overview + index. Fully offline.
 
@@ -425,7 +449,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    for name in ("cytoscape.min.js", "app.css", "app.js"):
+    for name in (*_LIB_FILES, "app.css", "app.js"):
         (out / name).write_text(_read_static_raw(name), encoding="utf-8")
 
     sizes = repo_node_sizes(store)
@@ -544,7 +568,8 @@ __LIB_TAG__
   <aside id="info" role="complementary" aria-label="Details"></aside>
   <footer id="statusbar" role="status" aria-live="polite">
     <span id="meta"></span>
-    <span id="trunc" class="trunc"></span><span class="grow"></span>
+    <span id="trunc" class="trunc"></span>
+    <span id="rmode" class="rmode"></span><span class="grow"></span>
     <span>context<span class="l">lake</span> graph</span>
   </footer>
 </div>

@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Preview (opt-in, pending visual approval):** the graph page's layout dropdown gains a
+  `dagre (preview)` option -- a layered/directed dagre layout that also renders nodes as real
+  HTML cards (border-radius, shadow, real typography) instead of canvas circles, and marches
+  ants along the selected node's edges. Selecting any other layout leaves the existing canvas
+  rendering completely unchanged; this is a look to judge before it becomes anyone's default.
+  Card rendering is skipped above 400 nodes (the status bar says so) and on the fleet overview.
+- Vendored `cytoscape-dagre` 4.0.0 and `cytoscape-dom-node` 2.1.0 (both MIT, ~46 KB + ~11 KB)
+  alongside `cytoscape.min.js`, so the preview above works offline like the rest of the page.
+  `cytoscape-dagre` bundles dagre itself, so there is no separate dagre file. `app.js`
+  feature-detects both and drops the preview option if they did not load.
 - `contextlake kb serve` now accepts `--transport sse`, the legacy HTTP+SSE transport, alongside
   the existing `stdio`/`http` (Streamable HTTP) options -- for MCP clients that only support SSE
   and haven't moved to Streamable HTTP yet. See [docs/serve.md](docs/serve.md#transports).
@@ -106,6 +116,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   namespaced form is the only one that parses. See the two required post-upgrade steps above.
 
 ### Fixed
+- **A `repo=`-scoped semantic/hybrid search missed a repo's own linked connector/enrichment
+  content.** `VectorStore.search`/`SqliteVecStore.search` filtered `repo_id` by exact match only, so
+  a query scoped to `repo="team/api"` never matched rows written under the `@connect:team/api` /
+  `@enrich:team/api` partitions that `connect`/`enrich` deliberately isolate on write (see
+  `connect_partition`/`enrich_partition`) -- even though that content is directly linked to the
+  repo's own code via real graph edges. Both `search()` implementations now widen a repo filter to
+  match the literal repo id or either of its connector/enrichment partitions.
 - **`contextlake kb serve --transport http` printed a bind URL that 404s.** It reported the bare
   `http://127.0.0.1:8765`, but Streamable HTTP is served at the SDK's `streamable_http_path`
   (`/mcp`), which contextlake does not override, so a client pointed at the printed URL got a 404

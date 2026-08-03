@@ -107,7 +107,10 @@
   .ck .ln{width:18px;height:0;border-top:2px solid var(--muted);flex:none}
   .ck .ln.dashed{border-top-style:dashed}
   .ck .ln.dotted{border-top-style:dotted}
-  #cy{grid-area:cy;min-width:0;min-height:0;position:relative;background:var(--cy-bg)}
+  /* overflow:hidden so the HTML-card layer (dagre preview) can't push the whole page
+     into a scrollbar; the canvas/minimap/empty-state children never overflow anyway */
+  #cy{grid-area:cy;min-width:0;min-height:0;position:relative;overflow:hidden;
+    background:var(--cy-bg)}
   #info{grid-area:inspect;overflow-y:auto;background:var(--surface);
     border-left:1px solid var(--line);padding:14px;font-size:12px;display:none}
   body[data-inspect="open"] #info{display:block}
@@ -150,6 +153,34 @@
   #statusbar .l{color:var(--brand)}
   .trunc{color:var(--sun);font-weight:600;display:none}
   .trunc.show{display:inline}
+  .rmode{color:var(--accent);font-weight:600;display:none}
+  .rmode.show{display:inline}
+
+  /* ---- "dagre (preview)" rendering: real HTML nodes (cytoscape-dom-node). ------
+     Opt-in only — the layer does not exist until the preview layout is selected.
+     pointer-events:none throughout, so every gesture still reaches the canvas and
+     cytoscape keeps owning hover/tap/drag exactly as it does in the default mode. */
+  .cl-domlayer{position:absolute;top:0;left:0;transform-origin:0 0;
+    pointer-events:none;z-index:3}
+  /* !important is load-bearing: cytoscape-dom-node writes `display:inline` inline on
+     every position sync, which would otherwise blockify nothing and collapse the icon */
+  .cl-card{display:flex!important;align-items:center;gap:8px;box-sizing:border-box;
+    max-width:220px;padding:7px 11px 7px 8px;border-radius:12px;
+    background:var(--surface);color:var(--text);
+    border:1px solid var(--line);border-left:3px solid var(--k,var(--brand));
+    box-shadow:var(--e2);font-family:var(--ff);pointer-events:none;
+    transition:opacity var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+  .cl-card .ci{flex:none;width:20px;height:20px;border-radius:6px;
+    background-color:var(--k,var(--brand));background-repeat:no-repeat;
+    background-position:center;background-size:62%}
+  .cl-card .cb{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+  .cl-card .ct{font-size:12px;font-weight:600;letter-spacing:-.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cl-card .ck{font-size:9.5px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.05em}
+  .cl-card.faded{opacity:var(--faded-opacity)}
+  .cl-card.hi{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),var(--e2)}
+  .cl-card.found{border-color:var(--sun);box-shadow:0 0 0 2px var(--sun),var(--e2)}
   #tip{position:absolute;z-index:40;pointer-events:none;display:none;background:var(--deepwater);
     color:var(--mist);font-size:11px;padding:4px 8px;border-radius:6px;max-width:42ch;
     box-shadow:var(--e2)}

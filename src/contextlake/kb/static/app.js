@@ -81,6 +81,11 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       { selector: 'edge[scaffold]', style: {
           "line-color": "#9bbcc2", "width": 0.7, "target-arrow-shape": "none",
           "opacity": 0.4, "curve-style": "straight" } },
+      // "dagre (preview)" only: the canvas node is blanked so the real HTML card
+      // (cytoscape-dom-node) is all you see. Never applied under any other layout.
+      { selector: "node.cl-dom", style: {
+          "background-opacity": 0, "background-image": "none",
+          "border-width": 0, "label": "" } },
       { selector: 'edge[aggregated]', style: {
           "width": "mapData(weight, 1, 20, 1.6, 7)", "opacity": 0.8,
           "label": "data(weight)", "font-size": 10, "font-weight": 600, "color": label,
@@ -199,7 +204,9 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     if(e.key === "/"){ e.preventDefault(); document.getElementById("search").focus(); }
     else if(e.key === "f" || e.key === "F"){ reframe(); }
     else if(e.key === "t" || e.key === "T"){ document.getElementById("theme").click(); }
-    else if(e.key === "Escape"){ cy.elements().removeClass("faded hi"); hideInfo(); }
+    else if(e.key === "Escape"){
+      cy.elements().removeClass("faded hi"); hideInfo(); refreshDomFx(); stopAnts();
+    }
   });
 
   function layoutOpts(name){
@@ -216,6 +223,12 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     if(name === "circle") return { name:"circle", animate:false, padding:40, spacingFactor:1.3 };
     if(name === "grid") return { name:"grid", animate:false, padding:40, avoidOverlap:true,
         avoidOverlapPadding:24 };
+    // dagre: layered/hierarchical — the one layout that reads dependency DIRECTION as
+    // top-to-bottom ranks instead of a force-directed blob. rankSep is generous because
+    // the preview's HTML cards are much wider than the canvas circles they replace.
+    if(name === DAGRE) return { name:DAGRE, animate:false, padding:40, fit:false,
+        rankDir:"TB", ranker:"network-simplex", nodeSep:34, edgeSep:12, rankSep:76,
+        nodeDimensionsIncludeLabels:true };
     return { name:name, animate:false };
   }
   // Grid-pack a set of bounding-boxed groups (component tiles, or no-dep nodes) into
@@ -239,7 +252,163 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   function runLayout(name){
     cy.layout(layoutOpts(name)).run();
     fitClamped(undefined, 30);
+    // HTML cards have no level-of-detail fallback the way canvas labels do: below
+    // ~0.7 the real typography that is the whole point of the mode stops being
+    // readable. So in card mode we frame legibly and let the user pan, rather than
+    // fitting the whole graph into unreadable confetti.
+    if(domOn && cy.zoom() < CARD_FIT_FLOOR){ cy.zoom(CARD_FIT_FLOOR); cy.center(); }
     applyLOD(true);
+  }
+
+  // ===== "dagre (preview)": an OPT-IN alternative rendering, off by default. =====
+  // Picking "dagre (preview)" in the layout dropdown does three things at once, and
+  // picking any other layout undoes all three — the canvas rendering every other
+  // layout uses is untouched by this block:
+  //   1. lays the graph out in dagre's directed ranks (top-to-bottom flow),
+  //   2. swaps the canvas circles for real HTML cards (cytoscape-dom-node), so nodes
+  //      get border-radius, a shadow and real typography instead of painted glyphs,
+  //   3. marches ants along the selected node's edges (cytoscape's own
+  //      line-dash-offset animation — no extra library).
+  // Both extensions are optional at RUNTIME: if their <script> didn't load (e.g. the
+  // lazy `--serve` site does not yet serve them as siblings), the option removes
+  // itself rather than offering a mode that would silently do nothing.
+  var DAGRE = "dagre";
+  var HAS_DAGRE = (typeof cytoscapeDagre !== "undefined");
+  var HAS_DOMNODE = (typeof cytoscapeDomNode !== "undefined");
+  if(HAS_DAGRE){ cytoscape.use(cytoscapeDagre); }
+  (function(){
+    var opt = document.querySelector('#layout option[value="' + DAGRE + '"]');
+    if(opt && !HAS_DAGRE){ opt.remove(); }
+  })();
+
+  // An HTML card per node costs a DOM element, a ResizeObserver entry and a transform
+  // per frame — worth it for a repo-sized graph, not for a fleet-sized one. Past the
+  // cap the layout still switches to dagre; only the card rendering stays off, and
+  // the status bar says so rather than leaving it looking broken.
+  var DOM_NODE_CAP = 400, CARD_FIT_FLOOR = 0.7;
+  var domRenderer = null, domBox = null, domOn = false;
+  function noteMode(msg){
+    var el = document.getElementById("rmode");
+    if(el){ el.textContent = msg || ""; el.classList.toggle("show", !!msg); }
+  }
+  // The card mirrors what the canvas node encodes (kind colour, type/language glyph,
+  // label) in real DOM. Text goes in via textContent — node labels are repo-derived
+  // and must never be parsed as HTML.
+  function domCard(n){
+    var d = n.data(), kind = d.kind || "";
+    var card = document.createElement("div");
+    card.className = "cl-card";
+    card.style.setProperty("--k", COLORS[kind] || DEFAULT_COLOR);
+    var icon = (kind === "repo" && LANG_ICONS[d.lang]) ? LANG_ICONS[d.lang] : ICONS[kind];
+    if(icon){
+      var gi = document.createElement("span");
+      gi.className = "ci";
+      gi.style.backgroundImage = 'url("' + icon + '")';
+      card.appendChild(gi);
+    }
+    var body = document.createElement("span");
+    body.className = "cb";
+    var t = document.createElement("span");
+    t.className = "ct"; t.textContent = d.label || d.id;
+    var k = document.createElement("span");
+    k.className = "ck"; k.textContent = kind;
+    body.appendChild(t); body.appendChild(k);
+    card.appendChild(body);
+    return card;
+  }
+  function enterDomMode(){
+    if(domOn || !HAS_DOMNODE) return;
+    var nodes = cy.nodes();
+    if(nodes.length > DOM_NODE_CAP){
+      noteMode("card view off — " + nodes.length + " nodes (cap " + DOM_NODE_CAP + ")");
+      return;
+    }
+    // Own the layer rather than letting the extension create one: destroy() detaches
+    // its handlers but leaves appended cards behind, so teardown has to be ours.
+    var canvas = cyEl.querySelector("canvas");
+    domBox = document.createElement("div");
+    domBox.className = "cl-domlayer";
+    (canvas && canvas.parentNode ? canvas.parentNode : cyEl).appendChild(domBox);
+    cy.batch(function(){ nodes.forEach(function(n){ n.data("dom", domCard(n)); }); });
+    // interactiveSelector:false — the cards are pure presentation (pointer-events:none
+    // in CSS), so every gesture keeps falling through to cytoscape as it does today.
+    domRenderer = cy.domNode({ domContainer: domBox, interactiveSelector: false });
+    nodes.addClass("cl-dom");
+    domOn = true;
+    syncDomVisibility(); refreshDomFx();
+    noteMode("preview: HTML cards");
+  }
+  function exitDomMode(){
+    if(!domOn) return;
+    domOn = false;
+    stopAnts();
+    if(domRenderer && domRenderer.destroy){ domRenderer.destroy(); }
+    domRenderer = null;
+    cy.batch(function(){
+      // remove ONLY the properties dom-node set inline (it writes width/height/shape);
+      // a bare removeStyle() would also wipe the `display` the legend filters set.
+      cy.nodes().removeClass("cl-dom").removeStyle("width height shape").removeData("dom");
+    });
+    if(domBox && domBox.parentNode){ domBox.parentNode.removeChild(domBox); }
+    domBox = null;
+    noteMode("");
+  }
+  function applyRenderMode(name){
+    if(name === DAGRE && !OVERVIEW){ enterDomMode(); return; }
+    exitDomMode();
+    noteMode("");   // also clears the "cap" notice, where card mode never engaged
+  }
+  // dom-node syncs position/size/selection but NOT visibility, so a legend filter
+  // would leave cards floating over the canvas for nodes it just hid.
+  function syncDomVisibility(){
+    if(!domOn) return;
+    cy.nodes().forEach(function(n){
+      var el = n.data("dom");
+      if(el){ el.style.visibility = (n.style("display") === "none") ? "hidden" : ""; }
+    });
+  }
+  // …and the fade/highlight classes live on the canvas element, so mirror them onto
+  // the card or focus/search would visibly stop working in card mode.
+  function refreshDomFx(){
+    if(!domOn) return;
+    cy.nodes().forEach(function(n){
+      var el = n.data("dom");
+      if(!el) return;
+      el.classList.toggle("faded", n.hasClass("faded"));
+      el.classList.toggle("hi", n.hasClass("hi"));
+      el.classList.toggle("found", n.hasClass("found"));
+    });
+  }
+
+  // Marching ants — cytoscape's own line-dash-offset animation, no extra library.
+  // Scoped to the CURRENT SELECTION's edges (never the whole graph: animating every
+  // edge of a large graph is the perf trap) and capped. Note this temporarily
+  // overrides the confidence line-style encoding (solid/dashed/dotted) on those
+  // edges; the original style is restored the moment the ants stop.
+  var ANT_CAP = 60, antToken = 0, antEles = null;
+  function stopAnts(){
+    antToken++;
+    if(antEles){
+      antEles.stop();
+      antEles.removeStyle("line-style line-dash-pattern line-dash-offset");
+      antEles = null;
+    }
+  }
+  function marchOne(e, token){
+    if(token !== antToken) return;
+    e.style("line-dash-offset", 0);
+    // one full 2-period slide, restarted — a seamless loop with a stoppable handle
+    e.animation({ style: { "line-dash-offset": -20 } }, { duration: 700 })
+      .play().promise("complete").then(function(){ marchOne(e, token); }, function(){});
+  }
+  function marchAnts(edges){
+    stopAnts();
+    if(!domOn || RM.matches) return;          // preview-only, and never under reduced motion
+    if(!edges || !edges.length || edges.length > ANT_CAP) return;
+    antEles = edges;
+    var token = antToken;
+    edges.style({ "line-style": "dashed", "line-dash-pattern": [6, 4], "line-dash-offset": 0 });
+    edges.forEach(function(e){ marchOne(e, token); });
   }
 
   // ===== Overview: two interlocking views — namespace mindmap <-> dependency flow.
@@ -458,6 +627,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     document.getElementById("vm-flow").onclick = function(){ setMode("flow"); };
     setMode("clusters");
   } else {
+    applyRenderMode(LAYOUT);
     runLayout(LAYOUT);
   }
   // Belt-and-braces for the iframe/hidden-panel case: if the container already had
@@ -486,6 +656,9 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   var sel = document.getElementById("layout");
   sel.value = LAYOUT;
   sel.addEventListener("change", function(){
+    // enter/leave card rendering FIRST: dagre lays out against node dimensions, and
+    // in card mode those come from the rendered HTML, not the stylesheet.
+    applyRenderMode(sel.value);
     if(OVERVIEW){ relayoutOverview(); } else { runLayout(sel.value); }
   });
 
@@ -498,6 +671,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   };
   document.getElementById("reset").onclick = function(){
     cy.elements().removeClass("faded hi found");
+    stopAnts(); refreshDomFx();
     hidden = {}; hiddenRel = {}; showNodeps = false;
     var sn = document.getElementById("shownodeps");
     if(sn){ sn.checked = false; }
@@ -521,6 +695,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     cy.edges().forEach(function(e){
       e.style("display", hiddenRel[e.data("relation")] ? "none" : "element");
     });
+    syncDomVisibility();
     cy.emit("clake-vis");   // visibility changed -> let the minimap refresh its node layer
   }
   function syncLegend(){
@@ -558,7 +733,10 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
 
   // search -> highlight + frame matches (reveals hidden repos so every repo stays
   // findable; clearing restores the mode's visibility state)
-  function restoreVisibility(){ if(OVERVIEW){ applyOverview(); } else { applyFilter(); } }
+  function restoreVisibility(){
+    if(OVERVIEW){ applyOverview(); } else { applyFilter(); }
+    refreshDomFx();
+  }
   var search = document.getElementById("search");
   search.addEventListener("input", function(){
     var q = search.value.trim().toLowerCase();
@@ -570,6 +748,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     });
     hits.style("display", "element");
     hits.addClass("found");
+    syncDomVisibility(); refreshDomFx();
     if(hits.length){ fitClampedAnimated(hits, 90, 300); }
   });
 
@@ -691,9 +870,14 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   function focus(node){
     cy.elements().addClass("faded").removeClass("hi");
     node.closedNeighborhood().removeClass("faded").addClass("hi");
+    refreshDomFx();
+    marchAnts(node.connectedEdges());   // no-op outside the dagre preview
   }
   cy.on("tap", function(e){
-    if(e.target === cy){ cy.elements().removeClass("faded hi"); hideInfo(); }
+    if(e.target === cy){
+      cy.elements().removeClass("faded hi"); hideInfo();
+      refreshDomFx(); stopAnts();
+    }
   });
   cy.on("tap", "node", function(e){
     // overview clusters mode: tapping a namespace drills in/out (mindmap), not focus
@@ -707,6 +891,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     var ed = e.target;
     cy.elements().addClass("faded").removeClass("hi");
     ed.connectedNodes().add(ed).removeClass("faded").addClass("hi");
+    refreshDomFx();
+    marchAnts(ed);
     showEdgeInfo(ed);
     frameOn(ed.connectedNodes());
   });

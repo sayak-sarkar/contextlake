@@ -593,10 +593,11 @@ def test_html_is_offline_by_default(store):
     assert len(html) > 100_000         # the vendored lib is inlined
     html_cdn = viz.to_html(_payload(store), cdn=True)
     assert _CDN_URL in html_cdn        # --cdn references the CDN
-    # ...and does not inline the ~1MB cytoscape lib. The page's own JS/CSS (app shell,
-    # minimap, semantic zoom, LOD labels, legend glyphs) is always inlined and sits
-    # ~73KB; the bound just has to stay well under the lib size (>1MB) to catch a regression.
-    assert len(html_cdn) < 90_000
+    # ...and does not inline any vendored lib. The page's own JS/CSS (app shell,
+    # minimap, semantic zoom, LOD labels, legend glyphs, dagre-preview wiring) is always
+    # inlined and sits ~85KB; the bound stays under the smallest lib we could
+    # accidentally inline (cytoscape-dom-node, ~10KB) so a regression still trips it.
+    assert len(html_cdn) < 110_000
 
 
 def test_kind_icons_are_offline_data_uris_with_contrast():
@@ -726,8 +727,56 @@ def test_html_inlines_extracted_assets(store):
     assert "--deepwater" in html and "function edgeColor" in html
     # ...and no asset placeholder survives in the output.
     assert "__APP_CSS__" not in html and "__APP_JS__" not in html
-    import re
-    assert not re.findall(r"__[A-Z][A-Z]+__", html)  # no residual placeholder token
+    # no residual placeholder token: enumerate what the template actually declares and
+    # prove every one was substituted. (A blanket __[A-Z]+__ scan would now trip over
+    # the `/* @__PURE__ */` annotations inside the vendored extension bundles.)
+    placeholders = set(re.findall(r"__[A-Z_]+__", viz._HTML_TEMPLATE))
+    assert placeholders and not [p for p in placeholders if p in html]
+
+
+def test_layout_extension_assets_are_packaged():
+    # the two extensions behind the opt-in "dagre (preview)" layout are vendored too,
+    # so the page keeps working offline / air-gapped.
+    from importlib.resources import files
+    dagre = files("contextlake.kb") / "static" / "cytoscape-dagre.min.js"
+    domnode = files("contextlake.kb") / "static" / "cytoscape-dom-node.js"
+    assert dagre.is_file() and domnode.is_file()
+    # cytoscape-dagre bundles dagre itself (no separate dagre file to vendor)…
+    assert "cytoscapeDagre" in dagre.read_text(encoding="utf-8")[:4000]
+    # …and the dom-node browser build self-registers against window.cytoscape
+    dn = domnode.read_text(encoding="utf-8")
+    assert "cytoscapeDomNode" in dn[:4000] and "register(globalCytoscape.cytoscape)" in dn
+
+
+def test_dagre_preview_is_an_extra_layout_never_the_default(store):
+    # the preview is additive: it is offered LAST and cose stays the fallback, so an
+    # existing page renders exactly as it did before the extensions were vendored.
+    assert viz.LAYOUTS[-1] == "dagre" and viz.LAYOUTS[0] == "cose"
+    _hub(store, leaves=3)
+    html = viz.to_html(_payload(store))
+    assert '<option value="dagre">dagre (preview)</option>' in html
+    assert 'var LAYOUT = "cose"' in html                    # unchanged default
+    assert viz.to_html(_payload(store), layout="dagre").count('var LAYOUT = "dagre"') == 1
+    # the opt-in wiring, and the marching-ants animation, ship in the inlined app.js
+    assert "applyRenderMode" in html and "line-dash-offset" in html
+
+
+def test_html_inlines_the_layout_extensions(store):
+    _hub(store, leaves=3)
+    html = viz.to_html(_payload(store))
+    assert "cytoscapeDagre" in html and "cytoscapeDomNode" in html
+    assert "https://cdn.jsdelivr.net" not in html          # offline file stays offline
+
+
+def test_html_cdn_mode_pins_every_vendored_lib(store):
+    _hub(store, leaves=3)
+    html = viz.to_html(_payload(store), cdn=True)
+    for url in (_CDN_URL, *viz.html_render._EXT_CDN_URLS.values()):
+        assert f'<script src="{url}"></script>' in html
+        assert "@" in url.rsplit("/", 3)[1]                 # version-pinned, never latest
+    # referenced, not inlined (the libs' own banner comments are the tell — app.js
+    # legitimately *names* the globals to feature-detect them)
+    assert "cytoscape.js-dagre" not in html
 
 
 def test_html_sibling_assets_reference_not_inline(store):
@@ -737,7 +786,10 @@ def test_html_sibling_assets_reference_not_inline(store):
     assert '<link rel="stylesheet" href="app.css">' in html
     assert '<script src="app.js"></script>' in html
     assert '<script src="cytoscape.min.js"></script>' in html
+    assert '<script src="cytoscape-dagre.min.js"></script>' in html
+    assert '<script src="cytoscape-dom-node.js"></script>' in html
     assert "--deepwater" not in html and "function edgeColor" not in html  # not inlined
+    assert "cytoscapeDagre" not in html                                    # nor the extensions
 
 
 def test_build_site_emits_cross_linked_offline_pages(store, tmp_path):
@@ -751,7 +803,8 @@ def test_build_site_emits_cross_linked_offline_pages(store, tmp_path):
     viz.build_site(store, out)
 
     # one shared copy of each asset, plus index + overview + a page per repo
-    for asset in ("cytoscape.min.js", "app.css", "app.js"):
+    for asset in ("cytoscape.min.js", "cytoscape-dagre.min.js", "cytoscape-dom-node.js",
+                  "app.css", "app.js"):
         assert (out / asset).is_file()
     assert (out / "index.html").is_file() and (out / "overview.html").is_file()
     assert (out / "repo-repoA.html").is_file() and (out / "repo-repoB.html").is_file()
