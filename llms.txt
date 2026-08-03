@@ -25,8 +25,8 @@
 
 - [Serve (MCP)](https://sayak.in/contextlake/serve): Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.
 - [Dashboard](https://sayak.in/contextlake/dashboard): A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.
-- [Visualize the graph](https://sayak.in/contextlake/visualize): Draw bounded, offline graph slices (`contextlake graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.
-- [Ownership and SMEs](https://sayak.in/contextlake/ownership): Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake owners` / `who_knows`), no config or index required.
+- [Visualize the graph](https://sayak.in/contextlake/visualize): Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.
+- [Ownership and SMEs](https://sayak.in/contextlake/ownership): Find who owns a repo or path and who to ask, ranked recency-weighted from git history (`contextlake kb owners` / `who_knows`), no config or index required.
 
 ## Understand it
 

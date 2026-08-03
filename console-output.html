@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Reading the console output · contextlake docs">
 <meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Reading the console output", "description": "Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Reading the console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Reading the console output", "description": "Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Reading the console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fbe49">
-<link rel="stylesheet" href="tokens.css?v=88fbe49">
-<link rel="stylesheet" href="docs.css?v=88fbe49">
-<link rel="stylesheet" href="cmdk.css?v=88fbe49">
+<link rel="stylesheet" href="fonts.css?v=cd17c44">
+<link rel="stylesheet" href="tokens.css?v=cd17c44">
+<link rel="stylesheet" href="docs.css?v=cd17c44">
+<link rel="stylesheet" href="cmdk.css?v=cd17c44">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -125,7 +125,7 @@ into a tool that doesn't expect escape codes. It doesn't touch the glyphs themse
 rest still print; only the color wrapped around them is gone.</p>
 <h2 id="the-stdout-stderr-split">The stdout / stderr split<a class="anchor" href="#the-stdout-stderr-split" title="Link to this section">#</a></h2>
 <p>The bar renders on stderr; the per-item result lines below it (<code>✓</code>/<code>⚠</code> and the like) stay on stdout. That
-split means <code>contextlake wiki &gt;&gt; run.log</code> (or any stdout redirect) captures clean detail lines with no bar
+split means <code>contextlake kb wiki &gt;&gt; run.log</code> (or any stdout redirect) captures clean detail lines with no bar
 artifacts or <code>\r</code> clutter, since the bar never touches stdout. When output isn't a TTY (piped, cron, a
 redirected stderr), the bar itself auto-downgrades to periodic plain summary lines instead of repainting in
 place. When both streams share one terminal (the default interactive case), the bar and the detail lines
@@ -149,15 +149,21 @@ separately.</p>
   rejected by council (score 0.31)</code></strong>, it did not clear the accept threshold; the indented <code>-
   accuracy/completeness/clarity: ...</code> lines are the per-lens reasons. <strong><code>unparseable review</code></strong> means the
   model returned a review the council couldn't score (common with the tiny built-in 0.5B model); those
-  lenses are excluded from the mean rather than counted as zero. A capable backend
+  lenses are excluded from the mean rather than counted as zero. A rejection that also says
+  <strong><code>N reviewer(s) returned nothing parseable</code></strong> tells you how many lenses abstained, when that count
+  equals your <code>council_size</code> on every page, suspect a <em>misconfigured reviewer</em> (missing API key, review
+  CLI not on PATH) rather than genuinely weak pages: a reviewer that returns nothing rejects everything
+  at score 0.0, which otherwise looks identical to a very strict council. A capable backend
   (<code>--llm ollama</code>/<code>anthropic</code>/<code>openai</code>) produces far fewer rejections, see
   <a href="model-providers">Model providers</a>.</li>
-<li><strong><code>contextlake serve --transport http</code> prints its bind URL</strong> once it starts listening (<code>✓ MCP server on
-  http://127.0.0.1:8765  (Ctrl-C to stop)</code>), so you don't have to guess the host/port before pointing an
-  editor at it. <code>stdio</code> transport has no address to report and stays quiet on that line.</li>
+<li><strong><code>contextlake kb serve --transport http</code>/<code>sse</code> prints its bind URL</strong> once it starts listening --
+  <code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)</code> for <code>http</code>, or the same with an <code>/sse</code>
+  suffix for <code>sse</code> -- so you don't have to guess the host/port/path before pointing an editor at it.
+  Both URLs include the path because neither transport is served at the bare root: that really is a 404.
+  <code>stdio</code> transport has no address to report and stays quiet on that line.</li>
 <li><strong><code>graph --overview</code> on an empty store warns instead of reporting silent success.</strong> It still writes the
   (empty) artifact, but now says <code>⚠ Wrote html (0 nodes, 0 edges) -&gt; ...: the store is empty.</code> followed by
-  a hint to run <code>contextlake index</code> first, instead of logging the same success line it would for a
+  a hint to run <code>contextlake kb index</code> first, instead of logging the same success line it would for a
   populated graph.</li>
 <li><strong>A single-writer lock message</strong> naming another process means two runs targeted one store at once (see
   the git-hook note under <a href="bootstrap">Bootstrap and keep fresh</a>).</li>
@@ -185,7 +191,7 @@ progress still shows.</p>
 <footer><div class="f-in">
   <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
 </div></footer>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
@@ -207,6 +213,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88fbe49"></script>
+<script defer src="cmdk.js?v=cd17c44"></script>
 </body>
 </html>

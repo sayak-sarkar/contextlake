@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Model providers · contextlake docs">
 <meta name="twitter:description" content="The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-30"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fbe49">
-<link rel="stylesheet" href="tokens.css?v=88fbe49">
-<link rel="stylesheet" href="docs.css?v=88fbe49">
-<link rel="stylesheet" href="cmdk.css?v=88fbe49">
+<link rel="stylesheet" href="fonts.css?v=cd17c44">
+<link rel="stylesheet" href="tokens.css?v=cd17c44">
+<link rel="stylesheet" href="docs.css?v=cd17c44">
+<link rel="stylesheet" href="cmdk.css?v=cd17c44">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -134,12 +134,19 @@ by what may leave your machine and what hardware you have.</p>
 <span class="n">enabled</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 <span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span><span class="w">        </span><span class="c1"># auto | builtin | ollama | openai | anthropic | cli</span>
 <span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span><span class="w">    </span><span class="c1"># provider-specific model id (table below)</span>
-<span class="c1"># base_url    = &quot;http://127.0.0.1:11434&quot;   # ollama, or a local openai-compatible server</span>
+<span class="c1"># base_url    = &quot;http://127.0.0.1:11434&quot;   # optional: defaults per provider (table below)</span>
 <span class="c1"># api_key_env = &quot;OPENAI_API_KEY&quot;           # openai: env var holding the key (never the key)</span>
 <span class="c1"># timeout    = 300          # seconds per model call; raise it for a slow CPU (ollama/openai)</span>
 <span class="n">council_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="w">           </span><span class="c1"># review lenses that run (1-3); fewer = fewer calls per page</span>
 <span class="n">accept_score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.7</span><span class="w">         </span><span class="c1"># mean council score a page must clear to be written</span>
+<span class="c1"># review_provider = &quot;anthropic&quot;      # optional: have the COUNCIL review with a different</span>
+<span class="c1"># review_model    = &quot;claude-haiku-4-5&quot;  # (usually stronger) backend than the one generating</span>
 </code></pre></div>
+<p>Unset, <code>review_provider</code> means the council reviews with the same client that generated the page , 
+the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
+<code>pages × council_size</code> extra calls against that provider, so it is opt-in and never inferred from an
+API key that happens to be in your environment. See
+<a href="generate-wiki">Generate the wiki</a> for the full rationale.</p>
 <table>
 <thead>
 <tr>
@@ -162,10 +169,22 @@ by what may leave your machine and what hardware you have.</p>
 <tr>
 <td><code>openai</code></td>
 <td><code>gpt-4o-mini</code>, or your server's model id</td>
-<td><code>base_url</code> = the API's <code>/v1</code></td>
+<td><code>base_url</code> defaults to <code>https://api.openai.com/v1</code>; point it at a local openai-compatible server to override</td>
+</tr>
+<tr>
+<td><code>anthropic</code></td>
+<td><code>claude-haiku-4-5</code>, <code>claude-opus-4-8</code></td>
+<td><code>base_url</code> defaults to <code>https://api.anthropic.com</code>; key from <code>ANTHROPIC_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>cli</code></td>
+<td>n/a, the CLI picks its own model</td>
+<td><code>command</code> = the agent CLI to invoke (default <code>claude</code>); reuses that CLI's login</td>
 </tr>
 </tbody>
 </table>
+<p><code>base_url</code> is resolved per provider, so you only set it to reach a proxy or a local
+openai-compatible server, never just to make <code>anthropic</code>/<code>openai</code> work.</p>
 <p>CLI flags override the toml and now work on <strong><code>bootstrap</code></strong> too:
 <code>contextlake bootstrap --llm ollama --llm-model qwen2.5:3b</code>.</p>
 <h2 id="why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt wheel (or a compiler)<a class="anchor" href="#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler" title="Link to this section">#</a></h2>
@@ -209,7 +228,7 @@ a 3B-8B model writes much better wiki pages than the 0.5B built-in.</p>
 <div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://ollama.com/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh<span class="w">   </span><span class="c1"># installs + starts the daemon</span>
 ollama<span class="w"> </span>pull<span class="w"> </span>qwen2.5:3b<span class="w">                            </span><span class="c1"># ~1.9GB, one-time</span>
 contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span>ollama<span class="w"> </span>--llm-model<span class="w"> </span>qwen2.5:3b<span class="w">   </span><span class="c1"># whole layer in one command</span>
-<span class="c1"># or per repo:  contextlake wiki &lt;repo&gt; --llm ollama --llm-model qwen2.5:3b</span>
+<span class="c1"># or per repo:  contextlake kb wiki &lt;repo&gt; --llm ollama --llm-model qwen2.5:3b</span>
 </code></pre></div>
 <p>contextlake defaults <code>base_url</code> to <code>http://127.0.0.1:11434</code>, so usually nothing else to set.</p>
 <p><strong>B) Ollama on Windows, contextlake in WSL</strong> (the cross-boundary case). WSL2 is a separate network
@@ -312,7 +331,7 @@ downloads at runtime. See <code>examples/kb.toml.example</code>.</p>
 <footer><div class="f-in">
   <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
 </div></footer>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
@@ -334,6 +353,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88fbe49"></script>
+<script defer src="cmdk.js?v=cd17c44"></script>
 </body>
 </html>

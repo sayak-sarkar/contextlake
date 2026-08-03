@@ -46,9 +46,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fbe49">
-<link rel="stylesheet" href="tokens.css?v=88fbe49">
-<link rel="stylesheet" href="cmdk.css?v=88fbe49">
+<link rel="stylesheet" href="fonts.css?v=cd17c44">
+<link rel="stylesheet" href="tokens.css?v=cd17c44">
+<link rel="stylesheet" href="cmdk.css?v=cd17c44">
 <style>
   /* Shared brand tokens (--deepwater/--lake/--bg/--ink/--link/etc., light+dark) now
      load from tokens.css -- these :root blocks add only the tokens specific to this
@@ -674,6 +674,7 @@
       </div>
       <div class="cta-row">
         <a class="btn primary" href="quickstart">Get started</a>
+        <a class="btn" href="demo/">Try the live demo</a>
         <a class="btn" href="https://pypi.org/project/contextlake/"><img src="pypi-logo.svg" width="17" height="15" alt="" style="vertical-align:-3px;margin-right:7px">View on PyPI</a>
       </div>
     </div>
@@ -772,13 +773,13 @@
       <div class="sec-head" style="max-width:38em">
         <div class="sec-eyebrow">See it</div>
         <h2 id="see-h">A whole codebase as one navigable graph</h2>
-        <p class="sec-lede"><code style="font-family:var(--ff-m);padding:.15em .4em;border-radius:5px">contextlake graph</code>
+        <p class="sec-lede"><code style="font-family:var(--ff-m);padding:.15em .4em;border-radius:5px">contextlake kb graph</code>
           renders a bounded, offline, interactive map, fleet overview, a symbol's neighbourhood, or a single repo. Type glyphs,
           language lettermarks, confidence-coded edges, level-of-detail labels, and a navigator minimap keep even dense graphs legible.</p>
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=88fbe49"
+    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=cd17c44"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
     <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
@@ -837,7 +838,7 @@
           </div>
           <div class="demo-foot">
             <p class="demo-cap">A real <code style="font-family:var(--ff-m)">blast_radius</code> call, answered from the graph inside your editor. No model, no network.</p>
-            <button class="runline" type="button" data-cmd="contextlake serve"><span class="rp">$</span><span class="rc">contextlake serve</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
+            <button class="runline" type="button" data-cmd="contextlake kb serve"><span class="rp">$</span><span class="rc">contextlake kb serve</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
             <a class="doclink" href="serve">MCP setup &rarr;</a>
           </div>
         </div></div>
@@ -870,7 +871,7 @@
           </div>
           <div class="demo-foot">
             <p class="demo-cap">Real cosine-ranked hits over contextlake's own code. The built-in CPU model needs no key and no network.</p>
-            <button class="runline" type="button" data-cmd="contextlake embed"><span class="rp">$</span><span class="rc">contextlake embed</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
+            <button class="runline" type="button" data-cmd="contextlake kb embed"><span class="rp">$</span><span class="rc">contextlake kb embed</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
             <a class="doclink" href="semantic-search">Semantic search &rarr;</a>
           </div>
         </div></div>
@@ -888,7 +889,7 @@
             <div class="win stg s1">
               <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wt">contextlake &middot; sync</span></div>
               <div class="win-body">
-                <div class="tline stg s2"><span class="prompt">$</span>contextlake sync</div>
+                <div class="tline stg s2"><span class="prompt">$</span>contextlake mirror sync</div>
                 <div class="tline stg s2"><span class="dim">Found 8 local repositories</span></div>
                 <div class="rows">
                   <div class="r skip"><span class="g">&#8856;</span><span class="nm">user-profile</span><em>skipped, uncommitted changes</em></div>
@@ -907,7 +908,7 @@
           </div>
           <div class="demo-foot">
             <p class="demo-cap">A real sync run over a local test fleet. Uncommitted work is detected and left untouched, and the same pass scales to hundreds of repos, concurrent and resumable.</p>
-            <button class="runline" type="button" data-cmd="contextlake sync"><span class="rp">$</span><span class="rc">contextlake sync</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
+            <button class="runline" type="button" data-cmd="contextlake mirror sync"><span class="rp">$</span><span class="rc">contextlake mirror sync</span><svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></button>
             <a class="doclink" href="usage">Syncing &rarr;</a>
           </div>
         </div></div>
@@ -932,25 +933,25 @@
         <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
         <h3>Land in an unfamiliar fleet</h3>
         <p>New to a codebase spread across dozens of repos? Ask where a symbol is defined, what calls it, and how repos connect, without cloning your way through it by hand.</p>
-        <span class="uc-cmd"><span class="p">$</span> contextlake query "RateLimiter"</span>
+        <span class="uc-cmd"><span class="p">$</span> contextlake kb query "RateLimiter"</span>
       </div>
       <div class="uc">
         <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
         <h3>Ground your AI editor</h3>
         <p>Point Claude Code, Cursor, Windsurf, or Kiro at the graph over MCP so they answer from your real source with cited file:line, instead of guessing from training data.</p>
-        <span class="uc-cmd"><span class="p">$</span> contextlake serve</span>
+        <span class="uc-cmd"><span class="p">$</span> contextlake kb serve</span>
       </div>
       <div class="uc">
         <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg></span>
         <h3>Check blast radius before a change</h3>
         <p>See what depends on a class or module across every repo before you touch it, so a small edit does not quietly break a service three repos away.</p>
-        <span class="uc-cmd"><span class="p">$</span> contextlake impact Embedder</span>
+        <span class="uc-cmd"><span class="p">$</span> contextlake kb impact Embedder</span>
       </div>
       <div class="uc">
         <span class="uc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
         <h3>Find who knows it</h3>
         <p>Surface the likely owners and reviewers for a repo or path from commit history, so you know who to ask before a change lands.</p>
-        <span class="uc-cmd"><span class="p">$</span> contextlake owners billing-api</span>
+        <span class="uc-cmd"><span class="p">$</span> contextlake kb owners billing-api</span>
       </div>
     </div>
   </div>
@@ -1012,9 +1013,9 @@
     </div>
     <div class="cmd" aria-label="Quickstart commands">
       <span class="line"><span class="prompt">$</span> <span class="c">pip install "contextlake[kb]"</span></span>
-      <span class="line"><span class="prompt">$</span> <span class="c">contextlake index --source .</span> <span class="hash"># parse this repo</span></span>
-      <span class="line"><span class="prompt">$</span> <span class="c">contextlake graph --overview --open</span></span>
-      <span class="line"><span class="prompt">$</span> <span class="c">contextlake serve</span> <span class="hash"># or serve it over MCP</span> <span class="cursor" aria-hidden="true"></span></span>
+      <span class="line"><span class="prompt">$</span> <span class="c">contextlake kb index --source .</span> <span class="hash"># parse this repo</span></span>
+      <span class="line"><span class="prompt">$</span> <span class="c">contextlake kb graph --overview --open</span></span>
+      <span class="line"><span class="prompt">$</span> <span class="c">contextlake kb serve</span> <span class="hash"># or serve it over MCP</span> <span class="cursor" aria-hidden="true"></span></span>
     </div>
   </div>
 </section>
@@ -1057,6 +1058,7 @@
     </div>
     <nav class="f-links" aria-label="Footer">
       <a href="docs">Docs</a>
+      <a href="demo/">Live demo</a>
       <a href="changelog">Changelog</a>
       <a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a>
       <a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" width="15" height="13" alt="" style="vertical-align:-2px;margin-right:6px">PyPI</a>
@@ -1225,6 +1227,6 @@ nav.querySelectorAll(".nav-links a").forEach(function(a){a.addEventListener("cli
 document.addEventListener("click",function(e){if(nav.classList.contains("open")&&!nav.contains(e.target))set(false);});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nav.classList.contains("open")){set(false);tog.focus();}});
 addEventListener("resize",function(){if(innerWidth>680)set(false);});})();</script>
-<script defer src="cmdk.js?v=88fbe49"></script>
+<script defer src="cmdk.js?v=cd17c44"></script>
 </body>
 </html>

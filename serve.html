@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Serve (MCP) · contextlake docs">
 <meta name="twitter:description" content="Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serve (MCP)", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serve", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-26"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serve (MCP)", "item": "https://sayak.in/contextlake/serve"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serve (MCP)", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serve", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serve (MCP)", "item": "https://sayak.in/contextlake/serve"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fbe49">
-<link rel="stylesheet" href="tokens.css?v=88fbe49">
-<link rel="stylesheet" href="docs.css?v=88fbe49">
-<link rel="stylesheet" href="cmdk.css?v=88fbe49">
+<link rel="stylesheet" href="fonts.css?v=cd17c44">
+<link rel="stylesheet" href="tokens.css?v=cd17c44">
+<link rel="stylesheet" href="docs.css?v=cd17c44">
+<link rel="stylesheet" href="cmdk.css?v=cd17c44">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -48,7 +48,7 @@
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Serve (MCP)</span></nav>
     <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Layer 3 · Serve</div><h1>Serve it to your editor</h1><p class="doc-sub">Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
-<p>The third layer. Once the <a href="knowledge-layer">knowledge layer</a> is built, <code>contextlake serve</code>
+<p>The third layer. Once the <a href="knowledge-layer">knowledge layer</a> is built, <code>contextlake kb serve</code>
 exposes it as an <strong>MCP server</strong>, so any MCP client (Claude Code, Windsurf, VS Code, Kiro, Cursor,
 Postman, …) can query the graph directly instead of grepping.</p>
 <p><strong>Start with <code>ask</code>.</strong> One tool, natural language: <code>ask("who calls charge_order")</code> /
@@ -65,19 +65,19 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 <code>get_repo_brief</code>, <code>list_repos</code>, <code>get_repo_links</code>, <code>graph_health</code>, plus a <code>kb://stats</code>
 resource with the store counts.</p>
 <p><code>semantic_search</code> / <code>hybrid_search</code> are the two exceptions: they register <strong>only when
-embeddings exist</strong> (an <code>[embeddings]</code> section in <code>kb.toml</code> and a <code>contextlake embed</code>
+embeddings exist</strong> (an <code>[embeddings]</code> section in <code>kb.toml</code> and a <code>contextlake kb embed</code>
 run). Without that, the server starts fine and says so, the two tools are simply
 absent from the tool list, and everything above still works.</p>
 <h2 id="the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors<a class="anchor" href="#the-quick-way-let-contextlake-wire-your-editors" title="Link to this section">#</a></h2>
 <p>From your workspace root:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>steer<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>steer<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
 </code></pre></div>
 <p>This writes the per-tool steering files so agents pick up the workspace context and the MCP
 server natively:</p>
 <ul>
 <li><strong><code>AGENTS.md</code></strong> (overview, the knowledge tools, and guardrails), a thin <strong><code>CLAUDE.md</code></strong> that
   imports it, <strong><code>.windsurfrules</code></strong>, and <strong><code>.kiro/steering/</code></strong>.</li>
-<li>A merged <strong><code>.mcp.json</code></strong> entry for the <code>contextlake serve</code> server (Claude Code, Windsurf,
+<li>A merged <strong><code>.mcp.json</code></strong> entry for the <code>contextlake kb serve</code> server (Claude Code, Windsurf,
   Cursor, and other clients that read this file) and a merged <strong><code>.vscode/mcp.json</code></strong> entry for
   VS Code, which uses a different top-level key (<code>servers</code>, not <code>mcpServers</code>): a distinct
   schema, so it gets its own file rather than reusing <code>.mcp.json</code>.</li>
@@ -92,7 +92,7 @@ managed block is appended (and just that block is refreshed on re-runs). <code>.
 name is kept as-is; custom layers like <code>.devin/</code> are left untouched.</p>
 <h2 id="wiring-it-by-hand">Wiring it by hand<a class="anchor" href="#wiring-it-by-hand" title="Link to this section">#</a></h2>
 <p>Claude Code:</p>
-<div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
+<div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>contextlake-kb<span class="w"> </span>--<span class="w"> </span>contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
 </code></pre></div>
 <p>Windsurf, add the same server in its MCP config (Cascade's <em>MCP Servers</em> panel, or
 <code>~/.codeium/windsurf/mcp_config.json</code>):</p>
@@ -106,7 +106,7 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 <span class="p">}</span>
 </code></pre></div>
 <p>VS Code, in <code>.vscode/mcp.json</code> (note the <code>servers</code> key: a different schema from the
-<code>mcpServers</code> files above; <code>contextlake steer</code> writes this automatically):</p>
+<code>mcpServers</code> files above; <code>contextlake kb steer</code> writes this automatically):</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;contextlake-kb&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -116,11 +116,27 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
+<h2 id="transports">Transports<a class="anchor" href="#transports" title="Link to this section">#</a></h2>
+<p><code>contextlake kb serve --transport &lt;stdio|http|sse&gt;</code> (default <code>stdio</code>):</p>
+<ul>
+<li><strong><code>stdio</code></strong>, the default. The editor/agent spawns <code>contextlake kb serve</code> itself and talks to
+  it over stdin/stdout; this is what <code>steer</code>-generated <code>.mcp.json</code>/<code>.vscode/mcp.json</code> entries use.</li>
+<li><strong><code>http</code></strong>, Streamable HTTP, the MCP spec's current standard network transport (<code>--host</code>/
+  <code>--port</code>, default <code>127.0.0.1:8765</code>). Point clients at <code>http://127.0.0.1:8765/mcp</code>, not the bare
+  host:port: the endpoint is the <code>/mcp</code> path, and the root returns 404. Prefer this transport for
+  any new remote/network wiring.</li>
+<li><strong><code>sse</code></strong>, the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
+  marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
+  for clients that haven't moved off it yet; contextlake follows that guidance rather than
+  dropping it. Its endpoint is <code>http://127.0.0.1:8765/sse</code>. Use <code>sse</code> only if your client
+  specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
+  distinct, separate option from HTTP), pick <code>http</code> first.</li>
+</ul>
 <p><strong>Devin is different: there's no repo file to wire.</strong> Devin's MCP connections are configured at
 the account/org level (<code>mcp.devin.ai</code>, with an API key and org header), not read from a file
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
-server the way it can for the clients above. Add <code>contextlake serve</code> there yourself, once, in
-Devin's own MCP settings. What <code>contextlake steer</code> <em>does</em> give Devin (and any agent that reads
+server the way it can for the clients above. Add <code>contextlake kb serve</code> there yourself, once, in
+Devin's own MCP settings. What <code>contextlake kb steer</code> <em>does</em> give Devin (and any agent that reads
 plain workspace context) is <code>AGENTS.md</code>: the portable part travels; the MCP wiring itself
 doesn't.</p>
 <h2 id="once-connected">Once connected<a class="anchor" href="#once-connected" title="Link to this section">#</a></h2>
@@ -133,6 +149,7 @@ have it draft wiki pages from the graph without the built-in <code>wiki</code> c
 <ul>
 <li><a href="#the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors</a></li>
 <li><a href="#wiring-it-by-hand">Wiring it by hand</a></li>
+<li><a href="#transports">Transports</a></li>
 <li><a href="#once-connected">Once connected</a></li>
 </ul>
 </nav></aside>
@@ -140,7 +157,7 @@ have it draft wiki pages from the graph without the built-in <code>wiki</code> c
 <footer><div class="f-in">
   <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
 </div></footer>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
@@ -162,6 +179,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88fbe49"></script>
+<script defer src="cmdk.js?v=cd17c44"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Connect and enrich · contextlake docs">
 <meta name="twitter:description" content="Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connect and enrich", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connect-enrich", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connect and enrich", "item": "https://sayak.in/contextlake/connect-enrich"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connect and enrich", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connect-enrich", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connect and enrich", "item": "https://sayak.in/contextlake/connect-enrich"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fbe49">
-<link rel="stylesheet" href="tokens.css?v=88fbe49">
-<link rel="stylesheet" href="docs.css?v=88fbe49">
-<link rel="stylesheet" href="cmdk.css?v=88fbe49">
+<link rel="stylesheet" href="fonts.css?v=cd17c44">
+<link rel="stylesheet" href="tokens.css?v=cd17c44">
+<link rel="stylesheet" href="docs.css?v=cd17c44">
+<link rel="stylesheet" href="cmdk.css?v=cd17c44">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -70,43 +70,45 @@ queries connected sources with codebase-derived terms and stores what comes back
 <li><strong>Slack</strong>: links repos to the channels and messages that discuss them, classifying <code>slack.com</code> permalinks
   (<code>/archives/&lt;channel&gt;</code> and <code>/archives/&lt;channel&gt;/p&lt;ts&gt;</code>) into channel/message links. Reachability is
   checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
-  MCP servers, so the verification tool name is configurable (<code>verify_tool</code>, default <code>conversations_info</code>).</li>
+  MCP servers, so the verification tool name is configurable (<code>verify_tool</code>, default <code>conversations_info</code>),
+  as is the tool used to read a channel's recent messages (<code>history_tool</code>, default <code>conversations_history</code>).
+  Any code symbol those messages mention by name is linked straight to the channel.</li>
 </ul>
 <p>Adding another connector is a small, self-contained module, and its output lands in an isolated graph
 partition, so re-indexing a repo's code never disturbs its external links. Configure connectors by copying
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/kb.toml.example" target="_blank" rel="noopener"><code>examples/kb.toml.example</code><span class="ext-arrow" aria-hidden="true">↗</span></a> to <code>~/.contextlake/kb.toml</code>.</p>
 <h2 id="managing-sources-the-source-command-family">Managing sources: the <code>source</code> command family<a class="anchor" href="#managing-sources-the-source-command-family" title="Link to this section">#</a></h2>
-<p>Editing <code>kb.toml</code> by hand works, but for everyday use <code>contextlake source</code> commands let you add, test, and
+<p>Editing <code>kb.toml</code> by hand works, but for everyday use <code>contextlake kb source</code> commands let you add, test, and
 manage connectors without touching the config file. They rewrite <code>kb.toml</code> while preserving your comments,
 and work alongside hand-editing if you mix approaches.</p>
 <p>The commands:</p>
 <ul>
 <li>
-<p><strong><code>contextlake source add [--name NAME]</code></strong>: guided prompt to add a new connector. Asks for the connector
+<p><strong><code>contextlake kb source add [--name NAME]</code></strong>: guided prompt to add a new connector. Asks for the connector
   type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to <code>kb.toml</code>. Pass
   <code>--type</code>, <code>--name</code>, and other flags to bypass the prompt (<code>--help</code> shows all). <code>--set KEY=VALUE</code>
   (repeatable) writes any connector option <code>kb.toml</code> accepts, <code>token_env</code> included (see below): <code>--set
   token_env=MY_TOKEN</code> is the flag form of that same pattern. <strong><code>--from-stdin KEY</code></strong> reads that one option's
   value from stdin instead of the command line, so a secret never lands in shell history: <code>printf '%s'
-  "$TOKEN" | contextlake source add jira --type atlassian --from-stdin token</code>.</p>
+  "$TOKEN" | contextlake kb source add jira --type atlassian --from-stdin token</code>.</p>
 </li>
 <li>
-<p><strong><code>contextlake source list</code></strong>: show all configured connectors (the effective merged config from
+<p><strong><code>contextlake kb source list</code></strong>: show all configured connectors (the effective merged config from
   <code>~/.contextlake/kb.toml</code>, <code>.contextlake/kb.toml</code> if present, and the built-in defaults), with
   reachability status.</p>
 </li>
-<li><strong><code>contextlake source test SOURCE</code></strong>: verify that a specific connector works. Reaches its API, reads
+<li><strong><code>contextlake kb source test SOURCE</code></strong>: verify that a specific connector works. Reaches its API, reads
   credentials from the configured env var, lists available items. Shows you exactly what each source will
   ingest without running a full <code>connect</code>.</li>
-<li><strong><code>contextlake source enable|disable SOURCE</code></strong>: toggle a connector on/off in the config by name, so you
+<li><strong><code>contextlake kb source enable|disable SOURCE</code></strong>: toggle a connector on/off in the config by name, so you
   can pause one without deleting it.</li>
-<li><strong><code>contextlake source remove SOURCE</code></strong>: delete a connector entry by name.</li>
+<li><strong><code>contextlake kb source remove SOURCE</code></strong>: delete a connector entry by name.</li>
 </ul>
 <p>An example workflow:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w">                </span><span class="c1"># interactive: what type? which workspace?</span>
-contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span>list<span class="w">               </span><span class="c1"># show what you&#39;ve configured + status</span>
-contextlake<span class="w"> </span><span class="nb">source</span><span class="w"> </span><span class="nb">test</span><span class="w"> </span>my-atlassian<span class="w">  </span><span class="c1"># does it work? what&#39;s in scope?</span>
-contextlake<span class="w"> </span>connect<span class="w">                   </span><span class="c1"># now link repos to their items</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>add<span class="w">                </span><span class="c1"># interactive: what type? which workspace?</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span>list<span class="w">               </span><span class="c1"># show what you&#39;ve configured + status</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">source</span><span class="w"> </span><span class="nb">test</span><span class="w"> </span>my-atlassian<span class="w">  </span><span class="c1"># does it work? what&#39;s in scope?</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>connect<span class="w">                   </span><span class="c1"># now link repos to their items</span>
 </code></pre></div>
 <p><code>init</code> can also prompt you to connect a source during first-run setup, and <code>doctor</code> reports per-source
 reachability as part of its environment check, so hand-editing is optional; the CLI guides you through the
@@ -116,28 +118,35 @@ confidence-tagged as one of three tiers, <strong><code>EXTRACTED</code></strong>
 resolved call or link), or <strong><code>AMBIGUOUS</code></strong> (an unconfirmed candidate), and sanitized before it reaches an
 agent. The dashboard and the graph legend use these same tiers.</p>
 <h2 id="query-driven-enrichment">Query-driven enrichment<a class="anchor" href="#query-driven-enrichment" title="Link to this section">#</a></h2>
-<p><code>contextlake enrich</code> performs <strong>query-driven enrichment</strong>: it derives search terms from each repo's code
+<p><code>contextlake kb enrich</code> performs <strong>query-driven enrichment</strong>: it derives search terms from each repo's code
 graph (the repo's name and its top symbols by graph degree) and queries your connected sources (Atlassian
 Rovo search, or any <code>mcp</code> source with a <code>tool</code> and <code>arg_template</code> configured) with those terms, then stores
 the returned documents in a searchable, embedded <code>@enrich:&lt;repo&gt;</code> partition, idempotent and re-runnable
 across the whole fleet or a single repo:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
-contextlake<span class="w"> </span>enrich<span class="w"> </span>acme/catalog-api<span class="w">         </span><span class="c1"># one repo</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">     </span><span class="c1"># all indexed repos</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>enrich<span class="w"> </span>acme/catalog-api<span class="w">         </span><span class="c1"># one repo</span>
 </code></pre></div>
-<p>Prerequisites: the code graph must be <strong>indexed first</strong> (<code>contextlake index</code>), and at least one
+<p>Prerequisites: the code graph must be <strong>indexed first</strong> (<code>contextlake kb index</code>), and at least one
 term-searchable source must be configured: either an <code>mcp</code> source with <code>tool</code> and <code>arg_template</code> keys, or
 an <code>atlassian</code> source. Sources without these capabilities (e.g. a plain <code>files</code> or <code>web</code> source) are
 skipped gracefully. Each repo's enrichment documents are stored in their own partition so they can be
 re-fetched without clobbering prior results, and are embedded (when the semantic tier is enabled) so they
-surface in semantic search results as <code>document</code> nodes tagged with their source (<code>attrs.source</code>). After
-<code>contextlake wiki</code> runs, enrichment docs are incorporated into the curated wiki as an attributed "External
+surface in semantic search results as <code>document</code> nodes tagged with their source (<code>attrs.source</code>). A result
+that names one of the repo's symbols is also linked straight to it (<code>documented_by</code>), so the enrichment
+lands on the graph rather than beside it. After
+<code>contextlake kb wiki</code> runs, enrichment docs are incorporated into the curated wiki as an attributed "External
 context" section, grounded to the code graph's terms.</p>
 <h2 id="aggregating-documents-rag">Aggregating documents (RAG)<a class="anchor" href="#aggregating-documents-rag" title="Link to this section">#</a></h2>
-<p>Not everything lives in code. <code>contextlake ingest</code> pulls <strong>external documents</strong> into the same knowledge
+<p>Not everything lives in code. <code>contextlake kb ingest</code> pulls <strong>external documents</strong> into the same knowledge
 layer, they become <code>kind="document"</code> graph nodes and, when embeddings are on, their bodies are embedded so
 semantic search spans code <em>and</em> docs together:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w">        </span><span class="c1"># zero-config: ingest a folder of files</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w">        </span><span class="c1"># zero-config: ingest a folder of files</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>ingest<span class="w"> </span>--path<span class="w"> </span>./docs<span class="w"> </span>--for-repo<span class="w"> </span>group/app<span class="w">   </span><span class="c1"># …and link it to that repo&#39;s code</span>
 </code></pre></div>
+<p><code>--for-repo</code> names the <strong>already-indexed repo the documents are about</strong>. Every symbol a document mentions
+by name gets a <code>documented_by</code> edge to that document, so "where is this function explained?" is a graph
+hop instead of a search. Without it, documents are still stored and embedded, they just link to nothing.
+The per-source equivalent is <code>for_repo = "group/app"</code> on a <code>[[sources]]</code> entry.</p>
 <p>Sources follow a tiny seam, so common ones are <strong>built-in and config-only</strong> while anything heavier is a
 <strong>loosely-coupled plugin</strong>: bake in the common, plugin the rest:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># kb.toml, built-in &quot;files&quot; source (no code, no extra install)</span>
@@ -160,7 +169,7 @@ dependency:</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">iter_documents</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">yield</span> <span class="n">Document</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="s2">&quot;123&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Runbook&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="s2">&quot;https://...&quot;</span><span class="p">)</span>
 </code></pre></div>
-<p><code>contextlake ingest</code> then discovers <code>type = "confluence"</code> automatically. Five sources ship built-in:
+<p><code>contextlake kb ingest</code> then discovers <code>type = "confluence"</code> automatically. Five sources ship built-in:
 <code>files</code>, <code>web</code>, <code>api</code>, <code>graphql</code>, and <code>mcp</code>. <strong><code>web</code></strong> fetches URLs and ingests their readable text
 (stdlib-only):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[[sources]]</span>
@@ -221,7 +230,8 @@ accept: <code>auth_dir</code>, an isolated OAuth-cache directory (set a distinct
 <code>mcp-remote</code> caches never collide); <code>mcp_command</code>, a local stdio MCP command to launch instead of a remote
 endpoint (e.g. <code>"figma-mcp --stdio"</code> or <code>"slack-mcp --stdio"</code>); <code>hosts</code>, the list of hostnames a Figma/Slack
 source claims links for (defaults to <code>["figma.com"]</code>/<code>["slack.com"]</code>); <code>verify_tool</code>, the Slack MCP tool
-name used for reachability checks (default <code>conversations_info</code>); <code>group</code>, a GitLab group prefixed to each
+name used for reachability checks (default <code>conversations_info</code>); <code>history_tool</code>, the Slack MCP tool name
+used to read a channel's messages (default <code>conversations_history</code>); <code>group</code>, a GitLab group prefixed to each
 repo's path to form the project id; and <code>per_page</code>, the API page size (default <code>50</code>).</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
@@ -244,7 +254,7 @@ repo's path to form the project id; and <code>per_page</code>, the API page size
 <footer><div class="f-in">
   <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
 </div></footer>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
@@ -266,6 +276,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88fbe49"></script>
+<script defer src="cmdk.js?v=cd17c44"></script>
 </body>
 </html>

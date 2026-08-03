@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Bootstrap and keep fresh · contextlake docs">
 <meta name="twitter:description" content="Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Bootstrap and keep fresh", "description": "Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.", "url": "https://sayak.in/contextlake/bootstrap", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-29"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Bootstrap and keep fresh", "item": "https://sayak.in/contextlake/bootstrap"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Bootstrap and keep fresh", "description": "Run the whole pipeline in one command, compose the stages, and keep it fresh with cron or a git post-commit hook.", "url": "https://sayak.in/contextlake/bootstrap", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Bootstrap and keep fresh", "item": "https://sayak.in/contextlake/bootstrap"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fbe49">
-<link rel="stylesheet" href="tokens.css?v=88fbe49">
-<link rel="stylesheet" href="docs.css?v=88fbe49">
-<link rel="stylesheet" href="cmdk.css?v=88fbe49">
+<link rel="stylesheet" href="fonts.css?v=cd17c44">
+<link rel="stylesheet" href="tokens.css?v=cd17c44">
+<link rel="stylesheet" href="docs.css?v=cd17c44">
+<link rel="stylesheet" href="cmdk.css?v=cd17c44">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -91,23 +91,23 @@ store than the one you meant to target. Skip stages with
 </tr>
 <tr>
 <td>Add a connector, re-enrich the wiki</td>
-<td><code>contextlake source add jira ...</code> then <code>contextlake enrich</code> then <code>contextlake wiki</code></td>
+<td><code>contextlake kb source add jira ...</code> then <code>contextlake kb enrich</code> then <code>contextlake kb wiki</code></td>
 </tr>
 <tr>
 <td>Single repo, enriched</td>
-<td><code>contextlake index .</code> then <code>contextlake source add ...</code> then <code>contextlake enrich</code> then <code>contextlake wiki</code> then <code>contextlake serve</code></td>
+<td><code>contextlake kb index .</code> then <code>contextlake kb source add ...</code> then <code>contextlake kb enrich</code> then <code>contextlake kb wiki</code> then <code>contextlake kb serve</code></td>
 </tr>
 <tr>
 <td>Refresh enrichment only</td>
-<td><code>contextlake enrich</code> then <code>contextlake wiki --force</code></td>
+<td><code>contextlake kb enrich</code> then <code>contextlake kb wiki --force</code></td>
 </tr>
 <tr>
 <td>Manage or inspect sources</td>
-<td><code>contextlake source list</code> or <code>contextlake source test &lt;name&gt;</code> or <code>contextlake doctor</code></td>
+<td><code>contextlake kb source list</code> or <code>contextlake kb source test &lt;name&gt;</code> or <code>contextlake doctor</code></td>
 </tr>
 <tr>
 <td>Disable a noisy source</td>
-<td><code>contextlake source disable &lt;name&gt;</code> then re-run <code>contextlake enrich</code></td>
+<td><code>contextlake kb source disable &lt;name&gt;</code> then re-run <code>contextlake kb enrich</code></td>
 </tr>
 </tbody>
 </table>
@@ -125,12 +125,12 @@ in-progress working tree. Run it from cron:</p>
 <h2 id="re-index-on-commit-git-hook">Re-index on commit (git hook)<a class="anchor" href="#re-index-on-commit-git-hook" title="Link to this section">#</a></h2>
 <p>For continuous freshness without a schedule, install a git <code>post-commit</code> hook that re-indexes a repo the
 moment you commit to it:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w">                     </span><span class="c1"># the repo in the current directory</span>
-contextlake<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># every git repo under a mirror</span>
-contextlake<span class="w"> </span>hook<span class="w"> </span>status<span class="w">  </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># which repos are wired</span>
-contextlake<span class="w"> </span>hook<span class="w"> </span>uninstall<span class="w">                   </span><span class="c1"># remove it (any pre-existing hook is kept)</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>install<span class="w">                     </span><span class="c1"># the repo in the current directory</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># every git repo under a mirror</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>status<span class="w">  </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># which repos are wired</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>uninstall<span class="w">                   </span><span class="c1"># remove it (any pre-existing hook is kept)</span>
 </code></pre></div>
-<p>The hook runs <code>contextlake index &lt;repo&gt;</code> detached (so the commit returns immediately) and re-uses the
+<p>The hook runs <code>contextlake kb index &lt;repo&gt;</code> detached (so the commit returns immediately) and re-uses the
 repo's stored id, so it updates the same graph node rather than a duplicate. Mirror-wide syncing (fetch
 new clones, prune) still belongs to <code>bootstrap</code> on a schedule; the hook keeps <em>local edits</em> current
 between syncs.</p>
@@ -158,7 +158,7 @@ reclaimed automatically; override (rarely correct) with <code>CONTEXTLAKE_ALLOW_
 <footer><div class="f-in">
   <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
 </div></footer>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
@@ -180,6 +180,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88fbe49"></script>
+<script defer src="cmdk.js?v=cd17c44"></script>
 </body>
 </html>

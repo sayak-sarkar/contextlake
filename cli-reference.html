@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-30"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fbe49">
-<link rel="stylesheet" href="tokens.css?v=88fbe49">
-<link rel="stylesheet" href="docs.css?v=88fbe49">
-<link rel="stylesheet" href="cmdk.css?v=88fbe49">
+<link rel="stylesheet" href="fonts.css?v=cd17c44">
+<link rel="stylesheet" href="tokens.css?v=cd17c44">
+<link rel="stylesheet" href="docs.css?v=cd17c44">
+<link rel="stylesheet" href="cmdk.css?v=cd17c44">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -55,18 +55,20 @@ command's own page (linked below) covers it in depth.</p>
 <div class="highlight"><pre><span></span><code>$ contextlake fetc
 ✗ Unknown command: &#39;fetc&#39;
 
-Did you mean: fetch?
+Did you mean: mirror fetch?
 
 Run &#39;contextlake --help&#39; to see all commands.
 </code></pre></div>
 <p>The match runs against every command name <strong>and its aliases</strong> (<code>blast-radius</code> for <code>impact</code>, <code>who-knows</code>
-for <code>owners</code>), then shows the canonical verb, matching what <code>--help</code> teaches.</p>
-<p>Flags never match on a partial name or abbreviation. <code>contextlake index --work-d /tmp</code> reports
+for <code>owners</code>), then shows the canonical, namespaced verb, matching what <code>--help</code> teaches. This is also
+what answers the retired flat spellings: <code>contextlake fetch</code> no longer parses, so it fails here like any
+other unknown command and is pointed at <code>mirror fetch</code>.</p>
+<p>Flags never match on a partial name or abbreviation. <code>contextlake kb index --work-d /tmp</code> reports
 <code>unrecognized arguments: --work-d</code> rather than silently guessing you meant <code>--workspace</code>: a prefix is
 treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.</p>
 <p>A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
 letter -- not a shortened prefix) does get a suggestion, scoped to that command's own flags:</p>
-<div class="highlight"><pre><span></span><code>$ contextlake index --worksapce .
+<div class="highlight"><pre><span></span><code>$ contextlake kb index --worksapce .
 ✗ Unknown flag: &#39;--worksapce&#39;
 
 Did you mean: --workspace?
@@ -76,14 +78,14 @@ reporting it as simply unrecognized:</p>
 <div class="highlight"><pre><span></span><code>$ contextlake bootstrap --local
 ✗ &#39;--local&#39; isn&#39;t a flag on &#39;bootstrap&#39;
 
-It&#39;s used by: init, source.
+It&#39;s used by: init, kb source.
 
 Run &#39;contextlake bootstrap --help&#39; to see bootstrap&#39;s own flags.
 </code></pre></div>
 <p>A value-taking flag immediately followed by another recognized flag (its value was left out, so the next
 flag lands where the value should be) names the real problem instead of arguing you forgot a value
 entirely:</p>
-<div class="highlight"><pre><span></span><code>$ contextlake dashboard --serve --workspace --open
+<div class="highlight"><pre><span></span><code>$ contextlake kb dashboard --serve --workspace --open
 ✗ &#39;--workspace&#39; needs a value, but the next token (&#39;--open&#39;) is itself a recognized flag
 
 Put the value right after --workspace, e.g. &#39;--workspace &lt;value&gt; --open&#39;.
@@ -96,8 +98,8 @@ install</code> post-install hook exists to do this at install time -- see <a hre
 waiting for that first run, or</code>CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of the automatic check
 entirely.</p>
 <h2 id="advancedresilience-flags">Advanced/resilience flags<a class="anchor" href="#advancedresilience-flags" title="Link to this section">#</a></h2>
-<p>The 8 mirror-tier commands (<code>fetch</code>/<code>clone</code>/<code>update</code>/<code>branches</code>/<code>verify</code>/<code>status</code>/<code>sync</code>/<code>audit</code>) each
-take a further ~14 retry/backoff/worker-pool/safety-check flags (<code>--max-retries</code>,
+<p>The 8 <code>mirror</code>-tier commands (<code>mirror fetch</code>/<code>clone</code>/<code>update</code>/<code>branches</code>/<code>verify</code>/<code>status</code>/<code>sync</code>/<code>audit</code>)
+each take a further ~14 retry/backoff/worker-pool/safety-check flags (<code>--max-retries</code>,
 <code>--backoff-initial</code>/<code>--backoff-max</code>, <code>--adaptive-workers</code>, <code>--protect-working-branches</code>,
 <code>--safe-branches</code>, <code>--require-clean-workspace</code>, <code>--auto-stash</code>, and their <code>--no-</code> counterparts) --
 automation levers, not something to guess at from a bare <code>--help</code>. Every one already has a
@@ -105,7 +107,9 @@ automation levers, not something to guess at from a bare <code>--help</code>. Ev
 default <code>--help</code> listing; run <code>contextlake &lt;command&gt; --help-advanced</code> to see them.</p>
 <p><code>contextlake --help</code> groups all 29 commands by task (Get started / Mirror a fleet / Build the
 knowledge graph / Explore &amp; search / Serve to editors) directly in its own output -- the tables below
-are the same commands, organized for reference rather than a first read.</p>
+are the same commands, organized for reference rather than a first read. Each knowledge-layer verb
+below is typed under the <code>kb</code> namespace (<code>contextlake kb index</code>, <code>contextlake kb query</code>, ...); <code>init</code>,
+<code>bootstrap</code>, <code>version</code>, <code>completion</code>, and <code>doctor</code> span both tiers or neither, so they stay top-level.</p>
 <h2 id="knowledge-layer-commands">Knowledge-layer commands<a class="anchor" href="#knowledge-layer-commands" title="Link to this section">#</a></h2>
 <table>
 <thead>
@@ -116,81 +120,82 @@ are the same commands, organized for reference rather than a first read.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>source</code></td>
+<td><code>kb source</code></td>
 <td>add / list / remove / test / enable / disable knowledge-source connectors</td>
 </tr>
 <tr>
-<td><code>index</code></td>
+<td><code>kb index</code></td>
 <td>Build the code/dependency graph (<code>--workspace</code>, incremental, <code>--watch</code>)</td>
 </tr>
 <tr>
-<td><code>connect</code></td>
+<td><code>kb connect</code></td>
 <td>Link repos to Atlassian / Figma / GitLab items (<code>--watch</code> to keep refreshing)</td>
 </tr>
 <tr>
-<td><code>enrich</code></td>
+<td><code>kb enrich</code></td>
 <td>Query connected sources with codebase-derived terms and store enrichment docs (<code>--workspace</code>, incremental)</td>
 </tr>
 <tr>
-<td><code>embed</code></td>
+<td><code>kb embed</code></td>
 <td>Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, <code>--watch</code>)</td>
 </tr>
 <tr>
-<td><code>ingest</code></td>
+<td><code>kb ingest</code></td>
 <td>Aggregate external docs into the graph + semantic store (built-in <code>files</code>/<code>web</code>/<code>api</code>/<code>graphql</code>/<code>mcp</code> sources, or plugins)</td>
 </tr>
 <tr>
-<td><code>wiki</code></td>
+<td><code>kb wiki</code></td>
 <td>LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with <code>--namespace &lt;prefix&gt;</code> / <code>--namespaces --depth N</code>); <code>--llm builtin\|ollama\|openai\|anthropic\|cli</code> enables the LLM tier inline</td>
 </tr>
 <tr>
-<td><code>query</code></td>
+<td><code>kb query</code></td>
 <td>Search the index (<code>--kind</code>, <code>--repo</code>, <code>--as-of &lt;commit&gt;</code>, <code>--retriever fts\|semantic\|hybrid</code>, <code>--json</code>)</td>
 </tr>
 <tr>
-<td><code>owners</code></td>
-<td>Likely owners / SMEs for a repo or path, ranked from git history (alias <code>who-knows</code>, <code>--json</code>)</td>
+<td><code>kb owners</code></td>
+<td>Likely owners / SMEs for a repo or path, ranked from git history (alias <code>kb who-knows</code>, <code>--json</code>)</td>
 </tr>
 <tr>
-<td><code>impact</code></td>
-<td>Change-impact / blast radius: what depends on a symbol (alias <code>blast-radius</code>, <code>--json</code>)</td>
+<td><code>kb impact</code></td>
+<td>Change-impact / blast radius: what depends on a symbol (alias <code>kb blast-radius</code>, <code>--json</code>)</td>
 </tr>
 <tr>
-<td><code>graph</code></td>
+<td><code>kb graph</code></td>
 <td>Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with <code>--c4</code></td>
 </tr>
 <tr>
-<td><code>dashboard</code></td>
+<td><code>kb dashboard</code></td>
 <td>Local knowledge-system dashboard UI (<code>--serve</code>; <code>--sample</code> for a bundled demo)</td>
 </tr>
 <tr>
-<td><code>eval</code></td>
+<td><code>kb eval</code></td>
 <td>Measure retrieval quality: precision / recall / MRR against a golden-query set</td>
 </tr>
 <tr>
-<td><code>lint</code></td>
+<td><code>kb lint</code></td>
 <td>Graph health audit: stale repos, dangling edges (<code>--json</code>)</td>
 </tr>
 <tr>
 <td><code>doctor</code></td>
-<td>Environment check: FTS5, git, glab, the store, embeddings, per-source reachability</td>
+<td>Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness</td>
 </tr>
 <tr>
 <td><code>bootstrap</code></td>
 <td>Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer)</td>
 </tr>
 <tr>
-<td><code>serve</code></td>
-<td>Expose the graph over MCP (stdio or <code>--transport http</code>)</td>
+<td><code>kb serve</code></td>
+<td>Expose the graph over MCP (stdio, <code>--transport http</code>, or legacy <code>--transport sse</code>)</td>
 </tr>
 <tr>
-<td><code>steer</code></td>
+<td><code>kb steer</code></td>
 <td>Write per-editor steering (<code>AGENTS.md</code>, <code>.mcp.json</code>, and so on)</td>
 </tr>
 </tbody>
 </table>
-<p>The mirror-tier commands (<code>fetch</code>, <code>clone</code>, <code>update</code>, <code>branches</code>, <code>verify</code>, <code>sync</code>, <code>status</code>, <code>audit</code>)
-are covered under <a href="usage">Mirror repositories</a>.</p>
+<p>The <code>mirror</code>-tier commands (<code>mirror fetch</code>, <code>mirror clone</code>, <code>mirror update</code>, <code>mirror branches</code>,
+<code>mirror verify</code>, <code>mirror sync</code>, <code>mirror status</code>, <code>mirror audit</code>) are covered under
+<a href="usage">Mirror repositories</a>.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="index-code-graph">Index the code graph</a></li>
@@ -212,7 +217,7 @@ are covered under <a href="usage">Mirror repositories</a>.</p>
 <footer><div class="f-in">
   <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
 </div></footer>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
@@ -234,6 +239,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88fbe49"></script>
+<script defer src="cmdk.js?v=cd17c44"></script>
 </body>
 </html>

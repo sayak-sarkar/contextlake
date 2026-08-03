@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Index the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-07-27"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88fbe49">
-<link rel="stylesheet" href="tokens.css?v=88fbe49">
-<link rel="stylesheet" href="docs.css?v=88fbe49">
-<link rel="stylesheet" href="cmdk.css?v=88fbe49">
+<link rel="stylesheet" href="fonts.css?v=cd17c44">
+<link rel="stylesheet" href="tokens.css?v=cd17c44">
+<link rel="stylesheet" href="docs.css?v=cd17c44">
+<link rel="stylesheet" href="cmdk.css?v=cd17c44">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -48,11 +48,11 @@
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Index the code graph</span></nav>
     <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Index the code graph</h1><p class="doc-sub">Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
-<p>Indexing turns your mirrored repos into a queryable knowledge graph. <code>contextlake index --workspace
+<p>Indexing turns your mirrored repos into a queryable knowledge graph. <code>contextlake kb index --workspace
 ~/work</code> walks every git repo under a folder and builds the graph. Runs are incremental by default;
 <code>--force</code> rebuilds from scratch.</p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>
 
 <h2 id="incremental-and-time-travel">Incremental and time-travel<a class="anchor" href="#incremental-and-time-travel" title="Link to this section">#</a></h2>
@@ -81,7 +81,9 @@ dependency-free subset of gitignore syntax (no negation, <code>**</code>, or anc
 and lockfiles from the graph.</p>
 <h2 id="health-and-maintenance">Health and maintenance<a class="anchor" href="#health-and-maintenance" title="Link to this section">#</a></h2>
 <p><code>contextlake doctor</code> checks the environment (FTS5, <code>git</code> / <code>glab</code> on PATH, the store, the embedder, and the
-ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. <code>contextlake lint</code>
+ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
+doesn't affect the exit code) any C/C++ shard indexed with an older parser version than the one currently
+installed -- a nudge to re-index that repo so it picks up parser-correctness fixes. <code>contextlake kb lint</code>
 audits the graph itself, reporting <strong>stale repos</strong> (HEAD moved since they were indexed) and <strong>dangling
 edges</strong> (an edge whose endpoint node is missing). Both exit non-zero on problems, so they're CI-friendly.</p>
 <h2 id="what-the-graph-captures">What the graph captures<a class="anchor" href="#what-the-graph-captures" title="Link to this section">#</a></h2>
@@ -89,7 +91,7 @@ edges</strong> (an edge whose endpoint node is missing). Both exit non-zero on p
 interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong> (<code>inherits</code> edges for
 <code>extends</code> / <code>implements</code> / base classes), so "what extends <code>BaseController</code>?" is one hop, and changing a
 base class shows its subclasses in <code>blast_radius</code>. Every node kind and edge relation below is colored and
-styled the same way here, in <code>contextlake graph</code>, and in the dashboard:</p>
+styled the same way here, in <code>contextlake kb graph</code>, and in the dashboard:</p>
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/graph-vocabulary.png" alt="The knowledge-graph vocabulary: node kinds (symbols like class/function/method, containers like file/module/package/repo, service surfaces like endpoint/topic, cross-source issue/page/design, and the namespace boundary) each with their color, and edge relations (calls, imports, contains, depends_on, publishes, flow, exposes, calls_http, tracked_by, documented_by, inherits, references) each with their color, plus a confidence key: solid = extracted, dashed = inferred, dotted = ambiguous." width="820">
 </p>
@@ -129,13 +131,29 @@ parser registry is pluggable:</p>
 </table>
 <p>Frameworks are indexed through their base language: <strong>React / Next.js / Node.js</strong> are JS/TS(X),
 <strong>Angular</strong> is TS (its templates are HTML), and <strong>.NET</strong> is C#.</p>
+<h4 id="c-completeness">C++ completeness<a class="anchor" href="#c-completeness" title="Link to this section">#</a></h4>
+<p>A method defined outside its class (<code>ReturnType Class::method(...) { ... }</code>, at any <code>::</code> qualification
+depth) resolves to a <code>method</code> contained by its class, repo-wide -- not just the file it's declared in --
+so an out-of-line definition in one file still shows up under its class even when the class itself is
+declared in a different header. A <code>namespace { ... }</code> block is its own containing node, the same way a
+class or file is. Header files (<code>.h</code>) are parsed as C++, so a class declared in a header and defined in a
+matching <code>.cpp</code> is visible as one unit rather than the class half going missing. This parsing choice is
+kept transparent to <code>languages</code> filtering: <code>.h</code> files are indexed whenever either <code>"c"</code> or <code>"cpp"</code> is
+enabled, since C and C++ headers are shared infrastructure -- restricting <code>kb.toml</code>'s <code>languages</code> to just
+<code>["c"]</code> still indexes <code>.h</code> files, no need to list both. An <code>#ifdef</code>/<code>#else</code> (or <code>#ifndef</code>/<code>#else</code>)
+pair -- two definitions of the same method in different branches of the <em>same</em> conditional -- collapses
+into one node instead of appearing as duplicate, ambiguous call targets. A bare <code>#ifndef</code> header guard with
+no <code>#else</code> does <strong>not</strong> trigger this: both copies would sit in the same (only) branch, so nothing collapses,
+and genuinely distinct overloads anywhere are kept as separate definitions, never merged into one. See
+<a href="#health-and-maintenance">Health and maintenance</a> above: <code>doctor</code> flags any C/C++ shard indexed before
+these fixes landed, as a signal to re-index.</p>
 <h3 id="infrastructure-terraform-hcl">Infrastructure: Terraform / HCL<a class="anchor" href="#infrastructure-terraform-hcl" title="Link to this section">#</a></h3>
 <p><code>.tf</code> files build an infrastructure dependency graph: <code>resource</code> / <code>data</code> / <code>variable</code> / <code>output</code> /
 <code>module</code> / <code>local</code> definitions with <code>depends_on</code> edges resolving <code>var.</code> / <code>module.</code> / <code>data.</code> / resource
 references across files in a repo. <code>resource</code> nodes are semantically searchable.</p>
 <p>Resolution is repo-wide, so a block address defined identically in separate root-module directories (for
 example <code>environments/prod</code> and <code>environments/staging</code>) surfaces as an <code>AMBIGUOUS</code> edge; directory-scoped
-resolution is a future refinement. Render it with <code>contextlake graph --repo &lt;repo&gt; --format
+resolution is a future refinement. Render it with <code>contextlake kb graph --repo &lt;repo&gt; --format
 deploymentdiagram</code> (a Mermaid flowchart grouped by inferred category: network/compute/storage/
 database/security/module), see <a href="visualize">Visualize</a>.</p>
 <h3 id="databases-sql-ddl">Databases: SQL DDL<a class="anchor" href="#databases-sql-ddl" title="Link to this section">#</a></h3>
@@ -144,7 +162,7 @@ from foreign-key <code>REFERENCES</code> clauses, resolved across files in a rep
 semantically searchable.</p>
 <p>It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a <strong>deliberate undercount</strong>. Render it with
-<code>contextlake graph --repo &lt;repo&gt; --format erdiagram</code> (a Mermaid ER diagram), see <a href="visualize">Visualize</a>.</p>
+<code>contextlake kb graph --repo &lt;repo&gt; --format erdiagram</code> (a Mermaid ER diagram), see <a href="visualize">Visualize</a>.</p>
 <h3 id="architecture-decisions-adrs">Architecture decisions (ADRs)<a class="anchor" href="#architecture-decisions-adrs" title="Link to this section">#</a></h3>
 <p>A repo's own decision records, under common conventions (<code>docs/adr/</code>, <code>docs/decisions/</code>,
 <code>decisions/</code>, <code>adr/</code>, one file per decision), become first-class <code>adr</code> nodes in that repo's shard,
@@ -160,7 +178,7 @@ way an import or call site is, so nothing is inferred from that mention.</p>
 become <code>transitions_to</code> edges between <code>state</code> nodes, labeled with the method that makes the transition.
 Only <em>guarded</em> transitions are emitted: the source state must be established by a preceding comparison on
 the same field, so a diagram never claims a transition the code doesn't actually establish. Python, JS/TS,
-and C# (regex, every edge <code>INFERRED</code>). Render with <code>contextlake graph --repo &lt;repo&gt; --format statediagram</code>
+and C# (regex, every edge <code>INFERRED</code>). Render with <code>contextlake kb graph --repo &lt;repo&gt; --format statediagram</code>
 (a Mermaid entity state machine), see <a href="visualize">Visualize</a>.</p>
 <p><code>transitions_to</code> is deliberately <strong>not</strong> in <code>impact</code>'s default relation set: unlike a table schema a
 query depends on, a state value is rarely a thing other code breaks against when it changes (renaming an
@@ -172,7 +190,7 @@ literal <code>SELECT ... FROM</code> / <code>INSERT INTO</code> / <code>UPDATE .
 SQL text looks the same embedded anywhere) becomes a <code>reads</code> or <code>writes</code> edge from the file to the
 <code>table</code>/<code>view</code> node the SQL DDL extractor already found, resolved by name across the whole repo the same
 way an FK <code>references</code> edge is. A query against a table this repo never defines is an honest miss, not a
-guessed link. <code>reads</code>/<code>writes</code> are in <code>impact</code>'s default relation set, so <code>contextlake impact &lt;table&gt;</code>
+guessed link. <code>reads</code>/<code>writes</code> are in <code>impact</code>'s default relation set, so <code>contextlake kb impact &lt;table&gt;</code>
 answers "what code touches this table" out of the box.</p>
 <h3 id="web-topology-endpoints-and-routes">Web topology: endpoints and routes<a class="anchor" href="#web-topology-endpoints-and-routes" title="Link to this section">#</a></h3>
 <p>Two web-topology layers sit on top of the definitions.</p>
@@ -228,12 +246,12 @@ which repos actually touch it is a question the cross-repo edges answer, not the
 <strong>cross-repo dependency graph</strong> through shared package nodes. Agents traverse all of this over MCP, from
 finding a definition to cross-repo <code>blast_radius</code> ("what could break if I change this"); see
 <a href="serve">the full tool list under Serve</a>.</p>
-<p>The same change-impact walk is a one-liner from the shell: <code>contextlake impact &lt;symbol&gt; [--hops N]</code> lists
+<p>The same change-impact walk is a one-liner from the shell: <code>contextlake kb impact &lt;symbol&gt; [--hops N]</code> lists
 what calls / depends on a node, no editor needed. When a symbol name (e.g. <code>Node</code>, <code>Catalog</code>) is defined in
 more than one repo, <code>impact</code> lists the candidates and you narrow it with <code>--repo &lt;repo&gt;</code> rather than
 getting a silent best-guess.</p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
 
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
@@ -267,7 +285,7 @@ getting a silent best-guess.</p>
 <footer><div class="f-in">
   <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
   <nav class="f-links" aria-label="Footer">
-    <a href="./">Home</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
   </nav>
 </div></footer>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
@@ -289,6 +307,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88fbe49"></script>
+<script defer src="cmdk.js?v=cd17c44"></script>
 </body>
 </html>
