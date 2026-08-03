@@ -680,9 +680,9 @@ Issues: https://github.com/sayak-sarkar/contextlake/issues
     p = command("init", "guided setup: write your mirror + knowledge-layer config",
                 epilog="""
 Examples:
-  contextlake init        interactive setup (prompts with defaults)
-  contextlake init --yes  non-interactive, all defaults
-  contextlake init --platform github --group my-org --yes
+  contextlake init                     interactive setup (prompts with defaults)
+  contextlake init --skip-interactive  non-interactive, all defaults
+  contextlake init --platform github --group my-org --skip-interactive
   contextlake init --local  write config to THIS directory, not ~/
 
 Without --local or --config, init writes ~/.contextlake.ini + ~/.contextlake/kb.toml
@@ -711,7 +711,14 @@ it will inherit (nearest ancestor wins; see docs/configuration.md).
                    help="register shell tab-completion (default: yes, on bash/zsh)")
     p.add_argument("--no-completion", dest="completion", action="store_false", default=_S,
                    help="skip registering shell tab-completion")
-    p.add_argument("--yes", "-y", action="store_true", default=_S,
+    # Not --yes/-y: unlike apt/npm/gh, most of init's prompts aren't yes/no
+    # questions at all (platform, group, work_dir, store_dir all take a typed
+    # value with a default) -- --yes would misdescribe what it skips. No
+    # deprecation window: pre-1.0-in-spirit tool, no external users yet, and
+    # the CLI namespacing cutover already established the precedent of a
+    # direct rename over an aliased one.
+    p.add_argument("--skip-interactive", dest="skip_interactive",
+                   action="store_true", default=_S,
                    help="non-interactive: accept defaults / flags, no prompts")
     p.add_argument("--force", action="store_true", default=_S,
                    help="overwrite existing config files")

@@ -222,7 +222,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 
 | Command | What it does |
 | --- | --- |
-| `init` | **Guided setup**: write your mirror + knowledge-layer config (`--yes` for non-interactive) |
+| `init` | **Guided setup**: write your mirror + knowledge-layer config (`--skip-interactive` for non-interactive) |
 | `mirror status` | Show the workspace sync state vs GitLab (read-only) |
 | `mirror sync` | The full pipeline: fetch → clone → update → branches → verify → audit |
 | `mirror fetch` · `mirror clone` · `mirror update` | The sync steps, individually |

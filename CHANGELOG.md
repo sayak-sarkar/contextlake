@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking:** `contextlake init`'s non-interactive flag is now `--skip-interactive`; `--yes`/`-y`
+  are gone, not aliased. Unlike apt/npm/gh's `--yes`, which only skips a single yes/no confirmation
+  whose answer carries no new information, `init`'s flag drives a whole value-collecting wizard by
+  substituting defaults for prompts that mostly aren't yes/no questions at all (platform, group,
+  work_dir, store_dir all take a typed value) -- `--yes` misdescribed what it did. No deprecation
+  window: same hard-cutover approach as the CLI namespacing change below, since there are no
+  external users of the flag yet to accommodate.
+
 ### Fixed
 - `contextlake init` no longer writes a config naming a group/org/workspace that doesn't exist.
-  Previously, `init --yes` without `--group` silently wrote `gitlab_group = your-org`, and the
-  stale-placeholder safety net never caught it because it checked for a different literal
-  (`your-gitlab-group`). The same placeholder was also reachable interactively by accepting the
-  suggested default. `group` now has no default at all: an empty value (either path) is refused
-  with a clear message and exit code 2, before any file is written.
+  Previously, `init --yes` (now `--skip-interactive`) without `--group` silently wrote
+  `gitlab_group = your-org`, and the stale-placeholder safety net never caught it because it
+  checked for a different literal (`your-gitlab-group`). The same placeholder was also reachable
+  interactively by accepting the suggested default. `group` now has no default at all: an empty
+  value (either path) is refused with a clear message and exit code 2, before any file is written.
 - The mirror `.contextlake.ini` side of `--config` now hard-fails when the given path doesn't
   exist, matching `kb.toml`'s existing behavior -- previously it silently fell through to the next
   config in the precedence chain (typically `~/.contextlake.ini`), which can point at a completely

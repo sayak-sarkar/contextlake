@@ -3,8 +3,9 @@
 Turns the two-file setup (mirror ``~/.contextlake.ini`` + optional
 ``~/.contextlake/kb.toml``) into one command: detect the platform, tell the user
 which auth path they'll use, write valid config with sensible defaults, and print
-the next step. Interactive when stdin is a TTY; otherwise (or with ``--yes``)
-non-interactive from flags + defaults, so it is scriptable and CI-safe.
+the next step. Interactive when stdin is a TTY; otherwise (or with
+``--skip-interactive``) non-interactive from flags + defaults, so it is
+scriptable and CI-safe.
 
 Stdlib only, plus one lazy import: ``argcomplete.shell_integration`` for the
 fish completions file (argcomplete itself is a core dependency; see
@@ -279,7 +280,7 @@ def cmd_completion(args) -> int:
 
 def cmd_init(args) -> int:
     """Generate mirror (+ optional knowledge-layer) config, interactively or from flags."""
-    interactive = _interactive() and not getattr(args, "yes", False)
+    interactive = _interactive() and not getattr(args, "skip_interactive", False)
     force = getattr(args, "force", False)
 
     # --config redirects both generated files -- init is the one command that
@@ -320,11 +321,11 @@ def cmd_init(args) -> int:
     # No placeholder fallback here: group/org/workspace is the one prompt with
     # no value that's ever actually right to guess, on either path. Offering
     # "your-org" as an acceptable default (interactive, accept via enter) or
-    # silently substituting it (--yes, no --group) both write a config naming
-    # a group that doesn't exist -- caught once already when the --yes path
-    # did this and the stale-placeholder detector below didn't fire, because
-    # it checks a different literal. Refusing to write a placeholder at all
-    # makes that check's exact spelling stop mattering.
+    # silently substituting it (--skip-interactive, no --group) both write a
+    # config naming a group that doesn't exist -- caught once already when the
+    # non-interactive path did this and the stale-placeholder detector below
+    # didn't fire, because it checks a different literal. Refusing to write a
+    # placeholder at all makes that check's exact spelling stop mattering.
     group = getattr(args, "group", None) or ""
     if interactive:
         group = _ask("Group / org / workspace to mirror", group)
@@ -370,7 +371,7 @@ def cmd_init(args) -> int:
         wrote_any |= _write(kb_config_file, _kb_toml(enable_embeddings, store_dir), force=force)
 
     # --- optional data source(s) ---------------------------------------------
-    # Purely optional and skippable: default is "no", and --yes (non-interactive)
+    # Purely optional and skippable: default is "no", and --skip-interactive
     # never reaches this prompt. Only a source *type*, *name*, and MCP server
     # *URL* are collected here -- never a secret value (auth stays an env var,
     # set later via `contextlake source add --set token_env=...`). Loops so

@@ -28,6 +28,27 @@ def test_full_long_flags_still_work():
     assert args.work_dir == "/tmp/x"
 
 
+def test_init_skip_interactive_sets_the_flag():
+    """--skip-interactive says what it does -- unlike apt/npm/gh's --yes,
+    which only skips a single yes/no confirmation, init's flag skips a whole
+    value-collecting wizard, and most of its prompts aren't yes/no questions
+    at all (platform, group, work_dir, store_dir all take a typed value)."""
+    parser = build_parser()
+    args = parser.parse_args(["init", "--skip-interactive"])
+    assert args.skip_interactive is True
+
+
+@pytest.mark.parametrize("flag", ["--yes", "-y"])
+def test_yes_and_short_y_are_gone_hard_cutover(flag, capsys):
+    """No compatibility alias: --yes/-y were removed outright rather than
+    deprecated (no external users yet at the time of the cutover), matching
+    how the CLI namespacing rename was handled -- see test_cli_namespaces.py."""
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["init", flag])
+    assert exc.value.code == 2
+    assert "unrecognized arguments" in capsys.readouterr().err
+
+
 def test_kb_serve_accepts_the_sse_transport():
     """sse is a real, distinct MCP transport (legacy HTTP+SSE) alongside stdio
     and http -- not an alias for either -- so the parser must accept it."""
@@ -369,7 +390,7 @@ def test_auto_register_completion_runs_once_and_does_not_swallow_the_real_exit_c
     assert exc.value.code == 1
 
 
-@pytest.mark.parametrize("command_args", [["init", "--yes"], ["completion"]])
+@pytest.mark.parametrize("command_args", [["init", "--skip-interactive"], ["completion"]])
 def test_auto_register_completion_is_skipped_for_init_and_completion(monkeypatch, command_args):
     """init and `completion` already own this exact decision explicitly --
     the auto-check must never also run (and potentially double-register or

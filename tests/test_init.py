@@ -15,7 +15,7 @@ def _args(**over):
     # this file's later section) that explicitly mock HOME/SHELL; every other
     # test here must never touch a real dotfile, on this or any CI machine.
     base = dict(platform=None, group=None, work_dir=None, store_dir=None, kb=None,
-                embeddings=False, completion=False, yes=True, force=False)
+                embeddings=False, completion=False, skip_interactive=True, force=False)
     base.update(over)
     return Namespace(**base)
 
@@ -168,9 +168,9 @@ def test_init_rejects_unknown_platform(tmp_path, monkeypatch):
 
 
 def test_init_rejects_missing_group_non_interactive(tmp_path, monkeypatch):
-    """A `--yes` init with no --group must refuse rather than fabricate a
-    placeholder group (e.g. "your-org") that silently produces an unusable
-    config -- neither generated file should exist afterward."""
+    """A `--skip-interactive` init with no --group must refuse rather than
+    fabricate a placeholder group (e.g. "your-org") that silently produces an
+    unusable config -- neither generated file should exist afterward."""
     rc = _run(tmp_path, monkeypatch, platform="github", group=None)
     assert rc == 2
     assert not (tmp_path / ".contextlake.ini").exists()
@@ -225,8 +225,8 @@ def test_init_next_hint_plain_kb_without_semantic(tmp_path, monkeypatch, gls_log
 
 def test_init_non_interactive_skips_connector_prompt_and_writes_no_sources(
         tmp_path, monkeypatch):
-    # --yes (the default in _args) means non-interactive: the prompt is never
-    # reached at all.
+    # --skip-interactive (the default in _args) means non-interactive: the
+    # prompt is never reached at all.
     _run(tmp_path, monkeypatch, group="acme")
     kb = (tmp_path / ".contextlake/kb.toml").read_text()
     assert "[[sources]]" not in kb
@@ -241,7 +241,7 @@ def test_init_connector_prompt_declined_writes_no_sources(tmp_path, monkeypatch)
     monkeypatch.setattr(init_cmd, "_ask_yn", lambda prompt, default: default)
     monkeypatch.setattr(init_cmd, "_ask", lambda prompt, default: default)
 
-    rc = init_cmd.cmd_init(_args(yes=False, group="acme"))
+    rc = init_cmd.cmd_init(_args(skip_interactive=False, group="acme"))
     assert rc == 0
     kb = (tmp_path / ".contextlake/kb.toml").read_text()
     assert "[[sources]]" not in kb
@@ -268,7 +268,7 @@ def test_init_connector_prompt_accepted_adds_source(tmp_path, monkeypatch):
     monkeypatch.setattr(init_cmd, "_ask_yn", fake_ask_yn)
     monkeypatch.setattr(init_cmd, "_ask", fake_ask)
 
-    rc = init_cmd.cmd_init(_args(yes=False, group="acme"))
+    rc = init_cmd.cmd_init(_args(skip_interactive=False, group="acme"))
     assert rc == 0
     kb = (tmp_path / ".contextlake/kb.toml").read_text()
     assert 'name = "jira"' in kb
@@ -316,7 +316,7 @@ def test_init_connector_prompt_loops_to_add_multiple_sources(tmp_path, monkeypat
     monkeypatch.setattr(init_cmd, "_ask_yn", fake_ask_yn)
     monkeypatch.setattr(init_cmd, "_ask", fake_ask_wrapper)
 
-    rc = init_cmd.cmd_init(_args(yes=False, group="acme"))
+    rc = init_cmd.cmd_init(_args(skip_interactive=False, group="acme"))
     assert rc == 0
     kb = (tmp_path / ".contextlake/kb.toml").read_text()
     assert 'name = "jira"' in kb and 'type = "atlassian"' in kb
@@ -347,7 +347,7 @@ def test_init_connector_prompt_never_asks_for_a_secret_value(tmp_path, monkeypat
     monkeypatch.setattr(init_cmd, "_ask_yn", fake_ask_yn)
     monkeypatch.setattr(init_cmd, "_ask", fake_ask)
 
-    init_cmd.cmd_init(_args(yes=False, group="acme"))
+    init_cmd.cmd_init(_args(skip_interactive=False, group="acme"))
     assert not any(
         "token" in p.lower() or "secret" in p.lower() or "password" in p.lower()
         for p in seen_prompts

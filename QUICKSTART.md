@@ -113,11 +113,11 @@ rm -rf ~/.cache/huggingface/hub/models--minishlab--potion-base-8M
 ## 3. Configure
 
 The fast path, `contextlake init` writes both config files for you (interactive, or
-`--yes` for defaults):
+`--skip-interactive` for defaults):
 
 ```bash
 contextlake init                       # prompts for platform, group, workspace
-contextlake init --platform github --group my-org --yes   # non-interactive
+contextlake init --platform github --group my-org --skip-interactive   # non-interactive
 contextlake init --local               # scope config to this project instead of ~/
 ```
 
