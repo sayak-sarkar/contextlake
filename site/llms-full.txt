@@ -1409,7 +1409,9 @@ queries connected sources with codebase-derived terms and stores what comes back
 - **Slack**: links repos to the channels and messages that discuss them, classifying `slack.com` permalinks
   (`/archives/<channel>` and `/archives/<channel>/p<ts>`) into channel/message links. Reachability is
   checked best-effort over a configured Slack MCP; there's no single spec-mandated tool name across Slack
-  MCP servers, so the verification tool name is configurable (`verify_tool`, default `conversations_info`).
+  MCP servers, so the verification tool name is configurable (`verify_tool`, default `conversations_info`),
+  as is the tool used to read a channel's recent messages (`history_tool`, default `conversations_history`).
+  Any code symbol those messages mention by name is linked straight to the channel.
 
 Adding another connector is a small, self-contained module, and its output lands in an isolated graph
 partition, so re-indexing a repo's code never disturbs its external links. Configure connectors by copying
@@ -1477,7 +1479,9 @@ term-searchable source must be configured: either an `mcp` source with `tool` an
 an `atlassian` source. Sources without these capabilities (e.g. a plain `files` or `web` source) are
 skipped gracefully. Each repo's enrichment documents are stored in their own partition so they can be
 re-fetched without clobbering prior results, and are embedded (when the semantic tier is enabled) so they
-surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). After
+surface in semantic search results as `document` nodes tagged with their source (`attrs.source`). A result
+that names one of the repo's symbols is also linked straight to it (`documented_by`), so the enrichment
+lands on the graph rather than beside it. After
 `contextlake kb wiki` runs, enrichment docs are incorporated into the curated wiki as an attributed "External
 context" section, grounded to the code graph's terms.
 
@@ -1489,7 +1493,13 @@ semantic search spans code *and* docs together:
 
 ```bash
 contextlake kb ingest --path ./docs        # zero-config: ingest a folder of files
+contextlake kb ingest --path ./docs --for-repo group/app   # …and link it to that repo's code
 ```
+
+`--for-repo` names the **already-indexed repo the documents are about**. Every symbol a document mentions
+by name gets a `documented_by` edge to that document, so "where is this function explained?" is a graph
+hop instead of a search. Without it, documents are still stored and embedded, they just link to nothing.
+The per-source equivalent is `for_repo = "group/app"` on a `[[sources]]` entry.
 
 Sources follow a tiny seam, so common ones are **built-in and config-only** while anything heavier is a
 **loosely-coupled plugin**: bake in the common, plugin the rest:
@@ -1599,7 +1609,8 @@ accept: `auth_dir`, an isolated OAuth-cache directory (set a distinct one per At
 `mcp-remote` caches never collide); `mcp_command`, a local stdio MCP command to launch instead of a remote
 endpoint (e.g. `"figma-mcp --stdio"` or `"slack-mcp --stdio"`); `hosts`, the list of hostnames a Figma/Slack
 source claims links for (defaults to `["figma.com"]`/`["slack.com"]`); `verify_tool`, the Slack MCP tool
-name used for reachability checks (default `conversations_info`); `group`, a GitLab group prefixed to each
+name used for reachability checks (default `conversations_info`); `history_tool`, the Slack MCP tool name
+used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
 repo's path to form the project id; and `per_page`, the API page size (default `50`).
 
 ## See also
@@ -1805,6 +1816,12 @@ Accepted pages also become **searchable prose**: each page's sections are stored
 natural-language question can land on the wiki's explanation of a subsystem, cited back to the page file
 and labeled advisory (kind `wiki`), never outranking extracted code facts. Pages written before this
 existed are backfilled on the next `wiki` run without any LLM calls.
+
+Each section is also **linked to the symbols it names** (`documented_by`), so "where is this function
+explained?" is one graph hop from the symbol rather than a text search. Module pages link through the repo
+they belong to, so subsystem pages link too; a cluster page spans many repos and so links to none. Only the
+symbols get these edges, never the repo as a whole -- a repo's **Links** panel is for external knowledge
+(Jira, Confluence, Figma, GitLab), and a wiki page is contextlake's own output, not a cross-link.
 
 ## Cluster (namespace) wiki
 
@@ -3650,6 +3667,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Ingested documents now link to the code symbols they mention by name, via a new
+  `kb ingest --for-repo <repo>` flag (per-source equivalent: `for_repo` on a `[[sources]]` entry)
+  that says which indexed repo the documents are about. Without it, ingest behaves exactly as
+  before and links nothing.
+- Enrichment results (`kb enrich`) now link to the code symbols they mention by name, instead of
+  being stored as isolated document nodes with no edges at all.
+- Generated wiki pages (whole-repo and per-subsystem) now link each section to the code symbols it
+  names, closing the last of the four zero-edge pipelines the audit found. Only the symbols are
+  linked, not the repo as a whole: a repo's external-knowledge links (Jira / Confluence / Figma /
+  GitLab) stay free of contextlake's own generated pages.
+- GitLab merge requests now link directly to the code files their diff touches (not just their
+  repo), via a new `fetch_changes`/`match_files_to_nodes` pair.
+- Figma designs now link directly to code symbols whose name matches a frame or component name,
+  when Figma metadata is available (MCP-configured).
+- `connect` now discovers Figma and Slack links in docs by default (built-in URL patterns) -- no
+  `[[rules]] type="link_scrape"` config required, matching how GitLab sources were already default-on.
+- New shared text-mention matcher (`connectors/text_match.py`), reused by Slack and by
+  ingested/enriched/wiki content to find which code symbols a piece of text is actually about.
+- Slack connector can now fetch channel message text (previously it only ever parsed Slack links
+  found in docs) -- lays the groundwork for linking discussions to the code they're about.
+- Slack channels now link to specific code symbols mentioned in their message text, using the same
+  text-mention matcher shared with ingest/enrich/wiki content.
+- Connectors can now link external content directly to the code it's about via a new shared
+  `link_to_code` primitive (the existing repo-level edge is kept alongside it, except for wiki pages).
+- The Slack MCP tool used to read a channel's messages is configurable as `history_tool` on a
+  `[[sources]]` entry (default `conversations_history`), alongside the existing `verify_tool`. Slack
+  MCP servers don't agree on a tool name, so without this a non-default server silently produced no
+  message links at all.
 - **A public, read-only live demo of the dashboard is now linked from the project homepage and
   docs footer.** It's the existing `contextlake kb dashboard --site DIR --sample` static export
   (bundled fictional "acme" fleet, no real data) generated into `site/demo/` by `site/deploy.sh`
@@ -3666,6 +3711,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   happens to be in the environment: it costs **pages × `council_size`** extra calls against the
   review provider (drop `council_size` to 1 to cut that threefold). The run banner names both models
   when they differ, and `contextlake doctor` still checks the generation provider only.
+- Connector-produced nodes (GitLab MRs/issues, Figma designs, Slack channels) are now embedded and
+  semantically searchable, closing the third leg of the consolidation gap (unified in keyword
+  search, now-linked in the graph, now embeddable). Each `connect` pass sweeps the repo's old
+  connector vectors first, so an MR that closes or a design that's unlinked doesn't leave an
+  orphaned embedding behind.
+- `graph` exports (GraphML/Cypher/DOT/Mermaid) now include linked external nodes (GitLab MRs, Figma
+  designs, Slack channels, wiki page sections) one hop out from the code they're linked to, not just
+  code, so the edges the earlier consolidation work now creates actually show up in an export instead
+  of being silently dropped.
 
 ### Changed
 - **BREAKING: the commands are now namespaced under `mirror` and `kb`.** The CLI had grown to 29
