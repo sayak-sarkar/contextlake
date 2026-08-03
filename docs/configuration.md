@@ -75,6 +75,30 @@ knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to 
 of the global `~/.contextlake/kb` (override with `--store-dir`) — so two separate `--local` projects
 never end up sharing one store.
 
+## Workspace trust
+
+Because a local config is *discovered* rather than named, one can take effect that you never wrote —
+notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the few config keys that
+become part of a command contextlake executes are honoured **only** from the global
+`~/.contextlake/kb.toml` or from a path you pass to `--config`:
+
+| Key | Reaches |
+| --- | --- |
+| `[llm] command`, `[llm] args` | the agent CLI run when `provider = "cli"` |
+| `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
+| `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
+
+In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
+key. Nothing else changes: `store_dir`, `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and
+any non-`cli` LLM provider all keep working from a local file exactly as before. The one thing to know
+when scoping sources with `contextlake kb source add ... --local` is that an *MCP* source's `command`
+has to live in the global file (or be reached with `--config`); an `mcp` **URL** is fine locally.
+
+Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
+`.contextlake.kb.toml` — recommended in CI, containers, and anywhere untrusted checkouts are processed in
+bulk. With it set, `source add --local` writes to the global config too, rather than to a local file that
+would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the full model.
+
 ## Settings reference
 
 | Setting | Description | Default | Example |

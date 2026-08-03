@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **A config file found by directory search can no longer make contextlake execute a program.**
+  `.contextlake.kb.toml` is discovered by walking up from the current directory, so a repository you
+  cloned could ship one setting `[llm] provider = "cli"` + `command`/`args` — handed straight to
+  `subprocess.run` by the next `kb wiki`, `kb enrich`, or `dashboard --llm-chat`. The same hole existed
+  in `[[sources]]`, whose `command`/`args`/`mcp_command` spawn an MCP server over stdio. Those keys are
+  now honoured only from `~/.contextlake/kb.toml` or an explicit `--config` path; from a discovered file
+  they are dropped with a warning naming the file and the key. Nothing else is distrusted — `store_dir`,
+  `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers keep working
+  from a project-local file exactly as before, so directory-scoped config is unaffected. Passing
+  `--config` on that same file still honours it: naming the file is the explicit act the gate asks for.
+
 ### Added
+- `CONTEXTLAKE_NO_LOCAL_CONFIG=1` skips ancestor config discovery entirely, for both
+  `.contextlake.ini` and `.contextlake.kb.toml` — only the global file and an explicit `--config` are
+  read. Intended for CI, containers, and anywhere untrusted checkouts are handled in bulk, where opting
+  out of the whole tier is simpler to reason about than the per-key gate above.
 - CI now enforces a coverage floor (`--cov-fail-under=88`) on the full-suite job, so a silent
   drop from the current 92% can no longer pass green. The floor is deliberately only on that one
   job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on

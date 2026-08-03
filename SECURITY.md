@@ -34,6 +34,53 @@ we'll coordinate disclosure.
 - **The project cache** (`/tmp/<...>.json` and `.txt` by default) lists the
   repositories you can access. Treat it as mildly sensitive and don't commit it.
 
+## Workspace trust
+
+contextlake discovers a project-local `.contextlake.kb.toml` (and `.contextlake.ini`)
+by walking up from your current directory to the filesystem root, the same way git
+finds `.git`. That is convenient — a config at a project root applies to every
+subdirectory — but it means a config file can take effect **without you ever naming
+it**, including one that arrived inside a repository somebody else wrote. Mirroring
+(`contextlake mirror sync`) and the dashboard's "Add repo" action clone repositories
+into your workspace, so such a file can land there without you creating it by hand.
+
+A few config keys become part of a command line contextlake executes:
+
+| Key | What it does |
+|---|---|
+| `[llm] command`, `[llm] args` | the agent CLI invoked when `provider = "cli"` |
+| `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
+| `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
+
+**Those keys are honoured only from a config file you chose:** the global
+`~/.contextlake/kb.toml`, or a path you passed to `--config`. When they appear in an
+auto-discovered file, they are dropped and a warning naming the file and the key is
+logged. Everything else in that file still applies as normal — `store_dir`,
+`languages`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers all keep working,
+so directory-scoped config is unaffected.
+
+Passing `--config ./.contextlake.kb.toml` from inside such a repository *does* make it
+privileged. That is intended: naming the file is the explicit decision the gate asks
+for. Only do it for repositories you trust.
+
+To opt out of the discovered tier entirely — recommended for CI, containers, and
+anything that processes untrusted checkouts in bulk:
+
+```bash
+export CONTEXTLAKE_NO_LOCAL_CONFIG=1
+```
+
+Ancestor discovery is then skipped for both `.contextlake.ini` and
+`.contextlake.kb.toml`; only the global file and an explicit `--config` are read. With it set,
+`contextlake kb source add --local` also writes to the global config rather than to a local file
+this environment would never read.
+
+What this gate does **not** cover, deliberately: a discovered config can still set `[llm] enabled`
+and `[[sources]] url`. Neither runs attacker code, but the first can switch on an LLM tier your
+global config already points at (spending against that key), and the second can point a connector
+at a host of the file author's choosing. Those are data-egress questions rather than code
+execution; use `CONTEXTLAKE_NO_LOCAL_CONFIG=1` if you need the discovered tier gone entirely.
+
 ## Supported versions
 
 This is a young project; security fixes land on `main` and ship in the next

@@ -11,6 +11,14 @@ setting only one field (e.g. ``[llm] model = "..."``) does not wipe out sibling
 fields (``enabled``, ``provider``) set globally. ``sources`` and ``rules`` lists are
 replaced wholesale by the highest-precedence file that sets them (predictable, no
 surprise merging of list tables).
+
+One exception cuts across that precedence: the handful of keys that end up in a
+``subprocess`` argv (``[llm] command``/``args``/``provider = "cli"``,
+``[[sources]] command``/``args``/``mcp_command``) are honoured **only** from the
+global file or an explicit ``--config`` path, never from the auto-discovered
+``.contextlake.kb.toml`` -- otherwise cloning a hostile repo and working inside
+it is remote code execution. See ``kb/trust.py`` for the full rationale, and
+``CONTEXTLAKE_NO_LOCAL_CONFIG=1`` to skip the discovered tier altogether.
 """
 
 from __future__ import annotations
@@ -22,6 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import ConfigError, expand_path, find_ancestor_config  # noqa: F401 -- re-exported
 from ..logging_setup import log
+from .trust import EXECUTABLE_SOURCE_KEYS, is_executable_key, is_privileged_source
 
 try:  # Python 3.11+
     import tomllib
@@ -182,7 +191,15 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
     local_config = find_ancestor_config(LOCAL_CONFIG)
     merged: dict = {}
     for src in (GLOBAL_CONFIG, local_config, config_path):
+        # Provenance gate. A config file the user never named -- i.e. the one
+        # found by walking up from cwd -- may not carry keys that become a
+        # subprocess argv: cloning a hostile repo and cd-ing into it was
+        # otherwise enough to get code execution on the next LLM-touching
+        # command. Everything else in that file still applies. See kb/trust.py.
+        privileged = is_privileged_source(src, config_path, global_config=GLOBAL_CONFIG)
         for table, values in _read_toml(src).items():
+            if not privileged:
+                values = _drop_executable_keys(table, values, src)
             if table in _SCALAR_TABLES:
                 # Deep-merge by key: a local file setting only `model` must not
                 # wipe out `enabled`/`provider` set globally under the same table.
@@ -215,6 +232,46 @@ _TABLES = {"kb", "embeddings", "llm", "sources", "rules"}
 # Tables of scalar fields, deep-merged key-by-key across the precedence chain (see
 # load_kb_config). sources/rules are list tables and stay wholesale-replaced by design.
 _SCALAR_TABLES = {"kb", "embeddings", "llm"}
+
+
+def _drop_executable_keys(table: str, values, source: str):
+    """Strip argv-reaching keys out of one table of a non-privileged config file.
+
+    Returns ``values`` unchanged (the same object, no copy) when there is nothing
+    to drop, which is every table of every honest config -- the gate costs one
+    scan on the normal path.
+    """
+    if table in _SCALAR_TABLES and isinstance(values, dict):
+        dropped = [k for k, v in values.items() if is_executable_key(table, k, v)]
+        if not dropped:
+            return values
+        for key in dropped:
+            _warn_untrusted(f"[{table}] {key}", source)
+        return {k: v for k, v in values.items() if k not in dropped}
+    if table == "sources" and isinstance(values, list):
+        # sources is a list table: screen each entry's dict. A source's transport
+        # command spawns a process just like [llm] command does (see trust.py).
+        cleaned, dropped_keys = [], set()
+        for entry in values:
+            bad = EXECUTABLE_SOURCE_KEYS & entry.keys() if isinstance(entry, dict) else set()
+            dropped_keys |= bad
+            cleaned.append({k: v for k, v in entry.items() if k not in bad} if bad else entry)
+        if not dropped_keys:
+            return values
+        for key in sorted(dropped_keys):
+            _warn_untrusted(f"[[sources]] {key}", source)
+        return cleaned
+    return values
+
+
+def _warn_untrusted(what: str, source: str) -> None:
+    """Report a dropped key loudly and actionably -- never the value, which is
+    attacker-supplied text that has no business in a log line."""
+    log(f"config: ignoring {what} from {source} -- a config file found by walking "
+        "up from the current directory may not set keys that run a program. "
+        f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say "
+        "you meant this file. See SECURITY.md, 'Workspace trust'.",
+        level=logging.WARNING)
 
 
 def _warn_unknown_config(kb: dict, merged: dict) -> None:

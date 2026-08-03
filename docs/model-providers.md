@@ -46,6 +46,11 @@ by what may leave your machine and what hardware you have.
   for `claude` and by its own docs for `gemini`; `codex`'s docs describe API-key auth as a separate,
   explicitly-opted-into mode rather than an environment-variable override, so the strip is a defensive
   precaution there rather than a confirmed-necessary fix.
+  **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
+  `--config` path** — never from a `.contextlake.kb.toml` found by walking up from your current
+  directory, since that file may have arrived inside a repository you cloned and these keys are a
+  command line contextlake runs. Setting them locally logs a warning and is ignored; every other
+  provider works from a local file as usual. See [Workspace trust](../SECURITY.md#workspace-trust).
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 

@@ -60,6 +60,32 @@ DEFAULT_CONFIG = {
 }
 
 
+# Escape hatch for CI, containers, and anywhere else untrusted checkouts are
+# handled in bulk: opt out of the "local config" tier entirely, so a config file
+# that happens to sit in (or above) the working directory can never take effect.
+# Complements kb/trust.py's provenance gate -- that one drops only the handful of
+# argv-reaching keys from a discovered file; this one ignores the file outright.
+NO_LOCAL_CONFIG_ENV = 'CONTEXTLAKE_NO_LOCAL_CONFIG'
+
+
+def local_config_disabled():
+    """Whether ``CONTEXTLAKE_NO_LOCAL_CONFIG`` opts out of ancestor discovery.
+
+    Any non-empty value counts except an explicit off word, so ``=1``/``=true``/
+    ``=yes`` all work and only ``=0``/``=false``/``=no``/unset keep discovering.
+    Erring toward "set means off" is the safe direction for a security opt-out:
+    a typo'd value disables a convenience feature rather than silently leaving
+    the surface open.
+
+    Note this also moves where ``kb source add --local`` *writes*
+    (``kb/config_edit.resolve_write_target`` resolves its target through
+    ``find_ancestor_config`` too). That is deliberate rather than an oversight:
+    with the local tier disabled, writing a source into a file this environment
+    will never read would be the more surprising behavior.
+    """
+    return os.environ.get(NO_LOCAL_CONFIG_ENV, '').strip().lower() not in ('', '0', 'false', 'no')
+
+
 def find_ancestor_config(filename, start=None):
     """The nearest ancestor directory's ``filename``, walking from ``start``
     (default: cwd) up through every parent to the filesystem root -- the same
@@ -69,10 +95,14 @@ def find_ancestor_config(filename, start=None):
     every existing test does to isolate the "local" tier at a specific tmp
     path (``monkeypatch.setattr(module, "LOCAL_CONFIG_FILE", str(tmp_path /
     "..."))``), and an absolute path doesn't have "parent directories" to walk
-    in the sense this function means anyway.
+    in the sense this function means anyway. The opt-out below sits *after* that
+    fast path on purpose: it disables directory *discovery*, which is the part
+    an untrusted checkout can exploit, and must not break the test seam.
     """
     if os.path.isabs(filename):
         return filename if os.path.exists(filename) else None
+    if local_config_disabled():
+        return None
     directory = os.path.abspath(start or os.getcwd())
     while True:
         candidate = os.path.join(directory, filename)
