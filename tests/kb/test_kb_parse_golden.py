@@ -6,16 +6,24 @@ SQL, manifests, ADRs) plus every skip rule (pruned dirs, ignore file, generated
 code by name and by header, oversize) is indexed, and the resulting shard is
 compared against a recorded snapshot.
 
-**Why the comparison is order-canonical rather than byte-for-byte.** The obvious
-form of this test -- assert the shard's JSON bytes -- cannot work: tree-sitter's
-``QueryCursor.captures()`` (0.26.0) returns each capture list in an order that
-varies run to run *and within a single process*, so ``parse_source`` emits a
-file's definitions in a different sequence each time and six consecutive runs of
-the *same* code produce six distinct shard byte-strings. Node/edge CONTENT is
-stable under that entropy (a canonicalised snapshot was identical across those
-same runs); only the sequence moves. So content is asserted canonically here, and the ordering that
-``index_repo_dir`` itself does control -- file visit order -- is asserted
-separately by ``test_file_nodes_follow_walk_order``.
+**Why the comparison is order-canonical, and why a byte assertion sits beside
+it.** This test was originally written order-canonically because it had to be:
+tree-sitter's ``QueryCursor.captures()`` (0.26.0) returns each capture list in an
+order that varies run to run *and within a single process*, so ``parse_source``
+emitted a file's definitions in a different sequence each time and six
+consecutive indexes of this unchanged fixture produced six distinct shard
+byte-strings. Node/edge CONTENT was stable under that entropy (a canonicalised
+snapshot was identical across those runs); only the sequence moved -- which is
+exactly why the canonical form could not catch it.
+
+``parse._sorted_captures`` removed that entropy, so
+``test_shard_bytes_are_reproducible`` now asserts the property that was
+previously untestable: repeated indexes of one unchanged tree produce identical
+shard bytes. Both assertions are kept deliberately -- the canonical one pins
+content and would survive a future deliberate reordering, the byte one pins
+reproducibility and is the only thing that would catch capture-order entropy
+coming back. The ordering ``index_repo_dir`` itself owns -- file visit order --
+is asserted separately by ``test_file_nodes_follow_walk_order``.
 
 Regenerate the snapshot with ``CONTEXTLAKE_UPDATE_GOLDEN=1 pytest
 tests/kb/test_kb_parse_golden.py`` after an intentional extraction change, and
@@ -220,13 +228,36 @@ def test_shard_matches_golden(tmp_path):
     assert actual == GOLDEN.read_text(encoding="utf-8")
 
 
+def test_shard_bytes_are_reproducible(tmp_path):
+    """Re-indexing one unchanged tree produces byte-identical shards.
+
+    The invariant ``store.shards.archive_shard`` documents ("a repo re-indexed at
+    the same commit overwrites identically"), which was silently false while
+    ``QueryCursor.captures()`` ordering leaked into the shard -- see the module
+    docstring. Asserted on raw ``model_dump_json`` output, NOT the canonical form,
+    because canonicalising is precisely what hid the bug.
+
+    Deliberately more than two runs: the entropy was per-call, so two runs could
+    coincide by luck. ``verified_at`` is normalised for the same reason as in
+    ``_canonical`` -- a midnight rollover mid-test is not a determinism failure.
+    """
+    _build(tmp_path)
+    raws = [_DATE.sub("DATE", _index(tmp_path).model_dump_json(indent=2))
+            for _ in range(5)]
+    assert len(set(raws)) == 1, (
+        f"{len(set(raws))} distinct shard byte-strings across {len(raws)} indexes "
+        "of an unchanged tree; extraction has become order-nondeterministic again"
+    )
+
+
 def test_file_nodes_follow_walk_order(tmp_path):
     """File nodes land in the shard in os.walk order.
 
-    The one ordering guarantee the indexer itself owns (definition order within a
-    file is tree-sitter's, and is not deterministic). Expected order is recomputed
-    by walking the same tree rather than hard-coded, so this does not depend on a
-    particular filesystem's directory hash order.
+    One of the two ordering guarantees now in force: this one is the indexer's own
+    (definition order within a file is tree-sitter's, made deterministic by
+    ``parse._sorted_captures``). Expected order is recomputed by walking the same
+    tree rather than hard-coded, so this does not depend on a particular
+    filesystem's directory hash order.
     """
     _build(tmp_path)
     shard = _index(tmp_path)

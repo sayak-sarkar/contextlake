@@ -151,11 +151,15 @@ def _has_generated_header(source: bytes) -> bool:
 
 # Bumped whenever a change to def/containment/resolution logic changes graph
 # output for existing repos -- doctor's stale-shard check compares a shard's
-# stamp against this to know when a re-index is worth recommending. This is the
-# first version stamped (no shard predating this ever recorded a version, so
-# there is nothing for "1" to be distinguished from yet); bump to "2" the next
-# time parsing logic changes graph output for already-indexed repos.
-PARSER_VERSION = "1"
+# stamp against this to know when a re-index is worth recommending.
+#
+# "1" was the first version stamped. "2" is _sorted_captures: node and edge
+# CONTENT is byte-identical to "1", but their ORDER in the shard changed, so a
+# "1" shard's bytes will never again be reproduced by re-indexing. Note that
+# doctor's stale check only *reports* shards containing C/C++ nodes, so this
+# bump is invisible there for a pure-Python or TypeScript repo -- the release
+# notes, not doctor, are what tell those users to re-index.
+PARSER_VERSION = "2"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -700,6 +704,28 @@ def _qualified_chain(qi_node: ts.Node) -> tuple[list[str], ts.Node]:
     return segments, node
 
 
+def _sorted_captures(captures: dict[str, list[ts.Node]]) -> dict[str, list[ts.Node]]:
+    """Put every capture list into source order, so extraction is reproducible.
+
+    tree-sitter's ``QueryCursor.captures()`` (0.26.0) returns each capture list in
+    an order that varies run to run and even within a single process. Nothing
+    downstream *depends* on capture order for correctness -- the node and edge sets
+    are identical either way -- but ``parse_source`` appends in iteration order, so
+    the shard's node/edge sequence moved every run: six consecutive indexes of one
+    unchanged fixture produced six distinct shard byte-strings, which silently
+    falsified ``archive_shard``'s "re-indexed at the same commit overwrites
+    identically" invariant and made content-addressing a shard impossible.
+
+    Sorting here, at the single point captures enter the extractor, fixes all of it
+    at once. ``(start_byte, end_byte, type)`` is a total order on real capture lists
+    (verified: no collisions across the golden fixture's languages); ``Node.id`` is
+    pointer-derived and would reintroduce the very entropy this removes, so it must
+    never be used as a tiebreak.
+    """
+    return {name: sorted(nodes, key=lambda n: (n.start_byte, n.end_byte, n.type))
+            for name, nodes in captures.items()}
+
+
 def parse_source(
     repo_id: str, rel_path: str, source: bytes, lang: str, verified_at: date | None = None
 ) -> tuple[list[Node], list[Edge], list[tuple[str, str, str, int]],
@@ -719,7 +745,7 @@ def parse_source(
     edges: list[Edge] = []
 
     tree = _parser(lang).parse(source)
-    captures = ts.QueryCursor(_query(lang)).captures(tree.root_node)
+    captures = _sorted_captures(ts.QueryCursor(_query(lang)).captures(tree.root_node))
 
     # First pass: a Node for every definition, keyed by its tree-sitter def node id.
     def_node_to_id: dict[int, str] = {}

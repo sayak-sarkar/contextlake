@@ -204,7 +204,22 @@ def archive_shard(store_dir: str | Path, shard: GraphShard) -> Path | None:
     """Snapshot a shard under history/<repo>/<commit>.json for 'as of' queries.
 
     Returns None when the shard has no commit to key on. Snapshots are immutable
-    once written: a repo re-indexed at the same commit overwrites identically.
+    once written: a repo re-indexed at the same commit, *by the same
+    ``parse.PARSER_VERSION``, on the same machine*, overwrites identically.
+
+    Both qualifiers are load-bearing; the unqualified claim this docstring used to
+    make was false. Until ``parse._sorted_captures`` landed, tree-sitter
+    capture-order entropy meant one unchanged repo produced different shard bytes
+    on *every* index, so this overwrote with different content each time. A
+    PARSER_VERSION bump then deliberately changes shard bytes for the same commit,
+    so the invariant can only ever hold within one version. And file nodes are
+    emitted in ``os.walk`` order, which is filesystem-dependent -- so the bytes are
+    reproducible for a re-index of the same checkout, but are NOT a
+    machine-independent function of (repo, commit).
+
+    Which is to say: this is safe to rely on for "did this local store's snapshot
+    change?", and is not a basis for content-addressing a shard across versions or
+    across machines (e.g. comparing hashes between CI runners).
     """
     if not shard.head_commit:
         return None

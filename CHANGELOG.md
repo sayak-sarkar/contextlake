@@ -54,6 +54,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
 
 ### Fixed
+- Shard output is now reproducible. Indexing the same commit twice produced different shard bytes
+  every time, because the tree-sitter query cursor returns captures in an order that varies between
+  runs. The set of nodes and edges was always correct — only their order moved — but it made
+  `archive_shard`'s documented "a repo re-indexed at the same commit overwrites identically"
+  invariant false, and defeated any checksum-based reasoning about whether an index is current.
+  Captures are now sorted at the single extraction site, and `PARSER_VERSION` is bumped to `2`.
+
+  **Action required: run `contextlake kb index --force` (add `--workspace <dir>` if you keep the
+  store elsewhere).** Existing shards are stale, and nothing will tell you so: `needs_reindex`
+  compares only the repo HEAD and does not consider the parser version, and `doctor`'s stale-parser
+  check is deliberately scoped to C/C++. An unchanged Python or TypeScript repo will therefore be
+  neither flagged nor rebuilt on its own.
+
+  Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
+  file order still comes from directory traversal — do not compare shard hashes between CI runners.
+  The regression guard is in-process.
 - **Security:** the dashboard and graph servers now pin the `Host` header on `GET` as well as
   `POST`. Only `POST` checked it, so a page whose domain re-resolved to `127.0.0.1` (DNS
   rebinding) could read the entire code graph cross-origin: `/api/overview`, `/api/repo/<id>`,
