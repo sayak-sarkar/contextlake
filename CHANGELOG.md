@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-08-04
+
+**Migrating from v3.0.0:** replace `contextlake init --yes` / `-y` with `contextlake init
+--skip-interactive` -- it is a rename, not a new option; the old flags no longer parse.
+
 ### Changed
 - **Breaking:** `contextlake init`'s non-interactive flag is now `--skip-interactive`; `--yes`/`-y`
   are gone, not aliased. Unlike apt/npm/gh's `--yes`, which only skips a single yes/no confirmation
