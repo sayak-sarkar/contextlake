@@ -1,5 +1,7 @@
 """Tests for the local vector store (cosine search, persistence, isolation)."""
 
+import builtins
+
 from contextlake.kb.embeddings.store import VectorStore
 
 
@@ -46,6 +48,51 @@ def test_search_repo_filter_and_dim_skip(tmp_path):
         ])
         hits = s.search([1.0, 0.0], k=10, repo="r1")
         assert [h[0] for h in hits] == ["a"]  # r2 excluded, wrongdim skipped
+    finally:
+        s.close()
+
+
+def test_search_repo_filter_includes_connect_and_enrich_partitions(tmp_path):
+    """A repo= filter must also surface that repo's linked connector/enrichment
+    content (@connect:<repo> / @enrich:<repo>), not just the literal code shard --
+    see connectors/orchestrate.py's connect_partition and connectors/enrich.py's
+    enrich_partition, which write those partitions on purpose."""
+    s = _store(tmp_path)
+    try:
+        s.upsert([
+            ("code_node", "team/api", [1.0, 0.0]),
+            ("connect_node", "@connect:team/api", [1.0, 0.0]),
+            ("enrich_node", "@enrich:team/api", [1.0, 0.0]),
+            ("other_repo_node", "other/repo", [1.0, 0.0]),
+        ])
+        hits = {h[0] for h in s.search([1.0, 0.0], k=10, repo="team/api")}
+        assert hits == {"code_node", "connect_node", "enrich_node"}
+        assert "other_repo_node" not in hits
+    finally:
+        s.close()
+
+
+def test_search_repo_filter_degrades_to_exact_match_if_connectors_unimportable(
+    tmp_path, monkeypatch
+):
+    """A partial install missing the connectors' own optional deps must degrade
+    repo-scoped search to the old exact-match behavior, not crash it outright."""
+    real_import = builtins.__import__
+
+    def _boom(name, *a, **k):
+        if name.endswith("connectors.orchestrate"):
+            raise ImportError("simulated missing optional dep")
+        return real_import(name, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", _boom)
+    s = _store(tmp_path)
+    try:
+        s.upsert([
+            ("code_node", "team/api", [1.0, 0.0]),
+            ("connect_node", "@connect:team/api", [1.0, 0.0]),
+        ])
+        hits = {h[0] for h in s.search([1.0, 0.0], k=10, repo="team/api")}
+        assert hits == {"code_node"}  # degraded: no connector-partition widening
     finally:
         s.close()
 

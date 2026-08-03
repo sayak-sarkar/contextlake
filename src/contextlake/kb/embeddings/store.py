@@ -32,6 +32,32 @@ def _norm(vec) -> float:
     return math.sqrt(sum(x * x for x in vec)) or 1.0
 
 
+def _repo_scope(repo_id: str) -> list[str]:
+    """Expand a ``repo=`` filter to the repo's own shard plus its linked
+    connector/enrichment partitions.
+
+    ``connect``/``enrich`` deliberately write into separate ``@connect:<repo>``/
+    ``@enrich:<repo>`` partitions (see connectors/orchestrate.py, connectors/enrich.py)
+    so re-indexing a repo's code never clobbers connector output and vice versa.
+    That isolation is a *write*-side concern; it must not leak into *search* --
+    a caller filtering by repo id expects everything the repo's graph node links
+    to, not just the literal code shard. Imported lazily to keep the connectors'
+    (heavier) dependency chain out of every basic vector-store import; both
+    ``connect_partition``/``enrich_partition`` are pure string formatting with no
+    further imports of their own, so this only ever pulls in their defining
+    modules. Falls back to the literal repo id alone if that import fails (e.g. a
+    partial install without the connectors' own optional deps), so a broken
+    environment degrades to the old exact-match behavior instead of crashing
+    every repo-scoped search."""
+    try:
+        from ..connectors.enrich import enrich_partition
+        from ..connectors.orchestrate import connect_partition
+    except ImportError:
+        return [repo_id]
+
+    return [repo_id, connect_partition(repo_id), enrich_partition(repo_id)]
+
+
 class VectorStore:
     """Persisted node embeddings with cosine top-k search."""
 
@@ -101,8 +127,9 @@ class VectorStore:
         sql = "SELECT node_id, dim, norm, vec FROM embeddings"
         params: tuple = ()
         if repo:
-            sql += " WHERE repo_id=?"
-            params = (repo,)
+            ids = _repo_scope(repo)
+            sql += f" WHERE repo_id IN ({','.join('?' * len(ids))})"
+            params = tuple(ids)
         scored: list[tuple[str, float]] = []
         for node_id, dim, norm, blob in self.conn.execute(sql, params):
             if dim != qlen:
@@ -215,9 +242,11 @@ class SqliteVecStore:
             return []
         q = _pack(query)
         if repo:
+            ids = _repo_scope(repo)
             sql = ("SELECT node_id, distance FROM vec_items "
-                   "WHERE embedding MATCH ? AND repo_id = ? ORDER BY distance LIMIT ?")
-            params: tuple = (q, repo, k)
+                   f"WHERE embedding MATCH ? AND repo_id IN ({','.join('?' * len(ids))}) "
+                   "ORDER BY distance LIMIT ?")
+            params: tuple = (q, *ids, k)
         else:
             sql = ("SELECT node_id, distance FROM vec_items "
                    "WHERE embedding MATCH ? ORDER BY distance LIMIT ?")

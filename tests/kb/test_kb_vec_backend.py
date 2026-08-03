@@ -85,6 +85,34 @@ def test_sqlite_vec_search_filter_replace_clear(tmp_path):
 
 
 @requires_vec
+def test_sqlite_vec_search_repo_filter_includes_connect_and_enrich_partitions(tmp_path):
+    """Same repo-scope widening as the brute store: repo="r1" must also match
+    "@connect:r1"/"@enrich:r1" rows, not just the literal "r1" shard.
+
+    Deliberately makes the r1-family vectors *worse* cosine matches than a pile of
+    decoy rows under an unrelated repo, so this only passes if vec0 pushes the
+    ``repo_id IN (...)`` filter into the KNN scan itself (before LIMIT k) --
+    if it were applied after LIMIT k, the global top-k would be all decoys and
+    the r1-family rows would never surface."""
+    s = SqliteVecStore(tmp_path / "v.sqlite")
+    try:
+        items = [
+            ("code_node", "r1", [0.9, 0.1, 0.0]),
+            ("connect_node", "@connect:r1", [0.85, 0.1, 0.0]),
+            ("enrich_node", "@enrich:r1", [0.8, 0.1, 0.0]),
+        ]
+        # 200 decoys, closer to the query than every r1-family row above, under an
+        # unrelated repo -- would win a post-limit filter outright.
+        items += [(f"decoy_{i}", "other/repo", [0.99, 0.01, 0.0]) for i in range(200)]
+        s.upsert(items)
+
+        hits = {h[0] for h in s.search([1.0, 0.0, 0.0], k=3, repo="r1")}
+        assert hits == {"code_node", "connect_node", "enrich_node"}
+    finally:
+        s.close()
+
+
+@requires_vec
 def test_sqlite_vec_chunk_size_clamped_and_usable(tmp_path):
     # vec0 needs a multiple of 8; a non-conforming value is clamped, not rejected.
     s = SqliteVecStore(tmp_path / "v.sqlite", chunk_size=20)
