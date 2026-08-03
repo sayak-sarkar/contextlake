@@ -56,8 +56,8 @@ def test_unknown_command_suggests_the_closest_real_one(capsys):
     assert exc.value.code == 2
     err = capsys.readouterr().err
     assert "Unknown command: 'fetc'" in err
-    # The suggestion teaches the namespaced spelling, never the deprecated flat
-    # one -- suggesting `fetch` would point the user at the form being retired.
+    # The suggestion is always the namespaced spelling: a bare `fetch` is not a
+    # command any more, so suggesting it would send the user straight back here.
     assert "Did you mean: mirror fetch?" in err
     assert "invalid choice" not in err
 
