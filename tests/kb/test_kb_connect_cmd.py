@@ -284,3 +284,62 @@ def test_connect_persists_slack_channels(tmp_path, monkeypatch):
         assert channels[0].attrs.get("verified") is True
     finally:
         store.close()
+
+
+_SLACK_EMBED_CONFIG = _SLACK_CONFIG + """
+[embeddings]
+enabled = true
+"""
+
+
+class _FakeEmbedder:
+    name = "fake-embedder"
+
+    def embed(self, texts):
+        return [[1.0, 0.0] for _ in texts]
+
+
+def test_connect_sweeps_stale_connector_vectors(tmp_path, monkeypatch):
+    """A connector node that disappears between runs must not leave its vector
+    behind. `connect` rewrites the whole `@connect:<repo>` partition each pass,
+    and the enrichers embed their own nodes mid-pass -- so the sweep has to run
+    *before* they do, not alongside the graph's own clear_repo (which lands after
+    the vectors were already written)."""
+    from contextlake.kb.embeddings.store import VectorStore
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_SLACK_EMBED_CONFIG.format(store=store_dir.as_posix()))
+    repo = tmp_path / "app"
+    repo.mkdir()
+
+    part = connect_partition("group/app")
+    vec_path = store_dir / "embeddings.sqlite"
+    seeded = VectorStore(vec_path)
+    seeded.upsert([("stale_node_from_a_previous_run", part, [1.0, 0.0])])
+    seeded.close()
+
+    monkeypatch.setattr(orch, "build_slack", lambda src: _SlackStub())
+    monkeypatch.setattr(refs, "extract_issue_keys", lambda *a, **k: [])
+    monkeypatch.setattr(
+        refs, "scrape_links",
+        lambda *a, **k: ["https://acme.slack.com/archives/C0123ABCD"],
+    )
+    monkeypatch.setattr("contextlake.kb.embeddings.build_embedder",
+                        lambda cfg_: _FakeEmbedder())
+    monkeypatch.setattr("contextlake.kb.embeddings.store.build_vector_store",
+                        lambda path, **kw: VectorStore(path))
+
+    args = Namespace(config=str(cfg), workspace=None, source=str(repo), repo="group/app")
+    assert cmd_connect(args) == 0
+
+    vs = VectorStore(vec_path)
+    try:
+        ids = {row[0] for row in
+               vs.conn.execute("SELECT node_id FROM embeddings WHERE repo_id=?", (part,))}
+        assert "stale_node_from_a_previous_run" not in ids  # swept
+        assert ids  # ...and this pass's own channel vector survived the sweep
+    finally:
+        vs.close()

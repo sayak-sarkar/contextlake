@@ -193,6 +193,15 @@ def cmd_connect(args) -> int:
                 symbol_keys = _symbol_keys_for(store_dir, repo_id, path, branch_key)
                 if not keys and not links and not symbol_keys and not has_gitlab:
                     continue  # GitLab sources fetch by repo, so don't skip when one exists
+                part = connect_partition(repo_id)
+                # Connector nodes are embedded by the enrichers themselves (see
+                # orchestrate._embed_connector_nodes), so the stale-vector sweep has
+                # to happen BEFORE they run -- clearing alongside the graph's own
+                # `store.clear_repo(part)` below would delete the vectors this pass
+                # just wrote. Same guard placement as that call: only a repo whose
+                # partition is about to be rewritten gets swept.
+                if vector_store is not None:
+                    vector_store.clear_repo(part)
                 merged_nodes, merged_edges = {}, {}
                 for name, enrich in zip(names, enrichers):
                     attempts += 1
@@ -206,7 +215,6 @@ def cmd_connect(args) -> int:
                         merged_nodes[n.id] = n
                     for ed in edges:
                         merged_edges[(ed.src, ed.dst, ed.relation)] = ed
-                part = connect_partition(repo_id)
                 store.clear_repo(part)
                 store.upsert_nodes(part, list(merged_nodes.values()))
                 store.upsert_edges(part, list(merged_edges.values()))
