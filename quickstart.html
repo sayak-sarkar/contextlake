@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=cd17c44">
-<link rel="stylesheet" href="tokens.css?v=cd17c44">
-<link rel="stylesheet" href="docs.css?v=cd17c44">
-<link rel="stylesheet" href="cmdk.css?v=cd17c44">
+<link rel="stylesheet" href="fonts.css?v=a1cc35c">
+<link rel="stylesheet" href="tokens.css?v=a1cc35c">
+<link rel="stylesheet" href="docs.css?v=a1cc35c">
+<link rel="stylesheet" href="cmdk.css?v=a1cc35c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -163,11 +163,12 @@ rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/huggingface/hub/mo
 <code>.contextlake.ini</code> from those project directories.)</p>
 <h2 id="3-configure">3. Configure<a class="anchor" href="#3-configure" title="Link to this section">#</a></h2>
 <p>The fast path, <code>contextlake init</code> writes both config files for you (interactive, or
-<code>--yes</code> for defaults):</p>
+<code>--skip-interactive</code> for defaults):</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>init<span class="w">                       </span><span class="c1"># prompts for platform, group, workspace</span>
-contextlake<span class="w"> </span>init<span class="w"> </span>--platform<span class="w"> </span>github<span class="w"> </span>--group<span class="w"> </span>my-org<span class="w"> </span>--yes<span class="w">   </span><span class="c1"># non-interactive</span>
+contextlake<span class="w"> </span>init<span class="w"> </span>--platform<span class="w"> </span>github<span class="w"> </span>--group<span class="w"> </span>my-org<span class="w"> </span>--skip-interactive<span class="w">   </span><span class="c1"># non-interactive</span>
 contextlake<span class="w"> </span>init<span class="w"> </span>--local<span class="w">               </span><span class="c1"># scope config to this project instead of ~/</span>
 </code></pre></div>
+<p>(<code>--yes</code>/<code>-y</code> are shorter aliases for <code>--skip-interactive</code>, if that's the muscle memory you already have.)</p>
 <p>Working across more than one org or project? <code>--local</code> writes config into the current directory instead
 of <code>~/</code>; every subdirectory underneath it inherits it automatically (see
 <a href="configuration#directory-scoped-config">Directory-scoped config</a>).</p>
@@ -280,6 +281,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=cd17c44"></script>
+<script defer src="cmdk.js?v=a1cc35c"></script>
 </body>
 </html>
