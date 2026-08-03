@@ -118,6 +118,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   namespaced form is the only one that parses. See the two required post-upgrade steps above.
 
 ### Fixed
+- **Neither the dashboard's Links panel nor the `get_repo_links` MCP tool showed a repo's
+  GitLab-diff or Slack cross-links.** Both listed only `tracked_by` (Jira), `documented_by`
+  (Confluence), `designed_in` (Figma), `has_merge_request` and `has_issue`, so the newer
+  `touched_by` (a merge request whose diff touches the repo's code), `discussed_in` (a Slack
+  channel whose history mentions its symbols) and `referenced_in` (a Slack channel linked from
+  its docs) edges reached the graph and were invisible on both surfaces. All eight relations now
+  come from one shared list, so a connector adding a relation lights up both doors or neither.
 - **A `repo=`-scoped semantic/hybrid search missed a repo's own linked connector/enrichment
   content.** `VectorStore.search`/`SqliteVecStore.search` filtered `repo_id` by exact match only, so
   a query scoped to `repo="team/api"` never matched rows written under the `@connect:team/api` /

@@ -699,7 +699,7 @@
     } else if (tab === "links") {
       var groups = d.links || {};
       var keys = Object.keys(groups);
-      if (!keys.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No connector links found", msg: "No Jira / Confluence / Figma / GitLab cross-links." })); return; }
+      if (!keys.length) { pane.appendChild(stateBlock({ kind: "empty", title: "No connector links found", msg: "No Jira / Confluence / Figma / GitLab / Slack cross-links." })); return; }
       keys.forEach(function (rel) {
         var card = h("div", { class: "cl-card" }, h("strong", null, rel.replace(/_/g, " ")));
         groups[rel].forEach(function (l) {

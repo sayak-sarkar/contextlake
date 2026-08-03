@@ -90,6 +90,30 @@ class Node(BaseModel):
     attrs: dict = Field(default_factory=dict)
 
 
+EXTERNAL_LINK_RELATIONS = frozenset({
+    "tracked_by",        # Atlassian: an issue tracking this repo
+    "documented_by",     # Atlassian: a Confluence page describing it
+    "designed_in",       # Figma: a design file/frame for it
+    "has_merge_request", # GitLab: an open merge request on it
+    "has_issue",         # GitLab: an open issue on it
+    "touched_by",        # GitLab: a merge request whose diff touches its code
+    "discussed_in",      # Slack: a channel whose history mentions its symbols
+    "referenced_in",     # Slack: a channel linked from its docs
+})
+"""The ``repo -> external`` relations that count as *cross-links to external
+knowledge*, as opposed to the code-to-code relations parsing produces.
+
+Deliberately one shared constant rather than a literal per consumer: there are two
+independent front doors onto this same surface -- the MCP ``get_repo_links`` tool
+(``kb/server.py``) and the dashboard's Links panel (``kb/dashboard/data.py``'s
+``_links_for``) -- and a connector that adds a relation should light up both or
+neither. They were hand-duplicated once and silently drifted, so the Slack and
+GitLab-diff relations reached the graph but neither door showed them.
+
+Not a closed vocabulary check: ``Edge.relation`` stays open (see this module's
+docstring). This is only the subset those two views group and render."""
+
+
 class Edge(BaseModel):
     """A directed relationship between two nodes, with provenance + confidence."""
 

@@ -65,12 +65,19 @@ def store_dir(tmp_path):
         Node(id="issue_99", repo="team/app", kind="issue", name="PROJ-99",
              attrs={"url": "https://tracker.example.com/PROJ-99",
                     "title": "Charge refund edge case", "status": "open"}),
+        Node(id="mr_7", repo="team/app", kind="merge_request", name="!7",
+             attrs={"url": "https://gitlab.example.com/team/app/-/merge_requests/7",
+                    "title": "Fix charge overflow", "status": "merged"}),
+        Node(id="chan_pay", repo="team/app", kind="channel", name="#payments",
+             attrs={"url": "https://chat.example.com/archives/C01", "title": "#payments"}),
     ]
     app_edges = [
         _edge("app_caller", "app_catalogservice", "calls"),
         _edge("app_mod", "libpkg", "depends_on"),
         _edge(make_id("repo", "team/app"), "issue_42", "tracked_by"),
         _edge("app_charge", "issue_99", "tracked_by"),  # per-symbol attribution
+        _edge(make_id("repo", "team/app"), "mr_7", "touched_by"),  # GitLab diff-derived link
+        _edge(make_id("repo", "team/app"), "chan_pay", "discussed_in"),  # Slack history link
     ]
     # team/lib — publishes the package team/app depends on.
     lib_nodes = [
@@ -134,6 +141,46 @@ def test_repo_detail_brief_readme_wiki_owners(store_dir):
     assert d["wiki"]["stale"] is False  # wiki commit matches the indexed head
     assert any(o["name"] == "Ada Lovelace" for o in d["owners"])
     assert d["links"]["tracked_by"][0]["url"].startswith("https://")
+    assert d["links"]["touched_by"][0]["name"] == "!7"
+
+
+def test_repo_links_identical_on_both_front_doors(store_dir):
+    """The newer connector relations (touched_by from a GitLab diff, discussed_in /
+    referenced_in from Slack) must show up on BOTH front doors onto the external-links
+    surface: the dashboard's ``repo_detail`` (via ``_links_for``) and the MCP
+    ``get_repo_links`` tool. They read one shared
+    :data:`~contextlake.kb.model.EXTERNAL_LINK_RELATIONS`, and this asserts the whole
+    grouping agrees -- not just that one relation happens to appear on each -- so a
+    connector adding a relation to only one door fails here."""
+    import asyncio
+
+    from mcp import Client
+
+    from contextlake.kb.model import EXTERNAL_LINK_RELATIONS
+    from contextlake.kb.server import build_server
+
+    s, sd = store_dir
+    dashboard_links = kbdata.repo_detail(s, sd, "team/app")["links"]
+
+    async def _mcp_links():
+        srv = build_server(s)
+        async with Client(srv) as client:
+            res = await client.call_tool("get_repo_links", {"repo": "team/app"})
+        structured = res.structured_content
+        return structured["result"] if set(structured.keys()) == {"result"} else structured
+
+    mcp_links = asyncio.run(_mcp_links())["links"]
+
+    # Both the newer relations and the original ones, on both doors, keyed the same.
+    assert set(dashboard_links) == set(mcp_links) == {"tracked_by", "touched_by", "discussed_in"}
+    assert dashboard_links["touched_by"][0]["name"] == "!7"
+    assert mcp_links["touched_by"][0]["name"] == "!7"
+    assert dashboard_links["discussed_in"][0]["name"] == "#payments"
+    assert mcp_links["discussed_in"][0]["name"] == "#payments"
+    # ...and every relation either door groups is one the shared constant declares.
+    assert set(dashboard_links) <= EXTERNAL_LINK_RELATIONS
+    assert {"referenced_in", "documented_by", "designed_in", "has_merge_request",
+            "has_issue"} <= EXTERNAL_LINK_RELATIONS
 
 
 def test_repo_wiki_whole_repo_matches_detail_wiki(store_dir):

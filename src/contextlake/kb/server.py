@@ -17,7 +17,7 @@ from pathlib import Path
 from mcp.server.mcpserver import MCPServer
 from pydantic import BaseModel
 
-from .model import Edge, Node
+from .model import EXTERNAL_LINK_RELATIONS, Edge, Node
 from .security import sanitize_label
 from .store.base import Store
 
@@ -605,15 +605,14 @@ def build_server(
     @mcp.tool()
     def get_repo_links(repo: str) -> RepoLinksOut:
         """A repo's cross-links to external knowledge — Jira / Confluence / Figma /
-        GitLab — grouped by relation (tracked_by / documented_by / designed_in /
-        has_merge_request / has_issue). Populated by `connect`; served offline after.
+        GitLab / Slack — grouped by relation (tracked_by / documented_by /
+        designed_in / has_merge_request / has_issue / touched_by / discussed_in /
+        referenced_in). Populated by `connect`; served offline after.
         """
         from .ids import make_id
-        link_rels = {"tracked_by", "documented_by", "designed_in",
-                     "has_merge_request", "has_issue"}
         grouped: dict[str, list[LinkOut]] = {}
         for e in store.neighbors(make_id("repo", repo), direction="out"):
-            if e.relation not in link_rels:
+            if e.relation not in EXTERNAL_LINK_RELATIONS:
                 continue
             n = store.get_node(e.dst)
             if not n:

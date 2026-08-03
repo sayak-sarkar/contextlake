@@ -39,10 +39,8 @@ import os
 import re
 from pathlib import Path
 
+from ..model import EXTERNAL_LINK_RELATIONS
 from ..security import sanitize_label
-
-# Relations that ``get_repo_links`` groups as external cross-links.
-_LINK_RELS = {"tracked_by", "documented_by", "designed_in", "has_merge_request", "has_issue"}
 
 
 def _conf(e) -> str:
@@ -215,12 +213,17 @@ def _link_entry(n, e, *, anonymize: bool = False) -> dict:
 
 
 def _links_for(store, repo_id: str, *, anonymize: bool = False) -> dict:
-    """External cross-links grouped by relation (reuses ``get_repo_links`` logic)."""
+    """External cross-links grouped by relation -- the dashboard's Links panel.
+
+    Shares :data:`~contextlake.kb.model.EXTERNAL_LINK_RELATIONS` with the MCP
+    ``get_repo_links`` tool rather than re-listing the relations, so the two front
+    doors onto this surface cannot drift apart (see that constant's docstring).
+    """
     from ..ids import make_id
 
     grouped: dict[str, list[dict]] = {}
     for e in store.neighbors(make_id("repo", repo_id), direction="out"):
-        if e.relation not in _LINK_RELS:
+        if e.relation not in EXTERNAL_LINK_RELATIONS:
             continue
         n = store.get_node(e.dst)
         if not n:
