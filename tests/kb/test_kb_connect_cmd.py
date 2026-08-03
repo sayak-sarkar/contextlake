@@ -151,7 +151,7 @@ def test_connect_returns_nonzero_when_all_sources_fail(tmp_path, monkeypatch):
     # is defined and called directly -- not contextlake.kb.commands (the shim's
     # separate re-exported copy), which cmd_connect never looks up at call time.
     monkeypatch.setattr(cmds, "_build_enrichers",
-                        lambda sources, store: ([boom_enricher], ["site-a"]))
+                        lambda sources, store, **kw: ([boom_enricher], ["site-a"]))
     monkeypatch.setattr(refs, "extract_issue_keys", lambda path, pattern, **k: ["PROJ-1"])
     monkeypatch.setattr(refs, "scrape_links", lambda path, patterns, **k: [])
 

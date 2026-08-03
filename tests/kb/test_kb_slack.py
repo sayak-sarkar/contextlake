@@ -218,3 +218,25 @@ def test_enrich_repo_slack_no_messages_produces_no_symbol_edges(monkeypatch):
         assert any(e.relation == "referenced_in" for e in edges)
     finally:
         store.close()
+
+
+# --- enrich_repo_slack: channel nodes become embeddable ----------------------
+
+def test_enrich_repo_slack_embeds_nodes_when_embedder_configured(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        orch, "_embed_documents",
+        lambda vs, emb, part, nodes, texts, batch_size: calls.append((part, len(nodes))),
+    )
+    store = SqliteStore(":memory:")
+    try:
+        store.upsert_nodes("team/api", [_charge_node()])
+        connector = SlackConnector("team-slack", mcp_url="http://fake")
+        monkeypatch.setattr(connector, "fetch_messages", lambda channel, **kw: [])
+        monkeypatch.setattr(connector, "verify", lambda channel: True)
+        nodes, _ = orch.enrich_repo_slack(
+            connector, "team/api", store, links=["https://team.slack.com/archives/C123"],
+            embedder="fake-embedder", vector_store="fake-vector-store")
+        assert calls == [("@connect:team/api", len(nodes))]
+    finally:
+        store.close()

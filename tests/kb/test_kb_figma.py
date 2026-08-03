@@ -226,3 +226,22 @@ def test_enrich_repo_figma_links_design_to_matching_symbol():
         assert len(repo_edges) == 1
     finally:
         store.close()
+
+
+# --- enrich_repo_figma: design nodes become embeddable ----------------------
+
+def test_enrich_repo_figma_embeds_nodes_when_embedder_configured(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        orch, "_embed_documents",
+        lambda vs, emb, part, nodes, texts, batch_size: calls.append((part, len(nodes))),
+    )
+    store = SqliteStore(":memory:")
+    try:
+        conn = _FigmaMetaStub({"name": "Design System"})
+        nodes, _ = orch.enrich_repo_figma(
+            conn, "team/api", store, links=["https://www.figma.com/design/Xy9/Flow"],
+            embedder="fake-embedder", vector_store="fake-vector-store")
+        assert calls == [("@connect:team/api", len(nodes))]
+    finally:
+        store.close()

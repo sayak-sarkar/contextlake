@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   happens to be in the environment: it costs **pages × `council_size`** extra calls against the
   review provider (drop `council_size` to 1 to cut that threefold). The run banner names both models
   when they differ, and `contextlake doctor` still checks the generation provider only.
+- Connector-produced nodes (GitLab MRs/issues, Figma designs, Slack channels) are now embedded and
+  semantically searchable, closing the third leg of the consolidation gap (unified in keyword
+  search, now-linked in the graph, now embeddable).
 
 ### Changed
 - **BREAKING: the commands are now namespaced under `mirror` and `kb`.** The CLI had grown to 29

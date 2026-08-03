@@ -135,6 +135,35 @@ def test_enrich_repo_gitlab_no_file_matches_skips_touches_edges():
         store.close()
 
 
+# --- enrich_repo_gitlab: MR/issue nodes become embeddable -------------------
+
+def test_enrich_repo_gitlab_embeds_nodes_when_embedder_configured(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        orch, "_embed_documents",
+        lambda vs, emb, part, nodes, texts, batch_size: calls.append((part, len(nodes))),
+    )
+    store = SqliteStore(":memory:")
+    try:
+        nodes, _ = orch.enrich_repo_gitlab(
+            _StubGLWithChanges([]), "team/api", store,
+            embedder="fake-embedder", vector_store="fake-vector-store")
+        assert calls == [("@connect:team/api", len(nodes))]
+    finally:
+        store.close()
+
+
+def test_enrich_repo_gitlab_skips_embedding_without_embedder_configured(monkeypatch):
+    calls = []
+    monkeypatch.setattr(orch, "_embed_documents", lambda *a, **k: calls.append(1))
+    store = SqliteStore(":memory:")
+    try:
+        orch.enrich_repo_gitlab(_StubGLWithChanges([]), "team/api", store)
+    finally:
+        store.close()
+    assert calls == []  # no embedder/vector_store configured -> never called
+
+
 # --- connect integration (no association rules needed for gitlab) ----------
 
 class _StubGL:

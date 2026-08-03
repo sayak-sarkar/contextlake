@@ -8,6 +8,7 @@ re-indexing a repo's code never clobbers its connector links and vice versa.
 
 from __future__ import annotations
 
+from ..cmds.ingest import _embed_documents
 from ..ids import make_id
 from ..model import Confidence, Node
 from .atlassian import (
@@ -80,14 +81,29 @@ def build_slack(src):
     )
 
 
-def enrich_repo_gitlab(connector, repo_id, store):
+def _embed_connector_nodes(repo_id, nodes, embedder, vector_store) -> None:
+    """Embed connector nodes into the semantic store, same pattern
+    ``enrich.py``'s own documents already use (see ``_embed_documents``) --
+    a no-op whenever an embedder/vector store isn't configured or there's
+    nothing to embed."""
+    if embedder is None or vector_store is None or not nodes:
+        return
+    texts = [n.attrs.get("title") or n.attrs.get("name") or n.name for n in nodes]
+    _embed_documents(vector_store, embedder, connect_partition(repo_id), nodes, texts,
+                      batch_size=32)
+
+
+def enrich_repo_gitlab(connector, repo_id, store, *, embedder=None, vector_store=None):
     """Link a repo to its open merge requests and issues (live fetch), and each
     MR to the code files its diff actually touches.
 
     A GitLab diff is a hard fact, not an inference (see
     ``gitlab.match_files_to_nodes``), so every touched-file edge is
     ``Confidence.EXTRACTED``. ``store`` is required to look those file nodes
-    up -- it was not previously threaded into this function.
+    up -- it was not previously threaded into this function. When an
+    ``embedder``/``vector_store`` pair is configured, the MR/issue nodes built
+    here are also embedded so they're semantically searchable, same as
+    ``enrich.py``'s own documents.
     """
     from .common import link_to_code
     from .gitlab import associate_gitlab, match_files_to_nodes
@@ -110,10 +126,11 @@ def enrich_repo_gitlab(connector, repo_id, store):
         matches = match_files_to_nodes(store, repo_id, files)
         if matches:
             edges.extend(link_to_code(repo_id, mr_node, matches, "touches", "gitlab"))
+    _embed_connector_nodes(repo_id, nodes, embedder, vector_store)
     return nodes, edges
 
 
-def enrich_repo_figma(connector, repo_id, store, *, links=()):
+def enrich_repo_figma(connector, repo_id, store, *, links=(), embedder=None, vector_store=None):
     """Associate figma.com links to design nodes (names come from the URL slug).
 
     If a Figma MCP is configured, each design's real metadata is fetched
@@ -126,6 +143,8 @@ def enrich_repo_figma(connector, repo_id, store, *, links=()):
     unreachable/misconfigured MCP just leaves the design as URL-slug-only,
     same as before. ``store`` is required to look those symbol nodes up --
     mirrors ``enrich_repo_gitlab``, not previously threaded into this function.
+    When an ``embedder``/``vector_store`` pair is configured, the design nodes
+    built here are also embedded so they're semantically searchable.
     """
     from .common import link_to_code
     from .figma import associate_designs, match_frame_names_to_symbols, parse_metadata
@@ -152,10 +171,11 @@ def enrich_repo_figma(connector, repo_id, store, *, links=()):
                 continue
             seen.add(key)
             edges.append(e)
+    _embed_connector_nodes(repo_id, nodes, embedder, vector_store)
     return nodes, edges
 
 
-def enrich_repo_slack(connector, repo_id, store, *, links=()):
+def enrich_repo_slack(connector, repo_id, store, *, links=(), embedder=None, vector_store=None):
     """Associate slack.com links to channel/message nodes (from the URL itself).
 
     If a Slack MCP is configured, each channel is additionally checked for
@@ -177,6 +197,8 @@ def enrich_repo_slack(connector, repo_id, store, *, links=()):
     docs" and "discussed in messages" are different facts with different
     provenance, the same reasoning that already lets GitLab's per-file
     ``touches`` edges coexist with its own repo-level ``tracked_by`` edge.
+    When an ``embedder``/``vector_store`` pair is configured, the channel
+    nodes built here are also embedded so they're semantically searchable.
     """
     from .common import link_to_code
     from .slack import associate_slack
@@ -202,6 +224,7 @@ def enrich_repo_slack(connector, repo_id, store, *, links=()):
         matches = match_symbol_mentions("\n".join(messages), symbols)
         if matches:
             edges.extend(link_to_code(repo_id, n, matches, "discussed_in", "slack"))
+    _embed_connector_nodes(repo_id, nodes, embedder, vector_store)
     return nodes, edges
 
 

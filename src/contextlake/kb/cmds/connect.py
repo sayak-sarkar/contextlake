@@ -50,13 +50,15 @@ def _rule_patterns(rules) -> tuple[str | None, list[str]]:
     return branch_key, link_patterns
 
 
-def _build_enrichers(sources, store):
+def _build_enrichers(sources, store, *, embedder=None, vector_store=None):
     """Turn configured sources into callables ``fn(repo_id, keys, links, symbol_keys)``
     that return ``(nodes, edges)``. Atlassian sources discover their sites up front
     and are the only ones that use ``symbol_keys`` (per-symbol ticket attribution);
     every other source ignores it. ``store`` is threaded through to GitLab, Figma,
     and Slack sources, which need it to match diff-touched files / frame names /
-    message-mentioned symbols to existing code nodes.
+    message-mentioned symbols to existing code nodes. ``embedder``/``vector_store``
+    are threaded through to those same three sources so the connector nodes they
+    build become embeddable, same as ``enrich``'s own documents.
     Returns ``(enrichers, names)``."""
     from ..connectors.orchestrate import (
         build_atlassian,
@@ -91,24 +93,27 @@ def _build_enrichers(sources, store):
             conn = build_figma(s)
             log(f"  source {s.name!r} (figma): ready")
             enrichers.append(
-                lambda repo_id, keys, links, symbol_keys, c=conn, st=store:
-                enrich_repo_figma(c, repo_id, st, links=links)
+                lambda repo_id, keys, links, symbol_keys, c=conn, st=store,
+                       e=embedder, v=vector_store:
+                enrich_repo_figma(c, repo_id, st, links=links, embedder=e, vector_store=v)
             )
             names.append(s.name)
         elif s.type == "gitlab":
             conn = build_gitlab(s)
             log(f"  source {s.name!r} (gitlab): ready")
             enrichers.append(
-                lambda repo_id, keys, links, symbol_keys, c=conn, st=store:
-                enrich_repo_gitlab(c, repo_id, st)
+                lambda repo_id, keys, links, symbol_keys, c=conn, st=store,
+                       e=embedder, v=vector_store:
+                enrich_repo_gitlab(c, repo_id, st, embedder=e, vector_store=v)
             )
             names.append(s.name)
         elif s.type == "slack":
             conn = build_slack(s)
             log(f"  source {s.name!r} (slack): ready")
             enrichers.append(
-                lambda repo_id, keys, links, symbol_keys, c=conn, st=store:
-                enrich_repo_slack(c, repo_id, st, links=links)
+                lambda repo_id, keys, links, symbol_keys, c=conn, st=store,
+                       e=embedder, v=vector_store:
+                enrich_repo_slack(c, repo_id, st, links=links, embedder=e, vector_store=v)
             )
             names.append(s.name)
     return enrichers, names
@@ -154,7 +159,20 @@ def cmd_connect(args) -> int:
             log('No association rules configured (add [[rules]] type="branch_key"/"link_scrape")')
             return 0
 
-        enrichers, names = _build_enrichers(sources, store)
+        embedder = vector_store = None
+        if cfg.embeddings.enabled:
+            from ..embeddings import build_embedder
+            from ..embeddings.store import build_vector_store
+            embedder = build_embedder(cfg.embeddings)
+            if embedder is not None:
+                vector_store = build_vector_store(
+                    store_dir / "embeddings.sqlite",
+                    backend=cfg.embeddings.vector_backend,
+                    chunk_size=cfg.embeddings.vector_chunk_size,
+                )
+
+        enrichers, names = _build_enrichers(
+            sources, store, embedder=embedder, vector_store=vector_store)
         if not enrichers:
             log("No usable connector sources; nothing to connect")
             return 1
@@ -204,12 +222,16 @@ def cmd_connect(args) -> int:
                 return 1
             return 0
 
-        if getattr(args, "watch", False):
-            interval = getattr(args, "interval", None) or 60
-            log(f"{style.cyan('watch')}: re-connecting every {interval}s (Ctrl-C to stop)")
-            _watch_loop(_connect_once, interval=interval)
-            return 0
-        return _connect_once()
+        try:
+            if getattr(args, "watch", False):
+                interval = getattr(args, "interval", None) or 60
+                log(f"{style.cyan('watch')}: re-connecting every {interval}s (Ctrl-C to stop)")
+                _watch_loop(_connect_once, interval=interval)
+                return 0
+            return _connect_once()
+        finally:
+            if vector_store is not None:
+                vector_store.close()
     finally:
         store.close()
 
