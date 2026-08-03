@@ -83,9 +83,10 @@ separately.
   (`--llm ollama`/`anthropic`/`openai`) produces far fewer rejections, see
   [Model providers](model-providers.md).
 - **`contextlake kb serve --transport http`/`sse` prints its bind URL** once it starts listening --
-  `✓ MCP server on http://127.0.0.1:8765  (Ctrl-C to stop)` for `http`, or the same with an `/sse` suffix
-  for `sse` (its client endpoint isn't the bare root) -- so you don't have to guess the host/port/path
-  before pointing an editor at it. `stdio` transport has no address to report and stays quiet on that line.
+  `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the same with an `/sse`
+  suffix for `sse` -- so you don't have to guess the host/port/path before pointing an editor at it.
+  Both URLs include the path because neither transport is served at the bare root: that really is a 404.
+  `stdio` transport has no address to report and stays quiet on that line.
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a

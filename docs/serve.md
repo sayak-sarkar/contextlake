@@ -94,12 +94,15 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 - **`stdio`** — the default. The editor/agent spawns `contextlake kb serve` itself and talks to
   it over stdin/stdout; this is what `steer`-generated `.mcp.json`/`.vscode/mcp.json` entries use.
 - **`http`** — Streamable HTTP, the MCP spec's current standard network transport (`--host`/
-  `--port`, default `127.0.0.1:8765`). Prefer this for any new remote/network wiring.
+  `--port`, default `127.0.0.1:8765`). Point clients at `http://127.0.0.1:8765/mcp`, not the bare
+  host:port: the endpoint is the `/mcp` path, and the root returns 404. Prefer this transport for
+  any new remote/network wiring.
 - **`sse`** — the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
   marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
   for clients that haven't moved off it yet; contextlake follows that guidance rather than
-  dropping it. Use `sse` only if your client specifically requires it (some clients, e.g. Devin's
-  custom-MCP-server setup, list SSE as a distinct, separate option from HTTP) — pick `http` first.
+  dropping it. Its endpoint is `http://127.0.0.1:8765/sse`. Use `sse` only if your client
+  specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
+  distinct, separate option from HTTP) — pick `http` first.
 
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file

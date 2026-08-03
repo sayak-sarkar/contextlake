@@ -104,6 +104,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `contextlake kb serve`. Both rewrite their managed block in place.
 
 ### Fixed
+- **`contextlake kb serve --transport http` printed a bind URL that 404s.** It reported the bare
+  `http://127.0.0.1:8765`, but Streamable HTTP is served at the SDK's `streamable_http_path`
+  (`/mcp`), which contextlake does not override, so a client pointed at the printed URL got a 404
+  and the root looked like a dead server. The line now prints `http://127.0.0.1:8765/mcp`, matching
+  the `/sse` path already reported for `--transport sse`. `steer`-generated MCP config is
+  unaffected: it wires the `stdio` transport by command, never by URL.
 - **A bare `contextlake hook` exited 2 with `invalid choice: '==SUPPRESS=='` on Python 3.9–3.11**
   instead of defaulting to `install` as its own `--help` promises. The optional `action` positional
   paired `choices=` with contextlake's SUPPRESS-default convention — the same argparse trap already

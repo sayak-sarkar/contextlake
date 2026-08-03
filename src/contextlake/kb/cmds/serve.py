@@ -59,16 +59,16 @@ def cmd_serve(args) -> int:
                           "graph search and every other tool work without them"))
 
         log(f"Serving knowledge graph over MCP ({transport})")
-        if transport == "streamable-http":
-            # stdio has no bind address to report; http does, and a blocking
-            # server that never says where it listens reads as broken, not busy.
-            log(style.ok(f"MCP server on http://{host}:{port}  (Ctrl-C to stop)"))
-        elif transport == "sse":
-            # Unlike streamable-http, the SSE client endpoint is NOT the bare
-            # host:port -- it's the SDK's sse_path ("/sse" by default, see
-            # mcp.server.mcpserver.MCPServer.sse_app). Printing the bare root
-            # here would send an SSE client to a 404.
-            log(style.ok(f"MCP server on http://{host}:{port}/sse  (Ctrl-C to stop)"))
+        # stdio has no bind address to report; the network transports do, and a
+        # blocking server that never says where it listens reads as broken, not
+        # busy. Neither network transport is mounted at the bare host:port --
+        # each has its own path, and printing the bare root sends clients to a
+        # 404. The paths are the SDK's own defaults, which contextlake does not
+        # override: streamable_http_path="/mcp" and sse_path="/sse" (see
+        # mcp.server.mcpserver.MCPServer.streamable_http_app / .sse_app).
+        path = {"streamable-http": "/mcp", "sse": "/sse"}.get(transport)
+        if path:
+            log(style.ok(f"MCP server on http://{host}:{port}{path}  (Ctrl-C to stop)"))
         run_server(store, transport=transport, host=host, port=port,
                    embedder=embedder, vector_store=vector_store)
         return 0

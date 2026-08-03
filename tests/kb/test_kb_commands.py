@@ -706,7 +706,10 @@ def test_serve_http_logs_the_bind_url(tmp_path, gls_logs, monkeypatch):
     # gls_logs.text is ANSI-stripped by pytest's LogCaptureHandler, so read the
     # raw record messages (log()'s actual argument) to compare the colored line.
     msgs = "\n".join(r.getMessage() for r in gls_logs.records)
-    assert style.ok("MCP server on http://127.0.0.1:8765") in msgs
+    # streamable-http is mounted at the SDK's streamable_http_path ("/mcp"), not
+    # at the bare root -- the root really is a 404, so the path is part of the
+    # contract this line reports, not decoration.
+    assert style.ok("MCP server on http://127.0.0.1:8765/mcp") in msgs
 
 
 def test_serve_http_logs_the_configured_host_and_port(tmp_path, gls_logs, monkeypatch):
@@ -718,7 +721,10 @@ def test_serve_http_logs_the_configured_host_and_port(tmp_path, gls_logs, monkey
 
     assert rc == 0
     msgs = "\n".join(r.getMessage() for r in gls_logs.records)
-    assert style.ok("MCP server on http://0.0.0.0:9999") in msgs
+    # Asserted with the "/mcp" path: style.ok() only colors the leading glyph, so
+    # a path-less expectation stays a substring of the real line and would pass
+    # whether or not the path is printed at all.
+    assert style.ok("MCP server on http://0.0.0.0:9999/mcp") in msgs
 
 
 def test_serve_sse_dispatches_the_legacy_transport_and_logs_the_bind_url(
@@ -745,8 +751,9 @@ def test_serve_sse_dispatches_the_legacy_transport_and_logs_the_bind_url(
     assert kwargs["port"] == 9999
     msgs = "\n".join(r.getMessage() for r in gls_logs.records)
     assert "Serving knowledge graph over MCP (sse)" in msgs
-    # SSE clients connect at the sse_path, not the bare root -- unlike
-    # streamable-http, printing the bare host:port would send them to a 404.
+    # SSE clients connect at the sse_path, not the bare root (which is a 404).
+    # Same rule as streamable-http's "/mcp" above: each network transport is
+    # mounted at its own path, so both bind URLs carry one.
     assert style.ok("MCP server on http://0.0.0.0:9999/sse") in msgs
 
 
