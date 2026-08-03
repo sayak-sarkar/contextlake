@@ -52,6 +52,32 @@ removes itself from the dropdown rather than offering a mode that would do nothi
 > and plain `kb graph --serve` (`build_graph_server`) both inline the libs, and
 > `--site` writes them as siblings.
 
+## Why there is no SVG-export library here
+
+The page's `SVG` button is hand-rolled in `app.js` (`svgText()`), not backed by a
+vendored extension. `cytoscape-svg` — the obvious candidate — replays cytoscape's
+**canvas** draw path through `canvas2svg`, so it can only ever emit what the canvas
+renderer draws. In the `dagre (preview)` mode the nodes are HTML cards that the canvas
+never draws at all, so that library would silently export a graph of blank nodes. The
+hand-rolled serializer instead reads cytoscape's geometry and wraps each card in an SVG
+`foreignObject`, which is the one construct that can carry real HTML.
+
+Two consequences worth knowing:
+
+- `foreignObject` renders in browsers, and is **ignored by Inkscape / Illustrator** — a
+  card-mode SVG opened there shows the edges but not the nodes. The canvas-mode export
+  (any other layout) is plain vector shapes and opens fine anywhere.
+- Card styling is inlined as computed CSS per card (~6 KB each), because neither the
+  stylesheet nor its custom properties travel inside the file. A card-mode export is
+  therefore much larger than a canvas-mode one.
+- Canvas-mode node labels are emitted as a single `<text>` line (truncated past 28
+  characters). The canvas renderer wraps them instead, so a long namespace label can
+  sit a little wider in the SVG than it does on screen.
+
+The `PNG` button still calls `cy.png()` — cytoscape's own canvas renderer — and is
+unaffected by any of this; in card mode the export reverts the cards to canvas nodes for
+the duration of the capture and restores them straight after.
+
 To update: download the pinned version from jsDelivr, replace the file, then bump the
 version **here** *and* the matching `_CDN_URL` / `_EXT_CDN_URLS` constants in
 `kb/visualize/html_render.py`.

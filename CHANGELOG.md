@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ants along the selected node's edges. Selecting any other layout leaves the existing canvas
   rendering completely unchanged; this is a look to judge before it becomes anyone's default.
   Card rendering is skipped above 400 nodes (the status bar says so) and on the fleet overview.
+- The graph page can now be saved as **SVG** as well as PNG -- a new `SVG` button beside the
+  existing `PNG` one. The PNG button is unchanged (still cytoscape's own canvas render), and it
+  keeps working while the `dagre (preview)` card rendering is on: the capture temporarily reverts
+  the cards to canvas nodes and restores them afterwards. Expect that PNG to look sparse in card
+  mode -- it is the classic circles-and-glyphs picture at the wider spacing dagre laid out for
+  cards. The SVG is the format that keeps the card look: it embeds each card as real HTML in a
+  `foreignObject`, which browsers render but Inkscape/Illustrator ignore. Hand-rolled, no new
+  vendored library.
 - Vendored `cytoscape-dagre` 4.0.0 and `cytoscape-dom-node` 2.1.0 (both MIT, ~46 KB + ~11 KB)
   alongside `cytoscape.min.js`, so the preview above works offline like the rest of the page.
   `cytoscape-dagre` bundles dagre itself, so there is no separate dagre file. `app.js`

@@ -594,10 +594,11 @@ def test_html_is_offline_by_default(store):
     html_cdn = viz.to_html(_payload(store), cdn=True)
     assert _CDN_URL in html_cdn        # --cdn references the CDN
     # ...and does not inline any vendored lib. The page's own JS/CSS (app shell,
-    # minimap, semantic zoom, LOD labels, legend glyphs, dagre-preview wiring) is always
-    # inlined and sits ~85KB; the bound stays under the smallest lib we could
-    # accidentally inline (cytoscape-dom-node, ~10KB) so a regression still trips it.
-    assert len(html_cdn) < 110_000
+    # minimap, semantic zoom, LOD labels, legend glyphs, dagre-preview wiring, the
+    # PNG/SVG exporters) is always inlined and sits ~113KB; the bound stays under the
+    # smallest lib we could accidentally inline (cytoscape-dom-node, ~10KB) so a
+    # regression still trips it.
+    assert len(html_cdn) < 122_000
 
 
 def test_kind_icons_are_offline_data_uris_with_contrast():
@@ -1409,3 +1410,126 @@ def test_config_warning_does_not_corrupt_json_stdout(tmp_path, capsys):
     out = capsys.readouterr().out
     parsed = json.loads(out)  # must parse: no warning prepended
     assert "nodes" in parsed and out.lstrip().startswith("{")
+
+
+# --- image export: PNG (canvas) + SVG (vector, card-aware) ----------------
+
+def test_page_offers_both_a_png_and_an_svg_export(store):
+    _hub(store, leaves=3)
+    html = viz.to_html(_payload(store))
+    assert 'id="png"' in html and 'id="svg"' in html
+    # PNG still goes through cytoscape's own canvas renderer, with the same options…
+    assert 'cy.png({ full:true, scale:2, bg:"#ffffff" })' in html
+    # …wrapped so the dagre preview's card rendering is reverted for the capture only
+    assert "withCanvasNodes" in html and 'cy.nodes(".cl-dom")' in html
+    # SVG is hand-rolled: foreignObject for the cards, vector shapes otherwise
+    assert "foreignObject" in html and "XMLSerializer" in html
+    # both exporters are callable without going through a download
+    assert "window.clExport" in html
+
+
+def _chrome_binary():
+    """A local Chrome/Chromium, or None — the export test needs a real renderer."""
+    import shutil
+    for name in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
+_HARNESS = """
+<script>
+(function(){
+  function out(id, txt){
+    var d = document.createElement("div"); d.id = id; d.textContent = txt;
+    document.body.appendChild(d);
+  }
+  function b64(s){ return btoa(unescape(encodeURIComponent(s))); }
+  function grab(tag){
+    var st = { render: document.body.dataset.render || "canvas",
+               cards: cy.nodes(".cl-dom").length, restored: true };
+    var png = window.clExport.pngDataUri();
+    st.cardsAfter = cy.nodes(".cl-dom").length;
+    cy.nodes(".cl-dom").forEach(function(n){
+      var el = n.data("dom");
+      if(!el || Math.abs(n.width() - el.offsetWidth) > 1
+             || Math.abs(n.height() - el.offsetHeight) > 1){ st.restored = false; }
+    });
+    out("exp-" + tag + "-png", png);
+    out("exp-" + tag + "-svg", b64(window.clExport.svgText()));
+    out("exp-" + tag + "-state", JSON.stringify(st));
+  }
+  setTimeout(function(){
+    grab("canvas");
+    var sel = document.getElementById("layout");
+    sel.value = "dagre";
+    sel.dispatchEvent(new Event("change"));
+    setTimeout(function(){ grab("cards"); }, 600);
+  }, 300);
+})();
+</script>
+</body>"""
+
+
+def _dump_dom(chrome, page, profile):
+    import subprocess
+    proc = subprocess.run(
+        [chrome, "--headless", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage",
+         f"--user-data-dir={profile}", "--virtual-time-budget=20000", "--dump-dom",
+         page.as_uri()],
+        capture_output=True, text=True, timeout=300)
+    return proc.stdout
+
+
+def _grab(dom, div_id):
+    m = re.search(rf'<div id="{div_id}">([^<]*)</div>', dom)
+    assert m, f"{div_id} missing from the rendered page"
+    return m.group(1)
+
+
+@pytest.mark.skipif(_chrome_binary() is None,
+                    reason="no Chrome/Chromium available to render the page")
+def test_png_and_svg_exports_produce_real_output_in_both_render_modes(store, tmp_path):
+    """Both exports, on a real browser render, in the canvas mode AND the card mode.
+
+    The PNG assertion that matters is not "it decodes" but that card mode survives it:
+    a canvas-only capture has to blank the cards' geometry and put it back.
+    """
+    import base64
+    import struct
+    import xml.etree.ElementTree as ET
+
+    _hub(store, leaves=3)
+    page = tmp_path / "graph.html"
+    page.write_text(viz.to_html(_payload(store)).replace("</body>", _HARNESS),
+                    encoding="utf-8")
+    dom = _dump_dom(_chrome_binary(), page, tmp_path / "profile")
+
+    svgns = "{http://www.w3.org/2000/svg}"
+    for tag in ("canvas", "cards"):
+        state = json.loads(_grab(dom, f"exp-{tag}-state"))
+        # PNG: a real, non-empty image
+        raw = base64.b64decode(_grab(dom, f"exp-{tag}-png").split(",", 1)[1])
+        assert raw[:8] == b"\x89PNG\r\n\x1a\n"
+        w, h = struct.unpack(">II", raw[16:24])
+        assert w > 0 and h > 0 and len(raw) > 1000
+        # SVG: well-formed XML carrying the graph's nodes and edges
+        svg = base64.b64decode(_grab(dom, f"exp-{tag}-svg"))
+        root = ET.fromstring(svg)
+        assert root.tag == f"{svgns}svg"
+        edges = root.findall(f".//{svgns}g[@class='edges']/{svgns}path")
+        nodes = root.findall(f".//{svgns}g[@class='nodes']/{svgns}g[@class='node']")
+        assert len(edges) == 3 and len(nodes) == 4        # the synthetic hub + 3 leaves
+        cards = root.findall(f".//{svgns}foreignObject")
+
+        if tag == "canvas":
+            assert state["cards"] == 0 and state["render"] == "canvas"
+            assert not cards                              # vector shapes, no HTML
+            assert root.findall(f".//{svgns}ellipse")
+        else:
+            # card mode really engaged, and the PNG capture left it exactly as it was
+            assert state["render"] == "cards" and state["cards"] == 4
+            assert state["cardsAfter"] == 4 and state["restored"] is True
+            assert len(cards) == 4                        # every node kept its HTML card
+            assert b"cl-card" in svg and b"box-shadow" in svg

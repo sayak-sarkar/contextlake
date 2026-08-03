@@ -664,13 +664,253 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     if(OVERVIEW){ relayoutOverview(); } else { runLayout(sel.value); }
   });
 
+  // ===== Export: PNG (canvas raster) and SVG (vector, card-aware) ==============
+  // Two deliberately different paths, because they can see different things:
+  //   PNG — cytoscape's own canvas renderer (cy.png), byte-for-byte the call this
+  //         page has always made. It renders from the MODEL to an offscreen canvas,
+  //         so the HTML cards never participate; in the dagre preview the canvas
+  //         node is blanked (.cl-dom) and resized to the card, so the export
+  //         temporarily reverts both and restores them. The PNG you get in card
+  //         mode is therefore the classic canvas rendering, laid out at the
+  //         card-width spacing dagre used — the same picture as before, just airier.
+  //   SVG — hand-rolled from cytoscape's geometry. No cytoscape-svg plugin was
+  //         vendored: it replays the canvas draw path (canvas2svg), so it
+  //         structurally cannot see the cards either. foreignObject can, so the
+  //         vector export is the one format that keeps the card look.
+  function xmlEsc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&apos;" }[c]; });
+  }
+  function num(v, d){ var n = parseFloat(v); return isFinite(n) ? n : d; }
+  function r2(v){ return Math.round(v * 100) / 100; }
+  function xy(p){ return r2(p.x) + "," + r2(p.y); }
+
+  // Run fn with the CANVAS rendering of the nodes restored, then put the card
+  // rendering back exactly as cytoscape-dom-node had it. Scoped to the nodes that
+  // are actually carded: in LIVE mode expand() can add nodes after card mode was
+  // entered, and dom-node skips those (no `dom` data), so they must stay untouched.
+  function withCanvasNodes(fn){
+    var carded = cy.nodes(".cl-dom");
+    if(!domOn || !carded.length){ return fn(); }
+    try {
+      cy.batch(function(){ carded.removeClass("cl-dom").removeStyle("width height shape"); });
+      return fn();
+    } finally {
+      cy.batch(function(){
+        carded.addClass("cl-dom");
+        carded.forEach(function(n){
+          var el = n.data("dom");
+          // exactly what dom-node's own syncNodeSize writes, so the mode is bit-identical
+          if(el){ n.style({ width: el.offsetWidth, height: el.offsetHeight, shape: "rectangle" }); }
+        });
+      });
+    }
+  }
+  function pngDataUri(){
+    return withCanvasNodes(function(){ return cy.png({ full:true, scale:2, bg:"#ffffff" }); });
+  }
+
+  // The card's look comes from a stylesheet plus CSS custom properties, neither of
+  // which travels inside the exported file — so the COMPUTED value of each property
+  // is inlined onto the clone. (Reading document.styleSheets instead would throw on
+  // a file:// linked stylesheet, which is exactly how a --site build serves app.css.)
+  var CARD_PROPS = ["display","flex-direction","align-items","justify-content","gap",
+    "box-sizing","width","height","max-width","min-width","padding-top","padding-right",
+    "padding-bottom","padding-left","border-top-width","border-right-width",
+    "border-bottom-width","border-left-width","border-top-style","border-right-style",
+    "border-bottom-style","border-left-style","border-top-color","border-right-color",
+    "border-bottom-color","border-left-color","border-top-left-radius",
+    "border-top-right-radius","border-bottom-left-radius","border-bottom-right-radius",
+    "background-color","background-image","background-size","background-position",
+    "background-repeat","color","font-family","font-size","font-weight","line-height",
+    "letter-spacing","white-space","overflow","text-overflow","text-transform",
+    "box-shadow","opacity","flex"];
+  function inlineComputed(src, dst){
+    var cs = window.getComputedStyle(src), decl = "";
+    CARD_PROPS.forEach(function(p){
+      var v = cs.getPropertyValue(p);
+      if(v){ decl += p + ":" + v + ";"; }
+    });
+    dst.setAttribute("style", decl);
+    var a = src.children, b = dst.children;
+    for(var i = 0; i < a.length && i < b.length; i++){ inlineComputed(a[i], b[i]); }
+  }
+  // A node's HTML card as well-formed XML. XMLSerializer, never outerHTML: the HTML
+  // serializer leaves void elements (<img>, <br>) unclosed, which is not valid XML
+  // and would make the whole exported file unparseable.
+  function cardXml(el, pad){
+    var wrap = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+    var clone = el.cloneNode(true);
+    inlineComputed(el, clone);
+    // pad the foreignObject and re-inset the card, so the card's drop shadow has
+    // room instead of being clipped at the object's edge
+    wrap.setAttribute("style", "padding:" + pad + "px;box-sizing:border-box");
+    wrap.appendChild(clone);
+    return new XMLSerializer().serializeToString(wrap);
+  }
+
+  function edgeGeom(e){
+    var p1, p2, cps = [];
+    try { p1 = e.sourceEndpoint(); p2 = e.targetEndpoint(); } catch(err){ p1 = p2 = null; }
+    if(!p1 || !p2){ p1 = e.source().position(); p2 = e.target().position(); }
+    try { cps = e.controlPoints() || []; } catch(err){ cps = []; }   // straight-line fallback
+    var d = "M" + xy(p1), mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    if(!cps.length){
+      d += "L" + xy(p2);
+    } else {
+      for(var i = 0; i < cps.length; i++){
+        // cytoscape draws its bezier as quadratics through the control points, with
+        // the midpoint between consecutive controls as the implied on-curve point
+        var end = (i === cps.length - 1) ? p2
+                : { x: (cps[i].x + cps[i + 1].x) / 2, y: (cps[i].y + cps[i + 1].y) / 2 };
+        d += "Q" + xy(cps[i]) + " " + xy(end);
+      }
+      if(cps.length === 1){   // exact midpoint of a quadratic
+        mid = { x: (p1.x + 2 * cps[0].x + p2.x) / 4, y: (p1.y + 2 * cps[0].y + p2.y) / 4 };
+      } else {
+        mid = cps[Math.floor(cps.length / 2)];
+      }
+    }
+    return { d: d, p1: p1, p2: p2, mid: mid };
+  }
+
+  var SVG_PAD = 40, CARD_PAD = 12, SVG_LABEL_MAX = 28;
+  function svgText(){
+    var nodes = cy.nodes().filter(function(n){ return n.visible(); });
+    var edges = cy.edges().filter(function(e){ return e.visible(); });
+    var els = nodes.union(edges);
+    var bb = els.nonempty() ? els.boundingBox()
+                            : { x1: 0, y1: 0, x2: 1, y2: 1, w: 1, h: 1 };
+    var x = bb.x1 - SVG_PAD, y = bb.y1 - SVG_PAD;
+    var w = Math.max(1, bb.w + 2 * SVG_PAD), h = Math.max(1, bb.h + 2 * SVG_PAD);
+    var bg = cssVar("--surface-solid") || "#ffffff";
+    var labelColor = cssVar("--canvas-label") || "#0E2A33";
+    var ff = cssVar("--ff") || "sans-serif";
+    var markers = {}, defs = "";
+    function marker(color){
+      if(!markers[color]){
+        var id = "arw" + (Object.keys(markers).length + 1);
+        markers[color] = id;
+        defs += '<marker id="' + id + '" viewBox="0 0 8 8" refX="8" refY="4"'
+          + ' markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">'
+          + '<path d="M0,0 L8,4 L0,8 z" fill="' + xmlEsc(color) + '"/></marker>';
+      }
+      return markers[color];
+    }
+    function text(tx, ty, size, fill, s, extra){
+      return '<text x="' + r2(tx) + '" y="' + r2(ty) + '" text-anchor="middle" font-size="'
+        + r2(size) + '" font-family="' + xmlEsc(ff) + '" fill="' + xmlEsc(fill) + '"'
+        + (extra || "") + ">" + xmlEsc(s) + "</text>";
+    }
+
+    var eout = "";
+    edges.forEach(function(e){
+      var g = edgeGeom(e), color = edgeColor(e);
+      var ls = String(e.style("line-style") || "solid");
+      var dash = ls === "dashed" ? ' stroke-dasharray="6,4"'
+               : (ls === "dotted" ? ' stroke-dasharray="1,3"' : "");
+      // the overview's faint "contains" spokes carry no arrowhead on canvas either
+      var head = String(e.style("target-arrow-shape")) === "none"
+        ? "" : ' marker-end="url(#' + marker(color) + ')"';
+      eout += '<path class="edge" data-id="' + xmlEsc(e.id()) + '" d="' + g.d
+        + '" fill="none" stroke="' + xmlEsc(color) + '" stroke-width="'
+        + r2(num(e.style("width"), 1)) + '" opacity="' + r2(num(e.style("opacity"), 1))
+        + '"' + dash + head + "/>";
+      // aggregated overview edges are labelled with their rolled-up weight, not the
+      // relation — same as the canvas stylesheet's edge[aggregated] rule
+      var agg = !!e.data("aggregated");
+      var lab = agg ? String(e.data("weight") || "") : (edgeLabel(e) || "");
+      if(lab){
+        var deg = Math.atan2(g.p2.y - g.p1.y, g.p2.x - g.p1.x) * 180 / Math.PI;
+        if(deg > 90 || deg < -90){ deg += 180; }   // keep labels upright
+        eout += text(g.mid.x, g.mid.y - 3, agg ? 10 : 7, labelColor, lab,
+          ' transform="rotate(' + r2(deg) + ' ' + xy(g.mid) + ')"'
+          + (agg ? ' font-weight="600"' : ""));
+      }
+    });
+
+    var nout = "";
+    nodes.forEach(function(n){
+      var pos = n.position(), d = n.data();
+      var card = domOn ? d.dom : null;
+      var head = '<g class="node" data-id="' + xmlEsc(n.id()) + '"';
+      if(card){
+        var cw = card.offsetWidth, ch = card.offsetHeight;
+        nout += head + ' data-render="card"><foreignObject x="'
+          + r2(pos.x - cw / 2 - CARD_PAD) + '" y="' + r2(pos.y - ch / 2 - CARD_PAD)
+          + '" width="' + (cw + 2 * CARD_PAD) + '" height="' + (ch + 2 * CARD_PAD) + '">'
+          + cardXml(card, CARD_PAD) + "</foreignObject></g>";
+        return;
+      }
+      var nw = n.width(), nh = n.height();
+      var shape = String(n.style("shape") || "ellipse");
+      var bw = num(n.style("border-width"), 0);
+      var stroke = bw > 0
+        ? ' stroke="' + xmlEsc(n.style("border-color") || bg) + '" stroke-width="' + r2(bw) + '"'
+        : "";
+      var fill = ' fill="' + xmlEsc(n.style("background-color") || DEFAULT_COLOR)
+        + '" fill-opacity="' + r2(num(n.style("background-opacity"), 1)) + '"';
+      nout += head + ' opacity="' + r2(num(n.style("opacity"), 1)) + '">';
+      if(shape.indexOf("rectangle") >= 0){
+        nout += '<rect x="' + r2(pos.x - nw / 2) + '" y="' + r2(pos.y - nh / 2) + '" width="'
+          + r2(nw) + '" height="' + r2(nh) + '" rx="' + (shape.indexOf("round") === 0 ? 10 : 0)
+          + '"' + fill + stroke + "/>";
+      } else {
+        nout += '<ellipse cx="' + r2(pos.x) + '" cy="' + r2(pos.y) + '" rx="' + r2(nw / 2)
+          + '" ry="' + r2(nh / 2) + '"' + fill + stroke + "/>";
+      }
+      // the very glyph the canvas paints — a data URI, so the file stays offline
+      var icon = (d.kind === "repo" && LANG_ICONS[d.lang]) ? LANG_ICONS[d.lang] : ICONS[d.kind];
+      if(icon){
+        var iw = nw * 0.58, ih = nh * 0.58;
+        nout += '<image href="' + xmlEsc(icon) + '" xlink:href="' + xmlEsc(icon) + '" x="'
+          + r2(pos.x - iw / 2) + '" y="' + r2(pos.y - ih / 2) + '" width="' + r2(iw)
+          + '" height="' + r2(ih) + '"/>';
+      }
+      var lab = d.label || "";
+      if(lab.length > SVG_LABEL_MAX){ lab = lab.slice(0, SVG_LABEL_MAX - 1) + "…"; }
+      if(lab && num(n.style("text-opacity"), 1) > 0.01){   // honours the LOD dimming
+        var fs = num(n.style("font-size"), 9);
+        var ty = String(n.style("text-valign")) === "center"
+          ? pos.y + fs * 0.35 : pos.y + nh / 2 + fs + 2;
+        nout += text(pos.x, ty, fs, labelColor, lab);
+      }
+      nout += "</g>";
+    });
+
+    return '<?xml version="1.0" encoding="UTF-8"?>\n'
+      + '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+      + ' version="1.1" width="' + r2(w) + '" height="' + r2(h) + '" viewBox="'
+      + r2(x) + " " + r2(y) + " " + r2(w) + " " + r2(h) + '">'
+      + "<title>" + xmlEsc(document.title) + "</title>"
+      + '<rect x="' + r2(x) + '" y="' + r2(y) + '" width="' + r2(w) + '" height="' + r2(h)
+      + '" fill="' + xmlEsc(bg) + '"/>'
+      + "<defs>" + defs + "</defs>"
+      + '<g class="edges">' + eout + "</g>"
+      + '<g class="nodes">' + nout + "</g></svg>";
+  }
+
+  function saveUri(uri, name){
+    var a = document.createElement("a");
+    a.href = uri; a.download = name; a.click();
+  }
+  // Both exporters are reachable from the console (and from tests) without going
+  // through a download the caller then has to intercept.
+  window.clExport = { pngDataUri: pngDataUri, svgText: svgText };
+
   // toolbar
   document.getElementById("fit").onclick = function(){ reframe(); };
   document.getElementById("png").onclick = function(){
-    var uri = cy.png({ full:true, scale:2, bg:"#ffffff" });
-    var a = document.createElement("a");
-    a.href = uri; a.download = "contextlake-graph.png"; a.click();
+    saveUri(pngDataUri(), "contextlake-graph.png");
   };
+  var svgBtn = document.getElementById("svg");
+  if(svgBtn){
+    svgBtn.onclick = function(){
+      var url = URL.createObjectURL(new Blob([svgText()], { type: "image/svg+xml;charset=utf-8" }));
+      saveUri(url, "contextlake-graph.svg");
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    };
+  }
   document.getElementById("reset").onclick = function(){
     cy.elements().removeClass("faded hi found");
     stopAnts(); refreshDomFx();

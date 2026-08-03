@@ -551,6 +551,9 @@ __LIB_TAG__
         <button class="btn primary" id="png" title="Save a PNG snapshot"><svg viewBox="0 0 16 16"
           fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
           13h10"/></svg>PNG</button>
+        <button class="btn" id="svg" title="Save an SVG snapshot — vector, and the only format that keeps the dagre preview's HTML cards"><svg viewBox="0 0 16 16" fill="none"
+          stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M3
+          13h10"/></svg>SVG</button>
       </div>
       <label class="tog" id="nodeprow" hidden><input type="checkbox" id="shownodeps">
         show repos with no detected dependency <span id="nodepn" class="cnt"></span></label>
