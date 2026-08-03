@@ -1,0 +1,1200 @@
+@app.get('/v1/resource/0')
+def handler_0():
+    pass
+@app.get('/v1/resource/1')
+def handler_1():
+    pass
+@app.get('/v1/resource/2')
+def handler_2():
+    pass
+@app.get('/v1/resource/3')
+def handler_3():
+    pass
+@app.get('/v1/resource/4')
+def handler_4():
+    pass
+@app.get('/v1/resource/5')
+def handler_5():
+    pass
+@app.get('/v1/resource/6')
+def handler_6():
+    pass
+@app.get('/v1/resource/7')
+def handler_7():
+    pass
+@app.get('/v1/resource/8')
+def handler_8():
+    pass
+@app.get('/v1/resource/9')
+def handler_9():
+    pass
+@app.get('/v1/resource/10')
+def handler_10():
+    pass
+@app.get('/v1/resource/11')
+def handler_11():
+    pass
+@app.get('/v1/resource/12')
+def handler_12():
+    pass
+@app.get('/v1/resource/13')
+def handler_13():
+    pass
+@app.get('/v1/resource/14')
+def handler_14():
+    pass
+@app.get('/v1/resource/15')
+def handler_15():
+    pass
+@app.get('/v1/resource/16')
+def handler_16():
+    pass
+@app.get('/v1/resource/17')
+def handler_17():
+    pass
+@app.get('/v1/resource/18')
+def handler_18():
+    pass
+@app.get('/v1/resource/19')
+def handler_19():
+    pass
+@app.get('/v1/resource/20')
+def handler_20():
+    pass
+@app.get('/v1/resource/21')
+def handler_21():
+    pass
+@app.get('/v1/resource/22')
+def handler_22():
+    pass
+@app.get('/v1/resource/23')
+def handler_23():
+    pass
+@app.get('/v1/resource/24')
+def handler_24():
+    pass
+@app.get('/v1/resource/25')
+def handler_25():
+    pass
+@app.get('/v1/resource/26')
+def handler_26():
+    pass
+@app.get('/v1/resource/27')
+def handler_27():
+    pass
+@app.get('/v1/resource/28')
+def handler_28():
+    pass
+@app.get('/v1/resource/29')
+def handler_29():
+    pass
+@app.get('/v1/resource/30')
+def handler_30():
+    pass
+@app.get('/v1/resource/31')
+def handler_31():
+    pass
+@app.get('/v1/resource/32')
+def handler_32():
+    pass
+@app.get('/v1/resource/33')
+def handler_33():
+    pass
+@app.get('/v1/resource/34')
+def handler_34():
+    pass
+@app.get('/v1/resource/35')
+def handler_35():
+    pass
+@app.get('/v1/resource/36')
+def handler_36():
+    pass
+@app.get('/v1/resource/37')
+def handler_37():
+    pass
+@app.get('/v1/resource/38')
+def handler_38():
+    pass
+@app.get('/v1/resource/39')
+def handler_39():
+    pass
+@app.get('/v1/resource/40')
+def handler_40():
+    pass
+@app.get('/v1/resource/41')
+def handler_41():
+    pass
+@app.get('/v1/resource/42')
+def handler_42():
+    pass
+@app.get('/v1/resource/43')
+def handler_43():
+    pass
+@app.get('/v1/resource/44')
+def handler_44():
+    pass
+@app.get('/v1/resource/45')
+def handler_45():
+    pass
+@app.get('/v1/resource/46')
+def handler_46():
+    pass
+@app.get('/v1/resource/47')
+def handler_47():
+    pass
+@app.get('/v1/resource/48')
+def handler_48():
+    pass
+@app.get('/v1/resource/49')
+def handler_49():
+    pass
+@app.get('/v1/resource/50')
+def handler_50():
+    pass
+@app.get('/v1/resource/51')
+def handler_51():
+    pass
+@app.get('/v1/resource/52')
+def handler_52():
+    pass
+@app.get('/v1/resource/53')
+def handler_53():
+    pass
+@app.get('/v1/resource/54')
+def handler_54():
+    pass
+@app.get('/v1/resource/55')
+def handler_55():
+    pass
+@app.get('/v1/resource/56')
+def handler_56():
+    pass
+@app.get('/v1/resource/57')
+def handler_57():
+    pass
+@app.get('/v1/resource/58')
+def handler_58():
+    pass
+@app.get('/v1/resource/59')
+def handler_59():
+    pass
+@app.get('/v1/resource/60')
+def handler_60():
+    pass
+@app.get('/v1/resource/61')
+def handler_61():
+    pass
+@app.get('/v1/resource/62')
+def handler_62():
+    pass
+@app.get('/v1/resource/63')
+def handler_63():
+    pass
+@app.get('/v1/resource/64')
+def handler_64():
+    pass
+@app.get('/v1/resource/65')
+def handler_65():
+    pass
+@app.get('/v1/resource/66')
+def handler_66():
+    pass
+@app.get('/v1/resource/67')
+def handler_67():
+    pass
+@app.get('/v1/resource/68')
+def handler_68():
+    pass
+@app.get('/v1/resource/69')
+def handler_69():
+    pass
+@app.get('/v1/resource/70')
+def handler_70():
+    pass
+@app.get('/v1/resource/71')
+def handler_71():
+    pass
+@app.get('/v1/resource/72')
+def handler_72():
+    pass
+@app.get('/v1/resource/73')
+def handler_73():
+    pass
+@app.get('/v1/resource/74')
+def handler_74():
+    pass
+@app.get('/v1/resource/75')
+def handler_75():
+    pass
+@app.get('/v1/resource/76')
+def handler_76():
+    pass
+@app.get('/v1/resource/77')
+def handler_77():
+    pass
+@app.get('/v1/resource/78')
+def handler_78():
+    pass
+@app.get('/v1/resource/79')
+def handler_79():
+    pass
+@app.get('/v1/resource/80')
+def handler_80():
+    pass
+@app.get('/v1/resource/81')
+def handler_81():
+    pass
+@app.get('/v1/resource/82')
+def handler_82():
+    pass
+@app.get('/v1/resource/83')
+def handler_83():
+    pass
+@app.get('/v1/resource/84')
+def handler_84():
+    pass
+@app.get('/v1/resource/85')
+def handler_85():
+    pass
+@app.get('/v1/resource/86')
+def handler_86():
+    pass
+@app.get('/v1/resource/87')
+def handler_87():
+    pass
+@app.get('/v1/resource/88')
+def handler_88():
+    pass
+@app.get('/v1/resource/89')
+def handler_89():
+    pass
+@app.get('/v1/resource/90')
+def handler_90():
+    pass
+@app.get('/v1/resource/91')
+def handler_91():
+    pass
+@app.get('/v1/resource/92')
+def handler_92():
+    pass
+@app.get('/v1/resource/93')
+def handler_93():
+    pass
+@app.get('/v1/resource/94')
+def handler_94():
+    pass
+@app.get('/v1/resource/95')
+def handler_95():
+    pass
+@app.get('/v1/resource/96')
+def handler_96():
+    pass
+@app.get('/v1/resource/97')
+def handler_97():
+    pass
+@app.get('/v1/resource/98')
+def handler_98():
+    pass
+@app.get('/v1/resource/99')
+def handler_99():
+    pass
+@app.get('/v1/resource/100')
+def handler_100():
+    pass
+@app.get('/v1/resource/101')
+def handler_101():
+    pass
+@app.get('/v1/resource/102')
+def handler_102():
+    pass
+@app.get('/v1/resource/103')
+def handler_103():
+    pass
+@app.get('/v1/resource/104')
+def handler_104():
+    pass
+@app.get('/v1/resource/105')
+def handler_105():
+    pass
+@app.get('/v1/resource/106')
+def handler_106():
+    pass
+@app.get('/v1/resource/107')
+def handler_107():
+    pass
+@app.get('/v1/resource/108')
+def handler_108():
+    pass
+@app.get('/v1/resource/109')
+def handler_109():
+    pass
+@app.get('/v1/resource/110')
+def handler_110():
+    pass
+@app.get('/v1/resource/111')
+def handler_111():
+    pass
+@app.get('/v1/resource/112')
+def handler_112():
+    pass
+@app.get('/v1/resource/113')
+def handler_113():
+    pass
+@app.get('/v1/resource/114')
+def handler_114():
+    pass
+@app.get('/v1/resource/115')
+def handler_115():
+    pass
+@app.get('/v1/resource/116')
+def handler_116():
+    pass
+@app.get('/v1/resource/117')
+def handler_117():
+    pass
+@app.get('/v1/resource/118')
+def handler_118():
+    pass
+@app.get('/v1/resource/119')
+def handler_119():
+    pass
+@app.get('/v1/resource/120')
+def handler_120():
+    pass
+@app.get('/v1/resource/121')
+def handler_121():
+    pass
+@app.get('/v1/resource/122')
+def handler_122():
+    pass
+@app.get('/v1/resource/123')
+def handler_123():
+    pass
+@app.get('/v1/resource/124')
+def handler_124():
+    pass
+@app.get('/v1/resource/125')
+def handler_125():
+    pass
+@app.get('/v1/resource/126')
+def handler_126():
+    pass
+@app.get('/v1/resource/127')
+def handler_127():
+    pass
+@app.get('/v1/resource/128')
+def handler_128():
+    pass
+@app.get('/v1/resource/129')
+def handler_129():
+    pass
+@app.get('/v1/resource/130')
+def handler_130():
+    pass
+@app.get('/v1/resource/131')
+def handler_131():
+    pass
+@app.get('/v1/resource/132')
+def handler_132():
+    pass
+@app.get('/v1/resource/133')
+def handler_133():
+    pass
+@app.get('/v1/resource/134')
+def handler_134():
+    pass
+@app.get('/v1/resource/135')
+def handler_135():
+    pass
+@app.get('/v1/resource/136')
+def handler_136():
+    pass
+@app.get('/v1/resource/137')
+def handler_137():
+    pass
+@app.get('/v1/resource/138')
+def handler_138():
+    pass
+@app.get('/v1/resource/139')
+def handler_139():
+    pass
+@app.get('/v1/resource/140')
+def handler_140():
+    pass
+@app.get('/v1/resource/141')
+def handler_141():
+    pass
+@app.get('/v1/resource/142')
+def handler_142():
+    pass
+@app.get('/v1/resource/143')
+def handler_143():
+    pass
+@app.get('/v1/resource/144')
+def handler_144():
+    pass
+@app.get('/v1/resource/145')
+def handler_145():
+    pass
+@app.get('/v1/resource/146')
+def handler_146():
+    pass
+@app.get('/v1/resource/147')
+def handler_147():
+    pass
+@app.get('/v1/resource/148')
+def handler_148():
+    pass
+@app.get('/v1/resource/149')
+def handler_149():
+    pass
+@app.get('/v1/resource/150')
+def handler_150():
+    pass
+@app.get('/v1/resource/151')
+def handler_151():
+    pass
+@app.get('/v1/resource/152')
+def handler_152():
+    pass
+@app.get('/v1/resource/153')
+def handler_153():
+    pass
+@app.get('/v1/resource/154')
+def handler_154():
+    pass
+@app.get('/v1/resource/155')
+def handler_155():
+    pass
+@app.get('/v1/resource/156')
+def handler_156():
+    pass
+@app.get('/v1/resource/157')
+def handler_157():
+    pass
+@app.get('/v1/resource/158')
+def handler_158():
+    pass
+@app.get('/v1/resource/159')
+def handler_159():
+    pass
+@app.get('/v1/resource/160')
+def handler_160():
+    pass
+@app.get('/v1/resource/161')
+def handler_161():
+    pass
+@app.get('/v1/resource/162')
+def handler_162():
+    pass
+@app.get('/v1/resource/163')
+def handler_163():
+    pass
+@app.get('/v1/resource/164')
+def handler_164():
+    pass
+@app.get('/v1/resource/165')
+def handler_165():
+    pass
+@app.get('/v1/resource/166')
+def handler_166():
+    pass
+@app.get('/v1/resource/167')
+def handler_167():
+    pass
+@app.get('/v1/resource/168')
+def handler_168():
+    pass
+@app.get('/v1/resource/169')
+def handler_169():
+    pass
+@app.get('/v1/resource/170')
+def handler_170():
+    pass
+@app.get('/v1/resource/171')
+def handler_171():
+    pass
+@app.get('/v1/resource/172')
+def handler_172():
+    pass
+@app.get('/v1/resource/173')
+def handler_173():
+    pass
+@app.get('/v1/resource/174')
+def handler_174():
+    pass
+@app.get('/v1/resource/175')
+def handler_175():
+    pass
+@app.get('/v1/resource/176')
+def handler_176():
+    pass
+@app.get('/v1/resource/177')
+def handler_177():
+    pass
+@app.get('/v1/resource/178')
+def handler_178():
+    pass
+@app.get('/v1/resource/179')
+def handler_179():
+    pass
+@app.get('/v1/resource/180')
+def handler_180():
+    pass
+@app.get('/v1/resource/181')
+def handler_181():
+    pass
+@app.get('/v1/resource/182')
+def handler_182():
+    pass
+@app.get('/v1/resource/183')
+def handler_183():
+    pass
+@app.get('/v1/resource/184')
+def handler_184():
+    pass
+@app.get('/v1/resource/185')
+def handler_185():
+    pass
+@app.get('/v1/resource/186')
+def handler_186():
+    pass
+@app.get('/v1/resource/187')
+def handler_187():
+    pass
+@app.get('/v1/resource/188')
+def handler_188():
+    pass
+@app.get('/v1/resource/189')
+def handler_189():
+    pass
+@app.get('/v1/resource/190')
+def handler_190():
+    pass
+@app.get('/v1/resource/191')
+def handler_191():
+    pass
+@app.get('/v1/resource/192')
+def handler_192():
+    pass
+@app.get('/v1/resource/193')
+def handler_193():
+    pass
+@app.get('/v1/resource/194')
+def handler_194():
+    pass
+@app.get('/v1/resource/195')
+def handler_195():
+    pass
+@app.get('/v1/resource/196')
+def handler_196():
+    pass
+@app.get('/v1/resource/197')
+def handler_197():
+    pass
+@app.get('/v1/resource/198')
+def handler_198():
+    pass
+@app.get('/v1/resource/199')
+def handler_199():
+    pass
+@app.get('/v1/resource/200')
+def handler_200():
+    pass
+@app.get('/v1/resource/201')
+def handler_201():
+    pass
+@app.get('/v1/resource/202')
+def handler_202():
+    pass
+@app.get('/v1/resource/203')
+def handler_203():
+    pass
+@app.get('/v1/resource/204')
+def handler_204():
+    pass
+@app.get('/v1/resource/205')
+def handler_205():
+    pass
+@app.get('/v1/resource/206')
+def handler_206():
+    pass
+@app.get('/v1/resource/207')
+def handler_207():
+    pass
+@app.get('/v1/resource/208')
+def handler_208():
+    pass
+@app.get('/v1/resource/209')
+def handler_209():
+    pass
+@app.get('/v1/resource/210')
+def handler_210():
+    pass
+@app.get('/v1/resource/211')
+def handler_211():
+    pass
+@app.get('/v1/resource/212')
+def handler_212():
+    pass
+@app.get('/v1/resource/213')
+def handler_213():
+    pass
+@app.get('/v1/resource/214')
+def handler_214():
+    pass
+@app.get('/v1/resource/215')
+def handler_215():
+    pass
+@app.get('/v1/resource/216')
+def handler_216():
+    pass
+@app.get('/v1/resource/217')
+def handler_217():
+    pass
+@app.get('/v1/resource/218')
+def handler_218():
+    pass
+@app.get('/v1/resource/219')
+def handler_219():
+    pass
+@app.get('/v1/resource/220')
+def handler_220():
+    pass
+@app.get('/v1/resource/221')
+def handler_221():
+    pass
+@app.get('/v1/resource/222')
+def handler_222():
+    pass
+@app.get('/v1/resource/223')
+def handler_223():
+    pass
+@app.get('/v1/resource/224')
+def handler_224():
+    pass
+@app.get('/v1/resource/225')
+def handler_225():
+    pass
+@app.get('/v1/resource/226')
+def handler_226():
+    pass
+@app.get('/v1/resource/227')
+def handler_227():
+    pass
+@app.get('/v1/resource/228')
+def handler_228():
+    pass
+@app.get('/v1/resource/229')
+def handler_229():
+    pass
+@app.get('/v1/resource/230')
+def handler_230():
+    pass
+@app.get('/v1/resource/231')
+def handler_231():
+    pass
+@app.get('/v1/resource/232')
+def handler_232():
+    pass
+@app.get('/v1/resource/233')
+def handler_233():
+    pass
+@app.get('/v1/resource/234')
+def handler_234():
+    pass
+@app.get('/v1/resource/235')
+def handler_235():
+    pass
+@app.get('/v1/resource/236')
+def handler_236():
+    pass
+@app.get('/v1/resource/237')
+def handler_237():
+    pass
+@app.get('/v1/resource/238')
+def handler_238():
+    pass
+@app.get('/v1/resource/239')
+def handler_239():
+    pass
+@app.get('/v1/resource/240')
+def handler_240():
+    pass
+@app.get('/v1/resource/241')
+def handler_241():
+    pass
+@app.get('/v1/resource/242')
+def handler_242():
+    pass
+@app.get('/v1/resource/243')
+def handler_243():
+    pass
+@app.get('/v1/resource/244')
+def handler_244():
+    pass
+@app.get('/v1/resource/245')
+def handler_245():
+    pass
+@app.get('/v1/resource/246')
+def handler_246():
+    pass
+@app.get('/v1/resource/247')
+def handler_247():
+    pass
+@app.get('/v1/resource/248')
+def handler_248():
+    pass
+@app.get('/v1/resource/249')
+def handler_249():
+    pass
+@app.get('/v1/resource/250')
+def handler_250():
+    pass
+@app.get('/v1/resource/251')
+def handler_251():
+    pass
+@app.get('/v1/resource/252')
+def handler_252():
+    pass
+@app.get('/v1/resource/253')
+def handler_253():
+    pass
+@app.get('/v1/resource/254')
+def handler_254():
+    pass
+@app.get('/v1/resource/255')
+def handler_255():
+    pass
+@app.get('/v1/resource/256')
+def handler_256():
+    pass
+@app.get('/v1/resource/257')
+def handler_257():
+    pass
+@app.get('/v1/resource/258')
+def handler_258():
+    pass
+@app.get('/v1/resource/259')
+def handler_259():
+    pass
+@app.get('/v1/resource/260')
+def handler_260():
+    pass
+@app.get('/v1/resource/261')
+def handler_261():
+    pass
+@app.get('/v1/resource/262')
+def handler_262():
+    pass
+@app.get('/v1/resource/263')
+def handler_263():
+    pass
+@app.get('/v1/resource/264')
+def handler_264():
+    pass
+@app.get('/v1/resource/265')
+def handler_265():
+    pass
+@app.get('/v1/resource/266')
+def handler_266():
+    pass
+@app.get('/v1/resource/267')
+def handler_267():
+    pass
+@app.get('/v1/resource/268')
+def handler_268():
+    pass
+@app.get('/v1/resource/269')
+def handler_269():
+    pass
+@app.get('/v1/resource/270')
+def handler_270():
+    pass
+@app.get('/v1/resource/271')
+def handler_271():
+    pass
+@app.get('/v1/resource/272')
+def handler_272():
+    pass
+@app.get('/v1/resource/273')
+def handler_273():
+    pass
+@app.get('/v1/resource/274')
+def handler_274():
+    pass
+@app.get('/v1/resource/275')
+def handler_275():
+    pass
+@app.get('/v1/resource/276')
+def handler_276():
+    pass
+@app.get('/v1/resource/277')
+def handler_277():
+    pass
+@app.get('/v1/resource/278')
+def handler_278():
+    pass
+@app.get('/v1/resource/279')
+def handler_279():
+    pass
+@app.get('/v1/resource/280')
+def handler_280():
+    pass
+@app.get('/v1/resource/281')
+def handler_281():
+    pass
+@app.get('/v1/resource/282')
+def handler_282():
+    pass
+@app.get('/v1/resource/283')
+def handler_283():
+    pass
+@app.get('/v1/resource/284')
+def handler_284():
+    pass
+@app.get('/v1/resource/285')
+def handler_285():
+    pass
+@app.get('/v1/resource/286')
+def handler_286():
+    pass
+@app.get('/v1/resource/287')
+def handler_287():
+    pass
+@app.get('/v1/resource/288')
+def handler_288():
+    pass
+@app.get('/v1/resource/289')
+def handler_289():
+    pass
+@app.get('/v1/resource/290')
+def handler_290():
+    pass
+@app.get('/v1/resource/291')
+def handler_291():
+    pass
+@app.get('/v1/resource/292')
+def handler_292():
+    pass
+@app.get('/v1/resource/293')
+def handler_293():
+    pass
+@app.get('/v1/resource/294')
+def handler_294():
+    pass
+@app.get('/v1/resource/295')
+def handler_295():
+    pass
+@app.get('/v1/resource/296')
+def handler_296():
+    pass
+@app.get('/v1/resource/297')
+def handler_297():
+    pass
+@app.get('/v1/resource/298')
+def handler_298():
+    pass
+@app.get('/v1/resource/299')
+def handler_299():
+    pass
+@app.get('/v1/resource/300')
+def handler_300():
+    pass
+@app.get('/v1/resource/301')
+def handler_301():
+    pass
+@app.get('/v1/resource/302')
+def handler_302():
+    pass
+@app.get('/v1/resource/303')
+def handler_303():
+    pass
+@app.get('/v1/resource/304')
+def handler_304():
+    pass
+@app.get('/v1/resource/305')
+def handler_305():
+    pass
+@app.get('/v1/resource/306')
+def handler_306():
+    pass
+@app.get('/v1/resource/307')
+def handler_307():
+    pass
+@app.get('/v1/resource/308')
+def handler_308():
+    pass
+@app.get('/v1/resource/309')
+def handler_309():
+    pass
+@app.get('/v1/resource/310')
+def handler_310():
+    pass
+@app.get('/v1/resource/311')
+def handler_311():
+    pass
+@app.get('/v1/resource/312')
+def handler_312():
+    pass
+@app.get('/v1/resource/313')
+def handler_313():
+    pass
+@app.get('/v1/resource/314')
+def handler_314():
+    pass
+@app.get('/v1/resource/315')
+def handler_315():
+    pass
+@app.get('/v1/resource/316')
+def handler_316():
+    pass
+@app.get('/v1/resource/317')
+def handler_317():
+    pass
+@app.get('/v1/resource/318')
+def handler_318():
+    pass
+@app.get('/v1/resource/319')
+def handler_319():
+    pass
+@app.get('/v1/resource/320')
+def handler_320():
+    pass
+@app.get('/v1/resource/321')
+def handler_321():
+    pass
+@app.get('/v1/resource/322')
+def handler_322():
+    pass
+@app.get('/v1/resource/323')
+def handler_323():
+    pass
+@app.get('/v1/resource/324')
+def handler_324():
+    pass
+@app.get('/v1/resource/325')
+def handler_325():
+    pass
+@app.get('/v1/resource/326')
+def handler_326():
+    pass
+@app.get('/v1/resource/327')
+def handler_327():
+    pass
+@app.get('/v1/resource/328')
+def handler_328():
+    pass
+@app.get('/v1/resource/329')
+def handler_329():
+    pass
+@app.get('/v1/resource/330')
+def handler_330():
+    pass
+@app.get('/v1/resource/331')
+def handler_331():
+    pass
+@app.get('/v1/resource/332')
+def handler_332():
+    pass
+@app.get('/v1/resource/333')
+def handler_333():
+    pass
+@app.get('/v1/resource/334')
+def handler_334():
+    pass
+@app.get('/v1/resource/335')
+def handler_335():
+    pass
+@app.get('/v1/resource/336')
+def handler_336():
+    pass
+@app.get('/v1/resource/337')
+def handler_337():
+    pass
+@app.get('/v1/resource/338')
+def handler_338():
+    pass
+@app.get('/v1/resource/339')
+def handler_339():
+    pass
+@app.get('/v1/resource/340')
+def handler_340():
+    pass
+@app.get('/v1/resource/341')
+def handler_341():
+    pass
+@app.get('/v1/resource/342')
+def handler_342():
+    pass
+@app.get('/v1/resource/343')
+def handler_343():
+    pass
+@app.get('/v1/resource/344')
+def handler_344():
+    pass
+@app.get('/v1/resource/345')
+def handler_345():
+    pass
+@app.get('/v1/resource/346')
+def handler_346():
+    pass
+@app.get('/v1/resource/347')
+def handler_347():
+    pass
+@app.get('/v1/resource/348')
+def handler_348():
+    pass
+@app.get('/v1/resource/349')
+def handler_349():
+    pass
+@app.get('/v1/resource/350')
+def handler_350():
+    pass
+@app.get('/v1/resource/351')
+def handler_351():
+    pass
+@app.get('/v1/resource/352')
+def handler_352():
+    pass
+@app.get('/v1/resource/353')
+def handler_353():
+    pass
+@app.get('/v1/resource/354')
+def handler_354():
+    pass
+@app.get('/v1/resource/355')
+def handler_355():
+    pass
+@app.get('/v1/resource/356')
+def handler_356():
+    pass
+@app.get('/v1/resource/357')
+def handler_357():
+    pass
+@app.get('/v1/resource/358')
+def handler_358():
+    pass
+@app.get('/v1/resource/359')
+def handler_359():
+    pass
+@app.get('/v1/resource/360')
+def handler_360():
+    pass
+@app.get('/v1/resource/361')
+def handler_361():
+    pass
+@app.get('/v1/resource/362')
+def handler_362():
+    pass
+@app.get('/v1/resource/363')
+def handler_363():
+    pass
+@app.get('/v1/resource/364')
+def handler_364():
+    pass
+@app.get('/v1/resource/365')
+def handler_365():
+    pass
+@app.get('/v1/resource/366')
+def handler_366():
+    pass
+@app.get('/v1/resource/367')
+def handler_367():
+    pass
+@app.get('/v1/resource/368')
+def handler_368():
+    pass
+@app.get('/v1/resource/369')
+def handler_369():
+    pass
+@app.get('/v1/resource/370')
+def handler_370():
+    pass
+@app.get('/v1/resource/371')
+def handler_371():
+    pass
+@app.get('/v1/resource/372')
+def handler_372():
+    pass
+@app.get('/v1/resource/373')
+def handler_373():
+    pass
+@app.get('/v1/resource/374')
+def handler_374():
+    pass
+@app.get('/v1/resource/375')
+def handler_375():
+    pass
+@app.get('/v1/resource/376')
+def handler_376():
+    pass
+@app.get('/v1/resource/377')
+def handler_377():
+    pass
+@app.get('/v1/resource/378')
+def handler_378():
+    pass
+@app.get('/v1/resource/379')
+def handler_379():
+    pass
+@app.get('/v1/resource/380')
+def handler_380():
+    pass
+@app.get('/v1/resource/381')
+def handler_381():
+    pass
+@app.get('/v1/resource/382')
+def handler_382():
+    pass
+@app.get('/v1/resource/383')
+def handler_383():
+    pass
+@app.get('/v1/resource/384')
+def handler_384():
+    pass
+@app.get('/v1/resource/385')
+def handler_385():
+    pass
+@app.get('/v1/resource/386')
+def handler_386():
+    pass
+@app.get('/v1/resource/387')
+def handler_387():
+    pass
+@app.get('/v1/resource/388')
+def handler_388():
+    pass
+@app.get('/v1/resource/389')
+def handler_389():
+    pass
+@app.get('/v1/resource/390')
+def handler_390():
+    pass
+@app.get('/v1/resource/391')
+def handler_391():
+    pass
+@app.get('/v1/resource/392')
+def handler_392():
+    pass
+@app.get('/v1/resource/393')
+def handler_393():
+    pass
+@app.get('/v1/resource/394')
+def handler_394():
+    pass
+@app.get('/v1/resource/395')
+def handler_395():
+    pass
+@app.get('/v1/resource/396')
+def handler_396():
+    pass
+@app.get('/v1/resource/397')
+def handler_397():
+    pass
+@app.get('/v1/resource/398')
+def handler_398():
+    pass
+@app.get('/v1/resource/399')
+def handler_399():
+    pass

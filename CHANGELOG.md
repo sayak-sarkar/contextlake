@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Known issues
+These are found, measured, and pinned by `xfail`ing tests rather than left to surface in the wild.
+Fixes are in progress; the tests flip to passing when they land.
+- **Indexing a hostile or merely corrupted `pom.xml` can hang.** The Maven dependency-block regex
+  is O(n^2) when closing tags are missing: each unclosed `<dependency>` sends the lazy match
+  scanning to end-of-string before failing. Measured 6.2s for an 80KB tail and 24.9s for 160KB.
+  A truncated pom from an aborted download is enough; it does not take an attacker.
+- **A deeply nested `.tf` file can hang indexing.** `parse_hcl` is O(n^2) in nesting depth
+  (4.5s at depth 10000). The tree-sitter parse itself is linear and accounts for ~1% of that; the
+  cost is contextlake's own walk to the tree root once per reference node.
+- `normalize_id` is not idempotent for characters whose casefold expands into a base letter plus a
+  combining mark (Turkish dotted capital I is the reproducer), which contradicts its docstring. No
+  current caller re-normalizes an existing id, so this is a latent trap rather than a live
+  collision.
+
 ### Security
 - **A config file found by directory search can no longer make contextlake execute a program.**
   `.contextlake.kb.toml` is discovered by walking up from the current directory, so a repository you
@@ -29,6 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
   its own partial number, and the core job measures the whole package while skipping `tests/kb`,
   so its honest total is ~23% and no shared floor can fit both.
+- Property-based tests (`hypothesis`) for the invariants that were only ever example-tested:
+  `normalize_id`'s idempotence, `make_id`'s part handling, `sanitize_label`'s guarantee that no
+  control character and nothing over the length cap ever escapes it, and that `_fts_query` cannot
+  emit a string that makes SQLite's FTS5 raise. Plus a pathological-input corpus for the four
+  regex-based extractors, each bounded by `pytest-timeout`, since they consume untrusted
+  repository content. Three real defects fell out and are recorded as `xfail` with measurements
+  rather than quietly passing: see Known issues.
 - Combinatorial test coverage for the places where options interact rather than act alone: a
   provider-resolution matrix (embedder/LLM/vector-store builders across every provider, backend
   and enabled/disabled combination), a serve matrix (transport x embedder-present x

@@ -46,7 +46,7 @@ Issues = "https://github.com/sayak-sarkar/contextlake/issues"
 Changelog = "https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4", "hypothesis>=6.0", "pytest-timeout>=2.1"]
 # Tools for cutting a release (build the dist, validate + upload to PyPI).
 # See docs/releasing.md.
 release = ["build>=1.0", "twine>=5.0"]
