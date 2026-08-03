@@ -19,8 +19,8 @@ _DEFAULT_LINK_PATTERNS = {
     # sentence-trailing URL (`[flow](https://.../Flow)`, `...archives/C1.`)
     # doesn't drag `)`/`.`/etc. into the file key or channel id. `:` stays
     # allowed -- real Figma `node-id` query values can carry it unencoded.
-    "figma.com": r"https://(?:www\.)?figma.com/(?:file|design)/[^\s)\]>.,;'\"}]+",
-    "slack.com": r"https://[\w-]+\.slack.com/archives/[^\s)\]>.,;'\"}]+",
+    "figma.com": r"https://(?:www\.)?figma\.com/(?:file|design)/[^\s)\]>.,;'\"}]+",
+    "slack.com": r"https://[\w-]+\.slack\.com/archives/[^\s)\]>.,;'\"}]+",
 }
 
 

@@ -1,6 +1,7 @@
 """End-to-end test for the `connect` command: config -> stubbed connector ->
 reconciled external nodes/edges persisted in an isolated store partition."""
 
+import re
 from argparse import Namespace
 
 import contextlake.kb.connectors.orchestrate as orch
@@ -163,19 +164,36 @@ def test_partition_name():
     assert connect_partition("group/app") == "@connect:group/app"
 
 
+_SAMPLE_FIGMA_URL = "https://www.figma.com/design/Xy9/Flow"
+_SAMPLE_SLACK_URL = "https://acme.slack.com/archives/C0123ABCD"
+
+
+def _matches(patterns, url):
+    """Does some pattern actually match `url`? Substring containment would pass
+    on a pattern that never matches anything (and breaks the moment a metachar
+    is correctly escaped), so assert on the regex behaviour instead."""
+    return any(re.search(p, url) for p in patterns)
+
+
 def test_rule_patterns_includes_builtin_defaults_when_unconfigured():
     branch_key, link_patterns = _rule_patterns([])  # no [[rules]] at all
     assert branch_key is None
-    assert any("figma.com" in p for p in link_patterns)
-    assert any("slack.com" in p for p in link_patterns)
+    assert _matches(link_patterns, _SAMPLE_FIGMA_URL)
+    assert _matches(link_patterns, _SAMPLE_SLACK_URL)
 
 
 def test_rule_patterns_explicit_link_scrape_rule_still_works_alongside_defaults():
     rules = [RuleCfg(type="link_scrape", pattern=r"https://internal\.wiki/\S+")]
     branch_key, link_patterns = _rule_patterns(rules)
-    assert any("internal" in p for p in link_patterns)
-    assert any("figma.com" in p for p in link_patterns)  # built-ins still present
-    assert any("slack.com" in p for p in link_patterns)
+    assert _matches(link_patterns, "https://internal.wiki/page")
+    assert _matches(link_patterns, _SAMPLE_FIGMA_URL)  # built-ins still present
+    assert _matches(link_patterns, _SAMPLE_SLACK_URL)
+
+
+def test_builtin_link_patterns_do_not_match_lookalike_hosts():
+    _, link_patterns = _rule_patterns([])
+    assert not _matches(link_patterns, "https://www.figmaXcom/design/Xy9/Flow")
+    assert not _matches(link_patterns, "https://acme.slackXcom/archives/C0123ABCD")
 
 
 _FIGMA_CONFIG = """
