@@ -29,6 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
   its own partial number, and the core job measures the whole package while skipping `tests/kb`,
   so its honest total is ~23% and no shared floor can fit both.
+- Supply-chain scanning: a `security` workflow running `pip-audit` over the full dependency
+  surface (dev plus every `kb` extra), a `ruff --select S` security-lint pass, and CodeQL for
+  Python, on push to main, on pull requests, and weekly so newly-disclosed CVEs surface against an
+  untouched tree. The `--select S` pass is non-blocking for now: it reports ~159 real findings plus
+  ~3,336 `assert`-in-tests hits that are pytest idiom rather than defects, and triaging that
+  backlog is its own piece of work. Deliberately kept out of `pyproject.toml`'s ruff `select` and
+  out of `ci.yml` so it stays additive rather than a new gate on every commit.
+- Dependabot for `pip` and `github-actions`, weekly, with minor/patch grouped per ecosystem so a
+  routine tree-sitter point release does not open a dozen PRs. Major bumps stay ungrouped.
+- Published container images now carry SLSA build provenance and an SPDX SBOM, and are signed
+  keyless with cosign via the workflow's OIDC identity (no key material anywhere). Signing is by
+  digest rather than tag, so the signature is pinned to exactly what was built.
 - `--exit-zero-on-partial` on every mirror command (and `bootstrap`), for anyone whose scripts
   depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
 

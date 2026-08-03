@@ -1,0 +1,89 @@
+name: security
+
+# Supply-chain scanning (RC-P1-2 / F-9): dependency-vulnerability audit, a
+# security-focused lint pass, and CodeQL static analysis. Runs on every PR plus
+# a weekly schedule so newly-disclosed CVEs surface even against an untouched
+# main. Deliberately its own workflow, separate from ci.yml's version-matrix
+# gate: additive reporting, not a new blocking dependency for core CI.
+
+on:
+  # `push` on main is the load-bearing trigger here, not `pull_request`: this
+  # repo lands work directly on main (fast-forward, no merge commits), so a
+  # PR-only scan would sit idle for weeks and first report on the Monday cron.
+  # `pull_request` stays for Dependabot's bump PRs, which is where a scan
+  # result is most actionable.
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"  # every Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    name: pip-audit (dependency vulnerabilities)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: "Install (widest dependency surface: dev + every kb extra)"
+        # `llm-local` (llama-cpp-python) is deliberately excluded: it compiles
+        # from source via CMake and can go red for toolchain reasons that have
+        # nothing to do with a real vulnerability, which would make this job
+        # flaky rather than useful. It's still covered by Dependabot version
+        # tracking; add it here if/when it's worth the extra build time.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,kb,kb-vec,kb-local,kb-fastembed]"
+      - name: pip-audit
+        # No `inputs:` given -- deps live in pyproject.toml extras, not a
+        # requirements.txt. Confirmed (reading pypa/gh-action-pip-audit's
+        # setup/venv.bash and action.py at this pinned tag) that with no
+        # `virtual-environment:` input the action installs pip-audit into
+        # whatever Python is already active -- i.e. the same interpreter the
+        # step above just installed our deps into -- and with empty `inputs`,
+        # pip-audit runs in environment-audit mode against that interpreter's
+        # installed packages. So this does audit the kb dependency surface
+        # installed above, not an empty action-local venv.
+        uses: pypa/gh-action-pip-audit@v1.1.0
+
+  security-lint:
+    name: ruff --select S (flake8-bandit, reporting baseline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install (dev only -- ruff lints source, doesn't run it)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: ruff --select S
+        # Deliberately NOT added to pyproject.toml's [tool.ruff.lint] select --
+        # this is a separate, additive pass. The existing tree currently has
+        # ~159 non-S101 findings (69 in src/, 90 in tests/) plus ~3336 S101
+        # ("assert used") hits in tests/, which is pytest's normal idiom, not a
+        # real finding -- see RC-P1-2 report for the exact breakdown. Triaging
+        # that backlog is a separate scheduled task, so this pass reports
+        # without failing the build until it's been through review.
+        continue-on-error: true
+        run: ruff check src tests --select S
+
+  codeql:
+    name: CodeQL (python)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@v4

@@ -1,0 +1,29 @@
+version: 2
+
+# Automated dependency PRs (RC-P1-2 / F-9): the [kb] extra alone pulls 15+
+# tree-sitter grammar packages plus mcp/pydantic, and the optional kb-vec/
+# kb-local/kb-fastembed/llm-local extras add native-code deps (sqlite-vec,
+# model2vec, fastembed's onnxruntime, llama-cpp-python) -- all worth patching
+# promptly. Minor/patch bumps are grouped per ecosystem so a routine tree-sitter
+# point-release doesn't open a dozen separate PRs; major bumps stay ungrouped
+# since they can be breaking and deserve individual review.
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      pip-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"

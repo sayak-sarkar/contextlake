@@ -108,6 +108,7 @@ jobs:
     permissions:
       contents: read
       packages: write   # push to GitHub Container Registry
+      id-token: write   # required for cosign keyless signing (Fulcio/Rekor via OIDC)
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v4
@@ -124,12 +125,25 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest
       - name: Build & push (bundles deps + pre-downloaded models)
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: true   # SLSA build provenance attestation (buildx/BuildKit)
+          sbom: true         # SPDX SBOM attestation (buildx/BuildKit)
+
+      - uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign the published image (keyless, via this workflow's OIDC identity)
+        # No key material anywhere: cosign mints a short-lived cert from Fulcio
+        # using the job's GitHub OIDC token (id-token: write above) and logs the
+        # signature to the public Rekor transparency log. Signs by digest, not
+        # tag, so it's pinned to exactly what was just built regardless of which
+        # of the tags above a consumer later pulls.
+        run: cosign sign --yes "ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}"
 
   github-release:
     name: github release
