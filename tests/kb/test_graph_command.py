@@ -917,6 +917,35 @@ def test_site_server_lazy_routes(store):
         srv.shutdown()
 
 
+def test_graph_and_site_servers_pin_the_host_header(store):
+    """Both visualizer servers serve the same graph over the same loopback bind as
+    the dashboard, so they get the dashboard's DNS-rebinding defence too -- one
+    shared policy (kb/http_base.py) rather than three that drift apart."""
+    _hub(store, leaves=2)
+    store.upsert_repo(Repo(id="team/repoA", path="/a"))
+    store.upsert_nodes("team/repoA", [_node("a1", repo="team/repoA")])
+    for build in (lambda p: viz.build_graph_server(store, _payload(store), host="127.0.0.1",
+                                                   port=p),
+                  lambda p: viz.build_site_server(store, host="127.0.0.1", port=p)):
+        port = _free_port()
+        srv = build(port)
+        t = threading.Thread(target=srv.serve_forever, daemon=True)
+        t.start()
+        try:
+            base = f"http://127.0.0.1:{port}"
+            assert _get(base + "/")  # honest Host -> served
+            for route in ("/", "/neighbors?id=H"):
+                req = urllib.request.Request(base + route,
+                                             headers={"Host": "evil.example.com"})
+                try:
+                    urllib.request.urlopen(req, timeout=5)
+                    raise AssertionError(f"expected 403 for {route}")
+                except urllib.error.HTTPError as e:
+                    assert e.code == 403
+        finally:
+            srv.shutdown()
+
+
 def _free_port():
     s = socket.socket()
     s.bind(("127.0.0.1", 0))

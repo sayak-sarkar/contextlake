@@ -21,6 +21,10 @@ carry the per-process token minted at server-build time in a custom header --
 requiring a custom header is what forces the preflight a cross-origin page can't
 complete -- and the ``Host`` header must name this exact host:port, which blocks DNS
 rebinding around the loopback bind.
+
+The Host pinning applies to *every* method, GET included, and to every route --
+see :meth:`kb.http_base.LocalHttpHandler.reject_bad_host` for why an
+"assets/reads are harmless" carve-out isn't one.
 """
 
 from __future__ import annotations
@@ -29,9 +33,10 @@ import hmac
 import json
 import secrets
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from ..http_base import LocalHttpHandler, allowed_host_headers, host_pinning_hint, qs_int
 from ..lock import StoreBusy, StoreLock
 from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
@@ -90,7 +95,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
     store_factory, store_path = type(store), getattr(store, "path", None)
     ws_dir = Path(workspace) if workspace else store_dir.parent
     token = secrets.token_urlsafe(32) if (allow_mutations or llm_chat) else None
-    host_header_ok = {f"{host}:{port}", f"localhost:{port}"}
+    host_header_ok = allowed_host_headers(host, port)
 
     chat_llm = None
     chat_embedder = chat_vector_store = None
@@ -189,7 +194,15 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
             return 200, "text/html; charset=utf-8", body
         return 404, "text/plain", b"not found"
 
-    # /api/<name> -> (data fn, runs against a fresh store), keyed by the leading path
+    # /api/<name> -> (data fn, runs against a fresh store), keyed by the leading path.
+    # Every integer query param goes through qs_int: the bounds are what stops a
+    # ?hops=99999 / ?limit=9999999 from turning a read route into a graph-wide walk,
+    # and clamping (rather than rejecting) keeps an over-ambitious caller served.
+    # Each ceiling is set above what both the data layer and dashboard.js actually
+    # use, so no shipped control can be silently truncated by one: search's 200 is
+    # code_search()'s own internal cap (a larger number here would be a lie), and
+    # group depth allows 10 because a deeply nested namespace can legitimately need
+    # more than the handful of segments a flat fleet does.
     def _api(path: str, query: str) -> tuple[int, bytes]:
         q = urllib.parse.parse_qs(query)
         req = _open_store()
@@ -197,10 +210,10 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
         sd = Path(rp).parent if rp else store_dir
         try:
             if path == "/api/overview":
-                depth = int((q.get("depth") or [1])[0])
+                depth = qs_int(q, "depth", 1, lo=1, hi=10)
                 return 200, _json_bytes(kbdata.fleet_overview(req, group_depth=depth))
             if path == "/api/groups":
-                depth = int((q.get("depth") or [1])[0])
+                depth = qs_int(q, "depth", 1, lo=1, hi=10)
                 ov = kbdata.fleet_overview(req, group_depth=depth)
                 return 200, _json_bytes({"groups": ov["groups"]})
             if path == "/api/health":
@@ -209,8 +222,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 nid = (q.get("node") or q.get("id") or [None])[0]
                 if not nid:
                     return 400, b'{"error":"node required"}'
-                hops = int((q.get("hops") or [3])[0])
-                limit = int((q.get("limit") or [100])[0])
+                hops = qs_int(q, "hops", 3, lo=0, hi=10)
+                limit = qs_int(q, "limit", 100, lo=1, hi=500)
                 repo = (q.get("repo") or [None])[0]
                 return 200, _json_bytes(
                     kbdata.impact(req, nid, hops=hops, limit=limit, repo=repo))
@@ -218,14 +231,14 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 nid = (q.get("node") or q.get("id") or [None])[0]
                 if not nid:
                     return 400, b'{"error":"node required"}'
-                hops = int((q.get("hops") or [2])[0])
+                hops = qs_int(q, "hops", 2, lo=0, hi=10)
                 return 200, _json_bytes(kbdata.sequence_diagram(req, nid, hops=hops))
             if path == "/api/path":
                 src = (q.get("from") or [None])[0]
                 dst = (q.get("to") or [None])[0]
                 if not src or not dst:
                     return 400, b'{"error":"from and to required"}'
-                max_hops = int((q.get("max_hops") or [6])[0])
+                max_hops = qs_int(q, "max_hops", 6, lo=1, hi=12)
                 repo = (q.get("repo") or [None])[0]
                 return 200, _json_bytes(
                     kbdata.path(req, src, dst, max_hops=max_hops, repo=repo))
@@ -235,7 +248,7 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                     return 400, b'{"error":"q required"}'
                 kind = (q.get("kind") or [None])[0]
                 repo = (q.get("repo") or [None])[0]
-                limit = int((q.get("limit") or [20])[0])
+                limit = qs_int(q, "limit", 20, lo=1, hi=200)
                 # Semantic search is live-only; without a wired embedder it degrades
                 # to lexical and reports semantic=false (honest, never silent).
                 return 200, _json_bytes(
@@ -409,59 +422,42 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
             if req is not store:
                 req.close()
 
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *_a):  # keep request logs off the console
-            pass
-
-        def _send(self, code: int, ctype: str, body: bytes) -> None:
-            self.send_response(code)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            try:
-                self.wfile.write(body)
-            except (BrokenPipeError, ConnectionResetError):
-                # the client (browser tab, curl, etc.) went away mid-write -- nothing
-                # left to send it, and ThreadingHTTPServer already isolates this to its
-                # own request thread, so there's nothing to do but not print a traceback.
-                pass
+    class Handler(LocalHttpHandler):
+        allowed_hosts = host_header_ok
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler name
+            # Same Host pinning POST has always had, for the same DNS-rebinding
+            # reason (see LocalHttpHandler.reject_bad_host) -- checked before any
+            # route dispatch, including the SPA shell and the static assets:
+            # dashboard.js carries the per-process token, so exempting "harmless"
+            # assets would hand a rebinding page the key to the mutating routes.
+            if self.reject_bad_host():
+                return
             parsed = urllib.parse.urlparse(self.path)
             path, query = parsed.path, parsed.query
             if path in ("/", "/index.html", "/dashboard.html"):
-                self._send(200, "text/html; charset=utf-8", shell.encode("utf-8"))
+                self.send_bytes(200, "text/html; charset=utf-8", shell.encode("utf-8"))
                 return
             asset = path.lstrip("/")
             if asset in assets:
                 text, ctype = assets[asset]
-                self._send(200, ctype + "; charset=utf-8", text.encode("utf-8"))
+                self.send_bytes(200, ctype + "; charset=utf-8", text.encode("utf-8"))
                 return
             if path == "/neighbors":
-                code, body = _neighbors(query)
-                self._send(code, "application/json", body)
+                self.send_guarded(_neighbors, query)
                 return
             if path.startswith("/graph/"):
-                code, ctype, body = _graph(path, query)
-                self._send(code, ctype, body)
+                self.send_guarded(_graph, path, query)
                 return
             if path.startswith("/api/"):
-                code, body = _api(path, query)
-                self._send(code, "application/json", body)
+                self.send_guarded(_api, path, query)
                 return
-            self._send(404, "text/plain", b"not found")
+            self.send_bytes(404, "text/plain", b"not found")
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib handler name
-            parsed = urllib.parse.urlparse(self.path)
-            # DNS rebinding: an attacker domain that resolves to 127.0.0.1 would
-            # otherwise sail straight past the loopback bind, since the browser's
-            # same-origin check is about the domain, not the resolved address.
-            # Requiring the Host header to literally name this host:port closes
-            # that gap without needing a real TLS cert on localhost. Applies to
-            # every POST below, chat included.
-            if (self.headers.get("Host") or "") not in host_header_ok:
-                self._send(403, "text/plain", b"forbidden")
+            if self.reject_bad_host():
                 return
+            parsed = urllib.parse.urlparse(self.path)
 
             if parsed.path == "/api/chat":
                 # Free/read-only (router-only) chat needs no token, same risk
@@ -473,28 +469,23 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 if chat_llm is not None:
                     given = self.headers.get(TOKEN_HEADER) or ""
                     if not token or not hmac.compare_digest(given, token):
-                        self._send(403, "text/plain", b"forbidden")
+                        self.send_bytes(403, "text/plain", b"forbidden")
                         return
-                length = int(self.headers.get("Content-Length") or 0)
-                body = self.rfile.read(min(length, 1_000_000)) if length else b""
-                code, resp = _chat(body)
-                self._send(code, "application/json", resp)
+                self.send_guarded(_chat, self.read_body())
                 return
 
             if not allow_mutations:
-                self._send(404, "text/plain", b"not found")
+                self.send_bytes(404, "text/plain", b"not found")
                 return
             given = self.headers.get(TOKEN_HEADER) or ""
             if not token or not hmac.compare_digest(given, token):
-                self._send(403, "text/plain", b"forbidden")
+                self.send_bytes(403, "text/plain", b"forbidden")
                 return
-            length = int(self.headers.get("Content-Length") or 0)
-            body = self.rfile.read(min(length, 1_000_000)) if length else b""
+            body = self.read_body()
             if parsed.path == "/api/wiki/generate":
-                code, resp = _wiki_generate(body)
+                self.send_guarded(_wiki_generate, body)
             else:
-                code, resp = _mutate(parsed.path, body)
-            self._send(code, "application/json", resp)
+                self.send_guarded(_mutate, parsed.path, body)
 
     srv = ThreadingHTTPServer((host, port), Handler)
     srv.chat_llm_enabled = chat_llm is not None  # for serve_dashboard's startup log only
@@ -528,6 +519,9 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
                           "the existing one."))
             return 1
         log(style.ok(f"Dashboard on http://{host}:{port}  (Ctrl-C to stop)"))
+        hint = host_pinning_hint(host, port)
+        if hint:
+            log(style.dim("  " + hint))
         log("Ask a question in the Chat tab -- free graph-router answers, always on.")
         if allow_mutations:
             log(style.warn("Mutating routes enabled (--allow-mutations): sync/add-repo/"

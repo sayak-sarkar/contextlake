@@ -236,6 +236,15 @@ loopback bind, respectively). A mutation takes the store's single-writer lock
 for its own duration only, so a concurrent CLI command sees a clean `409`
 instead of an interleaved write.
 
+The `Host` check applies to **every** request, `GET` included, and to every route
+including the static assets -- the read API is your whole code graph, and the
+served `dashboard.js` carries that per-launch token. The same rule now guards
+`contextlake kb graph --serve`'s pages. Practical consequence: a request is
+answered only when its `Host` is the address you bound (`--host`) or `localhost`,
+each with the port. If you bind a wildcard (`--host 0.0.0.0`) and then browse the
+machine's LAN address, you'll get `403 forbidden` -- bind that address instead
+(`--host 192.0.2.10`), or reach it as `http://localhost:PORT`.
+
 ## 12. Chat
 
 Ask a question about the fleet in plain language -- "who calls X", "what depends on

@@ -90,7 +90,10 @@ Output is chosen with `--format`:
 
 For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it.
+pre-rendering all of it. Like the dashboard, it answers a request only when the `Host` header names the
+address it was bound to (`--host`) or `localhost`, port included — that pinning is what stops a page on
+an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
+you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes---allow-mutations)).
 
 ## Composed namespace C4 diagram
 

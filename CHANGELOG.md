@@ -44,7 +44,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--exit-zero-on-partial` on every mirror command (and `bootstrap`), for anyone whose scripts
   depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
 
+### Fixed
+- **Security:** the dashboard and graph servers now pin the `Host` header on `GET` as well as
+  `POST`. Only `POST` checked it, so a page whose domain re-resolved to `127.0.0.1` (DNS
+  rebinding) could read the entire code graph cross-origin: `/api/overview`, `/api/repo/<id>`,
+  `/api/search`, `/graph/*` — file paths, symbol names, owner identities. Static assets are
+  deliberately *not* exempt, because `dashboard.js` carries the per-process token and exempting
+  it would hand a rebinding page the key to the mutating routes. One consequence worth knowing:
+  a server bound with `--host 0.0.0.0` and browsed via its LAN address now returns 403; use
+  `http://localhost:PORT` or bind the address you intend to browse. The server prints a hint.
+- Malformed query parameters return `400` with a JSON body instead of raising inside the handler
+  thread and dumping a traceback with no response. Out-of-range values clamp rather than error,
+  and internal failures return a generic `500` with the traceback going to the log, never to the
+  client. Two further unguarded integer parses on client input (`Content-Length`, and the
+  mutation port) were fixed at the same time.
+
 ### Changed
+- All the local HTTP servers now share one base (`kb/http_base.py`) carrying the Host check, the
+  JSON error envelope and the exception guard. The three servers had drifted apart, which is the
+  structural reason the `GET`/`POST` gap above existed at all.
 - `index_repo_dir` is decomposed into a file walker, a parser registry and a ref collector; it was
   the most complex function in the codebase and sits on the critical path of every index run. Shard
   output is unchanged, proven by a new golden-shard test that also passes against the pre-change

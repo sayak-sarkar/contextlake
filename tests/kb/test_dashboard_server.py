@@ -322,7 +322,7 @@ def test_path_endpoint(served):
 def test_send_swallows_client_disconnect_errors(tmp_path):
     # a client (browser tab, curl) disconnecting mid-write must not surface a traceback --
     # ThreadingHTTPServer already isolates it to its own request thread, this only checks
-    # _send() itself doesn't propagate the write error.
+    # send_bytes() itself doesn't propagate the write error.
     s = SqliteStore(tmp_path / "index.sqlite")
     try:
         srv = build_dashboard_server(s, tmp_path, host="127.0.0.1", port=_free_port())
@@ -337,7 +337,7 @@ def test_send_swallows_client_disconnect_errors(tmp_path):
             handler.send_response = lambda *a, **k: None
             handler.send_header = lambda *a, **k: None
             handler.end_headers = lambda: None
-            handler._send(200, "text/plain", b"hello")  # must not raise
+            handler.send_bytes(200, "text/plain", b"hello")  # must not raise
         finally:
             srv.server_close()
     finally:
@@ -509,6 +509,18 @@ def _get_status(url):
         return e.code, json.loads(e.read() or b"{}")
 
 
+def _get_with_host(url, *, host=None):
+    """GET returning (status, raw body). A custom "Host" makes http.client skip its
+    own default and send this instead over the SAME real connection to 127.0.0.1 --
+    the DNS-rebinding shape (attacker domain resolves here; only the header lies)."""
+    req = urllib.request.Request(url, headers={"Host": host} if host else {})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+
+
 def test_wiki_status_and_estimate_are_gated_by_mutations(served):
     # No --allow-mutations: status degrades to not-running, estimate is 404
     # (previewing a mutating action that isn't available makes no sense).
@@ -673,10 +685,86 @@ def test_post_rejects_wrong_token(served_with_mutations):
     assert status == 403
 
 
+def test_post_body_with_a_bad_int_field_is_400_not_a_dropped_connection(
+        served_with_mutations):
+    """`int(payload["port"])` inside _mutate is the same unguarded-int shape the
+    query params had; the shared guard turns it into a 400 (and never starts an
+    MCP server, since the parse fails first)."""
+    base, _port, token, _origin = served_with_mutations
+    status, body = _post(base + "/api/mcp/serve", {"action": "start", "port": "abc"},
+                         token=token)
+    assert status == 400 and body == {"error": "bad request"}
+
+
 def test_post_rejects_mismatched_host_header(served_with_mutations):
     base, port, token, _origin = served_with_mutations
     status, _ = _post(base + "/api/repo/acme/origin/sync", {}, token=token, host="evil.example.com")
     assert status == 403
+
+
+def test_wildcard_bind_says_so_at_startup():
+    """A wildcard bind + Host pinning means the LAN address 403s with nothing on
+    screen to explain it, so the bind says it once at startup instead."""
+    from contextlake.kb.http_base import host_pinning_hint
+
+    assert host_pinning_hint("127.0.0.1", 8765) is None
+    assert host_pinning_hint("192.0.2.10", 8765) is None
+    hint = host_pinning_hint("0.0.0.0", 8765)
+    assert hint and "localhost:8765" in hint and "--host" in hint
+
+
+def test_get_rejects_mismatched_host_header(served):
+    """DNS rebinding: GET used to skip the Host check do_POST has always had, so a
+    page on an attacker domain that re-resolved to 127.0.0.1 could read the whole
+    graph cross-origin (CORS doesn't help -- rebinding makes the browser believe
+    it is same-origin). Every GET route is pinned now, assets included."""
+    for route in ("/api/overview", "/api/search?q=CatalogService", "/graph/overview", "/"):
+        status, _body = _get_with_host(served + route, host="evil.example.com")
+        assert status == 403, route
+        assert _get_with_host(served + route)[0] == 200, route
+
+
+def test_get_host_check_covers_the_token_carrying_asset(served_with_mutations):
+    """dashboard.js embeds the per-process mutation token, so the asset routes are
+    the LAST place an exemption could be justified: leaking it hands a rebinding
+    page the key to the mutating routes."""
+    base, _port, token, _origin = served_with_mutations
+    status, body = _get_with_host(base + "/dashboard.js")
+    assert status == 200 and token.encode() in body
+    assert _get_with_host(base + "/dashboard.js", host="evil.example.com")[0] == 403
+
+
+def test_non_numeric_query_param_is_400_json_not_a_dropped_connection(served):
+    """`int(q["depth"][0])` with no try raised inside the handler thread, so the
+    client got a traceback on stderr and a closed socket instead of a response."""
+    status, body = _get_status(served + "/api/overview?depth=abc")
+    assert status == 400
+    assert "depth" in body["error"]
+    # an absent/empty param still means "use the default", not 400
+    assert _get_status(served + "/api/overview")[0] == 200
+    assert _get_status(served + "/api/overview?depth=")[0] == 200
+
+
+def test_out_of_range_query_params_clamp_rather_than_error(served):
+    status, body = _get_status(served + "/api/impact?node=svc&hops=99999&limit=99999")
+    assert status == 200 and body["found"] is True
+    assert _get_status(served + "/api/search?q=CatalogService&limit=-5")[0] == 200
+    assert _get_status(served + "/api/path?from=caller&to=svc&max_hops=99999")[0] == 200
+
+
+def test_internal_error_is_a_generic_500_with_the_traceback_only_in_the_log(
+        served, monkeypatch, gls_logs):
+    import contextlake.kb.dashboard.data as kbdata
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("secret-internal-detail")
+
+    monkeypatch.setattr(kbdata, "fleet_overview", _boom)
+    status, body = _get_status(served + "/api/overview")
+    assert status == 500
+    assert body == {"error": "internal server error"}
+    assert "secret-internal-detail" not in json.dumps(body)
+    assert "secret-internal-detail" in gls_logs.text and "Traceback" in gls_logs.text
 
 
 def test_sync_route_pulls_and_reindexes(served_with_mutations):
