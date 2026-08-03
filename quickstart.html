@@ -168,7 +168,6 @@ rm<span class="w"> </span>-rf<span class="w"> </span>~/.cache/huggingface/hub/mo
 contextlake<span class="w"> </span>init<span class="w"> </span>--platform<span class="w"> </span>github<span class="w"> </span>--group<span class="w"> </span>my-org<span class="w"> </span>--skip-interactive<span class="w">   </span><span class="c1"># non-interactive</span>
 contextlake<span class="w"> </span>init<span class="w"> </span>--local<span class="w">               </span><span class="c1"># scope config to this project instead of ~/</span>
 </code></pre></div>
-<p>(<code>--yes</code>/<code>-y</code> are shorter aliases for <code>--skip-interactive</code>, if that's the muscle memory you already have.)</p>
 <p>Working across more than one org or project? <code>--local</code> writes config into the current directory instead
 of <code>~/</code>; every subdirectory underneath it inherits it automatically (see
 <a href="configuration#directory-scoped-config">Directory-scoped config</a>).</p>
