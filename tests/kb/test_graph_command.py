@@ -110,7 +110,7 @@ def test_repo_subgraph_includes_one_hop_neighbors_outside_the_repo(store):
 
 
 def test_repo_subgraph_includes_one_hop_external_nodes(store):
-    # matches the shape of a real cross-tool link: a code file `touches` a
+    # matches the shape of a real cross-tool link: a code file `touched_by` a
     # GitLab MR node that lives in the (external) sentinel repo, with no node
     # of its own in `team/api` -- it must still surface one hop out.
     store.upsert_nodes("team/api", [
@@ -118,7 +118,7 @@ def test_repo_subgraph_includes_one_hop_external_nodes(store):
     ])
     mr = Node(id="gitlab_mr_team_api_42", repo="(external)", kind="mr", name="MR #42")
     store.upsert_nodes("(external)", [mr])
-    store.upsert_edges("team/api", [Edge(src="team_api_pay_py", dst=mr.id, relation="touches",
+    store.upsert_edges("team/api", [Edge(src="team_api_pay_py", dst=mr.id, relation="touched_by",
                                          confidence=Confidence.EXTRACTED,
                                          provenance=Provenance(source_file="gitlab",
                                                                verified_at=date(2026, 8, 3)))])
@@ -441,7 +441,7 @@ def test_graphml_export_of_a_repo_carries_its_linked_external_nodes(store):
     ])
     mr = Node(id="gitlab_mr_team_api_42", repo="(external)", kind="mr", name="MR #42")
     store.upsert_nodes("(external)", [mr])
-    store.upsert_edges("team/api", [Edge(src="team_api_pay_py", dst=mr.id, relation="touches",
+    store.upsert_edges("team/api", [Edge(src="team_api_pay_py", dst=mr.id, relation="touched_by",
                                          confidence=Confidence.EXTRACTED,
                                          provenance=Provenance(source_file="gitlab",
                                                                verified_at=date(2026, 8, 3)))])
@@ -453,7 +453,7 @@ def test_graphml_export_of_a_repo_carries_its_linked_external_nodes(store):
     assert graphml.count("<node id=") == 2  # the file AND the MR, not code alone
     cypher = viz.to_cypher(payload)
     assert mr.id in cypher  # Cypher keeps the real id as a property
-    assert "`touches`" in cypher
+    assert "`touched_by`" in cypher
 
 
 def test_graphml_escapes_xml_special_characters_in_attribute_values():

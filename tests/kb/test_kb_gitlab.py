@@ -115,7 +115,7 @@ def test_enrich_repo_gitlab_links_mr_to_touched_file_nodes():
         nodes, edges = orch.enrich_repo_gitlab(
             _StubGLWithChanges(["pay.py", "missing.py"]), "team/api", store)
         mr = next(n for n in nodes if n.kind == "mr")
-        touch_edges = [e for e in edges if e.relation == "touches"]
+        touch_edges = [e for e in edges if e.relation == "touched_by"]
         assert {e.src for e in touch_edges} == {"team_api_pay_py", "repo_team_api"}
         assert all(e.dst == mr.id for e in touch_edges)
         file_edge = next(e for e in touch_edges if e.src == "team_api_pay_py")
@@ -130,7 +130,7 @@ def test_enrich_repo_gitlab_no_file_matches_skips_touches_edges():
         nodes, edges = orch.enrich_repo_gitlab(
             _StubGLWithChanges(["missing.py"]), "team/api", store)
         assert {n.kind for n in nodes} == {"repo", "mr"}
-        assert not [e for e in edges if e.relation == "touches"]
+        assert not [e for e in edges if e.relation == "touched_by"]
     finally:
         store.close()
 

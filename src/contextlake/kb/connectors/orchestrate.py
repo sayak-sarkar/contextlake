@@ -105,7 +105,11 @@ def enrich_repo_gitlab(connector, repo_id, store, *, embedder=None, vector_store
 
     A GitLab diff is a hard fact, not an inference (see
     ``gitlab.match_files_to_nodes``), so every touched-file edge is
-    ``Confidence.EXTRACTED``. ``store`` is required to look those file nodes
+    ``Confidence.EXTRACTED``. The relation is ``touched_by``, not ``touches``:
+    every ``link_to_code`` edge runs code-first (``pay.py -> MR #42``), so a
+    passive name is the one that reads correctly in an export, matching
+    ``designed_in`` / ``discussed_in`` / ``documented_by``. ``store`` is
+    required to look those file nodes
     up -- it was not previously threaded into this function. When an
     ``embedder``/``vector_store`` pair is configured, the MR/issue nodes built
     here are also embedded so they're semantically searchable, same as
@@ -131,7 +135,7 @@ def enrich_repo_gitlab(connector, repo_id, store, *, embedder=None, vector_store
             continue
         matches = match_files_to_nodes(store, repo_id, files)
         if matches:
-            edges.extend(link_to_code(repo_id, mr_node, matches, "touches", "gitlab"))
+            edges.extend(link_to_code(repo_id, mr_node, matches, "touched_by", "gitlab"))
     _embed_connector_nodes(repo_id, nodes, embedder, vector_store)
     return nodes, edges
 
@@ -204,8 +208,8 @@ def enrich_repo_slack(connector, repo_id, store, *, links=(), embedder=None, vec
     against each other, unlike Figma's identical-relation case: "referenced in
     docs" and "discussed in messages" are different facts with different
     provenance, the same reasoning that already lets GitLab's repo-level
-    ``touches`` edge coexist with its own repo-level ``has_merge_request`` edge
-    (``tracked_by`` is Atlassian's relation, not GitLab's).
+    ``touched_by`` edge coexist with its own repo-level ``has_merge_request``
+    edge (``tracked_by`` is Atlassian's relation, not GitLab's).
     When an ``embedder``/``vector_store`` pair is configured, the channel
     nodes built here are also embedded so they're semantically searchable.
     """

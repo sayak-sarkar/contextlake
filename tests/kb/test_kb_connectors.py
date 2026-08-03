@@ -165,21 +165,21 @@ def test_link_to_code_creates_symbol_edges_and_keeps_repo_edge():
     edges = link_to_code(
         "team/api", ext,
         [("team_api_pay_py", Confidence.EXTRACTED), ("team_api_payer_py", Confidence.EXTRACTED)],
-        "touches", "gitlab",
+        "touched_by", "gitlab",
     )
     assert len(edges) == 3  # 2 symbol edges + 1 repo-level fallback edge
     assert {e.src for e in edges[:2]} == {"team_api_pay_py", "team_api_payer_py"}
-    assert all(e.dst == ext.id and e.relation == "touches" for e in edges[:2])
+    assert all(e.dst == ext.id and e.relation == "touched_by" for e in edges[:2])
     assert all(e.confidence == Confidence.EXTRACTED for e in edges[:2])
     repo_edge = edges[-1]
     assert repo_edge.src == make_id("repo", "team/api")
-    assert repo_edge.relation == "touches"
+    assert repo_edge.relation == "touched_by"
 
 
 def test_link_to_code_with_no_matches_still_returns_repo_edge():
     ext = Node(id=make_id("gitlab", "mr", "team/api", "43"), repo="(external)",
                 kind="mr", name="MR #43")
-    edges = link_to_code("team/api", ext, [], "touches", "gitlab")
+    edges = link_to_code("team/api", ext, [], "touched_by", "gitlab")
     assert len(edges) == 1
     assert edges[0].src == make_id("repo", "team/api")
 
