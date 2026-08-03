@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-08-03
+
 ### Added
 - **Preview (opt-in, pending visual approval):** the graph page's layout dropdown gains a
   `dagre (preview)` option -- a layered/directed dagre layout that also renders nodes as real
