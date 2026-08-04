@@ -173,7 +173,21 @@ def test_manifest_pom_unclosed_dependency_tags_is_not_quadratic():
     assert isinstance(edges, list)
 
 
-@pytest.mark.timeout(2)
+# 10s, not the 2s its siblings use, and the wider budget is calibrated rather
+# than guessed. This test flaked on the py3.13 CI job while every other test in
+# the file sat at or below 0.02s. The 2s budget had been measured on a dev
+# machine with no coverage; the knowledge-layer CI job runs under `--cov`, and
+# coverage.py traces every line of a traversal that visits 10_000 nesting
+# levels. Measured on py3.13: 0.27s bare, 0.60s under coverage, and the shared
+# CI runner is roughly 3x slower again, which lands the worst shape (`locals`)
+# right on the 2s line. That is a coin flip, not a budget.
+#
+# Widening it does not blunt the regression signal, because the gap between
+# working and broken is enormous: the pre-fix O(depth^2) implementation took
+# 6.03s bare at this depth, so it would need roughly 40s under the same CI
+# conditions. 10s leaves the fixed code about 5x headroom and still catches a
+# reintroduced blowup about 4x over.
+@pytest.mark.timeout(10)
 @pytest.mark.parametrize("shape", ["no_refs", "refs", "locals"])
 def test_hcl_deep_nesting_is_not_quadratic(shape):
     """Deeply nested block bodies must not blow up -- and the cost was ours.
