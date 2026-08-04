@@ -285,7 +285,7 @@ def test_cli_entry_does_not_launder_the_discovered_path(tmp_path, monkeypatch):
     of plumbing that a refactor could quietly change.
     """
     from contextlake import cli
-    from contextlake.kb.cmds import index as index_cmd
+    from contextlake.kb.cmds import _common
 
     _no_global(monkeypatch, tmp_path)
     store = tmp_path / "store"
@@ -295,14 +295,17 @@ def test_cli_entry_does_not_launder_the_discovered_path(tmp_path, monkeypatch):
     monkeypatch.chdir(work)
 
     seen = {}
-    real = index_cmd.load_kb_config
+    # _common is where every kb command now resolves its config (once per
+    # invocation, via kb_config()); spying here covers the whole namespace
+    # rather than the one command that used to import load_kb_config itself.
+    real = _common.load_kb_config
 
     def spy(config_path=None):
         seen["config_path"] = config_path
         seen["cfg"] = real(config_path)
         return seen["cfg"]
 
-    monkeypatch.setattr(index_cmd, "load_kb_config", spy)
+    monkeypatch.setattr(_common, "load_kb_config", spy)
     try:
         cli.main(["kb", "index", "--workspace", str(workspace)])
     except SystemExit:
@@ -311,6 +314,75 @@ def test_cli_entry_does_not_launder_the_discovered_path(tmp_path, monkeypatch):
     assert seen["config_path"] is None       # the discovered file was NOT forwarded
     assert seen["cfg"].llm.command is None
     assert seen["cfg"].store_dir == str(store)   # ...but the local file did apply
+
+
+def test_a_command_resolves_its_config_exactly_once(tmp_path, monkeypatch, capsys):
+    """One command invocation, one config load.
+
+    Every kb command used to load it twice -- once in ``_open_store``, once in the
+    command body -- so every warning, trust screen and TOML parse in
+    ``load_kb_config`` ran twice. The gated-key warnings above hide that behind a
+    dedupe; the unknown-key warning has none, so it printed once per load and is
+    the honest counter here.
+    """
+    from contextlake import cli
+    from contextlake.kb.cmds import _common
+
+    _no_global(monkeypatch, tmp_path)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path / "store"}"\nstoer_dir = "typo"\n')
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+
+    loads = []
+    real = _common.load_kb_config
+
+    def spy(config_path=None):
+        loads.append(config_path)
+        return real(config_path)
+
+    monkeypatch.setattr(_common, "load_kb_config", spy)
+    try:
+        cli.main(["kb", "index", "--workspace", str(workspace), "--config", str(cfg)])
+    except SystemExit:
+        pass
+
+    assert loads == [str(cfg)]   # was [cfg, cfg]
+    # Read off the real output stream rather than a log fixture: cli.main
+    # configures the package logger's handlers on the way in, which detaches an
+    # externally-attached capture handler.
+    out = capsys.readouterr().out
+    assert out.count("unknown [kb] key 'stoer_dir'") == 1, out   # was 2
+
+
+def test_a_different_config_in_the_same_process_is_loaded_afresh(tmp_path, monkeypatch):
+    """The per-invocation cache must never answer a second command's question.
+
+    It is keyed on the argparse Namespace, which ``parse_args`` builds fresh per
+    invocation -- so this is about pinning that property, not decorating it: a
+    process-wide memo keyed on ``--config`` alone would pass the first assertion
+    and quietly fail the second, since everything else that feeds the precedence
+    chain (cwd, the ancestor walk, the file's contents) can change underneath it.
+    """
+    from argparse import Namespace
+
+    from contextlake.kb.cmds import _common
+
+    _no_global(monkeypatch, tmp_path)
+    first, second = tmp_path / "a.toml", tmp_path / "b.toml"
+    first.write_text(f'[kb]\nstore_dir = "{tmp_path / "store-a"}"\n')
+    second.write_text(f'[kb]\nstore_dir = "{tmp_path / "store-b"}"\n')
+
+    args_a = Namespace(config=str(first))
+    assert _common.kb_config(args_a) is _common.kb_config(args_a)   # cached per command
+    assert _common.kb_config(args_a).store_dir == str(tmp_path / "store-a")
+    assert _common.kb_config(Namespace(config=str(second))).store_dir == \
+        str(tmp_path / "store-b")
+
+    # ...and the same file re-read for a new invocation reflects what it says now.
+    first.write_text(f'[kb]\nstore_dir = "{tmp_path / "store-c"}"\n')
+    assert _common.kb_config(Namespace(config=str(first))).store_dir == \
+        str(tmp_path / "store-c")
 
 
 # --- the predicate itself ----------------------------------------------------

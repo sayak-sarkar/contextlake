@@ -6,12 +6,12 @@ import importlib.util
 
 from ... import style
 from ...logging_setup import log
-from ..config import load_kb_config
 from ._common import (
     _connect_targets,
     _guard_store,
     _open_store,
     _watch_loop,
+    kb_config,
 )
 
 
@@ -49,7 +49,7 @@ def cmd_embed(args) -> int:
         store.close()
         return 1
     try:
-        cfg = load_kb_config(getattr(args, "config", None))
+        cfg = kb_config(args)
         embedder = build_embedder(cfg.embeddings)
         if embedder is None:
             log(_embed_unavailable_hint(cfg.embeddings))

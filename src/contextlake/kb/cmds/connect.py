@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from ... import style
 from ...logging_setup import log
-from ..config import load_kb_config
 from ._common import (
     _connect_targets,
     _open_store,
     _watch_loop,
+    kb_config,
 )
 
 # Built-in doc-link patterns, always merged into the configured `link_scrape`
@@ -146,7 +146,7 @@ def cmd_connect(args) -> int:
 
     store, store_dir = _open_store(args)
     try:
-        cfg = load_kb_config(getattr(args, "config", None))
+        cfg = kb_config(args)
         sources = [s for s in cfg.sources
                    if s.type in ("atlassian", "figma", "gitlab", "slack") and s.enabled]
         if not sources:

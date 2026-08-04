@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from ... import style
 from ...logging_setup import log
-from ..config import load_kb_config
 from ..connectors.text_match import link_documents_to_symbols, symbol_nodes_for_repo
 from ..store.shards import GraphShard, write_shard
 from ._common import (
     _open_store,
+    kb_config,
 )
 
 
@@ -47,7 +47,7 @@ def cmd_ingest(args) -> int:
 
     store, store_dir = _open_store(args)
     try:
-        cfg = load_kb_config(getattr(args, "config", None))
+        cfg = kb_config(args)
         registry = discover_sources()
         # Zero-config fast path: `ingest --path DIR [--source-type files]`.
         jobs = []  # (name, type, options, for_repo)

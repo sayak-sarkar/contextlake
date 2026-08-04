@@ -6,9 +6,9 @@ import json
 
 from ... import style
 from ...logging_setup import log
-from ..config import load_kb_config
 from ._common import (
     _open_store,
+    kb_config,
 )
 
 
@@ -31,7 +31,7 @@ def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
         log("--as-of requires --repo (history is per-repo)")
         return 2
     text = " ".join(getattr(args, "args", []) or []).strip().lower()
-    store_dir = load_kb_config(getattr(args, "config", None)).store_path
+    store_dir = kb_config(args).store_path
     shard = read_shard_at(store_dir, repo, commit)
     if shard is None:
         if as_json:
@@ -67,12 +67,11 @@ def _semantic_results(args, store, text, limit):
     the exact retriever factories `contextlake kb eval --retriever` scores, so `query`
     never has its own copy of the embedding/rerank logic."""
     from .. import eval as kb_eval
-    from ..config import load_kb_config
     from ..embeddings import build_embedder
     from ..embeddings.store import build_vector_store
 
     retr_kind = getattr(args, "retriever", None)
-    cfg = load_kb_config(getattr(args, "config", None))
+    cfg = kb_config(args)
     embedder = build_embedder(cfg.embeddings)
     if embedder is None:
         from .embed import _embed_unavailable_hint

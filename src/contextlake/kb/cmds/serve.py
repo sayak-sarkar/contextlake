@@ -6,10 +6,10 @@ import sys
 
 from ... import style
 from ...logging_setup import log
-from ..config import load_kb_config
 from ..http_base import LOOPBACK_HOSTS
 from ._common import (
     _open_store,
+    kb_config,
 )
 
 
@@ -76,7 +76,7 @@ def cmd_serve(args) -> int:
             use_stderr()
 
         # Expose semantic_search only when embeddings are enabled and a vector store exists.
-        cfg = load_kb_config(getattr(args, "config", None))
+        cfg = kb_config(args)
         embedder = None
         from ..embeddings import build_embedder
 

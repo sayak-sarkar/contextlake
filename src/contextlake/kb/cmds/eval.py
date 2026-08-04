@@ -6,9 +6,9 @@ import json
 
 from ... import style
 from ...logging_setup import log
-from ..config import load_kb_config
 from ._common import (
     _open_store,
+    kb_config,
 )
 from .embed import _embed_unavailable_hint
 
@@ -51,7 +51,7 @@ def cmd_eval(args) -> int:
         if retr_kind == "fts":
             retriever = kb_eval.make_fts_retriever(store)
         else:
-            cfg = load_kb_config(getattr(args, "config", None))
+            cfg = kb_config(args)
             from ..embeddings import build_embedder
             from ..embeddings.store import build_vector_store
             embedder = build_embedder(cfg.embeddings)

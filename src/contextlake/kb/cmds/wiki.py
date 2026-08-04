@@ -6,13 +6,14 @@ import re
 
 from ... import style
 from ...logging_setup import log
-from ..config import apply_llm_overrides, load_kb_config
+from ..config import apply_llm_overrides
 from ..connectors.text_match import link_documents_to_symbols
 from ..store.shards import GraphShard, read_shard, shard_path, write_shard
 from ._common import (
     _connect_targets,
     _guard_store,
     _open_store,
+    kb_config,
 )
 from .ingest import _embed_documents
 
@@ -348,7 +349,12 @@ def cmd_wiki(args) -> int:
         return 1
     embedder = vs = None
     try:
-        cfg = load_kb_config(getattr(args, "config", None))
+        # Copy before overriding: apply_llm_overrides mutates in place, and the
+        # config object is now shared across one invocation (see _common.kb_config)
+        # -- including `bootstrap`, which hands one argparse Namespace to every
+        # stage in turn. `--llm` must configure this wiki run, not silently switch
+        # the LLM tier on for whatever runs after it.
+        cfg = kb_config(args).model_copy(deep=True)
         apply_llm_overrides(cfg, provider=getattr(args, "llm", None),
                             model=getattr(args, "llm_model", None))
         llm = build_llm(cfg.llm)

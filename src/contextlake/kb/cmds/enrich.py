@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from ... import style
 from ...logging_setup import log
-from ..config import load_kb_config
 from ._common import (
     _connect_targets,
     _open_store,
+    kb_config,
 )
 
 
@@ -20,7 +20,7 @@ def cmd_enrich(args) -> int:
 
     store, store_dir = _open_store(args)
     try:
-        cfg = load_kb_config(getattr(args, "config", None))
+        cfg = kb_config(args)
         term_searchable = [s for s in cfg.sources
                            if s.enabled and (s.tool or s.type == "atlassian")]
         if not term_searchable:

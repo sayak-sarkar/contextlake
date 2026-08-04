@@ -9,7 +9,6 @@ from pydantic import ValidationError
 
 from ... import style
 from ...logging_setup import log
-from ..config import load_kb_config
 from ..model import Repo
 from ..state import indexed_parser_version, mark_repo_indexed, needs_reindex
 from ..store.shards import GraphShard, archive_shard, reindex_shard, write_shard
@@ -18,6 +17,7 @@ from ._common import (
     _guard_store,
     _open_store,
     _watch_loop,
+    kb_config,
 )
 
 
@@ -212,7 +212,7 @@ def cmd_index(args) -> int:
     if not _guard_store(store_dir, "index"):
         store.close()
         return 1
-    cfg = load_kb_config(getattr(args, "config", None))
+    cfg = kb_config(args)
     parse_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes)
     workers = cfg.index_workers
     try:

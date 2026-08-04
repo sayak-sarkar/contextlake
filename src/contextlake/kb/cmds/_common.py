@@ -12,9 +12,47 @@ from ..config import load_kb_config
 from ..state import check_schema
 from ..store.sqlite_store import SqliteStore
 
+# Where a command invocation parks its resolved KbConfig. Underscore-prefixed so
+# it can never collide with an argparse `dest` (no flag produces that name).
+_CONFIG_ATTR = "_resolved_kb_config"
+
+
+def kb_config(args):
+    """The knowledge config for this command invocation, resolved exactly once.
+
+    Every kb command used to load it twice — once here through :func:`_open_store`,
+    once again in the command body — so every warning, every trust screen and every
+    TOML parse in ``load_kb_config`` ran twice per run. The visible half of that was
+    the gated-key refusal: a config with three gated keys printed six warnings for
+    three refusals. Deduping the message (see ``kb.config._WARNED_UNTRUSTED``) hid
+    that symptom; this removes the cause, which the unknown-key warnings — never
+    deduped — still showed one for one.
+
+    Cached on the argparse ``Namespace``, not in a module-level dict, on purpose: a
+    Namespace is built fresh by ``parse_args`` for each invocation, so the cache's
+    lifetime is exactly one command. A second run with a different ``--config`` in
+    the same process (the test suite does this constantly, and so does anything
+    embedding the CLI) arrives with its own Namespace and therefore does its own
+    load. A process-wide cache would have to enumerate everything that can change
+    the answer — cwd, the ancestor-config walk, ``CONTEXTLAKE_NO_LOCAL_CONFIG``,
+    the files' own contents — and would hand back the first caller's config
+    whenever that enumeration was incomplete.
+    """
+    cached = getattr(args, _CONFIG_ATTR, None)
+    if cached is not None:
+        return cached
+    cfg = load_kb_config(getattr(args, "config", None))
+    try:
+        setattr(args, _CONFIG_ATTR, cfg)
+    except (AttributeError, TypeError):
+        # A caller passing something more locked-down than a Namespace still gets
+        # a correct config; it just pays for the second load, as it does today.
+        pass
+    return cfg
+
 
 def _open_store(args) -> tuple[SqliteStore, Path]:
-    cfg = load_kb_config(getattr(args, "config", None))
+    cfg = kb_config(args)
     store_dir = cfg.store_path
     db_path = store_dir / "index.sqlite"
     # Every kb command funnels through here, so this is the one place that knows
