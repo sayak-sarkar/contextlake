@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -97,6 +97,58 @@ install</code> post-install hook exists to do this at install time -- see <a hre
 <p>--no-completion<code>. Run</code>contextlake completion [bash|zsh|fish]<code>to register on demand instead of
 waiting for that first run, or</code>CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of the automatic check
 entirely.</p>
+<h2 id="global-flags">Global flags<a class="anchor" href="#global-flags" title="Link to this section">#</a></h2>
+<p>These work on every command, before or after it:</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--config PATH</code></td>
+<td>the sync INI for <code>mirror</code> commands, <code>kb.toml</code> for knowledge commands</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--verbose</code></td>
+<td>debug output, and, on a crash, the traceback rather than just <code>Error: &lt;message&gt;</code></td>
+</tr>
+<tr>
+<td><code>-q</code>, <code>--quiet</code></td>
+<td>warnings and errors only</td>
+</tr>
+<tr>
+<td><code>--log-file PATH</code></td>
+<td>append a full timestamped copy of the run (redacted by default, see below)</td>
+</tr>
+<tr>
+<td><code>--log-format text\|json</code></td>
+<td><code>json</code> prints one JSON object per line, carrying the run id, command, repo and duration</td>
+</tr>
+<tr>
+<td><code>--metrics-file PATH</code></td>
+<td>after the run, write Prometheus textfile-collector metrics</td>
+</tr>
+<tr>
+<td><code>--redact</code> / <code>--no-redact</code></td>
+<td>scrub workspace paths, group and repo names from the console too / from nothing</td>
+</tr>
+<tr>
+<td><code>--access-log</code></td>
+<td>log every request the local HTTP servers answer (off by default)</td>
+</tr>
+<tr>
+<td><code>--plain</code></td>
+<td>no colour, even on a TTY (same as <code>NO_COLOR=1</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The last five exist for unattended operation, the systemd service + timer in <code>examples/</code>, a cron
+wrapper, CI, where nobody watches the run and what it leaves behind is all there is.
+<a href="console-output">Reading the console output</a> has the JSON shape, the redaction placeholders, and
+the metric names.</p>
 <h2 id="advancedresilience-flags">Advanced/resilience flags<a class="anchor" href="#advancedresilience-flags" title="Link to this section">#</a></h2>
 <p>The 8 <code>mirror</code>-tier commands (<code>mirror fetch</code>/<code>clone</code>/<code>update</code>/<code>branches</code>/<code>verify</code>/<code>status</code>/<code>sync</code>/<code>audit</code>)
 each take a further ~14 retry/backoff/worker-pool/safety-check flags (<code>--max-retries</code>,
@@ -169,15 +221,15 @@ below is typed under the <code>kb</code> namespace (<code>contextlake kb index</
 </tr>
 <tr>
 <td><code>kb eval</code></td>
-<td>Measure retrieval quality: precision / recall / MRR against a golden-query set</td>
+<td>Measure retrieval quality: precision / recall / MRR against a golden-query set (<code>--json</code>)</td>
 </tr>
 <tr>
 <td><code>kb lint</code></td>
-<td>Graph health audit: stale repos, dangling edges (<code>--json</code>)</td>
+<td>Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (<code>--json</code>)</td>
 </tr>
 <tr>
 <td><code>doctor</code></td>
-<td>Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness</td>
+<td>Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. <code>--fix</code> installs what is missing (see below)</td>
 </tr>
 <tr>
 <td><code>bootstrap</code></td>
@@ -185,7 +237,7 @@ below is typed under the <code>kb</code> namespace (<code>contextlake kb index</
 </tr>
 <tr>
 <td><code>kb serve</code></td>
-<td>Expose the graph over MCP (stdio, <code>--transport http</code>, or legacy <code>--transport sse</code>)</td>
+<td>Expose the graph over MCP (stdio, <code>--transport http</code>, or legacy <code>--transport sse</code>; the network transports print a bearer token and need <code>--allow-remote</code> for a non-loopback <code>--host</code>)</td>
 </tr>
 <tr>
 <td><code>kb steer</code></td>
@@ -196,6 +248,50 @@ below is typed under the <code>kb</code> namespace (<code>contextlake kb index</
 <p>The <code>mirror</code>-tier commands (<code>mirror fetch</code>, <code>mirror clone</code>, <code>mirror update</code>, <code>mirror branches</code>,
 <code>mirror verify</code>, <code>mirror sync</code>, <code>mirror status</code>, <code>mirror audit</code>) are covered under
 <a href="usage">Mirror repositories</a>.</p>
+<h3 id="doctor-fix-install-what-is-missing"><code>doctor --fix</code>: install what is missing<a class="anchor" href="#doctor-fix-install-what-is-missing" title="Link to this section">#</a></h3>
+<p><code>doctor</code> reports; <code>doctor --fix</code> repairs. With no value it installs only what your <strong>resolved</strong>
+configuration actually calls for, so a <code>[llm]</code> block that is disabled or set to <code>ollama</code> never pulls
+the local llama-cpp runtime. Name a capability to install it regardless of config.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--fix</code></td>
+<td>Install every missing dependency the resolved config calls for</td>
+</tr>
+<tr>
+<td><code>--fix &lt;capability&gt;</code></td>
+<td>Install one: <code>git</code>, <code>embedder</code>, <code>vectors</code>, <code>llm-local</code></td>
+</tr>
+<tr>
+<td><code>--dry-run</code> (<code>-n</code>)</td>
+<td>Print the full plan, exact commands included, and change nothing</td>
+</tr>
+<tr>
+<td><code>--skip-interactive</code></td>
+<td>Never prompt: privileged commands are printed, not run</td>
+</tr>
+</tbody>
+</table>
+<p>Two privilege tiers, and the split is deliberate:</p>
+<ul>
+<li><strong>Python packages</strong> install into the interpreter contextlake is running in, with
+  <code>sys.executable -m pip</code> (never a bare <code>pip</code>, which can belong to another environment). Unprivileged
+  and reversible, so <code>--fix</code> runs them after printing them. For <code>llm-local</code> it attaches the upstream
+  CPU wheel index automatically and says why.</li>
+<li><strong>System packages</strong> (currently just git) need administrator rights. The exact command is printed
+  in full and offered with a <strong>y/N prompt at a real terminal only</strong>. With <code>--skip-interactive</code>, or
+  when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
+  never trip a sudo prompt.</li>
+</ul>
+<p><code>--fix</code> also explains, rather than re-raising, the failures that actually happen: a PEP 668
+externally-managed environment (use a venv or pipx), a proxy timeout, an untrusted intercepting CA,
+or no matching distribution. Nothing planned is ever run before it has been printed.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="index-code-graph">Index the code graph</a></li>
@@ -208,8 +304,12 @@ below is typed under the <code>kb</code> namespace (<code>contextlake kb index</
 <ul>
 <li><a href="#typos-and-abbreviations">Typos and abbreviations</a></li>
 <li><a href="#shell-completion">Shell completion</a></li>
+<li><a href="#global-flags">Global flags</a></li>
 <li><a href="#advancedresilience-flags">Advanced/resilience flags</a></li>
-<li><a href="#knowledge-layer-commands">Knowledge-layer commands</a></li>
+<li><a href="#knowledge-layer-commands">Knowledge-layer commands</a><ul>
+<li><a href="#doctor-fix-install-what-is-missing">doctor --fix: install what is missing</a></li>
+</ul>
+</li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -239,6 +339,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

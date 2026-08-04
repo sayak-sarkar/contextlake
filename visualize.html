@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Visualize the graph · contextlake docs">
 <meta name="twitter:description" content="Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Visualize the graph", "description": "Draw bounded, offline graph slices (`contextlake kb graph`) in HTML, DOT, Mermaid, or a class diagram, plus the composed namespace C4 diagram.", "url": "https://sayak.in/contextlake/visualize", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Visualize the graph", "item": "https://sayak.in/contextlake/visualize"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -132,7 +132,10 @@ a "scope to one module" dropdown (its top-level path segments) instead of an arb
 </ul>
 <p>For interactive exploration of a large graph, <code>contextlake kb graph --serve</code> runs a local web UI where
 clicking a node <strong>expands</strong> it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it.</p>
+pre-rendering all of it. Like the dashboard, it answers a request only when the <code>Host</code> header names the
+address it was bound to (<code>--host</code>) or <code>localhost</code>, port included, that pinning is what stops a page on
+an attacker domain that re-resolves to <code>127.0.0.1</code> from reading your graph cross-origin. Bind the address
+you intend to browse rather than a wildcard (see <a href="dashboard#11-mutating-routes---allow-mutations">dashboard.md</a>).</p>
 <h2 id="composed-namespace-c4-diagram">Composed namespace C4 diagram<a class="anchor" href="#composed-namespace-c4-diagram" title="Link to this section">#</a></h2>
 <p><code>contextlake kb graph --c4</code> renders a different kind of view: a composed <strong>C4-Context/Container</strong> diagram over
 the whole fleet, namespaces are the boundaries, repos are the containers inside them, and the aggregated
@@ -206,6 +209,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

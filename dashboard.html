@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Dashboard · contextlake docs">
 <meta name="twitter:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Dashboard", "item": "https://sayak.in/contextlake/dashboard"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Dashboard", "item": "https://sayak.in/contextlake/dashboard"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -117,7 +117,7 @@ the exact command above with <code>--site</code> in place of <code>--serve</code
 </tr>
 <tr>
 <td><code>--llm-chat</code></td>
-<td><code>--serve</code> only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured <code>[llm]</code> provider for prose (see §12). Real time/token cost per question.</td>
+<td><code>--serve</code> only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured <code>[llm]</code> provider for prose (see §12). Real time/token cost per question. Loopback host only.</td>
 </tr>
 </tbody>
 </table>
@@ -248,7 +248,8 @@ the browser: <strong>Sync now</strong> on a repo page (<code>git pull --ff-only<
 repo</strong> on the fleet overview (clone a URL into <code>--workspace</code> + index it),
 <strong>Start / Stop / Restart</strong> for a separate <code>contextlake kb serve --transport http</code>
 process on the MCP console tab (not the stdio server your editor spawns -- this
-dashboard can't see or manage that one), and <strong>Regenerate</strong> wiki (single-repo on
+dashboard can't see or manage that one; see below for its bearer token), and
+<strong>Regenerate</strong> wiki (single-repo on
 that repo's Wiki tab, or fleet-wide on Settings, runs the exact <code>contextlake kb
 wiki</code> CLI as a background process, detached from the request that started it, so
 it keeps running even if you close the browser tab).
@@ -257,9 +258,17 @@ regenerate, the rest are already up to date", before you confirm, and a <strong>
 checkbox to bypass that freshness check and regenerate everything in scope
 regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).</p>
+<p>The MCP server this card starts is itself authenticated (see
+<a href="serve#authenticating-the-network-transports">Serve</a>): the HTTP transport requires
+<code>Authorization: Bearer &lt;token&gt;</code> on every request. Because the dashboard spawns it with its
+output discarded, the dashboard mints that token instead of letting the server print one, and
+the card shows it alongside the endpoint, that card is the only place it appears. <strong>Restart
+mints a new one</strong>, so any client pinned to the old token must be re-pointed at the value the
+card then shows. The token is kept in <code>&lt;store&gt;/dashboard/mcp-server.pid</code>, created <code>0600</code>, so it
+survives a page reload.</p>
 <p>Refused outright with <code>--sample</code> (the demo fleet is fictional -- nothing on disk to
-sync/clone) and with any <code>--host</code> other than <code>127.0.0.1</code>/<code>localhost</code> (mutating
-routes are loopback-only by design). A random per-launch token is minted at
+sync/clone) and with any non-loopback <code>--host</code> (<code>127.0.0.1</code>, <code>localhost</code> and <code>::1</code> are the
+loopback binds; mutating routes are loopback-only by design). A random per-launch token is minted at
 startup and wired into the served page; every <code>POST</code> must carry it in an
 <code>X-Contextlake-Token</code> header matching exactly, and the request's <code>Host</code> header
 must name this host:port -- both close the classic localhost-server holes (a
@@ -267,6 +276,18 @@ form-encoded POST from any open browser tab, and DNS rebinding around the
 loopback bind, respectively). A mutation takes the store's single-writer lock
 for its own duration only, so a concurrent CLI command sees a clean <code>409</code>
 instead of an interleaved write.</p>
+<p>The MCP server those Start/Restart actions spawn is constrained to a loopback bind
+and an unprivileged port (1024-65535), whatever the request asks for. That transport
+has no authentication of its own, so a caller-chosen bind would let one token turn
+this loopback-only dashboard into a public graph server that outlives it.</p>
+<p>The <code>Host</code> check applies to <strong>every</strong> request, <code>GET</code> included, and to every route
+including the static assets -- the read API is your whole code graph, and the
+served <code>dashboard.js</code> carries that per-launch token. The same rule now guards
+<code>contextlake kb graph --serve</code>'s pages. Practical consequence: a request is
+answered only when its <code>Host</code> is the address you bound (<code>--host</code>) or <code>localhost</code>,
+each with the port. If you bind a wildcard (<code>--host 0.0.0.0</code>) and then browse the
+machine's LAN address, you'll get <code>403 forbidden</code> -- bind that address instead
+(<code>--host 192.0.2.10</code>), or reach it as <code>http://localhost:PORT</code>.</p>
 <h2 id="12-chat">12. Chat<a class="anchor" href="#12-chat" title="Link to this section">#</a></h2>
 <p>Ask a question about the fleet in plain language -- "who calls X", "what depends on
 Y", "explain repo Z". Two layers, always shown together:</p>
@@ -291,6 +312,10 @@ per-launch token <code>--allow-mutations</code> uses (§11), and every chat requ
 must carry that token -- a page other than this dashboard can't silently trigger a
 paid call. The free layer needs no token, same risk level as any other read-only
 <code>/api/*</code> route. Live-only, like MCP console/Settings above (no <code>--site</code> export).</p>
+<p>Loopback host only, for the same reason <code>--allow-mutations</code> is (§11): that token is
+served inside <code>/dashboard.js</code>, so on a non-loopback bind anyone who can reach the port
+can read it and spend your provider budget. <code>--llm-chat --host 0.0.0.0</code> is refused at
+startup.</p>
 <hr />
 <p>Everything here runs entirely on your machine, and is read-only unless you opt into
 <code>--allow-mutations</code> (§11) or <code>--llm-chat</code> (§12, which sends questions to your
@@ -339,6 +364,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

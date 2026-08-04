@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -54,7 +54,7 @@ it's sharp; ask it about <em>the system</em>, which service calls this API, who 
 package, where a symbol is really defined across dozens of repos, and it starts guessing.</p>
 <p><strong>contextlake gives your tools the real source to read.</strong> It mirrors your repositories to
 your machine, indexes them into a queryable knowledge graph, and serves that graph to your
-editor over <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">MCP<span class="ext-arrow" aria-hidden="true">↗</span></a>. Everything runs locally and offline, 
+editor over <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">MCP<span class="ext-arrow" aria-hidden="true">↗</span></a>. Everything runs locally and offline,
 no code leaves your machine, and it carries no credentials of its own.</p>
 <h2 id="how-it-works">How it works<a class="anchor" href="#how-it-works" title="Link to this section">#</a></h2>
 <p>contextlake is three layers you adopt one at a time. The mirror is useful on its own, and
@@ -102,6 +102,16 @@ uvx<span class="w"> </span>--from<span class="w"> </span><span class="s2">&quot;
 | `[kb-fastembed]` | A higher-quality ONNX embedder (~90 MB) | Better semantic ranking |
 | `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `wiki --llm builtin` with no Ollama or API key |
 
+`[llm-local]` is the one extra a plain `pip install` cannot finish on its own: `llama-cpp-python`
+publishes no wheels to PyPI (llama.cpp is built per hardware backend, so upstream ships one index
+per accelerator), so pip compiles C++ unless you point it at one. Let contextlake do it:
+
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">     </span><span class="c1"># add --dry-run to see the exact command first</span>
+</code></pre></div>
+
+This applies to pip installs only: the standalone binary has the index preconfigured and installs
+the runtime on its first run, and the full Docker image ships it baked in.
+
 </details>
 
 <details>
@@ -110,10 +120,21 @@ uvx<span class="w"> </span>--from<span class="w"> </span><span class="s2">&quot;
 The published image bundles the knowledge layer plus the built-in CPU models
 (embedder + a small wiki LLM), so it runs with no Ollama, no API key, and no
 model download at runtime. The PyPI wheel stays the primary install; reach for
-the image on locked-down or offline machines.
+the image on locked-down or offline machines. Runs as a non-root user.
 
 <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>doctor
 docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
+</code></pre></div>
+
+The `-v` mount is what makes the run worth doing: everything contextlake persists, the
+knowledge store included, is written under it as `.contextlake/`, so it is still there on
+the host after the container exits. Drop the `-v` and the run is ephemeral.
+
+A `:slim` tag is also published, no `llama-cpp-python`, no baked wiki-LLM GGUF,
+much smaller pull. Semantic search still works (the embedder is pure Python);
+point the wiki tier at Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
+
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake:slim<span class="w"> </span>doctor
 </code></pre></div>
 </details>
 
@@ -136,9 +157,20 @@ uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </
 docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">   </span><span class="c1"># image</span>
 </code></pre></div>
 
-Your store and config carry forward. The graph re-indexes incrementally on the next
-`index`/`sync`, so nothing needs migrating. Confirm with `contextlake --version` and
+Your store and config carry forward. Confirm with `contextlake --version`, then run
 `contextlake doctor`.
+
+`doctor` is load-bearing here, not a formality. An upgrade that changes how code is parsed
+leaves every existing shard describing the old parse, and a plain `kb index` will not notice:
+it skips repos whose HEAD commit has not moved, and upgrading contextlake does not move
+anyone's HEAD. `doctor` compares the parser version recorded in each shard against the running
+one and names the repos that need rebuilding. When it asks for one, force it:
+
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--force
+</code></pre></div>
+
+Upgrading to **5.0.0 specifically requires this**, for every indexed repo: that release changed
+the parser and every shard written before it is stale.
 
 Uninstall the tool, then optionally remove what it created (it never writes inside your
 repos, so your source is never touched):
@@ -155,7 +187,7 @@ rm<span class="w"> </span>-f<span class="w">  </span>~/.contextlake.ini<span cla
 <code>BITBUCKET_TOKEN</code> / <code>GITEA_TOKEN</code>); on GitLab an authenticated
 <a href="https://gitlab.com/gitlab-org/cli" target="_blank" rel="noopener"><code>glab</code><span class="ext-arrow" aria-hidden="true">↗</span></a> works instead. The knowledge layer needs
 neither. Once installed, <code>contextlake</code>, <code>python -m contextlake</code>, and
-<code>python3 contextlake.py</code> are equivalent.</p>
+<code>python3 run-contextlake.py</code> are equivalent.</p>
 <h2 id="quickstart-one-repo-no-setup">Quickstart: one repo, no setup<a class="anchor" href="#quickstart-one-repo-no-setup" title="Link to this section">#</a></h2>
 <p>You don't need GitLab or any config to try contextlake on a repo you already have.
 No install? Run it once with <a href="https://docs.astral.sh/uv/" target="_blank" rel="noopener"><code>uvx</code><span class="ext-arrow" aria-hidden="true">↗</span></a>: prefix any command
@@ -318,6 +350,11 @@ and <code>kb serve</code>/<code>kb steer</code> in <strong><a href="serve">serve
 <p>Global options apply to any command: <code>--dry-run</code> (preview without changing anything),
 <code>-v</code>/<code>-q</code> (verbosity), <code>--log-file PATH</code>, <code>--config PATH</code>, <code>--version</code>. Output is colorized on
 a TTY and plain when piped; set <code>NO_COLOR</code> to force-disable.</p>
+<p>For runs nobody watches, the systemd timer in <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/" target="_blank" rel="noopener"><code>examples/</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, cron, CI, there is a
+second set: <code>--log-format json</code> (one JSON object per line, every line stamped with a run id),
+<code>--metrics-file PATH</code> (Prometheus textfile-collector output), <code>--redact</code> (the <code>--log-file</code> copy
+is already scrubbed of workspace paths, group and repo names), and <code>--access-log</code>. See
+<a href="console-output">Reading the console output</a>.</p>
 <h2 id="knowledge-layer">Knowledge layer<a class="anchor" href="#knowledge-layer" title="Link to this section">#</a></h2>
 <p>Beyond mirroring, the optional <code>contextlake.kb</code> layer turns your repos into a <strong>knowledge
 graph</strong> and serves it to AI tools over <strong>MCP</strong>. It can link repos directly to the Atlassian /
@@ -399,6 +436,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

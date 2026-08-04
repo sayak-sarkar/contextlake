@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Connect and enrich · contextlake docs">
 <meta name="twitter:description" content="Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connect and enrich", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connect-enrich", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connect and enrich", "item": "https://sayak.in/contextlake/connect-enrich"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Connect and enrich", "description": "Link repos to their issues, docs, and designs, manage sources, and pull grounded external facts into the knowledge layer with query-driven enrichment.", "url": "https://sayak.in/contextlake/connect-enrich", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Connect and enrich", "item": "https://sayak.in/contextlake/connect-enrich"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -233,6 +233,24 @@ source claims links for (defaults to <code>["figma.com"]</code>/<code>["slack.co
 name used for reachability checks (default <code>conversations_info</code>); <code>history_tool</code>, the Slack MCP tool name
 used to read a channel's messages (default <code>conversations_history</code>); <code>group</code>, a GitLab group prefixed to each
 repo's path to form the project id; and <code>per_page</code>, the API page size (default <code>50</code>).</p>
+<h2 id="when-a-source-stops-answering">When a source stops answering<a class="anchor" href="#when-a-source-stops-answering" title="Link to this section">#</a></h2>
+<p><code>connect</code> and <code>enrich</code> are the only stages that leave the machine, and a fleet run asks each source once
+per repo. If a source goes down mid-run, contextlake stops asking it rather than paying its <code>timeout</code> on
+every remaining repo: after three consecutive failures the source is skipped for 60 seconds, then one
+call is let through to see whether it came back. A run against an unreachable MCP server finishes in
+seconds instead of <code>timeout x repos</code>.</p>
+<p>You will see this in the output, it is never silent, because "the source was down" and "the source had
+nothing" would otherwise look identical:</p>
+<div class="highlight"><pre><span></span><code>resilience: circuit OPEN for mcp:npx:https://mcp.example.test after 3 consecutive
+  failure(s) (TimeoutError) -- further calls are skipped for 60s
+resilience: skipping mcp:npx:https://mcp.example.test for 60s -- circuit open after 3
+  consecutive failure(s) (TimeoutError); results from this source will be incomplete
+</code></pre></div>
+<p>The name in that line identifies the endpoint by transport and host only, never the rest of the URL,
+since a hosted MCP endpoint can carry a token in its path or query.</p>
+<p>Failures the <em>server</em> rejected rather than failed on, an unknown tool, a bad token, are reported as
+themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise <code>timeout</code> on the
+source if the server is merely slow.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="index-code-graph">Index the code graph</a></li>
@@ -247,6 +265,7 @@ repo's path to form the project id; and <code>per_page</code>, the API page size
 <li><a href="#managing-sources-the-source-command-family">Managing sources: the source command family</a></li>
 <li><a href="#query-driven-enrichment">Query-driven enrichment</a></li>
 <li><a href="#aggregating-documents-rag">Aggregating documents (RAG)</a></li>
+<li><a href="#when-a-source-stops-answering">When a source stops answering</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -276,6 +295,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

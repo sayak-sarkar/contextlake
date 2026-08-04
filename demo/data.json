@@ -1,6 +1,6 @@
 {
   "mode": "static",
-  "snapshot_date": "2026-08-03",
+  "snapshot_date": "2026-08-04",
   "confidence": {
     "EXTRACTED": [
       "Extracted",
@@ -1380,7 +1380,17 @@
     "checked": 36,
     "stale": 7,
     "dangling": 0,
+    "parser_stale": 7,
     "stale_repos": [
+      "acme/auth-service",
+      "acme/catalog-api",
+      "acme/notifications",
+      "acme/payments-api",
+      "acme/shared-lib",
+      "acme/web-ui",
+      "demo/app"
+    ],
+    "parser_stale_repos": [
       "acme/auth-service",
       "acme/catalog-api",
       "acme/notifications",

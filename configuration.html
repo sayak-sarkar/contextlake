@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Configuration · contextlake docs">
 <meta name="twitter:description" content="Config-file precedence and the full settings reference for the mirror layer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Configuration", "description": "Config-file precedence and the full settings reference for the mirror layer.", "url": "https://sayak.in/contextlake/configuration", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://sayak.in/contextlake/configuration"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -69,7 +69,6 @@ of the global one, see <a href="#directory-scoped-config">Directory-scoped confi
 <div class="highlight"><pre><span></span><code><span class="k">[contextlake]</span>
 <span class="na">work_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">~/work</span>
 <span class="na">gitlab_group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">your-gitlab-group</span>
-<span class="na">cache_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">/tmp</span>
 <span class="na">clone_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">300</span>
 <span class="na">fetch_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">60</span>
 <span class="na">branch_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">30</span>
@@ -106,6 +105,42 @@ defaults to the current directory (override interactively, or with <code>--work-
 knowledge-layer's <code>store_dir</code> defaults to a <code>.contextlake/kb</code> directory next to that workspace instead
 of the global <code>~/.contextlake/kb</code> (override with <code>--store-dir</code>), so two separate <code>--local</code> projects
 never end up sharing one store.</p>
+<h2 id="workspace-trust">Workspace trust<a class="anchor" href="#workspace-trust" title="Link to this section">#</a></h2>
+<p>Because a local config is <em>discovered</em> rather than named, one can take effect that you never wrote , 
+notably a <code>.contextlake.kb.toml</code> that came inside a repository you cloned. So the few config keys that
+become part of a command contextlake executes are honoured <strong>only</strong> from the global
+<code>~/.contextlake/kb.toml</code> or from a path you pass to <code>--config</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Reaches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[llm] command</code>, <code>[llm] args</code></td>
+<td>the agent CLI run when <code>provider = "cli"</code></td>
+</tr>
+<tr>
+<td><code>[llm] provider</code>, <code>[llm] review_provider</code></td>
+<td>only when set to <code>"cli"</code></td>
+</tr>
+<tr>
+<td><code>[[sources]] command</code>, <code>args</code>, <code>mcp_command</code></td>
+<td>the MCP server spawned over stdio</td>
+</tr>
+</tbody>
+</table>
+<p>In a discovered <code>.contextlake.kb.toml</code> those keys are ignored, with a warning naming the file and the
+key. Nothing else changes: <code>store_dir</code>, <code>languages</code>, <code>max_file_bytes</code>, <code>[embeddings]</code>, <code>[[rules]]</code>, and
+any non-<code>cli</code> LLM provider all keep working from a local file exactly as before. The one thing to know
+when scoping sources with <code>contextlake kb source add ... --local</code> is that an <em>MCP</em> source's <code>command</code>
+has to live in the global file (or be reached with <code>--config</code>); an <code>mcp</code> <strong>URL</strong> is fine locally.</p>
+<p>Set <code>CONTEXTLAKE_NO_LOCAL_CONFIG=1</code> to skip ancestor discovery entirely, for both <code>.contextlake.ini</code> and
+<code>.contextlake.kb.toml</code>, recommended in CI, containers, and anywhere untrusted checkouts are processed in
+bulk. With it set, <code>source add --local</code> writes to the global config too, rather than to a local file that
+would never be read. See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md#workspace-trust" target="_blank" rel="noopener">SECURITY.md<span class="ext-arrow" aria-hidden="true">↗</span></a> for the full model.</p>
 <h2 id="settings-reference">Settings reference<a class="anchor" href="#settings-reference" title="Link to this section">#</a></h2>
 <table>
 <thead>
@@ -155,9 +190,9 @@ never end up sharing one store.</p>
 </tr>
 <tr>
 <td><code>cache_dir</code></td>
-<td>Directory for cache files</td>
-<td><code>/tmp</code></td>
-<td><code>~/.cache/contextlake</code></td>
+<td>Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of <code>~/.cache/contextlake</code> (<code>$XDG_CACHE_HOME/contextlake</code> when set), created <code>0700</code>. Set it and that exact directory is used, with no subdirectory.</td>
+<td><code>~/.cache/contextlake/&lt;workspace&gt;-&lt;id&gt;</code></td>
+<td><code>/srv/cache</code></td>
 </tr>
 <tr>
 <td><code>cache_file</code></td>
@@ -272,6 +307,7 @@ never end up sharing one store.</p>
 <li><a href="#using-configuration-files">Using configuration files</a></li>
 <li><a href="#overriding-on-the-command-line">Overriding on the command line</a></li>
 <li><a href="#directory-scoped-config">Directory-scoped config</a></li>
+<li><a href="#workspace-trust">Workspace trust</a></li>
 <li><a href="#settings-reference">Settings reference</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
@@ -302,6 +338,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

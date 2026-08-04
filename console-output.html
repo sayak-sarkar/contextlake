@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Reading the console output · contextlake docs">
 <meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Reading the console output", "description": "Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Reading the console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Reading the console output", "description": "Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Reading the console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -123,6 +123,59 @@ summary (<code>✓ Embed complete: ...</code>, <code>✓ Lint: ...</code>, and s
 <p><strong><code>--plain</code></strong> (same effect as setting <code>NO_COLOR=1</code>) strips ANSI color, even on a TTY, useful when piping
 into a tool that doesn't expect escape codes. It doesn't touch the glyphs themselves, <code>✓</code>/<code>⚠</code>/<code>✗</code> and the
 rest still print; only the color wrapped around them is gone.</p>
+<h2 id="machine-readable-logs-log-format-json">Machine-readable logs: <code>--log-format json</code><a class="anchor" href="#machine-readable-logs-log-format-json" title="Link to this section">#</a></h2>
+<p>Everything above describes output composed for a person. When the reader is a log collector instead --
+the systemd timer in <code>examples/</code>, a cron wrapper, CI -- <code>--log-format json</code> prints one JSON object per
+line and nothing else:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;ts&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-08-04T05:45:19Z&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;level&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INFO&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;msg&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Cloned&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bcd5bd3d69cb&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;mirror clone&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;repo&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;team/api&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;duration_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">812</span><span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong><code>run_id</code></strong> is generated once per invocation and stamped on every line, so an interleaved journal can
+  be split back into runs, and one <code>bootstrap</code>'s index / connect / embed / wiki stages read as one story.
+  Set <code>CONTEXTLAKE_RUN_ID</code> to pin your own (a systemd invocation id, a CI job id) and have contextlake's
+  lines join up with the surrounding job's.</li>
+<li><strong><code>command</code></strong> is the command as you would type it (<code>mirror sync</code>, <code>kb index</code>).</li>
+<li><strong><code>repo</code></strong> and <strong><code>duration_ms</code></strong> appear on per-repo lines, which is what makes "which repo is making
+  the nightly run slow" a query rather than a guess.</li>
+<li>Failures add <strong><code>error_type</code></strong> (<code>dns</code>, <code>timeout</code>, <code>auth</code>, <code>diverged</code>, ...) and <strong><code>error</code></strong>, so "every
+  failure last night was DNS" is one aggregation.</li>
+</ul>
+<p>The default (<code>text</code>) output is unchanged, character for character. Structured fields are only ever
+<em>added</em> to the JSON form; they never alter a human line.</p>
+<h2 id="sharing-a-log-redact">Sharing a log: <code>--redact</code><a class="anchor" href="#sharing-a-log-redact" title="Link to this section">#</a></h2>
+<p><code>--log-file PATH</code> keeps a full-detail copy of the run. That copy is <strong>redacted by default</strong>: workspace
+paths, <code>$HOME</code>, the group/org name, a self-hosted forge hostname and repository names are replaced with
+placeholders, so it can be attached to a bug report as-is.</p>
+<div class="highlight"><pre><span></span><code>[2026-08-04 05:48:49] Working directory: &lt;workspace&gt;
+[2026-08-04 05:48:49] Gitlab group: &lt;group&gt;
+[2026-08-04 05:48:49] Missing repositories:
+[2026-08-04 05:48:49]   repo-5a7da0a4
+</code></pre></div>
+<p>Repository names become a stable <code>repo-&lt;digest&gt;</code>, so "the same three repos failed again" still reads
+correctly after scrubbing, and a file path <em>inside</em> a repo keeps its tail (<code>&lt;workspace&gt;/repo-5a7da0a4/
+src/main.py:42</code>) because which file broke is the useful half. This is obfuscation for sharing, not a
+cryptographic guarantee: a short, guessable repository name can be confirmed by anyone who guesses it.</p>
+<p>The console is left alone by default -- you need the real paths to act on what you are reading.
+<code>--redact</code> scrubs the console too; <code>--no-redact</code> scrubs neither.</p>
+<h2 id="metrics-for-an-unattended-run-metrics-file">Metrics for an unattended run: <code>--metrics-file</code><a class="anchor" href="#metrics-for-an-unattended-run-metrics-file" title="Link to this section">#</a></h2>
+<p><code>--metrics-file PATH</code> writes Prometheus <a href="https://github.com/prometheus/node_exporter#textfile-collector" target="_blank" rel="noopener">textfile-collector<span class="ext-arrow" aria-hidden="true">↗</span></a>
+output after the run, so the shipped systemd timer is monitorable with no exporter process of its own.
+Point node_exporter's <code>--collector.textfile.directory</code> at the file's directory and name the file <code>.prom</code>:</p>
+<div class="highlight"><pre><span></span><code>contextlake_run_duration_seconds{command=&quot;mirror sync&quot;} 42.318
+contextlake_run_exit_code{command=&quot;mirror sync&quot;} 0
+contextlake_repos{command=&quot;mirror sync&quot;,status=&quot;ok&quot;} 480
+contextlake_repos{command=&quot;mirror sync&quot;,status=&quot;failed&quot;} 0
+contextlake_repos{command=&quot;mirror sync&quot;,status=&quot;skipped&quot;} 3
+contextlake_graph_nodes 128394
+contextlake_graph_edges 214005
+contextlake_last_success_timestamp_seconds{command=&quot;mirror sync&quot;} 1785802519
+</code></pre></div>
+<p>Two behaviours worth knowing. <code>contextlake_last_success_timestamp_seconds</code> is <strong>carried forward</strong> by a
+failing run rather than erased -- that timestamp is the whole basis of a "stale for six hours" alert. And
+a value that could not be measured is <strong>omitted, never written as 0</strong>: a <code>mirror sync</code> does not touch the
+knowledge graph, so it publishes no <code>contextlake_graph_nodes</code> at all rather than a zero that reads as
+"the graph was wiped". The counts come from what the run already tallied (the same numbers that decide
+the exit code), so the metrics can never disagree with the summary line.</p>
 <h2 id="the-stdout-stderr-split">The stdout / stderr split<a class="anchor" href="#the-stdout-stderr-split" title="Link to this section">#</a></h2>
 <p>The bar renders on stderr; the per-item result lines below it (<code>✓</code>/<code>⚠</code> and the like) stay on stdout. That
 split means <code>contextlake kb wiki &gt;&gt; run.log</code> (or any stdout redirect) captures clean detail lines with no bar
@@ -161,6 +214,13 @@ separately.</p>
   suffix for <code>sse</code> -- so you don't have to guess the host/port/path before pointing an editor at it.
   Both URLs include the path because neither transport is served at the bare root: that really is a 404.
   <code>stdio</code> transport has no address to report and stays quiet on that line.</li>
+<li><strong>The network transports print their bearer token right under that URL, on stderr.</strong> A socket that
+  serves the whole graph needs a credential, and a credential you cannot find is the same as a server
+  you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
+  discovered. Deliberately <em>not</em> through the logger: <code>--log-file</code> would otherwise leave the token on
+  disk after the process is gone. Pin your own with <code>CONTEXTLAKE_MCP_TOKEN</code> and the line acknowledges
+  it instead of echoing the value. <code>stdio</code> prints no token because it needs none. See
+  <a href="serve">Serve</a>.</li>
 <li><strong><code>graph --overview</code> on an empty store warns instead of reporting silent success.</strong> It still writes the
   (empty) artifact, but now says <code>⚠ Wrote html (0 nodes, 0 edges) -&gt; ...: the store is empty.</code> followed by
   a hint to run <code>contextlake kb index</code> first, instead of logging the same success line it would for a
@@ -182,6 +242,9 @@ progress still shows.</p>
 <ul>
 <li><a href="#the-live-progress-bar">The live progress bar</a></li>
 <li><a href="#one-status-vocabulary-everywhere">One status vocabulary, everywhere</a></li>
+<li><a href="#machine-readable-logs-log-format-json">Machine-readable logs: --log-format json</a></li>
+<li><a href="#sharing-a-log-redact">Sharing a log: --redact</a></li>
+<li><a href="#metrics-for-an-unattended-run-metrics-file">Metrics for an unattended run: --metrics-file</a></li>
 <li><a href="#the-stdout-stderr-split">The stdout / stderr split</a></li>
 <li><a href="#decoding-specific-lines">Decoding specific lines</a></li>
 <li><a href="#see-also">See also</a></li>
@@ -213,6 +276,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

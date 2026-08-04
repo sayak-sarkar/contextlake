@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Serve (MCP) · contextlake docs">
 <meta name="twitter:description" content="Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serve (MCP)", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serve", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serve (MCP)", "item": "https://sayak.in/contextlake/serve"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serve (MCP)", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serve", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serve (MCP)", "item": "https://sayak.in/contextlake/serve"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -58,7 +58,7 @@ substrate below (definition / callers / dependents / subclasses / impact / owner
 explain / search), resolves the symbol or repo, and returns one labeled answer (graph
 facts cited; <code>explain</code> returns advisory wiki prose, or the repo's grounded anatomy when
 no wiki exists yet). An agent that would rather not choose among the tools can just <code>ask</code>.</p>
-<p><strong>Most of it needs no model.</strong> The underlying graph tools work on their own , 
+<p><strong>Most of it needs no model.</strong> The underlying graph tools work on their own ,
 <code>search_code</code>, <code>find_definition</code>, <code>find_callers</code>, <code>find_dependents</code>, <code>get_node</code>,
 <code>get_neighbors</code>, <code>shortest_path</code>, <code>graph_stats</code>, <code>repo_dependencies</code>, <code>repo_flow</code>,
 <code>repo_event_flow</code>, <code>blast_radius</code>, <code>who_knows</code>, <code>get_wiki</code>, <code>get_readme</code>,
@@ -100,7 +100,7 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 <span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;contextlake-kb&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contextlake&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;serve&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;~/.contextlake/kb.toml&quot;</span><span class="p">]</span>
+<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;kb&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;serve&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;~/.contextlake/kb.toml&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
@@ -111,7 +111,7 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 <span class="w">  </span><span class="nt">&quot;servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;contextlake-kb&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contextlake&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;serve&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;~/.contextlake/kb.toml&quot;</span><span class="p">]</span>
+<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;kb&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;serve&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;~/.contextlake/kb.toml&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
@@ -120,18 +120,62 @@ name is kept as-is; custom layers like <code>.devin/</code> are left untouched.<
 <p><code>contextlake kb serve --transport &lt;stdio|http|sse&gt;</code> (default <code>stdio</code>):</p>
 <ul>
 <li><strong><code>stdio</code></strong>, the default. The editor/agent spawns <code>contextlake kb serve</code> itself and talks to
-  it over stdin/stdout; this is what <code>steer</code>-generated <code>.mcp.json</code>/<code>.vscode/mcp.json</code> entries use.</li>
+  it over stdin/stdout; this is what <code>steer</code>-generated <code>.mcp.json</code>/<code>.vscode/mcp.json</code> entries use.
+  No token, no network: the pipe belongs to the process that spawned it.</li>
 <li><strong><code>http</code></strong>, Streamable HTTP, the MCP spec's current standard network transport (<code>--host</code>/
   <code>--port</code>, default <code>127.0.0.1:8765</code>). Point clients at <code>http://127.0.0.1:8765/mcp</code>, not the bare
   host:port: the endpoint is the <code>/mcp</code> path, and the root returns 404. Prefer this transport for
-  any new remote/network wiring.</li>
+  any new remote/network wiring. <strong>Authenticated</strong>, see below.</li>
 <li><strong><code>sse</code></strong>, the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
   marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
   for clients that haven't moved off it yet; contextlake follows that guidance rather than
   dropping it. Its endpoint is <code>http://127.0.0.1:8765/sse</code>. Use <code>sse</code> only if your client
   specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
-  distinct, separate option from HTTP), pick <code>http</code> first.</li>
+  distinct, separate option from HTTP), pick <code>http</code> first. Authenticated exactly like <code>http</code>.</li>
 </ul>
+<h3 id="authenticating-the-network-transports">Authenticating the network transports<a class="anchor" href="#authenticating-the-network-transports" title="Link to this section">#</a></h3>
+<p>The graph answers with real file paths, symbol names, docstrings and owner identities, so the
+socket transports do not serve it to anyone who connects.</p>
+<p><strong>A bearer token, printed once to stderr at startup:</strong></p>
+<div class="highlight"><pre><span></span><code>$ contextlake kb serve --transport http
+✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
+  Bearer token: &lt;a fresh 43-character token&gt;
+  Clients must send: Authorization: Bearer &lt;token&gt;
+  Pin a stable one across restarts with $CONTEXTLAKE_MCP_TOKEN.
+</code></pre></div>
+<p>Every request needs <code>Authorization: Bearer &lt;token&gt;</code>; without it the server answers <code>401</code>. The
+token goes to stderr only, never to stdout, never to the log file, so it does not outlive the
+process anywhere you did not put it.</p>
+<p><strong>Pin it for a client config.</strong> A fresh token per launch is fine when you copy it by hand and
+useless when a config file has to hold it. Set <code>CONTEXTLAKE_MCP_TOKEN</code> and the server uses that
+value instead of minting one (an empty or whitespace-only value is treated as unset, and a fresh
+token is minted, it never turns authentication off):</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTEXTLAKE_MCP_TOKEN</span><span class="o">=</span><span class="s1">&#39;pick-your-own-long-random-string&#39;</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>http
+</code></pre></div>
+<p><strong>Origin and Host are validated</strong> on every request, as the MCP spec requires for HTTP transports:
+a request whose <code>Origin</code> is not the bound host (or a loopback address) gets <code>403</code>, and one whose
+<code>Host</code> does not name this server gets <code>421</code>. That is what stops a web page you visit from
+reaching your loopback MCP server through DNS rebinding.</p>
+<p><strong>Non-loopback binds must be opted into.</strong> <code>--host</code> outside <code>127.0.0.1</code> / <code>localhost</code> / <code>::1</code> is
+refused unless you pass <code>--allow-remote</code>, and prints a warning when you do:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w">        </span><span class="c1"># refused, exits 1</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--allow-remote
+</code></pre></div>
+<p>Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
+to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (<code>0.0.0.0</code>) only
+answers requests whose <code>Host</code> is a loopback name, because the Host check has no way to know which
+address you meant, bind the address clients will actually name (<code>--host 192.0.2.10</code>).</p>
+<p><strong>There is an access log, and it is off by default.</strong> These servers are loopback developer tools
+whose console is already a command's output, so they stay quiet, but a server holding the whole
+code graph should be able to answer "what did it serve, and to whom". <code>--access-log</code> turns on one
+line per request (client address, request line, status).</p>
+<p>For contextlake's own servers, <code>kb dashboard --serve</code>, <code>kb graph --serve</code>, <code>kb graph --site
+--serve</code>, those lines go through the same logger as everything else, so they land in <code>--log-file</code>
+and follow <code>--log-format json</code>, and the client-supplied request line is stripped of control
+characters first. <code>kb serve</code>'s <code>http</code>/<code>sse</code> transports are served by uvicorn rather than by
+contextlake's handler, so there the flag enables <em>uvicorn's</em> access log instead: its own format,
+on stderr, alongside its startup banner.</p>
 <p><strong>Devin is different: there's no repo file to wire.</strong> Devin's MCP connections are configured at
 the account/org level (<code>mcp.devin.ai</code>, with an API key and org header), not read from a file
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP
@@ -149,7 +193,10 @@ have it draft wiki pages from the graph without the built-in <code>wiki</code> c
 <ul>
 <li><a href="#the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors</a></li>
 <li><a href="#wiring-it-by-hand">Wiring it by hand</a></li>
-<li><a href="#transports">Transports</a></li>
+<li><a href="#transports">Transports</a><ul>
+<li><a href="#authenticating-the-network-transports">Authenticating the network transports</a></li>
+</ul>
+</li>
 <li><a href="#once-connected">Once connected</a></li>
 </ul>
 </nav></aside>
@@ -179,6 +226,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Mirror repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -69,10 +69,12 @@ has no post-install hook to run anything at (that's a deliberate Python packagin
 gap here), so instead the <strong>first time any command runs in a real interactive terminal</strong>,
 contextlake registers completion for you, once, and says so in the log. Skipped entirely in
 non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure, set
-<code>CONTEXTLAKE_NO_AUTO_COMPLETION=1</code> to opt out of this check altogether. <code>contextlake init</code> offers
-the same registration explicitly (on by default; pass <code>--no-completion</code> to skip) if you'd rather
-decide up front, and an explicit decline there is remembered, the automatic check never overrides
-it later.</p>
+<code>CONTEXTLAKE_NO_AUTO_COMPLETION=1</code> to opt out of this check altogether. An <strong>interactive</strong>
+<code>contextlake init</code> offers the same registration explicitly (on by default; pass <code>--no-completion</code>
+to skip) if you'd rather decide up front, and an explicit decline there is remembered, the
+automatic check never overrides it later. A <strong>non-interactive</strong> <code>init</code> (<code>--skip-interactive</code>, or a
+piped stdin) never touches your shell startup file: nobody was asked, so pass <code>--completion</code> to opt
+in, or run <code>contextlake completion</code> afterwards.</p>
 <p>Run it again on demand (a different shell, after skipping it once, or just to re-run it) with:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>completion<span class="w">          </span><span class="c1"># auto-detect $SHELL and register</span>
 contextlake<span class="w"> </span>completion<span class="w"> </span>zsh<span class="w">      </span><span class="c1"># register for zsh explicitly, regardless of $SHELL</span>
@@ -146,7 +148,8 @@ Extra:                    1        # cloned locally but not on GitLab
 <li>Uses the GitLab API with pagination to fetch all projects</li>
 <li>Includes subgroups automatically</li>
 <li>Skips archived repositories</li>
-<li>Caches results in <code>/tmp/gitlab_projects.txt</code> and <code>/tmp/gitlab_projects.json</code></li>
+<li>Caches results in <code>gitlab_projects.txt</code> and <code>gitlab_projects.json</code>, under a
+  per-workspace subdirectory of <code>~/.cache/contextlake</code> (override with <code>cache_dir</code>)</li>
 </ul>
 <h3 id="mirror-clone-clone-missing-repositories"><code>mirror clone</code>: clone missing repositories<a class="anchor" href="#mirror-clone-clone-missing-repositories" title="Link to this section">#</a></h3>
 <p>Clones any repositories that exist in GitLab but are missing locally.</p>
@@ -245,7 +248,7 @@ The only thing that blocks an <code>update</code> is a <em>dirty working tree</e
 
 <h3 id="safety-checks">Safety checks<a class="anchor" href="#safety-checks" title="Link to this section">#</a></h3>
 <ol>
-<li><strong>Clean Workspace Check</strong> (the main guard): detects a dirty working tree, 
+<li><strong>Clean Workspace Check</strong> (the main guard): detects a dirty working tree,
    uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
    <code>update</code> and <code>branches</code> so local work is never clobbered.</li>
 <li><strong>Automatic Stashing</strong>: optionally stashes a dirty tree so <code>update</code> can proceed
@@ -359,7 +362,9 @@ contextlake<span class="w"> </span>--no-protect-working-branches<span class="w">
 <ol>
 <li><strong>Configuration file set up</strong>: Create <code>~/.contextlake.ini</code> with your settings</li>
 </ol>
-<div class="highlight"><pre><span></span><code>cp<span class="w"> </span>.contextlake.ini<span class="w"> </span>~/.contextlake.ini
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>init<span class="w">                       </span><span class="c1"># writes the file for you, prompting for each value</span>
+<span class="c1"># or copy the template and fill it in by hand:</span>
+cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>~/.contextlake.ini
 <span class="c1"># Edit with your work_dir and gitlab_group</span>
 nano<span class="w"> </span>~/.contextlake.ini
 </code></pre></div>
@@ -432,6 +437,42 @@ chmod<span class="w"> </span>+x<span class="w"> </span>/home/user/scripts/contex
 <span class="c1"># Add to crontab</span>
 <span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh
 </code></pre></div>
+<h3 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" title="Link to this section">#</a></h3>
+<p><code>mirror fetch</code>, <code>clone</code>, <code>update</code>, <code>branches</code>, <code>verify</code> and <code>sync</code> exit <code>0</code> when nothing failed and
+<code>1</code> when anything did, including a partial run, where some repositories synced and others did not.
+<code>sync</code> aggregates across all five stages, so one failed clone fails the whole run, and <code>bootstrap</code>
+counts a failed mirror stage the same way it counts a failed knowledge-layer stage. (<code>mirror status</code>
+and <code>mirror audit</code> only report; they do not fail on what they find.)</p>
+<p>Work that was deliberately skipped (already up to date, a protected working branch, <code>--dry-run</code>) is
+never a failure, and <code>mirror verify</code> fails only on a cloned path that is not a valid git repository,
+not on repos that are merely missing or extra.</p>
+<p><code>Ctrl-C</code> exits <code>130</code>; a bad <code>--config</code> path exits <code>1</code>.</p>
+<p>Pass <code>--exit-zero-on-partial</code> to exit <code>0</code> anyway when some repositories failed, the failures are
+still reported, they just do not fail the job.</p>
+<p><code>--verbose</code> also changes what a crash leaves behind: the top-level handler re-raises instead of
+printing <code>Error: &lt;message&gt;</code> alone, so a bug report can carry the traceback without anyone having to
+reproduce the failure under a debugger.</p>
+<h3 id="observing-an-unattended-run">Observing an unattended run<a class="anchor" href="#observing-an-unattended-run" title="Link to this section">#</a></h3>
+<p>An exit code tells you <em>that</em> something broke; these four flags tell you <em>what</em>, after the fact.</p>
+<div class="highlight"><pre><span></span><code><span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--log-format<span class="w"> </span>json<span class="w"> </span>--log-file<span class="w"> </span>/var/log/contextlake/run.log<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--metrics-file<span class="w"> </span>/var/lib/node_exporter/textfile/contextlake.prom
+</code></pre></div>
+<ul>
+<li><strong><code>--log-format json</code></strong> emits one JSON object per line, each stamped with a <code>run_id</code> (pin your own
+  with <code>CONTEXTLAKE_RUN_ID</code>), the <code>command</code>, and, on per-repo lines, <code>repo</code>, <code>status</code>,
+  <code>duration_ms</code>, and <code>error_type</code> on failures.</li>
+<li><strong><code>--metrics-file</code></strong> writes Prometheus textfile-collector output: run duration, exit code, repo
+  counts by outcome, graph size, and a last-success timestamp that survives a failing run. Point
+  node_exporter's <code>--collector.textfile.directory</code> at that directory.</li>
+<li><strong><code>--log-file</code></strong> is redacted by default (workspace paths, <code>$HOME</code>, group and repository names), so
+  the copy you attach to a bug report needs no manual scrubbing. <code>--redact</code> extends that to the
+  console; <code>--no-redact</code> turns it off entirely.</li>
+<li><strong><code>--access-log</code></strong> turns on request logging for the local HTTP servers (<code>kb dashboard</code>,
+  <code>kb graph --serve</code>, <code>kb serve --transport http|sse</code>), which are otherwise silent.</li>
+</ul>
+<p>See <a href="console-output">Reading the console output</a> for the exact JSON shape and metric names, and
+<a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.service" target="_blank" rel="noopener"><code>examples/contextlake.service</code><span class="ext-arrow" aria-hidden="true">↗</span></a> for a systemd unit wired up this way.</p>
 <h3 id="log-rotation">Log rotation<a class="anchor" href="#log-rotation" title="Link to this section">#</a></h3>
 <p>To prevent log files from growing indefinitely, set up log rotation:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Create logrotate configuration</span>
@@ -529,6 +570,8 @@ sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </sp
 <li><a href="#weekly-full-sync-with-branch-management">Weekly full sync with branch management</a></li>
 <li><a href="#multiple-workspaces">Multiple workspaces</a></li>
 <li><a href="#monitoring-and-alerts">Monitoring and alerts</a></li>
+<li><a href="#exit-codes">Exit codes</a></li>
+<li><a href="#observing-an-unattended-run">Observing an unattended run</a></li>
 <li><a href="#log-rotation">Log rotation</a></li>
 </ul>
 </li>
@@ -562,6 +605,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

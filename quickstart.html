@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -49,7 +49,7 @@
     <header class="doc-hero" data-kind="start"><div class="doc-hero-text"><div class="doc-eyebrow">Start here · all three layers</div><h1>Quickstart</h1><p class="doc-sub">Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <p>From a fresh machine to a fully-wired AI workspace, your GitLab repos mirrored,
-indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro, 
+indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro,
 in a few minutes. Everything beyond the mirror is optional and off by default.</p>
 <h2 id="1-prerequisites">1. Prerequisites<a class="anchor" href="#1-prerequisites" title="Link to this section">#</a></h2>
 <ul>
@@ -75,17 +75,17 @@ chmod +x contextlake-*
 without the built-in embedder; <code>[kb-full]</code> is batteries-included. From a clone: <code>pip install ".[kb-full]"</code>.</p>
 <p>No Python on the machine at all? The <strong>Binary</strong> tab needs nothing preinstalled: it's a
 self-contained launcher (built with <a href="https://ofek.dev/pyapp/" target="_blank" rel="noopener">PyApp<span class="ext-arrow" aria-hidden="true">↗</span></a>) that bootstraps a
-private Python + <code>contextlake[kb-full]</code> into its own cache on first run (needs network
-once; every run after that is instant, no reinstall). It doesn't include the optional
-<code>llm-local</code> wiki backend (that needs a C++ toolchain to build), <code>ollama</code>/<code>openai</code>/
-<code>anthropic</code>/<code>cli</code> all still work as wiki LLM providers.</p>
+private Python + <code>contextlake[kb-full,llm-local]</code> into its own cache on first run (needs
+network once; every run after that is instant, no reinstall). The built-in wiki LLM comes
+along: the bootstrap already points pip at the prebuilt CPU wheel index, so there is no
+C++ toolchain to install and nothing for you to pass.</p>
 <p><strong><code>[kb-full]</code></strong> is the batteries-included install: the knowledge layer plus the
 built-in CPU embedder (no Ollama, no API key) and the fast <code>sqlite-vec</code> backend, so
 semantic search and the <code>ask</code> tool work the moment you turn embeddings on, with no
 extra downloads or warnings. Plain <strong><code>[kb]</code></strong> is the graph + full-text search only; add
 <code>[kb-local]</code> for the embedder and <code>[kb-vec]</code> for the ANN backend if you prefer to pick.</p>
 <p>This gives you the <code>contextlake</code> command. (<code>python -m contextlake</code> and
-<code>python3 contextlake.py</code> work too.)</p>
+<code>python3 run-contextlake.py</code> work too.)</p>
 <h3 id="update-to-a-newer-version">Update to a newer version<a class="anchor" href="#update-to-a-newer-version" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>upgrade<span class="w"> </span>contextlake<span class="w">                       </span><span class="c1"># if you installed with pipx</span>
 pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span><span class="w">   </span><span class="c1"># if you installed with pip</span>
@@ -93,22 +93,28 @@ uv<span class="w"> </span>tool<span class="w"> </span>upgrade<span class="w"> </
 docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">   </span><span class="c1"># if you use the image</span>
 </code></pre></div>
 <p>Then confirm with <code>contextlake --version</code> and re-check your environment with
-<code>contextlake doctor</code>. Your existing store and config carry forward, the graph
-re-indexes incrementally on your next <code>kb index</code>/<code>mirror sync</code>, so there is nothing to migrate by
-hand. See the <a href="changelog">changelog</a> for what changed between versions.</p>
+<code>contextlake doctor</code>. Your existing store and config carry forward.</p>
+<p>Do not skip the <code>doctor</code> run. A release that changes the parser makes every existing shard
+stale, and a plain <code>kb index</code> will not pick that up, because it skips repos whose HEAD commit
+has not moved and upgrading contextlake moves nobody's HEAD. <code>doctor</code> compares each shard's
+recorded parser version against the running one and names the repos to rebuild. When it asks,
+run <code>contextlake kb index --force</code>. <strong>Upgrading to 5.0.0 requires this for every indexed repo.</strong></p>
+<p>See the <a href="changelog">changelog</a> for what changed between versions.</p>
 <h3 id="install-scenarios-flag-cheatsheet">Install scenarios &amp; flag cheatsheet<a class="anchor" href="#install-scenarios-flag-cheatsheet" title="Link to this section">#</a></h3>
 <p>Real setups and the exact command for each. What the flags mean:</p>
 <ul>
 <li><strong><code>-U</code> / <code>--upgrade</code></strong>, move an already-installed contextlake to the newest version
   (without it, pip sees it installed and does nothing).</li>
-<li><strong><code>--only-binary :all:</code></strong>, install from prebuilt <strong>wheels only, never build from
-  source</strong> (<code>:all:</code> = every package; opposite is <code>--no-binary</code>). On a machine with no
-  C/C++ compiler this turns a confusing build failure into a clean "no wheel available"
-  message. It errors if a wheel truly doesn't exist, which is the point: a clear signal
-  beats a doomed compile.</li>
-<li><strong><code>--extra-index-url URL</code></strong>, also look for wheels at <code>URL</code> (e.g. the <code>llama-cpp-python</code>
-  CPU-wheel index that PyPI doesn't mirror). See <a href="knowledge-layer#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt
-  wheel</a>.</li>
+<li><strong><code>--only-binary NAME</code></strong>, install that package from a prebuilt <strong>wheel only, never
+  build from source</strong> (<code>:all:</code> is the every-package token; opposite is <code>--no-binary</code>). On a
+  machine with no C/C++ compiler this turns a confusing build failure into a clean "no
+  wheel available" message. Name the one native package rather than using <code>:all:</code> when you
+  still want a source fallback for everything else.</li>
+<li><strong><code>--extra-index-url URL</code></strong>, also look for wheels at <code>URL</code>. Required for the built-in
+  wiki LLM: <code>llama-cpp-python</code> publishes no wheels to PyPI (llama.cpp is built per hardware
+  backend, so upstream ships one index per accelerator), so without one pip compiles C++
+  from source. See <a href="model-providers#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in
+  LLM</a>.</li>
 <li><strong><code>[extra]</code></strong>, an optional feature bundle: <code>[kb-full]</code> (recommended: graph + search +
   built-in embedder + <code>sqlite-vec</code> ANN), <code>[kb]</code> (graph + full-text only), <code>[kb-local]</code> /
   <code>[kb-vec]</code> (pick embedder / ANN yourself), <code>[llm-local]</code> (the built-in wiki model).</li>
@@ -134,12 +140,16 @@ hand. See the <a href="changelog">changelog</a> for what changed between version
 <td><code>pip install -U "contextlake[kb-full]"</code> (or <code>pipx upgrade contextlake</code>)</td>
 </tr>
 <tr>
-<td>"Brand-new Python (e.g. 3.14), no compiler, a source build just failed."</td>
-<td><code>pip install -U --only-binary :all: "contextlake[kb-full]"</code>, for the built-in wiki LLM (<code>[llm-local]</code>) also add <code>--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu</code></td>
+<td>"No compiler, and a source build just failed."</td>
+<td><code>pip install -U --only-binary :all: "contextlake[kb-full]"</code></td>
+</tr>
+<tr>
+<td>"I want the built-in wiki LLM (<code>[llm-local]</code>), installed with pip."</td>
+<td><code>contextlake doctor --fix llm-local</code>, or by hand: <code>pip install "contextlake[llm-local]" --only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu</code> (the index is <strong>not</strong> optional: upstream publishes no PyPI wheels, so without it pip compiles C++ from source)</td>
 </tr>
 <tr>
 <td>"I don't want any local toolchain at all."</td>
-<td>Use the image: <code>docker pull ghcr.io/sayak-sarkar/contextlake</code> (bundles every dep + the model, no compiler, no wheels to chase)</td>
+<td>The standalone binary (bootstraps its own Python and extras on first run, network needed once), or the image: <code>docker pull ghcr.io/sayak-sarkar/contextlake</code> (every dep + the built-in models baked in, works offline)</td>
 </tr>
 </tbody>
 </table>
@@ -203,15 +213,23 @@ graph → connectors → semantic vectors → <strong>curated wiki</strong> → 
 generated (graph, vectors, wiki pages, exports) lands under a single <code>store_dir</code>, so
 pointing that at a workspace folder (e.g. <code>store_dir = "~/work/my-kb"</code>) keeps the whole
 knowledge base in one easy-to-find place.</p>
-<p><code>--llm builtin</code> powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once)
-via the <code>llm-local</code> extra, <code>pip install "contextlake[llm-local]"</code>. If that extra fails
-to build (<code>llama-cpp-python</code> has no prebuilt wheel for your Python, e.g. 3.14, and no
-compiler is installed), install the CPU wheel directly, no compiler needed. The
-<code>--only-binary :all:</code> flag makes pip refuse a source build, so you get a clean error
-instead of a compiler-error wall:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
+<p><code>--llm builtin</code> powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once) via
+the <code>llm-local</code> extra. The <strong>standalone binary</strong> already has it configured (it installs it on
+first run) and the <strong>full Docker image</strong> ships it baked in, so neither needs anything here.
+On a pip install:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local
+</code></pre></div>
+<p>That installs into the interpreter contextlake is running in, with the upstream CPU wheel
+index attached, and prints the exact command before running it (<code>--dry-run</code> prints it and
+stops). By hand it is:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[llm-local]&quot;</span><span class="w"> </span>--only-binary<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
 </code></pre></div>
+<p>The index is not optional: <code>llama-cpp-python</code> publishes <strong>no wheels to PyPI</strong>, because
+llama.cpp is built per hardware backend and upstream ships one index per accelerator (CPU,
+CUDA, Metal). So a plain <code>pip install "contextlake[llm-local]"</code> compiles C++ from source and
+needs <code>cmake</code> plus a compiler. See <a href="model-providers#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in
+LLM</a>.</p>
 <p>Prefer <code>--llm ollama</code> or <code>--llm openai</code> for higher-quality prose; without any <code>--llm</code>
 (and without <code>[llm]</code> enabled in <code>kb.toml</code>) the wiki stage is skipped. Useful toggles:</p>
 <ul>
@@ -280,6 +298,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

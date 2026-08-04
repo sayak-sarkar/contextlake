@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Model providers · contextlake docs">
 <meta name="twitter:description" content="The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -66,10 +66,12 @@ by what may leave your machine and what hardware you have.</p>
 <li><em>Embeddings</em>, <code>engine = "model2vec"</code> (default): static <code>potion-base-8M</code> (~30MB, MIT), numpy inference,
     very fast at scale, <code>pip install "contextlake[kb-local]"</code>. Or <code>engine = "fastembed"</code>: ONNX <code>bge-small</code>
     (~90MB, MIT, higher quality), <code>pip install "contextlake[kb-fastembed]"</code>.</li>
-<li><em>Wiki LLM</em>, a <code>Qwen2.5-0.5B-Instruct</code> GGUF (Apache-2.0) via <code>llama-cpp-python</code>, <code>pip install
-    "contextlake[llm-local]"</code>. Fast to set up, but <strong>0.5B is a modest writer</strong> (good for coverage, not
+<li><em>Wiki LLM</em>, a <code>Qwen2.5-0.5B-Instruct</code> GGUF (Apache-2.0) via <code>llama-cpp-python</code>,
+    <code>contextlake doctor --fix llm-local</code> (upstream ships no PyPI wheels, so a plain
+    <code>pip install "contextlake[llm-local]"</code> compiles C++ from source; see below).
+    Fast to set up, but <strong>0.5B is a modest writer</strong> (good for coverage, not
     polished prose) and CPU generation is <strong>slow</strong> (~4 calls/repo). Prefer Ollama at any real scale. See
-    <a href="#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt wheel</a>
+    <a href="#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in LLM</a>
     and <a href="#how-much-does-the-model-matter">How much does the model matter?</a>.</li>
 <li><strong><code>ollama</code></strong>, a local <a href="https://ollama.com" target="_blank" rel="noopener">Ollama<span class="ext-arrow" aria-hidden="true">↗</span></a> daemon (<code>base_url</code>, default
   <code>http://127.0.0.1:11434</code>), the <strong>recommended</strong> wiki backend: no Python native build, and a 3B-8B model
@@ -93,7 +95,12 @@ by what may leave your machine and what hardware you have.</p>
   subscription login and bill a pay-per-token account you never meant to use here. Confirmed by live repro
   for <code>claude</code> and by its own docs for <code>gemini</code>; <code>codex</code>'s docs describe API-key auth as a separate,
   explicitly-opted-into mode rather than an environment-variable override, so the strip is a defensive
-  precaution there rather than a confirmed-necessary fix.</li>
+  precaution there rather than a confirmed-necessary fix.
+  <strong><code>provider = "cli"</code>, <code>command</code>, and <code>args</code> are read only from <code>~/.contextlake/kb.toml</code> or a
+  <code>--config</code> path</strong>, never from a <code>.contextlake.kb.toml</code> found by walking up from your current
+  directory, since that file may have arrived inside a repository you cloned and these keys are a
+  command line contextlake runs. Setting them locally logs a warning and is ignored; every other
+  provider works from a local file as usual. See <a href="https://github.com/sayak-sarkar/contextlake/blob/main/SECURITY.md#workspace-trust" target="_blank" rel="noopener">Workspace trust<span class="ext-arrow" aria-hidden="true">↗</span></a>.</li>
 </ul>
 <p><strong>Data-sharing posture per backend.</strong> Pick by what may leave your machine:</p>
 <table>
@@ -187,40 +194,66 @@ API key that happens to be in your environment. See
 openai-compatible server, never just to make <code>anthropic</code>/<code>openai</code> work.</p>
 <p>CLI flags override the toml and now work on <strong><code>bootstrap</code></strong> too:
 <code>contextlake bootstrap --llm ollama --llm-model qwen2.5:3b</code>.</p>
-<h2 id="why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt wheel (or a compiler)<a class="anchor" href="#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler" title="Link to this section">#</a></h2>
-<p>The <code>builtin</code> wiki model runs a <strong>GGUF</strong> model through
-<a href="https://github.com/abetlen/llama-cpp-python" target="_blank" rel="noopener"><code>llama-cpp-python</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, Python bindings around <code>llama.cpp</code>, a
-<strong>C++</strong> inference engine. Native (C/C++) packages ship as <strong>prebuilt binary wheels</strong>, one per (OS, CPU,
-Python version). Two consequences explain why an extra step is sometimes needed and why contextlake can't
-do it for you:</p>
-<ol>
-<li><strong>A dependency can't carry an index URL.</strong> <code>contextlake[llm-local]</code> can only <em>name</em> <code>llama-cpp-python</code>;
-   Python packaging (PEP 508) deliberately forbids pinning an <code>--extra-index-url</code> in a package's metadata
-   (for reproducibility and supply-chain safety). So contextlake cannot make <code>pip</code> look anywhere but your
-   configured indexes (PyPI by default), only <em>your</em> <code>pip</code> command can add one.</li>
-<li><strong>PyPI lags brand-new Pythons.</strong> Wheels are uploaded per interpreter version; a just-released Python
-   (e.g. <strong>3.14</strong>) often has <strong>no wheel on PyPI yet</strong>, so <code>pip</code> falls back to the source tarball and tries
-   to <strong>compile</strong>, which needs <code>cmake</code> + a C/C++ compiler you may not have installed. That is the build
-   failure you saw.</li>
-</ol>
-<p>The maintainer also publishes a <strong>prebuilt CPU wheel index</strong> carrying wheels PyPI doesn't have yet, so
-pointing pip at it skips compilation entirely, no compiler needed:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>llama-cpp-python<span class="w"> </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
+<h2 id="installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in LLM (and why it needs a wheel index)<a class="anchor" href="#installing-the-built-in-llm-and-why-it-needs-a-wheel-index" title="Link to this section">#</a></h2>
+<p><strong>What you do depends on how you installed contextlake:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>What you do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Standalone binary</strong></td>
+<td>Nothing to pass. <code>llm-local</code> and the wheel index are preconfigured, and the binary installs them on its first run (which needs network once, like any first run).</td>
+</tr>
+<tr>
+<td><strong>Docker</strong> (<code>ghcr.io/sayak-sarkar/contextlake</code>)</td>
+<td>Nothing at all. The full image already carries the runtime and the GGUF, so it works offline. (The <code>:slim</code> tag deliberately does not; point that one at Ollama or an API.)</td>
+</tr>
+<tr>
+<td><strong>pip / pipx / uv</strong></td>
+<td>One command, below. This is the only channel where you supply the index yourself.</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">     </span><span class="c1"># --dry-run prints the exact command and stops</span>
 </code></pre></div>
-<p><strong>Belt-and-suspenders: <code>--only-binary :all:</code>.</strong> On a compiler-less machine, add this flag so pip <em>refuses</em>
-to fall back to a source build for <strong>any</strong> package, you get a clean "no matching distribution" message
-instead of a wall of <code>cmake</code>/compiler errors. <code>:all:</code> is the all-packages token (its opposite is
-<code>--no-binary</code>). Combined with the CPU-wheel index, this installs the built-in LLM on a brand-new Python
-with no toolchain:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
+<p>That runs pip in <em>your</em> interpreter with the CPU wheel index already attached, printing the command
+before it runs. By hand it is:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[llm-local]&quot;</span><span class="w"> </span>--only-binary<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
 </code></pre></div>
-<p>The trade-off is deliberate: if a wheel genuinely doesn't exist for your platform, the command stops with
-an actionable error rather than attempting a build that can't succeed.</p>
-<p>On a mainstream Python (3.10-3.13) none of this applies: <code>pip install "contextlake[llm-local]"</code> finds a
-PyPI wheel and Just Works. It is specifically the bleeding-edge-interpreter case that needs the extra
-index. The cleanest way to avoid the native build altogether is to <strong>use Ollama</strong> (below), a standalone
-binary with no Python compile step.</p>
+<h3 id="why-an-index-at-all">Why an index at all<a class="anchor" href="#why-an-index-at-all" title="Link to this section">#</a></h3>
+<p>The <code>builtin</code> wiki model runs a <strong>GGUF</strong> model through
+<a href="https://github.com/abetlen/llama-cpp-python" target="_blank" rel="noopener"><code>llama-cpp-python</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, Python bindings around <code>llama.cpp</code>, a
+<strong>C++</strong> inference engine. Two facts explain the extra flag, and why contextlake cannot fold it into the
+extra itself:</p>
+<ol>
+<li><strong>Upstream publishes no wheels to PyPI at all</strong>: every release is a source tarball. That is not
+   neglect: llama.cpp is compiled <strong>per hardware backend</strong>, and one PyPI namespace cannot hold the CPU,
+   CUDA and Metal builds of the same version and platform tag. So upstream ships <strong>one index per
+   accelerator</strong> instead, the same convention PyTorch uses with <code>download.pytorch.org/whl/cpu</code> versus
+   <code>/whl/cu121</code>. Without one of those indexes, <code>pip install "contextlake[llm-local]"</code> always falls back to
+   compiling, which needs <code>cmake</code> plus a C/C++ compiler.</li>
+<li><strong>A dependency can't carry an index URL.</strong> <code>contextlake[llm-local]</code> can only <em>name</em> <code>llama-cpp-python</code>;
+   Python packaging (PEP 508) deliberately forbids pinning an <code>--extra-index-url</code> in a package's metadata
+   (for reproducibility and supply-chain safety). So the extra alone can never point pip anywhere but your
+   configured indexes; only the <code>pip</code> command line can add one.</li>
+</ol>
+<p><strong>Picking an index.</strong> CPU is the default and what <code>doctor --fix</code> uses: the built-in tier is a small 0.5B
+model, and GPU inference is better served by Ollama anyway. The published alternatives are
+<code>.../whl/cu121</code>, <code>/whl/cu122</code>, <code>/whl/cu124</code> (CUDA) and <code>/whl/metal</code> (Apple silicon); swap the URL if you
+want one, the rest of the command is identical.</p>
+<p><strong>Why <code>--only-binary llama-cpp-python</code>.</strong> It makes pip <em>refuse</em> a source build for that one package, so a
+platform with no wheel gives you a one-line "no matching distribution" instead of a wall of <code>cmake</code>
+errors. It deliberately names the package rather than using the <code>:all:</code> token: <code>:all:</code> would forbid a
+source fallback for <strong>every</strong> dependency, and one missing wheel anywhere would then fail the whole
+install.</p>
+<p>None of this applies to the other extras: <code>[kb]</code>, <code>[kb-local]</code>, <code>[kb-vec]</code> all resolve to ordinary PyPI
+wheels. It is specific to the built-in LLM. The cleanest way to avoid the native build altogether is to
+<strong>use Ollama</strong> (below), a standalone binary with no Python compile step.</p>
 <h2 id="using-ollama-for-the-wiki">Using Ollama for the wiki<a class="anchor" href="#using-ollama-for-the-wiki" title="Link to this section">#</a></h2>
 <p><a href="https://ollama.com" target="_blank" rel="noopener">Ollama<span class="ext-arrow" aria-hidden="true">↗</span></a> is a standalone local model server. It sidesteps the native Python build, and
 a 3B-8B model writes much better wiki pages than the 0.5B built-in.</p>
@@ -305,6 +338,12 @@ GPU generates in <em>seconds</em>, not minutes. So:</p>
 <span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span>
 <span class="n">timeout</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mi">1200</span><span class="w">        </span><span class="c1"># give a slow CPU room; default is 300s (5 min)</span>
 </code></pre></div>
+<p>If the endpoint stops answering rather than being slow, raising <code>timeout</code> makes things worse: a wiki run
+calls the model once per page. After three consecutive endpoint failures (a timeout, a refused
+connection, a 5xx) the provider is skipped for 60 seconds and then probed once, so a dead Ollama daemon
+or an unreachable API costs the run a few timeouts instead of one per page, and says so in the log. A
+rejected <em>request</em> is exempt and always reported as itself, so <code>model "..." not found, try pulling it
+first</code> keeps telling you to run <code>ollama pull</code> however many pages are left.</p>
 <p>Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (<code>export REQUESTS_CA_BUNDLE</code> / <code>SSL_CERT_FILE</code>; see <code>docs/releasing.md</code>). Don't switch the embedder
 model/dimension against an existing vector store without re-embedding from scratch, a guard refuses the
@@ -321,7 +360,10 @@ downloads at runtime. See <code>examples/kb.toml.example</code>.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#configuring-the-wiki-llm">Configuring the wiki LLM</a></li>
-<li><a href="#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler">Why the built-in LLM needs a prebuilt wheel (or a compiler)</a></li>
+<li><a href="#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in LLM (and why it needs a wheel index)</a><ul>
+<li><a href="#why-an-index-at-all">Why an index at all</a></li>
+</ul>
+</li>
 <li><a href="#using-ollama-for-the-wiki">Using Ollama for the wiki</a></li>
 <li><a href="#how-much-does-the-model-matter">How much does the model matter?</a></li>
 <li><a href="#see-also">See also</a></li>
@@ -353,6 +395,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Index the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=88ee5b7">
-<link rel="stylesheet" href="tokens.css?v=88ee5b7">
-<link rel="stylesheet" href="docs.css?v=88ee5b7">
-<link rel="stylesheet" href="cmdk.css?v=88ee5b7">
+<link rel="stylesheet" href="fonts.css?v=1f0afba">
+<link rel="stylesheet" href="tokens.css?v=1f0afba">
+<link rel="stylesheet" href="docs.css?v=1f0afba">
+<link rel="stylesheet" href="cmdk.css?v=1f0afba">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -82,10 +82,13 @@ and lockfiles from the graph.</p>
 <h2 id="health-and-maintenance">Health and maintenance<a class="anchor" href="#health-and-maintenance" title="Link to this section">#</a></h2>
 <p><code>contextlake doctor</code> checks the environment (FTS5, <code>git</code> / <code>glab</code> on PATH, the store, the embedder, and the
 ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
-doesn't affect the exit code) any C/C++ shard indexed with an older parser version than the one currently
-installed -- a nudge to re-index that repo so it picks up parser-correctness fixes. <code>contextlake kb lint</code>
-audits the graph itself, reporting <strong>stale repos</strong> (HEAD moved since they were indexed) and <strong>dangling
-edges</strong> (an edge whose endpoint node is missing). Both exit non-zero on problems, so they're CI-friendly.</p>
+doesn't affect the exit code) any shard indexed with an older parser version than the one currently
+installed -- <code>contextlake kb index</code> rebuilds those on its next run, so they pick up parser-correctness fixes.
+<code>contextlake kb lint</code> audits the graph itself, reporting <strong>stale repos</strong> (HEAD moved since they were
+indexed), <strong>dangling edges</strong> (an edge whose endpoint node is missing), and the same <strong>older-parser</strong> repos
+doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
+lint that means dangling edges or HEAD-stale repos; the older-parser count is reported but deliberately kept
+out of its exit code, so upgrading to a build with a new parser can't turn a green CI gate red on its own.</p>
 <h2 id="what-the-graph-captures">What the graph captures<a class="anchor" href="#what-the-graph-captures" title="Link to this section">#</a></h2>
 <p>Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
 interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong> (<code>inherits</code> edges for
@@ -163,6 +166,21 @@ semantically searchable.</p>
 <p>It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a <strong>deliberate undercount</strong>. Render it with
 <code>contextlake kb graph --repo &lt;repo&gt; --format erdiagram</code> (a Mermaid ER diagram), see <a href="visualize">Visualize</a>.</p>
+<p><strong>Measured, not just asserted:</strong> <code>tests/kb/fixtures/sql/</code> is a small, synthetic, hand-labelled
+orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
+call real (<code>expected_edges.json</code>, 13 edges); <code>tests/kb/test_sql_fixture_corpus.py</code> scores the parser's
+emitted <code>references</code> edges against it on every CI run. Current numbers on that corpus: <strong>precision 0.90
+(9 true positives / 1 false positive), recall 0.69 (9 / 13 ground-truth edges found)</strong>, a small,
+hand-built corpus, not a claim about the whole fleet, but real and reproducible. Two documented gap
+classes account for the four missed edges, both by design, not bugs: a
+<strong>self-referencing FK</strong> (<code>referred_by</code>/<code>parent_category_id</code>-style hierarchies) is dropped because the
+extractor excludes <code>target == name</code>, and an FK <strong>attached via a separate <code>ALTER TABLE ... ADD CONSTRAINT</code></strong>
+statement is never captured because the scope tracker only scans <code>REFERENCES</code> inside a <code>CREATE TABLE</code>'s
+own text span. The one measured false positive comes from a <strong>commented-out <code>REFERENCES</code> line</strong>: the
+regex has no comment-awareness, so dead DDL history left in a script can resolve into a real-looking edge
+if its target table still exists. These are the numbers to distrust a graph <code>INFERRED</code> SQL edge by, and
+the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
+target already met.</p>
 <h3 id="architecture-decisions-adrs">Architecture decisions (ADRs)<a class="anchor" href="#architecture-decisions-adrs" title="Link to this section">#</a></h3>
 <p>A repo's own decision records, under common conventions (<code>docs/adr/</code>, <code>docs/decisions/</code>,
 <code>decisions/</code>, <code>adr/</code>, one file per decision), become first-class <code>adr</code> nodes in that repo's shard,
@@ -307,6 +325,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=88ee5b7"></script>
+<script defer src="cmdk.js?v=1f0afba"></script>
 </body>
 </html>

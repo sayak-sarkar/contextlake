@@ -38,7 +38,7 @@ package, where a symbol is really defined across dozens of repos, and it starts 
 
 **contextlake gives your tools the real source to read.** It mirrors your repositories to
 your machine, indexes them into a queryable knowledge graph, and serves that graph to your
-editor over [MCP](https://modelcontextprotocol.io). Everything runs locally and offline, 
+editor over [MCP](https://modelcontextprotocol.io). Everything runs locally and offline,
 no code leaves your machine, and it carries no credentials of its own.
 
 ## How it works
@@ -96,6 +96,17 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 | `[kb-fastembed]` | A higher-quality ONNX embedder (~90 MB) | Better semantic ranking |
 | `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `wiki --llm builtin` with no Ollama or API key |
 
+`[llm-local]` is the one extra a plain `pip install` cannot finish on its own: `llama-cpp-python`
+publishes no wheels to PyPI (llama.cpp is built per hardware backend, so upstream ships one index
+per accelerator), so pip compiles C++ unless you point it at one. Let contextlake do it:
+
+```bash
+contextlake doctor --fix llm-local     # add --dry-run to see the exact command first
+```
+
+This applies to pip installs only: the standalone binary has the index preconfigured and installs
+the runtime on its first run, and the full Docker image ships it baked in.
+
 </details>
 
 <details>
@@ -104,11 +115,23 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 The published image bundles the knowledge layer plus the built-in CPU models
 (embedder + a small wiki LLM), so it runs with no Ollama, no API key, and no
 model download at runtime. The PyPI wheel stays the primary install; reach for
-the image on locked-down or offline machines.
+the image on locked-down or offline machines. Runs as a non-root user.
 
 ```bash
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
+```
+
+The `-v` mount is what makes the run worth doing: everything contextlake persists, the
+knowledge store included, is written under it as `.contextlake/`, so it is still there on
+the host after the container exits. Drop the `-v` and the run is ephemeral.
+
+A `:slim` tag is also published, no `llama-cpp-python`, no baked wiki-LLM GGUF,
+much smaller pull. Semantic search still works (the embedder is pure Python);
+point the wiki tier at Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
+
+```bash
+docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake:slim doctor
 ```
 </details>
 
@@ -133,9 +156,21 @@ uv tool upgrade contextlake                     # uv
 docker pull ghcr.io/sayak-sarkar/contextlake   # image
 ```
 
-Your store and config carry forward. The graph re-indexes incrementally on the next
-`index`/`sync`, so nothing needs migrating. Confirm with `contextlake --version` and
+Your store and config carry forward. Confirm with `contextlake --version`, then run
 `contextlake doctor`.
+
+`doctor` is load-bearing here, not a formality. An upgrade that changes how code is parsed
+leaves every existing shard describing the old parse, and a plain `kb index` will not notice:
+it skips repos whose HEAD commit has not moved, and upgrading contextlake does not move
+anyone's HEAD. `doctor` compares the parser version recorded in each shard against the running
+one and names the repos that need rebuilding. When it asks for one, force it:
+
+```bash
+contextlake kb index --force
+```
+
+Upgrading to **5.0.0 specifically requires this**, for every indexed repo: that release changed
+the parser and every shard written before it is stale.
 
 Uninstall the tool, then optionally remove what it created (it never writes inside your
 repos, so your source is never touched):
@@ -153,7 +188,7 @@ rm -f  ~/.contextlake.ini         # mirror config (optional)
 `BITBUCKET_TOKEN` / `GITEA_TOKEN`); on GitLab an authenticated
 [`glab`](https://gitlab.com/gitlab-org/cli) works instead. The knowledge layer needs
 neither. Once installed, `contextlake`, `python -m contextlake`, and
-`python3 contextlake.py` are equivalent.
+`python3 run-contextlake.py` are equivalent.
 
 ## Quickstart: one repo, no setup
 
@@ -261,6 +296,12 @@ Global options apply to any command: `--dry-run` (preview without changing anyth
 `-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`, `--version`. Output is colorized on
 a TTY and plain when piped; set `NO_COLOR` to force-disable.
 
+For runs nobody watches, the systemd timer in [`examples/`](examples/), cron, CI, there is a
+second set: `--log-format json` (one JSON object per line, every line stamped with a run id),
+`--metrics-file PATH` (Prometheus textfile-collector output), `--redact` (the `--log-file` copy
+is already scrubbed of workspace paths, group and repo names), and `--access-log`. See
+[Reading the console output](docs/console-output.md).
+
 ## Knowledge layer
 
 Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge
@@ -317,7 +358,7 @@ Source: https://sayak.in/contextlake/quickstart
 # Quick start
 
 From a fresh machine to a fully-wired AI workspace, your GitLab repos mirrored,
-indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro, 
+indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro,
 in a few minutes. Everything beyond the mirror is optional and off by default.
 
 ## 1. Prerequisites
@@ -346,10 +387,10 @@ without the built-in embedder; `[kb-full]` is batteries-included. From a clone: 
 
 No Python on the machine at all? The **Binary** tab needs nothing preinstalled: it's a
 self-contained launcher (built with [PyApp](https://ofek.dev/pyapp/)) that bootstraps a
-private Python + `contextlake[kb-full]` into its own cache on first run (needs network
-once; every run after that is instant, no reinstall). It doesn't include the optional
-`llm-local` wiki backend (that needs a C++ toolchain to build), `ollama`/`openai`/
-`anthropic`/`cli` all still work as wiki LLM providers.
+private Python + `contextlake[kb-full,llm-local]` into its own cache on first run (needs
+network once; every run after that is instant, no reinstall). The built-in wiki LLM comes
+along: the bootstrap already points pip at the prebuilt CPU wheel index, so there is no
+C++ toolchain to install and nothing for you to pass.
 
 **`[kb-full]`** is the batteries-included install: the knowledge layer plus the
 built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend, so
@@ -358,7 +399,7 @@ extra downloads or warnings. Plain **`[kb]`** is the graph + full-text search on
 `[kb-local]` for the embedder and `[kb-vec]` for the ANN backend if you prefer to pick.
 
 This gives you the `contextlake` command. (`python -m contextlake` and
-`python3 contextlake.py` work too.)
+`python3 run-contextlake.py` work too.)
 
 ### Update to a newer version
 
@@ -370,9 +411,15 @@ docker pull ghcr.io/sayak-sarkar/contextlake   # if you use the image
 ```
 
 Then confirm with `contextlake --version` and re-check your environment with
-`contextlake doctor`. Your existing store and config carry forward, the graph
-re-indexes incrementally on your next `kb index`/`mirror sync`, so there is nothing to migrate by
-hand. See the [changelog](CHANGELOG.md) for what changed between versions.
+`contextlake doctor`. Your existing store and config carry forward.
+
+Do not skip the `doctor` run. A release that changes the parser makes every existing shard
+stale, and a plain `kb index` will not pick that up, because it skips repos whose HEAD commit
+has not moved and upgrading contextlake moves nobody's HEAD. `doctor` compares each shard's
+recorded parser version against the running one and names the repos to rebuild. When it asks,
+run `contextlake kb index --force`. **Upgrading to 5.0.0 requires this for every indexed repo.**
+
+See the [changelog](CHANGELOG.md) for what changed between versions.
 
 ### Install scenarios & flag cheatsheet
 
@@ -380,14 +427,16 @@ Real setups and the exact command for each. What the flags mean:
 
 - **`-U` / `--upgrade`**, move an already-installed contextlake to the newest version
   (without it, pip sees it installed and does nothing).
-- **`--only-binary :all:`**, install from prebuilt **wheels only, never build from
-  source** (`:all:` = every package; opposite is `--no-binary`). On a machine with no
-  C/C++ compiler this turns a confusing build failure into a clean "no wheel available"
-  message. It errors if a wheel truly doesn't exist, which is the point: a clear signal
-  beats a doomed compile.
-- **`--extra-index-url URL`**, also look for wheels at `URL` (e.g. the `llama-cpp-python`
-  CPU-wheel index that PyPI doesn't mirror). See [Why the built-in LLM needs a prebuilt
-  wheel](docs/knowledge-layer.md#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler).
+- **`--only-binary NAME`**, install that package from a prebuilt **wheel only, never
+  build from source** (`:all:` is the every-package token; opposite is `--no-binary`). On a
+  machine with no C/C++ compiler this turns a confusing build failure into a clean "no
+  wheel available" message. Name the one native package rather than using `:all:` when you
+  still want a source fallback for everything else.
+- **`--extra-index-url URL`**, also look for wheels at `URL`. Required for the built-in
+  wiki LLM: `llama-cpp-python` publishes no wheels to PyPI (llama.cpp is built per hardware
+  backend, so upstream ships one index per accelerator), so without one pip compiles C++
+  from source. See [Installing the built-in
+  LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 - **`[extra]`**, an optional feature bundle: `[kb-full]` (recommended: graph + search +
   built-in embedder + `sqlite-vec` ANN), `[kb]` (graph + full-text only), `[kb-local]` /
   `[kb-vec]` (pick embedder / ANN yourself), `[llm-local]` (the built-in wiki model).
@@ -397,8 +446,9 @@ Real setups and the exact command for each. What the flags mean:
 | "Just mirror my repos, nothing else." | `pipx install contextlake` |
 | "Full knowledge layer, zero config." | `pipx install "contextlake[kb-full]"` (or `uvx --from "contextlake[kb-full]" contextlake`) |
 | "Upgrade to the latest." | `pip install -U "contextlake[kb-full]"` (or `pipx upgrade contextlake`) |
-| "Brand-new Python (e.g. 3.14), no compiler, a source build just failed." | `pip install -U --only-binary :all: "contextlake[kb-full]"`, for the built-in wiki LLM (`[llm-local]`) also add `--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` |
-| "I don't want any local toolchain at all." | Use the image: `docker pull ghcr.io/sayak-sarkar/contextlake` (bundles every dep + the model, no compiler, no wheels to chase) |
+| "No compiler, and a source build just failed." | `pip install -U --only-binary :all: "contextlake[kb-full]"` |
+| "I want the built-in wiki LLM (`[llm-local]`), installed with pip." | `contextlake doctor --fix llm-local`, or by hand: `pip install "contextlake[llm-local]" --only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` (the index is **not** optional: upstream publishes no PyPI wheels, so without it pip compiles C++ from source) |
+| "I don't want any local toolchain at all." | The standalone binary (bootstraps its own Python and extras on first run, network needed once), or the image: `docker pull ghcr.io/sayak-sarkar/contextlake` (every dep + the built-in models baked in, works offline) |
 
 ### Uninstall
 
@@ -485,17 +535,29 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once)
-via the `llm-local` extra, `pip install "contextlake[llm-local]"`. If that extra fails
-to build (`llama-cpp-python` has no prebuilt wheel for your Python, e.g. 3.14, and no
-compiler is installed), install the CPU wheel directly, no compiler needed. The
-`--only-binary :all:` flag makes pip refuse a source build, so you get a clean error
-instead of a compiler-error wall:
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once) via
+the `llm-local` extra. The **standalone binary** already has it configured (it installs it on
+first run) and the **full Docker image** ships it baked in, so neither needs anything here.
+On a pip install:
 
 ```bash
-pip install --only-binary :all: llama-cpp-python \
+contextlake doctor --fix llm-local
+```
+
+That installs into the interpreter contextlake is running in, with the upstream CPU wheel
+index attached, and prints the exact command before running it (`--dry-run` prints it and
+stops). By hand it is:
+
+```bash
+pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
   --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
+
+The index is not optional: `llama-cpp-python` publishes **no wheels to PyPI**, because
+llama.cpp is built per hardware backend and upstream ships one index per accelerator (CPU,
+CUDA, Metal). So a plain `pip install "contextlake[llm-local]"` compiles C++ from source and
+needs `cmake` plus a compiler. See [Installing the built-in
+LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 
 Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
 (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:
@@ -563,10 +625,12 @@ has no post-install hook to run anything at (that's a deliberate Python packagin
 gap here), so instead the **first time any command runs in a real interactive terminal**,
 contextlake registers completion for you, once, and says so in the log. Skipped entirely in
 non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure, set
-`CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. `contextlake init` offers
-the same registration explicitly (on by default; pass `--no-completion` to skip) if you'd rather
-decide up front, and an explicit decline there is remembered, the automatic check never overrides
-it later.
+`CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. An **interactive**
+`contextlake init` offers the same registration explicitly (on by default; pass `--no-completion`
+to skip) if you'd rather decide up front, and an explicit decline there is remembered, the
+automatic check never overrides it later. A **non-interactive** `init` (`--skip-interactive`, or a
+piped stdin) never touches your shell startup file: nobody was asked, so pass `--completion` to opt
+in, or run `contextlake completion` afterwards.
 
 Run it again on demand (a different shell, after skipping it once, or just to re-run it) with:
 
@@ -668,7 +732,8 @@ This command:
 - Uses the GitLab API with pagination to fetch all projects
 - Includes subgroups automatically
 - Skips archived repositories
-- Caches results in `/tmp/gitlab_projects.txt` and `/tmp/gitlab_projects.json`
+- Caches results in `gitlab_projects.txt` and `gitlab_projects.json`, under a
+  per-workspace subdirectory of `~/.cache/contextlake` (override with `cache_dir`)
 
 ### `mirror clone`: clone missing repositories
 
@@ -798,7 +863,7 @@ The only thing that blocks an `update` is a *dirty working tree*.
 
 ### Safety checks
 
-1. **Clean Workspace Check** (the main guard): detects a dirty working tree, 
+1. **Clean Workspace Check** (the main guard): detects a dirty working tree,
    uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
    `update` and `branches` so local work is never clobbered.
 2. **Automatic Stashing**: optionally stashes a dirty tree so `update` can proceed
@@ -910,7 +975,9 @@ Before setting up cron jobs, ensure you have:
 1. **Configuration file set up**: Create `~/.contextlake.ini` with your settings
 
    ```bash
-   cp .contextlake.ini ~/.contextlake.ini
+   contextlake init                       # writes the file for you, prompting for each value
+   # or copy the template and fill it in by hand:
+   cp .contextlake.ini.example ~/.contextlake.ini
    # Edit with your work_dir and gitlab_group
    nano ~/.contextlake.ini
    ```
@@ -1007,6 +1074,52 @@ chmod +x /home/user/scripts/contextlake_wrapper.sh
 0 2 * * * /home/user/scripts/contextlake_wrapper.sh
 ```
 
+### Exit codes
+
+`mirror fetch`, `clone`, `update`, `branches`, `verify` and `sync` exit `0` when nothing failed and
+`1` when anything did, including a partial run, where some repositories synced and others did not.
+`sync` aggregates across all five stages, so one failed clone fails the whole run, and `bootstrap`
+counts a failed mirror stage the same way it counts a failed knowledge-layer stage. (`mirror status`
+and `mirror audit` only report; they do not fail on what they find.)
+
+Work that was deliberately skipped (already up to date, a protected working branch, `--dry-run`) is
+never a failure, and `mirror verify` fails only on a cloned path that is not a valid git repository,
+not on repos that are merely missing or extra.
+
+`Ctrl-C` exits `130`; a bad `--config` path exits `1`.
+
+Pass `--exit-zero-on-partial` to exit `0` anyway when some repositories failed, the failures are
+still reported, they just do not fail the job.
+
+`--verbose` also changes what a crash leaves behind: the top-level handler re-raises instead of
+printing `Error: <message>` alone, so a bug report can carry the traceback without anyone having to
+reproduce the failure under a debugger.
+
+### Observing an unattended run
+
+An exit code tells you *that* something broke; these four flags tell you *what*, after the fact.
+
+```bash
+0 2 * * * cd /home/user/work && /usr/bin/contextlake mirror sync \
+    --log-format json --log-file /var/log/contextlake/run.log \
+    --metrics-file /var/lib/node_exporter/textfile/contextlake.prom
+```
+
+- **`--log-format json`** emits one JSON object per line, each stamped with a `run_id` (pin your own
+  with `CONTEXTLAKE_RUN_ID`), the `command`, and, on per-repo lines, `repo`, `status`,
+  `duration_ms`, and `error_type` on failures.
+- **`--metrics-file`** writes Prometheus textfile-collector output: run duration, exit code, repo
+  counts by outcome, graph size, and a last-success timestamp that survives a failing run. Point
+  node_exporter's `--collector.textfile.directory` at that directory.
+- **`--log-file`** is redacted by default (workspace paths, `$HOME`, group and repository names), so
+  the copy you attach to a bug report needs no manual scrubbing. `--redact` extends that to the
+  console; `--no-redact` turns it off entirely.
+- **`--access-log`** turns on request logging for the local HTTP servers (`kb dashboard`,
+  `kb graph --serve`, `kb serve --transport http|sse`), which are otherwise silent.
+
+See [Reading the console output](console-output.md) for the exact JSON shape and metric names, and
+[`examples/contextlake.service`](../examples/contextlake.service) for a systemd unit wired up this way.
+
 ### Log rotation
 
 To prevent log files from growing indefinitely, set up log rotation:
@@ -1081,7 +1194,6 @@ An example `.contextlake.ini`:
 [contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
-cache_dir = /tmp
 clone_timeout = 300
 fetch_timeout = 60
 branch_timeout = 30
@@ -1130,6 +1242,30 @@ knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to 
 of the global `~/.contextlake/kb` (override with `--store-dir`), so two separate `--local` projects
 never end up sharing one store.
 
+## Workspace trust
+
+Because a local config is *discovered* rather than named, one can take effect that you never wrote , 
+notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the few config keys that
+become part of a command contextlake executes are honoured **only** from the global
+`~/.contextlake/kb.toml` or from a path you pass to `--config`:
+
+| Key | Reaches |
+| --- | --- |
+| `[llm] command`, `[llm] args` | the agent CLI run when `provider = "cli"` |
+| `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
+| `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
+
+In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
+key. Nothing else changes: `store_dir`, `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and
+any non-`cli` LLM provider all keep working from a local file exactly as before. The one thing to know
+when scoping sources with `contextlake kb source add ... --local` is that an *MCP* source's `command`
+has to live in the global file (or be reached with `--config`); an `mcp` **URL** is fine locally.
+
+Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
+`.contextlake.kb.toml`, recommended in CI, containers, and anywhere untrusted checkouts are processed in
+bulk. With it set, `source add --local` writes to the global config too, rather than to a local file that
+would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the full model.
+
 ## Settings reference
 
 | Setting | Description | Default | Example |
@@ -1140,7 +1276,7 @@ never end up sharing one store.
 | `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
 | `token_env` | Env var holding the platform token | per platform (`GITHUB_TOKEN`, and so on) | `MY_TOKEN` |
 | `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
-| `cache_dir` | Directory for cache files | `/tmp` | `~/.cache/contextlake` |
+| `cache_dir` | Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of `~/.cache/contextlake` (`$XDG_CACHE_HOME/contextlake` when set), created `0700`. Set it and that exact directory is used, with no subdirectory. | `~/.cache/contextlake/<workspace>-<id>` | `/srv/cache` |
 | `cache_file` | Name of projects cache file | `gitlab_projects.txt` | `projects.txt` |
 | `cache_json` | Name of JSON cache file | `gitlab_projects.json` | `projects.json` |
 | `clone_timeout` | Clone operation timeout (seconds) | `300` | `600` |
@@ -1216,10 +1352,13 @@ and lockfiles from the graph.
 
 `contextlake doctor` checks the environment (FTS5, `git` / `glab` on PATH, the store, the embedder, and the
 ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
-doesn't affect the exit code) any C/C++ shard indexed with an older parser version than the one currently
-installed -- a nudge to re-index that repo so it picks up parser-correctness fixes. `contextlake kb lint`
-audits the graph itself, reporting **stale repos** (HEAD moved since they were indexed) and **dangling
-edges** (an edge whose endpoint node is missing). Both exit non-zero on problems, so they're CI-friendly.
+doesn't affect the exit code) any shard indexed with an older parser version than the one currently
+installed -- `contextlake kb index` rebuilds those on its next run, so they pick up parser-correctness fixes.
+`contextlake kb lint` audits the graph itself, reporting **stale repos** (HEAD moved since they were
+indexed), **dangling edges** (an edge whose endpoint node is missing), and the same **older-parser** repos
+doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
+lint that means dangling edges or HEAD-stale repos; the older-parser count is reported but deliberately kept
+out of its exit code, so upgrading to a build with a new parser can't turn a green CI gate red on its own.
 
 ## What the graph captures
 
@@ -1288,6 +1427,22 @@ semantically searchable.
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a **deliberate undercount**. Render it with
 `contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
+
+**Measured, not just asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
+orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
+call real (`expected_edges.json`, 13 edges); `tests/kb/test_sql_fixture_corpus.py` scores the parser's
+emitted `references` edges against it on every CI run. Current numbers on that corpus: **precision 0.90
+(9 true positives / 1 false positive), recall 0.69 (9 / 13 ground-truth edges found)**, a small,
+hand-built corpus, not a claim about the whole fleet, but real and reproducible. Two documented gap
+classes account for the four missed edges, both by design, not bugs: a
+**self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is dropped because the
+extractor excludes `target == name`, and an FK **attached via a separate `ALTER TABLE ... ADD CONSTRAINT`**
+statement is never captured because the scope tracker only scans `REFERENCES` inside a `CREATE TABLE`'s
+own text span. The one measured false positive comes from a **commented-out `REFERENCES` line**: the
+regex has no comment-awareness, so dead DDL history left in a script can resolve into a real-looking edge
+if its target table still exists. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
+the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
+target already met.
 
 ### Architecture decisions (ADRs)
 
@@ -1614,6 +1769,31 @@ name used for reachability checks (default `conversations_info`); `history_tool`
 used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
 repo's path to form the project id; and `per_page`, the API page size (default `50`).
 
+## When a source stops answering
+
+`connect` and `enrich` are the only stages that leave the machine, and a fleet run asks each source once
+per repo. If a source goes down mid-run, contextlake stops asking it rather than paying its `timeout` on
+every remaining repo: after three consecutive failures the source is skipped for 60 seconds, then one
+call is let through to see whether it came back. A run against an unreachable MCP server finishes in
+seconds instead of `timeout x repos`.
+
+You will see this in the output, it is never silent, because "the source was down" and "the source had
+nothing" would otherwise look identical:
+
+```
+resilience: circuit OPEN for mcp:npx:https://mcp.example.test after 3 consecutive
+  failure(s) (TimeoutError) -- further calls are skipped for 60s
+resilience: skipping mcp:npx:https://mcp.example.test for 60s -- circuit open after 3
+  consecutive failure(s) (TimeoutError); results from this source will be incomplete
+```
+
+The name in that line identifies the endpoint by transport and host only, never the rest of the URL,
+since a hosted MCP endpoint can carry a token in its path or query.
+
+Failures the *server* rejected rather than failed on, an unknown tool, a bad token, are reported as
+themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
+source if the server is merely slow.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)
@@ -1898,10 +2078,12 @@ by what may leave your machine and what hardware you have.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     very fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
-  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`, `pip install
-    "contextlake[llm-local]"`. Fast to set up, but **0.5B is a modest writer** (good for coverage, not
+  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`,
+    `contextlake doctor --fix llm-local` (upstream ships no PyPI wheels, so a plain
+    `pip install "contextlake[llm-local]"` compiles C++ from source; see below).
+    Fast to set up, but **0.5B is a modest writer** (good for coverage, not
     polished prose) and CPU generation is **slow** (~4 calls/repo). Prefer Ollama at any real scale. See
-    [Why the built-in LLM needs a prebuilt wheel](#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler)
+    [Installing the built-in LLM](#installing-the-built-in-llm-and-why-it-needs-a-wheel-index)
     and [How much does the model matter?](#how-much-does-the-model-matter).
 - **`ollama`**, a local [Ollama](https://ollama.com) daemon (`base_url`, default
   `http://127.0.0.1:11434`), the **recommended** wiki backend: no Python native build, and a 3B-8B model
@@ -1926,6 +2108,11 @@ by what may leave your machine and what hardware you have.
   for `claude` and by its own docs for `gemini`; `codex`'s docs describe API-key auth as a separate,
   explicitly-opted-into mode rather than an environment-variable override, so the strip is a defensive
   precaution there rather than a confirmed-necessary fix.
+  **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
+  `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
+  directory, since that file may have arrived inside a repository you cloned and these keys are a
+  command line contextlake runs. Setting them locally logs a warning and is ignored; every other
+  provider works from a local file as usual. See [Workspace trust](../SECURITY.md#workspace-trust).
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
@@ -1975,48 +2162,60 @@ openai-compatible server, never just to make `anthropic`/`openai` work.
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
 
-## Why the built-in LLM needs a prebuilt wheel (or a compiler)
+## Installing the built-in LLM (and why it needs a wheel index)
 
-The `builtin` wiki model runs a **GGUF** model through
-[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
-**C++** inference engine. Native (C/C++) packages ship as **prebuilt binary wheels**, one per (OS, CPU,
-Python version). Two consequences explain why an extra step is sometimes needed and why contextlake can't
-do it for you:
+**What you do depends on how you installed contextlake:**
 
-1. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
-   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
-   (for reproducibility and supply-chain safety). So contextlake cannot make `pip` look anywhere but your
-   configured indexes (PyPI by default), only *your* `pip` command can add one.
-2. **PyPI lags brand-new Pythons.** Wheels are uploaded per interpreter version; a just-released Python
-   (e.g. **3.14**) often has **no wheel on PyPI yet**, so `pip` falls back to the source tarball and tries
-   to **compile**, which needs `cmake` + a C/C++ compiler you may not have installed. That is the build
-   failure you saw.
-
-The maintainer also publishes a **prebuilt CPU wheel index** carrying wheels PyPI doesn't have yet, so
-pointing pip at it skips compilation entirely, no compiler needed:
+| Channel | What you do |
+| --- | --- |
+| **Standalone binary** | Nothing to pass. `llm-local` and the wheel index are preconfigured, and the binary installs them on its first run (which needs network once, like any first run). |
+| **Docker** (`ghcr.io/sayak-sarkar/contextlake`) | Nothing at all. The full image already carries the runtime and the GGUF, so it works offline. (The `:slim` tag deliberately does not; point that one at Ollama or an API.) |
+| **pip / pipx / uv** | One command, below. This is the only channel where you supply the index yourself. |
 
 ```bash
-pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+contextlake doctor --fix llm-local     # --dry-run prints the exact command and stops
 ```
 
-**Belt-and-suspenders: `--only-binary :all:`.** On a compiler-less machine, add this flag so pip *refuses*
-to fall back to a source build for **any** package, you get a clean "no matching distribution" message
-instead of a wall of `cmake`/compiler errors. `:all:` is the all-packages token (its opposite is
-`--no-binary`). Combined with the CPU-wheel index, this installs the built-in LLM on a brand-new Python
-with no toolchain:
+That runs pip in *your* interpreter with the CPU wheel index already attached, printing the command
+before it runs. By hand it is:
 
 ```bash
-pip install --only-binary :all: llama-cpp-python \
+pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
   --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
-The trade-off is deliberate: if a wheel genuinely doesn't exist for your platform, the command stops with
-an actionable error rather than attempting a build that can't succeed.
+### Why an index at all
 
-On a mainstream Python (3.10-3.13) none of this applies: `pip install "contextlake[llm-local]"` finds a
-PyPI wheel and Just Works. It is specifically the bleeding-edge-interpreter case that needs the extra
-index. The cleanest way to avoid the native build altogether is to **use Ollama** (below), a standalone
-binary with no Python compile step.
+The `builtin` wiki model runs a **GGUF** model through
+[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
+**C++** inference engine. Two facts explain the extra flag, and why contextlake cannot fold it into the
+extra itself:
+
+1. **Upstream publishes no wheels to PyPI at all**: every release is a source tarball. That is not
+   neglect: llama.cpp is compiled **per hardware backend**, and one PyPI namespace cannot hold the CPU,
+   CUDA and Metal builds of the same version and platform tag. So upstream ships **one index per
+   accelerator** instead, the same convention PyTorch uses with `download.pytorch.org/whl/cpu` versus
+   `/whl/cu121`. Without one of those indexes, `pip install "contextlake[llm-local]"` always falls back to
+   compiling, which needs `cmake` plus a C/C++ compiler.
+2. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
+   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
+   (for reproducibility and supply-chain safety). So the extra alone can never point pip anywhere but your
+   configured indexes; only the `pip` command line can add one.
+
+**Picking an index.** CPU is the default and what `doctor --fix` uses: the built-in tier is a small 0.5B
+model, and GPU inference is better served by Ollama anyway. The published alternatives are
+`.../whl/cu121`, `/whl/cu122`, `/whl/cu124` (CUDA) and `/whl/metal` (Apple silicon); swap the URL if you
+want one, the rest of the command is identical.
+
+**Why `--only-binary llama-cpp-python`.** It makes pip *refuse* a source build for that one package, so a
+platform with no wheel gives you a one-line "no matching distribution" instead of a wall of `cmake`
+errors. It deliberately names the package rather than using the `:all:` token: `:all:` would forbid a
+source fallback for **every** dependency, and one missing wheel anywhere would then fail the whole
+install.
+
+None of this applies to the other extras: `[kb]`, `[kb-local]`, `[kb-vec]` all resolve to ordinary PyPI
+wheels. It is specific to the built-in LLM. The cleanest way to avoid the native build altogether is to
+**use Ollama** (below), a standalone binary with no Python compile step.
 
 ## Using Ollama for the wiki
 
@@ -2092,6 +2291,13 @@ provider = "ollama"
 model    = "qwen2.5:3b"
 timeout  = 1200        # give a slow CPU room; default is 300s (5 min)
 ```
+
+If the endpoint stops answering rather than being slow, raising `timeout` makes things worse: a wiki run
+calls the model once per page. After three consecutive endpoint failures (a timeout, a refused
+connection, a 5xx) the provider is skipped for 60 seconds and then probed once, so a dead Ollama daemon
+or an unreachable API costs the run a few timeouts instead of one per page, and says so in the log. A
+rejected *request* is exempt and always reported as itself, so `model "..." not found, try pulling it
+first` keeps telling you to run `ollama pull` however many pages are left.
 
 Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see `docs/releasing.md`). Don't switch the embedder
@@ -2318,7 +2524,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
 | `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
-| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. |
+| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. Loopback host only. |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
@@ -2487,7 +2693,8 @@ the browser: **Sync now** on a repo page (`git pull --ff-only` + reindex), **Add
 repo** on the fleet overview (clone a URL into `--workspace` + index it),
 **Start / Stop / Restart** for a separate `contextlake kb serve --transport http`
 process on the MCP console tab (not the stdio server your editor spawns -- this
-dashboard can't see or manage that one), and **Regenerate** wiki (single-repo on
+dashboard can't see or manage that one; see below for its bearer token), and
+**Regenerate** wiki (single-repo on
 that repo's Wiki tab, or fleet-wide on Settings, runs the exact `contextlake kb
 wiki` CLI as a background process, detached from the request that started it, so
 it keeps running even if you close the browser tab).
@@ -2497,9 +2704,18 @@ checkbox to bypass that freshness check and regenerate everything in scope
 regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
+The MCP server this card starts is itself authenticated (see
+[Serve](serve.md#authenticating-the-network-transports)): the HTTP transport requires
+`Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
+output discarded, the dashboard mints that token instead of letting the server print one, and
+the card shows it alongside the endpoint, that card is the only place it appears. **Restart
+mints a new one**, so any client pinned to the old token must be re-pointed at the value the
+card then shows. The token is kept in `<store>/dashboard/mcp-server.pid`, created `0600`, so it
+survives a page reload.
+
 Refused outright with `--sample` (the demo fleet is fictional -- nothing on disk to
-sync/clone) and with any `--host` other than `127.0.0.1`/`localhost` (mutating
-routes are loopback-only by design). A random per-launch token is minted at
+sync/clone) and with any non-loopback `--host` (`127.0.0.1`, `localhost` and `::1` are the
+loopback binds; mutating routes are loopback-only by design). A random per-launch token is minted at
 startup and wired into the served page; every `POST` must carry it in an
 `X-Contextlake-Token` header matching exactly, and the request's `Host` header
 must name this host:port -- both close the classic localhost-server holes (a
@@ -2507,6 +2723,20 @@ form-encoded POST from any open browser tab, and DNS rebinding around the
 loopback bind, respectively). A mutation takes the store's single-writer lock
 for its own duration only, so a concurrent CLI command sees a clean `409`
 instead of an interleaved write.
+
+The MCP server those Start/Restart actions spawn is constrained to a loopback bind
+and an unprivileged port (1024-65535), whatever the request asks for. That transport
+has no authentication of its own, so a caller-chosen bind would let one token turn
+this loopback-only dashboard into a public graph server that outlives it.
+
+The `Host` check applies to **every** request, `GET` included, and to every route
+including the static assets -- the read API is your whole code graph, and the
+served `dashboard.js` carries that per-launch token. The same rule now guards
+`contextlake kb graph --serve`'s pages. Practical consequence: a request is
+answered only when its `Host` is the address you bound (`--host`) or `localhost`,
+each with the port. If you bind a wildcard (`--host 0.0.0.0`) and then browse the
+machine's LAN address, you'll get `403 forbidden` -- bind that address instead
+(`--host 192.0.2.10`), or reach it as `http://localhost:PORT`.
 
 ## 12. Chat
 
@@ -2535,6 +2765,11 @@ must carry that token -- a page other than this dashboard can't silently trigger
 paid call. The free layer needs no token, same risk level as any other read-only
 `/api/*` route. Live-only, like MCP console/Settings above (no `--site` export).
 
+Loopback host only, for the same reason `--allow-mutations` is (§11): that token is
+served inside `/dashboard.js`, so on a non-loopback bind anyone who can reach the port
+can read it and spend your provider budget. `--llm-chat --host 0.0.0.0` is refused at
+startup.
+
 ---
 
 Everything here runs entirely on your machine, and is read-only unless you opt into
@@ -2560,7 +2795,7 @@ explain / search), resolves the symbol or repo, and returns one labeled answer (
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
 no wiki exists yet). An agent that would rather not choose among the tools can just `ask`.
 
-**Most of it needs no model.** The underlying graph tools work on their own , 
+**Most of it needs no model.** The underlying graph tools work on their own ,
 `search_code`, `find_definition`, `find_callers`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
 `repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
@@ -2615,7 +2850,7 @@ Windsurf, add the same server in its MCP config (Cascade's *MCP Servers* panel, 
   "mcpServers": {
     "contextlake-kb": {
       "command": "contextlake",
-      "args": ["serve", "--config", "~/.contextlake/kb.toml"]
+      "args": ["kb", "serve", "--config", "~/.contextlake/kb.toml"]
     }
   }
 }
@@ -2629,7 +2864,7 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
   "servers": {
     "contextlake-kb": {
       "command": "contextlake",
-      "args": ["serve", "--config", "~/.contextlake/kb.toml"]
+      "args": ["kb", "serve", "--config", "~/.contextlake/kb.toml"]
     }
   }
 }
@@ -2641,16 +2876,76 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 
 - **`stdio`**, the default. The editor/agent spawns `contextlake kb serve` itself and talks to
   it over stdin/stdout; this is what `steer`-generated `.mcp.json`/`.vscode/mcp.json` entries use.
+  No token, no network: the pipe belongs to the process that spawned it.
 - **`http`**, Streamable HTTP, the MCP spec's current standard network transport (`--host`/
   `--port`, default `127.0.0.1:8765`). Point clients at `http://127.0.0.1:8765/mcp`, not the bare
   host:port: the endpoint is the `/mcp` path, and the root returns 404. Prefer this transport for
-  any new remote/network wiring.
+  any new remote/network wiring. **Authenticated**, see below.
 - **`sse`**, the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
   marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
   for clients that haven't moved off it yet; contextlake follows that guidance rather than
   dropping it. Its endpoint is `http://127.0.0.1:8765/sse`. Use `sse` only if your client
   specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
-  distinct, separate option from HTTP), pick `http` first.
+  distinct, separate option from HTTP), pick `http` first. Authenticated exactly like `http`.
+
+### Authenticating the network transports
+
+The graph answers with real file paths, symbol names, docstrings and owner identities, so the
+socket transports do not serve it to anyone who connects.
+
+**A bearer token, printed once to stderr at startup:**
+
+```
+$ contextlake kb serve --transport http
+✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
+  Bearer token: <a fresh 43-character token>
+  Clients must send: Authorization: Bearer <token>
+  Pin a stable one across restarts with $CONTEXTLAKE_MCP_TOKEN.
+```
+
+Every request needs `Authorization: Bearer <token>`; without it the server answers `401`. The
+token goes to stderr only, never to stdout, never to the log file, so it does not outlive the
+process anywhere you did not put it.
+
+**Pin it for a client config.** A fresh token per launch is fine when you copy it by hand and
+useless when a config file has to hold it. Set `CONTEXTLAKE_MCP_TOKEN` and the server uses that
+value instead of minting one (an empty or whitespace-only value is treated as unset, and a fresh
+token is minted, it never turns authentication off):
+
+```bash
+export CONTEXTLAKE_MCP_TOKEN='pick-your-own-long-random-string'
+contextlake kb serve --transport http
+```
+
+**Origin and Host are validated** on every request, as the MCP spec requires for HTTP transports:
+a request whose `Origin` is not the bound host (or a loopback address) gets `403`, and one whose
+`Host` does not name this server gets `421`. That is what stops a web page you visit from
+reaching your loopback MCP server through DNS rebinding.
+
+**Non-loopback binds must be opted into.** `--host` outside `127.0.0.1` / `localhost` / `::1` is
+refused unless you pass `--allow-remote`, and prints a warning when you do:
+
+```bash
+contextlake kb serve --transport http --host 0.0.0.0        # refused, exits 1
+contextlake kb serve --transport http --host 0.0.0.0 --allow-remote
+```
+
+Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
+to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (`0.0.0.0`) only
+answers requests whose `Host` is a loopback name, because the Host check has no way to know which
+address you meant, bind the address clients will actually name (`--host 192.0.2.10`).
+
+**There is an access log, and it is off by default.** These servers are loopback developer tools
+whose console is already a command's output, so they stay quiet, but a server holding the whole
+code graph should be able to answer "what did it serve, and to whom". `--access-log` turns on one
+line per request (client address, request line, status).
+
+For contextlake's own servers, `kb dashboard --serve`, `kb graph --serve`, `kb graph --site
+--serve`, those lines go through the same logger as everything else, so they land in `--log-file`
+and follow `--log-format json`, and the client-supplied request line is stripped of control
+characters first. `kb serve`'s `http`/`sse` transports are served by uvicorn rather than by
+contextlake's handler, so there the flag enables *uvicorn's* access log instead: its own format,
+on stderr, alongside its startup banner.
 
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file
@@ -2763,7 +3058,10 @@ Output is chosen with `--format`:
 
 For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it.
+pre-rendering all of it. Like the dashboard, it answers a request only when the `Host` header names the
+address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
+an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
+you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes---allow-mutations)).
 
 ## Composed namespace C4 diagram
 
@@ -2883,7 +3181,7 @@ Treat contextlake as a **scale-and-correctness tool first, a token-cost tool sec
 
 ## Methodology
 
-- **Substrate:** a real, private software estate of **~680 repositories** , 
+- **Substrate:** a real, private software estate of **~680 repositories** ,
   ~1.0 million graph nodes, ~1.9 million edges, ~900,000 semantic vectors, and ~21 GB
   of source on disk. (No proprietary names, paths, or symbols are reproduced here.)
 - **Token counts:** [`tiktoken`](https://github.com/openai/tiktoken) `cl100k_base`, a
@@ -3134,17 +3432,22 @@ The tool implements comprehensive error handling:
 
 The tool uses two cache files:
 
-1. **`/tmp/gitlab_projects.json`**
+1. **`<cache_dir>/gitlab_projects.json`**
 
    - Full JSON response from GitLab API
    - Used for debugging and detailed inspection
    - Contains complete project metadata
 
-2. **`/tmp/gitlab_projects.txt`**
+2. **`<cache_dir>/gitlab_projects.txt`**
 
    - Pipe-delimited format for faster loading
    - Format: `path_with_namespace|ssh_url|http_url|default_branch|archived`
    - Primary data source for all operations
+
+`<cache_dir>` defaults to a per-workspace subdirectory of `~/.cache/contextlake`
+(`$XDG_CACHE_HOME/contextlake` when that is set), created `0700`. The cache names every
+repository the account can enumerate, so it is keyed on the workspace, platform and group:
+two workspaces never share one file. Set `cache_dir` to use one exact directory instead.
 
 Cache is refreshed by running the `fetch` command or `sync` (which includes fetch).
 
@@ -3514,6 +3817,27 @@ install` post-install hook exists to do this at install time -- see [Mirror repo
 waiting for that first run, or `CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of the automatic check
 entirely.
 
+## Global flags
+
+These work on every command, before or after it:
+
+| Flag | What it does |
+| --- | --- |
+| `--config PATH` | the sync INI for `mirror` commands, `kb.toml` for knowledge commands |
+| `-v`, `--verbose` | debug output, and, on a crash, the traceback rather than just `Error: <message>` |
+| `-q`, `--quiet` | warnings and errors only |
+| `--log-file PATH` | append a full timestamped copy of the run (redacted by default, see below) |
+| `--log-format text\|json` | `json` prints one JSON object per line, carrying the run id, command, repo and duration |
+| `--metrics-file PATH` | after the run, write Prometheus textfile-collector metrics |
+| `--redact` / `--no-redact` | scrub workspace paths, group and repo names from the console too / from nothing |
+| `--access-log` | log every request the local HTTP servers answer (off by default) |
+| `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
+
+The last five exist for unattended operation, the systemd service + timer in `examples/`, a cron
+wrapper, CI, where nobody watches the run and what it leaves behind is all there is.
+[Reading the console output](console-output.md) has the JSON shape, the redaction placeholders, and
+the metric names.
+
 ## Advanced/resilience flags
 
 The 8 `mirror`-tier commands (`mirror fetch`/`clone`/`update`/`branches`/`verify`/`status`/`sync`/`audit`)
@@ -3546,16 +3870,44 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
-| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
-| `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
-| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
+| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
+| `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
+| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing (see below) |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
-| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`) |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 
 The `mirror`-tier commands (`mirror fetch`, `mirror clone`, `mirror update`, `mirror branches`,
 `mirror verify`, `mirror sync`, `mirror status`, `mirror audit`) are covered under
 [Mirror repositories](usage.md).
+
+### `doctor --fix`: install what is missing
+
+`doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
+configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
+the local llama-cpp runtime. Name a capability to install it regardless of config.
+
+| Flag | Effect |
+| --- | --- |
+| `--fix` | Install every missing dependency the resolved config calls for |
+| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` |
+| `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
+| `--skip-interactive` | Never prompt: privileged commands are printed, not run |
+
+Two privilege tiers, and the split is deliberate:
+
+- **Python packages** install into the interpreter contextlake is running in, with
+  `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
+  and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
+  CPU wheel index automatically and says why.
+- **System packages** (currently just git) need administrator rights. The exact command is printed
+  in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
+  when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
+  never trip a sudo prompt.
+
+`--fix` also explains, rather than re-raising, the failures that actually happen: a PEP 668
+externally-managed environment (use a venv or pipx), a proxy timeout, an untrusted intercepting CA,
+or no matching distribution. Nothing planned is ever run before it has been printed.
 
 ## See also
 
@@ -3617,6 +3969,74 @@ summary (`✓ Embed complete: ...`, `✓ Lint: ...`, and so on) you can skim str
 into a tool that doesn't expect escape codes. It doesn't touch the glyphs themselves, `✓`/`⚠`/`✗` and the
 rest still print; only the color wrapped around them is gone.
 
+## Machine-readable logs: `--log-format json`
+
+Everything above describes output composed for a person. When the reader is a log collector instead --
+the systemd timer in `examples/`, a cron wrapper, CI -- `--log-format json` prints one JSON object per
+line and nothing else:
+
+```json
+{"ts": "2026-08-04T05:45:19Z", "level": "INFO", "msg": "Cloned", "run_id": "bcd5bd3d69cb", "command": "mirror clone", "repo": "team/api", "status": "ok", "duration_ms": 812}
+```
+
+- **`run_id`** is generated once per invocation and stamped on every line, so an interleaved journal can
+  be split back into runs, and one `bootstrap`'s index / connect / embed / wiki stages read as one story.
+  Set `CONTEXTLAKE_RUN_ID` to pin your own (a systemd invocation id, a CI job id) and have contextlake's
+  lines join up with the surrounding job's.
+- **`command`** is the command as you would type it (`mirror sync`, `kb index`).
+- **`repo`** and **`duration_ms`** appear on per-repo lines, which is what makes "which repo is making
+  the nightly run slow" a query rather than a guess.
+- Failures add **`error_type`** (`dns`, `timeout`, `auth`, `diverged`, ...) and **`error`**, so "every
+  failure last night was DNS" is one aggregation.
+
+The default (`text`) output is unchanged, character for character. Structured fields are only ever
+*added* to the JSON form; they never alter a human line.
+
+## Sharing a log: `--redact`
+
+`--log-file PATH` keeps a full-detail copy of the run. That copy is **redacted by default**: workspace
+paths, `$HOME`, the group/org name, a self-hosted forge hostname and repository names are replaced with
+placeholders, so it can be attached to a bug report as-is.
+
+```
+[2026-08-04 05:48:49] Working directory: <workspace>
+[2026-08-04 05:48:49] Gitlab group: <group>
+[2026-08-04 05:48:49] Missing repositories:
+[2026-08-04 05:48:49]   repo-5a7da0a4
+```
+
+Repository names become a stable `repo-<digest>`, so "the same three repos failed again" still reads
+correctly after scrubbing, and a file path *inside* a repo keeps its tail (`<workspace>/repo-5a7da0a4/
+src/main.py:42`) because which file broke is the useful half. This is obfuscation for sharing, not a
+cryptographic guarantee: a short, guessable repository name can be confirmed by anyone who guesses it.
+
+The console is left alone by default -- you need the real paths to act on what you are reading.
+`--redact` scrubs the console too; `--no-redact` scrubs neither.
+
+## Metrics for an unattended run: `--metrics-file`
+
+`--metrics-file PATH` writes Prometheus [textfile-collector](https://github.com/prometheus/node_exporter#textfile-collector)
+output after the run, so the shipped systemd timer is monitorable with no exporter process of its own.
+Point node_exporter's `--collector.textfile.directory` at the file's directory and name the file `.prom`:
+
+```
+contextlake_run_duration_seconds{command="mirror sync"} 42.318
+contextlake_run_exit_code{command="mirror sync"} 0
+contextlake_repos{command="mirror sync",status="ok"} 480
+contextlake_repos{command="mirror sync",status="failed"} 0
+contextlake_repos{command="mirror sync",status="skipped"} 3
+contextlake_graph_nodes 128394
+contextlake_graph_edges 214005
+contextlake_last_success_timestamp_seconds{command="mirror sync"} 1785802519
+```
+
+Two behaviours worth knowing. `contextlake_last_success_timestamp_seconds` is **carried forward** by a
+failing run rather than erased -- that timestamp is the whole basis of a "stale for six hours" alert. And
+a value that could not be measured is **omitted, never written as 0**: a `mirror sync` does not touch the
+knowledge graph, so it publishes no `contextlake_graph_nodes` at all rather than a zero that reads as
+"the graph was wiped". The counts come from what the run already tallied (the same numbers that decide
+the exit code), so the metrics can never disagree with the summary line.
+
 ## The stdout / stderr split
 
 The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like) stay on stdout. That
@@ -3657,6 +4077,13 @@ separately.
   suffix for `sse` -- so you don't have to guess the host/port/path before pointing an editor at it.
   Both URLs include the path because neither transport is served at the bare root: that really is a 404.
   `stdio` transport has no address to report and stays quiet on that line.
+- **The network transports print their bearer token right under that URL, on stderr.** A socket that
+  serves the whole graph needs a credential, and a credential you cannot find is the same as a server
+  you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
+  discovered. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
+  disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
+  it instead of echoing the value. `stdio` prints no token because it needs none. See
+  [Serve](serve.md).
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
@@ -3685,7 +4112,346 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.1.0] - 2026-08-04
+
+### Added
+- `contextlake doctor --fix` resolves missing optional dependencies instead of only naming them.
+  With no argument it installs what your **resolved configuration** actually calls for, so a setup
+  using Ollama is never handed a local-LLM wheel it will not use; `--fix <capability>` overrides
+  that. `--dry-run` prints the plan and stops.
+
+  The privilege boundary is the point of the design. Python packages install into the current
+  interpreter via `sys.executable -m pip`. A **system** package is never installed silently: the
+  exact command is printed and offered with a y/N at a real terminal, and **nothing privileged runs
+  without a TTY or under `--skip-interactive`**, so a CI job or a scripted run can never trip a sudo
+  prompt. An externally-managed environment (PEP 668) is reported with the venv/pipx fix rather than
+  pip's raw error.
+- The local-LLM install now attaches the CPU wheel index automatically, so it no longer needs a C++
+  toolchain. `llama-cpp-python` publishes no wheels to PyPI at all: llama.cpp is built per hardware
+  backend, and one namespace cannot hold the CPU, CUDA and Metal builds of a version, so upstream
+  ships an index per accelerator (as PyTorch does). Verified end to end on a Python 3.14 machine
+  with no `cmake` and no `g++`.
+- `kb lint`, the `graph_health` MCP tool and the dashboard health payload gain additive
+  `parser_stale` and `parser_stale_repos` fields.
+
+### Changed
+- The full container image no longer compiles `llama-cpp-python`, and no longer installs a C++
+  toolchain to do it. It now takes the same prebuilt wheel the standalone binary does. The
+  Dockerfile's stated reason for compiling ("no portable prebuilt CPU wheel for every platform this
+  targets") was wrong: the CPU index carries a `py3-none-manylinux` wheel that is ABI-agnostic and
+  satisfies any Python 3 on the base image. The runtime image is unchanged in size, since the
+  toolchain was already discarded by the multi-stage split; what this removes is build time and the
+  build stage's own CVE surface, and it stops the container and binary channels disagreeing about
+  whether a compiler is required.
+- The standalone binaries now bundle the built-in local LLM (`llm-local`) alongside `kb-full`, and
+  install it from a prebuilt wheel rather than compiling. The binary points at the CPU index via
+  `PYAPP_PIP_EXTRA_ARGS`, so first run needs no C++ toolchain. The `--only-binary` constraint names
+  that one package deliberately rather than `:all:`, which would forbid a source fallback for every
+  other dependency and let one missing wheel break the whole binary.
+
+### Fixed
+- **The container image kept its knowledge store outside the volume you mounted.** The documented
+  `docker run -v "$PWD:/work" ... kb index` built a store under the runtime user's home, inside the
+  container's writable layer, and the layer went with the container on exit. The run took minutes,
+  reported success, and left nothing on the host. `HOME` now follows `WORKDIR` into the mount, so
+  everything contextlake persists lands in the directory you mounted. Without `-v` the run is
+  ephemeral exactly as before; with a read-only mount it now fails loudly rather than succeeding
+  into the void.
+- **An index left stale by an upgrade is no longer invisible.** `PARSER_VERSION` moved to `2` in
+  5.0.0, but `doctor`'s staleness check only examined C and C++ repositories, and the re-index
+  decision compared the repository HEAD alone. A Python or TypeScript repository indexed by 4.0.0
+  therefore stayed stale indefinitely: `index` reported it unchanged, `doctor` reported OK, and
+  every answer came from a graph built by the old parser while every surface said healthy. That is
+  the confident-but-wrong failure this tool exists to prevent.
+
+  `doctor` now flags a stale shard in any language, and `kb index` rebuilds a parser-stale
+  repository instead of skipping it, announcing why. The re-index is scoped to repositories whose
+  parser version differs, so it is not a blanket `--force` and it settles after one pass. The store
+  schema gains a `parser_version` column (version 3) via an additive migration that leaves existing
+  rows intact; a repository indexed before the column existed falls back to reading the shard.
+- `kb lint` was silent about parser staleness while `doctor` graded it as a fault, so the two
+  commands disagreed about the same store. lint now reports it as its own category rather than
+  folding it into `stale`: a parser-stale graph is out of date, not broken, and folding it in would
+  flip lint's exit code from 0 to 1 for every store the moment `PARSER_VERSION` moves, turning an
+  upgrade into a red CI gate. The exit code, `clean` semantics and glyph are unchanged.
+- Opening a store written by a newer contextlake silently re-stamped it to the running schema
+  version, discarding the newer build's claim about its own format. The stamp is now read before it
+  is written, anything newer or unparsable is preserved, and the store is refused with both versions,
+  the path and the remedy named. An older stamp still migrates forward. This protects builds carrying
+  this change only: an older binary will still downgrade a store it does not understand.
+- Knowledge commands loaded their config twice per invocation, so a single mistyped key produced two
+  identical warnings and read as two separate problems. Resolved once and memoised for the lifetime
+  of one invocation.
+- **The repository-list cache no longer defaults into `/tmp`.** It now lives under
+  `~/.cache/contextlake` with `0700` permissions. The old default was world-readable in a
+  predictable location, listed every repository the account can reach along with clone URLs, and
+  was shared by every workspace on the machine, so per-directory configs were not actually
+  isolated. `.contextlake.ini.example` shipped an active `cache_dir = /tmp` line, and the
+  "no config found" error points users at that file, so the bad default propagated by being copied.
+- Mirror commands refuse to run when the configured group is missing or is still the
+  `your-gitlab-group` placeholder, instead of exiting 0 after printing a plausible sync report
+  against a group that does not exist. `init` already refused that exact placeholder, so the two
+  halves of the tool now agree.
+- `init --skip-interactive` no longer appends a completion block to your shell rc. Editing
+  `~/.zshrc` is a side effect well outside what `init` implies, and a non-interactive run never
+  asked. Use `contextlake completion` to opt in.
+- `contextlake inti` now suggests `init` rather than `kb lint`, and an unknown flag on a
+  subcommand prints that subcommand's usage instead of the root parser's.
+- The generated knowledge config names an explicit local provider rather than `auto`, so what runs
+  is visible in the file rather than resolved at call time.
+- The error raised the first time the built-in LLM is used now prints a command that actually
+  works. It previously suggested a plain `pip install`, which compiles from source and fails on any
+  machine without a toolchain, which is most machines that hit this message.
+- `docker pull ghcr.io/sayak-sarkar/contextlake` (no tag) returned the **slim** image. The slim
+  build's tag metadata did not disable `metadata-action`'s default `latest=auto`, so it claimed a
+  bare `latest` alongside its own tags, and because slim is pushed after full it won. `latest` now
+  belongs to the full image again. If you pulled `latest` at 5.0.0 and expected the built-in local
+  model, re-pull: the image you have is the slim one.
+- A failed PyPI upload no longer takes the GitHub Release with it. `github-release` depended on
+  `publish` succeeding, so on the 4.0.0 tag a duplicate-file failure skipped it and the wheel and
+  sdist had to be attached by hand. Publishing is now idempotent (`skip-existing`), and the release
+  job runs whenever the artifacts built, since a GitHub Release has value regardless of whether the
+  index accepted the upload.
+- Corrected five documentation claims that were wrong at 5.0.0, each verified against the source.
+  The README and QUICKSTART upgrade sections said the graph re-indexes incrementally and nothing
+  needs migrating, when 5.0.0 in fact made every existing shard stale; both now send you to `doctor`
+  and `kb index --force`. The `.mcp.json` and `.vscode/mcp.json` snippets in `serve.md` passed
+  `serve` without the `kb` namespace, so copy-pasting either produced an unknown-command error.
+  `usage.md` told you to copy `.contextlake.ini`, which does not exist (the template is
+  `.contextlake.ini.example`). `cli-reference.md` and `troubleshooting.md` offered a C++ toolchain
+  via `doctor --fix` that no code path reaches.
+
+## [5.0.0] - 2026-08-04
+
+This release closes a remote-code-execution path and two denial-of-service paths, all three
+reachable by indexing a repository you cloned. Upgrading is recommended for anyone running 4.0.0.
+
+**Migrating from 4.0.0**
+
+1. **Run `contextlake kb index --force`.** The parser version moved to `2`, so every existing shard
+   is stale, and nothing detects that on its own: `needs_reindex` compares only the repo HEAD.
+2. **Mirror commands now exit 1 when repositories failed.** They previously always exited 0. If a
+   script depends on the old behaviour, add `--exit-zero-on-partial`; if it already checks `$?`, it
+   starts working as intended and may go red where it was silently failing.
+3. **`contextlake.py` at the repo root is now `run-contextlake.py`.** Only affects running the
+   launcher from a clone; the installed `contextlake` command and the standalone binaries are
+   unchanged.
+4. **`kb serve --transport http` and `sse` now require a bearer token**, and refuse a non-loopback
+   `--host` without `--allow-remote`. **stdio is unaffected** and needs no token, which is the
+   default and what every documented editor integration uses.
+
+### Security
+- **Security (breaking for `kb serve --transport http`/`sse`):** the MCP network transports now
+  require authentication. They previously had none, no Origin validation, and no warning, so
+  `kb serve --transport http --host 0.0.0.0` published every indexed symbol, file path, docstring
+  and owner identity to the network. A bearer token is minted at startup and printed once to
+  stderr; requests without it get `401`, a hostile `Origin` gets `403`, a hostile `Host` gets
+  `421`. Set `CONTEXTLAKE_MCP_TOKEN` to pin a stable token for a client config. A non-loopback
+  `--host` is refused unless `--allow-remote` is passed. There is no TLS: the transport is meant
+  for loopback or a tunnel, and says so at startup.
+
+  **stdio is completely unaffected** and needs no token. That is the default and what every
+  documented editor integration uses, so most setups need no change.
+
+  The dashboard's "start MCP server" card spawns that same command with its stderr discarded,
+  which would have thrown the token away and left the card advertising a server nobody could
+  connect to. It now mints the token itself, passes it to the child, stores it in a `0600`
+  pidfile, and shows it on the card.
+- **Security:** `--llm-chat` is now refused with a non-loopback `--host`, the same guard
+  `--allow-mutations` already had. The per-launch token that gates the chat route is served inside
+  `/dashboard.js`, so anyone who could reach the bind could read the token and drive the configured
+  LLM provider at the operator's expense. Host-header pinning does not cover this: pinning is a
+  browser control, and a plain `curl -H 'Host: localhost:PORT' http://<lan-ip>:PORT/dashboard.js`
+  satisfies it and returns the token.
+- **Security:** the dashboard's `POST /api/mcp/serve` no longer accepts an arbitrary bind address.
+  A caller-supplied `host` went into the MCP server unvalidated, so a token holder could publish
+  the whole graph on `0.0.0.0` over a transport with no authentication. The host must now be
+  loopback and the port unprivileged; anything else is a `400`, including a wrong-typed JSON value,
+  which previously raised and surfaced as a `500`.
+- **Security:** the dashboard and graph servers now pin the `Host` header on `GET` as well as
+  `POST`. Only `POST` checked it, so a page whose domain re-resolved to `127.0.0.1` (DNS
+  rebinding) could read the entire code graph cross-origin: `/api/overview`, `/api/repo/<id>`,
+  `/api/search`, `/graph/*`: file paths, symbol names, owner identities. Static assets are
+  deliberately *not* exempt, because `dashboard.js` carries the per-process token and exempting
+  it would hand a rebinding page the key to the mutating routes. One consequence worth knowing:
+  a server bound with `--host 0.0.0.0` and browsed via its LAN address now returns 403; use
+  `http://localhost:PORT` or bind the address you intend to browse. The server prints a hint.
+- **A config file found by directory search can no longer make contextlake execute a program.**
+  `.contextlake.kb.toml` is discovered by walking up from the current directory, so a repository you
+  cloned could ship one setting `[llm] provider = "cli"` + `command`/`args`, handed straight to
+  `subprocess.run` by the next `kb wiki`, `kb enrich`, or `dashboard --llm-chat`. The same hole existed
+  in `[[sources]]`, whose `command`/`args`/`mcp_command` spawn an MCP server over stdio. Those keys are
+  now honoured only from `~/.contextlake/kb.toml` or an explicit `--config` path; from a discovered file
+  they are dropped with a warning naming the file and the key. Nothing else is distrusted: `store_dir`,
+  `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers keep working
+  from a project-local file exactly as before, so directory-scoped config is unaffected. Passing
+  `--config` on that same file still honours it: naming the file is the explicit act the gate asks for.
+
+
+### Added
+- `CONTEXTLAKE_NO_LOCAL_CONFIG=1` skips ancestor config discovery entirely, for both
+  `.contextlake.ini` and `.contextlake.kb.toml`; only the global file and an explicit `--config` are
+  read. Intended for CI, containers, and anywhere untrusted checkouts are handled in bulk, where opting
+  out of the whole tier is simpler to reason about than the per-key gate above.
+- CI now enforces a coverage floor (`--cov-fail-under=88`) on the full-suite job, so a silent
+  drop from the current 92% can no longer pass green. The floor is deliberately only on that one
+  job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
+  its own partial number, and the core job measures the whole package while skipping `tests/kb`,
+  so its honest total is ~23% and no shared floor can fit both.
+- A `slim` container image alongside the full one, for users who do not need the local-LLM extra
+  or the baked GGUF. Both are published on release and signed.
+- Dependabot now watches the `docker` ecosystem too, so the Dockerfile's pinned base digest gets
+  moved forward. A digest pin buys reproducible builds but silently ages out of security updates
+  in a way a floating tag does not.
+- Structured logging and metrics, so the systemd timer this repo ships is actually observable.
+  `--log-format json` emits one object per line carrying a run id that correlates every line of a
+  run across the index/connect/embed/wiki pipeline; `--metrics-file PATH` writes Prometheus
+  textfile format (run duration, repo counts by status, node and edge totals, last-success
+  timestamp) for node_exporter's textfile collector. Timestamps are UTC.
+- `--redact` hashes repo paths and group names in log output. It defaults to on for the log file
+  and off for the console: the console is yours and needs real paths, the file is what gets
+  attached to a bug report. `SECURITY.md` previously told you to scrub logs by hand. Note this is
+  obfuscation for sharing, not a cryptographic guarantee: a short repo name can be confirmed by
+  anyone who guesses it.
+- `--access-log` turns on request logging for the local servers, which previously had none even
+  optionally.
+- `--verbose` now surfaces the traceback on an unexpected failure. It printed only `Error: {e}`,
+  so a user's crash report could not be diagnosed without asking them to reproduce under a
+  debugger.
+- Connectors and model providers are guarded by a circuit breaker with jittered retry. A slow or
+  unreachable endpoint used to cost its full timeout on every call, so the pain scaled with the
+  fleet: measured 160.9s across 40 repos against a blackholed MCP server, versus 12.1s with the
+  breaker, and the guarded cost is constant rather than per-repo. At the shipped 120s MCP timeout
+  over a 480-repo fleet that is roughly 32 hours down to roughly 12 minutes. An open circuit says
+  so in the log rather than returning empty results that read like "nothing found".
+- Retrieval quality and SQL-parser accuracy are now measured, not just measurable. A weekly
+  workflow runs `kb eval` against the bundled sample graph and fails if the hit rate regresses
+  below a floor set at the current measured value. Only the lexical retriever runs there: the
+  semantic and hybrid ones need an embedder that is not available offline in a public runner.
+- The SQL parser's accuracy is quantified and published in the code-graph docs against a small
+  hand-labelled corpus: precision 0.90, recall 0.69. Every edge it emits is marked `INFERRED`, and
+  until now nobody could say what that was worth. Measuring it turned up a real false positive
+  (a `REFERENCES` inside a comment was being matched) alongside two already-known gap classes.
+- `kb eval` gains `--json`, matching the convention `owners` and `impact` already use.
+- Property-based tests (`hypothesis`) for the invariants that were only ever example-tested:
+  `normalize_id`'s idempotence, `make_id`'s part handling, `sanitize_label`'s guarantee that no
+  control character and nothing over the length cap ever escapes it, and that `_fts_query` cannot
+  emit a string that makes SQLite's FTS5 raise. Plus a pathological-input corpus for the four
+  regex-based extractors, each bounded by `pytest-timeout`, since they consume untrusted
+  repository content. Three real defects fell out and are recorded as `xfail` with measurements
+  rather than quietly passing. All three are fixed below; the tests that found them now guard them.
+- Combinatorial test coverage for the places where options interact rather than act alone: a
+  provider-resolution matrix (embedder/LLM/vector-store builders across every provider, backend
+  and enabled/disabled combination), a serve matrix (transport x embedder-present x
+  vector-store-present, asserting the actually-registered MCP tool set), and a boundary matrix
+  (every `limit`/`hops`/`max_*` at zero, one, either side of the default and very large, plus
+  empty and single-file repos and `None`-valued node fields flowing through the payload, diagram
+  and MCP-model layers). The provider names are discovered from the source rather than hardcoded,
+  so a new provider is covered automatically. This is the class of gap that let the `--llm-chat`
+  non-loopback hole exist: the vulnerability was an untested cell of a flag matrix.
+- Supply-chain scanning: a `security` workflow running `pip-audit` over the full dependency
+  surface (dev plus every `kb` extra), a `ruff --select S` security-lint pass, and CodeQL for
+  Python, on push to main, on pull requests, and weekly so newly-disclosed CVEs surface against an
+  untouched tree. The `--select S` pass is non-blocking for now: it reports ~159 real findings plus
+  ~3,336 `assert`-in-tests hits that are pytest idiom rather than defects, and triaging that
+  backlog is its own piece of work. Deliberately kept out of `pyproject.toml`'s ruff `select` and
+  out of `ci.yml` so it stays additive rather than a new gate on every commit.
+- Dependabot for `pip` and `github-actions`, weekly, with minor/patch grouped per ecosystem so a
+  routine tree-sitter point release does not open a dozen PRs. Major bumps stay ungrouped.
+- Published container images now carry SLSA build provenance and an SPDX SBOM, and are signed
+  keyless with cosign via the workflow's OIDC identity (no key material anywhere). Signing is by
+  digest rather than tag, so the signature is pinned to exactly what was built.
+- `--exit-zero-on-partial` on every mirror command (and `bootstrap`), for anyone whose scripts
+  depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
+
+
+### Changed
+- The container image is rebuilt as a multi-stage, non-root, digest-pinned build. It previously
+  shipped the compiler toolchain (`build-essential`, `cmake`, needed only to compile
+  `llama-cpp-python`) into the final image, ran as root, had no `HEALTHCHECK`, floated on a mutable
+  base tag, and copied the source before installing dependencies so every source edit recompiled
+  the native deps. Measured result: the full image drops from 2.25GB to 1.78GB, and the new `slim`
+  variant is 736MB, about 67% smaller than what shipped before.
+- **The no-install launcher is renamed `contextlake.py` -> `run-contextlake.py`.** At the repo root
+  it shadowed the installed package: `python -m ...` puts the working directory first on
+  `sys.path`, so `python -m pytest` from a clone failed with `No module named 'contextlake.cli';
+  'contextlake' is not a package` before collecting a single test, the first command many
+  contributors type. `CONTRIBUTING.md` had documented the workaround; it now documents reality
+  instead, and CI runs `python -m pytest --collect-only` so the trap cannot come back. No
+  compatibility shim is left behind, because a file at the old path would recreate the exact
+  problem. The installed `contextlake` command and the standalone binaries are unaffected: both
+  resolve through the package entry point, never the root file.
+- All the local HTTP servers now share one base (`kb/http_base.py`) carrying the Host check, the
+  JSON error envelope and the exception guard. The three servers had drifted apart, which is the
+  structural reason the `GET`/`POST` gap above existed at all.
+- `index_repo_dir` is decomposed into a file walker, a parser registry and a ref collector; it was
+  the most complex function in the codebase and sits on the critical path of every index run. Shard
+  output is unchanged, proven by a new golden-shard test that also passes against the pre-change
+  code, so it is a genuine regression check rather than a snapshot of the new behaviour.
+- **Breaking:** a mirror run that had failures now exits 1. `mirror fetch`/`clone`/`update`/
+  `branches`/`verify`/`sync` (and `bootstrap`'s mirror stage) exited 0 no matter how much of the
+  fleet failed. `mirror sync` reported success with a ✓ even when every single clone failed. Nothing
+  unattended could tell a healthy mirror from a dead one: the cron wrapper in `docs/usage.md` tests
+  `$?` and so never fired, and the `Type=oneshot` systemd unit in `examples/` was always recorded as
+  succeeding, leaving `systemctl is-failed` and any `OnFailure=` hook with nothing to fire on. Each
+  stage now returns its own ok/failed/skipped counts, `sync` exits on the total across all stages,
+  and the sync finale is a ⚠ rather than a ✓ when anything failed.
+
+  What counts as a failure is exactly what each stage already logged as an error, so no repo is
+  reclassified. Skipped work (already up to date, protected branch, dry run) is never a failure;
+  neither is a `verify` that reports repos missing or extra (only a cloned path with no `.git`,
+  which is corruption). `fetch` fails on 0 projects only when no `--repos`/`repo_filter` is in
+  play, since 0 matches for a narrow pattern is a legitimate answer.
+
+  **Migrating:** if a script or CI job relies on a mirror command always exiting 0, add
+  `--exit-zero-on-partial`. If it already checks the exit status, it starts working as intended,
+  expect jobs to go red that were silently failing before.
+
+
+### Fixed
+- **Indexing a hostile or merely corrupted `pom.xml` no longer hangs.** The Maven block regexes
+  were quadratic when closing tags were missing: each unclosed opener sent the lazy match scanning
+  to end-of-string before failing. Closing tags are now indexed in one linear pass and paired with
+  their openers. Measured on a 160KB file with 16k unclosed tags: 39.8s to 0.001s for
+  `<dependency>`, 25.6s to 0.000s for `<parent>`, 29.0s to 0.001s for `<dependencies>`. A truncated
+  pom from an aborted download was enough to trigger this; it never took an attacker.
+- **A deeply nested `.tf` file no longer hangs indexing.** `parse_hcl` was quadratic in nesting
+  depth, and the cost was ours rather than the grammar's: in the installed py-tree-sitter, both
+  `Node.parent` and `Node.next_sibling` re-descend from the tree root, so walking siblings while
+  resolving a reference was O(depth) per step. The traversal now carries the context it needs
+  instead of re-deriving it. Measured at depth 1250 with a reference per level: 138.2s to 0.027s,
+  and 337.4s to 0.037s for the `locals` shape.
+- `normalize_id` is idempotent again, matching its docstring. The punctuation strip ran before
+  `casefold()`, so a fold that expands a character into a base letter plus a combining mark left
+  the mark behind for a second call to remove. **This changes the generated id for exactly 29 code
+  points** (established by checking every code point, not by sampling); none are ASCII or Latin-1,
+  so ordinary identifiers are unaffected. It is slightly lossier for those 29: `ǰ` now normalizes
+  to `j`, so it would collide with a plain `j` where it previously did not. That is unavoidable
+  while also keeping the existing guarantee that output equals its own casefold. The re-index the
+  shard-reproducibility fix already requires picks these up in the same pass.
+
+- Shard output is now reproducible. Indexing the same commit twice produced different shard bytes
+  every time, because the tree-sitter query cursor returns captures in an order that varies between
+  runs. The set of nodes and edges was always correct (only their order moved), but it made
+  `archive_shard`'s documented "a repo re-indexed at the same commit overwrites identically"
+  invariant false, and defeated any checksum-based reasoning about whether an index is current.
+  Captures are now sorted at the single extraction site, and `PARSER_VERSION` is bumped to `2`.
+
+  **Action required: run `contextlake kb index --force` (add `--workspace <dir>` if you keep the
+  store elsewhere).** Existing shards are stale, and nothing will tell you so: `needs_reindex`
+  compares only the repo HEAD and does not consider the parser version, and `doctor`'s stale-parser
+  check is deliberately scoped to C/C++. An unchanged Python or TypeScript repo will therefore be
+  neither flagged nor rebuilt on its own.
+
+  Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
+  file order still comes from directory traversal, so do not compare shard hashes between CI runners.
+  The regression guard is in-process.
+- Malformed query parameters return `400` with a JSON body instead of raising inside the handler
+  thread and dumping a traceback with no response. Out-of-range values clamp rather than error,
+  and internal failures return a generic `500` with the traceback going to the log, never to the
+  client. Two further unguarded integer parses on client input (`Content-Length`, and the
+  mutation port) were fixed at the same time.
+
 
 ## [4.0.0] - 2026-08-04
 
@@ -6496,7 +7262,7 @@ real one; this release closes them.
 ### Changed
 
 - **Branch name alone no longer causes an `update` to be skipped.** A repo with a clean
-  working tree is now fetched and fast-forwarded on whatever branch it is checked out on, 
+  working tree is now fetched and fast-forwarded on whatever branch it is checked out on,
   feature branches included. The only thing that blocks an `update` is a *dirty working tree*
   (uncommitted/unstaged/untracked changes), which is still skipped (or stashed with
   `--auto-stash`). `protect_working_branches` now applies **only** to the `branches` command,
@@ -6584,7 +7350,7 @@ real one; this release closes them.
 
 - **Slimmed the README** (~1,320 → ~860 lines): the deep Technical Documentation /
   architecture moved into `docs/internals.md`, and the inline version history now
-  points to `CHANGELOG.md`. Fleshed out the `lint` and `doctor` docs. (Docs only, 
+  points to `CHANGELOG.md`. Fleshed out the `lint` and `doctor` docs. (Docs only,
   no code or layout changes, which already follow standard src-layout conventions.)
 
 ## [1.15.0] - 2026-06-22
@@ -6641,7 +7407,7 @@ real one; this release closes them.
 ### Added
 
 - **Steering-layer generation** (`steer` command): writes workspace-specific
-  steering files so local AI tools pick up the knowledge graph natively, 
+  steering files so local AI tools pick up the knowledge graph natively,
   `AGENTS.md` (overview + knowledge tools + guardrails), a thin `CLAUDE.md` that
   imports it, `.windsurfrules`, `.kiro/steering/`, and a merged `.mcp.json` entry
   for the MCP server. Content is grounded in the indexed repos/languages/
