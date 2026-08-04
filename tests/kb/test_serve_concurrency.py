@@ -1,16 +1,22 @@
-"""Tool concurrency for `contextlake kb serve`.
+"""Tool concurrency and signal handling for `contextlake kb serve`.
 
-The MCP SDK runs every synchronous tool through
+Two defects live here, and they share one seam.
+
+*Concurrency.* The MCP SDK runs every synchronous tool through
 ``anyio.to_thread.run_sync`` with no limiter, so it takes anyio's default of 40
 worker threads. Our tools are graph traversals over SQLite -- thousands of small
 round trips each -- and forty of those interleaving contend rather than work.
 The server saturated at about four concurrent calls.
 
-The limiter is run-scoped, so it can only be set inside the event loop, which is
-why stdio grew an ``anyio.run`` wrapper. The HTTP transports cannot use it
-(uvicorn owns its loop), so they take the bound through an ASGI lifespan hook
-instead. That asymmetry is the thing most likely to rot, so both paths are
-asserted here.
+*SIGTERM.* Supervisors send SIGTERM first. Python's default action for it kills
+the process on the spot, so ``cmd_serve``'s ``finally`` never ran and stores
+were never closed.
+
+Both fixes need code running inside the event loop -- the thread limiter is
+run-scoped and asyncio's signal handling is loop-scoped -- which is why stdio
+grew an ``anyio.run`` wrapper. The HTTP transports cannot use it (uvicorn owns
+its loop), so they take the bound through an ASGI lifespan hook instead. That
+asymmetry is the thing most likely to rot, so both paths are asserted here.
 
 The concurrency assertions are structural (what is the limiter set to?) rather
 than timed: a wall-clock threshold on a shared CI runner is a flake generator,
@@ -19,6 +25,11 @@ and the limiter's value is the thing the fix actually controls.
 
 from __future__ import annotations
 
+import os
+import signal
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import anyio
@@ -166,3 +177,100 @@ def test_http_app_falls_back_to_the_default_bound(tmp_path, monkeypatch):
     finally:
         store.close()
     assert seen.get("tokens") == DEFAULT_TOOL_CONCURRENCY
+
+
+# --- SIGTERM ----------------------------------------------------------------
+
+_DRIVER = """
+import sys
+sys.path.insert(0, {src!r})
+from contextlake.cli import main
+sys.exit(main(["kb", "serve", "--config", {cfg!r}]))
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+@pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
+def test_stdio_serve_stops_cleanly_on_a_stop_signal(tmp_path, sig):
+    """Both stop signals were broken on an idle stdio server, for one reason.
+
+    SIGTERM -- what a supervisor sends first -- took the default action, so
+    cmd_serve's `finally` never ran and stores were never closed. SIGINT was no
+    better: Python only runs a signal handler at a bytecode boundary in the main
+    thread, and an idle server's main thread is parked in the selector, so Ctrl-C
+    sat unhandled until traffic happened to arrive. Measured on the unfixed
+    server, both hung indefinitely.
+
+    Driven as a real subprocess: the failure mode of the unfixed code is a
+    process that will not die, which is not something to invite into the runner.
+    """
+    src = str(Path(__file__).resolve().parents[2] / "src")
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    _store(store_dir).close()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+
+    driver = tmp_path / "driver.py"
+    driver.write_text(_DRIVER.format(src=src, cfg=str(cfg)))
+
+    env = dict(os.environ, PYTHONPATH=src)
+    proc = subprocess.Popen([sys.executable, str(driver)], env=env,
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    try:
+        # Readiness is gated on a real MCP handshake, not on the startup log
+        # line: that line is printed before run_server is even called, and the
+        # signal handler is only installed once the loop is up. Signalling on
+        # the log raced the handler into place and read as "the fix does not
+        # work" when it simply had not run yet.
+        _handshake(proc, deadline=time.time() + 60)
+
+        proc.send_signal(sig)
+        try:
+            rc = proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            pytest.fail(f"{sig.name} did not stop the stdio server")
+        err = proc.stderr.read().decode(errors="ignore")
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        proc.stdin.close()
+
+    # Dying *by* the signal is the default action -- exactly the path that skips
+    # cmd_serve's `finally` and leaves the store open.
+    assert rc != -sig and rc != 128 + sig, f"{sig.name} took the default action"
+    assert rc == 0
+    # The `finally` really ran, rather than the process merely exiting 0.
+    assert "Stopping MCP server" in err
+    # The teardown stays quiet: cmd_serve skips the interpreter's thread join
+    # precisely so shutdown does not spray a join traceback.
+    assert "Exception ignored" not in err
+
+
+def _handshake(proc, *, deadline: float) -> None:
+    """Drive an MCP `initialize` over stdio and wait for the reply."""
+    import json
+    import select
+
+    request = {
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                   "clientInfo": {"name": "sigterm-test", "version": "1"}},
+    }
+    proc.stdin.write((json.dumps(request) + "\n").encode())
+    proc.stdin.flush()
+
+    buf = b""
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            pytest.fail(f"server exited during handshake (rc={proc.returncode})")
+        if select.select([proc.stdout], [], [], 0.25)[0]:
+            chunk = proc.stdout.read1(4096)
+            if not chunk:
+                break
+            buf += chunk
+            if b'"result"' in buf:
+                return
+    pytest.fail("stdio server never answered initialize")

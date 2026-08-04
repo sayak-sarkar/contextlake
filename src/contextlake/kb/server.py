@@ -1107,16 +1107,72 @@ class _ToolLimiterLifespan:
 
 
 async def _run_stdio(server, limit: int) -> None:
-    """The stdio server, run under a loop contextlake owns.
+    """The stdio server, plus the two things that need a running loop.
 
     ``.run(transport="stdio")`` is just ``anyio.run(self.run_stdio_async)``, so
-    replacing it costs nothing and buys the only place the tool limiter can be
-    installed: it lives in a run-scoped variable, so it exists only once a loop
-    is running.
+    replacing it costs nothing and buys the only place where the tool limiter
+    (run-scoped) and asyncio's signal handling (loop-scoped) can be installed.
+
+    SIGTERM is what a supervisor sends first, and Python's default action for it
+    is to die on the spot: the ``finally`` in cmds/serve.py never ran and the
+    store was never closed. ``add_signal_handler`` installs asyncio's self-pipe
+    wakeup fd, which wakes the selector the main thread parks in, so the request
+    loop unwinds normally and that ``finally`` gets to run.
+
+    SIGINT is deliberately left alone. It already arrives as KeyboardInterrupt,
+    which cmds/serve.py catches to set ``interrupted`` and skip a noisy
+    interpreter shutdown; routing it through a cancel scope here would leave
+    that flag False and quietly reintroduce the traceback that fix removed.
     """
     apply_tool_limiter(limit)
+    try:
+        import asyncio
+        import signal
+
+        # Turn SIGTERM into the interrupt SIGINT already is, so both stop the
+        # server through the single shutdown path in cmds/serve.py. That handler
+        # closes the store and the vector store and then deliberately skips the
+        # interpreter's remaining shutdown, because the SDK's stdio transport
+        # leaves a non-daemon thread blocked on a stdin read that never returns
+        # while the pipe is open. Anything that tries to unwind "cleanly"
+        # instead waits on that thread forever -- measured: a task group
+        # cancelled on SIGTERM hung rather than exiting.
+        #
+        # add_signal_handler, not signal.signal: it installs asyncio's self-pipe
+        # wakeup fd, which is what wakes the selector the main thread parks in
+        # while idle. Without it the handler does not run until something else
+        # happens to wake the loop, which on an idle server may be never.
+        #
+        # The callback raises KeyboardInterrupt itself rather than re-raising
+        # SIGINT: asyncio's Handle._run lets BaseException through, so the
+        # exception propagates out of the loop and out of anyio.run to that
+        # handler. signal.raise_signal(SIGINT) was tried first and does not work
+        # here -- the callback ran and returned with no exception raised, and
+        # the process hung.
+        # SIGINT gets the same treatment, and for the same reason. Ctrl-C on an
+        # *idle* stdio server did nothing at all: Python only runs a signal
+        # handler at a bytecode boundary in the main thread, and that thread is
+        # parked in the selector with no work coming, so the interrupt sat
+        # unhandled until some traffic happened to arrive. Measured on the
+        # unmodified server, one SIGINT and three rapid ones both hung.
+        #
+        # The callback raises the same KeyboardInterrupt the default handler
+        # would, so cmds/serve.py still sets `interrupted` and still skips the
+        # thread join -- the three-rapid-Ctrl-C fix documented there keeps
+        # working rather than being quietly traded away for this one.
+        loop = asyncio.get_running_loop()
+        loop.add_signal_handler(signal.SIGTERM, _interrupt_on_signal)
+        loop.add_signal_handler(signal.SIGINT, _interrupt_on_signal)
+    except (AttributeError, NotImplementedError, ValueError, RuntimeError):
+        # No SIGTERM to install here (Windows, or not the main thread). The
+        # server still runs; terminate just keeps its old default action.
+        pass
+
     await server.run_stdio_async()
 
+
+def _interrupt_on_signal() -> None:
+    raise KeyboardInterrupt
 
 
 def run_server(
