@@ -200,10 +200,12 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     them. One-hop external nodes used to be exempt and purely additive, which made
     the cap a claim rather than a bound: ``--max-nodes 100`` wrote 728 nodes and
     the default 500 wrote 1186, while ``--help`` said "cap on rendered nodes" and
-    the runtime warning named the same number. They now claim at most
-    ``max_nodes // _EXTERNAL_BUDGET_SHARE`` of the budget, and the repo's own
-    selection gives up its lowest-degree tail to make room -- so the widening
-    still happens on a dense repo, inside the number the user asked for. Their
+    the runtime warning named the same number. They now take whatever of the budget
+    the repo's own nodes left, and when the repo filled it entirely they still get
+    ``max_nodes // _EXTERNAL_BUDGET_SHARE`` of it, which the selection's
+    lowest-degree tail gives way for -- so the widening still happens on a dense
+    repo, a small repo with many dependencies still fills its view, and both stay
+    inside the number the user asked for. Their
     edges count toward ``max_edges`` as before: once an edge reaches the page, a
     Mermaid renderer can't tell an internal edge from a one-hop external one, so
     exempting them would reopen the exact ``maxEdges`` render failure
@@ -318,21 +320,30 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     ext_ids = sorted(external_ids)
     dropped_ext = 0
     if len(nodes) + len(ext_ids) > max_nodes:
-        # The budget is the whole file's, not the selection query's. Externals take
-        # a bounded slice of it; the repo's own lowest-degree tail (the selection is
-        # ordered by degree) gives way for them, and whatever still does not fit is
-        # dropped and counted rather than appended over the cap.
-        keep_ext = min(len(ext_ids), max_nodes // _EXTERNAL_BUDGET_SHARE)
+        # The budget is the whole file's, not the selection query's. Externals fill
+        # whatever the repo's own nodes left of it -- and when the repo filled it
+        # entirely (a dense repo, the case the cap exists for), they still get a
+        # reserved slice, which the lowest-degree tail of the selection gives way
+        # for (it is ordered by degree). A node that fits is never evicted, and the
+        # budget is never left half-used: only what genuinely does not fit is
+        # dropped, and it is counted rather than appended over the cap.
+        leftover = max_nodes - len(nodes)
+        keep_ext = min(len(ext_ids),
+                       leftover or max_nodes // _EXTERNAL_BUDGET_SHARE)
         dropped_ext = len(ext_ids) - keep_ext
         ext_ids = ext_ids[:keep_ext]
-        nodes = nodes[:max_nodes - keep_ext]
-        node_truncated = True
+        if len(nodes) > max_nodes - keep_ext:
+            nodes = nodes[:max_nodes - keep_ext]
+            node_truncated = True   # in-repo nodes really were left out
     nodes.extend(ext_cache[nid] for nid in ext_ids)  # already resolved, non-None
     kept = {n.id for n in nodes}
     # Induced: an edge into a node the budget dropped must not survive as a dangling
     # reference (the same rule the max_nodes eviction already had to follow).
     edges = [e for e in edges if e.src in kept and e.dst in kept]
-    truncated = node_truncated or edge_truncated or fanout_truncated
+    # `truncated` covers dropped links too, but `node_truncated` must not: it is what
+    # gates meta["total"], which counts IN-REPO nodes. Setting it when only links were
+    # dropped made the banner read "showing 500 of 450" -- more rendered than exist.
+    truncated = node_truncated or edge_truncated or fanout_truncated or bool(dropped_ext)
     if truncated:
         log(f"  truncated: repo {repo_id!r} subgraph exceeds max_nodes={max_nodes}"
             + (f" or max_edges={max_edges}" if max_edges is not None else "")

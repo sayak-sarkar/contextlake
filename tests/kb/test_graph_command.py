@@ -185,6 +185,23 @@ def test_repo_subgraph_never_returns_more_nodes_than_max_nodes(store):
     assert sum(1 for n in nodes if n.repo == "other") == 2   # 10 // 5
 
 
+def test_repo_subgraph_fills_the_budget_when_the_repo_is_smaller_than_the_cap(store):
+    # A fixed external share also has to not UNDER-fill: 4 in-repo nodes linking to
+    # 30 externals under max_nodes=20 must render 20, not 4 + (20 // 5) = 8. Asserting
+    # "<= cap" would pass either way, so this asserts the exact count.
+    store.upsert_nodes("r", [_node(f"n{i}", repo="r") for i in range(4)])
+    store.upsert_nodes("other", [_node(f"x{i:02d}", repo="other") for i in range(30)])
+    store.upsert_edges("r", [_edge(f"n{i % 4}", f"x{i:02d}") for i in range(30)])
+    meta: dict = {}
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=20, meta=meta)
+    assert len(nodes) == 20
+    assert sum(1 for n in nodes if n.repo == "r") == 4        # none of the 4 evicted
+    assert meta["truncated"] is True                          # 10 links did not fit
+    # ...and `total` stays unset: it counts IN-REPO nodes, and none were left out.
+    # Reporting it here made the UI banner read "showing 20 of 4".
+    assert "total" not in meta
+
+
 def test_repo_subgraph_honours_max_fanout(store):
     # Accepted and completely inert on this path: 0, 1 and 100000 produced
     # byte-identical output on a repo with a genuine hub.
