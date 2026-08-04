@@ -33,7 +33,7 @@ classifiers = [
 # command-line tools (not pip-installable), and one deliberate exception:
 # argcomplete, so shell tab-completion works the moment contextlake itself is
 # installed, with no separate extra to remember. It's pure Python, ~40KB, and
-# has zero required dependencies of its own -- see docs/usage.md#shell-completion
+# has zero required dependencies of its own -- see docs/cli-reference.md#shell-completion
 # for the one-line-per-shell registration step `contextlake init` also offers
 # to do for you.
 dependencies = ["argcomplete>=3.0"]

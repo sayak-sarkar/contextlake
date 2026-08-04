@@ -96,7 +96,9 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
   No token, no network: the pipe belongs to the process that spawned it.
 - **`http`**, Streamable HTTP, the MCP spec's current standard network transport (`--host`/
   `--port`, default `127.0.0.1:8765`). Point clients at `http://127.0.0.1:8765/mcp`, not the bare
-  host:port: the endpoint is the `/mcp` path, and the root returns 404. Prefer this transport for
+  host:port: the endpoint is the `/mcp` path. Any other path, the root included, returns **401**
+  rather than 404, because the bearer-auth middleware wraps the whole app and runs before routing.
+  Prefer this transport for
   any new remote/network wiring. **Authenticated**, see below.
 - **`sse`**, the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
   marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
