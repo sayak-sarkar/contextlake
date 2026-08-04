@@ -1032,6 +1032,29 @@ def test_cli_graph_formats_and_seeds(tmp_path, capsys):
     assert html.exists() and _CDN_URL not in html.read_text()
 
 
+def test_cli_graph_reports_what_the_diagram_drew_not_what_it_queried(tmp_path, capsys):
+    # An erdiagram of a repo with no SQL DDL is a 200-odd-byte "nothing to draw"
+    # comment, yet the console reported the QUERY's node/edge counts as a success:
+    # a script trusting the printed numbers would ship an empty diagram.
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    capsys.readouterr()
+    out = tmp_path / "er.mmd"
+    assert _run(["kb", "graph", "--config", str(cfg), "--repo", "demo/app",
+                 "--format", "erdiagram", "--output", str(out)]) == 0
+    text = capsys.readouterr().out
+    assert "no table/view definitions in this view" in out.read_text(encoding="utf-8")
+    assert "(0 nodes, 0 edges)" in text
+    assert "nothing in this view for erdiagram to draw" in text
+    assert "(2 nodes, 1 edges)" not in text          # the view's counts, not the file's
+
+    # a format that DOES draw this view still reports its real counts
+    mm = tmp_path / "g.mmd"
+    assert _run(["kb", "graph", "--config", str(cfg), "--repo", "demo/app",
+                 "--format", "mermaid", "--output", str(mm)]) == 0
+    assert "(2 nodes, 1 edges)" in capsys.readouterr().out
+
+
 def test_cli_graph_site_honours_cdn(tmp_path):
     # --cdn used to be dropped on the --site path: the export still vendored all
     # three JS libs and carried no CDN reference at all, so a user building for a

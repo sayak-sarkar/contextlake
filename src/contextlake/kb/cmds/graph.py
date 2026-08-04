@@ -173,22 +173,27 @@ def cmd_graph(args) -> int:
                                 cdn=cdn, layout=layout, max_fanout=max_fanout)
             return 0
 
+        # Every Mermaid format draws only a SLICE of the view (classes only, tables
+        # only, Terraform only...), so reporting the view's node/edge counts over an
+        # empty diagram claimed "900 nodes, 400 edges" for a file whose whole content
+        # was a "nothing to draw" comment. Each renderer reports what it drew instead.
+        drawn: dict = {}
         if fmt == "json":
             text = viz.to_json(payload)
         elif fmt == "dot":
             text = viz.to_dot(payload)
         elif fmt == "mermaid":
-            text = viz.to_mermaid(payload)
+            text = viz.to_mermaid(payload, stats=drawn)
         elif fmt == "classdiagram":
-            text = viz.to_class_diagram(payload)
+            text = viz.to_class_diagram(payload, stats=drawn)
         elif fmt == "sequencediagram":
-            text = viz.to_sequence_diagram(payload)
+            text = viz.to_sequence_diagram(payload, stats=drawn)
         elif fmt == "statediagram":
-            text = viz.to_state_diagram(payload)
+            text = viz.to_state_diagram(payload, stats=drawn)
         elif fmt == "erdiagram":
-            text = viz.to_er_diagram(payload)
+            text = viz.to_er_diagram(payload, stats=drawn)
         elif fmt == "deploymentdiagram":
-            text = viz.to_deployment_diagram(payload)
+            text = viz.to_deployment_diagram(payload, stats=drawn)
         elif fmt == "graphml":
             text = viz.to_graphml(payload)
         elif fmt == "cypher":
@@ -202,6 +207,8 @@ def cmd_graph(args) -> int:
             name = "overview.html" if overview else "graph.html"
             graphs_dir.mkdir(parents=True, exist_ok=True)
             out = str(graphs_dir / name)
+        n_nodes = drawn.get("nodes", len(payload["nodes"]))
+        n_edges = drawn.get("edges", len(payload["edges"]))
         if out:
             Path(out).parent.mkdir(parents=True, exist_ok=True)
             Path(out).write_text(text, encoding="utf-8")
@@ -211,9 +218,15 @@ def cmd_graph(args) -> int:
                 # indexed yet), the same trap cmd_index's empty-workspace guard avoids.
                 log(style.warn(f"Wrote {fmt} (0 nodes, 0 edges) -> {out}: the store is empty."))
                 log("  Run `contextlake kb index` first, then re-run this command.")
+            elif not n_nodes:
+                # Same trap one level down: this view held nodes, but none of the kind
+                # THIS diagram draws. The file explains why in a comment; the console
+                # line must not contradict it with the query's counts.
+                log(style.warn(f"Wrote {fmt} (0 nodes, 0 edges) -> {out}: "
+                               f"nothing in this view for {fmt} to draw."))
+                log(f"  The file says why -- see the %% comment in {out}.")
             else:
-                log(style.ok(f"Wrote {fmt} ({len(payload['nodes'])} nodes, "
-                             f"{len(payload['edges'])} edges) -> {out}"))
+                log(style.ok(f"Wrote {fmt} ({n_nodes} nodes, {n_edges} edges) -> {out}"))
             if fmt == "html" and getattr(args, "open", False):
                 import webbrowser
                 webbrowser.open("file://" + str(Path(out).resolve()))

@@ -173,18 +173,36 @@ def _mermaid_escape(s: str) -> str:
     )
 
 
-def to_mermaid(payload: dict) -> str:
+def _drawn(stats: dict | None, nodes: int, edges: int) -> None:
+    """Record what a renderer actually drew.
+
+    Every Mermaid format below renders a *subset* of the view it is given (only
+    classes, only tables, only Terraform resources...), so the view's own node/edge
+    counts describe the query, not the file. A caller that reports the query's
+    numbers over an empty diagram is telling the user something untrue, so each
+    renderer reports its own counts through this optional out-param -- the same
+    shape as ``payload``'s ``meta`` dict.
+    """
+    if stats is not None:
+        stats["nodes"] = nodes
+        stats["edges"] = edges
+
+
+def to_mermaid(payload: dict, *, stats: dict | None = None) -> str:
     lines = ["graph LR"]
     idmap: dict[str, str] = {}
     for i, n in enumerate(payload["nodes"]):
         mid = f"n{i}"
         idmap[n["id"]] = mid
         lines.append(f'  {mid}["{_mermaid_escape(n.get("name") or n["id"])}"]')
+    drawn_edges = 0
     for e in payload["edges"]:
         s, d = idmap.get(e["src"]), idmap.get(e["dst"])
         if not s or not d:
             continue
+        drawn_edges += 1
         lines.append(f'  {s} -->|{_mermaid_escape(e["relation"])}| {d}')
+    _drawn(stats, len(idmap), drawn_edges)
     return "\n".join(lines)
 
 
@@ -194,7 +212,7 @@ def to_mermaid(payload: dict) -> str:
 _CLASSIFIER_KINDS = {"class", "interface", "struct", "enum"}
 
 
-def to_class_diagram(payload: dict) -> str:
+def to_class_diagram(payload: dict, *, stats: dict | None = None) -> str:
     """Render a Mermaid ``classDiagram``: classifier nodes (class/interface/struct/enum)
     with their methods as members, and ``inherits`` edges as inheritance arrows —
     solid ``<|--`` for extends, dotted ``<|..`` when the base is an interface (implements).
@@ -206,6 +224,7 @@ def to_class_diagram(payload: dict) -> str:
     classifiers = {nid: n for nid, n in by_id.items()
                    if n.get("kind") in _CLASSIFIER_KINDS}
     if not classifiers:
+        _drawn(stats, 0, 0)
         return "classDiagram\n  %% no classes/interfaces in this view"
 
     # methods owned by each classifier, via contains edges (classifier -> method)
@@ -232,6 +251,7 @@ def to_class_diagram(payload: dict) -> str:
         else:
             lines.append(f'  class {a}["{label}"]')
 
+    arrows = 0
     for e in payload["edges"]:
         if e.get("relation") != "inherits":
             continue
@@ -239,14 +259,17 @@ def to_class_diagram(payload: dict) -> str:
         if sub in alias and base in alias:
             # base <|-- sub (extends); base <|.. sub (implements an interface)
             arrow = "<|.." if by_id[base].get("kind") == "interface" else "<|--"
+            arrows += 1
             lines.append(f"  {alias[base]} {arrow} {alias[sub]}")
+    _drawn(stats, len(classifiers), arrows)
     return "\n".join(lines)
 
 
 _SEQUENCE_MAX_MESSAGES = 200
 
 
-def to_sequence_diagram(payload: dict, *, max_messages: int = _SEQUENCE_MAX_MESSAGES) -> str:
+def to_sequence_diagram(payload: dict, *, max_messages: int = _SEQUENCE_MAX_MESSAGES,
+                        stats: dict | None = None) -> str:
     """Render a Mermaid ``sequenceDiagram`` walking outgoing ``calls`` edges from the
     view's single seed node, depth-first, each caller's callees ordered by call-site
     line (``prov_line``) -- the order they actually appear in the source.
@@ -262,11 +285,13 @@ def to_sequence_diagram(payload: dict, *, max_messages: int = _SEQUENCE_MAX_MESS
     """
     seeds = (payload.get("meta") or {}).get("seed_ids") or []
     if len(seeds) != 1:
+        _drawn(stats, 0, 0)
         return ("sequenceDiagram\n  %% needs exactly one seed node "
                 "(graph --node/--name/--search, not --repo/--overview)")
     seed = seeds[0]
     by_id = {n["id"]: n for n in payload["nodes"]}
     if seed not in by_id:
+        _drawn(stats, 0, 0)
         return "sequenceDiagram\n  %% seed node not present in this view"
 
     calls_from: dict[str, list[dict]] = {}
@@ -302,8 +327,10 @@ def to_sequence_diagram(payload: dict, *, max_messages: int = _SEQUENCE_MAX_MESS
     walk(seed, frozenset({seed}))
 
     if not messages:
+        _drawn(stats, 0, 0)
         return "sequenceDiagram\n  %% no outgoing calls from this seed in view"
 
+    _drawn(stats, len(alias), len(messages))
     lines = ["sequenceDiagram"]
     for nid, a in alias.items():
         lines.append(f'  participant {a} as {_mermaid_escape(by_id[nid].get("name") or nid)}')
@@ -314,7 +341,7 @@ def to_sequence_diagram(payload: dict, *, max_messages: int = _SEQUENCE_MAX_MESS
     return "\n".join(lines)
 
 
-def to_state_diagram(payload: dict) -> str:
+def to_state_diagram(payload: dict, *, stats: dict | None = None) -> str:
     """Render a Mermaid ``stateDiagram-v2`` from ``state`` nodes and
     ``transitions_to`` edges (see :mod:`kb.flow.state` for the regex/AST-light,
     guard-inferred extraction — every edge here is a high-confidence transition
@@ -335,6 +362,7 @@ def to_state_diagram(payload: dict) -> str:
     """
     by_id = {n["id"]: n for n in payload["nodes"] if n.get("kind") == "state"}
     if not by_id:
+        _drawn(stats, 0, 0)
         return "stateDiagram-v2\n  %% no state transitions in this view"
 
     def entity_of(n: dict) -> str:
@@ -358,6 +386,7 @@ def to_state_diagram(payload: dict) -> str:
         )
 
     single = len(by_entity) == 1
+    _drawn(stats, len(by_id), sum(len(t) for t in trans_by_entity.values()))
     lines = ["stateDiagram-v2"]
     for entity, state_ids in by_entity.items():
         body = [f"    {_mermaid_escape(frm)} --> {_mermaid_escape(to)} : {_mermaid_escape(label)}"
@@ -374,7 +403,7 @@ def to_state_diagram(payload: dict) -> str:
     return "\n".join(lines)
 
 
-def to_er_diagram(payload: dict) -> str:
+def to_er_diagram(payload: dict, *, stats: dict | None = None) -> str:
     """Render a Mermaid ``erDiagram`` from ``table``/``view`` nodes and
     ``references`` (FK) edges (see :mod:`kb.sql` for the regex DDL extraction --
     every edge here is ``INFERRED``, a likely undercount, never asserted as
@@ -393,6 +422,7 @@ def to_er_diagram(payload: dict) -> str:
     """
     by_id = {n["id"]: n for n in payload["nodes"] if n.get("kind") in ("table", "view")}
     if not by_id:
+        _drawn(stats, 0, 0)
         return ("erDiagram\n"
                 "  %% no table/view definitions in this view -- contextlake's SQL extractor\n"
                 "  %% reads raw CREATE TABLE/VIEW DDL, not ORM model classes (SQLAlchemy/\n"
@@ -418,6 +448,7 @@ def to_er_diagram(payload: dict) -> str:
     for nid, n in by_id.items():
         if nid not in mentioned:
             lines.append(f"  {n['name']}")
+    _drawn(stats, len(by_id), len(seen))
     return "\n".join(lines)
 
 
@@ -494,7 +525,7 @@ def _resource_category(type_name: str) -> str:
     return "other"
 
 
-def to_deployment_diagram(payload: dict) -> str:
+def to_deployment_diagram(payload: dict, *, stats: dict | None = None) -> str:
     """Render a Mermaid flowchart of Terraform/HCL resources grouped by a coarse
     inferred category (network/compute/storage/database/security/other/module),
     from ``kb/hcl.py``'s already-extracted ``resource``/``data``/``module`` nodes
@@ -515,6 +546,7 @@ def to_deployment_diagram(payload: dict) -> str:
     by_id = {n["id"]: n for n in payload["nodes"]
             if n.get("kind") in ("resource", "data", "module") and n.get("lang") == "hcl"}
     if not by_id:
+        _drawn(stats, 0, 0)
         return ("graph TD\n"
                 "  %% no Terraform resource/data/module definitions in this view --\n"
                 "  %% contextlake's HCL extractor reads .tf files; point --repo at a\n"
@@ -557,4 +589,5 @@ def to_deployment_diagram(payload: dict) -> str:
             continue
         seen.add((src, dst))
         lines.append(f"  {alias[src]} --> {alias[dst]}")
+    _drawn(stats, len(by_id), len(seen))
     return "\n".join(lines)
