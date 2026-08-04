@@ -32,6 +32,10 @@ jobs:
       - name: Verify python -m pytest collects (no root-shim shadowing)
         run: python -m pytest --collect-only -q --ignore=tests/kb
       - name: Test core (no knowledge layer)
+        # The genericity guard reads this; unset (e.g. on a fork) it skips
+        # rather than failing. See tests/test_genericity_guard.py.
+        env:
+          CONTEXTLAKE_GENERICITY_DENYLIST: ${{ secrets.CONTEXTLAKE_GENERICITY_DENYLIST }}
         run: pytest --ignore=tests/kb --cov=contextlake --cov-report=term-missing
 
   kb:
@@ -64,4 +68,6 @@ jobs:
       # Measured 92% at the time of writing; 88 leaves headroom for the small
       # per-version differences across the 3.10-3.13 matrix. Ratchet upward.
       - name: Test full suite
+        env:
+          CONTEXTLAKE_GENERICITY_DENYLIST: ${{ secrets.CONTEXTLAKE_GENERICITY_DENYLIST }}
         run: pytest --cov=contextlake --cov-report=term-missing --cov-fail-under=88
