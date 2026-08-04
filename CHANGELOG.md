@@ -5,9 +5,76 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.1.0] - 2026-08-04
+
+### Added
+- `contextlake doctor --fix` resolves missing optional dependencies instead of only naming them.
+  With no argument it installs what your **resolved configuration** actually calls for, so a setup
+  using Ollama is never handed a local-LLM wheel it will not use; `--fix <capability>` overrides
+  that. `--dry-run` prints the plan and stops.
+
+  The privilege boundary is the point of the design. Python packages install into the current
+  interpreter via `sys.executable -m pip`. A **system** package is never installed silently: the
+  exact command is printed and offered with a y/N at a real terminal, and **nothing privileged runs
+  without a TTY or under `--skip-interactive`**, so a CI job or a scripted run can never trip a sudo
+  prompt. An externally-managed environment (PEP 668) is reported with the venv/pipx fix rather than
+  pip's raw error.
+- The local-LLM install now attaches the CPU wheel index automatically, so it no longer needs a C++
+  toolchain. `llama-cpp-python` publishes no wheels to PyPI at all: llama.cpp is built per hardware
+  backend, and one namespace cannot hold the CPU, CUDA and Metal builds of a version, so upstream
+  ships an index per accelerator (as PyTorch does). Verified end to end on a Python 3.14 machine
+  with no `cmake` and no `g++`.
+- `kb lint`, the `graph_health` MCP tool and the dashboard health payload gain additive
+  `parser_stale` and `parser_stale_repos` fields.
+
+### Changed
+- The full container image no longer compiles `llama-cpp-python`, and no longer installs a C++
+  toolchain to do it. It now takes the same prebuilt wheel the standalone binary does. The
+  Dockerfile's stated reason for compiling ("no portable prebuilt CPU wheel for every platform this
+  targets") was wrong: the CPU index carries a `py3-none-manylinux` wheel that is ABI-agnostic and
+  satisfies any Python 3 on the base image. The runtime image is unchanged in size, since the
+  toolchain was already discarded by the multi-stage split; what this removes is build time and the
+  build stage's own CVE surface, and it stops the container and binary channels disagreeing about
+  whether a compiler is required.
+- The standalone binaries now bundle the built-in local LLM (`llm-local`) alongside `kb-full`, and
+  install it from a prebuilt wheel rather than compiling. The binary points at the CPU index via
+  `PYAPP_PIP_EXTRA_ARGS`, so first run needs no C++ toolchain. The `--only-binary` constraint names
+  that one package deliberately rather than `:all:`, which would forbid a source fallback for every
+  other dependency and let one missing wheel break the whole binary.
 
 ### Fixed
+- **The container image kept its knowledge store outside the volume you mounted.** The documented
+  `docker run -v "$PWD:/work" ... kb index` built a store under the runtime user's home, inside the
+  container's writable layer, and the layer went with the container on exit. The run took minutes,
+  reported success, and left nothing on the host. `HOME` now follows `WORKDIR` into the mount, so
+  everything contextlake persists lands in the directory you mounted. Without `-v` the run is
+  ephemeral exactly as before; with a read-only mount it now fails loudly rather than succeeding
+  into the void.
+- **An index left stale by an upgrade is no longer invisible.** `PARSER_VERSION` moved to `2` in
+  5.0.0, but `doctor`'s staleness check only examined C and C++ repositories, and the re-index
+  decision compared the repository HEAD alone. A Python or TypeScript repository indexed by 4.0.0
+  therefore stayed stale indefinitely: `index` reported it unchanged, `doctor` reported OK, and
+  every answer came from a graph built by the old parser while every surface said healthy. That is
+  the confident-but-wrong failure this tool exists to prevent.
+
+  `doctor` now flags a stale shard in any language, and `kb index` rebuilds a parser-stale
+  repository instead of skipping it, announcing why. The re-index is scoped to repositories whose
+  parser version differs, so it is not a blanket `--force` and it settles after one pass. The store
+  schema gains a `parser_version` column (version 3) via an additive migration that leaves existing
+  rows intact; a repository indexed before the column existed falls back to reading the shard.
+- `kb lint` was silent about parser staleness while `doctor` graded it as a fault, so the two
+  commands disagreed about the same store. lint now reports it as its own category rather than
+  folding it into `stale`: a parser-stale graph is out of date, not broken, and folding it in would
+  flip lint's exit code from 0 to 1 for every store the moment `PARSER_VERSION` moves, turning an
+  upgrade into a red CI gate. The exit code, `clean` semantics and glyph are unchanged.
+- Opening a store written by a newer contextlake silently re-stamped it to the running schema
+  version, discarding the newer build's claim about its own format. The stamp is now read before it
+  is written, anything newer or unparsable is preserved, and the store is refused with both versions,
+  the path and the remedy named. An older stamp still migrates forward. This protects builds carrying
+  this change only: an older binary will still downgrade a store it does not understand.
+- Knowledge commands loaded their config twice per invocation, so a single mistyped key produced two
+  identical warnings and read as two separate problems. Resolved once and memoised for the lifetime
+  of one invocation.
 - **The repository-list cache no longer defaults into `/tmp`.** It now lives under
   `~/.cache/contextlake` with `0700` permissions. The old default was world-readable in a
   predictable location, listed every repository the account can reach along with clone URLs, and
@@ -25,67 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subcommand prints that subcommand's usage instead of the root parser's.
 - The generated knowledge config names an explicit local provider rather than `auto`, so what runs
   is visible in the file rather than resolved at call time.
-
-### Fixed
-- **An index left stale by an upgrade is no longer invisible.** `PARSER_VERSION` moved to `2` in
-  5.0.0, but `doctor`'s staleness check only examined C and C++ repositories, and the re-index
-  decision compared the repository HEAD alone. A Python or TypeScript repository indexed by 4.0.0
-  therefore stayed stale indefinitely: `index` reported it unchanged, `doctor` reported OK, and
-  every answer came from a graph built by the old parser while every surface said healthy. That is
-  the confident-but-wrong failure this tool exists to prevent.
-
-  `doctor` now flags a stale shard in any language, and `kb index` rebuilds a parser-stale
-  repository instead of skipping it, announcing why. The re-index is scoped to repositories whose
-  parser version differs, so it is not a blanket `--force` and it settles after one pass. The store
-  schema gains a `parser_version` column (version 3) via an additive migration that leaves existing
-  rows intact; a repository indexed before the column existed falls back to reading the shard.
-
-### Added
-- `contextlake doctor --fix` resolves missing optional dependencies instead of only naming them.
-  With no argument it installs what your **resolved configuration** actually calls for, so a setup
-  using Ollama is never handed a local-LLM wheel it will not use; `--fix <capability>` overrides
-  that. `--dry-run` prints the plan and stops.
-
-  The privilege boundary is the point of the design. Python packages install into the current
-  interpreter via `sys.executable -m pip`. A **system** package (git, a toolchain) is never
-  installed silently: the exact command is printed and offered with a y/N at a real terminal, and
-  **nothing privileged runs without a TTY or under `--skip-interactive`**, so a CI job or a scripted
-  run can never trip a sudo prompt. An externally-managed environment (PEP 668) is reported with
-  the venv/pipx fix rather than pip's raw error.
-- The local-LLM install now attaches the CPU wheel index automatically, so it no longer needs a C++
-  toolchain. `llama-cpp-python` publishes no wheels to PyPI at all: llama.cpp is built per hardware
-  backend, and one namespace cannot hold the CPU, CUDA and Metal builds of a version, so upstream
-  ships an index per accelerator (as PyTorch does). Verified end to end on a Python 3.14 machine
-  with no `cmake` and no `g++`.
-
-### Fixed
 - The error raised the first time the built-in LLM is used now prints a command that actually
   works. It previously suggested a plain `pip install`, which compiles from source and fails on any
   machine without a toolchain, which is most machines that hit this message.
-- Corrected the install docs. They claimed a mainstream Python "finds a PyPI wheel and Just Works"
-  and framed the extra index as a brand-new-interpreter workaround. There is no PyPI wheel for any
-  Python version, so that guidance sent users into the exact build failure it promised to avoid.
-
-### Changed
-- The full container image no longer compiles `llama-cpp-python`, and no longer installs a C++
-  toolchain to do it. It now takes the same prebuilt wheel the standalone binary does. The
-  Dockerfile's stated reason for compiling ("no portable prebuilt CPU wheel for every platform this
-  targets") was wrong: the CPU index carries a `py3-none-manylinux` wheel that is ABI-agnostic and
-  satisfies any Python 3 on the base image. The runtime image is unchanged in size, since the
-  toolchain was already discarded by the multi-stage split; what this removes is build time and the
-  build stage's own CVE surface, and it stops the container and binary channels disagreeing about
-  whether a compiler is required.
-- The standalone binaries now bundle the built-in local LLM (`llm-local`) alongside `kb-full`, and
-  install it from a prebuilt wheel rather than compiling. `llama-cpp-python` publishes no wheels to
-  PyPI at all (every one of its 200+ releases is sdist-only), because llama.cpp is built per
-  hardware backend and a single PyPI namespace cannot hold the CPU, CUDA and Metal builds of one
-  version. Upstream ships a separate index per accelerator, the same convention PyTorch uses. The
-  binary now points at the CPU index via `PYAPP_PIP_EXTRA_ARGS`, so first run needs no C++
-  toolchain. The `--only-binary` constraint names that one package deliberately rather than
-  `:all:`, which would forbid a source fallback for every other dependency and let one missing
-  wheel break the whole binary.
-
-### Fixed
 - `docker pull ghcr.io/sayak-sarkar/contextlake` (no tag) returned the **slim** image. The slim
   build's tag metadata did not disable `metadata-action`'s default `latest=auto`, so it claimed a
   bare `latest` alongside its own tags, and because slim is pushed after full it won. `latest` now
@@ -96,6 +105,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sdist had to be attached by hand. Publishing is now idempotent (`skip-existing`), and the release
   job runs whenever the artifacts built, since a GitHub Release has value regardless of whether the
   index accepted the upload.
+- Corrected five documentation claims that were wrong at 5.0.0, each verified against the source.
+  The README and QUICKSTART upgrade sections said the graph re-indexes incrementally and nothing
+  needs migrating, when 5.0.0 in fact made every existing shard stale; both now send you to `doctor`
+  and `kb index --force`. The `.mcp.json` and `.vscode/mcp.json` snippets in `serve.md` passed
+  `serve` without the `kb` namespace, so copy-pasting either produced an unknown-command error.
+  `usage.md` told you to copy `.contextlake.ini`, which does not exist (the template is
+  `.contextlake.ini.example`). `cli-reference.md` and `troubleshooting.md` offered a C++ toolchain
+  via `doctor --fix` that no code path reaches.
 
 ## [5.0.0] - 2026-08-04
 
