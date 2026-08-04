@@ -754,9 +754,10 @@ def build_server(
             matches = store.nodes_by_name(name, repo=repo)
             if not matches:
                 return None, f"no indexed symbol named {name!r}"
-            extra = (f" ({len(matches)} matched {name!r}; used the first)"
-                     if len(matches) > 1 else "")
-            return matches[0].id, extra or None
+            # One phrasing for this disclosure across every surface -- see
+            # impact.chosen_one_of; `kb impact` says the same sentence.
+            from .impact import chosen_one_of
+            return matches[0].id, chosen_one_of(name, len(matches)) or None
 
         def _resolve_repo(name):
             """A question names a repo, typically by a short/partial name (the

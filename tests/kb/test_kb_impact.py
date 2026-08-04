@@ -1,5 +1,6 @@
 """Reverse blast-radius / change-impact (`impact` verb + shared blast_radius)."""
 
+import json
 from datetime import date
 
 import pytest
@@ -56,6 +57,79 @@ def test_cmd_impact_cli_lists_dependents(tmp_path, capsys):
     assert e.value.code == 0
     out = capsys.readouterr().out
     assert "Impact of changing" in out and "A" in out
+
+
+def _collision_store(tmp_path):
+    """One repo, two definitions named `close`, and a caller of each. The caller
+    edges are AMBIGUOUS and stamped with the candidate count the parser saw."""
+    s = SqliteStore(tmp_path / "index.sqlite")
+    s.upsert_nodes("r", [
+        Node(id="py-close", repo="r", kind="method", name="close",
+             file="src/db.py", line_start=40),
+        Node(id="js-close", repo="r", kind="function", name="close",
+             file="web/ui.js", line_start=113),
+        Node(id="caller", repo="r", kind="function", name="shutdown",
+             file="src/app.py", line_start=7),
+    ])
+    s.upsert_edges("r", [Edge(
+        src="caller", dst="js-close", relation="calls",
+        confidence=Confidence.AMBIGUOUS, context="ambiguous",
+        attrs={"name_candidates": 2},
+        provenance=Provenance(source_file="src/app.py", source_line=9,
+                              verified_at=date(2026, 8, 5)))])
+    return s
+
+
+def _cfg(tmp_path):
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{tmp_path}"\n')
+    return cfg
+
+
+def test_cmd_impact_names_the_seed_it_chose_and_the_alternatives(tmp_path, capsys):
+    # A bare name resolved to one of several definitions in silence, so an answer
+    # about web/ui.js read exactly like one about the src/db.py the user meant.
+    _collision_store(tmp_path).close()
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "impact", "close", "--config", str(_cfg(tmp_path)), "--hops", "1"])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    assert "seed: function web/ui.js:113" in out          # which one it used
+    assert "2 matched 'close'; used the first" in out     # that a choice was made
+    assert "--node py-close" in out                       # and how to pick the other
+
+
+def test_cmd_impact_json_distinguishes_hits_and_cites_the_call_site(tmp_path, capsys):
+    # --json carried only hop/repo/kind/name/via/confidence, so two hits sharing a
+    # name were indistinguishable and none could be opened.
+    _collision_store(tmp_path).close()
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "impact", "close", "--config", str(_cfg(tmp_path)),
+              "--hops", "1", "--json"])
+    assert e.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["target"]["file"] == "web/ui.js" and payload["target"]["line"] == 113
+    assert payload["ambiguous"] is True
+    assert [c["id"] for c in payload["other_definitions"]] == ["py-close"]
+    hit = payload["affected"][0]
+    assert hit["id"] == "caller"
+    assert hit["file"] == "src/app.py" and hit["line"] == 7
+    assert hit["via_file"] == "src/app.py" and hit["via_line"] == 9   # the call site
+    assert hit["name_candidates"] == 2
+
+
+def test_cmd_impact_quantifies_what_ambiguous_cost_this_answer(tmp_path, capsys):
+    # "ambiguous" read identically on a hand-verified 11/11 answer and on one with
+    # 282 false positives; the discriminating fact is how many definitions each
+    # name-matched reference could have meant.
+    _collision_store(tmp_path).close()
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "impact", "close", "--config", str(_cfg(tmp_path)), "--hops", "1"])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    assert "1 of 2 same-name definitions" in out
+    assert "1 of 1 hit(s) came from a reference matched by NAME" in out
+    assert "via calls at src/app.py:9" in out
 
 
 def test_cmd_impact_usage_error_without_target():

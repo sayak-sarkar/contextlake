@@ -29,6 +29,14 @@ class ImpactHit:
     hop: int          # distance from the seed (1 = direct caller/dependent)
     via: str          # the relation traversed
     confidence: str   # EXTRACTED | INFERRED | AMBIGUOUS
+    file: str | None = None        # where the affected symbol is defined
+    line: int | None = None
+    via_file: str | None = None    # where the traversed edge was found: the call site
+    via_line: int | None = None
+    # For an AMBIGUOUS edge, how many same-named definitions that one reference
+    # could have meant (stamped by the parser -- see parse._resolve_name_refs).
+    # None on a store indexed before that stamp existed, never a guess.
+    name_candidates: int | None = None
 
 
 def blast_radius(store, node_id: str, *, hops: int = 3,
@@ -62,8 +70,16 @@ def blast_radius(store, node_id: str, *, hops: int = 3,
             n = store.get_node(e.src)
             if not n:
                 continue
-            hits.append(ImpactHit(id=n.id, repo=n.repo, kind=n.kind, name=n.name,
-                                  hop=hop + 1, via=e.relation, confidence=e.confidence.value))
+            prov = getattr(e, "provenance", None)
+            hits.append(ImpactHit(
+                id=n.id, repo=n.repo, kind=n.kind, name=n.name,
+                hop=hop + 1, via=e.relation, confidence=e.confidence.value,
+                file=n.file, line=n.line_start,
+                # The call site is the one verifiable fact about an inferred edge:
+                # it is the line a reader opens to judge whether this hit is real.
+                via_file=getattr(prov, "source_file", None),
+                via_line=getattr(prov, "source_line", None),
+                name_candidates=(getattr(e, "attrs", None) or {}).get("name_candidates")))
             frontier.append((e.src, hop + 1))
     return hits, truncated
 
@@ -80,6 +96,30 @@ def _rank_candidates(nodes: list) -> list:
         is_test = 1 if (n.file and "test" in n.file.lower()) else 0
         return (is_source, is_test, n.id)
     return sorted(nodes, key=key)
+
+
+def chosen_one_of(target: str, matches: int) -> str:
+    """The single phrasing every surface uses when a bare name matched several
+    definitions and one of them had to be seeded.
+
+    Shared rather than re-worded per surface: the dashboard chat router disclosed
+    the choice while the CLI stayed silent about it, so the same store answered
+    the same question with and without the caveat depending on where you asked.
+    """
+    return f" ({matches} matched {target!r}; used the first)" if matches > 1 else ""
+
+
+def other_definitions(store, node, *, repo: str | None = None) -> list:
+    """The same-named definitions ``resolve_target`` did NOT seed, best first.
+
+    Re-runs the identical ``nodes_by_name`` + ranking that picked the seed, so the
+    list is exactly the set of alternatives that were passed over -- what a user
+    needs to see to know whether the answer is about the symbol they meant.
+    """
+    if node is None:
+        return []
+    ranked = _rank_candidates(store.nodes_by_name(node.name, repo=repo))
+    return [n for n in ranked if n.id != node.id]
 
 
 def resolve_target(store, target: str, *, repo: str | None = None):
