@@ -45,6 +45,7 @@ from ..http_base import (
     qs_int,
 )
 from ..lock import StoreBusy, StoreLock
+from ..state import check_schema
 from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
 from . import mutations as kbmut
@@ -546,6 +547,11 @@ def serve_dashboard(store_dir, *, host: str = "127.0.0.1", port: int = 8765,
     store_dir = Path(store_dir)
     store = SqliteStore(store_dir / "index.sqlite")
     try:
+        # Same gate every `kb` command gets via cmds/_common._open_store. The
+        # dashboard reaches the store on its own path, and with --allow-mutations
+        # it writes to it, so it must refuse a store from a newer contextlake for
+        # the same reason those commands do.
+        check_schema(store)
         try:
             srv = build_dashboard_server(store, store_dir, host=host, port=port,
                                          config_path=config_path, sample=sample,

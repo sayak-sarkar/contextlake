@@ -29,6 +29,7 @@ from pathlib import Path
 
 from ...logging_setup import log
 from ..security import sanitize_label
+from ..state import check_schema
 from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
 
@@ -269,6 +270,10 @@ def build_dashboard_site(store_dir, out_dir, *, repos=None, anonymize: bool = Fa
     log(_PUBLISH_WARNING_ANON if anonymize else _PUBLISH_WARNING)
     store = SqliteStore(store_dir / "index.sqlite")
     try:
+        # As in serve_dashboard: a store written by a newer contextlake is refused
+        # rather than rendered, since the page would present facts read through a
+        # schema this build is only guessing at.
+        check_schema(store)
         snapshot = _snapshot(store, store_dir, repos=repos, anonymize=anonymize,
                              group_depth=group_depth)
         _emit(out, store, store_dir, snapshot, repos)

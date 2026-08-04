@@ -42,10 +42,13 @@ and lockfiles from the graph.
 
 `contextlake doctor` checks the environment (FTS5, `git` / `glab` on PATH, the store, the embedder, and the
 ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
-doesn't affect the exit code) any C/C++ shard indexed with an older parser version than the one currently
-installed -- a nudge to re-index that repo so it picks up parser-correctness fixes. `contextlake kb lint`
-audits the graph itself, reporting **stale repos** (HEAD moved since they were indexed) and **dangling
-edges** (an edge whose endpoint node is missing). Both exit non-zero on problems, so they're CI-friendly.
+doesn't affect the exit code) any shard indexed with an older parser version than the one currently
+installed -- `contextlake kb index` rebuilds those on its next run, so they pick up parser-correctness fixes.
+`contextlake kb lint` audits the graph itself, reporting **stale repos** (HEAD moved since they were
+indexed), **dangling edges** (an edge whose endpoint node is missing), and the same **older-parser** repos
+doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
+lint that means dangling edges or HEAD-stale repos; the older-parser count is reported but deliberately kept
+out of its exit code, so upgrading to a build with a new parser can't turn a green CI gate red on its own.
 
 ## What the graph captures
 

@@ -27,7 +27,7 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .. import observability
 from .model import EXTERNAL_LINK_RELATIONS, Edge, Node
@@ -218,6 +218,13 @@ class GraphHealthOut(BaseModel):
     dangling: int                    # edges pointing at a missing node
     stale_repos: list[str]
     dangling_sample: list[DanglingOut]   # first 20
+    # Repos whose graph an older parser built: the code has not moved, but this
+    # build would not produce the graph on disk, so its answers are a previous
+    # build's. Additive fields with defaults, so an existing caller reading only
+    # the counts above is unaffected. Overlaps `stale` on purpose -- a repo can
+    # be both, and each count answers its own question (see commands.lint_result).
+    parser_stale: int = 0
+    parser_stale_repos: list[str] = Field(default_factory=list)
 
 
 class AskOut(BaseModel):
@@ -651,19 +658,21 @@ def build_server(
 
     @mcp.tool()
     def graph_health() -> GraphHealthOut:
-        """Knowledge-graph health — stale repos (local HEAD moved past the index) and
-        dangling edges (pointing at a missing node). The dashboard's health panel;
-        offline (reads local git HEADs).
+        """Knowledge-graph health — stale repos (local HEAD moved past the index),
+        repos whose graph an older parser built (re-index to refresh), and dangling
+        edges (pointing at a missing node). The dashboard's health panel; offline
+        (reads local git HEADs).
         """
         from .commands import lint_result
         sp = getattr(store, "path", None)
         res = lint_result(store, Path(sp).parent) if sp else {
-            "repos": 0, "checked": 0, "stale": 0, "dangling": 0,
-            "stale_repos": [], "dangling_sample": []}
+            "repos": 0, "checked": 0, "stale": 0, "dangling": 0, "parser_stale": 0,
+            "stale_repos": [], "parser_stale_repos": [], "dangling_sample": []}
         return GraphHealthOut(
             repos=res["repos"], checked=res["checked"], stale=res["stale"],
-            dangling=res["dangling"],
+            dangling=res["dangling"], parser_stale=res["parser_stale"],
             stale_repos=[sanitize_label(x) for x in res["stale_repos"]],
+            parser_stale_repos=[sanitize_label(x) for x in res["parser_stale_repos"]],
             dangling_sample=[DanglingOut(
                 repo=sanitize_label(d["repo"]), src=sanitize_label(d["src"]),
                 relation=d["relation"], dst=sanitize_label(d["dst"]))

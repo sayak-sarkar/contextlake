@@ -625,8 +625,15 @@ def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert set(payload) == {"repos", "checked", "stale", "dangling",
-                            "stale_repos", "dangling_sample"}
+                            "parser_stale", "stale_repos", "parser_stale_repos",
+                            "dangling_sample"}
     assert payload["stale"] == 1
+    # ...and parser-stale for the same reason it is HEAD-stale: the fixture is a
+    # hand-written shard carrying no parser_version, so no parser this build knows
+    # produced it. Both counts include it -- they answer different questions, and
+    # a repo can genuinely be both (this is what `doctor` reports for it too).
+    assert payload["parser_stale"] == 1
+    assert payload["parser_stale_repos"] == payload["stale_repos"]
 
 
 def test_impact_json_empty_argument_is_still_valid_json(tmp_path, capsys):

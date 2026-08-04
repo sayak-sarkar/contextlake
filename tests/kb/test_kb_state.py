@@ -12,7 +12,7 @@ from contextlake.kb.state import (
     needs_reindex,
 )
 from contextlake.kb.store.shards import GraphShard, write_shard
-from contextlake.kb.store.sqlite_store import SqliteStore
+from contextlake.kb.store.sqlite_store import SCHEMA_VERSION, SqliteStore
 
 
 @pytest.fixture
@@ -119,5 +119,63 @@ def test_check_schema_accepts_current(store):
 def test_check_schema_rejects_newer(store):
     store._set_meta("schema_version", "999")
     store.conn.commit()
-    with pytest.raises(RuntimeError, match="newer than supported"):
+    with pytest.raises(RuntimeError, match="schema v999"):
         check_schema(store)
+
+
+def test_reopening_preserves_a_future_schema_stamp(tmp_path):
+    """The downgrade this closes: ``SqliteStore`` stamped its own schema version
+    on every open, *before* any caller could read what was there. A store written
+    by a newer contextlake was therefore re-stamped to this build's number on the
+    first open, and ``check_schema`` -- which runs after construction -- then read
+    back this build's own number and saw nothing wrong. Reopen is the case that
+    matters: the in-process test above never crosses a constructor.
+    """
+    db = tmp_path / "kb.sqlite"
+    first = SqliteStore(db)
+    first._set_meta("schema_version", "999")   # stand-in for "written by a later build"
+    first.close()
+
+    reopened = SqliteStore(db)
+    try:
+        assert reopened.get_meta("schema_version") == "999"   # not silently re-stamped
+        with pytest.raises(RuntimeError) as excinfo:
+            check_schema(reopened)
+    finally:
+        reopened.close()
+    msg = str(excinfo.value)
+    assert "999" in msg and str(SCHEMA_VERSION) in msg   # both versions named
+    assert "pip install -U contextlake" in msg           # ...and what to do
+
+
+def test_reopening_an_older_store_still_migrates_it_forward(tmp_path):
+    """The other direction is not a refusal: an older stamp is overwritten,
+    because the store has just been migrated forward on open."""
+    db = tmp_path / "kb.sqlite"
+    first = SqliteStore(db)
+    first._set_meta("schema_version", "1")
+    first.close()
+
+    reopened = SqliteStore(db)
+    try:
+        assert reopened.get_meta("schema_version") == str(SCHEMA_VERSION)
+        check_schema(reopened)  # no raise
+    finally:
+        reopened.close()
+
+
+def test_check_schema_refuses_an_unreadable_stamp(tmp_path):
+    """A stamp that is not a version number is preserved and reported, not
+    normalised away -- and not surfaced as a bare ``int()`` ValueError."""
+    db = tmp_path / "kb.sqlite"
+    first = SqliteStore(db)
+    first._set_meta("schema_version", "not-a-version")
+    first.close()
+
+    reopened = SqliteStore(db)
+    try:
+        assert reopened.get_meta("schema_version") == "not-a-version"
+        with pytest.raises(RuntimeError, match="unrecognised schema stamp"):
+            check_schema(reopened)
+    finally:
+        reopened.close()

@@ -134,12 +134,17 @@ def test_incremental_reindexes_a_repo_whose_parser_moved_on(tmp_path, logs):
 
 # --- lint (Phase 2.5 graph health) ----------------------------------------
 
-def _seed(store_dir, repo_path, head, edges):
+def _seed(store_dir, repo_path, head, edges, parser_version=None):
+    """Seed one repo's shard. ``parser_version`` defaults to this build's, so a
+    seeded store is current in every sense unless a test says otherwise."""
+    from contextlake.kb.parse import PARSER_VERSION
+
     store = SqliteStore(store_dir / "index.sqlite")
     check_schema(store)
     store.upsert_repo(Repo(id="app", path=str(repo_path)))
     nodes = [Node(id="a", repo="app", kind="function", name="foo")]
-    write_shard(store_dir, GraphShard(repo="app", head_commit=head, nodes=nodes, edges=edges))
+    write_shard(store_dir, GraphShard(repo="app", head_commit=head, nodes=nodes, edges=edges,
+                                      parser_version=parser_version or PARSER_VERSION))
     reindex_shard(store, store_dir, "app")
     mark_repo_indexed(store, "app", head)
     store.close()
@@ -177,7 +182,43 @@ def test_lint_clean_graph_passes(tmp_path, monkeypatch):
     assert cmd_lint(Namespace(config=str(tmp_path / "kb.toml"))) == 0
 
 
-# --- watch loop (Phase 2.6) -----------------------------------------------
+def test_lint_reports_parser_staleness_and_agrees_with_doctor(tmp_path, monkeypatch,
+                                                              logs, capsys):
+    """The disagreement this closes: for a repo sitting at its indexed HEAD but
+    whose shard an older parser built, ``doctor`` said "1 repo(s) indexed with an
+    older parser -- re-index" while ``lint`` said "0 stale" and exited 0.
+
+    Both commands now report it, from the same source (the shard). lint's exit
+    code is deliberately unchanged -- see ``cmd_lint``'s docstring -- so the fix
+    cannot turn a parser bump into a red CI gate on upgrade.
+    """
+    from contextlake.kb.commands import cmd_doctor, lint_result
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    repo = tmp_path / "app"
+    head = _git_repo(repo)
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    # HEAD matches the index and the one edge resolves: the *only* thing wrong
+    # with this store is the parser that built it.
+    _seed(store_dir, repo, head, [_edge("a")], parser_version="0")
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        res = lint_result(store, store_dir)
+    finally:
+        store.close()
+    assert res["stale"] == 0 and res["dangling"] == 0   # nothing else is wrong
+    assert res["parser_stale"] == 1 and res["parser_stale_repos"] == ["app"]
+
+    assert cmd_lint(Namespace(config=str(cfg))) == 0    # exit code unchanged
+    assert any("parser-stale: app" in m for m in logs)
+    assert any("1 built by an older parser" in m for m in logs)
+
+    cmd_doctor(Namespace(config=str(cfg)))
+    assert "1 repo(s) indexed with an older parser" in capsys.readouterr().out
 
 def test_watch_loop_runs_n_times():
     calls = []

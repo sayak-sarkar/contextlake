@@ -21,6 +21,30 @@ from .base import Stats, Store
 
 SCHEMA_VERSION = 3
 
+# What a schema stamp that is present but not a version number reads back as.
+# Kept distinct from None ("no stamp at all", which is simply a fresh store):
+# one is normal, the other is a store whose own metadata cannot be trusted, and
+# the two earn different treatment.
+UNREADABLE_SCHEMA = object()
+
+
+def parse_schema_version(raw: str | None):
+    """The store's schema stamp as an int, ``None`` when absent, or
+    :data:`UNREADABLE_SCHEMA` when present but not a version number.
+
+    Only this package writes that stamp, always as ``str(int)``, so anything else
+    means it was hand-edited or corrupted. A bare ``int(raw)`` would surface that
+    as a ValueError traceback from whichever caller happened to open the store
+    first, which tells the user nothing about what to do next.
+    """
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return UNREADABLE_SCHEMA
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS kb_meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS repos (
@@ -86,9 +110,35 @@ class SqliteStore(Store):
             conn.executescript(_SCHEMA)
             self._local.conn = conn
             self._migrate_additive_columns()
-            self._set_meta("schema_version", str(SCHEMA_VERSION))
+            self._stamp_schema_version()
             conn.commit()
         return conn
+
+    def _stamp_schema_version(self) -> None:
+        """Record this build's schema version — unless the store already carries a
+        newer one.
+
+        Read before write, deliberately. This used to stamp unconditionally, which
+        meant a store written by a *newer* contextlake was silently re-stamped down
+        to this build's number the instant an older build opened it — destroying the
+        one piece of evidence :func:`~contextlake.kb.state.check_schema` exists to
+        act on, before any caller could look at it. Running two versions against one
+        store produced no warning at all.
+
+        An *older* stamp is overwritten, because that direction is a real migration:
+        :meth:`_migrate_additive_columns` has just brought the file forward, so the
+        current number is the truth. An unparsable stamp is left alone rather than
+        normalised away, so ``check_schema`` can report it instead of this silently
+        deciding what it meant.
+
+        Nothing is cached on ``self``: this property runs once per thread, so an
+        attribute written by whichever thread happened to open first would be a race
+        for no benefit. ``check_schema`` re-reads through ``get_meta``.
+        """
+        found = parse_schema_version(self.get_meta("schema_version"))
+        if found is UNREADABLE_SCHEMA or (found is not None and found > SCHEMA_VERSION):
+            return
+        self._set_meta("schema_version", str(SCHEMA_VERSION))
 
     def _migrate_additive_columns(self) -> None:
         """Add columns introduced after a store already exists on disk.

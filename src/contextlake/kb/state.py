@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .store.base import Store
-from .store.sqlite_store import SCHEMA_VERSION
+from .store.sqlite_store import SCHEMA_VERSION, UNREADABLE_SCHEMA, parse_schema_version
 
 
 def utcnow_iso() -> str:
@@ -79,10 +79,42 @@ def indexed_parser_version(store: Store, store_dir: str | Path,
 
 
 def check_schema(store: Store) -> None:
-    """Refuse to operate on a database newer than this build understands."""
+    """Refuse to operate on a database this build does not understand.
+
+    Two refusals, one direction each:
+
+    * a stamp *newer* than :data:`SCHEMA_VERSION` — the store was written by a
+      later contextlake, whose columns and invariants this build has never heard
+      of. Reading it would answer from a schema it is guessing at; writing it
+      would corrupt a store the newer build still owns.
+    * a stamp that is not a version number at all — the metadata was hand-edited
+      or corrupted, so nothing can be concluded from it.
+
+    An *older* stamp is not a refusal: the store migrates forward on open (see
+    ``SqliteStore._migrate_additive_columns``), which is the whole point of
+    keeping the stamp.
+
+    This is only half of the guard. It reports what the store says; the store
+    only says something true because it stopped overwriting the stamp on open
+    (see ``SqliteStore._stamp_schema_version``) — until then, every check here
+    read back this build's own number no matter who wrote the file.
+    """
     raw = store.get_meta("schema_version")
-    if raw is not None and int(raw) > SCHEMA_VERSION:
+    found = parse_schema_version(raw)
+    where = getattr(store, "path", None)
+    at = f" ({where})" if where else ""
+    if found is UNREADABLE_SCHEMA:
         raise RuntimeError(
-            f"knowledge-base schema v{raw} is newer than supported v{SCHEMA_VERSION}; "
-            "upgrade contextlake"
+            f"knowledge-base{at} carries an unrecognised schema stamp {raw!r}; "
+            f"this build writes v{SCHEMA_VERSION}. Refusing to touch it. The SQLite "
+            "file is a rebuildable index over the graph shards next to it: delete "
+            "index.sqlite and re-run `contextlake kb index` to rebuild it."
+        )
+    if found is not None and found > SCHEMA_VERSION:
+        raise RuntimeError(
+            f"knowledge-base{at} is at schema v{found}, written by a newer "
+            f"contextlake; this build understands v{SCHEMA_VERSION}. Refusing to "
+            "touch it, because operating on it would downgrade a store the newer "
+            "build still owns. Upgrade contextlake (`pip install -U contextlake`), "
+            "or point store_dir/--config at a store this build wrote."
         )
