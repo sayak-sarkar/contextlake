@@ -93,6 +93,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 --shell /usr/sbin/nologin contextlake
 WORKDIR /work
+# HOME must follow WORKDIR into the bind mount, or the image quietly throws away
+# its own output. The knowledge store defaults to ~/.contextlake/kb, and useradd
+# put this user's home at /home/contextlake -- inside the container's writable
+# layer, not inside the volume. So the documented `docker run -v "$PWD:/work" ...
+# kb index` would spend minutes building a store and then discard it when the
+# container exited, with nothing on the host to show for it and no error. Pointing
+# HOME at the mount means everything contextlake persists (store, config, caches)
+# lands in the directory the user mounted. Without -v it is an empty container
+# directory and the run is ephemeral, exactly as before; with a read-only mount it
+# now fails loudly instead of succeeding into the void. HF_HOME is set explicitly
+# above, so the baked models are unaffected by this.
+ENV HOME=/work
 # Not a long-lived daemon by default (CMD is a one-shot "doctor" run), but this
 # still catches a broken interpreter/venv or a corrupted install (D-5): a
 # non-zero exit here means `contextlake --version` itself can't run.
