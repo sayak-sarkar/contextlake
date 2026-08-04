@@ -324,6 +324,30 @@ def test_blast_radius_reverse_reach(tmp_path):
     s.close()
 
 
+def test_blast_radius_hits_cite_the_call_site_and_their_ambiguity(tmp_path):
+    # The MCP surface had the same gap as `kb impact --json`: hits sharing a name
+    # were indistinguishable, and an AMBIGUOUS label carried nothing an agent could
+    # check. Both are facts the walk already holds.
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("r", [
+        Node(id="callee", repo="r", kind="method", name="close", file="src/db.py",
+             line_start=40),
+        Node(id="caller", repo="r", kind="function", name="shutdown", file="src/app.py",
+             line_start=7)])
+    s.upsert_edges("r", [Edge(
+        src="caller", dst="callee", relation="calls", confidence=Confidence.AMBIGUOUS,
+        attrs={"name_candidates": 3},
+        provenance=Provenance(source_file="src/app.py", source_line=9,
+                              verified_at=date(2026, 8, 5)))])
+    out = _unwrap(asyncio.run(
+        _call(build_server(s), "blast_radius", {"node_id": "callee"})).structured_content)
+    hit = out["hits"][0]
+    assert hit["file"] == "src/app.py" and hit["line"] == 7
+    assert hit["via_file"] == "src/app.py" and hit["via_line"] == 9
+    assert hit["name_candidates"] == 3
+    s.close()
+
+
 def test_get_wiki_serves_prose_with_staleness(tmp_path):
     s = SqliteStore(tmp_path / "k.sqlite")          # store.path.parent == tmp_path
     s.upsert_repo(Repo(id="team/api", path="/a", head_commit="abc123"))

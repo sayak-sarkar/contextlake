@@ -114,6 +114,15 @@ class BlastHit(BaseModel):
     hop: int          # distance from the seed (1 = direct caller/dependent)
     via: str          # the relation traversed
     confidence: str   # verify INFERRED / AMBIGUOUS hits against the cited source
+    file: str | None = None       # where the affected symbol is defined
+    line: int | None = None
+    # The call site the edge was read from: the line an agent opens to check an
+    # AMBIGUOUS hit rather than taking the label's word for it.
+    via_file: str | None = None
+    via_line: int | None = None
+    # How many same-named definitions this reference could have meant (None when
+    # the store predates the stamp). "1 of 5" is a fact; "ambiguous" alone is not.
+    name_candidates: int | None = None
 
 
 class BlastRadiusOut(BaseModel):
@@ -514,7 +523,10 @@ def build_server(
             seed=nid, hops=hops, total=len(hits), truncated=truncated,
             hits=[BlastHit(id=sanitize_label(h.id), repo=sanitize_label(h.repo),
                            kind=sanitize_label(h.kind), name=sanitize_label(h.name),
-                           hop=h.hop, via=sanitize_label(h.via), confidence=h.confidence)
+                           hop=h.hop, via=sanitize_label(h.via), confidence=h.confidence,
+                           file=sanitize_label(h.file) if h.file else None, line=h.line,
+                           via_file=sanitize_label(h.via_file) if h.via_file else None,
+                           via_line=h.via_line, name_candidates=h.name_candidates)
                   for h in hits])
 
     @mcp.tool()
