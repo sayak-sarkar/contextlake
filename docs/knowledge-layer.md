@@ -28,7 +28,7 @@ doubles as a CI health gate:
 </p>
 
 The fastest way to build all of it is one command, `contextlake bootstrap` (see
-[Bootstrap and keep fresh](bootstrap.md)). The rest of this section is the map of what that pipeline does,
+[Bootstrap and keep it fresh](keep-fresh.md)). The rest of this section is the map of what that pipeline does,
 stage by stage.
 
 ## Building it, stage by stage
@@ -43,14 +43,14 @@ stage by stage.
   (and per namespace).
 - **[Model providers](model-providers.md)**: choose the embeddings and wiki backend (built-in CPU, Ollama,
   OpenAI, Anthropic, or an agent CLI).
-- **[Bootstrap and keep fresh](bootstrap.md)**: run the whole pipeline in one command and keep it current.
+- **[Bootstrap and keep it fresh](keep-fresh.md)**: run the whole pipeline in one command and keep it current.
 
 ## Using what you built
 
 - **[Serve it to your editor](serve.md)**: expose the graph over MCP so agents query it directly.
 - **[The dashboard](dashboard.md)**: a local, offline-first UI over the whole knowledge system.
 - **[Visualize the graph](visualize.md)**: bounded interactive graph slices and the C4 diagram.
-- **[Ownership and SMEs](ownership.md)**: who owns a repo or path, from git history.
+- **[Ask the graph](ask-the-graph.md)**: query it, trace what a change would break, and find who owns it.
 
 For the command list see the [`contextlake` command reference](cli-reference.md); to decode a run see
 [Reading the console output](console-output.md).

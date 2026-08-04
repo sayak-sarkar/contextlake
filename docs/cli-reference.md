@@ -1,71 +1,46 @@
 # `contextlake` command reference
 
-Every command has scoped help via `contextlake <command> --help`. This page is the at-a-glance map; each
-command's own page (linked below) covers it in depth.
-
-## Typos and abbreviations
-
-A mistyped command suggests the closest real one instead of dumping the full command list:
-
-```
-$ contextlake fetc
-✗ Unknown command: 'fetc'
-
-Did you mean: mirror fetch?
-
-Run 'contextlake --help' to see all commands.
-```
-
-The match runs against every command name **and its aliases** (`blast-radius` for `impact`, `who-knows`
-for `owners`), then shows the canonical, namespaced verb, matching what `--help` teaches. This is also
-what answers the retired flat spellings: `contextlake fetch` no longer parses, so it fails here like any
-other unknown command and is pointed at `mirror fetch`.
-
-Flags never match on a partial name or abbreviation. `contextlake kb index --work-d /tmp` reports
-`unrecognized arguments: --work-d` rather than silently guessing you meant `--workspace`: a prefix is
-treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
-
-A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
-letter -- not a shortened prefix) does get a suggestion, scoped to that command's own flags:
-
-```
-$ contextlake kb index --worksapce .
-✗ Unknown flag: '--worksapce'
-
-Did you mean: --workspace?
-```
-
-A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
-reporting it as simply unrecognized:
-
-```
-$ contextlake bootstrap --local
-✗ '--local' isn't a flag on 'bootstrap'
-
-It's used by: init, kb source.
-
-Run 'contextlake bootstrap --help' to see bootstrap's own flags.
-```
-
-A value-taking flag immediately followed by another recognized flag (its value was left out, so the next
-flag lands where the value should be) names the real problem instead of arguing you forgot a value
-entirely:
-
-```
-$ contextlake kb dashboard --serve --workspace --open
-✗ '--workspace' needs a value, but the next token ('--open') is itself a recognized flag
-
-Put the value right after --workspace, e.g. '--workspace <value> --open'.
-```
+Every flag and every command, in one place. Each command also carries scoped help via
+`contextlake <command> --help`, and each command's own page (linked below) covers it in depth.
+For what the CLI says back when a name or a flag is wrong, see
+[Reading the console output](console-output.md#when-you-mistype-a-command-or-a-flag).
 
 ## Shell completion
 
-Registered automatically the first time any command runs in a real interactive terminal (no `pip
-install` post-install hook exists to do this at install time -- see [Mirror repositories](usage.md)
-#shell-completion for why), and never overrides an explicit decline from `contextlake init
---no-completion`. Run `contextlake completion [bash|zsh|fish]` to register on demand instead of
-waiting for that first run, or `CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of the automatic check
-entirely.
+`argcomplete` is a core dependency, so `pip install contextlake` alone is enough. A plain pip
+install has no post-install hook to run anything at, which is a Python packaging limitation rather
+than a gap here, so completion is registered instead the **first time any command runs in a real
+interactive terminal**: once, idempotently, and it says so in the log. Non-interactive contexts (CI,
+Docker, a piped command) are skipped entirely, since there is no shell to configure.
+
+```bash
+contextlake completion          # auto-detect $SHELL and register now
+contextlake completion zsh      # register for zsh explicitly, regardless of $SHELL
+```
+
+An interactive `contextlake init` offers the same registration up front (on by default, `--no-completion`
+to skip), and an explicit decline there is remembered: the automatic check never overrides it. A
+non-interactive `init` (`--skip-interactive`, or a piped stdin) never touches your shell startup
+file, so pass `--completion` to opt in. `CONTEXTLAKE_NO_AUTO_COMPLETION=1` disables the automatic
+check altogether.
+
+Whichever route, one of these is written once:
+
+```bash
+# bash, appended to ~/.bashrc
+eval "$(register-python-argcomplete contextlake)"
+
+# zsh, appended to ~/.zshrc (needs bashcompinit; most zsh setups already load it)
+autoload -U bashcompinit && bashcompinit
+eval "$(register-python-argcomplete contextlake)"
+
+# fish, a dedicated file, written once
+register-python-argcomplete --shell fish contextlake > ~/.config/fish/completions/contextlake.fish
+```
+
+For any other shell, copy the block for the closest match and open a new shell. `contextlake <TAB>`
+then completes every command and, inside a command, every one of its flags, generated live from the
+same parser that runs the command, so it cannot drift out of sync with the real CLI surface.
 
 ## Global flags
 
@@ -90,21 +65,49 @@ the metric names.
 
 ## Advanced/resilience flags
 
-The 8 `mirror`-tier commands (`mirror fetch`/`clone`/`update`/`branches`/`verify`/`status`/`sync`/`audit`)
-each take a further ~14 retry/backoff/worker-pool/safety-check flags (`--max-retries`,
-`--backoff-initial`/`--backoff-max`, `--adaptive-workers`, `--protect-working-branches`,
-`--safe-branches`, `--require-clean-workspace`, `--auto-stash`, and their `--no-` counterparts) --
-automation levers, not something to guess at from a bare `--help`. Every one already has a
-`.contextlake.ini` equivalent (see [Mirror repositories](usage.md)), so they're kept out of the
-default `--help` listing; run `contextlake <command> --help-advanced` to see them.
+The 8 `mirror`-tier commands each take a further set of retry, backoff, worker-pool and
+safety-check flags (`--max-retries`, `--backoff-initial` / `--backoff-max`, `--adaptive-workers`,
+`--protect-working-branches`, `--safe-branches`, `--require-clean-workspace`, `--auto-stash`, and
+their `--no-` counterparts). They are automation levers rather than things to guess at from a bare
+`--help`, and every one has a `.contextlake.ini` equivalent as its primary home (see
+[Branch safety](usage.md#branch-safety)), so they are kept out of the default listing. Run
+`contextlake <command> --help-advanced` to see them.
 
-`contextlake --help` groups all 29 commands by task (Get started / Mirror a fleet / Build the
-knowledge graph / Explore & search / Serve to editors) directly in its own output -- the tables below
-are the same commands, organized for reference rather than a first read. Each knowledge-layer verb
-below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb query`, ...); `init`,
-`bootstrap`, `version`, `completion`, and `doctor` span both tiers or neither, so they stay top-level.
+## The command surface
 
-## Knowledge-layer commands
+Thirty commands: 5 top-level, 8 under `mirror`, 17 under `kb`. `contextlake --help` groups them by
+task in its own output; the tables below are the same commands organized for lookup. Two extra
+spellings exist as aliases rather than as separate commands: `kb who-knows` for `kb owners` and
+`kb blast-radius` for `kb impact`.
+
+### Top-level commands
+
+These span both tiers, or neither, so they are not namespaced.
+
+| Command | What it does |
+| --- | --- |
+| `init` | Write the config files, prompting for each value (`--skip-interactive` to accept defaults) |
+| `bootstrap` | Run the whole pipeline end to end: mirror, index, connect, embed, enrich, wiki, steer |
+| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing |
+| `completion` | Register shell tab-completion on demand |
+| `version` | Print the installed version |
+
+### Mirror commands
+
+| Command | What it does |
+| --- | --- |
+| `mirror status` | Compare the cached project list against the local workspace, changing nothing |
+| `mirror fetch` | Enumerate accessible projects and refresh the cache |
+| `mirror clone` | Clone repositories present remotely and missing locally |
+| `mirror update` | Fetch and fast-forward each local repo's current branch |
+| `mirror branches` | Switch each repo to its most active branch |
+| `mirror verify` | Check the local tree matches the remote list, and flag nested `.git` directories |
+| `mirror sync` | fetch, clone, update, branches, verify, audit, in that order |
+| `mirror audit` | Repo health and age report, as JSON and CSV |
+
+Covered in depth under [Mirror repositories](usage.md).
+
+### Knowledge-layer commands
 
 | Command | What it does |
 | --- | --- |
@@ -122,45 +125,22 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
 | `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
-| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing (see below) |
-| `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
 | `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
+| `kb hook` | Install, remove or inspect the `post-commit` hook that re-indexes a repo on commit |
 
-The `mirror`-tier commands (`mirror fetch`, `mirror clone`, `mirror update`, `mirror branches`,
-`mirror verify`, `mirror sync`, `mirror status`, `mirror audit`) are covered under
-[Mirror repositories](usage.md).
+`doctor --fix`'s own flags, and the two privilege tiers behind them, are on
+[Install and upgrade](install.md#installing-what-is-missing).
 
-### `doctor --fix`: install what is missing
+## Exit codes
 
-`doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
-configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
-the local llama-cpp runtime. Name a capability to install it regardless of config.
-
-| Flag | Effect |
-| --- | --- |
-| `--fix` | Install every missing dependency the resolved config calls for |
-| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` |
-| `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
-| `--skip-interactive` | Never prompt: privileged commands are printed, not run |
-
-Two privilege tiers, and the split is deliberate:
-
-- **Python packages** install into the interpreter contextlake is running in, with
-  `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
-  and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
-  CPU wheel index automatically and says why.
-- **System packages** (currently just git) need administrator rights. The exact command is printed
-  in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
-  when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
-  never trip a sudo prompt.
-
-`--fix` also explains, rather than re-raising, the failures that actually happen: a PEP 668
-externally-managed environment (use a venv or pipx), a proxy timeout, an untrusted intercepting CA,
-or no matching distribution. Nothing planned is ever run before it has been printed.
+Four: `0` nothing failed, `1` something did, `2` the invocation was wrong, `130` interrupted. The
+conditions behind each are on
+[Reading the console output](console-output.md#what-it-exited-with).
 
 ## See also
 
+- [Ask the graph](ask-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
 - [Index the code graph](index-code-graph.md)
 - [Serve it to your editor](serve.md)
 - [Reading the console output](console-output.md)

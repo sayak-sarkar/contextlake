@@ -47,6 +47,64 @@ summary (`✓ Embed complete: ...`, `✓ Lint: ...`, and so on) you can skim str
 into a tool that doesn't expect escape codes. It doesn't touch the glyphs themselves, `✓`/`⚠`/`✗` and the
 rest still print; only the color wrapped around them is gone.
 
+## When you mistype a command or a flag
+
+The error output is part of the console output, so it gets the same treatment as the rest: say what is
+wrong, then say what to do about it.
+
+A mistyped command suggests the closest real one instead of dumping the full command list:
+
+```
+$ contextlake fetc
+✗ Unknown command: 'fetc'
+
+Did you mean: mirror fetch?
+
+Run 'contextlake --help' to see all commands.
+```
+
+The match runs against every command name **and its aliases** (`blast-radius` for `impact`, `who-knows`
+for `owners`), then shows the canonical, namespaced verb, matching what `--help` teaches. This is also
+what answers the retired flat spellings: `contextlake fetch` no longer parses, so it fails here like any
+other unknown command and is pointed at `mirror fetch`.
+
+Flags never match on a partial name or abbreviation. `contextlake kb index --work-d /tmp` reports
+`unrecognized arguments: --work-d` rather than silently guessing you meant `--workspace`: a prefix is
+treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.
+
+A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
+letter, not a shortened prefix) does get a suggestion, scoped to that command's own flags:
+
+```
+$ contextlake kb index --worksapce .
+✗ Unknown flag: '--worksapce'
+
+Did you mean: --workspace?
+```
+
+A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
+reporting it as simply unrecognized:
+
+```
+$ contextlake bootstrap --local
+✗ '--local' isn't a flag on 'bootstrap'
+
+It's used by: init, kb source.
+
+Run 'contextlake bootstrap --help' to see bootstrap's own flags.
+```
+
+A value-taking flag immediately followed by another recognized flag (its value was left out, so the next
+flag lands where the value should be) names the real problem instead of arguing you forgot a value
+entirely:
+
+```
+$ contextlake kb dashboard --serve --workspace --open
+✗ '--workspace' needs a value, but the next token ('--open') is itself a recognized flag
+
+Put the value right after --workspace, e.g. '--workspace <value> --open'.
+```
+
 ## Machine-readable logs: `--log-format json`
 
 Everything above describes output composed for a person. When the reader is a log collector instead --
@@ -153,7 +211,9 @@ separately.
 - **`contextlake kb serve --transport http`/`sse` prints its bind URL** once it starts listening --
   `✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)` for `http`, or the same with an `/sse`
   suffix for `sse` -- so you don't have to guess the host/port/path before pointing an editor at it.
-  Both URLs include the path because neither transport is served at the bare root: that really is a 404.
+  Both URLs include the path because neither transport is served at the bare root. Note that probing
+  the root will not tell you that: the bearer-token middleware wraps the whole app, so an
+  unauthenticated request to any path, the root included, answers `401` rather than `404`.
   `stdio` transport has no address to report and stays quiet on that line.
 - **The network transports print their bearer token right under that URL, on stderr.** A socket that
   serves the whole graph needs a credential, and a credential you cannot find is the same as a server
@@ -167,13 +227,44 @@ separately.
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
   populated graph.
 - **A single-writer lock message** naming another process means two runs targeted one store at once (see
-  the git-hook note under [Bootstrap and keep fresh](bootstrap.md)).
+  the git-hook note under [Bootstrap and keep it fresh](keep-fresh.md)).
 
 Warnings from the model download itself (Hugging Face symlink/auth notices) are silenced; the real
 progress still shows.
 
+## What it exited with
+
+Four codes, and only four.
+
+| Code | Means | Typical causes |
+| --- | --- | --- |
+| `0` | Nothing failed | A clean run; also a run where work was deliberately skipped, a `--dry-run`, `--help`, `version`, and a search that matched nothing |
+| `1` | Something failed | Any repo failed in `mirror fetch` / `clone` / `update` / `branches` / `verify` / `sync`; a failed `bootstrap` stage; a `kb` command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad `--config` path; `doctor` when the report found a problem |
+| `2` | You and the CLI disagree about the command | An unknown command, an unrecognized flag, a flag whose value is missing, a `kb query` / `impact` / `owners` with no target, an unknown `--platform` or shell, or no group configured on a command that needs one |
+| `130` | `Ctrl-C` | Interrupted at any point, including during `init` |
+
+Three things worth knowing about `1`:
+
+- **A partial run counts as a failure.** Some repositories synced and others did not is still `1`,
+  which is the point: before that, a completely broken sync looked identical to a healthy one.
+  `sync` aggregates across all its stages, so one failed clone fails the run, and `bootstrap`
+  counts a failed mirror stage exactly as it counts a failed knowledge-layer stage.
+- **Deliberate skips are not failures.** Already up to date, a protected working branch, a
+  `--dry-run`: none of those affect the code. `mirror verify` fails only on a cloned path that is
+  not a valid git repository, not on repos that are merely missing or extra.
+- **`--exit-zero-on-partial` exits `0` anyway** when some repositories failed. The failures are
+  still reported; they just do not fail the job.
+
+`mirror status` and `mirror audit` only report, so they do not fail on what they find. An empty
+result from `kb query`, `kb impact` or `kb owners` is also `0`: if you are scripting, test the
+payload rather than the exit code to detect "found nothing".
+
+`--verbose` changes what a crash leaves behind: the top-level handler re-raises instead of printing
+`Error: <message>` alone, so a bug report can carry the traceback without anyone having to
+reproduce the failure under a debugger.
+
 ## See also
 
-- [Bootstrap and keep fresh](bootstrap.md)
+- [Bootstrap and keep it fresh](keep-fresh.md)
 - [Index the code graph](index-code-graph.md)
 - [`contextlake` command reference](cli-reference.md)

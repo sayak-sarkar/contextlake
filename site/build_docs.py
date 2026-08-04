@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Render contextlake's markdown docs into branded, cross-linked site pages.
 
-Every page shares one template: a hero (layer eyebrow + title + subtitle +
+Every page shares one template: a hero (band eyebrow + title + subtitle +
 Pebble accent), the doc body, an on-page TOC rail, and a Next-steps footer.
-The eyebrows anchor each page to the Mirror -> Knowledge -> Serve spine."""
+Each eyebrow names the page's nav band, and only that: see NAV_GROUPS."""
 import re
 import json
 import pathlib
@@ -37,24 +37,29 @@ def sync_assets():
 # out, src, nav title, hero title, layer eyebrow, subtitle, pebble accent, next-steps
 PAGES = [
     ("docs.html", "README.md", "Overview", "contextlake",
-     "Start here", "A local context layer for your AI tools: mirror your repos, "
+     "Understand it", "A local context layer for your AI tools: mirror your repos, "
      "index them into a knowledge graph, and serve it over MCP.",
      "pebble-doc.png",
-     [("quickstart.html", "Quickstart"), ("usage.html", "Mirror repositories"),
-      ("knowledge-layer.html", "Knowledge layer")]),
+     [("explained.html", "contextlake, explained"), ("install.html", "Install and upgrade"),
+      ("quickstart.html", "Quickstart")]),
+    ("explained.html", "docs/explained.md", "contextlake, explained", "contextlake, explained",
+     "Understand it", "What changes on your screen, the three layers underneath it, the design "
+     "decisions and the alternatives they turned down, the confidence model, and the honest limits.",
+     "pebble-doc.png",
+     [("benchmarks.html", "Benchmarks"), ("install.html", "Install and upgrade")]),
     ("install.html", "docs/install.md", "Install and upgrade", "Install and upgrade",
      "Get started", "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone "
      "binary, plus the extras table, upgrading safely, and a clean uninstall.",
      "pebble-doc.png",
      [("quickstart.html", "Quickstart"), ("troubleshooting.html", "Troubleshooting")]),
     ("quickstart.html", "QUICKSTART.md", "Quickstart", "Quickstart",
-     "Start here · all three layers", "Install, bootstrap, and wire your editor, "
+     "Get started", "Install, bootstrap, and wire your editor, "
      "the whole Mirror -> Knowledge -> Serve path in a few minutes.",
      "pebble-doc.png",
      [("usage.html", "Mirror repositories"), ("knowledge-layer.html", "Knowledge layer")]),
     ("usage.html", "docs/usage.md", "Mirror repositories", "Mirror repositories",
      "Build your knowledge base", "Mirror your Git repos locally and keep them fresh: fetch, "
-     "clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.",
+     "clone, update, most-active branch, verify, and audit, with branch-safety guardrails.",
      "pebble-doc.png",
      [("knowledge-layer.html", "Knowledge layer"), ("index-code-graph.html", "Index the code graph")]),
     ("configuration.html", "docs/configuration.md", "Configuration", "Configuration",
@@ -84,30 +89,36 @@ PAGES = [
      "Build your knowledge base", "Turn the graph into grounded, council-verified prose per "
      "repo: searchable, enrichment-aware, with a provenance footer.",
      "pebble-doc.png",
-     [("model-providers.html", "Model providers"), ("bootstrap.html", "Bootstrap and keep fresh")]),
+     [("model-providers.html", "Model providers"), ("keep-fresh.html", "Bootstrap and keep it fresh")]),
     ("model-providers.html", "docs/model-providers.md", "Model providers", "Model providers",
-     "Build your knowledge base", "The pluggable embeddings and wiki backends: auto, built-in "
+     "Reference", "The pluggable embeddings and wiki backends: auto, built-in "
      "CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.",
      "pebble-doc.png",
-     [("bootstrap.html", "Bootstrap and keep fresh"), ("dashboard.html", "Dashboard")]),
-    ("bootstrap.html", "docs/bootstrap.md", "Bootstrap and keep fresh", "Bootstrap and keep fresh",
-     "Build your knowledge base", "Run the whole pipeline in one command, compose the stages, "
-     "and keep it fresh with cron or a git post-commit hook.",
+     [("generate-wiki.html", "Generate the wiki"), ("install.html", "Install and upgrade")]),
+    ("keep-fresh.html", "docs/keep-fresh.md", "Bootstrap and keep it fresh",
+     "Bootstrap and keep it fresh",
+     "Operate it", "Run the whole pipeline in one command, schedule it, re-index on commit with "
+     "a git hook, and watch an unattended run.",
      "pebble-doc.png",
-     [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
+     [("console-output.html", "Reading the console output"), ("troubleshooting.html", "Troubleshooting")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "Knowledge layer", "Knowledge layer",
-     "Layer 2 · Knowledge", "Turn the mirror into a queryable graph with search, a wiki, "
+     "Build your knowledge base", "Turn the mirror into a queryable graph with search, a wiki, "
      "and connectors.",
      "pebble-doc.png",
-     [("index-code-graph.html", "Index the code graph"), ("bootstrap.html", "Bootstrap and keep fresh")]),
+     [("index-code-graph.html", "Index the code graph"), ("keep-fresh.html", "Bootstrap and keep it fresh")]),
+    ("ask-the-graph.html", "docs/ask-the-graph.md", "Ask the graph", "Ask the graph",
+     "Use it", "Search the graph from the terminal, trace what a change would break, and find "
+     "who to ask: `kb query`, `kb impact`, and `kb owners`.",
+     "pebble-doc.png",
+     [("serve.html", "Serve (MCP)"), ("dashboard.html", "Dashboard")]),
     ("dashboard.html", "docs/dashboard.md", "Dashboard", "The dashboard",
-     "Layer 2 · the human UI", "A guided tour of the local, offline-first dashboard: "
+     "Use it", "A guided tour of the local, offline-first dashboard: "
      "the fleet overview, per-repo anatomy, the architecture graph, blast radius, and "
      "generating a wiki.",
      "pebble-doc.png",
      [("knowledge-layer.html", "Knowledge layer"), ("serve.html", "Serve (MCP)")]),
     ("serve.html", "docs/serve.md", "Serve (MCP)", "Serve it to your editor",
-     "Layer 3 · Serve", "Expose the knowledge layer over MCP and wire your editors "
+     "Use it", "Expose the knowledge layer over MCP and wire your editors "
      "(Claude Code, Windsurf, Kiro) in one command.",
      "pebble-doc.png",
      [("dashboard.html", "Dashboard"), ("visualize.html", "Visualize the graph")]),
@@ -116,33 +127,18 @@ PAGES = [
      "or a class diagram, plus the composed namespace C4 diagram.",
      "pebble-doc.png",
      [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
-    ("ownership.html", "docs/ownership.md", "Ownership and SMEs", "Ownership and SMEs",
-     "Use it", "Find who owns a repo or path and who to ask, ranked recency-weighted from git "
-     "history (`contextlake kb owners` / `who_knows`), no config or index required.",
-     "pebble-doc.png",
-     [("serve.html", "Serve (MCP)"), ("dashboard.html", "Dashboard")]),
     ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",
-     "Layer 3 · Serve", "An honest, measured look at the token, cost, and correctness "
+     "Understand it", "An honest, measured look at the token, cost, and correctness "
      "impact of connecting the contextlake MCP to your AI coding tools, new-code "
      "grounding first, plus search, maintenance, and the caveats.",
      "pebble-doc.png",
-     [("serve.html", "Serve (MCP)"), ("knowledge-layer.html", "Knowledge layer")]),
-    ("internals.html", "docs/internals.md", "Architecture", "Architecture & internals",
-     "Under the hood", "How all three layers work inside, the store, concurrency, "
-     "branch selection, extraction, and the offline boundary.",
+     [("explained.html", "contextlake, explained"), ("install.html", "Install and upgrade")]),
+    ("internals.html", "docs/internals.md", "Architecture and internals",
+     "Architecture and internals",
+     "Reference", "How all three layers work inside: the store on disk, concurrency, "
+     "branch selection, versioning and staleness, and the two invariants.",
      "pebble-doc.png",
-     [("storage.html", "Storage"), ("knowledge-layer.html", "Knowledge layer")]),
-    ("storage.html", "docs/storage.md", "Storage", "Storage & the no-pollution invariant",
-     "Under the hood", "Where contextlake keeps everything it generates, one store "
-     "directory, never polluting your synced repos.",
-     "pebble-doc.png",
-     [("internals.html", "Architecture"), ("comparison.html", "How contextlake compares")]),
-    ("comparison.html", "docs/comparison.md", "How contextlake compares",
-     "How contextlake compares",
-     "Under the hood", "What the continuously mirrored fleet gets you that other local, "
-     "MCP-served code-graph tools don't have.",
-     "pebble-doc.png",
-     [("internals.html", "Architecture"), ("benchmarks.html", "Benchmarks")]),
+     [("explained.html", "contextlake, explained"), ("cli-reference.html", "Command reference")]),
     ("cli-reference.html", "docs/cli-reference.md", "Command reference",
      "contextlake command reference",
      "Reference", "Every contextlake command at a glance, with links to the page that "
@@ -151,12 +147,12 @@ PAGES = [
      [("console-output.html", "Reading the console output"), ("docs.html", "Overview")]),
     ("console-output.html", "docs/console-output.md", "Reading the console output",
      "Reading the console output",
-     "Reference", "Decode the progress bar, the status glyph vocabulary, and the "
-     "stdout/stderr split.",
+     "Operate it", "Decode the progress bar, the status glyph vocabulary, the JSON logs, "
+     "the stdout/stderr split, and the four exit codes.",
      "pebble-doc.png",
-     [("cli-reference.html", "Command reference"), ("docs.html", "Overview")]),
+     [("cli-reference.html", "Command reference"), ("troubleshooting.html", "Troubleshooting")]),
     ("troubleshooting.html", "docs/troubleshooting.md", "Troubleshooting", "Troubleshooting",
-     "Reference", "Install and mirror problems that have actually been hit, each with the "
+     "Operate it", "Install and mirror problems that have actually been hit, each with the "
      "fix and the reason behind it.",
      "pebble-doc.png",
      [("install.html", "Install and upgrade"), ("cli-reference.html", "Command reference")]),
@@ -165,35 +161,35 @@ PAGES = [
      "pebble-doc.png",
      [("docs.html", "Overview"), ("quickstart.html", "Quickstart")]),
     ("style-guide.html", "docs/style-guide.md", "Writing style", "Documentation style guide",
-     "Writing style", "The spirit, the checklist, and links to the focused pages: voice, "
+     "Project", "The spirit, the checklist, and links to the focused pages: voice, "
      "structure, formatting, and the word reference.",
      "pebble-doc.png",
      [("style-guide-voice.html", "Voice and tone"), ("style-guide-structure.html", "Page types and structure")]),
     ("style-guide-voice.html", "docs/style-guide-voice.md", "Voice and tone", "Voice and tone",
-     "Writing style", "Second person, present tense, warm and grounded: the voice defaults, "
+     "Project", "Second person, present tense, warm and grounded: the voice defaults, "
      "word choice, and writing for every reader.",
      "pebble-doc.png",
      [("style-guide-structure.html", "Page types and structure"), ("style-guide-formatting.html", "Formatting")]),
     ("style-guide-structure.html", "docs/style-guide-structure.md", "Page types and structure",
      "Page types and structure",
-     "Writing style", "The concept, how-to, reference, and tutorial page types, each with a "
+     "Project", "The concept, how-to, reference, and tutorial page types, each with a "
      "fixed skeleton, and how to structure a page.",
      "pebble-doc.png",
      [("style-guide-formatting.html", "Formatting"), ("style-guide-reference.html", "Word reference")]),
     ("style-guide-formatting.html", "docs/style-guide-formatting.md",
      "Formatting", "Formatting, accessibility, and inclusive language",
-     "Writing style", "Headings, lists, code, callouts, links, accessibility, and inclusive "
+     "Project", "Headings, lists, code, callouts, links, accessibility, and inclusive "
      "language: the mechanics that keep every page consistent.",
      "pebble-doc.png",
      [("style-guide-reference.html", "Word reference"), ("brand.html", "Brand overview")]),
     ("style-guide-reference.html", "docs/style-guide-reference.md", "Word reference",
      "Word and term reference",
-     "Writing style", "The house-style decision cache, before and after rewrites, and the "
+     "Project", "The house-style decision cache, before and after rewrites, and the "
      "A-to-Z term reference.",
      "pebble-doc.png",
      [("brand.html", "Brand overview"), ("style-guide.html", "Writing style")]),
     ("brand.html", "docs/brand.md", "Brand overview", "Brand overview",
-     "Brand", "contextlake's brand in one page: essence, voice, the lake metaphor, Pebble, "
+     "Project", "contextlake's brand in one page: essence, voice, the lake metaphor, Pebble, "
      "the palette, and the mark, with the full spec linked.",
      "pebble-doc.png",
      [("style-guide.html", "Writing style"), ("docs.html", "Overview")]),
@@ -201,31 +197,47 @@ PAGES = [
 TO_PAGE = {src: out for out, src, *_ in PAGES}
 TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "LICENSE"]
 
-# Sidebar navigation, organized into labeled groups (ordered). Every PAGES `out` appears
-# in exactly one group; the group heading reuses the existing `.side h2` styling.
+# Sidebar navigation, organized into labeled bands (ordered). Every PAGES `out` appears in
+# exactly one band; the band heading reuses the existing `.side h2` styling.
+#
+# The bands are DEPTH bands, read top to bottom: understand it, install it, build the knowledge
+# base, use what you built, keep it running, look a detail up. A stakeholder can stop after the
+# first band, an operator after the second, and each band's first page is sufficient on its own.
+# The five style-guide pages and the brand page are last, in one Project band: they are about how
+# contextlake's own documentation is written, so a reader evaluating the tool should not scroll
+# past them to reach the command reference.
+#
+# INVARIANT (checked below): every page's hero eyebrow equals its band name. One vocabulary, so
+# the hero and the sidebar can never tell a reader two different things about where they are.
 NAV_GROUPS = [
-    ("Get started", ["docs.html", "install.html", "quickstart.html", "configuration.html"]),
-    ("Build your knowledge base", ["usage.html", "knowledge-layer.html", "index-code-graph.html",
+    ("Understand it", ["docs.html", "explained.html", "benchmarks.html"]),
+    ("Get started", ["install.html", "quickstart.html", "configuration.html"]),
+    ("Build your knowledge base", ["knowledge-layer.html", "usage.html", "index-code-graph.html",
                                    "connect-enrich.html", "semantic-search.html",
-                                   "generate-wiki.html", "model-providers.html", "bootstrap.html"]),
-    ("Use it", ["serve.html", "dashboard.html", "visualize.html", "ownership.html"]),
-    ("Understand it", ["internals.html", "storage.html", "comparison.html", "benchmarks.html"]),
-    ("Writing style", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
-                       "style-guide-formatting.html", "style-guide-reference.html"]),
-    ("Brand", ["brand.html"]),
-    ("Reference", ["cli-reference.html", "console-output.html", "troubleshooting.html",
+                                   "generate-wiki.html"]),
+    ("Use it", ["ask-the-graph.html", "serve.html", "dashboard.html", "visualize.html"]),
+    ("Operate it", ["keep-fresh.html", "console-output.html", "troubleshooting.html"]),
+    ("Reference", ["internals.html", "cli-reference.html", "model-providers.html",
                    "changelog.html"]),
+    ("Project", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
+                 "style-guide-formatting.html", "style-guide-reference.html", "brand.html"]),
 ]
 GROUP_OF = {out: g for g, outs in NAV_GROUPS for out in outs}
-# Per-page-type hero accent: the 4 core learning-journey groups each get one brand hue (reused
-# from the landing page's own step icons / CTA), so the hero eyebrow signals "where am I" at a
-# glance -- not a new illustration per page (that's new art, a hand-to-user decision, see
+# Per-page-type hero accent: the learning-journey bands each get one brand hue (reused from the
+# landing page's own step icons / CTA), so the hero eyebrow signals "where am I" at a glance --
+# not a new illustration per page (that's new art, a hand-to-user decision, see
 # `planning/design/brand-image-prompts.md`), just an existing-palette accent already meaningful
-# elsewhere on the site. Meta groups (Writing style/Brand/Reference) aren't part of that journey,
-# so they keep the original default (lake) rather than a color chosen for the sake of having one.
+# elsewhere on the site. The meta bands (Reference/Project) aren't part of that journey, so they
+# keep the original default (lake) rather than a color chosen for the sake of having one.
+#
+# "Operate it" shares "use"'s hue deliberately: the palette (tokens.css) carries exactly four
+# accent hues and all four are spoken for, so a fifth would mean introducing a new brand color.
+# That is a brand decision, not a docs one -- BRANDING.md is its system of record. Operating and
+# using are the two adjacent post-build bands, so sharing is the least misleading pairing until
+# someone decides otherwise.
 GROUP_KIND = {
     "Get started": "start", "Build your knowledge base": "build",
-    "Use it": "use", "Understand it": "understand",
+    "Use it": "use", "Operate it": "use", "Understand it": "understand",
 }
 SUBTITLE_OF = {m[0]: m[5] for m in PAGES}
 TITLES = {out: nav for out, _, nav, *_ in PAGES}
@@ -239,6 +251,21 @@ for _p in PAGES:
     for _href, _lbl in _p[7]:
         if _href not in _VALID_OUT:
             raise SystemExit(f"build_docs: Next-steps target {_href!r} on {_p[0]} is not a page")
+
+# Nav completeness and the one-eyebrow-vocabulary invariant, both checked at import for the same
+# reason the next-steps check is: a page that slips out of the sidebar, or an eyebrow that
+# contradicts it, is invisible in review and obvious to a reader.
+_NAV_OUTS = [out for _g, outs in NAV_GROUPS for out in outs]
+if len(_NAV_OUTS) != len(set(_NAV_OUTS)):
+    raise SystemExit("build_docs: a page appears in more than one NAV_GROUPS band")
+if set(_NAV_OUTS) != _VALID_OUT:
+    _missing = sorted(_VALID_OUT - set(_NAV_OUTS))
+    _extra = sorted(set(_NAV_OUTS) - _VALID_OUT)
+    raise SystemExit(f"build_docs: NAV_GROUPS mismatch, missing {_missing}, unknown {_extra}")
+for _p in PAGES:
+    if _p[4] != GROUP_OF[_p[0]]:
+        raise SystemExit(f"build_docs: {_p[0]} eyebrow {_p[4]!r} is not its band "
+                         f"{GROUP_OF[_p[0]]!r}")
 
 GLYPH = '<img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">'
 GH_MARK = ('<svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" '

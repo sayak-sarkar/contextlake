@@ -82,7 +82,7 @@ def serve_graph(store: Store, initial_payload: dict, *, host: str = "127.0.0.1",
                 port: int = 8765, cdn: bool = False, layout: str = "cose",
                 max_fanout: int = 50) -> None:
     """Serve the visualizer (blocking until Ctrl-C)."""
-    from .. import style
+    from ... import style
 
     srv = build_graph_server(store, initial_payload, host=host, port=port, cdn=cdn,
                              layout=layout, max_fanout=max_fanout)
@@ -200,7 +200,7 @@ def build_site_server(store: Store, *, host: str = "127.0.0.1", port: int = 8765
 def serve_site(store: Store, *, host: str = "127.0.0.1", port: int = 8765,
                **kwargs) -> None:
     """Serve the lazy cross-linked site (blocking until Ctrl-C)."""
-    from .. import style
+    from ... import style
 
     srv = build_site_server(store, host=host, port=port, **kwargs)
     log(style.ok(f"Graph site on http://{host}:{port}  (Ctrl-C to stop)"))

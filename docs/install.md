@@ -166,8 +166,38 @@ the built-in embedder, the ANN index) and exits non-zero if anything is wrong, s
 works as a CI health gate. A fresh machine with no store yet is expected to report a missing
 config as a warning, not a failure.
 
-If `doctor` names something missing, `contextlake doctor --fix` installs what your resolved
-configuration actually calls for, and `--dry-run` prints the plan without touching anything.
+If `doctor` names something missing, `contextlake doctor --fix` installs it. That is the next section.
+
+## Installing what is missing
+
+`doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
+configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
+the local llama-cpp runtime. Name a capability to install it regardless of config.
+
+| Flag | Effect |
+| --- | --- |
+| `--fix` | Install every missing dependency the resolved config calls for |
+| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` |
+| `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
+| `--skip-interactive` | Never prompt: privileged commands are printed, not run |
+
+Two privilege tiers, and the split is deliberate:
+
+- **Python packages** install into the interpreter contextlake is running in, with
+  `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
+  and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
+  CPU wheel index automatically and says why.
+- **System packages** (currently just `git`) need administrator rights. The exact command is printed
+  in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
+  when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
+  never trip a sudo prompt.
+
+`--fix` also explains, rather than re-raising, the failures that actually happen: a PEP 668
+externally-managed environment (use a venv or pipx), a proxy timeout, an untrusted intercepting CA,
+or no matching distribution. Nothing planned is ever run before it has been printed.
+
+`--fix` can still exit non-zero after installing everything it planned, if the diagnostic report also
+found a problem `--fix` has no remedy for. The exit code reflects the report, not the installs.
 
 ## Upgrade
 

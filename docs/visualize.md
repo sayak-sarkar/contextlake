@@ -93,7 +93,7 @@ clicking a node **expands** it (fetches its neighbours on demand) so you can wal
 pre-rendering all of it. Like the dashboard, it answers a request only when the `Host` header names the
 address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
 an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
-you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes---allow-mutations)).
+you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes)).
 
 ## Composed namespace C4 diagram
 

@@ -1,9 +1,10 @@
 # Mirror repositories
 
 Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
-active branch, verify, and audit, with branch-safety guardrails and scheduling. New here? Start with the
-[Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for the knowledge
-layer see the [Knowledge layer](knowledge-layer.md) overview.
+active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
+[Quickstart](../QUICKSTART.md). For settings see [Configuration](configuration.md); for scheduling a
+sync see [Bootstrap and keep it fresh](keep-fresh.md); for the knowledge layer see the
+[Knowledge layer](knowledge-layer.md) overview.
 
 > [!NOTE]
 > Knowledge-layer commands (`index`, `connect`, `embed`, `wiki`, `query`, `graph`, and so on) are
@@ -14,50 +15,8 @@ layer see the [Knowledge layer](knowledge-layer.md) overview.
 
 Every command carries its own scoped help, `contextlake <command> --help` shows
 just that command's flags with worked examples, and bare `contextlake` prints the
-full command list.
-
-### Shell completion
-
-On by default, and set up automatically, no command to remember. `argcomplete` is a core
-dependency, so `pip install contextlake` alone is enough, no separate extra; a plain `pip install`
-has no post-install hook to run anything at (that's a deliberate Python packaging limitation, not a
-gap here), so instead the **first time any command runs in a real interactive terminal**,
-contextlake registers completion for you, once, and says so in the log. Skipped entirely in
-non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure, set
-`CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. An **interactive**
-`contextlake init` offers the same registration explicitly (on by default; pass `--no-completion`
-to skip) if you'd rather decide up front, and an explicit decline there is remembered, the
-automatic check never overrides it later. A **non-interactive** `init` (`--skip-interactive`, or a
-piped stdin) never touches your shell startup file: nobody was asked, so pass `--completion` to opt
-in, or run `contextlake completion` afterwards.
-
-Run it again on demand (a different shell, after skipping it once, or just to re-run it) with:
-
-```bash
-contextlake completion          # auto-detect $SHELL and register
-contextlake completion zsh      # register for zsh explicitly, regardless of $SHELL
-```
-
-This, `init`'s own prompt, and the automatic first-run check all write whichever of these applies,
-once, idempotently:
-
-```bash
-# bash — appended to ~/.bashrc
-eval "$(register-python-argcomplete contextlake)"
-
-# zsh — appended to ~/.zshrc (needs bashcompinit; most zsh setups already load it)
-autoload -U bashcompinit && bashcompinit
-eval "$(register-python-argcomplete contextlake)"
-
-# fish — a dedicated file, written once
-register-python-argcomplete --shell fish contextlake > ~/.config/fish/completions/contextlake.fish
-```
-
-For a shell other than bash/zsh/fish, or to do it by hand, copy the block above for your shell and
-open a new shell afterward. `contextlake <TAB>` then completes every command and, inside a command,
-every one of its flags, generated live from the same parser that runs the command, so it can never
-drift out of sync with the actual CLI surface. Uses
-[argcomplete](https://github.com/kislyuk/argcomplete) (pure Python, no dependencies of its own).
+full command list. Shell tab-completion is registered for you on first run; see
+[Shell completion](cli-reference.md#shell-completion).
 
 **Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `kb index
 --workspace`) accepts `--repos PATTERN`, a comma-separated **glob/substring** filter
@@ -260,85 +219,65 @@ The only thing that blocks an `update` is a *dirty working tree*.
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
 </p>
 
-### Safety checks
+### The three checks
 
-1. **Clean Workspace Check** (the main guard): detects a dirty working tree,
-   uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
-   `update` and `branches` so local work is never clobbered.
-2. **Automatic Stashing**: optionally stashes a dirty tree so `update` can proceed
-   instead of skipping.
-3. **Working-Branch Protection** (applies to `branches` only): keeps the `branches`
-   command from switching a repo off a branch outside `safe_branches`, so you are
-   never moved off a feature branch you are working on. This does **not** affect
-   `update`, a clean feature branch is still pulled.
+1. **Clean-workspace check**, the main guard. Detects a dirty working tree: uncommitted, unstaged,
+   or untracked changes. A dirty repo is skipped by both `update` and `branches`, so local work is
+   never clobbered.
+2. **Automatic stashing**, optional. Stashes a dirty tree so `update` can proceed instead of
+   skipping. It affects `update` only.
+3. **Working-branch protection**, which applies to `branches` only. It keeps `branches` from moving
+   a repo off a branch outside `safe_branches`, so you are never switched away from a feature branch
+   you are working on.
 
-### Configuration
+### Which setting affects which command
 
-| Setting | Description | Default |
-| --- | --- | --- |
-| `require_clean_workspace` | Skip repos with a dirty working tree (the main guard) | `true` |
-| `protect_working_branches` | Keep `branches` from switching a repo off a non-safe branch | `true` |
-| `safe_branches` | Branches the `branches` command may switch away from | `main,master,develop,development` |
-| `auto_stash` | Stash a dirty tree before `update` instead of skipping | `false` |
-| `branch_strategy` | How `branches` picks the most-active branch: `hybrid` (60% commits + 40% recency), `commits`, or `recency` | `hybrid` |
+| Setting | `mirror update` | `mirror branches` | Default |
+| --- | --- | --- | --- |
+| `require_clean_workspace` | yes, the main guard | yes | `true` |
+| `auto_stash` | yes | no effect | `false` |
+| `protect_working_branches` | **no effect** | yes | `true` |
+| `safe_branches` | **no effect** | yes, the list `branches` may switch away from | `main,master,develop,development` |
+| `branch_strategy` | no effect | `hybrid` (60% commit count, 40% recency), `commits`, or `recency` | `hybrid` |
 
-### Behavior
+The two "no effect" rows are the ones people get wrong, and they follow from the guiding rule above:
+`update` pulls the branch you are already on, so being on a feature branch is not a reason to hold
+back. Only a dirty tree is.
 
-**`update` (fetch + fast-forward the current branch):**
+### What each looks like
 
-- A **clean** repo is updated on whatever branch it is on, feature branches included.
-- A repo with a **dirty working tree** is skipped (or stashed first, if `auto_stash` is on).
+A working branch left alone by `branches`:
 
-**`branches` (switch to the most active branch):**
-
-- A repo with a **dirty working tree** is skipped.
-- With `protect_working_branches = true`, a repo on a branch outside `safe_branches`
-  is left where it is instead of being switched away.
-
-### Example scenarios
-
-#### Scenario 1: Working-Branch Protection (branches command)
-
-```bash
-# Repository is on feature/my-feature branch (not in safe branches)
-contextlake mirror branches
-
-# Output:
-# [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped branch switch (on working branch: feature/my-feature)
+```text
+[1/12] ⊘ backend/services/api-gateway: Skipped branch switch (on working branch: feature/my-feature)
 ```
 
-> A plain `contextlake mirror update` would instead **pull `feature/my-feature`** here,
-> since the working tree is clean.
+A plain `contextlake mirror update` would instead pull `feature/my-feature` here, since the working
+tree is clean.
 
-#### Scenario 2: Uncommitted Changes
+A dirty tree skipped by `update`:
 
-```bash
-# Repository has uncommitted changes
-contextlake mirror update
-
-# Output:
-# [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped (unsafe: Uncommitted changes detected)
+```text
+[1/12] ⊘ backend/services/api-gateway: Skipped (unsafe: Uncommitted changes (or indeterminate working-tree state))
 ```
 
-#### Scenario 3: Auto-Stash Enabled
+The same repo with `--auto-stash`:
 
-```bash
-# Repository has uncommitted changes, auto-stash enabled
-contextlake --auto-stash mirror update
-
-# Output:
-# [2026-06-16 10:00:00] ⚠ backend/services/api-gateway: Changes stashed successfully
-# [2026-06-16 10:00:00] ✓ backend/services/api-gateway: Updated main
+```text
+⚠ backend/services/api-gateway: Changes stashed successfully
+[1/12] ✓ backend/services/api-gateway: Updated main
 ```
 
-### Customization
+The `[i/total]` counter is part of every per-repo status line. Redirect the output to a file and each
+line also carries a `[YYYY-MM-DD HH:MM:SS]` timestamp; on a terminal it does not, because the clock
+is rendered on the right instead. See [Reading the console output](console-output.md).
 
-These resilience/safety flags are kept out of `contextlake <command> --help`'s default listing (run
-`contextlake mirror update --help-advanced` to see them alongside every other mirror-tier command's flags) --
-they're automation levers, not something to guess at interactively, and every one has the
-`.contextlake.ini` equivalent below as its primary home.
+### Setting them
 
-You can customize branch safety behavior via configuration or CLI:
+These are automation levers rather than things to guess at interactively, so they are kept out of
+the default `--help` listing; run `contextlake mirror update --help-advanced` to see them alongside
+every other mirror-tier flag. Every one has a `.contextlake.ini` equivalent, which is its primary
+home:
 
 ```ini
 # In .contextlake.ini
@@ -354,202 +293,29 @@ auto_stash = false
 contextlake --safe-branches main,master,develop,staging --auto-stash mirror update
 ```
 
-### Disabling safety checks
+### Disabling a safety check
 
-If you want to disable safety checks (not recommended for production workflows):
-
-```bash
-# Disable all safety checks
-contextlake --no-protect-working-branches --no-require-clean-workspace mirror update
-```
-
-**Warning**: Disabling safety checks can lead to conflicts, lost work, or corruption of your local branches. Only disable if you understand the risks.
-
-## Scheduling and automation
-
-### Prerequisites for cron jobs
-
-Before setting up cron jobs, ensure you have:
-
-1. **Configuration file set up**: Create `~/.contextlake.ini` with your settings
-
-   ```bash
-   contextlake init                       # writes the file for you, prompting for each value
-   # or copy the template and fill it in by hand:
-   cp .contextlake.ini.example ~/.contextlake.ini
-   # Edit with your work_dir and gitlab_group
-   nano ~/.contextlake.ini
-   ```
-
-2. **Absolute path to script**: Cron requires absolute paths
-
-   ```bash
-   which python3  # Note the path
-   # Example: /usr/bin/python3
-   ```
-
-3. **Test the command manually first**:
-
-   ```bash
-   cd /home/user/work && contextlake mirror sync
-   ```
-
-### Basic daily sync
-
-Run a full synchronization daily at 2 AM:
+Turning a guard off is rarely what you want, and one of the two flags people reach for does nothing
+here:
 
 ```bash
-# Edit crontab
-crontab -e
-
-# Add the following line (replace paths as needed)
-0 2 * * * cd /home/user/work && /usr/bin/contextlake mirror sync >> /tmp/contextlake.log 2>&1
+contextlake --no-require-clean-workspace mirror update
 ```
 
-**Note**: This uses the configuration from `~/.contextlake.ini`. No need to specify work_dir or gitlab_group in the cron command.
-
-### Hourly updates (no branch switching)
-
-Update repositories hourly without changing branches (for CI/CD environments):
-
-```bash
-0 * * * * cd /home/user/work && /usr/bin/contextlake mirror update >> /tmp/gitlab_hourly.log 2>&1
-```
-
-### Weekly full sync with branch management
-
-Run full sync including branch switching weekly on Sunday at 3 AM:
-
-```bash
-0 3 * * 0 cd /home/user/work && /usr/bin/contextlake mirror sync >> /tmp/gitlab_weekly.log 2>&1
-```
-
-### Multiple workspaces
-
-For multiple workspaces, use separate config files:
-
-```bash
-# Create workspace-specific config files
-cat > ~/.contextlake_primary.ini << EOF
-[contextlake]
-work_dir = ~/work
-gitlab_group = example-group-primary
-EOF
-
-cat > ~/.contextlake_secondary.ini << EOF
-[contextlake]
-work_dir = ~/Projects/Secondary
-gitlab_group = example-group-secondary
-EOF
-
-# Add to crontab
-
-# Sync primary workspace daily
-0 2 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_primary.ini mirror sync >> /tmp/gitlab_primary.log 2>&1
-
-# Sync secondary workspace every 6 hours
-0 */6 * * * cd /home/user/work && /usr/bin/contextlake --config ~/.contextlake_secondary.ini mirror update >> /tmp/gitlab_secondary.log 2>&1
-```
-
-### Monitoring and alerts
-
-Add email notifications for failures:
-
-```bash
-# Create a wrapper script
-cat > /home/user/scripts/contextlake_wrapper.sh << 'EOF'
-#!/bin/bash
-cd /home/user/work
-contextlake mirror sync >> /tmp/contextlake.log 2>&1
-EXIT_CODE=$?
-
-if [ $EXIT_CODE -ne 0 ]; then
-    echo "GitLab sync failed with exit code $EXIT_CODE" | mail -s "GitLab Sync Failure" user@example.com
-fi
-EOF
-chmod +x /home/user/scripts/contextlake_wrapper.sh
-
-# Add to crontab
-0 2 * * * /home/user/scripts/contextlake_wrapper.sh
-```
-
-### Exit codes
-
-`mirror fetch`, `clone`, `update`, `branches`, `verify` and `sync` exit `0` when nothing failed and
-`1` when anything did, including a partial run, where some repositories synced and others did not.
-`sync` aggregates across all five stages, so one failed clone fails the whole run, and `bootstrap`
-counts a failed mirror stage the same way it counts a failed knowledge-layer stage. (`mirror status`
-and `mirror audit` only report; they do not fail on what they find.)
-
-Work that was deliberately skipped (already up to date, a protected working branch, `--dry-run`) is
-never a failure, and `mirror verify` fails only on a cloned path that is not a valid git repository,
-not on repos that are merely missing or extra.
-
-`Ctrl-C` exits `130`; a bad `--config` path exits `1`.
-
-Pass `--exit-zero-on-partial` to exit `0` anyway when some repositories failed, the failures are
-still reported, they just do not fail the job.
-
-`--verbose` also changes what a crash leaves behind: the top-level handler re-raises instead of
-printing `Error: <message>` alone, so a bug report can carry the traceback without anyone having to
-reproduce the failure under a debugger.
-
-### Observing an unattended run
-
-An exit code tells you *that* something broke; these four flags tell you *what*, after the fact.
-
-```bash
-0 2 * * * cd /home/user/work && /usr/bin/contextlake mirror sync \
-    --log-format json --log-file /var/log/contextlake/run.log \
-    --metrics-file /var/lib/node_exporter/textfile/contextlake.prom
-```
-
-- **`--log-format json`** emits one JSON object per line, each stamped with a `run_id` (pin your own
-  with `CONTEXTLAKE_RUN_ID`), the `command`, and, on per-repo lines, `repo`, `status`,
-  `duration_ms`, and `error_type` on failures.
-- **`--metrics-file`** writes Prometheus textfile-collector output: run duration, exit code, repo
-  counts by outcome, graph size, and a last-success timestamp that survives a failing run. Point
-  node_exporter's `--collector.textfile.directory` at that directory.
-- **`--log-file`** is redacted by default (workspace paths, `$HOME`, group and repository names), so
-  the copy you attach to a bug report needs no manual scrubbing. `--redact` extends that to the
-  console; `--no-redact` turns it off entirely.
-- **`--access-log`** turns on request logging for the local HTTP servers (`kb dashboard`,
-  `kb graph --serve`, `kb serve --transport http|sse`), which are otherwise silent.
-
-See [Reading the console output](console-output.md) for the exact JSON shape and metric names, and
-[`examples/contextlake.service`](../examples/contextlake.service) for a systemd unit wired up this way.
-
-### Log rotation
-
-To prevent log files from growing indefinitely, set up log rotation:
-
-```bash
-# Create logrotate configuration
-sudo cat > /etc/logrotate.d/contextlake << 'EOF'
-/tmp/contextlake.log {
-    daily
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-    create 0644 user user
-}
-EOF
-```
+That one is real: it lets `update` pull over a dirty working tree, which can leave you with merge
+conflicts or lost work. `--no-protect-working-branches` has no effect on `update` at all, because
+`update` never consults it; it only loosens `mirror branches`.
 
 ## Troubleshooting
 
-The mirror's symptom table, along with the install-side problems, now lives on one page:
-[Troubleshooting](troubleshooting.md#the-mirror). Keeping it there means a reader who is
-stuck looks in one place rather than guessing which page owns their symptom.
+The mirror's symptom table, along with the install-side problems, lives on one page:
+[Troubleshooting](troubleshooting.md#the-mirror). Keeping it there means a reader who is stuck
+looks in one place rather than guessing which page owns their symptom.
 
-## Best practices
+## See also
 
-1. **Initial Setup**: Run `contextlake mirror sync` once to set up full workspace
-2. **Regular Updates**: Use `contextlake mirror update` for frequent, fast updates
-3. **Branch Management**: Run `contextlake mirror branches` periodically to stay on active branches
-4. **Monitoring**: Check logs regularly for errors or failures
-5. **Backup**: Commit workspace state to git before major branch switches
-6. **Testing**: Test cron commands manually before adding to crontab
-7. **Documentation**: Keep this documentation updated with any custom configurations
+- [Bootstrap and keep it fresh](keep-fresh.md), scheduling a sync and re-indexing on commit
+- [Configuration](configuration.md), the full settings reference
+- [Reading the console output](console-output.md), the status glyphs and the exit codes
+- [Knowledge layer](knowledge-layer.md), what to build on top of the mirror
+- [Troubleshooting](troubleshooting.md), when a mirror command misbehaves

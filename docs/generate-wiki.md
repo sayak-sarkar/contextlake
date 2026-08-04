@@ -145,7 +145,7 @@ from, and a **STALE** badge if the indexed commit has since moved.
 
 With `contextlake kb dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
 Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
-background, see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes---allow-mutations).
+background, see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes).
 
 ## Recorded decisions
 

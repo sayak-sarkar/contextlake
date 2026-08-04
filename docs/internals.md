@@ -1,259 +1,331 @@
-# Architecture & internals
+# Architecture and internals
 
-> Deep-dive companion to the [README](../README.md): how the core sync and the
-> knowledge layer work under the hood.
+How contextlake works inside: the three tiers and what each is allowed to depend on, how the mirror
+picks branches and authenticates, how the knowledge store is laid out and versioned, what is on
+disk and what deliberately is not, and the two invariants that keep it out of your repositories.
 
-## Core sync internals
+This is the implementation-depth companion to [contextlake, explained](explained.md), which covers
+the same machinery at reasoning depth. Where the two disagree, this page is the one that names
+files.
 
-### Architecture
+## Three tiers, depending downward only
 
-The tool is built as a modular Python CLI application with the following components:
+| Tier | Package | Depends on |
+| --- | --- | --- |
+| Mirror core | `contextlake` | The Python standard library, plus `argcomplete`, plus the external `git` and `glab` binaries |
+| Knowledge layer | `contextlake.kb`, the `[kb]` extra | The mirror core, tree-sitter grammars, pydantic, the `mcp` SDK |
+| Serving | `kb/server.py`, `kb/dashboard/`, `kb graph` | The knowledge layer, read-only |
 
-#### Configuration system
+The mirror core declares exactly one pip dependency (`pyproject.toml`), which is the constraint that
+keeps `pip install contextlake` viable on a locked-down machine. The knowledge layer is imported
+lazily from the CLI, so the core runs with the extra absent and says so if you reach for a `kb`
+verb without it. `[kb]` needs Python 3.10 or newer because the `mcp` SDK does; the core declares
+`requires-python = ">=3.9"`.
 
-The tool uses a hierarchical configuration system with the following precedence:
+## Configuration
 
-1. **Configuration Files** (using Python's `configparser`):
-   - Local config: `.contextlake.ini` in the nearest ancestor directory, walking up from cwd to the
-     filesystem root (`find_ancestor_config()` in `config.py`), same discovery model as git's `.git`
-   - Global config: `~/.contextlake.ini` in home directory
-   - Custom config: Specified via `--config` CLI argument
+Two config systems, one per tier, both merging the same way: built-in defaults, then a global file,
+then the nearest ancestor directory's local file, then an explicit `--config`, then CLI flags.
 
-2. **Default Values**: Built-in defaults for all settings
+| Tier | Global | Directory-scoped | Constant |
+| --- | --- | --- | --- |
+| Mirror | `~/.contextlake.ini` | `.contextlake.ini` | `CONFIG_FILE`, `LOCAL_CONFIG_FILE` in `src/contextlake/config.py` |
+| Knowledge | `~/.contextlake/kb.toml` | `.contextlake.kb.toml` | `GLOBAL_CONFIG`, `LOCAL_CONFIG` in `src/contextlake/kb/config.py` |
 
-3. **CLI Arguments**: Override all other settings
-
-**Configuration loading flow**, `load_config()` merges each layer over the one
-before it, so the most specific source wins:
+Discovery walks up from the current directory to the filesystem root, the way git finds `.git`.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
 </p>
 
-#### Core modules
+One carve-out matters for safety. Settings that would cause contextlake to *run a program* are
+honoured only from a file you named explicitly or from your own home config, never from a file found
+by the directory walk, because such a file can arrive inside a repository you cloned. The gate is on
+provenance rather than content, so a project-local `store_dir`, `languages` or `[[rules]]` keeps
+working (`src/contextlake/kb/trust.py`). The full settings tables are on
+[Configuration](configuration.md).
 
-The sync core is plain Python (stdlib only). Its functions group by responsibility,
-each command in the [Usage guide](usage.md) maps onto one group:
+## The mirror layer
 
-| Responsibility | What it does |
-| --- | --- |
-| **Config** | Load and merge INI files (local / global / custom), expand `~`, resolve cache paths. |
-| **Discover** | `fetch` accessible GitLab projects (via `glab`, filtered by group prefix, archived dropped) and cache them; enumerate local `.git` repos. |
-| **Clone** | Clone missing repos concurrently (`ThreadPoolExecutor`, `max_workers`), creating namespace parents, with per-op timeouts. |
-| **Update** | Fetch + fast-forward each repo's current branch concurrently, handling detached HEAD. |
-| **Branches** | Rank each repo's branches by `git rev-list --count` and switch to the most active (subject to branch safety). |
-| **Verify / status** | Compare local vs GitLab, detect nested `.git`, report missing / extra / synced. |
-| **CLI** | `main()` loads config, parses args (CLI overrides config), and dispatches to a command handler. |
+### Discovering repositories
 
-### Data flow
+`mirror fetch` enumerates every project the account can see on the configured group, drops archived
+ones, and caches the result in two files under `<cache_dir>`:
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/data-flow.png" alt="Sync data flow: a contextlake command is parsed and dispatched, then fetches the accessible projects via glab, caches them, scans the workspace for local .git repos, compares GitLab vs local, runs git operations (clone/fetch/pull/switch), and logs a per-repo report." width="600">
-</p>
+| File | Shape | Used for |
+| --- | --- | --- |
+| `gitlab_projects.json` | The full API response | Inspection and debugging |
+| `gitlab_projects.txt` | `path_with_namespace\|ssh_url\|http_url\|default_branch\|archived` | The primary data source for every other command |
 
-### Concurrency model
+`cache_dir` defaults to `~/.cache/contextlake` (`$XDG_CACHE_HOME/contextlake` when that is set), in
+a per-workspace subdirectory keyed on the workspace path, platform and group, created `0700`
+(`src/contextlake/config.py`). Two workspaces therefore never share one cache file. A `cache_dir`
+you configure yourself is used verbatim, without a subdirectory, and is created but never
+re-permissioned.
 
-The tool uses Python's `ThreadPoolExecutor` for concurrent operations:
+That file lists every repository your account can enumerate along with its clone URLs, which is why
+its location is treated as a privacy decision. `/tmp` was the old default and was rejected on three
+recorded grounds: it is outside your home, so no HOME-based isolation reaches it; it is
+world-readable on a shared host; and its path is predictable enough for another user to pre-create
+a file or a symlink there.
 
-- **Cloning**: 8 parallel workers
-- **Updating**: 8 parallel workers
-- **Branch Switching**: 8 parallel workers
+### Local paths mirror the namespace tree
 
-Each worker operates independently with its own timeout:
-
-- Clone operations: 300s timeout
-- Fetch operations: 60s timeout
-- Branch operations: 30s timeout
-- Pull operations: 60s timeout
-
-### Error handling
-
-The tool implements comprehensive error handling:
-
-1. **Timeout Handling**: All subprocess calls have explicit timeouts
-2. **Exception Catching**: All functions catch and report exceptions
-3. **Status Reporting**: Operations return status tuples for tracking
-4. **Graceful Degradation**: Failed operations don't stop the entire process
-5. **Detailed Logging**: All errors are logged with context
-
-### Cache management
-
-The tool uses two cache files:
-
-1. **`<cache_dir>/gitlab_projects.json`**
-
-   - Full JSON response from GitLab API
-   - Used for debugging and detailed inspection
-   - Contains complete project metadata
-
-2. **`<cache_dir>/gitlab_projects.txt`**
-
-   - Pipe-delimited format for faster loading
-   - Format: `path_with_namespace|ssh_url|http_url|default_branch|archived`
-   - Primary data source for all operations
-
-`<cache_dir>` defaults to a per-workspace subdirectory of `~/.cache/contextlake`
-(`$XDG_CACHE_HOME/contextlake` when that is set), created `0700`. The cache names every
-repository the account can enumerate, so it is keyed on the workspace, platform and group:
-two workspaces never share one file. Set `cache_dir` to use one exact directory instead.
-
-Cache is refreshed by running the `fetch` command or `sync` (which includes fetch).
-
-### Branch selection algorithm
-
-To identify the most active branch the tool:
-
-1. **Fetches all branches** with `git for-each-ref` (collecting each branch's last
-   commit date)
-2. **Calculates commit count** per branch via `git rev-list --count origin/branch`
-3. **Scores and ranks** branches according to `branch_strategy`
-4. **Switches** to the top branch (and pulls) if it differs from the current one
-
-The `branch_strategy` setting controls step 3:
-
-- `commits`, rank purely by commit count (legacy behaviour)
-- `recency`, rank purely by most recent commit
-- `hybrid` (default), a weighted blend of normalized commit count and recency,
-  so a branch that is both busy and recently active wins; this avoids picking a
-  long-lived branch that has gone stale, or a brand-new branch with few commits
-
-Branch switching is skipped entirely for repositories checked out on a working
-branch (see [Branch safety](usage.md#branch-safety)).
-
-### Directory structure mapping
-
-The tool maintains GitLab's exact directory structure:
+`to_local_path` in `src/contextlake/core.py` strips the configured group prefix, so the local tree
+reproduces everything below the group:
 
 ```text
-GitLab Path: your-gitlab-group/backend/services/api-gateway
-Local Path:  backend/services/api-gateway
-
-GitLab Path: your-gitlab-group/backend/pricing/quote-engine
-Local Path:  backend/pricing/quote-engine
-
-GitLab Path: your-gitlab-group/frontend/platform/ui-toolkit
-Local Path:  frontend/platform/ui-toolkit
+Remote path: acme/backend/services/api-gateway
+Local path:  backend/services/api-gateway
 ```
 
-The `your-gitlab-group/` prefix is stripped when creating local paths.
+A path outside the configured group is returned unchanged.
 
-### Performance characteristics
+### Concurrency
 
-**Typical Performance Metrics** (based on a large workspace of several hundred repositories):
+Everything in the mirror layer is `ThreadPoolExecutor`, because the work is subprocess-bound rather
+than CPU-bound. `max_workers` defaults to `8` for cloning, updating and branch switching.
 
-- **Fetch**: 30-60 seconds (depends on GitLab API response time)
-- **Clone**: 5-10 minutes (for missing repos, concurrent)
-- **Update**: 3-5 minutes (all repos, concurrent)
-- **Branch Switching**: 5-10 minutes (all repos, concurrent)
-- **Verify**: 30-60 seconds
-- **Full Sync**: 15-30 minutes (all operations)
+Cloning is the one stage with an adaptive pool. It processes in waves and resizes between them,
+stepping the worker count down by one toward `min_workers` (default `2`) when the observed error
+rate exceeds `error_threshold` (default `0.5`), and back up when it falls below half of it. The
+window is 10 results, so it does nothing at all until 10 clones have been recorded
+(`AdaptiveWorkerPool` in `src/contextlake/core.py`). Set `adaptive_workers = false` for a flat pool.
 
-**Performance Optimization Tips:**
+Every subprocess call carries an explicit timeout: `clone_timeout` 300s, `fetch_timeout` 60s,
+`pull_timeout` 60s, `branch_timeout` 30s (`DEFAULT_CONFIG` in `src/contextlake/config.py`). A repo
+that fails does not stop the run; it is counted, reported, and reflected in the exit code.
 
-1. Run `fetch` less frequently if repository list doesn't change often
-2. Use `update` for frequent syncs (faster than full sync)
-3. Run `branches` only when branch management is needed
-4. Adjust ThreadPoolExecutor worker count based on system resources
+### How the most active branch is chosen
 
-### Security considerations
+`_collect_branch_info` reads every remote branch with
+`git for-each-ref --sort=-committerdate refs/remotes/origin/`, dropping `origin/HEAD` by exact
+match, then counts commits per branch with `git rev-list --count origin/<branch>`.
+`select_most_active_branch` scores them per `branch_strategy`:
 
-1. **Authentication**: Uses `glab` authentication (tokens, SSH keys, etc.)
-2. **HTTPS Cloning**: Default cloning method uses HTTPS for better compatibility
-3. **No Credential Storage**: Does not store credentials; relies on `glab` auth
-4. **Local Operations**: All git operations are local; no external API calls beyond initial fetch
-5. **File Permissions**: Respects existing file permissions; creates directories with default umask
+| Strategy | Score |
+| --- | --- |
+| `commits` | Highest commit count. The original behaviour |
+| `recency` | Most recent commit |
+| `hybrid` (default) | `0.6 * normalized(count) + 0.4 * normalized(recency)` |
 
-### Extension points
+Normalization is min-max **across that repository's own branches**, not against any absolute scale,
+so the weights compare a branch to its siblings. There is no time window: the count is every commit
+on the branch, and the timestamp is the branch tip's commit date.
 
-The tool can be extended by:
+Two edge cases worth knowing. When every candidate shares a count and a timestamp the normalizer
+returns `1.0` for all of them, so the winner is the first in iteration order, which is the most
+recently committed branch. And when the upstream branch a repo is on disappears, the same selection
+runs again to pick a replacement rather than leaving the clone stranded.
 
-1. **Adding New Commands**: Add new function and update `main()` command dispatch
-2. **Custom Branch Selection**: Modify `switch_repository_branch()` algorithm
-3. **Additional Verification**: Add checks in `verify_structure()`
-4. **Custom Output Formats**: Modify logging functions
-5. **Integration Hooks**: Add pre/post operation hooks
+Branch switching is skipped entirely for a repository on a working branch, see
+[Branch safety](usage.md#branch-safety).
 
-### Dependencies
+### Authenticating a refresh
 
-- **Python 3.9+**: Core language (the optional knowledge layer needs 3.10+)
-- **configparser**: Configuration file parsing (standard library)
-- **argparse**: CLI argument parsing (standard library)
-- **subprocess**: Git and system command execution (standard library)
-- **concurrent.futures**: Parallel processing (standard library)
-- **json**: Data serialization (standard library)
-- **datetime**: Timestamp generation (standard library)
-- **pathlib**: Path manipulation (standard library)
-- **glab**: GitLab CLI tool (external dependency)
-- **git**: Version control system (external dependency)
+Cloning, `update`'s fetch and both of `branches`' fetches run with an authenticated child
+environment when a token is available. The token is read from the environment variable named by
+`gitlab_token_env` or `token_env`, defaulting per platform:
 
-### Git integration
+| Platform | Token variable | Clone user |
+| --- | --- | --- |
+| GitLab | `GITLAB_TOKEN` | `oauth2` |
+| GitHub | `GITHUB_TOKEN` | `x-access-token` |
+| Bitbucket | `BITBUCKET_TOKEN` | `x-token-auth` |
+| Gitea | `GITEA_TOKEN` | `oauth2` |
 
-To avoid committing sensitive configuration to version control, add the configuration file to your `.gitignore`:
+The token value itself is only ever read from the environment; the config file names the variable,
+never the secret. It reaches git as an `http.extraHeader` passed through `GIT_CONFIG_KEY_*` /
+`GIT_CONFIG_VALUE_*` in the child environment, offset past any `GIT_CONFIG_*` entries you already
+set. That is deliberate on two counts, both recorded in `src/contextlake/core.py`: it never appears
+on the command line, where `ps` would show it, and it never appears in the clone URL, where git
+would persist it into `.git/config`.
 
-```bash
+Without a token, cloning falls back to `glab repo clone` when `glab` is installed, else plain
+`git clone` over HTTPS. Force one path with `clone_method = git` or `glab`.
 
-# Add to .gitignore
-.contextlake.ini
-~/.contextlake.ini
-```
+## The knowledge layer
 
-For team usage, consider including a sample configuration file:
+### Shards are the source of truth, SQLite is the index
 
-```bash
-# Add .contextlake.ini.example to git
-cp .contextlake.ini .contextlake.ini.example
-git add .contextlake.ini.example
+Each repository's parse result is written as a self-contained JSON shard at
+`<store_dir>/graph/<repo_id>.json`, the repo namespace nesting as directories. `index.sqlite` is a
+denormalized cross-repo index built from those shards, and it can be dropped and rebuilt at any
+time (`src/contextlake/kb/store/sqlite_store.py`). The reason for the split is recorded in
+`src/contextlake/kb/store/shards.py`: a shard is self-contained, so one repository can be
+re-indexed in isolation, and shards stay small rather than hitting the size ceiling a single global
+graph would.
 
-# Update .gitignore
-echo ".contextlake.ini" >> .gitignore
-```
+Shard files also exist for synthetic partitions, which is how non-code content stays separable from
+code: `@ingest:<name>`, `@enrich:<repo>`, `@connect:<repo>` and `@wiki`. A re-run of one of those
+stages cleanly replaces its own partition without touching the code shard. Keep these distinct from
+the **sentinel repo ids** `(shared)`, `(packages)`, `(external)` and `(system)`, which are
+attribution values on nodes *inside* real shards rather than shard files of their own.
 
-Team members can then:
+Every shard is also snapshotted per indexed commit under `<store_dir>/history/<repo_id>/`, which is
+what `kb query --as-of <commit>` reads.
 
-```bash
-cp .contextlake.ini.example .contextlake.ini
-# Edit with their personal settings
-```
+> [!NOTE]
+> A snapshot overwrites identically only for the same commit, by the same parser version, on the
+> same machine. File nodes are emitted in `os.walk` order, which is filesystem-dependent, so shard
+> bytes are a sound answer to "did this local store change" and are not a basis for comparing
+> hashes between machines or CI runners (`src/contextlake/kb/store/shards.py` says so in
+> `archive_shard`'s docstring).
 
-## Knowledge-layer architecture
+### The index schema
 
-The optional `contextlake.kb` subsystem (the `[kb]` extra) layers a knowledge graph
-over the mirrored repos. Its pieces:
+Five tables plus a full-text virtual table:
 
-- **Model & store** (`kb/model.py`, `kb/store/`): pydantic `Node`/`Edge`/`Repo` carry
-  provenance + confidence; a SQLite + FTS5 cross-repo index (`sqlite_store.py`) is
-  built from per-repo JSON **shards** (`shards.py`), the durable source of truth.
-  Each shard is also snapshotted by commit under `history/` for bi-temporal queries.
-- **Extraction** (`kb/parse.py`, `kb/manifest.py`, `kb/references.py`, `kb/hcl.py`, `kb/sql.py`):
-  tree-sitter builds the code graph (defs/imports/containment + an inferred call graph)
-  across 14 languages / 13 tree-sitter grammars (Python, JavaScript, TypeScript, TSX, C#, Go, Java, C,
-  C++, Rust, Ruby, PHP, Scala, Kotlin; TypeScript and TSX share one grammar);
-  Terraform/HCL (`kb/hcl.py`) yields an infrastructure `depends_on` graph
-  (resource/data/variable/output/module/local blocks with `var.`/`module.`/`data.`/resource
-  references resolved within a repo); SQL DDL (`kb/sql.py`) yields a referential graph
-  (table/view/procedure defs with `references` edges from foreign keys, resolved within
-  a repo); manifests yield the cross-repo dependency graph; references capture issue
-  keys and doc links.
-- **Connectors** (`kb/connectors/`): Atlassian, Figma, and GitLab sources on one
-  generic seam (fetched over MCP / `glab`), written into an isolated graph partition
-  so code re-indexing never disturbs them.
-- **Semantic tier** (`kb/embeddings/`): a pluggable `Embedder` (Ollama / OpenAI), a
-  vector store (pure-Python cosine or optional `sqlite-vec`), and hybrid graph+vector
-  (Personalized PageRank) retrieval.
-- **Wiki tier** (`kb/llm/`, `kb/wiki/`): a pluggable `LlmClient` generates
-  provenance-stamped pages gated by a verification council.
-- **Serving & steering** (`kb/server.py`, `kb/steer/`): an MCP server exposes the
-  graph tools; `steer` writes the per-tool steering files + skills library.
-- **CLI** (`kb/commands.py`): the `index/connect/embed/lint/wiki/steer/serve/query/
-  doctor` handlers, dispatched from the main CLI and imported lazily so the core tool
-  runs without the extra installed.
+| Table | Holds |
+| --- | --- |
+| `kb_meta` | Key/value bookkeeping, including the schema stamp |
+| `repos` | One row per indexed repository: path, host, default branch, head commit, index time, language stats, parser version |
+| `nodes` | Every symbol: id, repo, kind, name, qualified name, file, line start, line end, language, attrs |
+| `edges` | Every relationship: src, dst, relation, confidence, context, the three provenance columns, weight, a cross-repo flag, attrs |
+| `external` | Declared, and currently unused. Connector content lands as ordinary nodes and edges in the synthetic partitions above |
+| `node_fts` | An FTS5 virtual table over node name, qualified name and file |
 
-## Storage & invariants
+Five indexes: `edges.src`, `edges.dst`, `edges.cross_repo`, `nodes.repo_id` and `nodes.kind`. Those
+are exactly the columns a traversal filters on, which is to say "what does this call", "what calls
+this", and "what crosses a repository boundary".
 
-Everything contextlake generates lives under **one store directory**, kept safe by two test-locked
-invariants: **INV-1** (no generated file is ever written inside a mirrored repo, the mirror holds your
-repos untouched) and **INV-2**, the offline boundary (parse, graph, FTS, query, visualize, and embed all
-run fully offline; only `connect` may reach the network, and even it degrades rather than fails).
+Migrations are additive only, by `ALTER TABLE ... ADD COLUMN`, so an older store opens without a
+rebuild.
 
-The full store layout, both invariants with their enforcing tests, and the steering-files carve-out are
-on the [Storage](storage.md) page.
+### Three version numbers, three different questions
+
+| Constant | Where | Answers |
+| --- | --- | --- |
+| `PARSER_VERSION` | `src/contextlake/kb/parse.py` | "Would today's parser produce a different graph for this repo?" |
+| `SCHEMA_VERSION` | `src/contextlake/kb/store/sqlite_store.py` | "Can this build read this index?" |
+| `SCHEMA_VERSION` | `src/contextlake/kb/embeddings/store.py` | The same question for the vector store |
+
+They are independent lineages; do not read one as the other. The schema stamp is read before it is
+written, so an index written by a newer build is never silently stamped down to an older number,
+and a stamp that is present but unparsable is left alone rather than normalised away so that it can
+be reported.
+
+### How staleness is decided
+
+Two separate questions, asked separately on purpose.
+
+- **`needs_reindex` is HEAD-only.** It compares the repository's current git HEAD against the
+  commit recorded for it. That is cheap and it is the common case.
+- **`indexed_parser_version` asks the other question**, resolving through the `repos.parser_version`
+  column, then a cheap peek at the head of the shard file, then a full shard read. An unknown answer
+  counts as stale.
+
+`kb index` uses both, short-circuited: a repository whose HEAD moved is queued without consulting
+the parser version at all, and only the otherwise-unchanged repositories are checked for a parser
+mismatch. Those are re-indexed rather than merely reported, and the run announces how many and from
+which version. The comment in `src/contextlake/kb/cmds/index.py` gives the reasoning: a repo at the
+same commit indexed by an older parser holds a graph this build would not produce, and the
+alternative is "a green 'unchanged' over a stale graph, and no amount of wording makes that safe".
+
+`kb lint` reports the same repositories but deliberately keeps them out of its exit code, on the
+grounds that such a graph is out of date rather than broken, and a version bump should not turn
+every CI gate red on its own. `doctor` reports it as advisory for the same reason. All three read
+the same signal, so they cannot disagree about one store.
+
+### Parallel parsing, serial writes
+
+`kb index` parses repositories across a **process** pool (the work is CPU-bound) and persists from
+the parent process serially, because SQLite must be written from one place. The `spawn` start method
+is used on every platform so behaviour is identical on Linux, macOS and Windows, with an automatic
+serial fallback if the pool cannot start. Workers default to `min(8, cpu_count - 1)`; set
+`[kb] index_workers` to tune it, or `1` to force serial.
+
+### Locking and connections
+
+An advisory single-writer lock lives at `<store_dir>/.contextlake.lock` and carries the holder's
+pid, command, host and start time. A second process on the same host is refused by name rather than
+allowed to interleave SQLite writes; a lock left by a dead process is reclaimed automatically;
+`CONTEXTLAKE_ALLOW_CONCURRENT=1` overrides it and is rarely correct.
+
+Today `kb index`, `kb embed` and `kb wiki` take that lock. `connect`, `ingest`, `enrich` and the
+dashboard's mutating routes write without it.
+
+SQLite runs in WAL mode with **one connection per thread**, not one per store. That is forced by
+serving: the MCP SDK dispatches every synchronous tool call through a worker thread pool with no
+opt-out, so a store that outlives a single call cannot hand the same connection to every thread.
+
+## What is on disk
+
+Everything contextlake generates lives under one store directory, `~/.contextlake/kb` by default
+(`DEFAULT_STORE_DIR` in `src/contextlake/kb/config.py`), overridable with `store_dir` in `kb.toml`.
+
+| Path under `store_dir` | Contents |
+| --- | --- |
+| `index.sqlite` | The cross-repo graph and FTS index |
+| `graph/<repo_id>.json` | Per-repo graph shards, the source of truth |
+| `history/<repo_id>/<commit>.json` | Bitemporal snapshots, one per indexed commit |
+| `embeddings.sqlite` | Semantic vectors, once `kb embed` has run |
+| `wiki/` | Generated wiki pages, including `wiki/_modules/` for per-subsystem pages |
+| `graphs/` | Rendered visualizations from `kb graph`, including the `--site` export |
+| `dashboard/` | The dashboard's site export and its pid and log files |
+| `.contextlake.lock` | The advisory single-writer lock |
+
+### What lives outside the store, and why
+
+Four things do not, so "delete the store" is not the same as "delete everything":
+
+- **Downloaded CPU models**, at `~/.contextlake/models` (`DEFAULT_CACHE_DIR` in
+  `src/contextlake/kb/embeddings/builtin.py` and `src/contextlake/kb/llm/builtin.py`). That is a
+  *sibling* of the default store, not a directory inside it, so a store pointed elsewhere does not
+  move the models. Both also set `HF_HOME` to that directory unless you already set it.
+- **The mirror's repository-list cache**, under `cache_dir` as described above.
+- **The mirror audit report**, written next to that cache as `repo_audit.json` and a matching
+  `.csv`, or wherever `--report` points.
+- **Shell completion**, which is a delimited block in `~/.bashrc` or `~/.zshrc`, or a file at
+  `~/.config/fish/completions/contextlake.fish`, plus a marker at
+  `~/.contextlake/.completion_setup_done` recording your decision. Only written when an interactive
+  run offered it and you accepted, or when you passed `--completion`.
+
+`kb steer` is the fifth and is a deliberate carve-out rather than an exception to fix: it writes
+`AGENTS.md`, `CLAUDE.md`, `.windsurfrules`, `.kiro/steering/`, `.mcp.json`, `.vscode/mcp.json` and a
+skills library into the directory you point `--out` at, defaulting to the current one, because an
+editor has to find those at the workspace root it opens. `bootstrap` steers the mirror root, which
+is not itself a repository.
+
+## The two invariants
+
+### INV-1: generated files never land inside a mirrored repo
+
+> [!IMPORTANT]
+> No contextlake-generated file is ever written inside a mirrored repository's working tree.
+
+The mirror holds your repositories untouched; everything built from them lives under the separate
+store. `tests/kb/test_no_repo_pollution.py` enforces it by hashing every file in two temporary git
+repositories, driving four verbs over them (`kb index --workspace`, `kb graph --overview`,
+`kb query`, and `kb steer --out` at the mirror root), and asserting both trees are byte-identical
+afterwards. It also asserts the store materialised outside the mirror.
+
+Four verbs, not all of them: `wiki`, `embed`, `connect`, `ingest`, `enrich` and `dashboard` are not
+exercised by that test today.
+
+### INV-2: the offline boundary
+
+> [!IMPORTANT]
+> Parsing, the graph, FTS, query, visualization and embedding all run with no network. The
+> connectors are the opt-in exception, and even they degrade rather than fail.
+
+`tests/kb/test_offline_boundary.py` enforces it by patching `socket.getaddrinfo` and
+`socket.create_connection` to raise, then asserting that `kb index`, `kb query`, `kb graph
+--overview`, `kb lint`, `kb embed`, `kb connect` and `kb dashboard --site` all still succeed.
+`connect` in particular must skip and warn rather than crash, which is what makes running in an
+egress-restricted environment safe.
+
+Two honest limits on that guarantee. The test patches those two socket entry points rather than all
+of them, so a raw socket to a literal IP address would not be caught. And `wiki`, `ingest`,
+`enrich`, `serve` and `steer` are not exercised offline by it.
+
+The built-in embedding model is fetched once and cached, after which embedding is offline too.
+Connector results, once fetched, stay queryable offline.
+
+## See also
+
+- [contextlake, explained](explained.md), the same decisions at reasoning depth
+- [Index the code graph](index-code-graph.md), what the parser actually extracts
+- [Configuration](configuration.md), the full settings reference
+- [Mirror repositories](usage.md), the commands this layer implements
+- [`contextlake` command reference](cli-reference.md), every flag

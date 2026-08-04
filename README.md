@@ -157,8 +157,9 @@ Run any command as `contextlake <command>`; each has scoped help via
 mirroring git repositories, `kb` for the knowledge layer, except `init`, `bootstrap`,
 `version`, `completion`, and `doctor`, which span both tiers or neither. Per-command docs live
 with their layer: the **mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**;
-the **knowledge-layer** commands (`kb index`, `kb embed`, `kb connect`, `kb wiki`, `kb query`,
-`kb owners`, `kb impact`, `kb graph`, …) in **[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**,
+the **knowledge-layer** build commands (`kb index`, `kb embed`, `kb connect`, `kb wiki`, …) in
+**[knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**; the query commands
+(`kb query`, `kb impact`, `kb owners`) in **[ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**;
 and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**.
 
 | Command | What it does |
@@ -234,11 +235,14 @@ opt-in via `--llm-chat`). Try it with zero setup via `contextlake kb dashboard -
 - **[docs/install.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/install.md)**, every install channel, upgrading, and uninstalling
 - **[docs/troubleshooting.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**, it broke, now what
 - **[docs/dashboard.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, the dashboard, a guided tour with screenshots
-- **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, every command, configuration, branch safety, scheduling
+- **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, the mirror commands and branch safety
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the graph, connectors, search, wiki
+- **[docs/ask-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/ask-the-graph.md)**, `kb query`, `kb impact`, `kb owners`
 - **[docs/serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**, serve the graph over MCP + wire your editor
+- **[docs/keep-fresh.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/keep-fresh.md)**, bootstrap, scheduling, and re-indexing on commit
+- **[docs/explained.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/explained.md)**, what changes for you, and why it is built this way
 - **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, an honest, measured look at the token/cost/correctness impact
-- **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture & internals
+- **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture and internals
 - **[docs/releasing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
 - **[CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[ROADMAP.md](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[CONTRIBUTING.md](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**
 

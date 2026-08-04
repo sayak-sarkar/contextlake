@@ -3,7 +3,7 @@
 The dashboard is the human window into everything contextlake builds: a **local,
 offline-first** single-page app over your knowledge store. No accounts, no cloud, no
 build step, one command and it opens in your browser. Read-only by default; see
-[§11](#11-mutating-routes---allow-mutations) for the opt-in write actions and
+[§11](#11-mutating-routes) for the opt-in write actions and
 [§12](#12-chat) to ask it questions directly.
 
 > New here? Skim [QUICKSTART](../QUICKSTART.md) first. For what the graph/wiki/search
@@ -190,9 +190,9 @@ only ever lists subsystems that actually have a generated page on disk, so it ne
 option that would 404. Live-only, like MCP console/Settings above (no `--site` export).
 
 With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
-carry a **Regenerate** button, see [§11](#11-mutating-routes---allow-mutations).
+carry a **Regenerate** button, see [§11](#11-mutating-routes).
 
-See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
+See [Generate the wiki](generate-wiki.md).
 
 ## 10. MCP console & Settings
 
@@ -207,7 +207,7 @@ copyable `.mcp.json` / `.vscode/mcp.json` snippet for wiring an editor to it.
 mirror root, configured connectors, and the embedder/LLM tiers. No in-browser editing:
 it's a summary, not a form; edit `kb.toml` directly to change anything.
 
-## 11. Mutating routes (`--allow-mutations`)
+## 11. Mutating routes
 
 Everything above is read-only. `contextlake kb dashboard --serve --allow-mutations`
 additionally exposes four write actions, each behind an explicit confirm dialog in
