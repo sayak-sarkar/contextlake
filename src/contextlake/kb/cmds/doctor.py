@@ -56,7 +56,26 @@ def cmd_doctor(args) -> int:
 
     try:
         cfg = load_kb_config(getattr(args, "config", None))
-        _check("config loads", True, f"{len(cfg.sources)} source(s), {len(cfg.rules)} rule(s)")
+        if cfg.loaded_from:
+            _check(
+                "config loads",
+                True,
+                f"{len(cfg.loaded_from)} file(s), "
+                f"{len(cfg.sources)} source(s), {len(cfg.rules)} rule(s)",
+            )
+            for path in cfg.loaded_from:
+                print(f"      {style.dim(path)}")
+        else:
+            # A green tick here used to be printed whether or not a config existed,
+            # so "I have no config at all" and "my config loaded fine" looked
+            # identical -- the exact confident-but-wrong reporting this tool exists
+            # to prevent. Defaults are legitimate, so this is a warning, not a
+            # failure, and it does not change doctor's exit code. The mirror side
+            # already lists what it searched; match it.
+            _check("config loads", None, "no config found, using built-in defaults")
+            for path in cfg.searched:
+                print(f"      {style.dim('[absent] ' + path)}")
+            print(f"      {style.dim('run ' + style.bold('contextlake init') + ' to create one')}")
         # Lazy: source_cmd -> config_edit -> tomlkit, kept off every other kb
         # command's import path (see config_edit's module docstring).
         from ..source_cmd import verify_source

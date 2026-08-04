@@ -5,6 +5,20 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `doctor` printed a green `✓ config loads` whether or not a config existed, so a machine with
+  no configuration at all looked identical to one whose config loaded cleanly, and the paths it
+  had searched were never shown. The mirror side already reported both properly; the two halves
+  of the tool now agree. A missing config is a warning rather than a failure, since built-in
+  defaults are legitimate, and it does not change `doctor`'s exit code.
+
+  The underlying cause is that "loaded nothing" and "loaded a file that happens to be empty"
+  produce an identical merged result. `KbConfig` now carries `loaded_from` and `searched`,
+  recorded in the one function that knows the precedence chain rather than re-derived by each
+  caller.
+
 ## [5.1.0] - 2026-08-04
 
 ### Added

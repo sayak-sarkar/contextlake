@@ -150,6 +150,14 @@ class KbConfig(BaseModel):
     llm: LlmCfg = Field(default_factory=LlmCfg)
     sources: list[SourceCfg] = Field(default_factory=list)
     rules: list[RuleCfg] = Field(default_factory=list)
+    # Provenance of this config, for surfaces that need to tell "loaded nothing and
+    # fell back to defaults" apart from "loaded a file that happens to be empty".
+    # Those look identical in the merged result, which is how `doctor` came to print
+    # a green "config loads" when no config existed anywhere. Recorded here, in the
+    # one function that knows the precedence chain, rather than re-derived by each
+    # caller, which would drift the moment the chain changes.
+    loaded_from: list[str] = Field(default_factory=list)
+    searched: list[str] = Field(default_factory=list)
 
     @property
     def store_path(self) -> Path:
@@ -190,6 +198,21 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         )
     local_config = find_ancestor_config(LOCAL_CONFIG)
     merged: dict = {}
+    loaded_from: list[str] = []
+    # Described rather than resolved, because the interesting case is the one with
+    # nothing to resolve: when no ancestor carries a local config, find_ancestor_config
+    # returns None, and simply omitting it would hide the fact that a
+    # .contextlake.kb.toml in any parent directory would have been picked up.
+    searched: list[str] = [
+        str(Path(expand_path(GLOBAL_CONFIG))),
+        str(Path(expand_path(local_config))) if local_config
+        else f"{LOCAL_CONFIG} (searched this directory and every parent, up to filesystem root)",
+    ]
+    if config_path:
+        searched.append(str(Path(expand_path(config_path))))
+    for src in (GLOBAL_CONFIG, local_config, config_path):
+        if src and Path(expand_path(src)).exists():
+            loaded_from.append(str(Path(expand_path(src))))
     for src in (GLOBAL_CONFIG, local_config, config_path):
         # Provenance gate. A config file the user never named -- i.e. the one
         # found by walking up from cwd -- may not carry keys that become a
@@ -221,6 +244,8 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         llm=LlmCfg(**merged.get("llm", {})),
         sources=[SourceCfg(**s) for s in merged.get("sources", [])],
         rules=[RuleCfg(**r) for r in merged.get("rules", [])],
+        loaded_from=loaded_from,
+        searched=searched,
     )
 
 

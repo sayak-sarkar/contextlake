@@ -40,6 +40,31 @@ def test_defaults_when_no_files(tmp_path, monkeypatch):
     assert c.sources == [] and c.rules == []
 
 
+def test_loaded_from_is_empty_when_no_config_exists(tmp_path, monkeypatch):
+    """"Loaded nothing" and "loaded an empty file" must not look alike.
+
+    They produce an identical merged result, which is how `doctor` came to print a
+    green "config loads" tick for a machine with no config at all. The provenance
+    lists are what let a surface tell the two apart.
+    """
+    _isolate(monkeypatch, tmp_path)
+    c = load_kb_config()
+    assert c.loaded_from == []
+    # Still reports where it looked, including the ancestor walk, which resolves to
+    # no path at all when nothing is found and would otherwise vanish from the list.
+    assert len(c.searched) == 2
+    assert any("searched this directory and every parent" in s for s in c.searched)
+
+
+def test_loaded_from_names_an_empty_config_that_does_exist(tmp_path, monkeypatch):
+    _isolate(monkeypatch, tmp_path)
+    cfg = tmp_path / "empty.toml"
+    cfg.write_text("")
+    c = load_kb_config(str(cfg))
+    assert c.loaded_from == [str(cfg)]
+    assert str(cfg) in c.searched
+
+
 def test_explicit_config_overrides(tmp_path, monkeypatch):
     _isolate(monkeypatch, tmp_path)
     cfg = tmp_path / "kb.toml"
