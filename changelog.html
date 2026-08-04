@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1f0afba">
-<link rel="stylesheet" href="tokens.css?v=1f0afba">
-<link rel="stylesheet" href="docs.css?v=1f0afba">
-<link rel="stylesheet" href="cmdk.css?v=1f0afba">
+<link rel="stylesheet" href="fonts.css?v=4e29922">
+<link rel="stylesheet" href="tokens.css?v=4e29922">
+<link rel="stylesheet" href="docs.css?v=4e29922">
+<link rel="stylesheet" href="cmdk.css?v=4e29922">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -95,15 +95,19 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   container's writable layer, and the layer went with the container on exit. The run took minutes,
   reported success, and left nothing on the host. <code>HOME</code> now follows <code>WORKDIR</code> into the mount, so
   everything contextlake persists lands in the directory you mounted. Without <code>-v</code> the run is
-  ephemeral exactly as before; with a read-only mount it now fails loudly rather than succeeding
-  into the void.</li>
-<li><strong>An index left stale by an upgrade is no longer invisible.</strong> <code>PARSER_VERSION</code> moved to <code>2</code> in
+  ephemeral exactly as before, since <code>/work</code> is now handed to the runtime user at build time
+  rather than left owned by root.</li>
+</ul>
+<p>One new failure mode, deliberately. A bind mount carries the host's ownership, and the
+  container runs as uid 1000, so if your host account is not uid 1000 the write now fails with a
+  permission error where it previously "succeeded" by writing into the container and losing the
+  result. Pass <code>-u "$(id -u):$(id -g)"</code> to run as yourself.
+- <strong>An index left stale by an upgrade is no longer invisible.</strong> <code>PARSER_VERSION</code> moved to <code>2</code> in
   5.0.0, but <code>doctor</code>'s staleness check only examined C and C++ repositories, and the re-index
   decision compared the repository HEAD alone. A Python or TypeScript repository indexed by 4.0.0
   therefore stayed stale indefinitely: <code>index</code> reported it unchanged, <code>doctor</code> reported OK, and
   every answer came from a graph built by the old parser while every surface said healthy. That is
-  the confident-but-wrong failure this tool exists to prevent.</li>
-</ul>
+  the confident-but-wrong failure this tool exists to prevent.</p>
 <p><code>doctor</code> now flags a stale shard in any language, and <code>kb index</code> rebuilds a parser-stale
   repository instead of skipping it, announcing why. The re-index is scoped to repositories whose
   parser version differs, so it is not a blanket <code>--force</code> and it settles after one pass. The store
@@ -4095,6 +4099,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=1f0afba"></script>
+<script defer src="cmdk.js?v=4e29922"></script>
 </body>
 </html>

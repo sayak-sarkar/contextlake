@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=1f0afba">
-<link rel="stylesheet" href="tokens.css?v=1f0afba">
-<link rel="stylesheet" href="docs.css?v=1f0afba">
-<link rel="stylesheet" href="cmdk.css?v=1f0afba">
+<link rel="stylesheet" href="fonts.css?v=4e29922">
+<link rel="stylesheet" href="tokens.css?v=4e29922">
+<link rel="stylesheet" href="docs.css?v=4e29922">
+<link rel="stylesheet" href="cmdk.css?v=4e29922">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -129,6 +129,17 @@ docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </sp
 The `-v` mount is what makes the run worth doing: everything contextlake persists, the
 knowledge store included, is written under it as `.contextlake/`, so it is still there on
 the host after the container exits. Drop the `-v` and the run is ephemeral.
+
+The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your
+host account is not uid 1000 the write fails with a permission error. Pass your own ids to
+fix it:
+
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-u<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="s2">:</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
+</code></pre></div>
+
+It fails rather than falling back on purpose. Before 5.1.0 the store was written inside the
+container instead, so the run appeared to succeed and the index was gone the moment the
+container exited.
 
 A `:slim` tag is also published, no `llama-cpp-python`, no baked wiki-LLM GGUF,
 much smaller pull. Semantic search still works (the embedder is pure Python);
@@ -436,6 +447,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=1f0afba"></script>
+<script defer src="cmdk.js?v=4e29922"></script>
 </body>
 </html>
