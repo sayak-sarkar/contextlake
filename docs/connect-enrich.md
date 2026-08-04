@@ -228,6 +228,31 @@ name used for reachability checks (default `conversations_info`); `history_tool`
 used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
 repo's path to form the project id; and `per_page`, the API page size (default `50`).
 
+## When a source stops answering
+
+`connect` and `enrich` are the only stages that leave the machine, and a fleet run asks each source once
+per repo. If a source goes down mid-run, contextlake stops asking it rather than paying its `timeout` on
+every remaining repo: after three consecutive failures the source is skipped for 60 seconds, then one
+call is let through to see whether it came back. A run against an unreachable MCP server finishes in
+seconds instead of `timeout x repos`.
+
+You will see this in the output — it is never silent, because "the source was down" and "the source had
+nothing" would otherwise look identical:
+
+```
+resilience: circuit OPEN for mcp:npx:https://mcp.example.test after 3 consecutive
+  failure(s) (TimeoutError) -- further calls are skipped for 60s
+resilience: skipping mcp:npx:https://mcp.example.test for 60s -- circuit open after 3
+  consecutive failure(s) (TimeoutError); results from this source will be incomplete
+```
+
+The name in that line identifies the endpoint by transport and host only — never the rest of the URL,
+since a hosted MCP endpoint can carry a token in its path or query.
+
+Failures the *server* rejected rather than failed on — an unknown tool, a bad token — are reported as
+themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
+source if the server is merely slow.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)

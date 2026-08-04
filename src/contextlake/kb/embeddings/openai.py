@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 
 from .._util import post_json
+from ..resilience import breaker_for, endpoint_key
 from .base import Embedder
 
 
@@ -35,11 +36,15 @@ class OpenAIEmbedder(Embedder):
     def embed(self, texts: list[str]) -> list[list[float]]:
         out: list[list[float]] = []
         step = max(1, self.batch_size)
+        # One call per batch, many batches per run: same per-endpoint breaker as
+        # the LLM providers, so a rate-limited or unreachable API stops being
+        # re-hit for every remaining batch. 429/503 are retried once first.
+        guard = breaker_for(endpoint_key("embeddings:openai", self.base_url))
         for i in range(0, len(texts), step):
             batch = texts[i:i + step]
-            res = post_json(f"{self.base_url}/embeddings",
-                            {"model": self.model, "input": batch},
-                            self.timeout, headers=self._headers())
+            res = guard.call(post_json, f"{self.base_url}/embeddings",
+                             {"model": self.model, "input": batch},
+                             self.timeout, headers=self._headers())
             rows = sorted(res.get("data", []), key=lambda d: d.get("index", 0))
             out.extend([float(x) for x in row.get("embedding", [])] for row in rows)
         return out

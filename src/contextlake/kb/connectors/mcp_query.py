@@ -14,6 +14,7 @@ import json
 from typing import Any
 
 from ..mcp_client import call_tool
+from ..resilience import note_unavailable
 from ..sources.base import Document
 
 _RESULT_LIST_KEYS = ("results", "items", "data", "hits")
@@ -111,12 +112,17 @@ def mcp_tool_query(cfg: Any, terms: list[str], *, timeout: float | None = None) 
     ``cfg`` carries the transport (``command``/``args``/``env`` for stdio, or
     ``url`` for streamable-HTTP), the ``tool`` name, and an ``arg_template`` dict.
     Never raises: any failure (missing tool, unreachable server, malformed
-    result) yields an empty list.
+    result) yields an empty list -- but the reason is logged rather than
+    swallowed (see :func:`resilience.note_unavailable`), because "no documents"
+    and "the server never answered" are the same return value here. Repeated
+    failures trip the per-server circuit breaker inside
+    :func:`mcp_client.call_tool`, so a dead server stops costing a full timeout
+    per enrich call.
     """
+    tool = _cfg_get(cfg, "tool")
+    if not tool:
+        return []
     try:
-        tool = _cfg_get(cfg, "tool")
-        if not tool:
-            return []
         args = _render_args(_cfg_get(cfg, "arg_template") or {}, terms)
         result = call_tool(
             command=_cfg_get(cfg, "command"),
@@ -128,5 +134,6 @@ def mcp_tool_query(cfg: Any, terms: list[str], *, timeout: float | None = None) 
             env=_cfg_get(cfg, "env"),
         )
         return _normalize(result, tool)
-    except Exception:  # noqa: BLE001 - an unreachable/misbehaving server yields nothing
+    except Exception as e:  # noqa: BLE001 - an unreachable/misbehaving server yields nothing
+        note_unavailable(f"mcp tool {tool!r}", e)
         return []

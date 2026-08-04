@@ -10,6 +10,7 @@ from __future__ import annotations
 import urllib.error
 
 from .._util import describe_ollama_http_error, post_json
+from ..resilience import breaker_for, endpoint_key
 from .base import Embedder
 
 
@@ -27,9 +28,15 @@ class OllamaEmbedder(Embedder):
     def embed(self, texts: list[str]) -> list[list[float]]:
         url = f"{self.base_url}/api/embeddings"
         out: list[list[float]] = []
+        # One HTTP call per text: a stalled daemon halfway through a fleet's worth
+        # of symbols would otherwise pay the timeout thousands of times. The
+        # breaker is shared per endpoint (see resilience.breaker_for), so it also
+        # remembers across the separate Embedder instances a run constructs.
+        guard = breaker_for(endpoint_key("embeddings:ollama", self.base_url))
         for text in texts:
             try:
-                res = post_json(url, {"model": self.model, "prompt": text}, self.timeout)
+                res = guard.call(post_json, url, {"model": self.model, "prompt": text},
+                                 self.timeout)
             except urllib.error.HTTPError as e:
                 # Only an explicit provider="ollama" reaches here for a missing
                 # model -- "auto" checks model availability first (see base.py's

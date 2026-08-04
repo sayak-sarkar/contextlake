@@ -18,6 +18,7 @@ from ..embeddings.index import EMBEDDABLE_KINDS
 from ..ids import make_id
 from ..mcp_client import call_tool
 from ..model import EXTERNAL_REPO, Confidence, Node
+from ..resilience import note_unavailable
 from .common import claims, link_edge, repo_node
 
 DEFAULT_HOSTS = ("figma.com",)
@@ -167,7 +168,14 @@ class FigmaConnector:
         unreachable/unconfigured. Never raises: enrichment must not break the
         association graph. See :func:`parse_metadata` for turning this into
         real structural content (Figma's own response is XML, gated on edit
-        access; some third-party servers return a simplified dict instead)."""
+        access; some third-party servers return a simplified dict instead).
+
+        Best-effort still means *observable*: the reason is logged rather than
+        swallowed, because a returned ``None`` is otherwise indistinguishable
+        from "this design has no metadata" (see
+        :func:`resilience.note_unavailable`). Repeated failures trip the shared
+        per-server circuit breaker in :func:`mcp_client.call_tool`, so a dead
+        MCP costs the run a few timeouts, not one per design."""
         if not (self.mcp_url or self.mcp_command):
             return None
         cmd, args, env = self._spawn()
@@ -176,7 +184,8 @@ class FigmaConnector:
             payload["nodeId"] = node_id
         try:
             return call_tool(cmd, args, "get_metadata", payload, timeout=self.timeout, env=env)
-        except Exception:  # noqa: BLE001 - enrichment is best-effort
+        except Exception as e:  # noqa: BLE001 - enrichment is best-effort
+            note_unavailable(f"figma design {file_key}", e)
             return None
 
     def verify(self, file_key: str, *, node_id: str | None = None) -> bool:

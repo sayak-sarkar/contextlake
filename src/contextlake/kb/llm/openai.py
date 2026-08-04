@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 
 from .._util import post_json
+from ..resilience import breaker_for, endpoint_key
 from .base import LlmClient
 
 
@@ -35,9 +36,14 @@ class OpenAILlm(LlmClient):
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        res = post_json(f"{self.base_url}/chat/completions",
-                        {"model": self.model, "messages": messages},
-                        self.timeout, headers=self._headers())
+        # Per-endpoint circuit breaker + jittered retry: 429/503 from a hosted API
+        # are retried once, and an endpoint that keeps failing is skipped rather
+        # than re-tried on every remaining page of a wiki run. A 401/400 is a
+        # rejected request, not a sick endpoint, so it neither retries nor counts.
+        guard = breaker_for(endpoint_key("llm:openai", self.base_url))
+        res = guard.call(post_json, f"{self.base_url}/chat/completions",
+                         {"model": self.model, "messages": messages},
+                         self.timeout, headers=self._headers())
         choices = res.get("choices") or []
         if not choices:
             return ""

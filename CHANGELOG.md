@@ -49,6 +49,12 @@ Fixes are in progress; the tests flip to passing when they land.
 - Dependabot now watches the `docker` ecosystem too, so the Dockerfile's pinned base digest gets
   moved forward. A digest pin buys reproducible builds but silently ages out of security updates
   in a way a floating tag does not.
+- Connectors and model providers are guarded by a circuit breaker with jittered retry. A slow or
+  unreachable endpoint used to cost its full timeout on every call, so the pain scaled with the
+  fleet: measured 160.9s across 40 repos against a blackholed MCP server, versus 12.1s with the
+  breaker, and the guarded cost is constant rather than per-repo. At the shipped 120s MCP timeout
+  over a 480-repo fleet that is roughly 32 hours down to roughly 12 minutes. An open circuit says
+  so in the log rather than returning empty results that read like "nothing found".
 - Retrieval quality and SQL-parser accuracy are now measured, not just measurable. A weekly
   workflow runs `kb eval` against the bundled sample graph and fails if the hit rate regresses
   below a floor set at the current measured value. Only the lexical retriever runs there: the

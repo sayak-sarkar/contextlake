@@ -165,6 +165,30 @@ def no_sleep(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_circuit_breakers():
+    """Clear the kb tier's circuit breakers around every test.
+
+    ``kb.resilience`` keys its breakers by endpoint in a process-wide registry
+    (deliberately: connectors and provider clients are rebuilt per source/repo,
+    so instance-owned state would never accumulate enough failures to open).
+    Left uncleared, a test that trips a breaker would make a later, unrelated
+    test's provider call short-circuit instead of reaching its own stub.
+    Imported inside the fixture: ``kb`` is an optional extra, and this core-tier
+    conftest must still work when it isn't installed.
+    """
+    def _clear():
+        try:
+            from contextlake.kb.resilience import reset_breakers
+        except ImportError:
+            return
+        reset_breakers()
+
+    _clear()
+    yield
+    _clear()
+
+
+@pytest.fixture(autouse=True)
 def _no_leaked_progress_bars():
     """Drop any live progress bar between tests.
 

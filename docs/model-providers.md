@@ -218,6 +218,13 @@ model    = "qwen2.5:3b"
 timeout  = 1200        # give a slow CPU room; default is 300s (5 min)
 ```
 
+If the endpoint stops answering rather than being slow, raising `timeout` makes things worse: a wiki run
+calls the model once per page. After three consecutive endpoint failures (a timeout, a refused
+connection, a 5xx) the provider is skipped for 60 seconds and then probed once, so a dead Ollama daemon
+or an unreachable API costs the run a few timeouts instead of one per page — and says so in the log. A
+rejected *request* is exempt and always reported as itself, so `model "..." not found, try pulling it
+first` keeps telling you to run `ollama pull` however many pages are left.
+
 Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see `docs/releasing.md`). Don't switch the embedder
 model/dimension against an existing vector store without re-embedding from scratch, a guard refuses the

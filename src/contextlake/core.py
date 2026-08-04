@@ -127,13 +127,37 @@ def classify_error(error_msg):
     return 'other'
 
 
-def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_max=30, **kwargs):
+def git_error_is_transient(error):
+    """Whether a *git/glab* failure is worth another attempt.
+
+    The mirror tier's failures arrive as text on stderr, so the decision is made
+    by classifying that string (see :func:`classify_error`): network/timeout are
+    transient, while DNS, TLS, deleted-upstream and diverged-branch are states to
+    report rather than retry.
+    """
+    non_transient = ('dns', 'tls', 'missing-ref', 'project-deleted', 'diverged')
+    return classify_error(str(error)) not in non_transient
+
+
+def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_max=30,
+                       is_transient=None, **kwargs):
     """Retry ``func`` with exponential backoff and jitter.
 
     Network/timeout/transient errors are retried; DNS, TLS, deleted-upstream and
     diverged-branch errors are non-transient and fail fast. The last error is
     re-raised on exhaustion.
+
+    ``is_transient(exc) -> bool`` overrides that judgement so the *same* retry
+    loop can serve callers whose failures don't look like git's. It exists for
+    ``contextlake.kb.resilience``, which drives the knowledge layer's HTTP/MCP
+    calls: those fail with a *typed* exception (``HTTPError``, a timeout) that
+    :func:`classify_error`'s string matching cannot read, and their retry policy
+    genuinely differs (a call that already burned its full timeout budget is not
+    worth repeating). Defaults to :func:`git_error_is_transient`, so nothing in
+    the mirror tier changes -- and the primitive stays here, in the stdlib-only
+    core tier, because core must never import kb (kb is an optional extra).
     """
+    decide_transient = is_transient or git_error_is_transient
     last_error = None
     for attempt in range(max_retries):
         try:
@@ -142,8 +166,7 @@ def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_ma
             raise  # a missing binary/path never recovers on retry
         except Exception as e:
             last_error = e
-            non_transient = ('dns', 'tls', 'missing-ref', 'project-deleted', 'diverged')
-            if classify_error(str(e)) in non_transient:
+            if not decide_transient(e):
                 break
             if attempt < max_retries - 1:
                 backoff = min(backoff_initial * (2 ** attempt), backoff_max)

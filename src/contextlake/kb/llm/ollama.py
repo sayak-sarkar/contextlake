@@ -10,6 +10,7 @@ from __future__ import annotations
 import urllib.error
 
 from .._util import describe_ollama_http_error, post_json
+from ..resilience import breaker_for, endpoint_key
 from .base import LlmClient
 
 
@@ -26,8 +27,14 @@ class OllamaLlm(LlmClient):
         payload = {"model": self.model, "prompt": prompt, "stream": False}
         if system:
             payload["system"] = system
+        # Guarded by a per-endpoint circuit breaker: wiki generation calls this
+        # once per page, so a daemon that has stopped answering would otherwise
+        # cost the whole run one timeout per page. A 404 for an unpulled model is
+        # NOT counted against the endpoint (see resilience.is_endpoint_failure),
+        # so the actionable message below survives however many pages are left.
+        guard = breaker_for(endpoint_key("llm:ollama", self.base_url))
         try:
-            res = post_json(f"{self.base_url}/api/generate", payload, self.timeout)
+            res = guard.call(post_json, f"{self.base_url}/api/generate", payload, self.timeout)
         except urllib.error.HTTPError as e:
             # Only an explicit provider="ollama" reaches here for a missing model
             # -- "auto" checks model availability first (see base.py's

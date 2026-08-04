@@ -20,6 +20,7 @@ import re
 from ..ids import make_id
 from ..mcp_client import call_tool
 from ..model import EXTERNAL_REPO, Node
+from ..resilience import note_unavailable
 from .common import claims, link_edge, repo_node
 
 DEFAULT_HOSTS = ("slack.com",)
@@ -113,7 +114,10 @@ class SlackConnector:
         """Best-effort liveness check: is this channel reachable via the MCP?
 
         Returns ``False`` when no MCP is configured or the call fails. Never
-        raises: verification must not break the association graph.
+        raises: verification must not break the association graph. The reason is
+        logged rather than swallowed (see :func:`resilience.note_unavailable`) --
+        an unreachable Slack MCP and a channel that genuinely doesn't exist both
+        return ``False``, and only the log distinguishes them.
         """
         if not (self.mcp_url or self.mcp_command):
             return False
@@ -121,7 +125,8 @@ class SlackConnector:
         try:
             res = call_tool(cmd, args, self.verify_tool, {"channel": channel},
                             timeout=self.timeout, env=env)
-        except Exception:  # noqa: BLE001 - verification is best-effort
+        except Exception as e:  # noqa: BLE001 - verification is best-effort
+            note_unavailable(f"slack channel {channel}", e)
             return False
         return bool(res)
 
@@ -138,7 +143,8 @@ class SlackConnector:
         try:
             result = call_tool(cmd, args, self.history_tool, {"channel": channel, "limit": limit},
                                timeout=self.timeout, env=env)
-        except Exception:  # noqa: BLE001 - fetching is best-effort
+        except Exception as e:  # noqa: BLE001 - fetching is best-effort
+            note_unavailable(f"slack history for {channel}", e)
             return []
         if not isinstance(result, dict):
             return []

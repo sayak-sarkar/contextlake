@@ -14,6 +14,7 @@ import urllib.parse
 
 from ..ids import make_id
 from ..model import EXTERNAL_REPO, Confidence, Node
+from ..resilience import breaker_for, note_unavailable
 from ..store.base import Store
 from .common import link_edge, repo_node
 
@@ -28,10 +29,19 @@ class GitLabConnector:
         self._run = runner or self._glab
 
     def _glab(self, endpoint: str) -> list:
+        # Two GitLab API calls per repo, each able to burn the full timeout: with
+        # `glab` unauthenticated or GitLab down, a fleet run pays that on every
+        # repo. The breaker (keyed on the CLI, which is authenticated against one
+        # host per run) writes the source off after a few failures instead, and
+        # `note_unavailable` keeps the reason on screen -- this method's contract
+        # is to return [] rather than raise, which is exactly the shape that
+        # otherwise makes an outage read as "this project has no open MRs".
         try:
-            res = subprocess.run(["glab", "api", endpoint], capture_output=True,
-                                 text=True, timeout=self.timeout)
-        except (OSError, subprocess.SubprocessError):
+            res = breaker_for("glab-api").call(
+                subprocess.run, ["glab", "api", endpoint], capture_output=True,
+                text=True, timeout=self.timeout)
+        except Exception as e:  # noqa: BLE001 - OSError/SubprocessError/CircuitOpenError
+            note_unavailable("gitlab (glab api)", e)
             return []
         if res.returncode != 0 or not res.stdout.strip():
             return []

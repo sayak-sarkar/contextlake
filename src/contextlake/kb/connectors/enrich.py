@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from ..embeddings.index import EMBEDDABLE_KINDS
 from ..model import Node
+from ..resilience import note_unavailable
 from ..sources.base import Document
 from ..store.shards import GraphShard, write_shard
 from ..wiki.generate import repo_brief
@@ -73,7 +74,11 @@ def search_source(cfg, terms: list[str], *, timeout: float | None = None) -> lis
     Dispatches on the source shape: a generic MCP search ``tool`` (see
     ``mcp_query.py``), or a Rovo ``atlassian`` cross-search. Never raises: any
     failure (unreachable server, unrecognized source, malformed result) yields
-    an empty list so one broken source never aborts an ``enrich`` run.
+    an empty list so one broken source never aborts an ``enrich`` run -- but the
+    reason is logged rather than swallowed (see
+    :func:`resilience.note_unavailable`), because "found nothing" and "never
+    answered" are otherwise the same empty list. Repeated failures trip the
+    per-server breaker inside :func:`mcp_client.call_tool`.
     """
     try:
         if _cfg_get(cfg, "tool"):
@@ -81,7 +86,8 @@ def search_source(cfg, terms: list[str], *, timeout: float | None = None) -> lis
         if _cfg_get(cfg, "type") == "atlassian":
             return _atlassian_search(cfg, terms, timeout=timeout)
         return []
-    except Exception:  # an unreachable/misbehaving source yields nothing
+    except Exception as e:  # an unreachable/misbehaving source yields nothing
+        note_unavailable(f"enrich source {_cfg_get(cfg, 'name', '?')!r}", e)
         return []
 
 

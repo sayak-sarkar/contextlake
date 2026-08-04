@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 
 from .._util import post_json
+from ..resilience import breaker_for, endpoint_key
 from .base import LlmClient
 
 _ANTHROPIC_VERSION = "2023-06-01"
@@ -42,8 +43,12 @@ class AnthropicLlm(LlmClient):
         }
         if system:
             payload["system"] = system
-        res = post_json(f"{self.base_url}/v1/messages", payload, self.timeout,
-                        headers=self._headers())
+        # Same guard as the other hosted provider (see llm/openai.py): 429/503
+        # retried once, a persistently failing endpoint skipped instead of re-hit
+        # on every remaining page, an outright rejection passed straight through.
+        guard = breaker_for(endpoint_key("llm:anthropic", self.base_url))
+        res = guard.call(post_json, f"{self.base_url}/v1/messages", payload, self.timeout,
+                         headers=self._headers())
         blocks = res.get("content") or []
         return "".join(
             b.get("text", "") for b in blocks
