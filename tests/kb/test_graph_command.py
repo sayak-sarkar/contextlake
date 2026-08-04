@@ -284,6 +284,32 @@ def test_repo_subgraph_path_prefix_does_not_match_sibling_directory(store):
     assert {n.id for n in nodes} == {"a"}
 
 
+def test_repo_subgraph_orders_one_hop_external_nodes_deterministically(store):
+    # An export must be byte-reproducible: same store, same bytes. The one-hop
+    # external nodes were collected in a set and emitted in set-iteration order,
+    # i.e. string-hash order, which PYTHONHASHSEED re-randomises per process --
+    # so the node SET was stable while the sequence (and the bytes) moved.
+    # 12 ids make an accidentally-sorted set order vanishingly unlikely.
+    store.upsert_nodes("r", [_node("a", repo="r")])
+    ext = [f"x{i:02d}" for i in range(12)]
+    store.upsert_nodes("other", [_node(x, repo="other") for x in ext])
+    store.upsert_edges("r", [_edge("a", x) for x in ext])
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=100)
+    assert [n.id for n in nodes] == ["a", *sorted(ext)]
+
+
+def test_extract_subgraph_expands_seeds_in_seed_order(store):
+    # Same class of bug one function up: the BFS frontier was `list(seen)` over a
+    # set, so multi-seed expansion visited seeds in hash order and appended their
+    # neighbours in a per-process-random sequence.
+    seeds = [f"s{i:02d}" for i in range(8)]
+    store.upsert_nodes("r", [_node(s) for s in seeds]
+                       + [_node(f"n{i:02d}") for i in range(8)])
+    store.upsert_edges("r", [_edge(s, f"n{i:02d}") for i, s in enumerate(seeds)])
+    nodes, _ = viz.extract_subgraph(store, seeds, hops=1, max_nodes=100, max_fanout=50)
+    assert [n.id for n in nodes] == seeds + [f"n{i:02d}" for i in range(8)]
+
+
 def test_repo_modules_ranks_by_size_and_drops_tiny_segments(store):
     files = (["src/a.py"] * 8) + (["vendor/b.py"] * 3) + (["scripts/c.py"] * 1)
     store.upsert_nodes("r", [

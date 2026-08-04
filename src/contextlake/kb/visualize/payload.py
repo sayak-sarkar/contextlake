@@ -121,7 +121,11 @@ def extract_subgraph(store: Store, seed_ids, *, hops: int = 2, max_nodes: int = 
         seen.add(sid)
         nodes.append(node)
 
-    frontier = list(seen)
+    # Walk in seed order, NOT `list(seen)`: iterating a set of strings follows
+    # hash order, which PYTHONHASHSEED re-randomises per process, so the same
+    # store exported twice expanded its seeds in a different order and wrote a
+    # different byte-string. `nodes` is already insertion-ordered.
+    frontier = [n.id for n in nodes]
     edges_by_key: dict[tuple, Edge] = {}
     for _hop in range(max(0, hops)):
         if len(seen) >= max_nodes:
@@ -280,7 +284,11 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
                 # page section, all reachable via a real outbound edge from a
                 # code node. Never walked further (one hop only).
                 external_ids.add(e.dst)
-    nodes.extend(ext_cache[nid] for nid in external_ids)  # already resolved, non-None
+    # sorted(), not raw set order: set iteration follows string hash order, which
+    # is re-randomised per process, so an unchanged store exported twice produced
+    # the same node SET in a different sequence and therefore different bytes --
+    # defeating diffing, content-hashing and caching of an export.
+    nodes.extend(ext_cache[nid] for nid in sorted(external_ids))  # already resolved, non-None
     truncated = node_truncated or edge_truncated
     if truncated:
         log(f"  truncated: repo {repo_id!r} subgraph exceeds max_nodes={max_nodes}"
