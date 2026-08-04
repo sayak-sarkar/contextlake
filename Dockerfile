@@ -110,6 +110,14 @@ ENV HOME=/work
 # non-zero exit here means `contextlake --version` itself can't run.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD contextlake --version || exit 1
+# WORKDIR creates a missing /work while the build is still root, so it lands as
+# root:root and uid 1000 cannot write a thing in it. That did not matter while
+# HOME pointed at /home/contextlake, but now that the store, config and caches
+# all resolve under /work, an unmounted `docker run <image> doctor` would fail
+# with EACCES on the very first write. Hand the directory to the runtime user.
+# Only affects the unmounted case: a bind mount replaces this directory (and
+# carries the host's ownership) at run time.
+RUN install -d -o contextlake -g contextlake /work
 USER contextlake
 ENTRYPOINT ["contextlake"]
 CMD ["doctor"]

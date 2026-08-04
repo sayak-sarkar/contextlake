@@ -114,6 +114,18 @@ The `-v` mount is what makes the run worth doing: everything contextlake persist
 knowledge store included, is written under it as `.contextlake/`, so it is still there on
 the host after the container exits. Drop the `-v` and the run is ephemeral.
 
+The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your
+host account is not uid 1000 the write fails with a permission error. Pass your own ids to
+fix it:
+
+```bash
+docker run -u "$(id -u):$(id -g)" -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
+```
+
+It fails rather than falling back on purpose. Before 5.1.0 the store was written inside the
+container instead, so the run appeared to succeed and the index was gone the moment the
+container exited.
+
 A `:slim` tag is also published — no `llama-cpp-python`, no baked wiki-LLM GGUF,
 much smaller pull. Semantic search still works (the embedder is pure Python);
 point the wiki tier at Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.

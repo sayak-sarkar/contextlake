@@ -48,8 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   container's writable layer, and the layer went with the container on exit. The run took minutes,
   reported success, and left nothing on the host. `HOME` now follows `WORKDIR` into the mount, so
   everything contextlake persists lands in the directory you mounted. Without `-v` the run is
-  ephemeral exactly as before; with a read-only mount it now fails loudly rather than succeeding
-  into the void.
+  ephemeral exactly as before, since `/work` is now handed to the runtime user at build time
+  rather than left owned by root.
+
+  One new failure mode, deliberately. A bind mount carries the host's ownership, and the
+  container runs as uid 1000, so if your host account is not uid 1000 the write now fails with a
+  permission error where it previously "succeeded" by writing into the container and losing the
+  result. Pass `-u "$(id -u):$(id -g)"` to run as yourself.
 - **An index left stale by an upgrade is no longer invisible.** `PARSER_VERSION` moved to `2` in
   5.0.0, but `doctor`'s staleness check only examined C and C++ repositories, and the re-index
   decision compared the repository HEAD alone. A Python or TypeScript repository indexed by 4.0.0

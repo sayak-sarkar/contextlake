@@ -96,6 +96,17 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 | `[kb-fastembed]` | A higher-quality ONNX embedder (~90 MB) | Better semantic ranking |
 | `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `wiki --llm builtin` with no Ollama or API key |
 
+`[llm-local]` is the one extra a plain `pip install` cannot finish on its own: `llama-cpp-python`
+publishes no wheels to PyPI (llama.cpp is built per hardware backend, so upstream ships one index
+per accelerator), so pip compiles C++ unless you point it at one. Let contextlake do it:
+
+```bash
+contextlake doctor --fix llm-local     # add --dry-run to see the exact command first
+```
+
+This applies to pip installs only: the standalone binary has the index preconfigured and installs
+the runtime on its first run, and the full Docker image ships it baked in.
+
 </details>
 
 <details>
@@ -110,6 +121,22 @@ the image on locked-down or offline machines. Runs as a non-root user.
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
 ```
+
+The `-v` mount is what makes the run worth doing: everything contextlake persists, the
+knowledge store included, is written under it as `.contextlake/`, so it is still there on
+the host after the container exits. Drop the `-v` and the run is ephemeral.
+
+The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your
+host account is not uid 1000 the write fails with a permission error. Pass your own ids to
+fix it:
+
+```bash
+docker run -u "$(id -u):$(id -g)" -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
+```
+
+It fails rather than falling back on purpose. Before 5.1.0 the store was written inside the
+container instead, so the run appeared to succeed and the index was gone the moment the
+container exited.
 
 A `:slim` tag is also published, no `llama-cpp-python`, no baked wiki-LLM GGUF,
 much smaller pull. Semantic search still works (the embedder is pure Python);
@@ -141,9 +168,21 @@ uv tool upgrade contextlake                     # uv
 docker pull ghcr.io/sayak-sarkar/contextlake   # image
 ```
 
-Your store and config carry forward. The graph re-indexes incrementally on the next
-`index`/`sync`, so nothing needs migrating. Confirm with `contextlake --version` and
+Your store and config carry forward. Confirm with `contextlake --version`, then run
 `contextlake doctor`.
+
+`doctor` is load-bearing here, not a formality. An upgrade that changes how code is parsed
+leaves every existing shard describing the old parse, and a plain `kb index` will not notice:
+it skips repos whose HEAD commit has not moved, and upgrading contextlake does not move
+anyone's HEAD. `doctor` compares the parser version recorded in each shard against the running
+one and names the repos that need rebuilding. When it asks for one, force it:
+
+```bash
+contextlake kb index --force
+```
+
+Upgrading to **5.0.0 specifically requires this**, for every indexed repo: that release changed
+the parser and every shard written before it is stale.
 
 Uninstall the tool, then optionally remove what it created (it never writes inside your
 repos, so your source is never touched):
@@ -360,10 +399,10 @@ without the built-in embedder; `[kb-full]` is batteries-included. From a clone: 
 
 No Python on the machine at all? The **Binary** tab needs nothing preinstalled: it's a
 self-contained launcher (built with [PyApp](https://ofek.dev/pyapp/)) that bootstraps a
-private Python + `contextlake[kb-full]` into its own cache on first run (needs network
-once; every run after that is instant, no reinstall). It doesn't include the optional
-`llm-local` wiki backend (that needs a C++ toolchain to build), `ollama`/`openai`/
-`anthropic`/`cli` all still work as wiki LLM providers.
+private Python + `contextlake[kb-full,llm-local]` into its own cache on first run (needs
+network once; every run after that is instant, no reinstall). The built-in wiki LLM comes
+along: the bootstrap already points pip at the prebuilt CPU wheel index, so there is no
+C++ toolchain to install and nothing for you to pass.
 
 **`[kb-full]`** is the batteries-included install: the knowledge layer plus the
 built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend, so
@@ -384,9 +423,15 @@ docker pull ghcr.io/sayak-sarkar/contextlake   # if you use the image
 ```
 
 Then confirm with `contextlake --version` and re-check your environment with
-`contextlake doctor`. Your existing store and config carry forward, the graph
-re-indexes incrementally on your next `kb index`/`mirror sync`, so there is nothing to migrate by
-hand. See the [changelog](CHANGELOG.md) for what changed between versions.
+`contextlake doctor`. Your existing store and config carry forward.
+
+Do not skip the `doctor` run. A release that changes the parser makes every existing shard
+stale, and a plain `kb index` will not pick that up, because it skips repos whose HEAD commit
+has not moved and upgrading contextlake moves nobody's HEAD. `doctor` compares each shard's
+recorded parser version against the running one and names the repos to rebuild. When it asks,
+run `contextlake kb index --force`. **Upgrading to 5.0.0 requires this for every indexed repo.**
+
+See the [changelog](CHANGELOG.md) for what changed between versions.
 
 ### Install scenarios & flag cheatsheet
 
@@ -394,14 +439,16 @@ Real setups and the exact command for each. What the flags mean:
 
 - **`-U` / `--upgrade`**, move an already-installed contextlake to the newest version
   (without it, pip sees it installed and does nothing).
-- **`--only-binary :all:`**, install from prebuilt **wheels only, never build from
-  source** (`:all:` = every package; opposite is `--no-binary`). On a machine with no
-  C/C++ compiler this turns a confusing build failure into a clean "no wheel available"
-  message. It errors if a wheel truly doesn't exist, which is the point: a clear signal
-  beats a doomed compile.
-- **`--extra-index-url URL`**, also look for wheels at `URL` (e.g. the `llama-cpp-python`
-  CPU-wheel index that PyPI doesn't mirror). See [Why the built-in LLM needs a prebuilt
-  wheel](docs/knowledge-layer.md#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler).
+- **`--only-binary NAME`**, install that package from a prebuilt **wheel only, never
+  build from source** (`:all:` is the every-package token; opposite is `--no-binary`). On a
+  machine with no C/C++ compiler this turns a confusing build failure into a clean "no
+  wheel available" message. Name the one native package rather than using `:all:` when you
+  still want a source fallback for everything else.
+- **`--extra-index-url URL`**, also look for wheels at `URL`. Required for the built-in
+  wiki LLM: `llama-cpp-python` publishes no wheels to PyPI (llama.cpp is built per hardware
+  backend, so upstream ships one index per accelerator), so without one pip compiles C++
+  from source. See [Installing the built-in
+  LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 - **`[extra]`**, an optional feature bundle: `[kb-full]` (recommended: graph + search +
   built-in embedder + `sqlite-vec` ANN), `[kb]` (graph + full-text only), `[kb-local]` /
   `[kb-vec]` (pick embedder / ANN yourself), `[llm-local]` (the built-in wiki model).
@@ -411,8 +458,9 @@ Real setups and the exact command for each. What the flags mean:
 | "Just mirror my repos, nothing else." | `pipx install contextlake` |
 | "Full knowledge layer, zero config." | `pipx install "contextlake[kb-full]"` (or `uvx --from "contextlake[kb-full]" contextlake`) |
 | "Upgrade to the latest." | `pip install -U "contextlake[kb-full]"` (or `pipx upgrade contextlake`) |
-| "Brand-new Python (e.g. 3.14), no compiler, a source build just failed." | `pip install -U --only-binary :all: "contextlake[kb-full]"`, for the built-in wiki LLM (`[llm-local]`) also add `--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` |
-| "I don't want any local toolchain at all." | Use the image: `docker pull ghcr.io/sayak-sarkar/contextlake` (bundles every dep + the model, no compiler, no wheels to chase) |
+| "No compiler, and a source build just failed." | `pip install -U --only-binary :all: "contextlake[kb-full]"` |
+| "I want the built-in wiki LLM (`[llm-local]`), installed with pip." | `contextlake doctor --fix llm-local`, or by hand: `pip install "contextlake[llm-local]" --only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` (the index is **not** optional: upstream publishes no PyPI wheels, so without it pip compiles C++ from source) |
+| "I don't want any local toolchain at all." | The standalone binary (bootstraps its own Python and extras on first run, network needed once), or the image: `docker pull ghcr.io/sayak-sarkar/contextlake` (every dep + the built-in models baked in, works offline) |
 
 ### Uninstall
 
@@ -499,17 +547,29 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once)
-via the `llm-local` extra, `pip install "contextlake[llm-local]"`. If that extra fails
-to build (`llama-cpp-python` has no prebuilt wheel for your Python, e.g. 3.14, and no
-compiler is installed), install the CPU wheel directly, no compiler needed. The
-`--only-binary :all:` flag makes pip refuse a source build, so you get a clean error
-instead of a compiler-error wall:
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once) via
+the `llm-local` extra. The **standalone binary** already has it configured (it installs it on
+first run) and the **full Docker image** ships it baked in, so neither needs anything here.
+On a pip install:
 
 ```bash
-pip install --only-binary :all: llama-cpp-python \
+contextlake doctor --fix llm-local
+```
+
+That installs into the interpreter contextlake is running in, with the upstream CPU wheel
+index attached, and prints the exact command before running it (`--dry-run` prints it and
+stops). By hand it is:
+
+```bash
+pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
   --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
+
+The index is not optional: `llama-cpp-python` publishes **no wheels to PyPI**, because
+llama.cpp is built per hardware backend and upstream ships one index per accelerator (CPU,
+CUDA, Metal). So a plain `pip install "contextlake[llm-local]"` compiles C++ from source and
+needs `cmake` plus a compiler. See [Installing the built-in
+LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 
 Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
 (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:
@@ -577,10 +637,12 @@ has no post-install hook to run anything at (that's a deliberate Python packagin
 gap here), so instead the **first time any command runs in a real interactive terminal**,
 contextlake registers completion for you, once, and says so in the log. Skipped entirely in
 non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure, set
-`CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. `contextlake init` offers
-the same registration explicitly (on by default; pass `--no-completion` to skip) if you'd rather
-decide up front, and an explicit decline there is remembered, the automatic check never overrides
-it later.
+`CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. An **interactive**
+`contextlake init` offers the same registration explicitly (on by default; pass `--no-completion`
+to skip) if you'd rather decide up front, and an explicit decline there is remembered, the
+automatic check never overrides it later. A **non-interactive** `init` (`--skip-interactive`, or a
+piped stdin) never touches your shell startup file: nobody was asked, so pass `--completion` to opt
+in, or run `contextlake completion` afterwards.
 
 Run it again on demand (a different shell, after skipping it once, or just to re-run it) with:
 
@@ -682,7 +744,8 @@ This command:
 - Uses the GitLab API with pagination to fetch all projects
 - Includes subgroups automatically
 - Skips archived repositories
-- Caches results in `/tmp/gitlab_projects.txt` and `/tmp/gitlab_projects.json`
+- Caches results in `gitlab_projects.txt` and `gitlab_projects.json`, under a
+  per-workspace subdirectory of `~/.cache/contextlake` (override with `cache_dir`)
 
 ### `mirror clone`: clone missing repositories
 
@@ -924,7 +987,9 @@ Before setting up cron jobs, ensure you have:
 1. **Configuration file set up**: Create `~/.contextlake.ini` with your settings
 
    ```bash
-   cp .contextlake.ini ~/.contextlake.ini
+   contextlake init                       # writes the file for you, prompting for each value
+   # or copy the template and fill it in by hand:
+   cp .contextlake.ini.example ~/.contextlake.ini
    # Edit with your work_dir and gitlab_group
    nano ~/.contextlake.ini
    ```
@@ -1141,7 +1206,6 @@ An example `.contextlake.ini`:
 [contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
-cache_dir = /tmp
 clone_timeout = 300
 fetch_timeout = 60
 branch_timeout = 30
@@ -1224,7 +1288,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
 | `token_env` | Env var holding the platform token | per platform (`GITHUB_TOKEN`, and so on) | `MY_TOKEN` |
 | `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
-| `cache_dir` | Directory for cache files | `/tmp` | `~/.cache/contextlake` |
+| `cache_dir` | Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of `~/.cache/contextlake` (`$XDG_CACHE_HOME/contextlake` when set), created `0700`. Set it and that exact directory is used, with no subdirectory. | `~/.cache/contextlake/<workspace>-<id>` | `/srv/cache` |
 | `cache_file` | Name of projects cache file | `gitlab_projects.txt` | `projects.txt` |
 | `cache_json` | Name of JSON cache file | `gitlab_projects.json` | `projects.json` |
 | `clone_timeout` | Clone operation timeout (seconds) | `300` | `600` |
@@ -1300,10 +1364,13 @@ and lockfiles from the graph.
 
 `contextlake doctor` checks the environment (FTS5, `git` / `glab` on PATH, the store, the embedder, and the
 ANN index) and exits non-zero if anything is wrong, so it doubles as a CI health gate. It also flags (advisory,
-doesn't affect the exit code) any C/C++ shard indexed with an older parser version than the one currently
-installed -- a nudge to re-index that repo so it picks up parser-correctness fixes. `contextlake kb lint`
-audits the graph itself, reporting **stale repos** (HEAD moved since they were indexed) and **dangling
-edges** (an edge whose endpoint node is missing). Both exit non-zero on problems, so they're CI-friendly.
+doesn't affect the exit code) any shard indexed with an older parser version than the one currently
+installed -- `contextlake kb index` rebuilds those on its next run, so they pick up parser-correctness fixes.
+`contextlake kb lint` audits the graph itself, reporting **stale repos** (HEAD moved since they were
+indexed), **dangling edges** (an edge whose endpoint node is missing), and the same **older-parser** repos
+doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
+lint that means dangling edges or HEAD-stale repos; the older-parser count is reported but deliberately kept
+out of its exit code, so upgrading to a build with a new parser can't turn a green CI gate red on its own.
 
 ## What the graph captures
 
@@ -2023,10 +2090,12 @@ by what may leave your machine and what hardware you have.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     very fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
-  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`, `pip install
-    "contextlake[llm-local]"`. Fast to set up, but **0.5B is a modest writer** (good for coverage, not
+  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`,
+    `contextlake doctor --fix llm-local` (upstream ships no PyPI wheels, so a plain
+    `pip install "contextlake[llm-local]"` compiles C++ from source; see below).
+    Fast to set up, but **0.5B is a modest writer** (good for coverage, not
     polished prose) and CPU generation is **slow** (~4 calls/repo). Prefer Ollama at any real scale. See
-    [Why the built-in LLM needs a prebuilt wheel](#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler)
+    [Installing the built-in LLM](#installing-the-built-in-llm-and-why-it-needs-a-wheel-index)
     and [How much does the model matter?](#how-much-does-the-model-matter).
 - **`ollama`**, a local [Ollama](https://ollama.com) daemon (`base_url`, default
   `http://127.0.0.1:11434`), the **recommended** wiki backend: no Python native build, and a 3B-8B model
@@ -2105,48 +2174,60 @@ openai-compatible server, never just to make `anthropic`/`openai` work.
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
 
-## Why the built-in LLM needs a prebuilt wheel (or a compiler)
+## Installing the built-in LLM (and why it needs a wheel index)
 
-The `builtin` wiki model runs a **GGUF** model through
-[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
-**C++** inference engine. Native (C/C++) packages ship as **prebuilt binary wheels**, one per (OS, CPU,
-Python version). Two consequences explain why an extra step is sometimes needed and why contextlake can't
-do it for you:
+**What you do depends on how you installed contextlake:**
 
-1. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
-   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
-   (for reproducibility and supply-chain safety). So contextlake cannot make `pip` look anywhere but your
-   configured indexes (PyPI by default), only *your* `pip` command can add one.
-2. **PyPI lags brand-new Pythons.** Wheels are uploaded per interpreter version; a just-released Python
-   (e.g. **3.14**) often has **no wheel on PyPI yet**, so `pip` falls back to the source tarball and tries
-   to **compile**, which needs `cmake` + a C/C++ compiler you may not have installed. That is the build
-   failure you saw.
-
-The maintainer also publishes a **prebuilt CPU wheel index** carrying wheels PyPI doesn't have yet, so
-pointing pip at it skips compilation entirely, no compiler needed:
+| Channel | What you do |
+| --- | --- |
+| **Standalone binary** | Nothing to pass. `llm-local` and the wheel index are preconfigured, and the binary installs them on its first run (which needs network once, like any first run). |
+| **Docker** (`ghcr.io/sayak-sarkar/contextlake`) | Nothing at all. The full image already carries the runtime and the GGUF, so it works offline. (The `:slim` tag deliberately does not; point that one at Ollama or an API.) |
+| **pip / pipx / uv** | One command, below. This is the only channel where you supply the index yourself. |
 
 ```bash
-pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+contextlake doctor --fix llm-local     # --dry-run prints the exact command and stops
 ```
 
-**Belt-and-suspenders: `--only-binary :all:`.** On a compiler-less machine, add this flag so pip *refuses*
-to fall back to a source build for **any** package, you get a clean "no matching distribution" message
-instead of a wall of `cmake`/compiler errors. `:all:` is the all-packages token (its opposite is
-`--no-binary`). Combined with the CPU-wheel index, this installs the built-in LLM on a brand-new Python
-with no toolchain:
+That runs pip in *your* interpreter with the CPU wheel index already attached, printing the command
+before it runs. By hand it is:
 
 ```bash
-pip install --only-binary :all: llama-cpp-python \
+pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
   --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
-The trade-off is deliberate: if a wheel genuinely doesn't exist for your platform, the command stops with
-an actionable error rather than attempting a build that can't succeed.
+### Why an index at all
 
-On a mainstream Python (3.10-3.13) none of this applies: `pip install "contextlake[llm-local]"` finds a
-PyPI wheel and Just Works. It is specifically the bleeding-edge-interpreter case that needs the extra
-index. The cleanest way to avoid the native build altogether is to **use Ollama** (below), a standalone
-binary with no Python compile step.
+The `builtin` wiki model runs a **GGUF** model through
+[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
+**C++** inference engine. Two facts explain the extra flag, and why contextlake cannot fold it into the
+extra itself:
+
+1. **Upstream publishes no wheels to PyPI at all**: every release is a source tarball. That is not
+   neglect: llama.cpp is compiled **per hardware backend**, and one PyPI namespace cannot hold the CPU,
+   CUDA and Metal builds of the same version and platform tag. So upstream ships **one index per
+   accelerator** instead, the same convention PyTorch uses with `download.pytorch.org/whl/cpu` versus
+   `/whl/cu121`. Without one of those indexes, `pip install "contextlake[llm-local]"` always falls back to
+   compiling, which needs `cmake` plus a C/C++ compiler.
+2. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
+   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
+   (for reproducibility and supply-chain safety). So the extra alone can never point pip anywhere but your
+   configured indexes; only the `pip` command line can add one.
+
+**Picking an index.** CPU is the default and what `doctor --fix` uses: the built-in tier is a small 0.5B
+model, and GPU inference is better served by Ollama anyway. The published alternatives are
+`.../whl/cu121`, `/whl/cu122`, `/whl/cu124` (CUDA) and `/whl/metal` (Apple silicon); swap the URL if you
+want one, the rest of the command is identical.
+
+**Why `--only-binary llama-cpp-python`.** It makes pip *refuse* a source build for that one package, so a
+platform with no wheel gives you a one-line "no matching distribution" instead of a wall of `cmake`
+errors. It deliberately names the package rather than using the `:all:` token: `:all:` would forbid a
+source fallback for **every** dependency, and one missing wheel anywhere would then fail the whole
+install.
+
+None of this applies to the other extras: `[kb]`, `[kb-local]`, `[kb-vec]` all resolve to ordinary PyPI
+wheels. It is specific to the built-in LLM. The cleanest way to avoid the native build altogether is to
+**use Ollama** (below), a standalone binary with no Python compile step.
 
 ## Using Ollama for the wiki
 
@@ -2781,7 +2862,7 @@ Windsurf, add the same server in its MCP config (Cascade's *MCP Servers* panel, 
   "mcpServers": {
     "contextlake-kb": {
       "command": "contextlake",
-      "args": ["serve", "--config", "~/.contextlake/kb.toml"]
+      "args": ["kb", "serve", "--config", "~/.contextlake/kb.toml"]
     }
   }
 }
@@ -2795,7 +2876,7 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
   "servers": {
     "contextlake-kb": {
       "command": "contextlake",
-      "args": ["serve", "--config", "~/.contextlake/kb.toml"]
+      "args": ["kb", "serve", "--config", "~/.contextlake/kb.toml"]
     }
   }
 }
@@ -3363,17 +3444,22 @@ The tool implements comprehensive error handling:
 
 The tool uses two cache files:
 
-1. **`/tmp/gitlab_projects.json`**
+1. **`<cache_dir>/gitlab_projects.json`**
 
    - Full JSON response from GitLab API
    - Used for debugging and detailed inspection
    - Contains complete project metadata
 
-2. **`/tmp/gitlab_projects.txt`**
+2. **`<cache_dir>/gitlab_projects.txt`**
 
    - Pipe-delimited format for faster loading
    - Format: `path_with_namespace|ssh_url|http_url|default_branch|archived`
    - Primary data source for all operations
+
+`<cache_dir>` defaults to a per-workspace subdirectory of `~/.cache/contextlake`
+(`$XDG_CACHE_HOME/contextlake` when that is set), created `0700`. The cache names every
+repository the account can enumerate, so it is keyed on the workspace, platform and group:
+two workspaces never share one file. Set `cache_dir` to use one exact directory instead.
 
 Cache is refreshed by running the `fetch` command or `sync` (which includes fetch).
 
@@ -3797,8 +3883,8 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
-| `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
-| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
+| `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
+| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, parser-version staleness. `--fix` installs what is missing (see below) |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
 | `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
@@ -3806,6 +3892,34 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 The `mirror`-tier commands (`mirror fetch`, `mirror clone`, `mirror update`, `mirror branches`,
 `mirror verify`, `mirror sync`, `mirror status`, `mirror audit`) are covered under
 [Mirror repositories](usage.md).
+
+### `doctor --fix`: install what is missing
+
+`doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
+configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
+the local llama-cpp runtime. Name a capability to install it regardless of config.
+
+| Flag | Effect |
+| --- | --- |
+| `--fix` | Install every missing dependency the resolved config calls for |
+| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` |
+| `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
+| `--skip-interactive` | Never prompt: privileged commands are printed, not run |
+
+Two privilege tiers, and the split is deliberate:
+
+- **Python packages** install into the interpreter contextlake is running in, with
+  `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
+  and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
+  CPU wheel index automatically and says why.
+- **System packages** (currently just git) need administrator rights. The exact command is printed
+  in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
+  when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
+  never trip a sudo prompt.
+
+`--fix` also explains, rather than re-raising, the failures that actually happen: a PEP 668
+externally-managed environment (use a venv or pipx), a proxy timeout, an untrusted intercepting CA,
+or no matching distribution. Nothing planned is ever run before it has been printed.
 
 ## See also
 
@@ -4010,7 +4124,119 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.1.0] - 2026-08-04
+
+### Added
+- `contextlake doctor --fix` resolves missing optional dependencies instead of only naming them.
+  With no argument it installs what your **resolved configuration** actually calls for, so a setup
+  using Ollama is never handed a local-LLM wheel it will not use; `--fix <capability>` overrides
+  that. `--dry-run` prints the plan and stops.
+
+  The privilege boundary is the point of the design. Python packages install into the current
+  interpreter via `sys.executable -m pip`. A **system** package is never installed silently: the
+  exact command is printed and offered with a y/N at a real terminal, and **nothing privileged runs
+  without a TTY or under `--skip-interactive`**, so a CI job or a scripted run can never trip a sudo
+  prompt. An externally-managed environment (PEP 668) is reported with the venv/pipx fix rather than
+  pip's raw error.
+- The local-LLM install now attaches the CPU wheel index automatically, so it no longer needs a C++
+  toolchain. `llama-cpp-python` publishes no wheels to PyPI at all: llama.cpp is built per hardware
+  backend, and one namespace cannot hold the CPU, CUDA and Metal builds of a version, so upstream
+  ships an index per accelerator (as PyTorch does). Verified end to end on a Python 3.14 machine
+  with no `cmake` and no `g++`.
+- `kb lint`, the `graph_health` MCP tool and the dashboard health payload gain additive
+  `parser_stale` and `parser_stale_repos` fields.
+
+### Changed
+- The full container image no longer compiles `llama-cpp-python`, and no longer installs a C++
+  toolchain to do it. It now takes the same prebuilt wheel the standalone binary does. The
+  Dockerfile's stated reason for compiling ("no portable prebuilt CPU wheel for every platform this
+  targets") was wrong: the CPU index carries a `py3-none-manylinux` wheel that is ABI-agnostic and
+  satisfies any Python 3 on the base image. The runtime image is unchanged in size, since the
+  toolchain was already discarded by the multi-stage split; what this removes is build time and the
+  build stage's own CVE surface, and it stops the container and binary channels disagreeing about
+  whether a compiler is required.
+- The standalone binaries now bundle the built-in local LLM (`llm-local`) alongside `kb-full`, and
+  install it from a prebuilt wheel rather than compiling. The binary points at the CPU index via
+  `PYAPP_PIP_EXTRA_ARGS`, so first run needs no C++ toolchain. The `--only-binary` constraint names
+  that one package deliberately rather than `:all:`, which would forbid a source fallback for every
+  other dependency and let one missing wheel break the whole binary.
+
+### Fixed
+- **The container image kept its knowledge store outside the volume you mounted.** The documented
+  `docker run -v "$PWD:/work" ... kb index` built a store under the runtime user's home, inside the
+  container's writable layer, and the layer went with the container on exit. The run took minutes,
+  reported success, and left nothing on the host. `HOME` now follows `WORKDIR` into the mount, so
+  everything contextlake persists lands in the directory you mounted. Without `-v` the run is
+  ephemeral exactly as before, since `/work` is now handed to the runtime user at build time
+  rather than left owned by root.
+
+  One new failure mode, deliberately. A bind mount carries the host's ownership, and the
+  container runs as uid 1000, so if your host account is not uid 1000 the write now fails with a
+  permission error where it previously "succeeded" by writing into the container and losing the
+  result. Pass `-u "$(id -u):$(id -g)"` to run as yourself.
+- **An index left stale by an upgrade is no longer invisible.** `PARSER_VERSION` moved to `2` in
+  5.0.0, but `doctor`'s staleness check only examined C and C++ repositories, and the re-index
+  decision compared the repository HEAD alone. A Python or TypeScript repository indexed by 4.0.0
+  therefore stayed stale indefinitely: `index` reported it unchanged, `doctor` reported OK, and
+  every answer came from a graph built by the old parser while every surface said healthy. That is
+  the confident-but-wrong failure this tool exists to prevent.
+
+  `doctor` now flags a stale shard in any language, and `kb index` rebuilds a parser-stale
+  repository instead of skipping it, announcing why. The re-index is scoped to repositories whose
+  parser version differs, so it is not a blanket `--force` and it settles after one pass. The store
+  schema gains a `parser_version` column (version 3) via an additive migration that leaves existing
+  rows intact; a repository indexed before the column existed falls back to reading the shard.
+- `kb lint` was silent about parser staleness while `doctor` graded it as a fault, so the two
+  commands disagreed about the same store. lint now reports it as its own category rather than
+  folding it into `stale`: a parser-stale graph is out of date, not broken, and folding it in would
+  flip lint's exit code from 0 to 1 for every store the moment `PARSER_VERSION` moves, turning an
+  upgrade into a red CI gate. The exit code, `clean` semantics and glyph are unchanged.
+- Opening a store written by a newer contextlake silently re-stamped it to the running schema
+  version, discarding the newer build's claim about its own format. The stamp is now read before it
+  is written, anything newer or unparsable is preserved, and the store is refused with both versions,
+  the path and the remedy named. An older stamp still migrates forward. This protects builds carrying
+  this change only: an older binary will still downgrade a store it does not understand.
+- Knowledge commands loaded their config twice per invocation, so a single mistyped key produced two
+  identical warnings and read as two separate problems. Resolved once and memoised for the lifetime
+  of one invocation.
+- **The repository-list cache no longer defaults into `/tmp`.** It now lives under
+  `~/.cache/contextlake` with `0700` permissions. The old default was world-readable in a
+  predictable location, listed every repository the account can reach along with clone URLs, and
+  was shared by every workspace on the machine, so per-directory configs were not actually
+  isolated. `.contextlake.ini.example` shipped an active `cache_dir = /tmp` line, and the
+  "no config found" error points users at that file, so the bad default propagated by being copied.
+- Mirror commands refuse to run when the configured group is missing or is still the
+  `your-gitlab-group` placeholder, instead of exiting 0 after printing a plausible sync report
+  against a group that does not exist. `init` already refused that exact placeholder, so the two
+  halves of the tool now agree.
+- `init --skip-interactive` no longer appends a completion block to your shell rc. Editing
+  `~/.zshrc` is a side effect well outside what `init` implies, and a non-interactive run never
+  asked. Use `contextlake completion` to opt in.
+- `contextlake inti` now suggests `init` rather than `kb lint`, and an unknown flag on a
+  subcommand prints that subcommand's usage instead of the root parser's.
+- The generated knowledge config names an explicit local provider rather than `auto`, so what runs
+  is visible in the file rather than resolved at call time.
+- The error raised the first time the built-in LLM is used now prints a command that actually
+  works. It previously suggested a plain `pip install`, which compiles from source and fails on any
+  machine without a toolchain, which is most machines that hit this message.
+- `docker pull ghcr.io/sayak-sarkar/contextlake` (no tag) returned the **slim** image. The slim
+  build's tag metadata did not disable `metadata-action`'s default `latest=auto`, so it claimed a
+  bare `latest` alongside its own tags, and because slim is pushed after full it won. `latest` now
+  belongs to the full image again. If you pulled `latest` at 5.0.0 and expected the built-in local
+  model, re-pull: the image you have is the slim one.
+- A failed PyPI upload no longer takes the GitHub Release with it. `github-release` depended on
+  `publish` succeeding, so on the 4.0.0 tag a duplicate-file failure skipped it and the wheel and
+  sdist had to be attached by hand. Publishing is now idempotent (`skip-existing`), and the release
+  job runs whenever the artifacts built, since a GitHub Release has value regardless of whether the
+  index accepted the upload.
+- Corrected five documentation claims that were wrong at 5.0.0, each verified against the source.
+  The README and QUICKSTART upgrade sections said the graph re-indexes incrementally and nothing
+  needs migrating, when 5.0.0 in fact made every existing shard stale; both now send you to `doctor`
+  and `kb index --force`. The `.mcp.json` and `.vscode/mcp.json` snippets in `serve.md` passed
+  `serve` without the `kb` namespace, so copy-pasting either produced an unknown-command error.
+  `usage.md` told you to copy `.contextlake.ini`, which does not exist (the template is
+  `.contextlake.ini.example`). `cli-reference.md` and `troubleshooting.md` offered a C++ toolchain
+  via `doctor --fix` that no code path reaches.
 
 ## [5.0.0] - 2026-08-04
 
