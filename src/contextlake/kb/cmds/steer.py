@@ -40,6 +40,17 @@ def _implicit_binding(cfg, out: Path) -> tuple[str | None, str | None]:
         # so an unpinned launcher already resolves what these files describe.
         return None, None
     resolved = loaded[-1]  # highest precedence wins the store_dir
+    if resolved == str(Path(GLOBAL_CONFIG).expanduser()):
+        # The global config is the one path worth NOT pinning, even though it is
+        # privileged. `.mcp.json` is committed and shared, and pinning writes an
+        # absolute `/home/<user>/...` into it: a teammate who clones then gets a
+        # launcher naming a path that does not exist on their machine, plus the
+        # committer's home layout in version control. Leaving it unpinned costs
+        # nothing here, because an unpinned launcher walks up from the workspace
+        # and lands on the global config anyway -- on *their* machine, which is
+        # the store they should be served. Pinning is still right for a config
+        # somewhere non-default, since nothing else would find it.
+        return None, None
     if is_privileged_source(resolved, None, global_config=GLOBAL_CONFIG):
         return resolved, None
     # Non-privileged (ancestor-discovered). Only a problem if the walk from the

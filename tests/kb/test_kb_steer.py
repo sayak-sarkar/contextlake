@@ -384,7 +384,16 @@ def test_steer_provenance_survives_a_refresh_from_a_different_store(tmp_path, mo
 # --- launcher binding: the generated MCP entry must resolve the same store ---
 
 
-def test_implicit_binding_pins_the_global_config(tmp_path):
+def test_implicit_binding_leaves_the_global_config_unpinned(tmp_path):
+    """The global config is the one privileged source worth NOT pinning.
+
+    `.mcp.json` is committed and shared. Pinning writes an absolute
+    `/home/<user>/...` into it, so a teammate who clones gets a launcher naming a
+    path that does not exist on their machine, and the committer's home layout
+    lands in version control. Leaving it unpinned costs nothing: an unpinned
+    launcher walks up from the workspace and reaches the global config anyway, on
+    whichever machine is running it, which is the store that user should get.
+    """
     cfg = SimpleNamespace(loaded_from=[str(tmp_path / "global.toml")],
                           store_path=tmp_path / "kb")
     path, warning = _implicit_binding(cfg, tmp_path / "ws")
@@ -399,7 +408,9 @@ def test_implicit_binding_pins_the_global_config(tmp_path):
         path, warning = _implicit_binding(cfg, tmp_path / "ws")
     finally:
         kb_config_mod.GLOBAL_CONFIG = orig
-    assert path == real_global and warning is None
+    # Recognised as the global config, and deliberately left unpinned: portable
+    # for everyone who clones, and it resolves to the same file regardless.
+    assert path is None and warning is None
 
 
 def test_implicit_binding_refuses_to_promote_an_ancestor_config(tmp_path):
