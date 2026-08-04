@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Python version, so that guidance sent users into the exact build failure it promised to avoid.
 
 ### Changed
+- The full container image no longer compiles `llama-cpp-python`, and no longer installs a C++
+  toolchain to do it. It now takes the same prebuilt wheel the standalone binary does. The
+  Dockerfile's stated reason for compiling ("no portable prebuilt CPU wheel for every platform this
+  targets") was wrong: the CPU index carries a `py3-none-manylinux` wheel that is ABI-agnostic and
+  satisfies any Python 3 on the base image. The runtime image is unchanged in size, since the
+  toolchain was already discarded by the multi-stage split; what this removes is build time and the
+  build stage's own CVE surface, and it stops the container and binary channels disagreeing about
+  whether a compiler is required.
 - The standalone binaries now bundle the built-in local LLM (`llm-local`) alongside `kb-full`, and
   install it from a prebuilt wheel rather than compiling. `llama-cpp-python` publishes no wheels to
   PyPI at all (every one of its 200+ releases is sdist-only), because llama.cpp is built per

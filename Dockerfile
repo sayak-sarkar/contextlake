@@ -47,16 +47,27 @@ WORKDIR /src
 COPY pyproject.toml README.md LICENSE ./
 COPY src/contextlake/__init__.py src/contextlake/__init__.py
 
-# ---- full: compiles llama-cpp-python, bakes the GGUF -----------------------
+# ---- full: prebuilt llama-cpp-python wheel, bakes the GGUF ------------------
 FROM deps AS build-full
-# build-essential + cmake: compile llama-cpp-python from source (no portable
-# prebuilt CPU wheel for every platform this targets). ca-certificates: TLS
-# for the pip/HF downloads below. Discarded before the runtime stage (D-1) —
-# never shipped to users.
+# No compiler here any more. llama-cpp-python publishes nothing but sdists to
+# PyPI, so a plain `pip install` compiles llama.cpp and needs build-essential +
+# cmake. Upstream ships prebuilt wheels on a per-accelerator index instead
+# (llama.cpp is built per hardware backend, and one PyPI namespace cannot hold
+# the cpu/cuda/metal builds of a single version -- the convention PyTorch
+# follows), and the CPU index carries a py3-none-manylinux wheel that is
+# ABI-agnostic, so it satisfies any Python 3 on this base image.
+#
+# --only-binary names just that package rather than :all: so a source fallback
+# stays available for every other dependency; a missing wheel here is then a
+# one-line error instead of a compiler-error wall. Keeping the toolchain out
+# also drops the build stage's own CVE surface and most of the build time.
+# ca-certificates: TLS for the pip/HF downloads below.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential cmake ca-certificates \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-RUN pip install '.[kb,kb-local,llm-local]'
+RUN pip install '.[kb,kb-local,llm-local]' \
+        --only-binary llama-cpp-python \
+        --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 COPY . /src
 RUN pip install --no-deps .
 RUN python docker/prefetch_models.py
