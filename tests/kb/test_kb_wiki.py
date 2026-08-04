@@ -3,6 +3,8 @@
 from argparse import Namespace
 from datetime import date
 
+import pytest
+
 import contextlake.kb.llm as llm_pkg
 import contextlake.kb.llm.base as llm_base
 from contextlake.kb import commands as commands_mod
@@ -1148,6 +1150,7 @@ class _SymbolNamingLlm(_FakeLlm):
         return "## Overview\nThe fn3 helper does the work.\n"
 
 
+@pytest.mark.slow
 def test_cmd_wiki_module_pages_link_through_the_real_repo_not_the_partition_key(
         tmp_path, monkeypatch):
     """A module page's partition key is the composite `repo::prefix`, which names
@@ -1490,6 +1493,7 @@ class _CapturingLlm(_FakeLlm):
         return super().generate(prompt, system=system)
 
 
+@pytest.mark.slow
 def test_cmd_wiki_generates_subsystem_pages_for_a_federated_repo(tmp_path, monkeypatch):
     """A large repo with several roughly-equal-sized top-level modules (no
     single module dominant) gets one subsystem page PER qualifying module, in
@@ -1564,6 +1568,7 @@ class _SubsystemEchoingLlm(_FakeLlm):
         return body
 
 
+@pytest.mark.slow
 def test_cmd_wiki_whole_repo_page_names_its_subsystem_pages(tmp_path, monkeypatch):
     """Task 16, end-to-end wiring check: the WHOLE-REPO wiki page WRITTEN TO
     DISK (not just `render_prompt`'s isolated output) must name its subsystem
@@ -1590,6 +1595,7 @@ def test_cmd_wiki_whole_repo_page_names_its_subsystem_pages(tmp_path, monkeypatc
         assert "broken into subsystems" not in module_page
 
 
+@pytest.mark.slow
 def test_cmd_wiki_module_pages_do_not_leak_repo_root_readme_or_setup_signals(tmp_path, monkeypatch):
     """repo_brief's readme_excerpt and setup_signals' live-checkout scan are
     always repo-root-scoped, never path_prefix-scoped (see repo_brief's own
@@ -1621,6 +1627,7 @@ def test_cmd_wiki_module_pages_do_not_leak_repo_root_readme_or_setup_signals(tmp
         assert "package.json" not in mp
 
 
+@pytest.mark.slow
 def test_cmd_wiki_skips_module_page_gracefully_on_shard_index_mismatch(tmp_path, monkeypatch):
     """repo_modules() (SQLite index) and repo_brief() (JSON shard) are two
     different persistence layers for the same repo. If a module the index says
@@ -1643,6 +1650,7 @@ def test_cmd_wiki_skips_module_page_gracefully_on_shard_index_mismatch(tmp_path,
         assert (modules_dir / f"fed__mod{m}.md").exists()  # every other module: unaffected
 
 
+@pytest.mark.slow
 def test_cmd_wiki_module_pages_capped_per_repo(tmp_path, monkeypatch, gls_logs):
     """`_module_page_plan` (pinned by spec, uncapped) can return "hundreds"
     of modules for a legacy federated repo -- the call site caps how many get
@@ -1674,6 +1682,7 @@ def test_cmd_wiki_module_pages_capped_per_repo(tmp_path, monkeypatch, gls_logs):
            "(5 deferred to a later run)") in gls_logs.text
 
 
+@pytest.mark.slow
 def test_cmd_wiki_module_page_selection_rotates_onto_the_unpaged_tail(tmp_path, monkeypatch):
     """The per-run cap must bound ONE run, not permanently strand the tail: a
     repo with more qualifying modules than the cap used to give pages to the
@@ -1747,6 +1756,7 @@ def test_cmd_wiki_skips_module_pages_when_the_whole_repo_page_failed(
     assert "not attempting its subsystem pages this run" in gls_logs.text
 
 
+@pytest.mark.slow
 def test_cmd_wiki_prunes_a_module_page_that_no_longer_qualifies(tmp_path, monkeypatch, gls_logs):
     """A module that stops qualifying (shrinks below `repo_modules()`' floor,
     or the tree is restructured) used to leave its page, its
@@ -1788,6 +1798,7 @@ def test_cmd_wiki_prunes_a_module_page_that_no_longer_qualifies(tmp_path, monkey
     assert "pruned the wiki page for `mod5`" in gls_logs.text
 
 
+@pytest.mark.slow
 def test_cmd_wiki_prunes_every_module_page_when_a_repo_stops_being_federated(
         tmp_path, monkeypatch):
     """The headline orphan case: the repo itself stops qualifying (one module
@@ -1822,6 +1833,7 @@ def test_cmd_wiki_prunes_every_module_page_when_a_repo_stops_being_federated(
         store.close()
 
 
+@pytest.mark.slow
 def test_cmd_wiki_builds_each_page_brief_exactly_once(tmp_path, monkeypatch):
     """`cmd_wiki` needs the brief itself (for the council's `render_prompt`)
     and `generate_page` used to build a second, identical one internally --
@@ -1854,6 +1866,7 @@ def test_cmd_wiki_builds_each_page_brief_exactly_once(tmp_path, monkeypatch):
     assert len(scopes) == 7
 
 
+@pytest.mark.slow
 def test_cmd_wiki_backfills_subsystem_naming_onto_an_unchanged_commit(
         tmp_path, monkeypatch, gls_logs):
     """A store wiki'd BEFORE subsystem naming shipped never gained it: the
@@ -2004,6 +2017,7 @@ def test_module_partition_lookup_uses_the_repo_id_index(tmp_path):
         store.close()
 
 
+@pytest.mark.slow
 def test_cmd_wiki_does_not_prune_when_the_index_reports_no_modules_at_all(tmp_path, monkeypatch):
     """`node_count` comes from the shard and `repo_modules()` from the SQLite
     index -- two persistence layers that can disagree. A large repo whose index

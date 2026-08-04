@@ -917,6 +917,7 @@ def test_site_server_lazy_routes(store):
         srv.shutdown()
 
 
+@pytest.mark.slow
 def test_graph_and_site_servers_pin_the_host_header(store):
     """Both visualizer servers serve the same graph over the same loopback bind as
     the dashboard, so they get the dashboard's DNS-rebinding defence too -- one

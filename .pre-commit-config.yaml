@@ -1,0 +1,44 @@
+# Local pre-commit checks. Kept intentionally thin -- it's a convenience net
+# that catches the cheap stuff before it ever reaches CI (.github/workflows/ci.yml),
+# not a replacement for it. `rev` is pinned to the ruff release `pip install
+# -e ".[dev]"` currently resolves for `ruff>=0.4` (see pyproject.toml), and
+# ruff-check reads pyproject.toml's `[tool.ruff]` config directly (same rules
+# as CI's `ruff check src tests`), so this file and CI can't silently
+# disagree on lint rules -- only on which *version* of ruff runs, and this
+# rev should be bumped whenever that drifts.
+#
+# ruff-format is registered but stages: [manual] (run explicitly with
+# `pre-commit run ruff-format --hook-stage manual --all-files`), not wired
+# into a normal commit. The repo has never run `ruff format` -- CI has no
+# `ruff format --check` step, only `ruff check` -- and as of this file,
+# `ruff format --check src tests` reports 187 of 224 files would change.
+# Making it an active hook would silently reformat large unrelated chunks of
+# any of those files the moment someone edits one line nearby. Enabling it
+# for real needs its own one-time, repo-wide formatting commit first
+# (deliberately not done here -- out of scope for this task and would
+# collide with every other in-flight change).
+#
+# Install once per clone: `pre-commit install` (see CONTRIBUTING.md).
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+        stages: [manual]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Both of these rewrite bytes, so they must not touch a file whose exact
+      # bytes ARE the test. This is not hypothetical: authoring this config,
+      # a `pre-commit run --all-files` stripped the trailing space off four
+      # tests/kb/fixtures/fuzz/* payloads and appended newlines -- quietly
+      # editing the adversarial input the ReDoS tests exist to feed the
+      # parsers. tests/kb/golden/ is excluded for the same reason: it is a
+      # byte-compared snapshot of indexer output, not source anyone formats.
+      - id: trailing-whitespace
+        exclude: ^tests/kb/(fixtures/fuzz|golden)/
+      - id: end-of-file-fixer
+        exclude: ^tests/kb/(fixtures/fuzz|golden)/

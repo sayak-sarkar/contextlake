@@ -46,7 +46,8 @@ Issues = "https://github.com/sayak-sarkar/contextlake/issues"
 Changelog = "https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4", "hypothesis>=6.0", "pytest-timeout>=2.1"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4", "hypothesis>=6.0", "pytest-timeout>=2.1",
+       "pytest-xdist>=3.0", "pre-commit>=3.0"]
 # Tools for cutting a release (build the dist, validate + upload to PyPI).
 # See docs/releasing.md.
 release = ["build>=1.0", "twine>=5.0"]
@@ -119,6 +120,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "slow: noticeably slower than the suite median (wiki-page generation, a real MCP-server lifecycle poll loop, etc); deselect with `pytest -m 'not slow'` for a fast inner loop.",
+]
 
 [tool.ruff]
 line-length = 100

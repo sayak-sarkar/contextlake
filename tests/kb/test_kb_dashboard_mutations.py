@@ -7,6 +7,8 @@ prove specific malicious inputs get rejected before they reach subprocess argv.
 import subprocess
 import time
 
+import pytest
+
 from contextlake.kb.dashboard import mutations as mut
 from contextlake.kb.model import Repo
 from contextlake.kb.store.sqlite_store import SqliteStore
@@ -148,6 +150,7 @@ def test_mcp_status_when_never_started(tmp_path):
     assert mut.mcp_status(tmp_path) == {"running": False}
 
 
+@pytest.mark.slow
 def test_mcp_start_stop_restart_lifecycle(tmp_path):
     store_dir = tmp_path
     SqliteStore(store_dir / "index.sqlite").close()

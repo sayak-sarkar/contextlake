@@ -2,6 +2,8 @@
 
 from datetime import date
 
+import pytest
+
 from contextlake.kb.model import Confidence
 from contextlake.kb.parse import (
     _has_generated_header,
@@ -717,6 +719,7 @@ def test_discover_repos_uses_canonical_remote_id_not_local_path(tmp_path):
     assert ids == {"example.com/acme/widgets"}  # not "some/local/path"
 
 
+@pytest.mark.slow
 def test_discover_repos_collapses_duplicate_checkouts_of_the_same_remote(tmp_path):
     """The exact bug this fixes: a stale pre-reorg clone left alongside its
     replacement must not become two nodes for one project."""
