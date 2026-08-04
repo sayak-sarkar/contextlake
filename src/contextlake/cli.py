@@ -1174,9 +1174,11 @@ Examples:
   contextlake doctor --fix --dry-run     print the full plan, change nothing
 
 --fix installs Python packages into THIS interpreter (sys.executable -m pip).
-System packages (git, a C++ toolchain) are only ever printed and offered with a
-y/N prompt at a real terminal: with --skip-interactive, or when stdin is not a
-terminal, the command is printed and nothing privileged runs.
+A system package is only ever printed and offered with a y/N prompt at a real
+terminal: with --skip-interactive, or when stdin is not a terminal, the command
+is printed and nothing privileged runs. git is the only such package --fix
+offers; a missing C++ toolchain is reported with advice instead, since the
+supported route for llm-local is a prebuilt wheel that needs no compiler.
                 """)
     # No choices=[...]: combined with nargs="?" and the SUPPRESS default,
     # argparse on 3.9-3.11 validates the SUPPRESS sentinel itself against

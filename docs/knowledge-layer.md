@@ -10,12 +10,12 @@ This page orients you; each stage below has its own focused page.
 
 ## Install the extra
 
-The knowledge layer needs the `[kb]` extra (Python 3.10 or newer):
+The knowledge layer needs the `[kb]` extra (Python 3.10 or newer), or `[kb-full]` if you
+also want local semantic search with no Ollama and no API key. See
+[Install and upgrade](install.md) for every channel and the full extras table.
 
 ```bash
-pip install "contextlake[kb]"        # knowledge layer (parse + graph + serve)
-# ...or everything for local semantic search in one step (no Ollama or API key):
-pip install "contextlake[kb-full]"   # = kb + built-in CPU embedder + sqlite-vec ANN
+pip install "contextlake[kb-full]"
 contextlake doctor                   # check the environment
 ```
 

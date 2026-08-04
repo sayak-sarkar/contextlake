@@ -104,25 +104,11 @@ CLI flags override the toml and now work on **`bootstrap`** too:
 
 ## Installing the built-in LLM (and why it needs a wheel index)
 
-**What you do depends on how you installed contextlake:**
-
-| Channel | What you do |
-| --- | --- |
-| **Standalone binary** | Nothing to pass. `llm-local` and the wheel index are preconfigured, and the binary installs them on its first run (which needs network once, like any first run). |
-| **Docker** (`ghcr.io/sayak-sarkar/contextlake`) | Nothing at all. The full image already carries the runtime and the GGUF, so it works offline. (The `:slim` tag deliberately does not; point that one at Ollama or an API.) |
-| **pip / pipx / uv** | One command, below. This is the only channel where you supply the index yourself. |
-
-```bash
-contextlake doctor --fix llm-local     # --dry-run prints the exact command and stops
-```
-
-That runs pip in *your* interpreter with the CPU wheel index already attached, printing the command
-before it runs. By hand it is:
-
-```bash
-pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
-  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-```
+The command itself is one line, and it lives with the rest of the install instructions:
+[Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag) covers what to
+run on each channel, including why the standalone binary and the full Docker image need
+nothing at all. This section is the reasoning behind it, which is what you want when you are
+choosing a backend rather than following a recipe.
 
 ### Why an index at all
 

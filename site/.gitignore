@@ -3,6 +3,7 @@ sitemap.xml
 llms.txt
 search-index.json
 docs.html
+install.html
 quickstart.html
 usage.html
 knowledge-layer.html
@@ -14,6 +15,7 @@ model-providers.html
 bootstrap.html
 cli-reference.html
 console-output.html
+troubleshooting.html
 dashboard.html
 serve.html
 visualize.html

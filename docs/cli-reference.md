@@ -164,3 +164,5 @@ or no matching distribution. Nothing planned is ever run before it has been prin
 - [Index the code graph](index-code-graph.md)
 - [Serve it to your editor](serve.md)
 - [Reading the console output](console-output.md)
+- [Install and upgrade](install.md), the commands `--fix` runs for you, written out
+- [Troubleshooting](troubleshooting.md), when one of them fails

@@ -14,110 +14,27 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 
 ## 2. Install
 
-<div class="tabs">
-<div class="tab" data-label="pipx"><pre><code>pipx install "contextlake[kb-full]"</code></pre></div>
-<div class="tab" data-label="pip"><pre><code>pip install "contextlake[kb-full]"</code></pre></div>
-<div class="tab" data-label="uv"><pre><code>uv tool install "contextlake[kb-full]"</code></pre></div>
-<div class="tab" data-label="Docker"><pre><code>docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor</code></pre></div>
-<div class="tab" data-label="Binary"><pre><code># download the contextlake-&lt;os&gt;-&lt;arch&gt; asset for your platform from
-# https://github.com/sayak-sarkar/contextlake/releases/latest, then:
-chmod +x contextlake-*
-./contextlake-* doctor</code></pre></div>
-</div>
-
-`pipx` is recommended (isolated, on your PATH). The lighter `[kb]` extra is graph + search
-without the built-in embedder; `[kb-full]` is batteries-included. From a clone: `pip install ".[kb-full]"`.
-
-No Python on the machine at all? The **Binary** tab needs nothing preinstalled: it's a
-self-contained launcher (built with [PyApp](https://ofek.dev/pyapp/)) that bootstraps a
-private Python + `contextlake[kb-full,llm-local]` into its own cache on first run (needs
-network once; every run after that is instant, no reinstall). The built-in wiki LLM comes
-along: the bootstrap already points pip at the prebuilt CPU wheel index, so there is no
-C++ toolchain to install and nothing for you to pass.
-
-**`[kb-full]`** is the batteries-included install: the knowledge layer plus the
-built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend, so
-semantic search and the `ask` tool work the moment you turn embeddings on, with no
-extra downloads or warnings. Plain **`[kb]`** is the graph + full-text search only; add
-`[kb-local]` for the embedder and `[kb-vec]` for the ANN backend if you prefer to pick.
-
-This gives you the `contextlake` command. (`python -m contextlake` and
-`python3 run-contextlake.py` work too.)
-
-### Update to a newer version
-
 ```bash
-pipx upgrade contextlake                       # if you installed with pipx
-pip install --upgrade "contextlake[kb-full]"   # if you installed with pip
-uv tool upgrade contextlake                     # if you installed with uv
-docker pull ghcr.io/sayak-sarkar/contextlake   # if you use the image
+pipx install "contextlake[kb-full]"
 ```
 
-Then confirm with `contextlake --version` and re-check your environment with
-`contextlake doctor`. Your existing store and config carry forward.
+`pipx` keeps contextlake in its own environment and still puts the command on your PATH.
+`[kb-full]` is the batteries-included bundle: the knowledge layer plus the built-in CPU
+embedder (no Ollama, no API key) and the fast `sqlite-vec` backend, so semantic search works
+the moment you turn embeddings on. That gives you the `contextlake` command
+(`python -m contextlake` and `python3 run-contextlake.py` work too).
 
-Do not skip the `doctor` run. A release that changes the parser makes every existing shard
-stale, and a plain `kb index` will not pick that up, because it skips repos whose HEAD commit
-has not moved and upgrading contextlake moves nobody's HEAD. `doctor` compares each shard's
-recorded parser version against the running one and names the repos to rebuild. When it asks,
-run `contextlake kb index --force`. **Upgrading to 5.0.0 requires this for every indexed repo.**
-
-See the [changelog](CHANGELOG.md) for what changed between versions.
-
-### Install scenarios & flag cheatsheet
-
-Real setups and the exact command for each. What the flags mean:
-
-- **`-U` / `--upgrade`**, move an already-installed contextlake to the newest version
-  (without it, pip sees it installed and does nothing).
-- **`--only-binary NAME`**, install that package from a prebuilt **wheel only, never
-  build from source** (`:all:` is the every-package token; opposite is `--no-binary`). On a
-  machine with no C/C++ compiler this turns a confusing build failure into a clean "no
-  wheel available" message. Name the one native package rather than using `:all:` when you
-  still want a source fallback for everything else.
-- **`--extra-index-url URL`**, also look for wheels at `URL`. Required for the built-in
-  wiki LLM: `llama-cpp-python` publishes no wheels to PyPI (llama.cpp is built per hardware
-  backend, so upstream ships one index per accelerator), so without one pip compiles C++
-  from source. See [Installing the built-in
-  LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
-- **`[extra]`**, an optional feature bundle: `[kb-full]` (recommended: graph + search +
-  built-in embedder + `sqlite-vec` ANN), `[kb]` (graph + full-text only), `[kb-local]` /
-  `[kb-vec]` (pick embedder / ANN yourself), `[llm-local]` (the built-in wiki model).
-
-| Your situation | Command |
-| --- | --- |
-| "Just mirror my repos, nothing else." | `pipx install contextlake` |
-| "Full knowledge layer, zero config." | `pipx install "contextlake[kb-full]"` (or `uvx --from "contextlake[kb-full]" contextlake`) |
-| "Upgrade to the latest." | `pip install -U "contextlake[kb-full]"` (or `pipx upgrade contextlake`) |
-| "No compiler, and a source build just failed." | `pip install -U --only-binary :all: "contextlake[kb-full]"` |
-| "I want the built-in wiki LLM (`[llm-local]`), installed with pip." | `contextlake doctor --fix llm-local`, or by hand: `pip install "contextlake[llm-local]" --only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` (the index is **not** optional: upstream publishes no PyPI wheels, so without it pip compiles C++ from source) |
-| "I don't want any local toolchain at all." | The standalone binary (bootstraps its own Python and extras on first run, network needed once), or the image: `docker pull ghcr.io/sayak-sarkar/contextlake` (every dep + the built-in models baked in, works offline) |
-
-### Uninstall
-
-Remove the tool:
+Using pip, uv, Docker, or a standalone binary instead, or picking extras individually? Every
+channel, the extras table, upgrading, and uninstalling are on one page:
+**[Install and upgrade](docs/install.md)**. Verify whichever you chose with:
 
 ```bash
-pipx uninstall contextlake                     # or:  pip uninstall contextlake
-docker rmi ghcr.io/sayak-sarkar/contextlake    # if you pulled the image
+contextlake --version
+contextlake doctor
 ```
 
-That leaves your data in place. contextlake never writes inside your repositories, so
-uninstalling it can't touch your source. To also remove what it created locally (all
-optional), delete only what you don't want to keep:
-
-```bash
-rm -rf ~/.contextlake        # knowledge store, kb.toml config, graph/dashboard exports, wiki
-rm -f  ~/.contextlake.ini    # mirror config
-# your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:
-# rm -rf ~/work
-# the built-in CPU models are cached under ~/.cache/huggingface (shared with other HF
-# tools) — remove just the contextlake ones to reclaim space:
-rm -rf ~/.cache/huggingface/hub/models--minishlab--potion-base-8M
-```
-
-(If you used project-local config, also remove `.contextlake.kb.toml` /
-`.contextlake.ini` from those project directories.)
+`doctor` reports what is present and what is missing. If it names something you cannot
+resolve, [Troubleshooting](docs/troubleshooting.md) covers the failures that come up most.
 
 ## 3. Configure
 
@@ -189,17 +106,10 @@ contextlake doctor --fix llm-local
 
 That installs into the interpreter contextlake is running in, with the upstream CPU wheel
 index attached, and prints the exact command before running it (`--dry-run` prints it and
-stops). By hand it is:
-
-```bash
-pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
-  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-```
-
-The index is not optional: `llama-cpp-python` publishes **no wheels to PyPI**, because
-llama.cpp is built per hardware backend and upstream ships one index per accelerator (CPU,
-CUDA, Metal). So a plain `pip install "contextlake[llm-local]"` compiles C++ from source and
-needs `cmake` plus a compiler. See [Installing the built-in
+stops). The index is not optional, because `llama-cpp-python` publishes no wheels to PyPI at
+all; for the command by hand see [Install and
+upgrade](docs/install.md#the-built-in-wiki-llm-needs-one-extra-flag), and for why, see
+[Installing the built-in
 LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 
 Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`

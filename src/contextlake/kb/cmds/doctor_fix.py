@@ -11,10 +11,11 @@ Two privilege tiers, and the split is the whole point of the design:
   ``sys.executable -m pip`` (never a bare ``pip`` off PATH, which can belong to
   a different environment entirely). Unprivileged, reversible, so ``--fix`` runs
   them after printing them.
-* **System packages** (git, or a C++ toolchain when no wheel exists) need
-  administrator rights. Those are *never* run unless a human answers a prompt at
-  a real terminal: no TTY, or ``--skip-interactive``, means print and stop. A CI
-  job or a scripted invocation must never trip a sudo prompt.
+* **System packages** need administrator rights. Those are *never* run unless a
+  human answers a prompt at a real terminal: no TTY, or ``--skip-interactive``,
+  means print and stop. A CI job or a scripted invocation must never trip a sudo
+  prompt. git is the only system package offered; a missing C++ toolchain is
+  reported with advice, since llm-local installs from a prebuilt wheel.
 """
 
 from __future__ import annotations
@@ -111,17 +112,14 @@ _PKG_MANAGERS = (
 )
 
 # Per-manager package names, where they differ from the generic capability name.
+# git is the only entry because git is the only system package `--fix` installs:
+# `system_install_command` is never called with anything else. A "toolchain" entry
+# used to sit here, which made the docs (and this module's own docstring) describe
+# a compiler install that no code path could reach. The supported route for
+# llm-local is the prebuilt wheel, which needs no compiler, so a missing toolchain
+# is reported with advice instead of an install.
 _PKG_NAMES = {
     "git": {"winget": "Git.Git"},
-    "toolchain": {
-        "dnf": "cmake gcc-c++",
-        "apt-get": "cmake build-essential",
-        "zypper": "cmake gcc-c++",
-        "pacman": "cmake base-devel",
-        "brew": "cmake",
-        "choco": "cmake",
-        "winget": "Kitware.CMake",
-    },
 }
 
 

@@ -72,116 +72,10 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 # pipx install "contextlake[kb]"             # pipx works too
 ```
 
-<details>
-<summary>Install extras (the mirror needs none, add these for the knowledge layer)</summary>
-
-| Extra | Adds | When you need it |
-| --- | --- | --- |
-| `[kb]` | The knowledge layer: parse → graph → wiki → MCP server | Anything beyond mirroring |
-| `[kb-full]` | `[kb]` + the built-in CPU embedder + sqlite-vec ANN | One-step local semantic search, no Ollama or API key |
-| `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python fallback |
-| `[kb-local]` | The built-in CPU embedder (model2vec, ~30 MB) | Semantic search with no Ollama or API key |
-| `[kb-fastembed]` | A higher-quality ONNX embedder (~90 MB) | Better semantic ranking |
-| `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `wiki --llm builtin` with no Ollama or API key |
-
-`[llm-local]` is the one extra a plain `pip install` cannot finish on its own: `llama-cpp-python`
-publishes no wheels to PyPI (llama.cpp is built per hardware backend, so upstream ships one index
-per accelerator), so pip compiles C++ unless you point it at one. Let contextlake do it:
-
-```bash
-contextlake doctor --fix llm-local     # add --dry-run to see the exact command first
-```
-
-This applies to pip installs only: the standalone binary has the index preconfigured and installs
-the runtime on its first run, and the full Docker image ships it baked in.
-
-</details>
-
-<details>
-<summary>Docker (turnkey / air-gapped: models baked in)</summary>
-
-The published image bundles the knowledge layer plus the built-in CPU models
-(embedder + a small wiki LLM), so it runs with no Ollama, no API key, and no
-model download at runtime. The PyPI wheel stays the primary install; reach for
-the image on locked-down or offline machines. Runs as a non-root user.
-
-```bash
-docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
-docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
-```
-
-The `-v` mount is what makes the run worth doing: everything contextlake persists, the
-knowledge store included, is written under it as `.contextlake/`, so it is still there on
-the host after the container exits. Drop the `-v` and the run is ephemeral.
-
-The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your
-host account is not uid 1000 the write fails with a permission error. Pass your own ids to
-fix it:
-
-```bash
-docker run -u "$(id -u):$(id -g)" -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
-```
-
-It fails rather than falling back on purpose. Before 5.1.0 the store was written inside the
-container instead, so the run appeared to succeed and the index was gone the moment the
-container exited.
-
-A `:slim` tag is also published, no `llama-cpp-python`, no baked wiki-LLM GGUF,
-much smaller pull. Semantic search still works (the embedder is pure Python);
-point the wiki tier at Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
-
-```bash
-docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake:slim doctor
-```
-</details>
-
-<details>
-<summary>From source (for contributors)</summary>
-
-```bash
-git clone https://github.com/sayak-sarkar/contextlake && cd contextlake
-pip install -e ".[kb]"
-```
-</details>
-
-<details>
-<summary>Update &amp; uninstall</summary>
-
-Upgrade in place (whichever installer you used):
-
-```bash
-pipx upgrade contextlake                       # pipx
-pip install --upgrade "contextlake[kb-full]"   # pip
-uv tool upgrade contextlake                     # uv
-docker pull ghcr.io/sayak-sarkar/contextlake   # image
-```
-
-Your store and config carry forward. Confirm with `contextlake --version`, then run
-`contextlake doctor`.
-
-`doctor` is load-bearing here, not a formality. An upgrade that changes how code is parsed
-leaves every existing shard describing the old parse, and a plain `kb index` will not notice:
-it skips repos whose HEAD commit has not moved, and upgrading contextlake does not move
-anyone's HEAD. `doctor` compares the parser version recorded in each shard against the running
-one and names the repos that need rebuilding. When it asks for one, force it:
-
-```bash
-contextlake kb index --force
-```
-
-Upgrading to **5.0.0 specifically requires this**, for every indexed repo: that release changed
-the parser and every shard written before it is stale.
-
-Uninstall the tool, then optionally remove what it created (it never writes inside your
-repos, so your source is never touched):
-
-```bash
-pipx uninstall contextlake        # or: pip uninstall contextlake
-rm -rf ~/.contextlake             # store + kb.toml + graph/dashboard exports (optional)
-rm -f  ~/.contextlake.ini         # mirror config (optional)
-# mirrored repos live in your work_dir (default ~/work), delete only if unwanted
-```
-</details>
+Docker, the standalone binaries, the full extras table, upgrading, and uninstalling all live
+on one page: **[Install and upgrade](https://github.com/sayak-sarkar/contextlake/blob/main/docs/install.md)**.
+If an install misbehaves, see
+**[Troubleshooting](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**.
 
 **Prerequisites:** `git`, and, only for fleet mirroring, the platform's token env var
 (`GITLAB_TOKEN` with `read_api` + `read_repository`, or `GITHUB_TOKEN` /
@@ -337,6 +231,8 @@ opt-in via `--llm-chat`). Try it with zero setup via `contextlake kb dashboard -
 ## Documentation
 
 - **[QUICKSTART.md](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes
+- **[docs/install.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/install.md)**, every install channel, upgrading, and uninstalling
+- **[docs/troubleshooting.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**, it broke, now what
 - **[docs/dashboard.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, the dashboard, a guided tour with screenshots
 - **[docs/usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**, every command, configuration, branch safety, scheduling
 - **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the graph, connectors, search, wiki

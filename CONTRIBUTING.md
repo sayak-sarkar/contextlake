@@ -42,6 +42,26 @@ pip install -e ".[dev,kb]"   # the CLI + pytest/ruff + the knowledge layer the k
 You'll also want `git` and an authenticated [`glab`](https://gitlab.com/gitlab-org/cli)
 on your PATH to exercise the tool for real (`glab auth login`).
 
+Install the hooks once per clone (see [Pre-commit hooks](#pre-commit-hooks) for what they
+do and deliberately don't do):
+
+```bash
+pre-commit install
+```
+
+The venv in that first block is not a formality. On Debian and Ubuntu, installing into the
+system interpreter fails with:
+
+```
+Cannot uninstall PyJWT, RECORD file not found.
+Hint: The package was installed by debian.
+```
+
+Those distros ship some Python packages through `apt`, and pip refuses to uninstall what it
+did not install, because it cannot tell which files belong to the distro copy. A virtual
+environment sidesteps it entirely. If you genuinely need the system interpreter, tell pip to
+leave the distro copy alone with `pip install -e ".[dev,kb]" --ignore-installed PyJWT`.
+
 ## The loop
 
 ```bash
@@ -52,12 +72,49 @@ pytest --cov=contextlake --cov-report=term-missing   # with coverage
 pytest tests/test_clone.py -k retries -q             # a single test
 ```
 
+The full suite takes a while. While you're iterating, run the fast subset instead:
+
+```bash
+make test-fast                # skips the tests marked `slow`, runs the rest via pytest-xdist
+```
+
+`slow` covers wiki generation and a real server-lifecycle poll loop. Run `make test` (which
+is what CI runs, serially, with the coverage floor) before you push. `make` targets manage
+their own `.venv`; if you already have one activated, the plain commands above work too.
+
 `pytest` and `python -m pytest` both work from the repo root. The bare-script
 launcher lives at `run-contextlake.py`, a name deliberately chosen so it can
-never collide with the installed `contextlake` package on `sys.path`.
+never collide with the installed `contextlake` package on `sys.path`. On an older
+checkout, where that file was still named `contextlake.py`, `python -m pytest` fails with
+`ModuleNotFoundError: No module named 'contextlake.cli'`, because `python -m` puts the
+working directory first on `sys.path` and the launcher shadowed the installed package.
+Updating fixes it, and CI runs `python -m pytest --collect-only` to keep it fixed.
 
 CI runs exactly `ruff check` + `pytest` across Python 3.9–3.13, so if those two
 pass locally you're in good shape.
+
+## Pre-commit hooks
+
+`pre-commit install` wires in `ruff-check --fix` plus `trailing-whitespace` and
+`end-of-file-fixer`. It's a convenience net for the cheap stuff, not a replacement for CI.
+
+If `pre-commit run --all-files` wants to change files you never touched, you're probably on
+a branch that predates the hooks: the two whitespace fixers were applied repo-wide in a
+single commit when they were introduced, so on current `main` they are no-ops. Rebase first.
+
+Both fixers deliberately skip `tests/kb/fixtures/fuzz/` and `tests/kb/golden/`, because those
+files' exact bytes *are* the test. The fuzz corpus is adversarial input for the parser
+timeout tests, and the golden shard is a byte-compared snapshot of indexer output;
+reformatting either quietly changes what is being asserted.
+
+`ruff-format` is registered but staged `manual`, so it never runs on a normal commit. The
+repo has never been formatted with it and CI has no `ruff format --check` step, so enabling
+it for real needs its own one-time, repo-wide commit first. Run it explicitly to see what it
+would do:
+
+```bash
+pre-commit run ruff-format --hook-stage manual --all-files
+```
 
 ## How the code is laid out
 
@@ -134,7 +191,9 @@ first-token and corporate-proxy gotchas). Install the tooling with
 
 Open an issue with: what you ran, what you expected, what happened, and the
 output (scrub any private group names, URLs, or tokens first). A failing test
-case is the gold standard.
+case is the gold standard. If the problem is with *using* contextlake rather than
+developing it, check [docs/troubleshooting.md](docs/troubleshooting.md) first, since the
+common install and mirror failures are already written up there with their causes.
 
 ## Security
 

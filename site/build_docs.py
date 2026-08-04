@@ -42,6 +42,11 @@ PAGES = [
      "pebble-doc.png",
      [("quickstart.html", "Quickstart"), ("usage.html", "Mirror repositories"),
       ("knowledge-layer.html", "Knowledge layer")]),
+    ("install.html", "docs/install.md", "Install and upgrade", "Install and upgrade",
+     "Get started", "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone "
+     "binary, plus the extras table, upgrading safely, and a clean uninstall.",
+     "pebble-doc.png",
+     [("quickstart.html", "Quickstart"), ("troubleshooting.html", "Troubleshooting")]),
     ("quickstart.html", "QUICKSTART.md", "Quickstart", "Quickstart",
      "Start here · all three layers", "Install, bootstrap, and wire your editor, "
      "the whole Mirror -> Knowledge -> Serve path in a few minutes.",
@@ -150,6 +155,11 @@ PAGES = [
      "stdout/stderr split.",
      "pebble-doc.png",
      [("cli-reference.html", "Command reference"), ("docs.html", "Overview")]),
+    ("troubleshooting.html", "docs/troubleshooting.md", "Troubleshooting", "Troubleshooting",
+     "Reference", "Install and mirror problems that have actually been hit, each with the "
+     "fix and the reason behind it.",
+     "pebble-doc.png",
+     [("install.html", "Install and upgrade"), ("cli-reference.html", "Command reference")]),
     ("changelog.html", "CHANGELOG.md", "Changelog", "Changelog",
      "Reference", "Release history for contextlake.",
      "pebble-doc.png",
@@ -194,7 +204,7 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 # Sidebar navigation, organized into labeled groups (ordered). Every PAGES `out` appears
 # in exactly one group; the group heading reuses the existing `.side h2` styling.
 NAV_GROUPS = [
-    ("Get started", ["docs.html", "quickstart.html", "configuration.html"]),
+    ("Get started", ["docs.html", "install.html", "quickstart.html", "configuration.html"]),
     ("Build your knowledge base", ["usage.html", "knowledge-layer.html", "index-code-graph.html",
                                    "connect-enrich.html", "semantic-search.html",
                                    "generate-wiki.html", "model-providers.html", "bootstrap.html"]),
@@ -203,7 +213,8 @@ NAV_GROUPS = [
     ("Writing style", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
                        "style-guide-formatting.html", "style-guide-reference.html"]),
     ("Brand", ["brand.html"]),
-    ("Reference", ["cli-reference.html", "console-output.html", "changelog.html"]),
+    ("Reference", ["cli-reference.html", "console-output.html", "troubleshooting.html",
+                   "changelog.html"]),
 ]
 GROUP_OF = {out: g for g, outs in NAV_GROUPS for out in outs}
 # Per-page-type hero accent: the 4 core learning-journey groups each get one brand hue (reused
