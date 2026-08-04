@@ -141,6 +141,12 @@ def _isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv call runs later, in the test body, after this fixture).
     """
     monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+    # HOME alone is not the whole of "the user's home": XDG_CACHE_HOME, when the
+    # developer or CI runner exports it, sends the mirror project cache (see
+    # config.get_cache_paths, which creates and chmods that directory) straight
+    # back out to the real machine. Clear it here so the backstop actually is one;
+    # a test that wants a specific value still sets it in its own body.
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
 
 
 @pytest.fixture(autouse=True)

@@ -98,12 +98,16 @@ def _kb_toml(enable_embeddings: bool, store_dir: str) -> str:
         "# Local-first semantic search. The built-in CPU embedder needs no Ollama",
         "# and no API key (pip install \"contextlake[kb-local]\").",
         f"enabled = {'true' if enable_embeddings else 'false'}",
-        'provider = "auto"',
+        "# Named explicitly rather than left as \"auto\": a generated file should",
+        "# state which model runs, and a provider this file never chose can never",
+        "# become a billed API call. Change to \"ollama\" for a local daemon, or",
+        "# \"openai\" to opt into a paid API (key by env var, never stored here).",
+        'provider = "builtin"',
         "",
         "# Curated wiki (LLM tier), off by default. Enable with a provider:",
         "# [llm]",
         "# enabled = true",
-        '# provider = "auto"   # reachable Ollama, else the built-in CPU model',
+        '# provider = "builtin"   # in-process CPU model; "ollama" for a local daemon',
         "",
     ]
     return "\n".join(lines)
@@ -431,10 +435,29 @@ def cmd_init(args) -> int:
             "(public orgs work without a token, rate-limited).")
 
     # --- shell completion ----------------------------------------------------
-    completion_default = getattr(args, "completion", None)
-    if completion_default is None:
-        completion_default = True
-    _setup_shell_completion(interactive=interactive, default_on=completion_default)
+    # Registering completion appends to the user's ~/.bashrc or ~/.zshrc. That is
+    # a write well outside what `init` implies -- and flatly at odds with `init
+    # --local`, which is the user scoping everything to this directory -- so a run
+    # that never asked must never do it. `--skip-interactive` (or a piped stdin)
+    # is exactly "nobody was asked", so there it happens only on an explicit
+    # --completion. `contextlake completion` remains the deliberate way in.
+    #
+    # No decision marker is written on that skip, deliberately: a marker here
+    # would permanently suppress the offer that a later interactive run -- or
+    # maybe_auto_register_completion -- would otherwise make.
+    completion_opt_in = getattr(args, "completion", None)
+    if interactive:
+        _setup_shell_completion(interactive=True,
+                                default_on=True if completion_opt_in is None
+                                else completion_opt_in)
+    elif completion_opt_in:
+        _setup_shell_completion(interactive=False, default_on=True)
+    else:
+        log("")
+        log(f"{style.warn('completion')} shell tab-completion not registered — a "
+            "non-interactive run does not modify your shell startup file.")
+        log(f"  Run {style.cyan('contextlake completion')} (or "
+            f"{style.cyan('init --completion')}) when you want it.")
 
     # --- next steps ---------------------------------------------------------
     log("")

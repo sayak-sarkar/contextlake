@@ -46,7 +46,8 @@ def test_yes_and_short_y_are_gone_hard_cutover(flag, capsys):
     with pytest.raises(SystemExit) as exc:
         build_parser().parse_args(["init", flag])
     assert exc.value.code == 2
-    assert "unrecognized arguments" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert f"Unknown flag: {flag!r} (on 'init')" in err
 
 
 def test_kb_serve_accepts_the_sse_transport():
@@ -94,6 +95,27 @@ def test_unknown_command_suggests_the_canonical_verb_not_an_alias(capsys):
     assert "blast-radius" not in err
 
 
+def test_a_typo_of_a_top_level_command_beats_an_equally_close_namespaced_one(capsys):
+    """`inti` scores exactly 0.75 against BOTH `init` and `lint`, and difflib
+    settled that tie by comparing the candidate strings ('lint' > 'init'), so
+    the obvious typo of a top-level command was answered with "Did you mean: kb
+    lint?" -- confidently wrong. Ties now break toward the top-level command."""
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["inti"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "Did you mean: init?" in err
+    assert "kb lint" not in err
+
+
+def test_an_exact_flat_spelling_still_wins_over_a_top_level_near_miss(capsys):
+    """The tie-break must only settle *ties*: `lint` names a real command, so an
+    exact 1.0 match on it still beats any top-level candidate scoring lower."""
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["lint"])
+    assert "Did you mean: kb lint?" in capsys.readouterr().err
+
+
 def test_unknown_command_with_no_close_match_skips_the_suggestion_line(capsys):
     with pytest.raises(SystemExit):
         build_parser().parse_args(["zzzzzzzzzz"])
@@ -122,7 +144,7 @@ def test_unrecognized_flag_with_no_following_token_still_reports_correctly(capsy
     with pytest.raises(SystemExit):
         build_parser().parse_args(["--work-d", "doctor"])
     err = capsys.readouterr().err
-    assert "unrecognized arguments: --work-d" in err
+    assert "Unknown flag: '--work-d' (on 'doctor')" in err
 
 
 def test_unrecognized_flag_inside_a_subcommand_still_reports_correctly(capsys):
@@ -132,7 +154,7 @@ def test_unrecognized_flag_inside_a_subcommand_still_reports_correctly(capsys):
     with pytest.raises(SystemExit):
         build_parser().parse_args(["kb", "index", "--work-d", "/tmp"])
     err = capsys.readouterr().err
-    assert "unrecognized arguments: --work-d" in err
+    assert "Unknown flag: '--work-d' (on 'kb index')" in err
 
 
 def test_flag_valid_on_a_different_command_names_that_command(capsys):
@@ -167,13 +189,22 @@ def test_flag_valid_elsewhere_check_runs_before_same_command_fuzzy_guess(capsys)
     assert "--llm" not in err
 
 
-def test_unrecognized_flag_with_no_close_match_anywhere_falls_back(capsys):
+def test_unrecognized_flag_with_no_close_match_anywhere_is_scoped_to_the_subcommand(capsys):
+    """No other command owns the flag and nothing on this one is close enough to
+    guess -- but the message must still be about the command the user typed.
+    This used to fall through to argparse, which reports leftover tokens from
+    the single root parse_args() and so printed the ROOT usage line for a
+    `kb index` failure."""
     with pytest.raises(SystemExit) as exc:
         build_parser().parse_args(["kb", "index", "--totally-bogus-flag"])
     assert exc.value.code == 2
     err = capsys.readouterr().err
-    assert "unrecognized arguments: --totally-bogus-flag" in err
-    assert "isn't a flag on" not in err and "Unknown flag" not in err
+    assert "Unknown flag: '--totally-bogus-flag' (on 'kb index')" in err
+    assert "usage: contextlake kb index" in err
+    assert "Run 'contextlake kb index --help'" in err
+    # Not the root usage, and not the cross-command "used by" list either.
+    assert "usage: contextlake [-h]" not in err
+    assert "isn't a flag on" not in err
 
 
 def test_value_taking_flag_followed_by_another_flag_names_the_real_problem(capsys):
@@ -242,17 +273,18 @@ def test_typo_suggester_still_matches_a_hidden_resilience_flag(capsys):
     assert "Did you mean: --max-retries?" in err
 
 
-def test_help_advanced_on_the_wrong_command_gives_argparses_plain_message(capsys):
+def test_help_advanced_on_the_wrong_command_skips_the_used_by_list(capsys):
     """--help-advanced only exists on the 8 mirror commands; running it on any
     other command (e.g. index) must NOT trigger the cross-command 'used by'
     message -- that path is for real domain flags, and a 9-command 'used by:
-    audit, bootstrap, ...' list for a help flag is noise, not help."""
+    audit, bootstrap, ...' list for a help flag is noise, not help. It still
+    gets the ordinary subcommand-scoped unknown-flag message."""
     with pytest.raises(SystemExit) as exc:
         build_parser().parse_args(["kb", "index", "--help-advanced"])
     err = capsys.readouterr().err
     assert exc.value.code == 2
     assert "isn't a flag on" not in err
-    assert "unrecognized arguments: --help-advanced" in err
+    assert "Unknown flag: '--help-advanced' (on 'kb index')" in err
 
 
 def test_help_advanced_is_not_a_root_flag():

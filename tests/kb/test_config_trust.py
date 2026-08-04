@@ -97,6 +97,44 @@ def test_gate_warns_with_the_file_and_the_key(tmp_path, monkeypatch, gls_logs):
     assert "attacker.example.com" not in text
 
 
+def test_each_gated_key_is_reported_once_per_file(tmp_path, monkeypatch, gls_logs):
+    """A three-key block produced six identical warnings: every kb command loads
+    the config more than once (``_open_store`` does, then the command itself
+    does), and each load re-read and re-screened the same file. The message is a
+    refusal the reader has to act on, so burying it under copies of itself
+    defeats it. Both directions are asserted -- still reported, and reported
+    exactly once."""
+    _no_global(monkeypatch, tmp_path)
+    monkeypatch.chdir(_plant_local(tmp_path))
+    gls_logs.set_level(logging.WARNING)
+
+    load_kb_config()
+    load_kb_config()  # the second load a real command performs
+
+    warnings = [r.getMessage() for r in gls_logs.records if r.levelno >= logging.WARNING]
+    for key in ("[llm] command", "[llm] args", "[llm] provider"):
+        assert sum(key in w for w in warnings) == 1, (key, warnings)
+
+
+def test_a_second_untrusted_file_still_gets_its_own_warning(tmp_path, monkeypatch,
+                                                            gls_logs):
+    """"Once per file", not "once ever": the dedupe is keyed on the resolved
+    path, so a different hostile checkout must still be reported."""
+    _no_global(monkeypatch, tmp_path)
+    gls_logs.set_level(logging.WARNING)
+
+    for name in ("repo-a", "repo-b"):
+        checkout = tmp_path / name
+        checkout.mkdir()
+        monkeypatch.chdir(_plant_local(checkout))
+        load_kb_config()
+
+    warnings = [r.getMessage() for r in gls_logs.records if r.levelno >= logging.WARNING]
+    for name in ("repo-a", "repo-b"):
+        assert any(str(tmp_path / name / kbcfg.LOCAL_CONFIG) in w and "[llm] command" in w
+                   for w in warnings), (name, warnings)
+
+
 # --- the two privileged sources still work ----------------------------------
 
 def test_same_content_at_the_global_path_is_honoured(tmp_path, monkeypatch):

@@ -145,6 +145,33 @@ def _categorized_commands_text(choices, *, namespace=None):
     return "\n".join(lines)
 
 
+def _best_command_match(bad, choices):
+    """The command name nearest to the mistyped ``bad``, or None if nothing is
+    close enough. Same 0.5 similarity floor difflib.get_close_matches used, so
+    this never suggests anything that was not already suggestible.
+
+    What changes is the *tie-break*. get_close_matches ranks with
+    ``heapq.nlargest`` over ``(ratio, name)`` pairs, so an exact score tie is
+    settled by comparing the candidate strings -- arbitrary, and wrong here:
+    ``inti`` scores 0.75 against both ``init`` and ``lint``, ``'lint' > 'init'``,
+    and a one-transposition typo of a top-level command was answered with
+    "Did you mean: kb lint?". Break ties toward a top-level command instead:
+    those are reached by typing the bare verb, so a near-exact match on one is
+    much the likelier intent. The two namespace tokens (``mirror``/``kb``) are
+    deliberately NOT counted as top-level -- answering a mistyped verb with a
+    namespace is not an answer.
+    """
+    ranked = []
+    for name in choices:
+        ratio = difflib.SequenceMatcher(a=bad, b=name).ratio()
+        if ratio < 0.5:
+            continue
+        canonical = _ALIASES.get(name, name)
+        top_level = canonical not in _NAMESPACE_OF and canonical not in _NAMESPACES
+        ranked.append((-ratio, 0 if top_level else 1, name))
+    return min(ranked)[2] if ranked else None
+
+
 class _RootArgumentParser(argparse.ArgumentParser):
     """Replaces argparse's raw N-choice dump for a mistyped subcommand with a
     concise 'did you mean' suggestion -- the same difflib pattern the knowledge
@@ -235,8 +262,8 @@ class _RootArgumentParser(argparse.ArgumentParser):
         # is lexically close to that alias, not to "impact" -- then translate
         # the winner to the canonical verb for display, matching what --help
         # teaches (a mistyped "blast-radiu" should suggest "impact").
-        matches = difflib.get_close_matches(bad, list(choices), n=1, cutoff=0.5)
-        suggestion = _ALIASES.get(matches[0], matches[0]) if matches else None
+        match = _best_command_match(bad, choices)
+        suggestion = _ALIASES.get(match, match) if match else None
 
         lines = [style.fail(f"Unknown command: {bad!r}")]
         root_choices = getattr(self, "_root_choices", {})
@@ -339,7 +366,23 @@ class _RootArgumentParser(argparse.ArgumentParser):
             lines = [style.fail(f"Unknown flag: {bad!r}"), "",
                      f"Did you mean: {typo[0]}?"]
             return "\n".join(lines) + "\n"
-        return None  # nothing sensible to say -- argparse's own message stands
+
+        # No other command owns the flag and nothing on this one is close enough
+        # to guess. Falling through to argparse here dumped the ROOT parser's
+        # usage line: leftover tokens are always reported by the single
+        # parse_args() call on the root, whichever subcommand actually ran, so
+        # `contextlake kb index --nosuchflag` answered with `usage: contextlake
+        # [-h] [--version] ...` -- a command the user never typed. Say which
+        # command rejected the flag, and show that command's usage.
+        leaf = choices.get(canonical)
+        if leaf is not None:
+            lines = [style.fail(f"Unknown flag: {bad!r} (on "
+                                f"'{_qualified(canonical)}')"), "",
+                     leaf.format_usage().rstrip(), "",
+                     f"Run 'contextlake {_qualified(canonical)} --help' to see "
+                     f"{canonical}'s own flags."]
+            return "\n".join(lines) + "\n"
+        return None  # no command identified -- argparse's own root message stands
 
     def _missing_value_text(self, flag):
         """``flag`` (e.g. ``--workspace``) reported "expected one argument" --
@@ -1282,6 +1325,37 @@ def apply_cli_overrides(args, config):
     return config
 
 
+# Commands whose whole job is defined by the forge group: they enumerate it, or
+# they read the project cache keyed on it. `update` is the one mirror verb that
+# works purely from what is already on disk (update_repositories takes no group),
+# so it stays usable in a workspace whose config never named one.
+_GROUP_COMMANDS = frozenset({
+    "fetch", "clone", "branches", "verify", "sync", "status", "audit", "bootstrap",
+})
+
+
+def _needs_group(args):
+    """Whether this invocation cannot produce an honest result without a group.
+
+    `bootstrap` is the one conditional case: with both --no-sync and --no-audit
+    every remaining stage is a knowledge-layer build over repositories already on
+    disk, which never touches the group -- refusing that would break a legitimate
+    offline workflow.
+    """
+    if args.command not in _GROUP_COMMANDS:
+        return False
+    if args.command == "bootstrap":
+        return not (getattr(args, "no_sync", False) and getattr(args, "no_audit", False))
+    return True
+
+
+def _group_is_usable(group):
+    """Whether a resolved group names a real group rather than nothing at all or
+    the shipped placeholder."""
+    group = (group or "").strip()
+    return bool(group) and group != DEFAULT_CONFIG["gitlab_group"]
+
+
 def _audit_report_path(args, config):
     """Where the per-repo audit report is written (CLI --report, else cache_dir)."""
     if getattr(args, "report", None):
@@ -1665,6 +1739,30 @@ def _run(argv, metrics):
     )
     gitlab_group = (args.group or config.get("group")
                     or config.get("gitlab_group", DEFAULT_CONFIG["gitlab_group"]))
+
+    # Write the RESOLVED pair back before anything derives a path from the config:
+    # apply_cli_overrides only propagates _TRISTATE_FLAGS/_SCALAR_FLAGS, so
+    # --work-dir/--group were previously invisible to get_cache_paths, and two runs
+    # against different groups from one config file shared a cache file. Both group
+    # spellings, because `group` is the generic alias and takes precedence over
+    # `gitlab_group` wherever the two are read together -- leaving one stale would
+    # reopen the same collision on the alias path.
+    config["work_dir"] = work_dir
+    config["group"] = gitlab_group
+    config["gitlab_group"] = gitlab_group
+
+    if not _group_is_usable(gitlab_group) and _needs_group(args):
+        # load_config already printed the searched-paths diagnostic; all that is
+        # missing is the refusal. Exit 2 to match `init`, which rejects this exact
+        # placeholder the same way -- the inconsistency was that every mirror
+        # command instead carried on, read whatever cache happened to be there,
+        # and printed a plausible sync report against a group that does not exist.
+        log(style.fail(f"No group configured — refusing to run "
+                       f"'{_qualified(args.command)}' against the placeholder "
+                       f"{DEFAULT_CONFIG['gitlab_group']!r}."))
+        log("  Set gitlab_group in a config file (run 'contextlake init'), or pass "
+            "--group <your-group> / --config PATH.")
+        sys.exit(2)
 
     # Now that the two values that identify *whose* fleet this is are known, they
     # can be scrubbed from the log file. The forge URL goes in too: it names the

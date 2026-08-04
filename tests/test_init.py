@@ -552,19 +552,49 @@ def test_auto_register_fires_once_in_a_real_terminal(tmp_path, monkeypatch):
     assert (tmp_path / ".bashrc").read_text().count("register-python-argcomplete") == 1
 
 
-def test_init_end_to_end_registers_completion_by_default(tmp_path, monkeypatch):
-    """cmd_init's own wiring, not just the helper function directly: the
-    completion arg defaults to on when the CLI doesn't set it at all. Real
-    argparse with --completion/--no-completion both using default=SUPPRESS
-    leaves `completion` absent from the namespace when unset, which is what
-    `del args.completion` simulates here -- cmd_init then reads it via
-    getattr(args, "completion", None), landing on None (not False)."""
+def _init_completion_env(tmp_path, monkeypatch):
     monkeypatch.setattr(init_cmd, "CONFIG_FILE", str(tmp_path / ".contextlake.ini"))
     monkeypatch.setattr(init_cmd, "_KB_CONFIG", str(tmp_path / ".contextlake/kb.toml"))
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SHELL", "/bin/bash")
+
+
+def test_init_non_interactive_does_not_touch_a_shell_rc(tmp_path, monkeypatch):
+    """`init --skip-interactive` appended a completion block to the user's
+    ~/.bashrc (or ~/.zshrc) without asking. Writing to a shell startup file is
+    a side effect well outside what `init` implies, and --skip-interactive is
+    precisely the flag that says nobody was asked. Real argparse leaves
+    `completion` absent from the namespace when neither --completion nor
+    --no-completion is given, which is what `del args.completion` simulates --
+    cmd_init reads it via getattr(..., None), landing on None (not False)."""
+    _init_completion_env(tmp_path, monkeypatch)
     args = _args(group="acme")
     del args.completion  # simulate the real CLI: unset, not explicitly False
+    init_cmd.cmd_init(args)
+    assert not (tmp_path / "home" / ".bashrc").exists()
+    # And no decision marker: recording one here would permanently suppress the
+    # offer a later interactive run (or maybe_auto_register_completion) makes.
+    assert not (tmp_path / "home" / ".contextlake" / ".completion_setup_done").exists()
+
+
+def test_init_non_interactive_registers_completion_when_asked(tmp_path, monkeypatch):
+    """The explicit opt-in still works: --completion is the user choosing it,
+    which is the whole difference from the silent default above."""
+    _init_completion_env(tmp_path, monkeypatch)
+    init_cmd.cmd_init(_args(group="acme", completion=True))
+    rc = tmp_path / "home" / ".bashrc"
+    assert rc.exists()
+    assert "register-python-argcomplete contextlake" in rc.read_text()
+
+
+def test_init_interactive_still_offers_completion(tmp_path, monkeypatch):
+    """Interactive is where the user *is* asked, so the offer (defaulting to
+    yes) must survive -- the fix narrows the non-interactive path only."""
+    _init_completion_env(tmp_path, monkeypatch)
+    monkeypatch.setattr(init_cmd, "_interactive", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda *a, **k: "")  # accept every default
+    args = _args(group="acme", skip_interactive=False)
+    del args.completion
     init_cmd.cmd_init(args)
     rc = tmp_path / "home" / ".bashrc"
     assert rc.exists()

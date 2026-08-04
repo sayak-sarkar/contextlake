@@ -204,7 +204,10 @@ def test_a_namespaced_command_still_reaches_its_handler(monkeypatch, capsys):
     seen = {}
     monkeypatch.setattr(cli, "show_status",
                         lambda work_dir, config, group: seen.update(ran=True))
-    cli.main(["mirror", "status"])
+    # --group is required now that a mirror command refuses to run against the
+    # placeholder group (see test_cli_group_guard.py); it also makes this test
+    # independent of whether the machine running it has a real ~/.contextlake.ini.
+    cli.main(["mirror", "status", "--group", "acme"])
     assert seen == {"ran": True}
     assert "deprecated" not in capsys.readouterr().err
 

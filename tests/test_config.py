@@ -84,6 +84,111 @@ def test_get_cache_paths_joins_dir_and_names():
     assert js == "/var/cache/p.json"
 
 
+# --- where the projects cache lands ----------------------------------------
+#
+# The cache lists every repository the account can enumerate, with clone URLs.
+# It used to default to /tmp/gitlab_projects.txt: outside the user's home, so no
+# HOME-based isolation reached it; world-readable on a shared host; and at a
+# fully predictable path another user can pre-create or symlink.
+
+def test_default_cache_lands_under_home_not_tmp(tmp_path, monkeypatch):
+    _isolate_globals(monkeypatch, tmp_path)
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+
+    cache_file, cache_json = get_cache_paths(load_config())
+
+    assert cache_file.startswith(str(home / ".cache" / "contextlake") + os.sep)
+    assert cache_json.startswith(str(home / ".cache" / "contextlake") + os.sep)
+    # The old default, verbatim (tmp_path itself lives under /tmp, so a bare
+    # "not under /tmp" assertion would be meaningless here).
+    assert cache_file != "/tmp/gitlab_projects.txt"
+
+
+def test_default_cache_honours_xdg_cache_home(tmp_path, monkeypatch):
+    """Read at call time, never frozen at import -- DEFAULT_CONFIG is a
+    module-level literal, so an expanded value would pin the first HOME seen."""
+    _isolate_globals(monkeypatch, tmp_path)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
+
+    cache_file, _ = get_cache_paths(load_config())
+
+    assert cache_file.startswith(str(tmp_path / "xdg" / "contextlake") + os.sep)
+
+
+def test_default_cache_directory_is_private(tmp_path, monkeypatch):
+    _isolate_globals(monkeypatch, tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+
+    cache_file, _ = get_cache_paths(load_config())
+
+    for directory in (os.path.dirname(cache_file),
+                      os.path.dirname(os.path.dirname(cache_file))):
+        assert os.stat(directory).st_mode & 0o777 == 0o700, directory
+
+
+def test_default_cache_is_per_workspace_not_one_global_file(tmp_path, monkeypatch):
+    """Two unrelated workspaces (and every config in a directory nest) shared
+    one /tmp/gitlab_projects.txt, so a directory-scoped config was never
+    actually isolated: `mirror status` could report another workspace's fleet
+    as its own, from a cache it never wrote."""
+    _isolate_globals(monkeypatch, tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+    a, _ = get_cache_paths({"work_dir": str(tmp_path / "a"), "gitlab_group": "team"})
+    b, _ = get_cache_paths({"work_dir": str(tmp_path / "b"), "gitlab_group": "team"})
+    assert a != b
+
+
+def test_default_cache_also_separates_two_groups_in_one_workspace(tmp_path, monkeypatch):
+    _isolate_globals(monkeypatch, tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    work = str(tmp_path / "w")
+
+    a, _ = get_cache_paths({"work_dir": work, "gitlab_group": "team-a"})
+    b, _ = get_cache_paths({"work_dir": work, "gitlab_group": "team-b"})
+    assert a != b
+
+
+def test_default_cache_path_is_stable_across_calls(tmp_path, monkeypatch):
+    """The whole point of a cache is that the next run finds it again."""
+    _isolate_globals(monkeypatch, tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    config = {"work_dir": str(tmp_path / "w"), "gitlab_group": "team"}
+
+    assert get_cache_paths(config) == get_cache_paths(dict(config))
+
+
+def test_an_explicitly_configured_cache_dir_is_used_verbatim(tmp_path, monkeypatch):
+    """Some users set cache_dir deliberately (including to /tmp), and the audit
+    report documented at <cache_dir>/repo_audit.json is written alongside these
+    -- naming the directory means "put it exactly here", no subdirectory."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    chosen = tmp_path / "chosen"
+
+    cache_file, cache_json = get_cache_paths({"cache_dir": str(chosen),
+                                              "work_dir": str(tmp_path / "w"),
+                                              "gitlab_group": "team"})
+
+    assert cache_file == str(chosen / "gitlab_projects.txt")
+    assert cache_json == str(chosen / "gitlab_projects.json")
+
+
+def test_an_unwritable_cache_dir_warns_instead_of_raising(tmp_path, monkeypatch, gls_logs):
+    """get_cache_paths runs on read paths too; a directory that cannot be made
+    must surface as the real read/write error from the code touching the file,
+    not as a mkdir traceback from a path helper."""
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not a directory")
+
+    cache_file, _ = get_cache_paths({"cache_dir": str(blocker / "under")})
+
+    assert cache_file.startswith(str(blocker))
+    assert any("cache directory" in r.getMessage() for r in gls_logs.records)
+
+
 def test_find_ancestor_config_walks_up_from_a_subdirectory(tmp_path):
     """A config at the project root must be discovered from a subdirectory
     several levels deep underneath it -- the whole point of "directory

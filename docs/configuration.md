@@ -26,7 +26,6 @@ An example `.contextlake.ini`:
 [contextlake]
 work_dir = ~/work
 gitlab_group = your-gitlab-group
-cache_dir = /tmp
 clone_timeout = 300
 fetch_timeout = 60
 branch_timeout = 30
@@ -109,7 +108,7 @@ would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the f
 | `gitlab_group` | GitLab group to synchronize | `your-gitlab-group` | `mycompany-group` |
 | `token_env` | Env var holding the platform token | per platform (`GITHUB_TOKEN`, and so on) | `MY_TOKEN` |
 | `api_base` | REST endpoint for self-hosted / enterprise instances | per platform | `https://github.example.com/api/v3` |
-| `cache_dir` | Directory for cache files | `/tmp` | `~/.cache/contextlake` |
+| `cache_dir` | Directory for cache files. Unset, the cache goes to a per-workspace subdirectory of `~/.cache/contextlake` (`$XDG_CACHE_HOME/contextlake` when set), created `0700`. Set it and that exact directory is used, with no subdirectory. | `~/.cache/contextlake/<workspace>-<id>` | `/srv/cache` |
 | `cache_file` | Name of projects cache file | `gitlab_projects.txt` | `projects.txt` |
 | `cache_json` | Name of JSON cache file | `gitlab_projects.json` | `projects.json` |
 | `clone_timeout` | Clone operation timeout (seconds) | `300` | `600` |

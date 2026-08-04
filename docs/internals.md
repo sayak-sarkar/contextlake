@@ -80,17 +80,22 @@ The tool implements comprehensive error handling:
 
 The tool uses two cache files:
 
-1. **`/tmp/gitlab_projects.json`**
+1. **`<cache_dir>/gitlab_projects.json`**
 
    - Full JSON response from GitLab API
    - Used for debugging and detailed inspection
    - Contains complete project metadata
 
-2. **`/tmp/gitlab_projects.txt`**
+2. **`<cache_dir>/gitlab_projects.txt`**
 
    - Pipe-delimited format for faster loading
    - Format: `path_with_namespace|ssh_url|http_url|default_branch|archived`
    - Primary data source for all operations
+
+`<cache_dir>` defaults to a per-workspace subdirectory of `~/.cache/contextlake`
+(`$XDG_CACHE_HOME/contextlake` when that is set), created `0700`. The cache names every
+repository the account can enumerate, so it is keyed on the workspace, platform and group:
+two workspaces never share one file. Set `cache_dir` to use one exact directory instead.
 
 Cache is refreshed by running the `fetch` command or `sync` (which includes fetch).
 

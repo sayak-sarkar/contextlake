@@ -40,9 +40,14 @@ gitlab_group = your-gitlab-group
 # dns_timeout = 15
 # dns_attempts = 3
 
-# Cache directory for storing GitLab project information
-# Default: /tmp
-cache_dir = /tmp
+# Cache directory for storing GitLab project information.
+# Leave this unset (recommended): the cache then lands in a per-workspace
+# subdirectory of ~/.cache/contextlake ($XDG_CACHE_HOME/contextlake when set),
+# created 0700. It lists every repository your account can enumerate, along with
+# clone URLs, so a shared or world-readable directory is the wrong home for it.
+# Set it and that exact directory is used, with no per-workspace subdirectory --
+# two workspaces pointed at one cache_dir will overwrite each other's list.
+# cache_dir = /srv/contextlake-cache
 
 # Cache file names (relative to cache_dir)
 cache_file = gitlab_projects.txt

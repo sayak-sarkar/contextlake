@@ -264,9 +264,24 @@ def _drop_executable_keys(table: str, values, source: str):
     return values
 
 
+# (realpath of the offending file, "[table] key") pairs already reported this
+# process. The message is a refusal the user has to act on, so burying it under
+# copies of itself defeats it: a three-key block printed six identical warnings,
+# because load_kb_config runs more than once per command and each load re-reads
+# and re-screens the same file. Keyed on the resolved path, so two different
+# untrusted files each setting `[llm] command` still warn once apiece -- "once
+# per file" is the contract, not "once ever".
+_WARNED_UNTRUSTED: set[tuple[str, str]] = set()
+
+
 def _warn_untrusted(what: str, source: str) -> None:
     """Report a dropped key loudly and actionably -- never the value, which is
-    attacker-supplied text that has no business in a log line."""
+    attacker-supplied text that has no business in a log line. Reported once per
+    (file, key); see :data:`_WARNED_UNTRUSTED`."""
+    key = (str(Path(expand_path(source)).resolve()) if source else "", what)
+    if key in _WARNED_UNTRUSTED:
+        return
+    _WARNED_UNTRUSTED.add(key)
     log(f"config: ignoring {what} from {source} -- a config file found by walking "
         "up from the current directory may not set keys that run a program. "
         f"Set it in {GLOBAL_CONFIG} instead, or pass `--config {source}` to say "

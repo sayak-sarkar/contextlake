@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **The repository-list cache no longer defaults into `/tmp`.** It now lives under
+  `~/.cache/contextlake` with `0700` permissions. The old default was world-readable in a
+  predictable location, listed every repository the account can reach along with clone URLs, and
+  was shared by every workspace on the machine, so per-directory configs were not actually
+  isolated. `.contextlake.ini.example` shipped an active `cache_dir = /tmp` line, and the
+  "no config found" error points users at that file, so the bad default propagated by being copied.
+- Mirror commands refuse to run when the configured group is missing or is still the
+  `your-gitlab-group` placeholder, instead of exiting 0 after printing a plausible sync report
+  against a group that does not exist. `init` already refused that exact placeholder, so the two
+  halves of the tool now agree.
+- `init --skip-interactive` no longer appends a completion block to your shell rc. Editing
+  `~/.zshrc` is a side effect well outside what `init` implies, and a non-interactive run never
+  asked. Use `contextlake completion` to opt in.
+- `contextlake inti` now suggests `init` rather than `kb lint`, and an unknown flag on a
+  subcommand prints that subcommand's usage instead of the root parser's.
+- The generated knowledge config names an explicit local provider rather than `auto`, so what runs
+  is visible in the file rather than resolved at call time.
+
+### Fixed
 - **An index left stale by an upgrade is no longer invisible.** `PARSER_VERSION` moved to `2` in
   5.0.0, but `doctor`'s staleness check only examined C and C++ repositories, and the re-index
   decision compared the repository HEAD alone. A Python or TypeScript repository indexed by 4.0.0

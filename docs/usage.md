@@ -24,10 +24,12 @@ has no post-install hook to run anything at (that's a deliberate Python packagin
 gap here), so instead the **first time any command runs in a real interactive terminal**,
 contextlake registers completion for you, once, and says so in the log. Skipped entirely in
 non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure — set
-`CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. `contextlake init` offers
-the same registration explicitly (on by default; pass `--no-completion` to skip) if you'd rather
-decide up front, and an explicit decline there is remembered — the automatic check never overrides
-it later.
+`CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. An **interactive**
+`contextlake init` offers the same registration explicitly (on by default; pass `--no-completion`
+to skip) if you'd rather decide up front, and an explicit decline there is remembered — the
+automatic check never overrides it later. A **non-interactive** `init` (`--skip-interactive`, or a
+piped stdin) never touches your shell startup file: nobody was asked, so pass `--completion` to opt
+in, or run `contextlake completion` afterwards.
 
 Run it again on demand (a different shell, after skipping it once, or just to re-run it) with:
 
@@ -129,7 +131,8 @@ This command:
 - Uses the GitLab API with pagination to fetch all projects
 - Includes subgroups automatically
 - Skips archived repositories
-- Caches results in `/tmp/gitlab_projects.txt` and `/tmp/gitlab_projects.json`
+- Caches results in `gitlab_projects.txt` and `gitlab_projects.json`, under a
+  per-workspace subdirectory of `~/.cache/contextlake` (override with `cache_dir`)
 
 ### `mirror clone`: clone missing repositories
 
