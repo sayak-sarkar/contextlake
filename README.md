@@ -126,7 +126,7 @@ It fails rather than falling back on purpose. Before 5.1.0 the store was written
 container instead, so the run appeared to succeed and the index was gone the moment the
 container exited.
 
-A `:slim` tag is also published — no `llama-cpp-python`, no baked wiki-LLM GGUF,
+A `:slim` tag is also published, no `llama-cpp-python`, no baked wiki-LLM GGUF,
 much smaller pull. Semantic search still works (the embedder is pure Python);
 point the wiki tier at Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
 
@@ -259,8 +259,8 @@ of**.
 ## Commands at a glance
 
 Run any command as `contextlake <command>`; each has scoped help via
-`contextlake <command> --help`. Each verb lives under the noun it belongs to — `mirror` for
-mirroring git repositories, `kb` for the knowledge layer — except `init`, `bootstrap`,
+`contextlake <command> --help`. Each verb lives under the noun it belongs to, `mirror` for
+mirroring git repositories, `kb` for the knowledge layer, except `init`, `bootstrap`,
 `version`, `completion`, and `doctor`, which span both tiers or neither. Per-command docs live
 with their layer: the **mirror** commands in **[usage.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/usage.md)**;
 the **knowledge-layer** commands (`kb index`, `kb embed`, `kb connect`, `kb wiki`, `kb query`,
@@ -296,7 +296,7 @@ Global options apply to any command: `--dry-run` (preview without changing anyth
 `-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`, `--version`. Output is colorized on
 a TTY and plain when piped; set `NO_COLOR` to force-disable.
 
-For runs nobody watches — the systemd timer in [`examples/`](examples/), cron, CI — there is a
+For runs nobody watches, the systemd timer in [`examples/`](examples/), cron, CI, there is a
 second set: `--log-format json` (one JSON object per line, every line stamped with a run id),
 `--metrics-file PATH` (Prometheus textfile-collector output), `--redact` (the `--log-file` copy
 is already scrubbed of workspace paths, group and repo names), and `--access-log`. See

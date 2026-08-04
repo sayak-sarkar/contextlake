@@ -122,9 +122,9 @@ high-value defs and FK references and is a **deliberate undercount**. Render it 
 orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
 call real (`expected_edges.json`, 13 edges); `tests/kb/test_sql_fixture_corpus.py` scores the parser's
 emitted `references` edges against it on every CI run. Current numbers on that corpus: **precision 0.90
-(9 true positives / 1 false positive), recall 0.69 (9 / 13 ground-truth edges found)** — a small,
+(9 true positives / 1 false positive), recall 0.69 (9 / 13 ground-truth edges found)**, a small,
 hand-built corpus, not a claim about the whole fleet, but real and reproducible. Two documented gap
-classes account for the four missed edges — both by design, not bugs: a
+classes account for the four missed edges, both by design, not bugs: a
 **self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is dropped because the
 extractor excludes `target == name`, and an FK **attached via a separate `ALTER TABLE ... ADD CONSTRAINT`**
 statement is never captured because the scope tracker only scans `REFERENCES` inside a `CREATE TABLE`'s

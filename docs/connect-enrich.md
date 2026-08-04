@@ -14,7 +14,7 @@ queries connected sources with codebase-derived terms and stores what comes back
   classified into issue/page links. It talks to one or more Atlassian sites over MCP, each independently
   authenticated. **Per-symbol attribution**: an issue key found in a specific symbol's own docstring, or
   in the git-blame commit message on its defining line, becomes a `tracked_by` edge sourced from that
-  *symbol* (not just the repo) — confirmed by the same batched JQL call and shown as the dashboard blast
+  *symbol* (not just the repo), confirmed by the same batched JQL call and shown as the dashboard blast
   radius page's **Ticket** breadcrumb, distinct from the repo-level **Links** crumb.
 - **Figma**: links repos to the design files they reference, classifying `figma.com` URLs to a stable file
   key. If a Figma MCP is configured, each reachable design's real metadata (a name and/or top structural
@@ -236,7 +236,7 @@ every remaining repo: after three consecutive failures the source is skipped for
 call is let through to see whether it came back. A run against an unreachable MCP server finishes in
 seconds instead of `timeout x repos`.
 
-You will see this in the output — it is never silent, because "the source was down" and "the source had
+You will see this in the output, it is never silent, because "the source was down" and "the source had
 nothing" would otherwise look identical:
 
 ```
@@ -246,10 +246,10 @@ resilience: skipping mcp:npx:https://mcp.example.test for 60s -- circuit open af
   consecutive failure(s) (TimeoutError); results from this source will be incomplete
 ```
 
-The name in that line identifies the endpoint by transport and host only — never the rest of the URL,
+The name in that line identifies the endpoint by transport and host only, never the rest of the URL,
 since a hosted MCP endpoint can carry a token in its path or query.
 
-Failures the *server* rejected rather than failed on — an unknown tool, a bad token — are reported as
+Failures the *server* rejected rather than failed on, an unknown tool, a bad token, are reported as
 themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
 source if the server is merely slow.
 

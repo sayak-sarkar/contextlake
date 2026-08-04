@@ -11,13 +11,13 @@ machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ol
 inline and scopes generation to the named repo(s).
 
 Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
-symbols, dependencies, files, and — when the repo's own checkout is available — an excerpt of its README
+symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
 and which conventional entry-point/config files it has, e.g. `package.json`, `Dockerfile`, `manage.py`)
 with a provenance footer citing the commit and sources, then puts the draft through a **verification
 council**, reviewers score it for accuracy, completeness, and clarity and a chairman publishes only pages
 above a configurable threshold. Nothing that fails review is written.
 
-By default the council reviews with the **same model that wrote the page** — so a small local model both
+By default the council reviews with the **same model that wrote the page**, so a small local model both
 drafts and grades its own work, and the tiny built-in 0.5B in particular tends to rubber-stamp almost
 everything. To gate a cheap local generator with a stronger judge, point the council at its own provider:
 
@@ -31,13 +31,13 @@ review_model = "claude-haiku-4-5"   # optional; defaults to the provider's own d
 `review_provider` accepts the same values as `provider` and wins unconditionally, so the inverse split
 (generate with a strong model, review with a cheap one) works too. It is strictly opt-in and never
 inferred from a stray API key in your environment, because it is not free: a run makes
-**pages × `council_size`** review calls against that provider (3 lenses per page by default — lower
+**pages × `council_size`** review calls against that provider (3 lenses per page by default, lower
 `council_size` to 1 to cut it threefold). Note that `contextlake doctor` checks the *generation* provider
 only, so a missing key for the review provider shows up as a run where every page is rejected with
 `N reviewer(s) returned nothing parseable` rather than as a doctor warning.
 
-How many symbols get sampled into that grounding set scales with the repo's own size —
-`max(15, min(80, node_count // 1500))` — instead of a flat count of 15. Below about 24,000 graph
+How many symbols get sampled into that grounding set scales with the repo's own size:
+`max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Below about 24,000 graph
 nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
 reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
 dispatchers) carry proportionally more grounding depth, bounded so the prompt stays a fixed cost.
@@ -48,13 +48,13 @@ zero-count row, since those two carry a real caller/callee count claim. One kind
 that reservation: a file-less `module` node is an import/`#include` **target**, not a symbol the
 repo defines, so it is not handed a guaranteed slot (it still ranks in on its own degree, as a
 heavily-included header legitimately does). The provenance footer also states the resulting
-coverage as a fact — "Grounded in N/M file-backed symbols (X%)" — the count of distinct symbols the
+coverage as a fact, "Grounded in N/M file-backed symbols (X%)", the count of distinct symbols the
 sample actually touched versus the repo's file-backed symbol count. Both sides count file-backed
 nodes only, so the ratio means the same thing on a whole-repo page and on one of its per-subsystem
 pages, which can structurally contain nothing else.
 
-The page has a fixed section order — Overview, Setup & Run, Architecture, Dependencies, Gotchas,
-Decisions — but a section is only ever written when the graph actually has something to ground it:
+The page has a fixed section order, Overview, Setup & Run, Architecture, Dependencies, Gotchas,
+Decisions, but a section is only ever written when the graph actually has something to ground it:
 "Setup & Run" needs a README excerpt or a detected config file, and separately flags when an indexed
 file lives under a directory literally named `generated/` (e.g. `src/generated/widgets.py`), so the
 model is warned off presenting that file's contents as hand-authored design. (`setup_signals` also
@@ -64,7 +64,7 @@ language set and never reach the graph, the count comes from a recursive, bounde
 repo's live checkout, the same way `setup_signals` already detects `package.json`/`Dockerfile`.)
 "Gotchas" needs at least one symbol with
 real callers in the graph, and states only the caller-count fact ("N caller(s) in the graph, worth
-extra care/tests when changed") — the model is explicitly told not to characterize *why* a symbol
+extra care/tests when changed"), the model is explicitly told not to characterize *why* a symbol
 has many callers, so it never invents a label like "foundational" or "critical infrastructure". A
 repo with no such signal simply gets fewer sections, never an empty heading. "External context"
 (below) is a separate, always-conditional block on top of that list, not
@@ -76,7 +76,7 @@ see [Model providers](model-providers.md).
 ## Per-subsystem pages for large, federated repos
 
 A repo with at least 5,000 graph nodes, where no single top-level module owns more than 60% of
-them, is treated as genuinely federated — one big source directory doesn't count, but a repo split
+them, is treated as genuinely federated, one big source directory doesn't count, but a repo split
 into several comparable subsystems does. `contextlake kb wiki` generates one additional page per
 qualifying subsystem automatically, no new flag needed, in addition to (never instead of) the
 whole-repo page. Each subsystem page is grounded only in that module's own symbols, files, and
@@ -87,12 +87,12 @@ covers only that module, not the repository as a whole. Subsystem pages live und
 question can land on a subsystem's own explanation, cited back to its own page file.
 
 Generation is capped at the 20 largest qualifying subsystems per run (largest first, by node
-count) so one `wiki` invocation on a very large repo stays bounded — a repo with far more than 20
+count) so one `wiki` invocation on a very large repo stays bounded, a repo with far more than 20
 qualifying subsystems only gets pages for its 20 largest; the rest go unwritten across runs (the
 run logs how many were skipped, rather than going silent about it). When subsystem pages exist,
 the whole-repo overview page's Architecture section names and briefly describes each one instead
 of trying to summarize their internals inline, and points the reader to its dedicated page. The
-overview page only picks this up the next time it's actually regenerated, though — a repo already
+overview page only picks this up the next time it's actually regenerated, though, a repo already
 wiki'd at its current commit has its overview skipped as unchanged (subsystem pages still generate
 fresh), so an existing store only gets the naming after its next commit change, or a `--force` run
 (the dashboard's Regenerate button has a force option too).
@@ -123,7 +123,7 @@ so it stays advisory and cited; when the graph shows no coupling it says so rath
 Cluster pages get the same fixed-section, nothing-invented treatment as per-repo pages, including a
 "Gotchas" section when there's a real coupling-risk signal to ground it: the highest-weight internal edges
 (busiest cross-repo coupling in the namespace) and the member repos with the most boundary edges
-(the ones whose changes are most likely to ripple outside the namespace) — both read directly off data the
+(the ones whose changes are most likely to ripple outside the namespace), both read directly off data the
 cluster brief already computes, no new metric. Cluster pages are served over MCP by passing a namespace to
 `get_wiki`, and shown per group in the dashboard's fleet overview.
 
@@ -145,7 +145,7 @@ from, and a **STALE** badge if the indexed commit has since moved.
 
 With `contextlake kb dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
 Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
-background — see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes---allow-mutations).
+background, see [The dashboard → Mutating routes](dashboard.md#11-mutating-routes---allow-mutations).
 
 ## Recorded decisions
 

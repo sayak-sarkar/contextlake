@@ -9,7 +9,7 @@ contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-laye
 Configuration is loaded in this precedence order:
 
 1. **Local config**: the nearest ancestor directory's `.contextlake.ini`, walking up from the current
-   directory to the filesystem root (like git's `.git` discovery) — highest priority. A config at your
+   directory to the filesystem root (like git's `.git` discovery), highest priority. A config at your
    project root is inherited by every subdirectory underneath it; you don't need to be in the exact
    directory that holds the file.
 2. **Global config**: `~/.contextlake.ini` in the home directory
@@ -18,7 +18,7 @@ Configuration is loaded in this precedence order:
 
 Run `contextlake init --local` inside a project to create that project's local config
 (`.contextlake.ini` + `.contextlake/kb.toml`'s knowledge-layer equivalent, `.contextlake.kb.toml`) instead
-of the global one — see [Directory-scoped config](#directory-scoped-config) below.
+of the global one, see [Directory-scoped config](#directory-scoped-config) below.
 
 An example `.contextlake.ini`:
 
@@ -58,7 +58,7 @@ contextlake kb source add jira --type atlassian --local   # scopes a source the 
 ```
 
 Every command run from that directory (or any subdirectory underneath it) picks up this local config
-automatically — you don't need to pass `--config` yourself, and you don't need to be in the exact
+automatically, you don't need to pass `--config` yourself, and you don't need to be in the exact
 directory the file lives in. Resolution walks up from the current directory to the filesystem root
 looking for `.contextlake.ini` / `.contextlake.kb.toml`, the same way `git` finds `.git` from anywhere
 inside a repo; the *nearest* ancestor wins if more than one project happens to be nested.
@@ -71,12 +71,12 @@ precedence over both the local and global tiers.
 `init --local` also scopes the *values* it writes, not just the config file's location: `work_dir`
 defaults to the current directory (override interactively, or with `--work-dir`), and the
 knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to that workspace instead
-of the global `~/.contextlake/kb` (override with `--store-dir`) — so two separate `--local` projects
+of the global `~/.contextlake/kb` (override with `--store-dir`), so two separate `--local` projects
 never end up sharing one store.
 
 ## Workspace trust
 
-Because a local config is *discovered* rather than named, one can take effect that you never wrote —
+Because a local config is *discovered* rather than named, one can take effect that you never wrote:
 notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the few config keys that
 become part of a command contextlake executes are honoured **only** from the global
 `~/.contextlake/kb.toml` or from a path you pass to `--config`:
@@ -94,7 +94,7 @@ when scoping sources with `contextlake kb source add ... --local` is that an *MC
 has to live in the global file (or be reached with `--config`); an `mcp` **URL** is fine locally.
 
 Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
-`.contextlake.kb.toml` — recommended in CI, containers, and anywhere untrusted checkouts are processed in
+`.contextlake.kb.toml`, recommended in CI, containers, and anywhere untrusted checkouts are processed in
 bulk. With it set, `source add --local` writes to the global config too, rather than to a local file that
 would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the full model.
 

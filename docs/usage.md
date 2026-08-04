@@ -18,15 +18,15 @@ full command list.
 
 ### Shell completion
 
-On by default, and set up automatically — no command to remember. `argcomplete` is a core
+On by default, and set up automatically, no command to remember. `argcomplete` is a core
 dependency, so `pip install contextlake` alone is enough, no separate extra; a plain `pip install`
 has no post-install hook to run anything at (that's a deliberate Python packaging limitation, not a
 gap here), so instead the **first time any command runs in a real interactive terminal**,
 contextlake registers completion for you, once, and says so in the log. Skipped entirely in
-non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure — set
+non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure, set
 `CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of this check altogether. An **interactive**
 `contextlake init` offers the same registration explicitly (on by default; pass `--no-completion`
-to skip) if you'd rather decide up front, and an explicit decline there is remembered — the
+to skip) if you'd rather decide up front, and an explicit decline there is remembered, the
 automatic check never overrides it later. A **non-interactive** `init` (`--skip-interactive`, or a
 piped stdin) never touches your shell startup file: nobody was asked, so pass `--completion` to opt
 in, or run `contextlake completion` afterwards.
@@ -55,7 +55,7 @@ register-python-argcomplete --shell fish contextlake > ~/.config/fish/completion
 
 For a shell other than bash/zsh/fish, or to do it by hand, copy the block above for your shell and
 open a new shell afterward. `contextlake <TAB>` then completes every command and, inside a command,
-every one of its flags — generated live from the same parser that runs the command, so it can never
+every one of its flags, generated live from the same parser that runs the command, so it can never
 drift out of sync with the actual CLI surface. Uses
 [argcomplete](https://github.com/kislyuk/argcomplete) (pure Python, no dependencies of its own).
 
@@ -476,7 +476,7 @@ chmod +x /home/user/scripts/contextlake_wrapper.sh
 ### Exit codes
 
 `mirror fetch`, `clone`, `update`, `branches`, `verify` and `sync` exit `0` when nothing failed and
-`1` when anything did — including a partial run, where some repositories synced and others did not.
+`1` when anything did, including a partial run, where some repositories synced and others did not.
 `sync` aggregates across all five stages, so one failed clone fails the whole run, and `bootstrap`
 counts a failed mirror stage the same way it counts a failed knowledge-layer stage. (`mirror status`
 and `mirror audit` only report; they do not fail on what they find.)
@@ -487,7 +487,7 @@ not on repos that are merely missing or extra.
 
 `Ctrl-C` exits `130`; a bad `--config` path exits `1`.
 
-Pass `--exit-zero-on-partial` to exit `0` anyway when some repositories failed — the failures are
+Pass `--exit-zero-on-partial` to exit `0` anyway when some repositories failed, the failures are
 still reported, they just do not fail the job.
 
 `--verbose` also changes what a crash leaves behind: the top-level handler re-raises instead of
@@ -505,7 +505,7 @@ An exit code tells you *that* something broke; these four flags tell you *what*,
 ```
 
 - **`--log-format json`** emits one JSON object per line, each stamped with a `run_id` (pin your own
-  with `CONTEXTLAKE_RUN_ID`), the `command`, and — on per-repo lines — `repo`, `status`,
+  with `CONTEXTLAKE_RUN_ID`), the `command`, and, on per-repo lines, `repo`, `status`,
   `duration_ms`, and `error_type` on failures.
 - **`--metrics-file`** writes Prometheus textfile-collector output: run duration, exit code, repo
   counts by outcome, graph size, and a last-success timestamp that survives a failing run. Point

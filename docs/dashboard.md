@@ -85,8 +85,8 @@ one-click **Blast radius**, and every fact carries its provenance.
 ![A repo's anatomy: kinds and top symbols](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/repo-anatomy.png)
 
 Below Top symbols, a **Hotspots** section ranks the same call-graph degree data two
-other ways: **hubs** (most depended-on — worth protecting with tests) and
-**dispatchers** (widest fan-out — where behavior branches). Nothing new is extracted;
+other ways: **hubs** (most depended-on, worth protecting with tests) and
+**dispatchers** (widest fan-out, where behavior branches). Nothing new is extracted;
 it's the same index-time centrality data, split by direction instead of combined.
 
 ## 5. Diagrams
@@ -99,23 +99,23 @@ always available), **Classes** (classes/interfaces/structs/enums and their metho
 grouped by inferred category: network/compute/storage/database/security/module).
 
 A sixth format, **Sequence** (`--format sequencediagram`), needs a single symbol as its
-seed rather than a whole repo, so it isn't offered here — it's on the symbol page's
+seed rather than a whole repo, so it isn't offered here, it's on the symbol page's
 **Call sequence** card instead (§7).
 
 No new extraction: each tab renders data `index` already collected. A format is only
 enabled when the repo actually has the relevant node kind (e.g. **Classes** stays
-disabled for a repo with no classes) — this is read from the same anatomy census the
+disabled for a repo with no classes), this is read from the same anatomy census the
 repo page's Kinds card already shows, not a separate check. The raw Mermaid source sits
 below the rendered diagram with a one-click copy, for pasting into a PR or design doc.
 
 **A repo too large to draw in one slice** auto-narrows to its largest module instead of
-showing a truncated whole-repo tangle — and if that module is *itself* still too large,
+showing a truncated whole-repo tangle, and if that module is *itself* still too large,
 it keeps narrowing into that module's own largest child, one level at a time, until the
 view fits (or there's genuinely nowhere further to go). A breadcrumb trail (`Whole repo
 › src › payments › tests`) shows the path taken; click any earlier crumb to widen back
 out, or pick a different child from the narrow-further control to explore a sibling.
 
-Live-only (not part of a `--site` export, same as MCP console/Settings below) — Mermaid
+Live-only (not part of a `--site` export, same as MCP console/Settings below), Mermaid
 itself is lazy-loaded into the page only the first time this tab is opened.
 
 ## 6. Architecture & relationships
@@ -126,7 +126,7 @@ confidence and provenance (never shown as ground truth).
 
 A repo page's tables add a fourth tab, **Data flow**: which files read or write which
 SQL tables/views inside that one repo. Unlike the other three, this isn't a repo→repo
-edge — dependency/HTTP-flow/event-flow join on a node shared across repos (a package,
+edge, dependency/HTTP-flow/event-flow join on a node shared across repos (a package,
 an endpoint, a topic), but a table/view definition is only ever known within the repo
 that defines it, so a file's read/write only ever resolves inside its own repo. Data
 flow is therefore always scoped to the repo you're looking at, never cross-repo.
@@ -147,13 +147,13 @@ each to that symbol's repo-scoped architecture graph, curated wiki, and connecto
 (Jira/Confluence/GitLab). Wiki, Links, and Ticket only appear when they actually apply: an absent wiki,
 connector link, or per-symbol ticket is omitted from the trail, never shown as a dead crumb. **Ticket** is
 distinct from the repo-level Links crumb: it's an issue attributed to *this specific symbol* (from its own
-docstring or the git-blame commit message on its defining line — see
+docstring or the git-blame commit message on its defining line, see
 [Connect and enrich](connect-enrich.md#connectors)), live-JQL confirmed the same way a branch-derived key
 is. Clicking it opens the real tracker URL directly, not another dashboard view.
 
 ## 8. Path
 
-Sometimes the question isn't "what does this touch" (§7) but "how does A reach B" — a
+Sometimes the question isn't "what does this touch" (§7) but "how does A reach B", a
 single route, not a diagram. The **Path** tab takes two symbol names (or node ids) and
 shows the shortest one, as numbered steps. If a name is ambiguous across repos, it lists
 the candidates and asks you to narrow (a node id, or a name unique to one repo, resolves
@@ -171,26 +171,26 @@ contextlake kb wiki acme/catalog-api --llm builtin
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
 API key (install the `llm-local` extra first); `ollama` / `openai` use those backends.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
-renders directly in the Wiki tab — no click-through needed — grounded in the repo's real
+renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
 symbols and (when available) its own README and conventional setup/config files, with a
-fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions —
+fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions;
 sections with nothing to ground them are left out, never emitted empty), plus an attributed
 "external context" block from connected sources when there's real data to cite, and a
 provenance footer citing the exact commit and source files. A **STALE** badge appears next to
-the heading whenever the indexed commit has moved since the page was generated — that's
+the heading whenever the indexed commit has moved since the page was generated, that's
 always visible, not tucked behind anything.
 
 ![The Wiki tab: a generated page grounded in real symbols, with a provenance footer citing the commit and source files](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/wiki.png)
 
 **Large, federated repos** (see [generate-wiki.md → Per-subsystem pages](generate-wiki.md#per-subsystem-pages-for-large-federated-repos))
 get one additional wiki page per qualifying subsystem alongside the whole-repo overview. When any
-exist, a "Subsystem:" dropdown appears above the wiki content — pick one to swap in that
-subsystem's own page, or "Whole repo — overview" to go back, without leaving the tab. The dropdown
+exist, a "Subsystem:" dropdown appears above the wiki content, pick one to swap in that
+subsystem's own page, or "Whole repo, overview" to go back, without leaving the tab. The dropdown
 only ever lists subsystems that actually have a generated page on disk, so it never offers an
 option that would 404. Live-only, like MCP console/Settings above (no `--site` export).
 
 With `--allow-mutations`, the Wiki tab (single-repo) and Settings tab (fleet-wide) also
-carry a **Regenerate** button — see [§11](#11-mutating-routes---allow-mutations).
+carry a **Regenerate** button, see [§11](#11-mutating-routes---allow-mutations).
 
 See [knowledge-layer.md → Curated wiki](knowledge-layer.md#curated-wiki).
 
@@ -217,20 +217,20 @@ repo** on the fleet overview (clone a URL into `--workspace` + index it),
 process on the MCP console tab (not the stdio server your editor spawns -- this
 dashboard can't see or manage that one; see below for its bearer token), and
 **Regenerate** wiki (single-repo on
-that repo's Wiki tab, or fleet-wide on Settings — runs the exact `contextlake kb
+that repo's Wiki tab, or fleet-wide on Settings, runs the exact `contextlake kb
 wiki` CLI as a background process, detached from the request that started it, so
 it keeps running even if you close the browser tab).
-Regenerate always shows a real pre-flight count first — "N of M repos will
-regenerate, the rest are already up to date" — before you confirm, and a **Force**
+Regenerate always shows a real pre-flight count first, "N of M repos will
+regenerate, the rest are already up to date", before you confirm, and a **Force**
 checkbox to bypass that freshness check and regenerate everything in scope
-regardless (the estimate updates to reflect that before you confirm, too — a
+regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
 The MCP server this card starts is itself authenticated (see
 [Serve](serve.md#authenticating-the-network-transports)): the HTTP transport requires
 `Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
 output discarded, the dashboard mints that token instead of letting the server print one, and
-the card shows it alongside the endpoint — that card is the only place it appears. **Restart
+the card shows it alongside the endpoint, that card is the only place it appears. **Restart
 mints a new one**, so any client pinned to the old token must be re-pointed at the value the
 card then shows. The token is kept in `<store>/dashboard/mcp-server.pid`, created `0600`, so it
 survives a page reload.
@@ -278,7 +278,7 @@ Y", "explain repo Z". Two layers, always shown together:
   any reason, chat falls back to the free result rather than erroring out.
 
 If a question fails outright (a network hiccup, the server restarting mid-request, and
-so on), that turn shows a **Retry** button instead of leaving you to retype it — it
+so on), that turn shows a **Retry** button instead of leaving you to retype it, it
 resends the same question in place.
 
 `--llm-chat` is opt-in at server start, never toggled per-question: it mints the same

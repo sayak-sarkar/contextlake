@@ -91,19 +91,19 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 
 `contextlake kb serve --transport <stdio|http|sse>` (default `stdio`):
 
-- **`stdio`** — the default. The editor/agent spawns `contextlake kb serve` itself and talks to
+- **`stdio`**, the default. The editor/agent spawns `contextlake kb serve` itself and talks to
   it over stdin/stdout; this is what `steer`-generated `.mcp.json`/`.vscode/mcp.json` entries use.
   No token, no network: the pipe belongs to the process that spawned it.
-- **`http`** — Streamable HTTP, the MCP spec's current standard network transport (`--host`/
+- **`http`**, Streamable HTTP, the MCP spec's current standard network transport (`--host`/
   `--port`, default `127.0.0.1:8765`). Point clients at `http://127.0.0.1:8765/mcp`, not the bare
   host:port: the endpoint is the `/mcp` path, and the root returns 404. Prefer this transport for
-  any new remote/network wiring. **Authenticated** — see below.
-- **`sse`** — the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
+  any new remote/network wiring. **Authenticated**, see below.
+- **`sse`**, the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
   marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
   for clients that haven't moved off it yet; contextlake follows that guidance rather than
   dropping it. Its endpoint is `http://127.0.0.1:8765/sse`. Use `sse` only if your client
   specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
-  distinct, separate option from HTTP) — pick `http` first. Authenticated exactly like `http`.
+  distinct, separate option from HTTP), pick `http` first. Authenticated exactly like `http`.
 
 ### Authenticating the network transports
 
@@ -121,13 +121,13 @@ $ contextlake kb serve --transport http
 ```
 
 Every request needs `Authorization: Bearer <token>`; without it the server answers `401`. The
-token goes to stderr only — never to stdout, never to the log file — so it does not outlive the
+token goes to stderr only, never to stdout, never to the log file, so it does not outlive the
 process anywhere you did not put it.
 
 **Pin it for a client config.** A fresh token per launch is fine when you copy it by hand and
 useless when a config file has to hold it. Set `CONTEXTLAKE_MCP_TOKEN` and the server uses that
 value instead of minting one (an empty or whitespace-only value is treated as unset, and a fresh
-token is minted — it never turns authentication off):
+token is minted, it never turns authentication off):
 
 ```bash
 export CONTEXTLAKE_MCP_TOKEN='pick-your-own-long-random-string'
@@ -150,15 +150,15 @@ contextlake kb serve --transport http --host 0.0.0.0 --allow-remote
 Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
 to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (`0.0.0.0`) only
 answers requests whose `Host` is a loopback name, because the Host check has no way to know which
-address you meant — bind the address clients will actually name (`--host 192.0.2.10`).
+address you meant, bind the address clients will actually name (`--host 192.0.2.10`).
 
 **There is an access log, and it is off by default.** These servers are loopback developer tools
-whose console is already a command's output, so they stay quiet — but a server holding the whole
+whose console is already a command's output, so they stay quiet, but a server holding the whole
 code graph should be able to answer "what did it serve, and to whom". `--access-log` turns on one
 line per request (client address, request line, status).
 
-For contextlake's own servers — `kb dashboard --serve`, `kb graph --serve`, `kb graph --site
---serve` — those lines go through the same logger as everything else, so they land in `--log-file`
+For contextlake's own servers, `kb dashboard --serve`, `kb graph --serve`, `kb graph --site
+--serve`, those lines go through the same logger as everything else, so they land in `--log-file`
 and follow `--log-format json`, and the client-supplied request line is stripped of control
 characters first. `kb serve`'s `http`/`sse` transports are served by uvicorn rather than by
 contextlake's handler, so there the flag enables *uvicorn's* access log instead: its own format,

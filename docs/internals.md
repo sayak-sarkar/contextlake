@@ -15,7 +15,7 @@ The tool uses a hierarchical configuration system with the following precedence:
 
 1. **Configuration Files** (using Python's `configparser`):
    - Local config: `.contextlake.ini` in the nearest ancestor directory, walking up from cwd to the
-     filesystem root (`find_ancestor_config()` in `config.py`) — same discovery model as git's `.git`
+     filesystem root (`find_ancestor_config()` in `config.py`), same discovery model as git's `.git`
    - Global config: `~/.contextlake.ini` in home directory
    - Custom config: Specified via `--config` CLI argument
 

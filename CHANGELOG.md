@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Removed 106 em-dashes from documentation prose and added a test that keeps them out. The house
+  style has always been to avoid them, but the only thing enforcing it was `de_emdash` in
+  `site/build_docs.py`, which rewrites them at render time. That made the built site look correct
+  while the markdown source accumulated them, and they reached readers everywhere the site is not:
+  the repository on GitHub, the project page on PyPI, and `llms-full.txt`. Fenced code blocks are
+  exempt, since their bytes are meant to match what a terminal actually prints.
 - `doctor` printed a green `✓ config loads` whether or not a config existed, so a machine with
   no configuration at all looked identical to one whose config loaded cleanly, and the paths it
   had searched were never shown. The mirror side already reported both properly; the two halves

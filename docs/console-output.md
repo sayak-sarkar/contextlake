@@ -144,7 +144,7 @@ separately.
   accuracy/completeness/clarity: ...` lines are the per-lens reasons. **`unparseable review`** means the
   model returned a review the council couldn't score (common with the tiny built-in 0.5B model); those
   lenses are excluded from the mean rather than counted as zero. A rejection that also says
-  **`N reviewer(s) returned nothing parseable`** tells you how many lenses abstained — when that count
+  **`N reviewer(s) returned nothing parseable`** tells you how many lenses abstained, when that count
   equals your `council_size` on every page, suspect a *misconfigured reviewer* (missing API key, review
   CLI not on PATH) rather than genuinely weak pages: a reviewer that returns nothing rejects everything
   at score 0.0, which otherwise looks identical to a very strict council. A capable backend

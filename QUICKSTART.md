@@ -36,7 +36,7 @@ along: the bootstrap already points pip at the prebuilt CPU wheel index, so ther
 C++ toolchain to install and nothing for you to pass.
 
 **`[kb-full]`** is the batteries-included install: the knowledge layer plus the
-built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend — so
+built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend, so
 semantic search and the `ask` tool work the moment you turn embeddings on, with no
 extra downloads or warnings. Plain **`[kb]`** is the graph + full-text search only; add
 `[kb-local]` for the embedder and `[kb-vec]` for the ANN backend if you prefer to pick.
@@ -68,19 +68,19 @@ See the [changelog](CHANGELOG.md) for what changed between versions.
 
 Real setups and the exact command for each. What the flags mean:
 
-- **`-U` / `--upgrade`** — move an already-installed contextlake to the newest version
+- **`-U` / `--upgrade`**, move an already-installed contextlake to the newest version
   (without it, pip sees it installed and does nothing).
-- **`--only-binary NAME`** — install that package from a prebuilt **wheel only, never
+- **`--only-binary NAME`**, install that package from a prebuilt **wheel only, never
   build from source** (`:all:` is the every-package token; opposite is `--no-binary`). On a
   machine with no C/C++ compiler this turns a confusing build failure into a clean "no
   wheel available" message. Name the one native package rather than using `:all:` when you
   still want a source fallback for everything else.
-- **`--extra-index-url URL`** — also look for wheels at `URL`. Required for the built-in
+- **`--extra-index-url URL`**, also look for wheels at `URL`. Required for the built-in
   wiki LLM: `llama-cpp-python` publishes no wheels to PyPI (llama.cpp is built per hardware
   backend, so upstream ships one index per accelerator), so without one pip compiles C++
   from source. See [Installing the built-in
   LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
-- **`[extra]`** — an optional feature bundle: `[kb-full]` (recommended: graph + search +
+- **`[extra]`**, an optional feature bundle: `[kb-full]` (recommended: graph + search +
   built-in embedder + `sqlite-vec` ANN), `[kb]` (graph + full-text only), `[kb-local]` /
   `[kb-vec]` (pick embedder / ANN yourself), `[llm-local]` (the built-in wiki model).
 
@@ -103,8 +103,8 @@ docker rmi ghcr.io/sayak-sarkar/contextlake    # if you pulled the image
 ```
 
 That leaves your data in place. contextlake never writes inside your repositories, so
-uninstalling it can't touch your source. To also remove what it created locally —
-all optional, delete only what you don't want to keep:
+uninstalling it can't touch your source. To also remove what it created locally (all
+optional), delete only what you don't want to keep:
 
 ```bash
 rm -rf ~/.contextlake        # knowledge store, kb.toml config, graph/dashboard exports, wiki

@@ -125,16 +125,16 @@ token** and remove `~/.pypirc`, the workflow no longer needs them. (Manual
 
 The same tag push also builds and publishes **two** Docker image variants to the
 **GitHub Container Registry** via the `docker` job in `release.yml` (using the
-built-in `GITHUB_TOKEN` with `packages: write`, no extra secret) — both built from
+built-in `GITHUB_TOKEN` with `packages: write`, no extra secret), both built from
 the same multi-stage [`Dockerfile`](../Dockerfile) (see also
 [`docker/prefetch_models.py`](../docker/prefetch_models.py)), non-root, with no
 compiler toolchain in the final image:
 
-- **full** (`--target full`) — the `[kb,kb-local,llm-local]` extras with the pinned
+- **full** (`--target full`), the `[kb,kb-local,llm-local]` extras with the pinned
   models **baked in** (model2vec embedder + a small GGUF wiki LLM), so `docker run`
   needs no Ollama, no API key, and no model download at runtime. Useful for
   zero-config or air-gapped use, at the cost of a larger pull.
-- **slim** (`--target slim`) — the `[kb,kb-local,kb-vec]` extras only: no
+- **slim** (`--target slim`), the `[kb,kb-local,kb-vec]` extras only: no
   `llama-cpp-python`, no baked GGUF, much smaller pull. Semantic search still works
   out of the box (model2vec is pure Python); point the wiki tier at
   Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
@@ -167,11 +167,11 @@ visibility under the repo's *Packages* once published.
 The same tag push also triggers [`.github/workflows/binaries.yml`](../.github/workflows/binaries.yml),
 a **separate** workflow from `release.yml` so a binary-build failure there can never
 block the PyPI publish. It builds one launcher per platform (Linux x86_64, macOS
-arm64, Windows x86_64) via [PyApp](https://ofek.dev/pyapp/) — a small Rust binary
+arm64, Windows x86_64) via [PyApp](https://ofek.dev/pyapp/), a small Rust binary
 that embeds `contextlake`'s project metadata (`PYAPP_PROJECT_NAME`,
 `PYAPP_PROJECT_VERSION` from the tag, `PYAPP_PROJECT_FEATURES=kb-full,llm-local`,
 `PYAPP_EXEC_SPEC=contextlake.cli:main`) and bootstraps a private Python + the
-package into its own cache the first time it runs — nothing needs to be
+package into its own cache the first time it runs, nothing needs to be
 preinstalled, not even Python. Binaries are uploaded as assets on the same
 GitHub Release `release.yml` creates (whichever workflow finishes first creates
 the release; the other edits/uploads onto it).
@@ -183,7 +183,7 @@ paired `--only-binary` names that one package rather than `:all:`, which would
 forbid a source fallback for every other dependency and let a single missing wheel
 break the binary outright. Keep both flags together if you ever change one.
 
-To reproduce a build locally (needs a Rust toolchain — `rustup` on any platform):
+To reproduce a build locally (needs a Rust toolchain, `rustup` on any platform):
 
 ```bash
 PYAPP_PROJECT_NAME=contextlake PYAPP_PROJECT_VERSION=2.56.0 \

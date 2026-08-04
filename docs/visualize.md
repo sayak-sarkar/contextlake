@@ -64,7 +64,7 @@ Output is chosen with `--format`:
   `contextlake kb graph --repo acme/app --format erdiagram`. No attribute/column data (the extractor
   only captures `CREATE TABLE`/`VIEW` names and FK targets), so entities render as bare boxes with
   relationship lines, not column lists. A `REFERENCES` clause always points child-row to parent-row,
-  so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL** — an
+  so the parent is drawn on the "one" side of the notation. **Only sees raw `.sql` DDL**, an
   ORM-defined schema (SQLAlchemy, Entity Framework, TypeORM model classes, no literal `CREATE TABLE`
   text anywhere) renders an empty diagram with guidance, not a bug.
 - **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
@@ -79,19 +79,19 @@ Output is chosen with `--format`:
   [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake kb graph --repo
   acme/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,
   file, line, lang / relation, confidence, weight) as GraphML `<data>` keys, so Gephi's own filter and
-  color-by-attribute tools work directly against them — not just a bare shape.
+  color-by-attribute tools work directly against them, not just a bare shape.
 - **`cypher`**, `CREATE` statements for a [Neo4j](https://neo4j.com/)/[FalkorDB](https://www.falkordb.com/)
   import: `contextlake kb graph --repo acme/app --format cypher --output g.cypher`, then `cypher-shell -f
-  g.cypher` (or FalkorDB's own loader). Node labels come from `kind`, relationship types from `relation`
-  — both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
+  g.cypher` (or FalkorDB's own loader). Node labels come from `kind`, relationship types from `relation`,
+  both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
   quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).
 - **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
-  `--format graphml` instead — real typed attributes, not a bespoke shape to parse).
+  `--format graphml` instead, real typed attributes, not a bespoke shape to parse).
 
 For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
 pre-rendering all of it. Like the dashboard, it answers a request only when the `Host` header names the
-address it was bound to (`--host`) or `localhost`, port included — that pinning is what stops a page on
+address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
 an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
 you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes---allow-mutations)).
 
@@ -128,10 +128,10 @@ contextlake kb graph --c4 --c1 --group-depth 2 --open
 ```
 
 **Deliberately unclassified.** contextlake can't tell a genuine third-party dependency (Stripe,
-GitHub's API) apart from an internal service this fleet simply hasn't indexed yet — both look
+GitHub's API) apart from an internal service this fleet simply hasn't indexed yet, both look
 identical here: an HTTP call whose target path matches no indexed repo's `exposes` route. Read the
 box labels yourself; you'll recognize your own internal hosts. `--c1` requires `--c4` (it has no
-meaning on its own) and needs no new extraction pass — the host was already captured at index time,
+meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.
 
 ## See also

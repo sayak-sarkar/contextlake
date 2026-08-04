@@ -9,7 +9,7 @@ by what may leave your machine and what hardware you have.
 
 - **`auto`** (default), resolves to a reachable local **Ollama** that already has the target model
   pulled, else the **built-in** CPU model if its extra is installed, else it skips that tier.
-  Reachability alone isn't enough to pick Ollama — a daemon running for other models (e.g. just a chat
+  Reachability alone isn't enough to pick Ollama, a daemon running for other models (e.g. just a chat
   model, with no embedding model ever pulled) falls straight through to the built-in tier instead of
   failing on first real use. So the semantic/wiki tiers Just Work the moment you set `enabled = true`,
   with no daemon and no API key.
@@ -49,7 +49,7 @@ by what may leave your machine and what hardware you have.
   explicitly-opted-into mode rather than an environment-variable override, so the strip is a defensive
   precaution there rather than a confirmed-necessary fix.
   **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
-  `--config` path** — never from a `.contextlake.kb.toml` found by walking up from your current
+  `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
   directory, since that file may have arrived inside a repository you cloned and these keys are a
   command line contextlake runs. Setting them locally logs a warning and is ignored; every other
   provider works from a local file as usual. See [Workspace trust](../SECURITY.md#workspace-trust).
@@ -82,8 +82,8 @@ accept_score = 0.7         # mean council score a page must clear to be written
 # review_model    = "claude-haiku-4-5"  # (usually stronger) backend than the one generating
 ```
 
-Unset, `review_provider` means the council reviews with the same client that generated the page —
-the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
+Unset, `review_provider` means the council reviews with the same client that generated the page,
+which is the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
 `pages × council_size` extra calls against that provider, so it is opt-in and never inferred from an
 API key that happens to be in your environment. See
 [Generate the wiki](generate-wiki.md) for the full rationale.
@@ -94,10 +94,10 @@ API key that happens to be in your environment. See
 | `ollama`  | `qwen2.5:3b`, `llama3.1`, `llama3.2:3b`  | must be `ollama pull`ed first |
 | `openai`  | `gpt-4o-mini`, or your server's model id | `base_url` defaults to `https://api.openai.com/v1`; point it at a local openai-compatible server to override |
 | `anthropic` | `claude-haiku-4-5`, `claude-opus-4-8`  | `base_url` defaults to `https://api.anthropic.com`; key from `ANTHROPIC_API_KEY` |
-| `cli`     | n/a — the CLI picks its own model         | `command` = the agent CLI to invoke (default `claude`); reuses that CLI's login |
+| `cli`     | n/a, the CLI picks its own model         | `command` = the agent CLI to invoke (default `claude`); reuses that CLI's login |
 
 `base_url` is resolved per provider, so you only set it to reach a proxy or a local
-openai-compatible server — never just to make `anthropic`/`openai` work.
+openai-compatible server, never just to make `anthropic`/`openai` work.
 
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
@@ -235,7 +235,7 @@ timeout  = 1200        # give a slow CPU room; default is 300s (5 min)
 If the endpoint stops answering rather than being slow, raising `timeout` makes things worse: a wiki run
 calls the model once per page. After three consecutive endpoint failures (a timeout, a refused
 connection, a 5xx) the provider is skipped for 60 seconds and then probed once, so a dead Ollama daemon
-or an unreachable API costs the run a few timeouts instead of one per page — and says so in the log. A
+or an unreachable API costs the run a few timeouts instead of one per page, and says so in the log. A
 rejected *request* is exempt and always reported as itself, so `model "..." not found, try pulling it
 first` keeps telling you to run `ollama pull` however many pages are left.
 
