@@ -289,6 +289,66 @@ def test_parse_cpp_ifdef_else_twins_collapse_to_one_node():
     assert setup_calls == {"FastInit", "SlowInit"}
 
 
+def _calls(shard):
+    """{(caller name, callee name)} over the shard's resolved calls edges."""
+    by_id = {n.id: n for n in shard.nodes}
+    return {(by_id[e.src].name, by_id[e.dst].name)
+            for e in shard.edges if e.relation == "calls"}
+
+
+def test_calls_do_not_resolve_across_languages(tmp_path):
+    # Resolution is repo-wide and by NAME, so a Python `close()` used to match a
+    # JavaScript `close()` and every Python caller became a "dependent" of a
+    # browser handler. Measured at 1/282 precision on a real repo.
+    (tmp_path / "store.py").write_text(
+        "def close():\n    pass\n"
+        "def shutdown():\n    close()\n"
+    )
+    (tmp_path / "ui.js").write_text(
+        "function close() {}\n"
+        "function onKey() { close(); }\n"
+    )
+    shard = index_repo_dir(str(tmp_path), "demo/mixed")
+    by_id = {n.id: n for n in shard.nodes}
+    calls = [e for e in shard.edges if e.relation == "calls"]
+    assert calls, "the two same-language calls must still resolve"
+    for e in calls:
+        assert by_id[e.src].lang == by_id[e.dst].lang
+    # each side resolves to exactly one definition now, so neither is ambiguous
+    assert {e.confidence.value for e in calls} == {"INFERRED"}
+    assert _calls(shard) == {("shutdown", "close"), ("onKey", "close")}
+
+
+def test_calls_resolve_across_languages_that_genuinely_interoperate(tmp_path):
+    # The filter groups languages, it does not compare them: TS and JS compile to
+    # one runtime and import each other, so a .ts caller must still reach a .js
+    # definition. Equality would silently break every mixed TS/JS repo.
+    (tmp_path / "util.js").write_text("function helper() {}\n")
+    (tmp_path / "app.ts").write_text("function run() { helper(); }\n")
+    shard = index_repo_dir(str(tmp_path), "demo/web")
+    assert ("run", "helper") in _calls(shard)
+
+
+def test_ambiguous_calls_record_how_many_candidates_they_had(tmp_path):
+    # "AMBIGUOUS" alone does not discriminate an unavoidable 1-of-2 from a 1-of-6
+    # guess. Only this pass knows the number, so it is carried on the edge.
+    (tmp_path / "a.py").write_text("class A:\n    def send(self):\n        pass\n")
+    (tmp_path / "b.py").write_text("class B:\n    def send(self):\n        pass\n")
+    (tmp_path / "c.py").write_text("def go(x):\n    x.send()\n")
+    shard = index_repo_dir(str(tmp_path), "demo/ambig")
+    ambiguous = [e for e in shard.edges
+                 if e.relation == "calls" and e.confidence.value == "AMBIGUOUS"]
+    assert len(ambiguous) == 2                       # one edge to each `send`
+    assert all(e.attrs.get("name_candidates") == 2 for e in ambiguous)
+
+
+def test_unambiguous_calls_carry_no_candidate_count(tmp_path):
+    (tmp_path / "a.py").write_text("def only():\n    pass\ndef go():\n    only()\n")
+    shard = index_repo_dir(str(tmp_path), "demo/one")
+    calls = [e for e in shard.edges if e.relation == "calls"]
+    assert calls and all("name_candidates" not in e.attrs for e in calls)
+
+
 def test_parse_cpp_ifdef_else_twins_calls_resolve_inferred(tmp_path):
     (tmp_path / "f.cpp").write_text(
         "#ifdef USE_FAST\n"

@@ -158,7 +158,10 @@ def _has_generated_header(source: bytes) -> bool:
 # "1" shard's bytes will never again be reproduced by re-indexing. A bump is
 # language-agnostic to everything that consumes it: doctor flags any shard at an
 # older version, and `kb index` re-indexes it rather than calling it unchanged.
-PARSER_VERSION = "2"
+# "3" is language-aware name resolution (see _LANG_FAMILY): a call/inherits
+# reference no longer resolves to a same-named definition in an unrelated
+# language, and AMBIGUOUS edges record how many candidates they were one of.
+PARSER_VERSION = "3"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {
@@ -919,18 +922,22 @@ class RefCollector:
     def resolved_edges(self, by_id: dict[str, Node]) -> list[Edge]:
         # Target-kind sets are module-level names defined further down the file,
         # so they are read here at call time rather than bound at class creation.
+        # The trailing flag is same-language resolution: a call/inheritance must
+        # stay inside one language family, while the HCL/SQL streams are
+        # cross-domain by design (code reads a table) -- see _resolve_name_refs.
         streams = (
-            (self.calls, "calls", _CALLABLE_KINDS),
-            (self.inherits, "inherits", _INHERITABLE_KINDS),
-            (self.hcl, "depends_on", _HCL_KINDS),
-            (self.sql, "references", _SQL_KINDS),
-            (self.data_reads, "reads", _SQL_KINDS),
-            (self.data_writes, "writes", _SQL_KINDS),
+            (self.calls, "calls", _CALLABLE_KINDS, True),
+            (self.inherits, "inherits", _INHERITABLE_KINDS, True),
+            (self.hcl, "depends_on", _HCL_KINDS, False),
+            (self.sql, "references", _SQL_KINDS, False),
+            (self.data_reads, "reads", _SQL_KINDS, False),
+            (self.data_writes, "writes", _SQL_KINDS, False),
         )
         edges: list[Edge] = []
-        for refs, relation, target_kinds in streams:
+        for refs, relation, target_kinds, same_language in streams:
             edges.extend(_resolve_name_refs(
-                refs, by_id, relation=relation, target_kinds=target_kinds))
+                refs, by_id, relation=relation, target_kinds=target_kinds,
+                same_language=same_language))
         return edges
 
 
@@ -1253,6 +1260,34 @@ _SQL_KINDS = {"table", "view"}
 # this is too generic (e.g. `get`/`handle`) to be signal and is skipped.
 _MAX_AMBIG_FANOUT = 6
 
+# Languages that can call into each other's definitions, keyed by the language a
+# candidate's file is written in. Name resolution is repo-wide and name-based, so
+# without this a Python `conn.close()` matched a `close()` in a JavaScript file
+# and every Python caller of any close() became a "dependent" of a browser event
+# handler -- 282 false positives on one real repo, precision 1/282.
+#
+# Grouped, not compared for equality, because the interop is real inside each
+# group and would otherwise be lost: TS/TSX/JS compile to one runtime and import
+# each other freely, a C++ .cpp routinely calls what a .h declares (and ".h" is
+# classified "cpp" -- see LANG_BY_EXT), and JVM languages call each other's
+# classes directly. Across groups a same-name match is coincidence, never a call.
+# A language absent here is its own group (Python, Go, Rust, C#, Ruby, PHP).
+_LANG_FAMILY = {
+    "javascript": "js", "typescript": "js", "tsx": "js",
+    "c": "c", "cpp": "c",
+    "java": "jvm", "kotlin": "jvm", "scala": "jvm",
+}
+
+
+def _family(lang: str | None) -> str | None:
+    """A language's interop group, or None when the language is unknown.
+
+    None disables the filter for that node rather than isolating it: HCL, SQL and
+    manifest nodes carry no lang, and their reference streams (depends_on /
+    references / reads / writes) are namespaced by kind instead.
+    """
+    return _LANG_FAMILY.get(lang, lang) if lang else None
+
 
 def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
     """Repo-wide second pass: link an out-of-line qualified method to its class.
@@ -1299,10 +1334,16 @@ def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
 
 def _resolve_name_refs(
     refs: list[tuple[str, str, str, int]], nodes_by_id: dict[str, Node],
-    *, relation: str, target_kinds: set[str],
+    *, relation: str, target_kinds: set[str], same_language: bool = False,
 ) -> list[Edge]:
     """Resolve ``(src_id, target_name, file, line)`` references to definitions
     repo-wide, emitting ``relation`` edges. Shared by calls and inherits.
+
+    ``same_language`` restricts candidates to the reference's own language family
+    (see :data:`_LANG_FAMILY`). It is on for ``calls``/``inherits``, where the
+    languages must genuinely match, and off for the HCL/SQL streams, which are
+    cross-domain by design (code ``reads`` a SQL table) and are kept apart by
+    their disjoint kind sets instead.
 
     An edge is INFERRED when a name maps to a single definition. A name mapping to
     2..``_MAX_AMBIG_FANOUT`` definitions is genuinely ambiguous — rather than drop it
@@ -1322,9 +1363,22 @@ def _resolve_name_refs(
 
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()
-    resolved = ambiguous = dropped = 0
+    resolved = ambiguous = dropped = cross_lang = 0
     for src_id, name, rel, line in sorted(refs, key=lambda r: r[3]):
         matches = name_index.get(name)
+        if not matches:
+            continue
+        # Drop candidates the reference's own language cannot reach BEFORE the
+        # fan-out cap, so a name that was only "too generic" because of unrelated
+        # same-named definitions in other languages resolves properly instead of
+        # being skipped. An unknown language on either side keeps the candidate.
+        src_family = _family(getattr(nodes_by_id.get(src_id), "lang", None)) \
+            if same_language else None
+        if src_family is not None:
+            reachable = {t for t in matches
+                         if (f := _family(nodes_by_id[t].lang)) is None or f == src_family}
+            cross_lang += len(matches) - len(reachable)
+            matches = reachable
         if not matches:
             continue
         if len(matches) == 1:
@@ -1342,12 +1396,18 @@ def _resolve_name_refs(
             edges.append(Edge(
                 src=src_id, dst=target, relation=relation, confidence=conf,
                 context="ambiguous" if conf is Confidence.AMBIGUOUS else None,
+                # How many definitions this one reference could have meant. Carried
+                # on the edge because only this pass knows it: a consumer re-deriving
+                # it later would have to guess the kind set and the language filter,
+                # and a "confidence" label nobody can quantify is decoration.
+                attrs={"name_candidates": len(targets)} if len(targets) > 1 else {},
                 provenance=Provenance(source_file=rel, source_line=line,
                                       verified_at=date.today())))
             if conf is Confidence.INFERRED:
                 resolved += 1
     if edges or dropped:
         log(f"  resolved {resolved} {relation} edge(s); {ambiguous} ambiguous "
-            f"(<= {_MAX_AMBIG_FANOUT} candidates), {dropped} too-generic skipped",
+            f"(<= {_MAX_AMBIG_FANOUT} candidates), {dropped} too-generic skipped, "
+            f"{cross_lang} cross-language candidate(s) rejected",
             level=logging.DEBUG)
     return edges

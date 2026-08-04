@@ -1,7 +1,9 @@
 {
   "edges": [
     {
-      "attrs": {},
+      "attrs": {
+        "name_candidates": 2
+      },
       "confidence": "AMBIGUOUS",
       "context": "ambiguous",
       "dst": "demo_fixture_svc_core_base_py_basehandler_handle_8",
@@ -15,7 +17,9 @@
       "weight": 1.0
     },
     {
-      "attrs": {},
+      "attrs": {
+        "name_candidates": 2
+      },
       "confidence": "AMBIGUOUS",
       "context": "ambiguous",
       "dst": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
@@ -1224,6 +1228,6 @@
       "repo": "(shared)"
     }
   ],
-  "parser_version": "2",
+  "parser_version": "3",
   "repo": "demo/fixture"
 }
