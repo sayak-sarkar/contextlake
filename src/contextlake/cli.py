@@ -1122,7 +1122,32 @@ Examples:
                         "(default 1)")
     _add_net(p)
 
-    command("doctor", "check the knowledge-layer install and configuration (✓/✗)")
+    p = command("doctor", "check the knowledge-layer install and configuration (✓/✗)",
+                epilog="""
+Examples:
+  contextlake doctor                     report only, exactly as it always has
+  contextlake doctor --fix               install what your config calls for
+  contextlake doctor --fix llm-local     install one capability, whatever the config says
+  contextlake doctor --fix --dry-run     print the full plan, change nothing
+
+--fix installs Python packages into THIS interpreter (sys.executable -m pip).
+System packages (git, a C++ toolchain) are only ever printed and offered with a
+y/N prompt at a real terminal: with --skip-interactive, or when stdin is not a
+terminal, the command is printed and nothing privileged runs.
+                """)
+    # No choices=[...]: combined with nargs="?" and the SUPPRESS default,
+    # argparse on 3.9-3.11 validates the SUPPRESS sentinel itself against
+    # choices when the option is omitted (same trap documented on `completion`'s
+    # positional below). run_fix() validates the value and lists the valid keys.
+    p.add_argument("--fix", nargs="?", const="auto", default=_S, metavar="CAPABILITY",
+                   help="install missing dependencies: with no value, only what the "
+                        "resolved config calls for; or name one (git, embedder, "
+                        "vectors, llm-local)")
+    p.add_argument("-n", "--dry-run", action="store_true", dest="dry_run", default=_S,
+                   help="--fix: print the full plan without installing anything")
+    p.add_argument("--skip-interactive", dest="skip_interactive", action="store_true",
+                   default=_S,
+                   help="--fix: never prompt; privileged commands are printed, not run")
 
     p = command("eval", "score a golden-query set against the index "
                         "(precision@k / recall@k / MRR)")

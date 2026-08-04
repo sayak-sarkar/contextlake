@@ -279,7 +279,9 @@ def test_doctor_warns_when_builtin_llm_runtime_missing(tmp_path, capsys, monkeyp
     code = _run(["doctor", "--config", str(cfg)])
     out = capsys.readouterr().out
     assert "runtime not installed" in out
-    assert "contextlake[llm-local]" in out
+    # the hint is the executable remediation, not a pip line the user must know to
+    # amend with the CPU wheel index (llama-cpp-python ships no PyPI wheels)
+    assert "doctor --fix llm-local" in out
     assert code == 0  # optional tier: a missing wiki-LLM runtime is advisory, not a failure
 
 

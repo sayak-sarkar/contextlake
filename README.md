@@ -84,6 +84,17 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 | `[kb-fastembed]` | A higher-quality ONNX embedder (~90 MB) | Better semantic ranking |
 | `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `wiki --llm builtin` with no Ollama or API key |
 
+`[llm-local]` is the one extra a plain `pip install` cannot finish on its own: `llama-cpp-python`
+publishes no wheels to PyPI (llama.cpp is built per hardware backend, so upstream ships one index
+per accelerator), so pip compiles C++ unless you point it at one. Let contextlake do it:
+
+```bash
+contextlake doctor --fix llm-local     # add --dry-run to see the exact command first
+```
+
+This applies to pip installs only: the standalone binary has the index preconfigured and installs
+the runtime on its first run, and the full Docker image ships it baked in.
+
 </details>
 
 <details>

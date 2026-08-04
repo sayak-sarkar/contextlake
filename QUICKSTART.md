@@ -30,10 +30,10 @@ without the built-in embedder; `[kb-full]` is batteries-included. From a clone: 
 
 No Python on the machine at all? The **Binary** tab needs nothing preinstalled: it's a
 self-contained launcher (built with [PyApp](https://ofek.dev/pyapp/)) that bootstraps a
-private Python + `contextlake[kb-full]` into its own cache on first run (needs network
-once; every run after that is instant, no reinstall). It doesn't include the optional
-`llm-local` wiki backend (that needs a C++ toolchain to build) — `ollama`/`openai`/
-`anthropic`/`cli` all still work as wiki LLM providers.
+private Python + `contextlake[kb-full,llm-local]` into its own cache on first run (needs
+network once; every run after that is instant, no reinstall). The built-in wiki LLM comes
+along: the bootstrap already points pip at the prebuilt CPU wheel index, so there is no
+C++ toolchain to install and nothing for you to pass.
 
 **`[kb-full]`** is the batteries-included install: the knowledge layer plus the
 built-in CPU embedder (no Ollama, no API key) and the fast `sqlite-vec` backend — so
@@ -64,14 +64,16 @@ Real setups and the exact command for each. What the flags mean:
 
 - **`-U` / `--upgrade`** — move an already-installed contextlake to the newest version
   (without it, pip sees it installed and does nothing).
-- **`--only-binary :all:`** — install from prebuilt **wheels only, never build from
-  source** (`:all:` = every package; opposite is `--no-binary`). On a machine with no
-  C/C++ compiler this turns a confusing build failure into a clean "no wheel available"
-  message. It errors if a wheel truly doesn't exist — which is the point: a clear signal
-  beats a doomed compile.
-- **`--extra-index-url URL`** — also look for wheels at `URL` (e.g. the `llama-cpp-python`
-  CPU-wheel index that PyPI doesn't mirror). See [Why the built-in LLM needs a prebuilt
-  wheel](docs/knowledge-layer.md#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler).
+- **`--only-binary NAME`** — install that package from a prebuilt **wheel only, never
+  build from source** (`:all:` is the every-package token; opposite is `--no-binary`). On a
+  machine with no C/C++ compiler this turns a confusing build failure into a clean "no
+  wheel available" message. Name the one native package rather than using `:all:` when you
+  still want a source fallback for everything else.
+- **`--extra-index-url URL`** — also look for wheels at `URL`. Required for the built-in
+  wiki LLM: `llama-cpp-python` publishes no wheels to PyPI (llama.cpp is built per hardware
+  backend, so upstream ships one index per accelerator), so without one pip compiles C++
+  from source. See [Installing the built-in
+  LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 - **`[extra]`** — an optional feature bundle: `[kb-full]` (recommended: graph + search +
   built-in embedder + `sqlite-vec` ANN), `[kb]` (graph + full-text only), `[kb-local]` /
   `[kb-vec]` (pick embedder / ANN yourself), `[llm-local]` (the built-in wiki model).
@@ -81,8 +83,9 @@ Real setups and the exact command for each. What the flags mean:
 | "Just mirror my repos, nothing else." | `pipx install contextlake` |
 | "Full knowledge layer, zero config." | `pipx install "contextlake[kb-full]"` (or `uvx --from "contextlake[kb-full]" contextlake`) |
 | "Upgrade to the latest." | `pip install -U "contextlake[kb-full]"` (or `pipx upgrade contextlake`) |
-| "Brand-new Python (e.g. 3.14), no compiler, a source build just failed." | `pip install -U --only-binary :all: "contextlake[kb-full]"` — for the built-in wiki LLM (`[llm-local]`) also add `--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` |
-| "I don't want any local toolchain at all." | Use the image: `docker pull ghcr.io/sayak-sarkar/contextlake` (bundles every dep + the model — no compiler, no wheels to chase) |
+| "No compiler, and a source build just failed." | `pip install -U --only-binary :all: "contextlake[kb-full]"` |
+| "I want the built-in wiki LLM (`[llm-local]`), installed with pip." | `contextlake doctor --fix llm-local`, or by hand: `pip install "contextlake[llm-local]" --only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` (the index is **not** optional: upstream publishes no PyPI wheels, so without it pip compiles C++ from source) |
+| "I don't want any local toolchain at all." | The standalone binary (bootstraps its own Python and extras on first run, network needed once), or the image: `docker pull ghcr.io/sayak-sarkar/contextlake` (every dep + the built-in models baked in, works offline) |
 
 ### Uninstall
 
@@ -169,17 +172,29 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once)
-via the `llm-local` extra — `pip install "contextlake[llm-local]"`. If that extra fails
-to build (`llama-cpp-python` has no prebuilt wheel for your Python, e.g. 3.14, and no
-compiler is installed), install the CPU wheel directly, no compiler needed. The
-`--only-binary :all:` flag makes pip refuse a source build, so you get a clean error
-instead of a compiler-error wall:
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once) via
+the `llm-local` extra. The **standalone binary** already has it configured (it installs it on
+first run) and the **full Docker image** ships it baked in, so neither needs anything here.
+On a pip install:
 
 ```bash
-pip install --only-binary :all: llama-cpp-python \
+contextlake doctor --fix llm-local
+```
+
+That installs into the interpreter contextlake is running in, with the upstream CPU wheel
+index attached, and prints the exact command before running it (`--dry-run` prints it and
+stops). By hand it is:
+
+```bash
+pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
   --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
+
+The index is not optional: `llama-cpp-python` publishes **no wheels to PyPI**, because
+llama.cpp is built per hardware backend and upstream ships one index per accelerator (CPU,
+CUDA, Metal). So a plain `pip install "contextlake[llm-local]"` compiles C++ from source and
+needs `cmake` plus a compiler. See [Installing the built-in
+LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 
 Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
 (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:

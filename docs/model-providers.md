@@ -18,10 +18,12 @@ by what may leave your machine and what hardware you have.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     very fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
-  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`, `pip install
-    "contextlake[llm-local]"`. Fast to set up, but **0.5B is a modest writer** (good for coverage, not
+  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`,
+    `contextlake doctor --fix llm-local` (upstream ships no PyPI wheels, so a plain
+    `pip install "contextlake[llm-local]"` compiles C++ from source; see below).
+    Fast to set up, but **0.5B is a modest writer** (good for coverage, not
     polished prose) and CPU generation is **slow** (~4 calls/repo). Prefer Ollama at any real scale. See
-    [Why the built-in LLM needs a prebuilt wheel](#why-the-built-in-llm-needs-a-prebuilt-wheel-or-a-compiler)
+    [Installing the built-in LLM](#installing-the-built-in-llm-and-why-it-needs-a-wheel-index)
     and [How much does the model matter?](#how-much-does-the-model-matter).
 - **`ollama`**, a local [Ollama](https://ollama.com) daemon (`base_url`, default
   `http://127.0.0.1:11434`), the **recommended** wiki backend: no Python native build, and a 3B-8B model
@@ -100,48 +102,60 @@ openai-compatible server — never just to make `anthropic`/`openai` work.
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
 
-## Why the built-in LLM needs a prebuilt wheel (or a compiler)
+## Installing the built-in LLM (and why it needs a wheel index)
 
-The `builtin` wiki model runs a **GGUF** model through
-[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
-**C++** inference engine. Native (C/C++) packages ship as **prebuilt binary wheels**, one per (OS, CPU,
-Python version). Two consequences explain why an extra step is sometimes needed and why contextlake can't
-do it for you:
+**What you do depends on how you installed contextlake:**
 
-1. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
-   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
-   (for reproducibility and supply-chain safety). So contextlake cannot make `pip` look anywhere but your
-   configured indexes (PyPI by default), only *your* `pip` command can add one.
-2. **PyPI lags brand-new Pythons.** Wheels are uploaded per interpreter version; a just-released Python
-   (e.g. **3.14**) often has **no wheel on PyPI yet**, so `pip` falls back to the source tarball and tries
-   to **compile**, which needs `cmake` + a C/C++ compiler you may not have installed. That is the build
-   failure you saw.
-
-The maintainer also publishes a **prebuilt CPU wheel index** carrying wheels PyPI doesn't have yet, so
-pointing pip at it skips compilation entirely, no compiler needed:
+| Channel | What you do |
+| --- | --- |
+| **Standalone binary** | Nothing to pass. `llm-local` and the wheel index are preconfigured, and the binary installs them on its first run (which needs network once, like any first run). |
+| **Docker** (`ghcr.io/sayak-sarkar/contextlake`) | Nothing at all. The full image already carries the runtime and the GGUF, so it works offline. (The `:slim` tag deliberately does not; point that one at Ollama or an API.) |
+| **pip / pipx / uv** | One command, below. This is the only channel where you supply the index yourself. |
 
 ```bash
-pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+contextlake doctor --fix llm-local     # --dry-run prints the exact command and stops
 ```
 
-**Belt-and-suspenders: `--only-binary :all:`.** On a compiler-less machine, add this flag so pip *refuses*
-to fall back to a source build for **any** package, you get a clean "no matching distribution" message
-instead of a wall of `cmake`/compiler errors. `:all:` is the all-packages token (its opposite is
-`--no-binary`). Combined with the CPU-wheel index, this installs the built-in LLM on a brand-new Python
-with no toolchain:
+That runs pip in *your* interpreter with the CPU wheel index already attached, printing the command
+before it runs. By hand it is:
 
 ```bash
-pip install --only-binary :all: llama-cpp-python \
+pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
   --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
-The trade-off is deliberate: if a wheel genuinely doesn't exist for your platform, the command stops with
-an actionable error rather than attempting a build that can't succeed.
+### Why an index at all
 
-On a mainstream Python (3.10-3.13) none of this applies: `pip install "contextlake[llm-local]"` finds a
-PyPI wheel and Just Works. It is specifically the bleeding-edge-interpreter case that needs the extra
-index. The cleanest way to avoid the native build altogether is to **use Ollama** (below), a standalone
-binary with no Python compile step.
+The `builtin` wiki model runs a **GGUF** model through
+[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
+**C++** inference engine. Two facts explain the extra flag, and why contextlake cannot fold it into the
+extra itself:
+
+1. **Upstream publishes no wheels to PyPI at all**: every release is a source tarball. That is not
+   neglect: llama.cpp is compiled **per hardware backend**, and one PyPI namespace cannot hold the CPU,
+   CUDA and Metal builds of the same version and platform tag. So upstream ships **one index per
+   accelerator** instead, the same convention PyTorch uses with `download.pytorch.org/whl/cpu` versus
+   `/whl/cu121`. Without one of those indexes, `pip install "contextlake[llm-local]"` always falls back to
+   compiling, which needs `cmake` plus a C/C++ compiler.
+2. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
+   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
+   (for reproducibility and supply-chain safety). So the extra alone can never point pip anywhere but your
+   configured indexes; only the `pip` command line can add one.
+
+**Picking an index.** CPU is the default and what `doctor --fix` uses: the built-in tier is a small 0.5B
+model, and GPU inference is better served by Ollama anyway. The published alternatives are
+`.../whl/cu121`, `/whl/cu122`, `/whl/cu124` (CUDA) and `/whl/metal` (Apple silicon); swap the URL if you
+want one, the rest of the command is identical.
+
+**Why `--only-binary llama-cpp-python`.** It makes pip *refuse* a source build for that one package, so a
+platform with no wheel gives you a one-line "no matching distribution" instead of a wall of `cmake`
+errors. It deliberately names the package rather than using the `:all:` token: `:all:` would forbid a
+source fallback for **every** dependency, and one missing wheel anywhere would then fail the whole
+install.
+
+None of this applies to the other extras: `[kb]`, `[kb-local]`, `[kb-vec]` all resolve to ordinary PyPI
+wheels. It is specific to the built-in LLM. The cleanest way to avoid the native build altogether is to
+**use Ollama** (below), a standalone binary with no Python compile step.
 
 ## Using Ollama for the wiki
 

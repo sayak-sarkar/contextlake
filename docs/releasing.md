@@ -152,7 +152,8 @@ aliases, for the slim image (e.g. `2.1.5-slim`, `slim`, `latest-slim`). PyPI rem
 the **primary** distribution; GitHub Packages does not
 host PyPI-style Python packages, so these images are the only relevant GitHub
 Packages artifacts. The full image is still large (it compiles `llama-cpp-python`
-and bundles a GGUF) and its build downloads the models from HuggingFace, fine on
+from source, unlike the binary above, which installs a prebuilt wheel from the CPU
+index, and it bundles a GGUF) and its build downloads the models from HuggingFace, fine on
 GitHub's runners. To **build locally behind a TLS-inspecting proxy**, pass your OS
 CA bundle so the in-build HF download trusts it, e.g. `docker build --network=host
 --build-arg ... ` after baking `REQUESTS_CA_BUNDLE` into the build (or build on a
@@ -167,19 +168,27 @@ The same tag push also triggers [`.github/workflows/binaries.yml`](../.github/wo
 a **separate** workflow from `release.yml` so a binary-build failure there can never
 block the PyPI publish. It builds one launcher per platform (Linux x86_64, macOS
 arm64, Windows x86_64) via [PyApp](https://ofek.dev/pyapp/) — a small Rust binary
-that embeds `contextlake[kb-full]`'s project metadata (`PYAPP_PROJECT_NAME`,
-`PYAPP_PROJECT_VERSION` from the tag, `PYAPP_PROJECT_FEATURES=kb-full`,
+that embeds `contextlake`'s project metadata (`PYAPP_PROJECT_NAME`,
+`PYAPP_PROJECT_VERSION` from the tag, `PYAPP_PROJECT_FEATURES=kb-full,llm-local`,
 `PYAPP_EXEC_SPEC=contextlake.cli:main`) and bootstraps a private Python + the
 package into its own cache the first time it runs — nothing needs to be
 preinstalled, not even Python. Binaries are uploaded as assets on the same
 GitHub Release `release.yml` creates (whichever workflow finishes first creates
 the release; the other edits/uploads onto it).
 
+`llm-local` rides along, so `PYAPP_PIP_EXTRA_ARGS` carries the upstream CPU wheel
+index: `llama-cpp-python` publishes no wheels to PyPI, so without it the first run
+would try to compile C++ on a machine chosen for having nothing installed. The
+paired `--only-binary` names that one package rather than `:all:`, which would
+forbid a source fallback for every other dependency and let a single missing wheel
+break the binary outright. Keep both flags together if you ever change one.
+
 To reproduce a build locally (needs a Rust toolchain — `rustup` on any platform):
 
 ```bash
 PYAPP_PROJECT_NAME=contextlake PYAPP_PROJECT_VERSION=2.56.0 \
-  PYAPP_PROJECT_FEATURES=kb-full PYAPP_EXEC_SPEC="contextlake.cli:main" \
+  PYAPP_PROJECT_FEATURES=kb-full,llm-local PYAPP_EXEC_SPEC="contextlake.cli:main" \
+  PYAPP_PIP_EXTRA_ARGS="--only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu" \
   cargo install pyapp --root pyapp-out
 ./pyapp-out/bin/pyapp doctor   # first run bootstraps; every run after is instant
 ```

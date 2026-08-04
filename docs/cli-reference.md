@@ -122,7 +122,7 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
 | `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
-| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
+| `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness. `--fix` installs what is missing (see below) |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
 | `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
@@ -130,6 +130,34 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 The `mirror`-tier commands (`mirror fetch`, `mirror clone`, `mirror update`, `mirror branches`,
 `mirror verify`, `mirror sync`, `mirror status`, `mirror audit`) are covered under
 [Mirror repositories](usage.md).
+
+### `doctor --fix`: install what is missing
+
+`doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
+configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
+the local llama-cpp runtime. Name a capability to install it regardless of config.
+
+| Flag | Effect |
+| --- | --- |
+| `--fix` | Install every missing dependency the resolved config calls for |
+| `--fix <capability>` | Install one: `git`, `embedder`, `vectors`, `llm-local` |
+| `--dry-run` (`-n`) | Print the full plan, exact commands included, and change nothing |
+| `--skip-interactive` | Never prompt: privileged commands are printed, not run |
+
+Two privilege tiers, and the split is deliberate:
+
+- **Python packages** install into the interpreter contextlake is running in, with
+  `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
+  and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
+  CPU wheel index automatically and says why.
+- **System packages** (git, a C++ toolchain) need administrator rights. The exact command is printed
+  in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
+  when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
+  never trip a sudo prompt.
+
+`--fix` also explains, rather than re-raising, the failures that actually happen: a PEP 668
+externally-managed environment (use a venv or pipx), a proxy timeout, an untrusted intercepting CA,
+or no matching distribution. Nothing planned is ever run before it has been printed.
 
 ## See also
 

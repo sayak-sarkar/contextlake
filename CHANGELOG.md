@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `contextlake doctor --fix` resolves missing optional dependencies instead of only naming them.
+  With no argument it installs what your **resolved configuration** actually calls for, so a setup
+  using Ollama is never handed a local-LLM wheel it will not use; `--fix <capability>` overrides
+  that. `--dry-run` prints the plan and stops.
+
+  The privilege boundary is the point of the design. Python packages install into the current
+  interpreter via `sys.executable -m pip`. A **system** package (git, a toolchain) is never
+  installed silently: the exact command is printed and offered with a y/N at a real terminal, and
+  **nothing privileged runs without a TTY or under `--skip-interactive`**, so a CI job or a scripted
+  run can never trip a sudo prompt. An externally-managed environment (PEP 668) is reported with
+  the venv/pipx fix rather than pip's raw error.
+- The local-LLM install now attaches the CPU wheel index automatically, so it no longer needs a C++
+  toolchain. `llama-cpp-python` publishes no wheels to PyPI at all: llama.cpp is built per hardware
+  backend, and one namespace cannot hold the CPU, CUDA and Metal builds of a version, so upstream
+  ships an index per accelerator (as PyTorch does). Verified end to end on a Python 3.14 machine
+  with no `cmake` and no `g++`.
+
+### Fixed
+- The error raised the first time the built-in LLM is used now prints a command that actually
+  works. It previously suggested a plain `pip install`, which compiles from source and fails on any
+  machine without a toolchain, which is most machines that hit this message.
+- Corrected the install docs. They claimed a mainstream Python "finds a PyPI wheel and Just Works"
+  and framed the extra index as a brand-new-interpreter workaround. There is no PyPI wheel for any
+  Python version, so that guidance sent users into the exact build failure it promised to avoid.
+
 ### Changed
 - The standalone binaries now bundle the built-in local LLM (`llm-local`) alongside `kb-full`, and
   install it from a prebuilt wheel rather than compiling. `llama-cpp-python` publishes no wheels to

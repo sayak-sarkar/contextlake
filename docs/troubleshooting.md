@@ -73,6 +73,77 @@ The extra also pulls a tree-sitter grammar per supported language, several with
 native wheels. On a platform without prebuilt wheels those build from source,
 which is slow rather than broken.
 
+## `pip install "contextlake[llm-local]"` tries to compile C++
+
+```
+Building wheel for llama-cpp-python (pyproject.toml) ... error
+CMake Error: could not find cmake ...
+```
+
+Expected on every platform and every Python version, and only on a **pip**
+install. The standalone binary already carries the index in its bootstrap
+configuration (it installs the runtime on first run), and the full Docker image
+ships it baked in, so neither hits this.
+
+`llama-cpp-python` publishes **no wheels to PyPI at all**, every release is a
+source tarball, so pip has nothing to install but the sources and falls back to
+compiling `llama.cpp`, which needs `cmake` plus a C++ toolchain. That is not
+neglect upstream: llama.cpp is compiled per hardware backend, and one PyPI
+namespace cannot hold the CPU, CUDA and Metal builds of the same version, so
+upstream ships one index per accelerator instead (the convention PyTorch uses).
+
+Let contextlake attach the CPU index for you:
+
+```bash
+contextlake doctor --fix llm-local          # --dry-run prints the command and stops
+```
+
+Or by hand:
+
+```bash
+pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
+  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+```
+
+`--only-binary llama-cpp-python` makes pip refuse a source build for that one
+package, so a genuinely missing wheel is a one-line error instead of a
+compiler-error wall. It names the package rather than using `:all:` on purpose:
+`:all:` would forbid a source fallback for every other dependency too. For a GPU
+build, swap the URL for `.../whl/cu124` or `.../whl/metal`.
+
+contextlake cannot bake the index into the `[llm-local]` extra: PEP 508 has no
+field for one, deliberately, so only a `pip` command line can add it. If you would
+rather skip the native build entirely, use Ollama for the wiki tier
+(`--llm ollama`).
+
+## `contextlake doctor --fix` says the environment is externally managed
+
+```
+error: externally-managed-environment
+```
+
+Your distribution marked the system Python as managed by its own package manager
+(PEP 668), and pip refuses to write into it. `--fix` reports this rather than
+retrying, because the fix is where contextlake lives, not which flag you pass:
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install "contextlake[kb-full]"
+```
+
+or let `pipx` own the environment: `pipx install "contextlake[kb-full]"`. Never
+reach for `--break-system-packages`; it does what it says.
+
+## `doctor --fix` printed a `sudo` command instead of running it
+
+Working as designed. `--fix` installs **Python** packages into the current
+interpreter unattended, but a **system** package (git, a C++ toolchain) needs
+administrator rights, so it is only ever offered with a y/N prompt at a real
+terminal. Without a TTY, or with `--skip-interactive`, the exact command is
+printed and nothing privileged runs. That keeps a CI job or a scripted run from
+ever tripping a sudo prompt. Copy the printed command, run it yourself, and
+re-run `contextlake doctor`.
+
 ## Tests are slow locally
 
 Run the fast subset while iterating:

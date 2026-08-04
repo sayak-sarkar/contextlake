@@ -32,6 +32,7 @@ def _builtin_model_present(cache_dir, model_id: str) -> bool:
 def cmd_doctor(args) -> int:
     print("contextlake knowledge layer — doctor")
     ok = True
+    cfg = None
 
     fts = False
     try:
@@ -152,7 +153,7 @@ def cmd_doctor(args) -> int:
             _check("wiki LLM", True if runtime else None,
                    f"{llm.provider} · {bl.repo_id} · {model_state}" if runtime
                    else f"{llm.provider} · {bl.repo_id} · {model_state} · runtime not installed "
-                        "(pip install 'contextlake[llm-local]')")
+                        "(contextlake doctor --fix llm-local)")
         elif llm.provider == "anthropic":
             from ..llm.base import default_api_key_env
 
@@ -176,4 +177,24 @@ def cmd_doctor(args) -> int:
         ok &= _check("config + store", False, str(e))
 
     print(style.bold(style.green("OK")) if ok else style.bold(style.red("Problems found")))
-    return 0 if ok else 1
+
+    # --fix is strictly additive: the report above and the verdict line are
+    # untouched, so a plain `doctor` (the diagnostic everything else points at)
+    # behaves and exits exactly as it always has.
+    fix = getattr(args, "fix", None)
+    if not fix:
+        return 0 if ok else 1
+
+    fixed = False
+    if cfg is None:
+        print()
+        print(style.red("cannot plan fixes: the configuration above did not load"))
+    else:
+        # Lazy, like source_cmd above: plain doctor never pays for the
+        # remediation module's imports.
+        from .doctor_fix import run_fix
+
+        fixed = run_fix(cfg, fix,
+                        dry_run=bool(getattr(args, "dry_run", False)),
+                        skip_interactive=bool(getattr(args, "skip_interactive", False)))
+    return 0 if (ok and fixed) else 1
