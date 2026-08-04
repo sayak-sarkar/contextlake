@@ -8,7 +8,51 @@ from ... import style
 from ...logging_setup import log
 from ._common import (
     _open_store,
+    kb_config,
 )
+
+
+def _implicit_binding(cfg, out: Path) -> tuple[str | None, str | None]:
+    """Which config the generated launcher should pin when no ``--config`` was
+    given, and any warning owed to the user. Returns ``(path, warning)``.
+
+    The generated ``.mcp.json`` runs ``contextlake kb serve``, which an MCP
+    client execs with its cwd set to the workspace -- not to wherever steer ran.
+    With no ``--config`` on that command line the server re-resolves the store
+    by walking up from that cwd, so it can serve a different store than the one
+    these files describe. Pinning the config that was actually used removes the
+    ambiguity.
+
+    Not every config may be pinned, though. Writing ``--config <path>`` onto a
+    command line is exactly the act ``kb.trust`` treats as choosing a file, and
+    it promotes that file's gated keys (the ones that become subprocess argv)
+    to trusted. An ancestor-discovered ``.contextlake.kb.toml`` is deliberately
+    *not* trusted -- so auto-pinning one here would launder a file the user
+    never named into a privileged one, which is the exact hole that gate
+    exists to close. Those are warned about instead.
+    """
+    from ..config import GLOBAL_CONFIG
+    from ..trust import is_privileged_source
+
+    loaded = list(getattr(cfg, "loaded_from", None) or [])
+    if not loaded:
+        # Nothing on disk anywhere: the default store is the same from any cwd,
+        # so an unpinned launcher already resolves what these files describe.
+        return None, None
+    resolved = loaded[-1]  # highest precedence wins the store_dir
+    if is_privileged_source(resolved, None, global_config=GLOBAL_CONFIG):
+        return resolved, None
+    # Non-privileged (ancestor-discovered). Only a problem if the walk from the
+    # workspace wouldn't reach it anyway.
+    config_dir = Path(resolved).parent
+    if config_dir == out or config_dir in out.parents:
+        return None, None
+    return None, (
+        f"{out} is outside {config_dir}, so the generated MCP entry will resolve a "
+        f"different store than this run used ({cfg.store_path}). Re-run with "
+        "--config <path> to pin it (naming it on the command line is also what "
+        "makes its gated keys trusted)."
+    )
 
 
 def cmd_steer(args) -> int:
@@ -70,6 +114,10 @@ def cmd_steer(args) -> int:
             # wherever `contextlake steer` itself was invoked -- a relative path
             # would only resolve by accident. Store it absolute.
             config_path = str(Path(config_path).expanduser().resolve())
+        else:
+            config_path, unbound = _implicit_binding(kb_config(args), out)
+            if unbound:
+                log(style.warn(unbound))
         force = getattr(args, "force", False)
         facts = workspace_facts(store, store_dir)
         out.mkdir(parents=True, exist_ok=True)

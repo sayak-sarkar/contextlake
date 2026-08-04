@@ -3,7 +3,9 @@
 import json
 from argparse import Namespace
 from pathlib import Path
+from types import SimpleNamespace
 
+from contextlake.kb.cmds.steer import _implicit_binding
 from contextlake.kb.commands import cmd_steer
 from contextlake.kb.model import Node, Repo
 from contextlake.kb.state import check_schema
@@ -301,3 +303,124 @@ def test_cmd_steer_resolves_a_relative_config_path_to_absolute(tmp_path, monkeyp
     resolved = args[args.index("--config") + 1]
     assert Path(resolved).is_absolute()
     assert Path(resolved) == cfg.resolve()
+
+
+# --- store provenance (a generated file must name the store it came from) ---
+#
+# `--out` picks where files are written; the config chain picks the store. They
+# are resolved independently, so `kb steer --force` run from the wrong place
+# rewrote a correct 5,500-symbol AGENTS.md down to "2 symbols, 1 relations" with
+# exit 0 and no warning. Every number was right for the store that resolved --
+# nothing in the output said which store that was.
+
+
+def test_workspace_facts_carries_the_store_it_read(tmp_path):
+    store = _seed(tmp_path)
+    try:
+        facts = workspace_facts(store, tmp_path)
+    finally:
+        store.close()
+    assert facts["store"] == str(tmp_path)
+
+
+def test_render_agents_md_names_the_store_it_was_built_from(tmp_path):
+    store = _seed(tmp_path)
+    try:
+        facts = workspace_facts(store, tmp_path)
+    finally:
+        store.close()
+    md = render_agents_md(facts)
+    assert str(tmp_path) in md
+    # The counts and the store that produced them must travel together -- the
+    # counts alone were what made the wrong-store rewrite look plausible.
+    assert f"{facts['nodes']} symbols" in md
+    assert md.startswith("# AGENTS.md")  # provenance goes inside, not above, the H1
+
+
+def test_cmd_steer_records_the_store_in_the_generated_agents_md(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "ws"
+    out.mkdir()
+
+    assert cmd_steer(Namespace(config=cfg, out=str(out), workspace=None, force=False)) == 0
+
+    md = (out / "AGENTS.md").read_text()
+    # Asserted as a backticked code span, not a bare substring: the config path
+    # ".../kb.toml" already contains ".../kb", so a bare `in` check passes even
+    # with no provenance line at all.
+    assert "from the knowledge store at" in md
+    assert f"`{tmp_path / 'kb'}`" in md
+
+
+def test_steer_provenance_survives_a_refresh_from_a_different_store(tmp_path, monkeypatch):
+    """The actual incident: same --out, a second run against a smaller store.
+
+    The rewrite still happens (that is what steer does), but the file now says
+    which store produced the numbers, so the swap is visible in the diff."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    out = tmp_path / "ws"
+    out.mkdir()
+    real = _cfg(tmp_path)
+    assert cmd_steer(Namespace(config=real, out=str(out), workspace=None, force=False)) == 0
+    before = (out / "AGENTS.md").read_text()
+
+    stub_dir = tmp_path / "stub"
+    (stub_dir / "kb").mkdir(parents=True)
+    SqliteStore(stub_dir / "kb" / "index.sqlite").close()
+    check_schema(SqliteStore(stub_dir / "kb" / "index.sqlite"))
+    stub_cfg = stub_dir / "kb.toml"
+    stub_cfg.write_text(f'[kb]\nstore_dir = "{(stub_dir / "kb").as_posix()}"\n')
+
+    assert cmd_steer(
+        Namespace(config=str(stub_cfg), out=str(out), workspace=None, force=True)) == 0
+    after = (out / "AGENTS.md").read_text()
+
+    assert before != after
+    assert f"`{stub_dir / 'kb'}`" in after
+    assert f"`{tmp_path / 'kb'}`" not in after
+
+
+# --- launcher binding: the generated MCP entry must resolve the same store ---
+
+
+def test_implicit_binding_pins_the_global_config(tmp_path):
+    cfg = SimpleNamespace(loaded_from=[str(tmp_path / "global.toml")],
+                          store_path=tmp_path / "kb")
+    path, warning = _implicit_binding(cfg, tmp_path / "ws")
+    assert path is None and warning is None  # not the global config -> not pinned
+
+    import contextlake.kb.config as kb_config_mod
+
+    real_global = str(tmp_path / "global.toml")
+    orig = kb_config_mod.GLOBAL_CONFIG
+    try:
+        kb_config_mod.GLOBAL_CONFIG = real_global
+        path, warning = _implicit_binding(cfg, tmp_path / "ws")
+    finally:
+        kb_config_mod.GLOBAL_CONFIG = orig
+    assert path == real_global and warning is None
+
+
+def test_implicit_binding_refuses_to_promote_an_ancestor_config(tmp_path):
+    """Auto-pinning a discovered .contextlake.kb.toml would write --config onto
+    a command line, which is exactly what makes a config *trusted*. That would
+    launder a file the user never named into a privileged one."""
+    project = tmp_path / "project"
+    project.mkdir()
+    discovered = project / ".contextlake.kb.toml"
+    discovered.write_text("[kb]\n")
+    cfg = SimpleNamespace(loaded_from=[str(discovered)], store_path=project / "kb")
+
+    # Workspace outside the config's directory: unreachable by the ancestor walk.
+    path, warning = _implicit_binding(cfg, tmp_path / "elsewhere")
+    assert path is None
+    assert warning and "different store" in warning
+
+    # Workspace underneath it: the walk finds it, nothing to warn about.
+    assert _implicit_binding(cfg, project / "sub") == (None, None)
+
+
+def test_implicit_binding_is_quiet_when_no_config_exists(tmp_path):
+    cfg = SimpleNamespace(loaded_from=[], store_path=tmp_path / "kb")
+    assert _implicit_binding(cfg, tmp_path / "ws") == (None, None)
