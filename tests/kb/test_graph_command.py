@@ -1032,6 +1032,31 @@ def test_cli_graph_formats_and_seeds(tmp_path, capsys):
     assert html.exists() and _CDN_URL not in html.read_text()
 
 
+def test_cli_graph_site_honours_cdn(tmp_path):
+    # --cdn used to be dropped on the --site path: the export still vendored all
+    # three JS libs and carried no CDN reference at all, so a user building for a
+    # bandwidth-constrained host silently got the fat offline build instead.
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    out = tmp_path / "site"
+    assert _run(["kb", "graph", "--config", str(cfg), "--site", str(out), "--cdn"]) == 0
+    overview = (out / "overview.html").read_text(encoding="utf-8")
+    assert _CDN_URL in overview
+    assert '<script src="cytoscape.min.js"></script>' not in overview
+    assert not (out / "cytoscape.min.js").exists()   # nothing vendored
+    # contextlake's own assets have no CDN and stay local either way
+    assert (out / "app.js").is_file() and (out / "app.css").is_file()
+
+
+def test_cli_graph_site_defaults_to_the_offline_build(tmp_path):
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    out = tmp_path / "site"
+    assert _run(["kb", "graph", "--config", str(cfg), "--site", str(out)]) == 0
+    assert (out / "cytoscape.min.js").is_file()
+    assert _CDN_URL not in (out / "overview.html").read_text(encoding="utf-8")
+
+
 def test_cli_graph_requires_a_seed(tmp_path):
     cfg = _kb_config(tmp_path)
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0

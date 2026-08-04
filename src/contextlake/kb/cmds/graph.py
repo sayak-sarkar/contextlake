@@ -54,7 +54,8 @@ def cmd_graph(args) -> int:
                 log(f"Building cross-linked graph site (repos matching {patterns})…")
             else:
                 log("Building cross-linked graph site…")
-            viz.build_site(store, out_dir, repos=patterns, log=log)
+            viz.build_site(store, out_dir, repos=patterns,
+                           cdn=getattr(args, "cdn", False), log=log)
             log(style.ok(f"Wrote site -> {out_dir}  (open {out_dir / 'index.html'})"))
             return 0
 

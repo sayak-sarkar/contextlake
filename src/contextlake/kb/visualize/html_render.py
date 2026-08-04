@@ -433,7 +433,7 @@ def _match_repo(repo_id: str, patterns: list[str]) -> bool:
 def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
                repo_max_nodes: int = 500, overview_layout: str = "concentric",
                repo_layout: str = "cose", repos: list[str] | None = None,
-               log=lambda _m: None) -> Path:
+               cdn: bool = False, log=lambda _m: None) -> Path:
     """Emit a folder of cross-linked, offline HTML pages sharing one set of assets.
 
     Writes ``index.html`` + ``overview.html`` + one ``repo-<slug>.html`` per repo
@@ -446,10 +446,17 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
     repo id); when given, only matching repos get per-repo pages (and overview links
     to them) — the fleet overview itself still shows every repo. This keeps a scoped
     build small instead of materialising a page for all ~hundreds of repos.
+
+    ``cdn=True`` points every page's cytoscape ``<script src>`` at the CDN and skips
+    vendoring the three JS libs, for a thin build on a bandwidth-constrained host.
+    It is opt-in and off by default because it costs the export its offline
+    guarantee. ``app.css``/``app.js`` are contextlake's own and stay local either
+    way -- they are not on any CDN.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    for name in (*_LIB_FILES, "app.css", "app.js"):
+    assets = ("app.css", "app.js") if cdn else (*_LIB_FILES, "app.css", "app.js")
+    for name in assets:
         (out / name).write_text(_read_static_raw(name), encoding="utf-8")
 
     sizes = repo_node_sizes(store)
@@ -465,7 +472,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
             n["href"] = pages[n["id"]]
     meta["mode"] = "overview"
     (out / "overview.html").write_text(
-        to_html(to_payload(nodes, edges, meta),
+        to_html(to_payload(nodes, edges, meta), cdn=cdn,
                 layout=overview_layout, assets="sibling", site=True,
                 title="contextlake — fleet overview"), encoding="utf-8")
 
@@ -479,7 +486,7 @@ def build_site(store: Store, out_dir, *, max_nodes: int = 5000,
         rn, re_ = repo_subgraph(store, r, max_nodes=repo_max_nodes, meta=m)
         m.update(mode="repo", repo=r)
         (out / pages[r]).write_text(
-            to_html(to_payload(rn, re_, m),
+            to_html(to_payload(rn, re_, m), cdn=cdn,
                     layout=repo_layout, assets="sibling", site=True,
                     title=f"contextlake — {r}"), encoding="utf-8")
         if wiki_dir:
