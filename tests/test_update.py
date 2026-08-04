@@ -421,3 +421,64 @@ def test_summary_keeps_the_space_after_the_colon(tmp_path, base_config, monkeypa
     """style.ok() rstrips, so ok("... : ") + summary used to render "complete:0"."""
     line = core.style.ok("Update complete: " + core._summarize({"updated": [], "errors": []}))
     assert "complete: 0 updated" in core.style.strip_ansi(line)
+
+
+# --- authentication on the refresh path -------------------------------------
+# `update` and `branches` ran unauthenticated: the token env was built inline by
+# the clone path and nothing else could reach it. A workstation's ambient
+# credential helper hides this completely, so it only bites where the token is
+# the only credential (a container, a CI job) -- exactly the deployment shape.
+
+def _token_config(base_config):
+    cfg = dict(base_config)
+    cfg["platform"] = "gitlab"
+    cfg["token_env"] = "TEST_GITLAB_TOKEN"
+    return cfg
+
+
+def test_fetch_carries_the_token_header(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """A fetch must be given the same authenticated env a clone gets."""
+    _safe(monkeypatch)
+    monkeypatch.setenv("TEST_GITLAB_TOKEN", "s3cret")
+    make_local_repo(tmp_path, "team/api")
+    seen = {}
+
+    def handler(cmd, **kwargs):
+        if "fetch" in cmd:
+            seen["env"] = kwargs.get("env")
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="main\n")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    update_repository("team/api", str(tmp_path), _token_config(base_config))
+
+    env = seen.get("env")
+    assert env is not None, "fetch ran with env=None, so it never authenticated"
+    header = "".join(v for k, v in env.items() if k.startswith("GIT_CONFIG_VALUE_"))
+    assert "Authorization: Basic " in header
+    # The credential travels in the env, never in argv (visible in `ps`).
+    assert "s3cret" not in header
+
+
+def test_fetch_without_a_token_inherits_the_ambient_environment(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """No token means no injected header, so a credential helper still works."""
+    _safe(monkeypatch)
+    monkeypatch.delenv("TEST_GITLAB_TOKEN", raising=False)
+    make_local_repo(tmp_path, "team/api")
+    seen = {}
+
+    def handler(cmd, **kwargs):
+        if "fetch" in cmd:
+            seen["env"] = kwargs.get("env")
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="main\n")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    update_repository("team/api", str(tmp_path), _token_config(base_config))
+    assert seen.get("env") is None

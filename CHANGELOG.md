@@ -5,9 +5,34 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.1.1] - 2026-08-04
+
+Two defects found by manual CLI testing, both of which a developer machine hides.
 
 ### Fixed
+- **`kb connect` with a GitLab source could never have worked, and reported success anyway.**
+  Repo ids became canonical `host/namespace/project`, but the connector still prepended the
+  configured group and encoded the whole thing, requesting
+  `projects/group%2Fgitlab.com%2Fns%2Fproj`. Every call 404'd. The host segment is now dropped,
+  and `group` acts as a filter rather than a prefix, since the namespace it used to add is
+  already in the id. A repo with no `origin` remote carries the `name@root-commit` fallback id,
+  which names no GitLab project, and is now skipped rather than requested.
+
+  The second half is why it went unnoticed: `glab api` ran without `check=True`, so a rejected
+  call returned a non-zero code that nothing raised on. The circuit breaker never counted it,
+  never opened, and the resulting empty list was indistinguishable from "no open merge
+  requests", so a source whose every call was refused still printed
+  `✓ Connect complete: 0 external link(s) stored`. A refused call is now a failure the breaker
+  sees and the log names.
+
+  The unit tests passed throughout, because their fixtures used a bare `api/svc` repo id, a form
+  the system stopped emitting. They now derive the fixture from the function that produces it.
+- **`mirror update` and `mirror branches` never authenticated.** The token env was built inline
+  by the clone path and nothing else could reach it, so every fetch ran unauthenticated. On a
+  workstation an ambient git credential helper supplies the credential and hides this entirely.
+  Where the token is the only credential, a container or a CI job, the first sync clones
+  successfully and every later refresh fails with `could not read Username`. All three fetch
+  sites funnel through one helper, which now carries the same header the clone path uses.
 - Removed 106 em-dashes from documentation prose and added a test that keeps them out. The house
   style has always been to avoid them, but the only thing enforcing it was `de_emdash` in
   `site/build_docs.py`, which rewrites them at render time. That made the built site look correct
@@ -3574,3 +3599,4 @@ critical configuration bug.
 - Concurrent processing with ThreadPoolExecutor
 - Error handling and timeout management
 - Timestamped logging
+

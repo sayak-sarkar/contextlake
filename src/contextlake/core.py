@@ -788,13 +788,36 @@ def _rev_parse(full_path, ref="HEAD", timeout=30):
     return res.stdout.strip()
 
 
-def _run_git(args, cwd, timeout):
+def _git_auth_env(config):
+    """The authenticated child env for git-over-HTTPS, or ``None`` if no token.
+
+    Cloning built this env inline and nothing else did, so ``update`` and
+    ``branches`` ran unauthenticated. On a workstation an ambient credential
+    helper supplies the credential and hides it completely; in a container or CI
+    job, where the token is the only credential, the first sync clones fine and
+    every later refresh fails with ``could not read Username``. Same token, same
+    header mechanism as the clone path, just reachable from the other commands.
+    """
+    token = _platform_token(config)
+    if not token:
+        return None
+    name = platform_name(config)
+    user = PLATFORM_DEFAULTS.get(name, PLATFORM_DEFAULTS["gitlab"])["clone_user"]
+    return _git_token_env(token, user)
+
+
+def _run_git(args, cwd, timeout, env=None):
     """Run a git command, raising ``RuntimeError(stderr)`` on a non-zero exit.
 
     Raising (rather than returning a code) lets ``retry_with_backoff`` see the
     git error text via ``classify_error`` and decide whether to retry.
+
+    ``env`` carries the token header for private repos over HTTPS; ``None``
+    inherits this process's environment, which is what a public repo or an
+    ambient credential helper needs.
     """
-    res = subprocess.run(args, capture_output=True, text=True, cwd=cwd, timeout=timeout)
+    res = subprocess.run(args, capture_output=True, text=True, cwd=cwd, timeout=timeout,
+                         env=env)
     if res.returncode != 0:
         raise RuntimeError((res.stderr or res.stdout or "git command failed").strip())
     return res
@@ -824,9 +847,15 @@ def _git_reason(text, limit=120):
 
 
 def _fetch_with_retry(git_args, full_path, fetch_timeout, config):
-    """Fetch with exponential-backoff retry on transient proxy/network drops."""
+    """Fetch with exponential-backoff retry on transient proxy/network drops.
+
+    Every network operation outside cloning funnels through here (``update``'s
+    branch fetch and both of ``branches``' fetches), which is why authenticating
+    in this one place is enough to close the gap that left them unable to reach
+    a private repo when a token was the only credential.
+    """
     retry_with_backoff(
-        _run_git, git_args, full_path, fetch_timeout,
+        _run_git, git_args, full_path, fetch_timeout, _git_auth_env(config),
         max_retries=_int(config, "max_retries", "3"),
         backoff_initial=_float(config, "backoff_initial", "1"),
         backoff_max=_float(config, "backoff_max", "30"),

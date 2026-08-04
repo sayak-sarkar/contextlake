@@ -37,13 +37,18 @@ class GitLabConnector:
         # is to return [] rather than raise, which is exactly the shape that
         # otherwise makes an outage read as "this project has no open MRs".
         try:
+            # check=True is load-bearing, not tidiness. Without it a rejected call
+            # (404, 401, rate limit) returns a non-zero code that subprocess does
+            # not raise on, so the breaker never counted it, never opened, and the
+            # empty list it produced was indistinguishable from "no open MRs". A
+            # source whose every call was being refused therefore reported success.
             res = breaker_for("glab-api").call(
                 subprocess.run, ["glab", "api", endpoint], capture_output=True,
-                text=True, timeout=self.timeout)
+                text=True, timeout=self.timeout, check=True)
         except Exception as e:  # noqa: BLE001 - OSError/SubprocessError/CircuitOpenError
             note_unavailable("gitlab (glab api)", e)
             return []
-        if res.returncode != 0 or not res.stdout.strip():
+        if not res.stdout.strip():
             return []
         try:
             data = json.loads(res.stdout)
@@ -51,13 +56,33 @@ class GitLabConnector:
             return []
         return data if isinstance(data, list) else []
 
-    def _project_path(self, repo_id: str) -> str:
-        full = f"{self.group}/{repo_id}" if self.group else repo_id
-        return urllib.parse.quote(full, safe="")
+    def _project_path(self, repo_id: str) -> str | None:
+        """URL-encoded GitLab project path for a repo id, or ``None`` if it has none.
+
+        A repo id is canonical ``host/namespace/project`` (see
+        ``repo_identity.normalize_id``), while the API wants ``namespace/project``
+        alone. This previously prepended the configured group to the *whole* id and
+        encoded that, producing ``group%2Fgitlab.com%2Fns%2Fproj``, so every call
+        404'd. The host segment is dropped instead, and ``group`` now acts as a
+        filter rather than a prefix: the namespace it would have added is already
+        in the id.
+
+        A repo with no ``origin`` remote gets the ``name@root-commit`` fallback id,
+        which names no GitLab project at all. That returns ``None`` so the caller
+        skips it rather than issuing a request that cannot succeed.
+        """
+        if "/" not in repo_id:
+            return None
+        _host, path = repo_id.split("/", 1)
+        if self.group and path != self.group and not path.startswith(f"{self.group}/"):
+            return None
+        return urllib.parse.quote(path, safe="")
 
     def fetch(self, repo_id: str) -> tuple[list, list]:
         """Open merge requests and issues for a repo (live)."""
         enc = self._project_path(repo_id)
+        if enc is None:
+            return [], []
         mrs = self._run(f"projects/{enc}/merge_requests?state=opened&per_page={self.per_page}")
         issues = self._run(f"projects/{enc}/issues?state=opened&per_page={self.per_page}")
         return mrs, issues
@@ -75,6 +100,8 @@ class GitLabConnector:
         unwrapping and no change to that shared method.
         """
         enc = self._project_path(repo_id)
+        if enc is None:
+            return []
         try:
             diffs = self._run(f"projects/{enc}/merge_requests/{mr_iid}/diffs")
         except Exception:

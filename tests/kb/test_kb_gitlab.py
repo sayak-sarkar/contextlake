@@ -27,18 +27,53 @@ class _FakeGlab:
 
 # --- connector + endpoints -------------------------------------------------
 
-def test_fetch_builds_encoded_endpoints():
+# A repo id is canonical `host/namespace/project` -- what repo_identity.normalize_id
+# actually produces. These tests previously used bare `api/svc`, a form the system
+# stopped emitting, so they kept passing while every real call 404'd: the fixture and
+# the code were wrong in the same direction. Derived from the real producer below so
+# they cannot drift apart again.
+def test_repo_id_fixture_matches_what_the_producer_emits():
+    from contextlake.kb.repo_identity import normalize_remote_url
+    assert normalize_remote_url("https://gitlab.com/team/api.git") == "gitlab.com/team/api"
+    assert normalize_remote_url("git@gitlab.com:team/api.git") == "gitlab.com/team/api"
+
+
+def test_fetch_strips_the_host_segment_from_the_repo_id():
     fake = _FakeGlab()
-    mrs, issues = GitLabConnector("gl", group="team", runner=fake).fetch("api/svc")
+    mrs, issues = GitLabConnector("gl", group="team", runner=fake).fetch("gitlab.com/team/api")
     assert mrs[0]["iid"] == 7 and issues[0]["iid"] == 3
-    assert "team%2Fapi%2Fsvc" in fake.calls[0] and "merge_requests" in fake.calls[0]
+    # `team%2Fapi`, not `team%2Fgitlab.com%2Fteam%2Fapi`: the group is already in
+    # the id, so prepending it is what produced a guaranteed 404.
+    assert "projects/team%2Fapi/" in fake.calls[0] and "merge_requests" in fake.calls[0]
     assert "issues" in fake.calls[1] and "state=opened" in fake.calls[1]
 
 
-def test_fetch_without_group_uses_repo_id():
+def test_fetch_without_group_uses_the_full_namespace_path():
     fake = _FakeGlab()
-    GitLabConnector("gl", runner=fake).fetch("solo/repo")
-    assert "solo%2Frepo" in fake.calls[0]
+    GitLabConnector("gl", runner=fake).fetch("gitlab.com/solo/repo")
+    assert "projects/solo%2Frepo/" in fake.calls[0]
+
+
+def test_fetch_handles_a_nested_namespace_on_a_self_hosted_host():
+    fake = _FakeGlab()
+    GitLabConnector("gl", runner=fake).fetch("gitlab.example.internal/team/sub/proj")
+    assert "projects/team%2Fsub%2Fproj/" in fake.calls[0]
+
+
+def test_group_filters_rather_than_prefixes():
+    """A repo outside the configured group is skipped, not requested."""
+    fake = _FakeGlab()
+    mrs, issues = GitLabConnector("gl", group="team", runner=fake).fetch("gitlab.com/other/api")
+    assert (mrs, issues) == ([], [])
+    assert fake.calls == []
+
+
+def test_remoteless_repo_id_makes_no_request():
+    """The `name@root-commit` fallback names no GitLab project, so asking is pointless."""
+    fake = _FakeGlab()
+    mrs, issues = GitLabConnector("gl", runner=fake).fetch("myrepo@abc123def456")
+    assert (mrs, issues) == ([], [])
+    assert fake.calls == []
 
 
 def test_fetch_changes_returns_file_paths(monkeypatch):
