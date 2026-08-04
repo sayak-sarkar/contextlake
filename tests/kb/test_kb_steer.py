@@ -409,7 +409,9 @@ def test_implicit_binding_refuses_to_promote_an_ancestor_config(tmp_path):
     project = tmp_path / "project"
     project.mkdir()
     discovered = project / ".contextlake.kb.toml"
-    discovered.write_text("[kb]\n")
+    # Sets store_dir: this file really is what chose the store, which is the
+    # case where pinning it would change behaviour and so needs the refusal.
+    discovered.write_text(f'[kb]\nstore_dir = "{(project / "kb").as_posix()}"\n')
     cfg = SimpleNamespace(loaded_from=[str(discovered)], store_path=project / "kb")
 
     # Workspace outside the config's directory: unreachable by the ancestor walk.
@@ -419,6 +421,19 @@ def test_implicit_binding_refuses_to_promote_an_ancestor_config(tmp_path):
 
     # Workspace underneath it: the walk finds it, nothing to warn about.
     assert _implicit_binding(cfg, project / "sub") == (None, None)
+
+
+def test_implicit_binding_stays_quiet_when_the_ancestor_sets_no_store(tmp_path):
+    """An ancestor config that never sets store_dir did not choose the store --
+    the global one did, and that is found from any directory. Warning that the
+    store may differ would send the reader chasing a problem they do not have."""
+    project = tmp_path / "project"
+    project.mkdir()
+    discovered = project / ".contextlake.kb.toml"
+    discovered.write_text('[kb]\nlanguages = ["python"]\n')  # no store_dir
+    cfg = SimpleNamespace(loaded_from=[str(discovered)], store_path=tmp_path / "kb")
+
+    assert _implicit_binding(cfg, tmp_path / "elsewhere") == (None, None)
 
 
 def test_implicit_binding_is_quiet_when_no_config_exists(tmp_path):

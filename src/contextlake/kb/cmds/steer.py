@@ -47,6 +47,15 @@ def _implicit_binding(cfg, out: Path) -> tuple[str | None, str | None]:
     config_dir = Path(resolved).parent
     if config_dir == out or config_dir in out.parents:
         return None, None
+    # ...and only if this file is what chose the store. It wins the precedence
+    # chain overall, but a config that never sets store_dir leaves the global
+    # one's value standing, and the global config is found from any directory.
+    # Warning about a store that cannot actually change would send the reader
+    # chasing a problem they do not have.
+    from ..config import _read_toml
+
+    if "store_dir" not in (_read_toml(resolved).get("kb") or {}):
+        return None, None
     return None, (
         f"{out} is outside {config_dir}, so the generated MCP entry will resolve a "
         f"different store than this run used ({cfg.store_path}). Re-run with "
