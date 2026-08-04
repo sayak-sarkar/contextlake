@@ -257,6 +257,12 @@ Global options apply to any command: `--dry-run` (preview without changing anyth
 `-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`, `--version`. Output is colorized on
 a TTY and plain when piped; set `NO_COLOR` to force-disable.
 
+For runs nobody watches — the systemd timer in [`examples/`](examples/), cron, CI — there is a
+second set: `--log-format json` (one JSON object per line, every line stamped with a run id),
+`--metrics-file PATH` (Prometheus textfile-collector output), `--redact` (the `--log-file` copy
+is already scrubbed of workspace paths, group and repo names), and `--access-log`. See
+[Reading the console output](docs/console-output.md).
+
 ## Knowledge layer
 
 Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge

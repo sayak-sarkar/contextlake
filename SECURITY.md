@@ -29,8 +29,17 @@ we'll coordinate disclosure.
   already in your environment, and never written to disk or a log line.
 - **Configuration may contain a private GitLab group name.** Keep your real
   `.contextlake.ini`/`kb.toml` out of version control (both are git-ignored by
-  default) and scrub group names, URLs, and paths from any logs or issues you
-  share.
+  default).
+- **Logs are scrubbed for you.** The `--log-file` copy of a run is redacted by
+  default: workspace paths, `$HOME`, the group/org name, a self-hosted forge
+  hostname and repository names are replaced with placeholders (repositories
+  become a stable `repo-<digest>`, so a scrubbed log still reads coherently).
+  Attach it to an issue as-is. `--redact` extends the same treatment to the
+  console; `--no-redact` disables it. This is obfuscation for sharing, not a
+  cryptographic guarantee — a short, guessable repository name can be confirmed
+  by someone who guesses it — so a log from a highly sensitive environment still
+  deserves a read-through before you post it. See
+  [docs/console-output.md](docs/console-output.md#sharing-a-log---redact).
 - **The project cache** (`/tmp/<...>.json` and `.txt` by default) lists the
   repositories you can access. Treat it as mildly sensitive and don't commit it.
 

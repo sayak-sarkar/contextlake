@@ -7,6 +7,20 @@
 # `bootstrap` is incremental and branch-safe: it re-mirrors, re-indexes only the
 # repos whose HEAD moved, refreshes connectors/embeddings/wiki, and rewrites the
 # editor steering — without ever disturbing an in-progress working tree.
+#
+# Nobody watches a timer, so this unit is wired for after-the-fact inspection:
+#   --log-format json   one JSON object per line, every line stamped with the
+#                       same generated run id, plus repo/duration/error_type on
+#                       per-repo lines. Journal entries already carry systemd's
+#                       _SYSTEMD_INVOCATION_ID; set CONTEXTLAKE_RUN_ID yourself
+#                       if you would rather pin contextlake's id to an outer
+#                       job's (a CI run, a deployment).
+#   --metrics-file      Prometheus textfile output: run duration, exit code,
+#                       repo counts by outcome, graph size, last-success time.
+#                       Point node_exporter's textfile collector at that
+#                       directory and the timer becomes scrapeable. Drop this
+#                       flag if you do not run node_exporter.
+# See docs/console-output.md for the exact JSON shape and metric names.
 
 # ---- contextlake.service ----
 [Unit]
@@ -15,6 +29,6 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-# Adjust the binary path and config locations to your install.
-ExecStart=%h/.local/bin/contextlake bootstrap --config %h/.contextlake.ini --kb-config %h/.contextlake/kb.toml
+# Adjust the binary path, config locations, and metrics directory to your install.
+ExecStart=%h/.local/bin/contextlake bootstrap --config %h/.contextlake.ini --kb-config %h/.contextlake/kb.toml --log-format json --metrics-file %h/.local/state/contextlake/contextlake.prom
 Nice=10

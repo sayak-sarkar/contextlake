@@ -485,6 +485,35 @@ not on repos that are merely missing or extra.
 Pass `--exit-zero-on-partial` to exit `0` anyway when some repositories failed — the failures are
 still reported, they just do not fail the job.
 
+`--verbose` also changes what a crash leaves behind: the top-level handler re-raises instead of
+printing `Error: <message>` alone, so a bug report can carry the traceback without anyone having to
+reproduce the failure under a debugger.
+
+### Observing an unattended run
+
+An exit code tells you *that* something broke; these four flags tell you *what*, after the fact.
+
+```bash
+0 2 * * * cd /home/user/work && /usr/bin/contextlake mirror sync \
+    --log-format json --log-file /var/log/contextlake/run.log \
+    --metrics-file /var/lib/node_exporter/textfile/contextlake.prom
+```
+
+- **`--log-format json`** emits one JSON object per line, each stamped with a `run_id` (pin your own
+  with `CONTEXTLAKE_RUN_ID`), the `command`, and — on per-repo lines — `repo`, `status`,
+  `duration_ms`, and `error_type` on failures.
+- **`--metrics-file`** writes Prometheus textfile-collector output: run duration, exit code, repo
+  counts by outcome, graph size, and a last-success timestamp that survives a failing run. Point
+  node_exporter's `--collector.textfile.directory` at that directory.
+- **`--log-file`** is redacted by default (workspace paths, `$HOME`, group and repository names), so
+  the copy you attach to a bug report needs no manual scrubbing. `--redact` extends that to the
+  console; `--no-redact` turns it off entirely.
+- **`--access-log`** turns on request logging for the local HTTP servers (`kb dashboard`,
+  `kb graph --serve`, `kb serve --transport http|sse`), which are otherwise silent.
+
+See [Reading the console output](console-output.md) for the exact JSON shape and metric names, and
+[`examples/contextlake.service`](../examples/contextlake.service) for a systemd unit wired up this way.
+
 ### Log rotation
 
 To prevent log files from growing indefinitely, set up log rotation:

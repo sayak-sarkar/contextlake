@@ -15,12 +15,14 @@ Entry points (all equivalent):
 
 import argparse
 import difflib
+import logging
 import os
 import re
 import sys
 import textwrap
+import time
 
-from . import __version__
+from . import __version__, observability
 from .config import DEFAULT_CONFIG, ConfigError, expand_path, get_cache_paths, load_config
 from .core import (
     FetchError,
@@ -34,7 +36,7 @@ from .core import (
     update_repositories,
     verify_structure,
 )
-from .logging_setup import log, setup_logging
+from .logging_setup import LOG_FORMATS, TEXT, log, setup_logging
 from .metrics import run_audit
 
 # Boolean flags backed by paired --x / --no-x switches. They must default to
@@ -376,6 +378,10 @@ _DEFAULTS = {
     "command": None, "subcommand": None, "args": [],
     # global
     "verbose": False, "quiet": False, "log_file": None, "config": None,
+    # observability. redact is tri-state (None = the per-handler default:
+    # scrub the log file, leave the console alone) -- deliberately NOT in
+    # _TRISTATE_FLAGS, which is about mirror-config keys, not log routing.
+    "log_format": TEXT, "metrics_file": None, "redact": None, "access_log": False,
     # completion
     "shell": None,
     # mirror
@@ -450,6 +456,24 @@ def _add_global(p):
                    help="only warnings and errors")
     g.add_argument("--log-file", default=_S,
                    help="append a full timestamped log to this file")
+    g.add_argument("--log-format", dest="log_format", choices=list(LOG_FORMATS), default=_S,
+                   help="text (default, human) or json (one JSON object per line, "
+                        "carrying the run id, command, repo and duration — for "
+                        "unattended runs shipped to a log collector)")
+    g.add_argument("--metrics-file", dest="metrics_file", default=_S, metavar="PATH",
+                   help="after the run, write Prometheus textfile-collector metrics "
+                        "(run duration, repo counts, graph size, last success) to this "
+                        "path — point node_exporter's textfile collector at its "
+                        "directory to monitor the systemd timer in examples/")
+    g.add_argument("--redact", dest="redact", action="store_true", default=_S,
+                   help="scrub workspace paths and group names out of the console too "
+                        "(the --log-file copy is scrubbed by default, so it can be "
+                        "attached to a bug report as-is)")
+    g.add_argument("--no-redact", dest="redact", action="store_false", default=_S,
+                   help="scrub nothing, including the --log-file copy")
+    g.add_argument("--access-log", dest="access_log", action="store_true", default=_S,
+                   help="log every request the local HTTP servers (dashboard, "
+                        "graph --serve, MCP http/sse) answer; off by default")
     g.add_argument("--plain", action="store_true", default=_S,
                    help="no colour, even on a TTY (same effect as NO_COLOR=1); "
                         "unicode status glyphs (✓⚠✗...) still render")
@@ -1241,6 +1265,26 @@ def _audit_report_path(args, config):
     return os.path.join(os.path.dirname(cache_file) or ".", "repo_audit.json")
 
 
+# Forge hosts that name nobody. Anything else in `gitlab_host`/`api_base` is a
+# self-hosted instance whose hostname identifies the organisation as plainly as
+# the group name does, so redaction covers it; redacting the public ones would
+# only make a shared log harder to follow while hiding nothing.
+_PUBLIC_FORGE_HOSTS = frozenset({
+    "gitlab.com", "github.com", "api.github.com", "bitbucket.org",
+    "api.bitbucket.org", "gitea.com", "codeberg.org",
+})
+
+
+def _forge_host(config):
+    """The self-hosted forge hostname this config points at, else ``""``."""
+    raw = (os.environ.get("GITLAB_HOST") or config.get("gitlab_host")
+           or config.get("api_base") or "").strip()
+    if not raw:
+        return ""
+    host = raw.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0].lower()
+    return "" if host in _PUBLIC_FORGE_HOSTS else host
+
+
 def _audit_workers(config):
     try:
         return int(config.get("max_workers", 8))
@@ -1248,7 +1292,7 @@ def _audit_workers(config):
         return 8
 
 
-def _bootstrap(args, config, work_dir, gitlab_group):
+def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
     """One-command turnkey setup: mirror repos, build the knowledge layer, and write
     editor steering. Optional/unconfigured stages are skipped; a failing stage warns
     but never aborts the rest."""
@@ -1269,6 +1313,11 @@ def _bootstrap(args, config, work_dir, gitlab_group):
             mirror += update_repositories(work_dir, config)
             mirror += switch_repository_branches(work_dir, config, gitlab_group)
             mirror += verify_structure(work_dir, config, gitlab_group)
+            # bootstrap owns its own exit, so it also owns reporting its repo
+            # counts -- and it is what the shipped systemd unit runs, i.e. the
+            # single most important run to have metrics for.
+            if metrics is not None:
+                metrics.record(mirror)
             # Same rule the mirror commands' exit code follows: a fleet that
             # failed to clone is not a completed stage. Recorded (not raised) so
             # the knowledge stages still run against what did land.
@@ -1346,7 +1395,12 @@ def _bootstrap(args, config, work_dir, gitlab_group):
             rc = fn(kb_args)
         except Exception as e:  # noqa: BLE001 - one stage must not abort bootstrap
             rc = 1
-            log(f"  {style.warn(title + ' failed')} — {e}")
+            log(f"  {style.warn(title + ' failed')} — {e}",
+                error_type=type(e).__name__, error=str(e))
+            # Re-raising is not an option here (the remaining stages must still
+            # run), so the traceback goes out at DEBUG instead: --verbose shows
+            # it, a normal run keeps the one-line summary it has always had.
+            log(f"  {title}: traceback", level=logging.DEBUG, exc_info=True)
         if rc:
             failures.append(title)
             # The code graph is foundational — connect/embed/wiki/steer all read it.
@@ -1387,7 +1441,69 @@ def _resolve_command(args, parser):
         args.command = args.subcommand
 
 
+class _RunMetrics:
+    """Collects the numbers ``--metrics-file`` publishes, and writes them once.
+
+    Only ever *reads* counters the run already produced -- ``StageResult``'s
+    ok/failed/skipped and the store's own node/edge tables -- so the metrics can
+    never disagree with the exit code or the summary line by recounting the same
+    work a second time.
+    """
+
+    def __init__(self):
+        self.started = time.monotonic()
+        self.path = None
+        self.command = ""
+        self.repos = None
+
+    def configure(self, path, command):
+        self.path = path
+        self.command = command
+
+    def record(self, result):
+        if result is None:
+            return
+        self.repos = {"ok": result.ok, "failed": result.failed, "skipped": result.skipped}
+
+    def write(self, exit_code):
+        if not self.path:
+            return
+        try:
+            nodes, edges = observability.graph_counts()
+            observability.write_textfile(
+                self.path, command_name=self.command,
+                duration_seconds=time.monotonic() - self.started,
+                exit_code=exit_code, repos=self.repos, nodes=nodes, edges=edges)
+        except Exception as e:  # noqa: BLE001 - see below
+            # This runs in main()'s `finally`, where an exception would *replace*
+            # whatever the run was actually reporting: an unwritable metrics path
+            # would turn a clean "Error: <the real problem>" into a traceback
+            # about a gauge. Losing the metrics is the lesser failure, so say so
+            # and let the original outcome stand.
+            log(f"Could not write metrics to {self.path}: {e}")
+
+
 def main(argv=None):
+    """Entry point. Wraps :func:`_run` so that however the run ends -- a normal
+    return, ``sys.exit()``, a Ctrl-C, or an unhandled crash re-raised by
+    ``--verbose`` -- the metrics file still gets written with the real exit code.
+    """
+    observability.set_run_id(observability.new_run_id())
+    metrics = _RunMetrics()
+    exit_code = 0
+    try:
+        return _run(argv, metrics)
+    except SystemExit as e:
+        exit_code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        raise
+    except BaseException:
+        exit_code = 1
+        raise
+    finally:
+        metrics.write(exit_code)
+
+
+def _run(argv, metrics):
     from . import style
 
     parser = build_parser()
@@ -1429,7 +1545,21 @@ def main(argv=None):
         print(f"{parser.prog} {__version__}")
         sys.exit(0)
 
-    setup_logging(verbose=args.verbose, quiet=args.quiet, log_file=args.log_file)
+    setup_logging(verbose=args.verbose, quiet=args.quiet, log_file=args.log_file,
+                  log_format=args.log_format or TEXT, redact=args.redact)
+
+    # Everything below can emit log lines, so the run's identity has to be in
+    # place first. `mirror sync` rather than `sync`: the JSON `command` field
+    # should be the string a reader can paste back into a shell.
+    observability.set_command(_qualified(args.command))
+    observability.set_access_log(bool(args.access_log))
+    if args.metrics_file:
+        metrics.configure(expand_path(args.metrics_file), _qualified(args.command))
+    # $HOME is knowable before any config is read and is the single most common
+    # thing a pasted log leaks (the username, and often the employer's directory
+    # layout). The workspace/group rules are added once the config is loaded
+    # below; a kb command's store is added when it opens one.
+    observability.add_redactions(paths=[(os.path.expanduser("~"), "~")])
 
     # Zero-step completion setup for anyone who skipped `init` entirely (a pip/
     # uv/pipx install has no post-install hook to hang this on -- see
@@ -1511,6 +1641,14 @@ def main(argv=None):
     gitlab_group = (args.group or config.get("group")
                     or config.get("gitlab_group", DEFAULT_CONFIG["gitlab_group"]))
 
+    # Now that the two values that identify *whose* fleet this is are known, they
+    # can be scrubbed from the log file. The forge URL goes in too: it names the
+    # company as reliably as the group does.
+    observability.add_redactions(
+        paths=[(work_dir, "<workspace>")],
+        literals=[(gitlab_group, "<group>"),
+                  (_forge_host(config), "<forge-host>")])
+
     # Widen child git/glab DNS budget for slow corporate resolvers (no-op if the
     # user already set RES_OPTIONS); harmless for non-network commands.
     configure_network_resilience(config)
@@ -1568,13 +1706,23 @@ def main(argv=None):
         elif args.command == "status":
             show_status(work_dir, config, gitlab_group)
         elif args.command == "bootstrap":
-            _bootstrap(args, config, work_dir, gitlab_group)
+            _bootstrap(args, config, work_dir, gitlab_group, metrics=metrics)
     except KeyboardInterrupt:
         log("Operation cancelled by user")
         sys.exit(130)
     except Exception as e:  # noqa: BLE001 - top-level guard reports and exits
-        log(f"Error: {e}")
+        # The one-line summary is what a normal run should show. Under --verbose
+        # the exception is re-raised instead of swallowed, so the traceback
+        # reaches stderr: a crash report used to arrive with nothing but this
+        # line in it, and the only way to get more was to ask the reporter to
+        # reproduce it under a debugger. Python exits 1 on an unhandled
+        # exception, so the exit status is unchanged either way.
+        log(f"Error: {e}", error_type=type(e).__name__, error=str(e))
+        if args.verbose:
+            raise
         sys.exit(1)
+
+    metrics.record(result)
 
     # Decided outside the try so the intent is unmistakable and no future
     # except-clause can swallow it. Before this, every mirror command exited 0 no

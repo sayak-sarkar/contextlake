@@ -1,20 +1,33 @@
 """Logging setup for contextlake.
 
 A single named logger ("contextlake") backs the ``log()`` helper used throughout
-the package, so call sites stay simple while output routing (console verbosity
-and an optional rotating audit file) is configured once in ``setup_logging()``.
+the package, so call sites stay simple while output routing (console verbosity,
+an optional rotating audit file, the human/JSON line format, and redaction) is
+configured once in ``setup_logging()``.
+
+Two audiences, one logger. The default human format is unchanged and is what a
+person at a terminal reads. ``--log-format json`` swaps in one JSON object per
+line -- timestamp, level, message, run id, command, plus whatever structured
+fields the call site attached -- for the unattended case (the systemd unit in
+``examples/``), where the reader is a log shipper rather than a person.
 """
 
+import json
 import logging
 import sys
+import time
 from logging.handlers import RotatingFileHandler
 
-from . import style
+from . import observability, style
 
 LOGGER_NAME = "contextlake"
 _FORMAT = "[%(asctime)s] %(message)s"
 _DATEFMT = "%Y-%m-%d %H:%M:%S"
+_JSON_DATEFMT = "%Y-%m-%dT%H:%M:%S"
 _CLOCKFMT = "%H:%M:%S"  # terminal-only short clock, shown dim on the right edge
+
+TEXT, JSON = "text", "json"
+LOG_FORMATS = (TEXT, JSON)
 
 
 class _ConsoleFormatter(logging.Formatter):
@@ -36,9 +49,10 @@ class _ConsoleFormatter(logging.Formatter):
     A live Progress bar already shows elapsed time while those lines print.
     """
 
-    def __init__(self, handler):
+    def __init__(self, handler, *, redact=False):
         super().__init__(_FORMAT, datefmt=_DATEFMT)
         self._handler = handler
+        self._redact = redact
 
     def _is_tty(self):
         stream = getattr(self._handler, "stream", None)
@@ -49,6 +63,8 @@ class _ConsoleFormatter(logging.Formatter):
 
     def format(self, record):
         message = record.getMessage()
+        if self._redact:
+            message = observability.redact(message)
         stream, is_tty = self._is_tty()
         if not is_tty:
             return f"[{self.formatTime(record, _DATEFMT)}] {message}"
@@ -60,6 +76,73 @@ class _ConsoleFormatter(logging.Formatter):
             return message
         clock = style.dim(self.formatTime(record, _CLOCKFMT), stream=stream)
         return style.align_right(message, clock, style.terminal_width(stream))
+
+
+class _FileFormatter(logging.Formatter):
+    """The audit file's classic ``[full-timestamp] message`` form, optionally
+    redacted. Redaction lives here rather than in a ``logging.Filter`` for the
+    same reason it does in every formatter below: a filter mutates the shared
+    ``LogRecord``, so whether the console also came out scrubbed would depend on
+    handler order. A formatter only ever rewrites its own handler's output."""
+
+    def __init__(self, *, redact=False):
+        super().__init__(_FORMAT, datefmt=_DATEFMT)
+        self._redact = redact
+
+    def format(self, record):
+        text = super().format(record)
+        return observability.redact(text) if self._redact else text
+
+
+class _JsonFormatter(logging.Formatter):
+    """One JSON object per line, for shipping rather than reading.
+
+    Every line carries the run id and command so an interleaved journal (the
+    systemd timer's, say) can be split back into runs, and any structured fields
+    the call site attached via ``log(..., repo=..., duration_ms=...)`` ride
+    alongside in a flat namespace. Fields are kept in their own dict on the
+    record, never set as record attributes, so a field called ``message`` or
+    ``name`` cannot collide with ``LogRecord``'s own reserved attributes.
+    """
+
+    # ``logging.Formatter`` resolves timestamps through ``self.converter``, which
+    # defaults to ``time.localtime``. The human format makes no timezone claim,
+    # so local is right there -- but this one appends "Z", and a line that says
+    # UTC while carrying the host's wall clock silently shifts every timestamp a
+    # collector ingests by that host's offset. UTC is also simply the right
+    # answer for output meant to be correlated across machines.
+    converter = time.gmtime
+
+    def __init__(self, *, redact=False):
+        super().__init__(datefmt=_JSON_DATEFMT)
+        self._redact = redact
+
+    def _clean(self, value):
+        if self._redact and isinstance(value, str):
+            return observability.redact(value)
+        return value
+
+    def format(self, record):
+        payload = {
+            "ts": self.formatTime(record, _JSON_DATEFMT) + "Z",
+            "level": record.levelname,
+            "msg": self._clean(record.getMessage()),
+        }
+        run = observability.run_id()
+        if run:
+            payload["run_id"] = run
+        cmd = observability.command()
+        if cmd:
+            payload["command"] = cmd
+        for key, value in (getattr(record, "fields", None) or {}).items():
+            payload[key] = self._clean(value)
+        if record.exc_info and "error_type" not in payload:
+            exc = record.exc_info[1]
+            payload["error_type"] = type(exc).__name__
+            payload["error"] = self._clean(str(exc))
+        # default=str so an unexpected value (a Path, a datetime) degrades to its
+        # string form instead of taking down the run it was supposed to describe.
+        return json.dumps(payload, default=str)
 
 
 def get_logger():
@@ -91,12 +174,25 @@ class _ConsoleHandler(logging.StreamHandler):
                 pass
 
 
-def setup_logging(verbose=False, quiet=False, log_file=None):
+def setup_logging(verbose=False, quiet=False, log_file=None, *,
+                  log_format=TEXT, redact=None):
     """Configure the package logger.
 
     verbose -> DEBUG console output, quiet -> WARNING and above, otherwise INFO.
     When ``log_file`` is given, a rotating file handler captures full DEBUG
-    detail regardless of console verbosity (the real audit trail).
+    detail regardless of console verbosity.
+
+    ``log_format`` is ``"text"`` (the unchanged human rendering) or ``"json"``.
+
+    ``redact`` decides whether output goes through
+    :func:`observability.redact`. ``None`` -- the default -- means *file yes,
+    console no*, which follows from what each stream is for: the console is
+    yours and you need the real paths on it to act on what you are reading,
+    while the file is the artifact that gets attached to a bug report. ``True``
+    scrubs both, ``False`` neither. Redaction is a no-op until
+    :func:`observability.configure_redaction` has registered what to hide, so
+    the file stays fully readable for anything the CLI could not identify as
+    workspace- or group-derived.
     """
     logger = logging.getLogger(LOGGER_NAME)
     logger.handlers.clear()
@@ -109,13 +205,21 @@ def setup_logging(verbose=False, quiet=False, log_file=None):
     else:
         console_level = logging.INFO
 
-    # The console renders the clock on the right edge (TTY) or the classic prefix
-    # (pipes/redirects); the file always keeps the full audit prefix.
-    file_formatter = logging.Formatter(_FORMAT, datefmt=_DATEFMT)
+    console_redact = bool(redact)
+    file_redact = True if redact is None else bool(redact)
+
+    def formatter(handler, redacting):
+        if log_format == JSON:
+            return _JsonFormatter(redact=redacting)
+        # The console renders the clock on the right edge (TTY) or the classic
+        # prefix (pipes/redirects); the file always keeps the full audit prefix.
+        if handler is None:
+            return _FileFormatter(redact=redacting)
+        return _ConsoleFormatter(handler, redact=redacting)
 
     console = _ConsoleHandler(sys.stdout)
     console.setLevel(console_level)
-    console.setFormatter(_ConsoleFormatter(console))
+    console.setFormatter(formatter(console, console_redact))
     logger.addHandler(console)
 
     file_level = logging.DEBUG
@@ -124,7 +228,7 @@ def setup_logging(verbose=False, quiet=False, log_file=None):
             log_file, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
         )
         file_handler.setLevel(file_level)
-        file_handler.setFormatter(file_formatter)
+        file_handler.setFormatter(formatter(None, file_redact))
         logger.addHandler(file_handler)
 
     # Logger threshold must be the most permissive of its handlers.
@@ -144,12 +248,20 @@ def use_stderr():
             handler.setStream(sys.stderr)
 
 
-def log(message, level=logging.INFO, *, inline=False):
+def log(message, level=logging.INFO, *, inline=False, exc_info=False, **fields):
     """Emit a timestamped message through the package logger.
 
     ``inline=True`` marks a high-frequency per-item detail line (per-repo
     mirror/index/embed/wiki loop output) so the TTY console formatter skips
     its right-aligned clock -- see ``_ConsoleFormatter`` for why. Low-frequency
     section/summary lines should leave this at the default ``False``.
+
+    Any keyword arguments beyond those are **structured fields** (``repo=``,
+    ``duration_ms=``, ``error_type=``, ...). They are carried on the record for
+    the JSON formatter to emit and are deliberately invisible in the human
+    format: the human line is composed for reading and already says what it
+    needs to, so a call site can add machine-readable detail without changing a
+    single character of what a person sees.
     """
-    get_logger().log(level, message, extra={"inline": inline})
+    get_logger().log(level, message, exc_info=exc_info,
+                     extra={"inline": inline, "fields": fields})

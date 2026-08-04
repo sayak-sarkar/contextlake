@@ -56,6 +56,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dependabot now watches the `docker` ecosystem too, so the Dockerfile's pinned base digest gets
   moved forward. A digest pin buys reproducible builds but silently ages out of security updates
   in a way a floating tag does not.
+- Structured logging and metrics, so the systemd timer this repo ships is actually observable.
+  `--log-format json` emits one object per line carrying a run id that correlates every line of a
+  run across the index/connect/embed/wiki pipeline; `--metrics-file PATH` writes Prometheus
+  textfile format (run duration, repo counts by status, node and edge totals, last-success
+  timestamp) for node_exporter's textfile collector. Timestamps are UTC.
+- `--redact` hashes repo paths and group names in log output. It defaults to on for the log file
+  and off for the console: the console is yours and needs real paths, the file is what gets
+  attached to a bug report. `SECURITY.md` previously told you to scrub logs by hand. Note this is
+  obfuscation for sharing, not a cryptographic guarantee: a short repo name can be confirmed by
+  anyone who guesses it.
+- `--access-log` turns on request logging for the local servers, which previously had none even
+  optionally.
+- `--verbose` now surfaces the traceback on an unexpected failure. It printed only `Error: {e}`,
+  so a user's crash report could not be diagnosed without asking them to reproduce under a
+  debugger.
 - Connectors and model providers are guarded by a circuit breaker with jittered retry. A slow or
   unreachable endpoint used to cost its full timeout on every call, so the pain scaled with the
   fleet: measured 160.9s across 40 repos against a blackholed MCP server, versus 12.1s with the

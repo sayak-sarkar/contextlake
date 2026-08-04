@@ -31,10 +31,12 @@ this policy inline is the bug this module exists to prevent.
 from __future__ import annotations
 
 import json
+import re
 import traceback
 from http.server import BaseHTTPRequestHandler
 
-from ..logging_setup import get_logger
+from .. import observability
+from ..logging_setup import get_logger, log
 
 __all__ = ["LOOPBACK_HOSTS", "BadRequest", "LocalHttpHandler", "allowed_host_headers",
            "host_pinning_hint", "qs_int"]
@@ -68,6 +70,11 @@ MAX_BODY_BYTES = 1_000_000
 # at the guard, which is the honest error: the address is genuinely private, it
 # is that server that cannot serve it.
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
+
+# Anything outside printable ASCII (plus the space) is replaced before a
+# client-supplied request line reaches the access log -- see
+# :meth:`LocalHttpHandler.log_message`.
+_PRINTABLE = re.compile(r"[^\x20-\x7e]")
 
 
 class BadRequest(ValueError):
@@ -148,8 +155,33 @@ class LocalHttpHandler(BaseHTTPRequestHandler):
 
     allowed_hosts: frozenset[str] = frozenset()
 
-    def log_message(self, *_a):  # keep request logs off the console
-        pass
+    def log_message(self, fmt="", *args):
+        """The access log: silent unless ``--access-log`` asked for it.
+
+        Silence used to be unconditional, which left no way at all to answer
+        "what did the dashboard actually serve, and to whom" -- the one question
+        an access log exists for, and the one worth being able to answer about a
+        server that holds the whole code graph. It stays off by default (these
+        are loopback developer tools whose console is already a command's
+        output), so the no-flag behaviour is byte-for-byte what it was.
+
+        ``log_error`` routes through here too, so an error line is equally
+        opt-in.
+
+        The request line is attacker-controlled, and stdlib only started escaping
+        control characters here in Python 3.10 -- on 3.9 a crafted request could
+        inject newlines or ANSI escapes straight into the log a human then reads.
+        So it is sanitised locally rather than trusted to the base class.
+        """
+        if not observability.access_log_enabled():
+            return
+        try:
+            message = fmt % args if args else str(fmt)
+        except (TypeError, ValueError):  # a subclass with an unexpected format
+            message = str(fmt)
+        message = _PRINTABLE.sub(".", message)
+        client = _PRINTABLE.sub(".", self.address_string())
+        log(f"{client} {message}", inline=True, client=client, http=message)
 
     def send_bytes(self, code: int, ctype: str, body: bytes) -> None:
         self.send_response(code)

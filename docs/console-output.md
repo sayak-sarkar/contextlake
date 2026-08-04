@@ -47,6 +47,74 @@ summary (`✓ Embed complete: ...`, `✓ Lint: ...`, and so on) you can skim str
 into a tool that doesn't expect escape codes. It doesn't touch the glyphs themselves, `✓`/`⚠`/`✗` and the
 rest still print; only the color wrapped around them is gone.
 
+## Machine-readable logs: `--log-format json`
+
+Everything above describes output composed for a person. When the reader is a log collector instead --
+the systemd timer in `examples/`, a cron wrapper, CI -- `--log-format json` prints one JSON object per
+line and nothing else:
+
+```json
+{"ts": "2026-08-04T05:45:19Z", "level": "INFO", "msg": "Cloned", "run_id": "bcd5bd3d69cb", "command": "mirror clone", "repo": "team/api", "status": "ok", "duration_ms": 812}
+```
+
+- **`run_id`** is generated once per invocation and stamped on every line, so an interleaved journal can
+  be split back into runs, and one `bootstrap`'s index / connect / embed / wiki stages read as one story.
+  Set `CONTEXTLAKE_RUN_ID` to pin your own (a systemd invocation id, a CI job id) and have contextlake's
+  lines join up with the surrounding job's.
+- **`command`** is the command as you would type it (`mirror sync`, `kb index`).
+- **`repo`** and **`duration_ms`** appear on per-repo lines, which is what makes "which repo is making
+  the nightly run slow" a query rather than a guess.
+- Failures add **`error_type`** (`dns`, `timeout`, `auth`, `diverged`, ...) and **`error`**, so "every
+  failure last night was DNS" is one aggregation.
+
+The default (`text`) output is unchanged, character for character. Structured fields are only ever
+*added* to the JSON form; they never alter a human line.
+
+## Sharing a log: `--redact`
+
+`--log-file PATH` keeps a full-detail copy of the run. That copy is **redacted by default**: workspace
+paths, `$HOME`, the group/org name, a self-hosted forge hostname and repository names are replaced with
+placeholders, so it can be attached to a bug report as-is.
+
+```
+[2026-08-04 05:48:49] Working directory: <workspace>
+[2026-08-04 05:48:49] Gitlab group: <group>
+[2026-08-04 05:48:49] Missing repositories:
+[2026-08-04 05:48:49]   repo-5a7da0a4
+```
+
+Repository names become a stable `repo-<digest>`, so "the same three repos failed again" still reads
+correctly after scrubbing, and a file path *inside* a repo keeps its tail (`<workspace>/repo-5a7da0a4/
+src/main.py:42`) because which file broke is the useful half. This is obfuscation for sharing, not a
+cryptographic guarantee: a short, guessable repository name can be confirmed by anyone who guesses it.
+
+The console is left alone by default -- you need the real paths to act on what you are reading.
+`--redact` scrubs the console too; `--no-redact` scrubs neither.
+
+## Metrics for an unattended run: `--metrics-file`
+
+`--metrics-file PATH` writes Prometheus [textfile-collector](https://github.com/prometheus/node_exporter#textfile-collector)
+output after the run, so the shipped systemd timer is monitorable with no exporter process of its own.
+Point node_exporter's `--collector.textfile.directory` at the file's directory and name the file `.prom`:
+
+```
+contextlake_run_duration_seconds{command="mirror sync"} 42.318
+contextlake_run_exit_code{command="mirror sync"} 0
+contextlake_repos{command="mirror sync",status="ok"} 480
+contextlake_repos{command="mirror sync",status="failed"} 0
+contextlake_repos{command="mirror sync",status="skipped"} 3
+contextlake_graph_nodes 128394
+contextlake_graph_edges 214005
+contextlake_last_success_timestamp_seconds{command="mirror sync"} 1785802519
+```
+
+Two behaviours worth knowing. `contextlake_last_success_timestamp_seconds` is **carried forward** by a
+failing run rather than erased -- that timestamp is the whole basis of a "stale for six hours" alert. And
+a value that could not be measured is **omitted, never written as 0**: a `mirror sync` does not touch the
+knowledge graph, so it publishes no `contextlake_graph_nodes` at all rather than a zero that reads as
+"the graph was wiped". The counts come from what the run already tallied (the same numbers that decide
+the exit code), so the metrics can never disagree with the summary line.
+
 ## The stdout / stderr split
 
 The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like) stay on stdout. That

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 
-from . import style
+from . import observability, style
 from .config import get_cache_paths
 from .logging_setup import log
 from .safety import check_repository_safety, is_safe_branch, stash_changes
@@ -564,7 +564,20 @@ def fetch_gitlab_projects(gitlab_group, config):
     else:
         label = "matching" if patterns else "total"
         log(f"{style.ok()} Fetched {style.bold(str(len(all_projects)))} {label} projects")
-    return all_projects
+    return _remember_repo_names(all_projects)
+
+
+def _remember_repo_names(projects):
+    """Teach log redaction the fleet's repo ids, and return the map unchanged.
+
+    Both the local key (``team/api``) and the forge's own ``full_path``
+    (``acme/team/api``) go in: the two spellings appear in different messages,
+    and a redacted log is only shareable if it hides both.
+    """
+    observability.add_repo_names(
+        list(projects)
+        + [p.get("full_path", "") for p in projects.values() if isinstance(p, dict)])
+    return projects
 
 
 def fetch_result(projects, config) -> StageResult:
@@ -618,7 +631,7 @@ def load_gitlab_projects(config, gitlab_group):
             for key, value in data.items():
                 full = value.get("full_path", key)
                 normalized[to_local_path(key, gitlab_group)] = {**value, "full_path": full}
-            return normalized
+            return _remember_repo_names(normalized)
         if isinstance(data, list) and data:
             # Legacy/raw list of project objects -> normalize to the dict shape.
             normalized = {}
@@ -633,7 +646,7 @@ def load_gitlab_projects(config, gitlab_group):
                         "default_branch": p.get("default_branch", "main"),
                     }
             if normalized:
-                return normalized
+                return _remember_repo_names(normalized)
 
     log("Cache not found or invalid, fetching fresh data...")
     return fetch_gitlab_projects(gitlab_group, config)
@@ -645,6 +658,11 @@ def get_local_repos(work_dir):
     for root, dirs, _files in os.walk(work_dir):
         if ".git" in dirs:
             local_repos.append(os.path.relpath(root, work_dir))
+    # This and load_gitlab_projects() are the two places that know the fleet's
+    # names, so they are where log redaction learns them (see
+    # observability.add_repo_names). Cheap: a set union, with nothing compiled
+    # unless redaction is actually in use.
+    observability.add_repo_names(local_repos)
     return local_repos
 
 
@@ -1154,6 +1172,39 @@ def _summarize(buckets):
     return ", ".join(f"{len(v)} {k}" for k, v in buckets.items())
 
 
+def _timed(fn, *args):
+    """Run a per-repo worker and return ``(its result, elapsed milliseconds)``.
+
+    The workers' ``(status, path, message)`` contract is what the consumer loops
+    and the tests are written against, so the timing rides *alongside* it rather
+    than being added to it -- that keeps `--log-format json`'s per-repo
+    ``duration_ms`` field (the number that answers "which repo is making the
+    nightly run slow") free of any change to the stage functions themselves.
+    """
+    started = time.monotonic()
+    result = fn(*args)
+    return result, int((time.monotonic() - started) * 1000)
+
+
+def _repo_fields(status, path, message, duration_ms=None):
+    """Structured fields for one per-repo line (invisible in the human format)."""
+    fields = {"repo": path, "status": status}
+    if duration_ms is not None:
+        fields["duration_ms"] = duration_ms
+    if status not in _REPO_OK_STATES:
+        # The classifier already knows *why* a repo failed (network, dns, auth,
+        # timeout, ...); carrying that as its own field is what makes "every
+        # failure last night was dns" a query rather than a grep.
+        fields["error_type"] = classify_error(message or "")
+        fields["error"] = message
+    return fields
+
+
+# Per-repo statuses that are not failures. Anything else a worker returns is one
+# (the loops below already treat every unrecognised status as an error).
+_REPO_OK_STATES = frozenset({"ok", "nochange", "switched", "skip", "note", "dry-run"})
+
+
 def _bucket_result(buckets, ok_keys, skipped_keys):
     """Fold a stage's result buckets into a StageResult, without recounting:
     ``errors`` is the failure bucket every loop already sorts into."""
@@ -1204,7 +1255,7 @@ def clone_missing_repos(work_dir, config, gitlab_group):
 
     _CLONE_STATES = {"ok": "ok", "skip": "skip", "note": "note", "dry-run": "dryrun"}
 
-    def handle(result):
+    def handle(result, duration_ms):
         nonlocal done
         done += 1
         status, path, message = result
@@ -1218,7 +1269,8 @@ def clone_missing_repos(work_dir, config, gitlab_group):
             failures.append(path)
         # Anything not in _CLONE_STATES is an error, so default to "fail" rather
         # than let an unmapped status reach status_line (which raises).
-        log(_status(done, total, _CLONE_STATES.get(status, "fail"), path, message), inline=True)
+        log(_status(done, total, _CLONE_STATES.get(status, "fail"), path, message),
+            inline=True, **_repo_fields(status, path, message, duration_ms))
         progress.advance(path)
         return status in ("ok", "skip", "dry-run")
 
@@ -1231,21 +1283,21 @@ def clone_missing_repos(work_dir, config, gitlab_group):
             batch, remaining = remaining[:batch_size], remaining[batch_size:]
             with ThreadPoolExecutor(max_workers=batch_size) as ex:
                 futures = [
-                    ex.submit(clone_repository, it["local_path"], it["gitlab_path"],
+                    ex.submit(_timed, clone_repository, it["local_path"], it["gitlab_path"],
                               it["http"], it["ssh"], work_dir, config)
                     for it in batch
                 ]
                 for fut in as_completed(futures):
-                    pool.record_result(handle(fut.result()))
+                    pool.record_result(handle(*fut.result()))
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = [
-                ex.submit(clone_repository, it["local_path"], it["gitlab_path"],
+                ex.submit(_timed, clone_repository, it["local_path"], it["gitlab_path"],
                           it["http"], it["ssh"], work_dir, config)
                 for it in to_clone
             ]
             for fut in as_completed(futures):
-                handle(fut.result())
+                handle(*fut.result())
 
     progress.done()
     log(style.ok("Clone complete: " + _summarize({
@@ -1271,30 +1323,32 @@ def update_repositories(work_dir, config):
     progress = style.Progress(total, label="update")
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = {ex.submit(update_repository, p, work_dir, config): p for p in local_repos}
+        futures = {ex.submit(_timed, update_repository, p, work_dir, config): p
+                   for p in local_repos}
         for i, fut in enumerate(as_completed(futures), 1):
-            status, path, message = fut.result()
+            (status, path, message), duration_ms = fut.result()
+            fields = _repo_fields(status, path, message, duration_ms)
             if status == "ok":
                 buckets["updated"].append(path)
-                log(_status(i, total, "ok", path, message), inline=True)
+                log(_status(i, total, "ok", path, message), inline=True, **fields)
             elif status == "nochange":
                 buckets["unchanged"].append(path)
-                log(_status(i, total, "nochange", path, message), inline=True)
+                log(_status(i, total, "nochange", path, message), inline=True, **fields)
             elif status == "switched":
                 buckets["switched"].append(path)
-                log(_status(i, total, "switched", path, message), inline=True)
+                log(_status(i, total, "switched", path, message), inline=True, **fields)
             elif status == "skip":
                 buckets["skipped"].append(path)
-                log(_status(i, total, "skip", path, message), inline=True)
+                log(_status(i, total, "skip", path, message), inline=True, **fields)
             elif status == "note":
                 buckets["empty"].append(path)
-                log(_status(i, total, "note", path, message), inline=True)
+                log(_status(i, total, "note", path, message), inline=True, **fields)
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
-                log(_status(i, total, "dryrun", path, message), inline=True)
+                log(_status(i, total, "dryrun", path, message), inline=True, **fields)
             else:
                 buckets["errors"].append(path)
-                log(_status(i, total, "fail", path, message), inline=True)
+                log(_status(i, total, "fail", path, message), inline=True, **fields)
             progress.advance(path)
 
     progress.done()
@@ -1332,29 +1386,30 @@ def switch_repository_branches(work_dir, config, gitlab_group):
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {
-            ex.submit(switch_repository_branch, p, projects, work_dir, config): p
+            ex.submit(_timed, switch_repository_branch, p, projects, work_dir, config): p
             for p in local_repos
         }
         for i, fut in enumerate(as_completed(futures), 1):
-            status, path, message = fut.result()
+            (status, path, message), duration_ms = fut.result()
+            fields = _repo_fields(status, path, message, duration_ms)
             if status == "switched":
                 buckets["switched"].append(path)
-                log(_status(i, total, "switched", path, message), inline=True)
+                log(_status(i, total, "switched", path, message), inline=True, **fields)
             elif status == "ok":
                 buckets["already"].append(path)
-                log(_status(i, total, "ok", path, message), inline=True)
+                log(_status(i, total, "ok", path, message), inline=True, **fields)
             elif status == "skip":
                 buckets["skipped"].append(path)
-                log(_status(i, total, "skip", path, message), inline=True)
+                log(_status(i, total, "skip", path, message), inline=True, **fields)
             elif status == "note":
                 buckets["empty"].append(path)
-                log(_status(i, total, "note", path, message), inline=True)
+                log(_status(i, total, "note", path, message), inline=True, **fields)
             elif status == "dry-run":
                 buckets["dry-run"].append(path)
-                log(_status(i, total, "dryrun", path, message), inline=True)
+                log(_status(i, total, "dryrun", path, message), inline=True, **fields)
             else:
                 buckets["errors"].append(path)
-                log(_status(i, total, "fail", path, message), inline=True)
+                log(_status(i, total, "fail", path, message), inline=True, **fields)
             progress.advance(path)
 
     progress.done()

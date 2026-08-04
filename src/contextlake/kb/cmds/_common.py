@@ -6,7 +6,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from ... import style
+from ... import observability, style
 from ...logging_setup import log
 from ..config import load_kb_config
 from ..state import check_schema
@@ -16,7 +16,14 @@ from ..store.sqlite_store import SqliteStore
 def _open_store(args) -> tuple[SqliteStore, Path]:
     cfg = load_kb_config(getattr(args, "config", None))
     store_dir = cfg.store_path
-    store = SqliteStore(store_dir / "index.sqlite")
+    db_path = store_dir / "index.sqlite"
+    # Every kb command funnels through here, so this is the one place that knows
+    # where the graph lives -- which is what `--metrics-file` needs to publish
+    # its node/edge gauges at the end of the run, and what `--redact` needs to
+    # keep the store's location out of a shared log.
+    observability.note_store_path(db_path)
+    observability.add_redactions(paths=[(store_dir, "<store>")])
+    store = SqliteStore(db_path)
     check_schema(store)
     return store, store_dir
 

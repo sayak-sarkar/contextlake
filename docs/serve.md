@@ -152,6 +152,18 @@ to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (`
 answers requests whose `Host` is a loopback name, because the Host check has no way to know which
 address you meant — bind the address clients will actually name (`--host 192.0.2.10`).
 
+**There is an access log, and it is off by default.** These servers are loopback developer tools
+whose console is already a command's output, so they stay quiet — but a server holding the whole
+code graph should be able to answer "what did it serve, and to whom". `--access-log` turns on one
+line per request (client address, request line, status).
+
+For contextlake's own servers — `kb dashboard --serve`, `kb graph --serve`, `kb graph --site
+--serve` — those lines go through the same logger as everything else, so they land in `--log-file`
+and follow `--log-format json`, and the client-supplied request line is stripped of control
+characters first. `kb serve`'s `http`/`sse` transports are served by uvicorn rather than by
+contextlake's handler, so there the flag enables *uvicorn's* access log instead: its own format,
+on stderr, alongside its startup banner.
+
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file
 committed to the repo it's working in, so contextlake cannot self-register as a Devin MCP

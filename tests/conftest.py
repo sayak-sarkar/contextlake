@@ -11,7 +11,7 @@ import types
 
 import pytest
 
-from contextlake import core
+from contextlake import core, observability
 
 
 @pytest.fixture
@@ -42,6 +42,19 @@ def reset_logging():
     logging.getLogger("contextlake").handlers.clear()
     yield
     logging.getLogger("contextlake").handlers.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_redactions():
+    """Clear the process-wide log-redaction rules between tests.
+
+    They are deliberately process-global (one CLI process = one run), and the
+    fleet-listing functions register repo names as a side effect -- so without
+    this, one test's fixture repo names would rewrite another test's output.
+    """
+    observability.reset_redactions()
+    yield
+    observability.reset_redactions()
 
 
 class FakeCompleted:

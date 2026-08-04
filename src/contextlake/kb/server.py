@@ -29,6 +29,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel
 
+from .. import observability
 from .model import EXTERNAL_LINK_RELATIONS, Edge, Node
 from .security import sanitize_label
 from .store.base import Store
@@ -1032,4 +1033,13 @@ def run_server(
     # line a user needs ("MCP server on http://host:port/path"), and uvicorn's
     # own startup banner plus per-request access log would bury the token line
     # printed right beside it. Errors still surface.
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    #
+    # --access-log is the deliberate exception: this transport is served by
+    # uvicorn rather than by http_base's handler, so honouring the flag means
+    # letting uvicorn's own access logger through (its format, its stderr) --
+    # which is still a real access log where there was none, and the alternative
+    # is a flag that silently does nothing on the one server most likely to be
+    # left running.
+    access = observability.access_log_enabled()
+    uvicorn.run(app, host=host, port=port, access_log=access,
+                log_level="info" if access else "warning")

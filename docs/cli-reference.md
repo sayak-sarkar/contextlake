@@ -67,6 +67,27 @@ install` post-install hook exists to do this at install time -- see [Mirror repo
 waiting for that first run, or `CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of the automatic check
 entirely.
 
+## Global flags
+
+These work on every command, before or after it:
+
+| Flag | What it does |
+| --- | --- |
+| `--config PATH` | the sync INI for `mirror` commands, `kb.toml` for knowledge commands |
+| `-v`, `--verbose` | debug output — and, on a crash, the traceback rather than just `Error: <message>` |
+| `-q`, `--quiet` | warnings and errors only |
+| `--log-file PATH` | append a full timestamped copy of the run (redacted by default, see below) |
+| `--log-format text\|json` | `json` prints one JSON object per line, carrying the run id, command, repo and duration |
+| `--metrics-file PATH` | after the run, write Prometheus textfile-collector metrics |
+| `--redact` / `--no-redact` | scrub workspace paths, group and repo names from the console too / from nothing |
+| `--access-log` | log every request the local HTTP servers answer (off by default) |
+| `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
+
+The last five exist for unattended operation — the systemd service + timer in `examples/`, a cron
+wrapper, CI — where nobody watches the run and what it leaves behind is all there is.
+[Reading the console output](console-output.md) has the JSON shape, the redaction placeholders, and
+the metric names.
+
 ## Advanced/resilience flags
 
 The 8 `mirror`-tier commands (`mirror fetch`/`clone`/`update`/`branches`/`verify`/`status`/`sync`/`audit`)

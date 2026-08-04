@@ -261,6 +261,12 @@ Global options apply to any command: `--dry-run` (preview without changing anyth
 `-v`/`-q` (verbosity), `--log-file PATH`, `--config PATH`, `--version`. Output is colorized on
 a TTY and plain when piped; set `NO_COLOR` to force-disable.
 
+For runs nobody watches, the systemd timer in [`examples/`](examples/), cron, CI, there is a
+second set: `--log-format json` (one JSON object per line, every line stamped with a run id),
+`--metrics-file PATH` (Prometheus textfile-collector output), `--redact` (the `--log-file` copy
+is already scrubbed of workspace paths, group and repo names), and `--access-log`. See
+[Reading the console output](docs/console-output.md).
+
 ## Knowledge layer
 
 Beyond mirroring, the optional `contextlake.kb` layer turns your repos into a **knowledge
@@ -1007,6 +1013,52 @@ chmod +x /home/user/scripts/contextlake_wrapper.sh
 0 2 * * * /home/user/scripts/contextlake_wrapper.sh
 ```
 
+### Exit codes
+
+`mirror fetch`, `clone`, `update`, `branches`, `verify` and `sync` exit `0` when nothing failed and
+`1` when anything did, including a partial run, where some repositories synced and others did not.
+`sync` aggregates across all five stages, so one failed clone fails the whole run, and `bootstrap`
+counts a failed mirror stage the same way it counts a failed knowledge-layer stage. (`mirror status`
+and `mirror audit` only report; they do not fail on what they find.)
+
+Work that was deliberately skipped (already up to date, a protected working branch, `--dry-run`) is
+never a failure, and `mirror verify` fails only on a cloned path that is not a valid git repository,
+not on repos that are merely missing or extra.
+
+`Ctrl-C` exits `130`; a bad `--config` path exits `1`.
+
+Pass `--exit-zero-on-partial` to exit `0` anyway when some repositories failed, the failures are
+still reported, they just do not fail the job.
+
+`--verbose` also changes what a crash leaves behind: the top-level handler re-raises instead of
+printing `Error: <message>` alone, so a bug report can carry the traceback without anyone having to
+reproduce the failure under a debugger.
+
+### Observing an unattended run
+
+An exit code tells you *that* something broke; these four flags tell you *what*, after the fact.
+
+```bash
+0 2 * * * cd /home/user/work && /usr/bin/contextlake mirror sync \
+    --log-format json --log-file /var/log/contextlake/run.log \
+    --metrics-file /var/lib/node_exporter/textfile/contextlake.prom
+```
+
+- **`--log-format json`** emits one JSON object per line, each stamped with a `run_id` (pin your own
+  with `CONTEXTLAKE_RUN_ID`), the `command`, and, on per-repo lines, `repo`, `status`,
+  `duration_ms`, and `error_type` on failures.
+- **`--metrics-file`** writes Prometheus textfile-collector output: run duration, exit code, repo
+  counts by outcome, graph size, and a last-success timestamp that survives a failing run. Point
+  node_exporter's `--collector.textfile.directory` at that directory.
+- **`--log-file`** is redacted by default (workspace paths, `$HOME`, group and repository names), so
+  the copy you attach to a bug report needs no manual scrubbing. `--redact` extends that to the
+  console; `--no-redact` turns it off entirely.
+- **`--access-log`** turns on request logging for the local HTTP servers (`kb dashboard`,
+  `kb graph --serve`, `kb serve --transport http|sse`), which are otherwise silent.
+
+See [Reading the console output](console-output.md) for the exact JSON shape and metric names, and
+[`examples/contextlake.service`](../examples/contextlake.service) for a systemd unit wired up this way.
+
 ### Log rotation
 
 To prevent log files from growing indefinitely, set up log rotation:
@@ -1129,6 +1181,30 @@ defaults to the current directory (override interactively, or with `--work-dir`)
 knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to that workspace instead
 of the global `~/.contextlake/kb` (override with `--store-dir`), so two separate `--local` projects
 never end up sharing one store.
+
+## Workspace trust
+
+Because a local config is *discovered* rather than named, one can take effect that you never wrote , 
+notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the few config keys that
+become part of a command contextlake executes are honoured **only** from the global
+`~/.contextlake/kb.toml` or from a path you pass to `--config`:
+
+| Key | Reaches |
+| --- | --- |
+| `[llm] command`, `[llm] args` | the agent CLI run when `provider = "cli"` |
+| `[llm] provider`, `[llm] review_provider` | only when set to `"cli"` |
+| `[[sources]] command`, `args`, `mcp_command` | the MCP server spawned over stdio |
+
+In a discovered `.contextlake.kb.toml` those keys are ignored, with a warning naming the file and the
+key. Nothing else changes: `store_dir`, `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and
+any non-`cli` LLM provider all keep working from a local file exactly as before. The one thing to know
+when scoping sources with `contextlake kb source add ... --local` is that an *MCP* source's `command`
+has to live in the global file (or be reached with `--config`); an `mcp` **URL** is fine locally.
+
+Set `CONTEXTLAKE_NO_LOCAL_CONFIG=1` to skip ancestor discovery entirely, for both `.contextlake.ini` and
+`.contextlake.kb.toml`, recommended in CI, containers, and anywhere untrusted checkouts are processed in
+bulk. With it set, `source add --local` writes to the global config too, rather than to a local file that
+would never be read. See [SECURITY.md](../SECURITY.md#workspace-trust) for the full model.
 
 ## Settings reference
 
@@ -1926,6 +2002,11 @@ by what may leave your machine and what hardware you have.
   for `claude` and by its own docs for `gemini`; `codex`'s docs describe API-key auth as a separate,
   explicitly-opted-into mode rather than an environment-variable override, so the strip is a defensive
   precaution there rather than a confirmed-necessary fix.
+  **`provider = "cli"`, `command`, and `args` are read only from `~/.contextlake/kb.toml` or a
+  `--config` path**, never from a `.contextlake.kb.toml` found by walking up from your current
+  directory, since that file may have arrived inside a repository you cloned and these keys are a
+  command line contextlake runs. Setting them locally logs a warning and is ignored; every other
+  provider works from a local file as usual. See [Workspace trust](../SECURITY.md#workspace-trust).
 
 **Data-sharing posture per backend.** Pick by what may leave your machine:
 
@@ -2318,7 +2399,7 @@ contextlake kb dashboard --serve --open         # live, against your store; open
 | `--group-depth N` | How many namespace path segments deep to group repos in the fleet overview (default `1`). Raise it to split one big flat group into finer sub-groups. |
 | `--allow-mutations` | `--serve` only: also expose sync/add-repo/MCP-server actions (see §11). Loopback host only; refused with `--sample`. |
 | `--workspace DIR` | `--allow-mutations`: where **Add repo** clones new repos (default: alongside the store). |
-| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. |
+| `--llm-chat` | `--serve` only: the Chat tab's free graph-router answers work regardless; this additionally sends them to the configured `[llm]` provider for prose (see §12). Real time/token cost per question. Loopback host only. |
 
 > Browsing your whole fleet? Use `--serve`, it renders each repo on demand with no
 > caps. A `--site` export is a fixed, shareable slice.
@@ -2487,7 +2568,8 @@ the browser: **Sync now** on a repo page (`git pull --ff-only` + reindex), **Add
 repo** on the fleet overview (clone a URL into `--workspace` + index it),
 **Start / Stop / Restart** for a separate `contextlake kb serve --transport http`
 process on the MCP console tab (not the stdio server your editor spawns -- this
-dashboard can't see or manage that one), and **Regenerate** wiki (single-repo on
+dashboard can't see or manage that one; see below for its bearer token), and
+**Regenerate** wiki (single-repo on
 that repo's Wiki tab, or fleet-wide on Settings, runs the exact `contextlake kb
 wiki` CLI as a background process, detached from the request that started it, so
 it keeps running even if you close the browser tab).
@@ -2497,9 +2579,18 @@ checkbox to bypass that freshness check and regenerate everything in scope
 regardless (the estimate updates to reflect that before you confirm, too, a
 fleet-wide Force run can mean an LLM call per indexed repo).
 
+The MCP server this card starts is itself authenticated (see
+[Serve](serve.md#authenticating-the-network-transports)): the HTTP transport requires
+`Authorization: Bearer <token>` on every request. Because the dashboard spawns it with its
+output discarded, the dashboard mints that token instead of letting the server print one, and
+the card shows it alongside the endpoint, that card is the only place it appears. **Restart
+mints a new one**, so any client pinned to the old token must be re-pointed at the value the
+card then shows. The token is kept in `<store>/dashboard/mcp-server.pid`, created `0600`, so it
+survives a page reload.
+
 Refused outright with `--sample` (the demo fleet is fictional -- nothing on disk to
-sync/clone) and with any `--host` other than `127.0.0.1`/`localhost` (mutating
-routes are loopback-only by design). A random per-launch token is minted at
+sync/clone) and with any non-loopback `--host` (`127.0.0.1`, `localhost` and `::1` are the
+loopback binds; mutating routes are loopback-only by design). A random per-launch token is minted at
 startup and wired into the served page; every `POST` must carry it in an
 `X-Contextlake-Token` header matching exactly, and the request's `Host` header
 must name this host:port -- both close the classic localhost-server holes (a
@@ -2507,6 +2598,20 @@ form-encoded POST from any open browser tab, and DNS rebinding around the
 loopback bind, respectively). A mutation takes the store's single-writer lock
 for its own duration only, so a concurrent CLI command sees a clean `409`
 instead of an interleaved write.
+
+The MCP server those Start/Restart actions spawn is constrained to a loopback bind
+and an unprivileged port (1024-65535), whatever the request asks for. That transport
+has no authentication of its own, so a caller-chosen bind would let one token turn
+this loopback-only dashboard into a public graph server that outlives it.
+
+The `Host` check applies to **every** request, `GET` included, and to every route
+including the static assets -- the read API is your whole code graph, and the
+served `dashboard.js` carries that per-launch token. The same rule now guards
+`contextlake kb graph --serve`'s pages. Practical consequence: a request is
+answered only when its `Host` is the address you bound (`--host`) or `localhost`,
+each with the port. If you bind a wildcard (`--host 0.0.0.0`) and then browse the
+machine's LAN address, you'll get `403 forbidden` -- bind that address instead
+(`--host 192.0.2.10`), or reach it as `http://localhost:PORT`.
 
 ## 12. Chat
 
@@ -2534,6 +2639,11 @@ per-launch token `--allow-mutations` uses (§11), and every chat request while i
 must carry that token -- a page other than this dashboard can't silently trigger a
 paid call. The free layer needs no token, same risk level as any other read-only
 `/api/*` route. Live-only, like MCP console/Settings above (no `--site` export).
+
+Loopback host only, for the same reason `--allow-mutations` is (§11): that token is
+served inside `/dashboard.js`, so on a non-loopback bind anyone who can reach the port
+can read it and spend your provider budget. `--llm-chat --host 0.0.0.0` is refused at
+startup.
 
 ---
 
@@ -2641,16 +2751,76 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 
 - **`stdio`**, the default. The editor/agent spawns `contextlake kb serve` itself and talks to
   it over stdin/stdout; this is what `steer`-generated `.mcp.json`/`.vscode/mcp.json` entries use.
+  No token, no network: the pipe belongs to the process that spawned it.
 - **`http`**, Streamable HTTP, the MCP spec's current standard network transport (`--host`/
   `--port`, default `127.0.0.1:8765`). Point clients at `http://127.0.0.1:8765/mcp`, not the bare
   host:port: the endpoint is the `/mcp` path, and the root returns 404. Prefer this transport for
-  any new remote/network wiring.
+  any new remote/network wiring. **Authenticated**, see below.
 - **`sse`**, the older HTTP+SSE transport from the 2024-11-05 MCP spec revision. The current spec
   marks it deprecated in favor of Streamable HTTP, but still guides servers to keep offering it
   for clients that haven't moved off it yet; contextlake follows that guidance rather than
   dropping it. Its endpoint is `http://127.0.0.1:8765/sse`. Use `sse` only if your client
   specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
-  distinct, separate option from HTTP), pick `http` first.
+  distinct, separate option from HTTP), pick `http` first. Authenticated exactly like `http`.
+
+### Authenticating the network transports
+
+The graph answers with real file paths, symbol names, docstrings and owner identities, so the
+socket transports do not serve it to anyone who connects.
+
+**A bearer token, printed once to stderr at startup:**
+
+```
+$ contextlake kb serve --transport http
+✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)
+  Bearer token: <a fresh 43-character token>
+  Clients must send: Authorization: Bearer <token>
+  Pin a stable one across restarts with $CONTEXTLAKE_MCP_TOKEN.
+```
+
+Every request needs `Authorization: Bearer <token>`; without it the server answers `401`. The
+token goes to stderr only, never to stdout, never to the log file, so it does not outlive the
+process anywhere you did not put it.
+
+**Pin it for a client config.** A fresh token per launch is fine when you copy it by hand and
+useless when a config file has to hold it. Set `CONTEXTLAKE_MCP_TOKEN` and the server uses that
+value instead of minting one (an empty or whitespace-only value is treated as unset, and a fresh
+token is minted, it never turns authentication off):
+
+```bash
+export CONTEXTLAKE_MCP_TOKEN='pick-your-own-long-random-string'
+contextlake kb serve --transport http
+```
+
+**Origin and Host are validated** on every request, as the MCP spec requires for HTTP transports:
+a request whose `Origin` is not the bound host (or a loopback address) gets `403`, and one whose
+`Host` does not name this server gets `421`. That is what stops a web page you visit from
+reaching your loopback MCP server through DNS rebinding.
+
+**Non-loopback binds must be opted into.** `--host` outside `127.0.0.1` / `localhost` / `::1` is
+refused unless you pass `--allow-remote`, and prints a warning when you do:
+
+```bash
+contextlake kb serve --transport http --host 0.0.0.0        # refused, exits 1
+contextlake kb serve --transport http --host 0.0.0.0 --allow-remote
+```
+
+Nothing here is encrypted in transit. For anything beyond your own machine, prefer an SSH tunnel
+to a loopback bind, or put TLS in front of it. Note also that a wildcard bind (`0.0.0.0`) only
+answers requests whose `Host` is a loopback name, because the Host check has no way to know which
+address you meant, bind the address clients will actually name (`--host 192.0.2.10`).
+
+**There is an access log, and it is off by default.** These servers are loopback developer tools
+whose console is already a command's output, so they stay quiet, but a server holding the whole
+code graph should be able to answer "what did it serve, and to whom". `--access-log` turns on one
+line per request (client address, request line, status).
+
+For contextlake's own servers, `kb dashboard --serve`, `kb graph --serve`, `kb graph --site
+--serve`, those lines go through the same logger as everything else, so they land in `--log-file`
+and follow `--log-format json`, and the client-supplied request line is stripped of control
+characters first. `kb serve`'s `http`/`sse` transports are served by uvicorn rather than by
+contextlake's handler, so there the flag enables *uvicorn's* access log instead: its own format,
+on stderr, alongside its startup banner.
 
 **Devin is different: there's no repo file to wire.** Devin's MCP connections are configured at
 the account/org level (`mcp.devin.ai`, with an API key and org header), not read from a file
@@ -2763,7 +2933,10 @@ Output is chosen with `--format`:
 
 For interactive exploration of a large graph, `contextlake kb graph --serve` runs a local web UI where
 clicking a node **expands** it (fetches its neighbours on demand) so you can walk the graph without
-pre-rendering all of it.
+pre-rendering all of it. Like the dashboard, it answers a request only when the `Host` header names the
+address it was bound to (`--host`) or `localhost`, port included, that pinning is what stops a page on
+an attacker domain that re-resolves to `127.0.0.1` from reading your graph cross-origin. Bind the address
+you intend to browse rather than a wildcard (see [dashboard.md](dashboard.md#11-mutating-routes---allow-mutations)).
 
 ## Composed namespace C4 diagram
 
@@ -3514,6 +3687,27 @@ install` post-install hook exists to do this at install time -- see [Mirror repo
 waiting for that first run, or `CONTEXTLAKE_NO_AUTO_COMPLETION=1` to opt out of the automatic check
 entirely.
 
+## Global flags
+
+These work on every command, before or after it:
+
+| Flag | What it does |
+| --- | --- |
+| `--config PATH` | the sync INI for `mirror` commands, `kb.toml` for knowledge commands |
+| `-v`, `--verbose` | debug output, and, on a crash, the traceback rather than just `Error: <message>` |
+| `-q`, `--quiet` | warnings and errors only |
+| `--log-file PATH` | append a full timestamped copy of the run (redacted by default, see below) |
+| `--log-format text\|json` | `json` prints one JSON object per line, carrying the run id, command, repo and duration |
+| `--metrics-file PATH` | after the run, write Prometheus textfile-collector metrics |
+| `--redact` / `--no-redact` | scrub workspace paths, group and repo names from the console too / from nothing |
+| `--access-log` | log every request the local HTTP servers answer (off by default) |
+| `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
+
+The last five exist for unattended operation, the systemd service + timer in `examples/`, a cron
+wrapper, CI, where nobody watches the run and what it leaves behind is all there is.
+[Reading the console output](console-output.md) has the JSON shape, the redaction placeholders, and
+the metric names.
+
 ## Advanced/resilience flags
 
 The 8 `mirror`-tier commands (`mirror fetch`/`clone`/`update`/`branches`/`verify`/`status`/`sync`/`audit`)
@@ -3550,7 +3744,7 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
-| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`) |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 
 The `mirror`-tier commands (`mirror fetch`, `mirror clone`, `mirror update`, `mirror branches`,
@@ -3617,6 +3811,74 @@ summary (`✓ Embed complete: ...`, `✓ Lint: ...`, and so on) you can skim str
 into a tool that doesn't expect escape codes. It doesn't touch the glyphs themselves, `✓`/`⚠`/`✗` and the
 rest still print; only the color wrapped around them is gone.
 
+## Machine-readable logs: `--log-format json`
+
+Everything above describes output composed for a person. When the reader is a log collector instead --
+the systemd timer in `examples/`, a cron wrapper, CI -- `--log-format json` prints one JSON object per
+line and nothing else:
+
+```json
+{"ts": "2026-08-04T05:45:19Z", "level": "INFO", "msg": "Cloned", "run_id": "bcd5bd3d69cb", "command": "mirror clone", "repo": "team/api", "status": "ok", "duration_ms": 812}
+```
+
+- **`run_id`** is generated once per invocation and stamped on every line, so an interleaved journal can
+  be split back into runs, and one `bootstrap`'s index / connect / embed / wiki stages read as one story.
+  Set `CONTEXTLAKE_RUN_ID` to pin your own (a systemd invocation id, a CI job id) and have contextlake's
+  lines join up with the surrounding job's.
+- **`command`** is the command as you would type it (`mirror sync`, `kb index`).
+- **`repo`** and **`duration_ms`** appear on per-repo lines, which is what makes "which repo is making
+  the nightly run slow" a query rather than a guess.
+- Failures add **`error_type`** (`dns`, `timeout`, `auth`, `diverged`, ...) and **`error`**, so "every
+  failure last night was DNS" is one aggregation.
+
+The default (`text`) output is unchanged, character for character. Structured fields are only ever
+*added* to the JSON form; they never alter a human line.
+
+## Sharing a log: `--redact`
+
+`--log-file PATH` keeps a full-detail copy of the run. That copy is **redacted by default**: workspace
+paths, `$HOME`, the group/org name, a self-hosted forge hostname and repository names are replaced with
+placeholders, so it can be attached to a bug report as-is.
+
+```
+[2026-08-04 05:48:49] Working directory: <workspace>
+[2026-08-04 05:48:49] Gitlab group: <group>
+[2026-08-04 05:48:49] Missing repositories:
+[2026-08-04 05:48:49]   repo-5a7da0a4
+```
+
+Repository names become a stable `repo-<digest>`, so "the same three repos failed again" still reads
+correctly after scrubbing, and a file path *inside* a repo keeps its tail (`<workspace>/repo-5a7da0a4/
+src/main.py:42`) because which file broke is the useful half. This is obfuscation for sharing, not a
+cryptographic guarantee: a short, guessable repository name can be confirmed by anyone who guesses it.
+
+The console is left alone by default -- you need the real paths to act on what you are reading.
+`--redact` scrubs the console too; `--no-redact` scrubs neither.
+
+## Metrics for an unattended run: `--metrics-file`
+
+`--metrics-file PATH` writes Prometheus [textfile-collector](https://github.com/prometheus/node_exporter#textfile-collector)
+output after the run, so the shipped systemd timer is monitorable with no exporter process of its own.
+Point node_exporter's `--collector.textfile.directory` at the file's directory and name the file `.prom`:
+
+```
+contextlake_run_duration_seconds{command="mirror sync"} 42.318
+contextlake_run_exit_code{command="mirror sync"} 0
+contextlake_repos{command="mirror sync",status="ok"} 480
+contextlake_repos{command="mirror sync",status="failed"} 0
+contextlake_repos{command="mirror sync",status="skipped"} 3
+contextlake_graph_nodes 128394
+contextlake_graph_edges 214005
+contextlake_last_success_timestamp_seconds{command="mirror sync"} 1785802519
+```
+
+Two behaviours worth knowing. `contextlake_last_success_timestamp_seconds` is **carried forward** by a
+failing run rather than erased -- that timestamp is the whole basis of a "stale for six hours" alert. And
+a value that could not be measured is **omitted, never written as 0**: a `mirror sync` does not touch the
+knowledge graph, so it publishes no `contextlake_graph_nodes` at all rather than a zero that reads as
+"the graph was wiped". The counts come from what the run already tallied (the same numbers that decide
+the exit code), so the metrics can never disagree with the summary line.
+
 ## The stdout / stderr split
 
 The bar renders on stderr; the per-item result lines below it (`✓`/`⚠` and the like) stay on stdout. That
@@ -3657,6 +3919,13 @@ separately.
   suffix for `sse` -- so you don't have to guess the host/port/path before pointing an editor at it.
   Both URLs include the path because neither transport is served at the bare root: that really is a 404.
   `stdio` transport has no address to report and stays quiet on that line.
+- **The network transports print their bearer token right under that URL, on stderr.** A socket that
+  serves the whole graph needs a credential, and a credential you cannot find is the same as a server
+  you cannot use -- so it is said once, next to the address it belongs to, rather than left to be
+  discovered. Deliberately *not* through the logger: `--log-file` would otherwise leave the token on
+  disk after the process is gone. Pin your own with `CONTEXTLAKE_MCP_TOKEN` and the line acknowledges
+  it instead of echoing the value. `stdio` prints no token because it needs none. See
+  [Serve](serve.md).
 - **`graph --overview` on an empty store warns instead of reporting silent success.** It still writes the
   (empty) artifact, but now says `⚠ Wrote html (0 nodes, 0 edges) -> ...: the store is empty.` followed by
   a hint to run `contextlake kb index` first, instead of logging the same success line it would for a
@@ -3686,6 +3955,168 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Known issues
+These are found, measured, and pinned by `xfail`ing tests rather than left to surface in the wild.
+Fixes are in progress; the tests flip to passing when they land.
+- **Indexing a hostile or merely corrupted `pom.xml` can hang.** The Maven dependency-block regex
+  is O(n^2) when closing tags are missing: each unclosed `<dependency>` sends the lazy match
+  scanning to end-of-string before failing. Measured 6.2s for an 80KB tail and 24.9s for 160KB.
+  A truncated pom from an aborted download is enough; it does not take an attacker.
+- **A deeply nested `.tf` file can hang indexing.** `parse_hcl` is O(n^2) in nesting depth
+  (4.5s at depth 10000). The tree-sitter parse itself is linear and accounts for ~1% of that; the
+  cost is contextlake's own walk to the tree root once per reference node.
+- `normalize_id` is not idempotent for characters whose casefold expands into a base letter plus a
+  combining mark (Turkish dotted capital I is the reproducer), which contradicts its docstring. No
+  current caller re-normalizes an existing id, so this is a latent trap rather than a live
+  collision.
+
+### Security
+- **A config file found by directory search can no longer make contextlake execute a program.**
+  `.contextlake.kb.toml` is discovered by walking up from the current directory, so a repository you
+  cloned could ship one setting `[llm] provider = "cli"` + `command`/`args`, handed straight to
+  `subprocess.run` by the next `kb wiki`, `kb enrich`, or `dashboard --llm-chat`. The same hole existed
+  in `[[sources]]`, whose `command`/`args`/`mcp_command` spawn an MCP server over stdio. Those keys are
+  now honoured only from `~/.contextlake/kb.toml` or an explicit `--config` path; from a discovered file
+  they are dropped with a warning naming the file and the key. Nothing else is distrusted: `store_dir`,
+  `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers keep working
+  from a project-local file exactly as before, so directory-scoped config is unaffected. Passing
+  `--config` on that same file still honours it: naming the file is the explicit act the gate asks for.
+
+### Added
+- `CONTEXTLAKE_NO_LOCAL_CONFIG=1` skips ancestor config discovery entirely, for both
+  `.contextlake.ini` and `.contextlake.kb.toml`; only the global file and an explicit `--config` are
+  read. Intended for CI, containers, and anywhere untrusted checkouts are handled in bulk, where opting
+  out of the whole tier is simpler to reason about than the per-key gate above.
+- CI now enforces a coverage floor (`--cov-fail-under=88`) on the full-suite job, so a silent
+  drop from the current 92% can no longer pass green. The floor is deliberately only on that one
+  job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
+  its own partial number, and the core job measures the whole package while skipping `tests/kb`,
+  so its honest total is ~23% and no shared floor can fit both.
+- Property-based tests (`hypothesis`) for the invariants that were only ever example-tested:
+  `normalize_id`'s idempotence, `make_id`'s part handling, `sanitize_label`'s guarantee that no
+  control character and nothing over the length cap ever escapes it, and that `_fts_query` cannot
+  emit a string that makes SQLite's FTS5 raise. Plus a pathological-input corpus for the four
+  regex-based extractors, each bounded by `pytest-timeout`, since they consume untrusted
+  repository content. Three real defects fell out and are recorded as `xfail` with measurements
+  rather than quietly passing: see Known issues.
+- Combinatorial test coverage for the places where options interact rather than act alone: a
+  provider-resolution matrix (embedder/LLM/vector-store builders across every provider, backend
+  and enabled/disabled combination), a serve matrix (transport x embedder-present x
+  vector-store-present, asserting the actually-registered MCP tool set), and a boundary matrix
+  (every `limit`/`hops`/`max_*` at zero, one, either side of the default and very large, plus
+  empty and single-file repos and `None`-valued node fields flowing through the payload, diagram
+  and MCP-model layers). The provider names are discovered from the source rather than hardcoded,
+  so a new provider is covered automatically. This is the class of gap that let the `--llm-chat`
+  non-loopback hole exist: the vulnerability was an untested cell of a flag matrix.
+- Supply-chain scanning: a `security` workflow running `pip-audit` over the full dependency
+  surface (dev plus every `kb` extra), a `ruff --select S` security-lint pass, and CodeQL for
+  Python, on push to main, on pull requests, and weekly so newly-disclosed CVEs surface against an
+  untouched tree. The `--select S` pass is non-blocking for now: it reports ~159 real findings plus
+  ~3,336 `assert`-in-tests hits that are pytest idiom rather than defects, and triaging that
+  backlog is its own piece of work. Deliberately kept out of `pyproject.toml`'s ruff `select` and
+  out of `ci.yml` so it stays additive rather than a new gate on every commit.
+- Dependabot for `pip` and `github-actions`, weekly, with minor/patch grouped per ecosystem so a
+  routine tree-sitter point release does not open a dozen PRs. Major bumps stay ungrouped.
+- Published container images now carry SLSA build provenance and an SPDX SBOM, and are signed
+  keyless with cosign via the workflow's OIDC identity (no key material anywhere). Signing is by
+  digest rather than tag, so the signature is pinned to exactly what was built.
+- `--exit-zero-on-partial` on every mirror command (and `bootstrap`), for anyone whose scripts
+  depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
+
+### Fixed
+- Shard output is now reproducible. Indexing the same commit twice produced different shard bytes
+  every time, because the tree-sitter query cursor returns captures in an order that varies between
+  runs. The set of nodes and edges was always correct (only their order moved), but it made
+  `archive_shard`'s documented "a repo re-indexed at the same commit overwrites identically"
+  invariant false, and defeated any checksum-based reasoning about whether an index is current.
+  Captures are now sorted at the single extraction site, and `PARSER_VERSION` is bumped to `2`.
+
+  **Action required: run `contextlake kb index --force` (add `--workspace <dir>` if you keep the
+  store elsewhere).** Existing shards are stale, and nothing will tell you so: `needs_reindex`
+  compares only the repo HEAD and does not consider the parser version, and `doctor`'s stale-parser
+  check is deliberately scoped to C/C++. An unchanged Python or TypeScript repo will therefore be
+  neither flagged nor rebuilt on its own.
+
+  Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
+  file order still comes from directory traversal, so do not compare shard hashes between CI runners.
+  The regression guard is in-process.
+- **Security (breaking for `kb serve --transport http`/`sse`):** the MCP network transports now
+  require authentication. They previously had none, no Origin validation, and no warning, so
+  `kb serve --transport http --host 0.0.0.0` published every indexed symbol, file path, docstring
+  and owner identity to the network. A bearer token is minted at startup and printed once to
+  stderr; requests without it get `401`, a hostile `Origin` gets `403`, a hostile `Host` gets
+  `421`. Set `CONTEXTLAKE_MCP_TOKEN` to pin a stable token for a client config. A non-loopback
+  `--host` is refused unless `--allow-remote` is passed. There is no TLS: the transport is meant
+  for loopback or a tunnel, and says so at startup.
+
+  **stdio is completely unaffected** and needs no token. That is the default and what every
+  documented editor integration uses, so most setups need no change.
+
+  The dashboard's "start MCP server" card spawns that same command with its stderr discarded,
+  which would have thrown the token away and left the card advertising a server nobody could
+  connect to. It now mints the token itself, passes it to the child, stores it in a `0600`
+  pidfile, and shows it on the card.
+- **Security:** `--llm-chat` is now refused with a non-loopback `--host`, the same guard
+  `--allow-mutations` already had. The per-launch token that gates the chat route is served inside
+  `/dashboard.js`, so anyone who could reach the bind could read the token and drive the configured
+  LLM provider at the operator's expense. Host-header pinning does not cover this: pinning is a
+  browser control, and a plain `curl -H 'Host: localhost:PORT' http://<lan-ip>:PORT/dashboard.js`
+  satisfies it and returns the token.
+- **Security:** the dashboard's `POST /api/mcp/serve` no longer accepts an arbitrary bind address.
+  A caller-supplied `host` went into the MCP server unvalidated, so a token holder could publish
+  the whole graph on `0.0.0.0` over a transport with no authentication. The host must now be
+  loopback and the port unprivileged; anything else is a `400`, including a wrong-typed JSON value,
+  which previously raised and surfaced as a `500`.
+- **Security:** the dashboard and graph servers now pin the `Host` header on `GET` as well as
+  `POST`. Only `POST` checked it, so a page whose domain re-resolved to `127.0.0.1` (DNS
+  rebinding) could read the entire code graph cross-origin: `/api/overview`, `/api/repo/<id>`,
+  `/api/search`, `/graph/*`: file paths, symbol names, owner identities. Static assets are
+  deliberately *not* exempt, because `dashboard.js` carries the per-process token and exempting
+  it would hand a rebinding page the key to the mutating routes. One consequence worth knowing:
+  a server bound with `--host 0.0.0.0` and browsed via its LAN address now returns 403; use
+  `http://localhost:PORT` or bind the address you intend to browse. The server prints a hint.
+- Malformed query parameters return `400` with a JSON body instead of raising inside the handler
+  thread and dumping a traceback with no response. Out-of-range values clamp rather than error,
+  and internal failures return a generic `500` with the traceback going to the log, never to the
+  client. Two further unguarded integer parses on client input (`Content-Length`, and the
+  mutation port) were fixed at the same time.
+
+### Changed
+- **The no-install launcher is renamed `contextlake.py` -> `run-contextlake.py`.** At the repo root
+  it shadowed the installed package: `python -m ...` puts the working directory first on
+  `sys.path`, so `python -m pytest` from a clone failed with `No module named 'contextlake.cli';
+  'contextlake' is not a package` before collecting a single test, the first command many
+  contributors type. `CONTRIBUTING.md` had documented the workaround; it now documents reality
+  instead, and CI runs `python -m pytest --collect-only` so the trap cannot come back. No
+  compatibility shim is left behind, because a file at the old path would recreate the exact
+  problem. The installed `contextlake` command and the standalone binaries are unaffected: both
+  resolve through the package entry point, never the root file.
+- All the local HTTP servers now share one base (`kb/http_base.py`) carrying the Host check, the
+  JSON error envelope and the exception guard. The three servers had drifted apart, which is the
+  structural reason the `GET`/`POST` gap above existed at all.
+- `index_repo_dir` is decomposed into a file walker, a parser registry and a ref collector; it was
+  the most complex function in the codebase and sits on the critical path of every index run. Shard
+  output is unchanged, proven by a new golden-shard test that also passes against the pre-change
+  code, so it is a genuine regression check rather than a snapshot of the new behaviour.
+- **Breaking:** a mirror run that had failures now exits 1. `mirror fetch`/`clone`/`update`/
+  `branches`/`verify`/`sync` (and `bootstrap`'s mirror stage) exited 0 no matter how much of the
+  fleet failed. `mirror sync` reported success with a ✓ even when every single clone failed. Nothing
+  unattended could tell a healthy mirror from a dead one: the cron wrapper in `docs/usage.md` tests
+  `$?` and so never fired, and the `Type=oneshot` systemd unit in `examples/` was always recorded as
+  succeeding, leaving `systemctl is-failed` and any `OnFailure=` hook with nothing to fire on. Each
+  stage now returns its own ok/failed/skipped counts, `sync` exits on the total across all stages,
+  and the sync finale is a ⚠ rather than a ✓ when anything failed.
+
+  What counts as a failure is exactly what each stage already logged as an error, so no repo is
+  reclassified. Skipped work (already up to date, protected branch, dry run) is never a failure;
+  neither is a `verify` that reports repos missing or extra (only a cloned path with no `.git`,
+  which is corruption). `fetch` fails on 0 projects only when no `--repos`/`repo_filter` is in
+  play, since 0 matches for a narrow pattern is a legitimate answer.
+
+  **Migrating:** if a script or CI job relies on a mirror command always exiting 0, add
+  `--exit-zero-on-partial`. If it already checks the exit status, it starts working as intended,
+  expect jobs to go red that were silently failing before.
 
 ## [4.0.0] - 2026-08-04
 
