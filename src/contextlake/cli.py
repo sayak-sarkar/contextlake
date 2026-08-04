@@ -1101,6 +1101,11 @@ to pin one across restarts. stdio needs no token. See docs/serve.md.
     p.add_argument("--allow-remote", dest="allow_remote", action="store_true", default=_S,
                    help="--transport http/sse: permit a non-loopback --host "
                         "(refused otherwise; the graph would face the network)")
+    p.add_argument("--tool-concurrency", dest="tool_concurrency", type=int, default=_S,
+                   metavar="N",
+                   help="how many tool calls may run at once (default 2; also "
+                        "$CONTEXTLAKE_MCP_TOOL_CONCURRENCY). Raising it past a few "
+                        "slows the server down -- the tools contend on the store")
     _add_net(p)
 
     p = command("query", "search the graph from the terminal (cited file:line hits)",

@@ -148,7 +148,8 @@ def cmd_serve(args) -> int:
                         "421. Bind that address instead "
                         "(--host <the-address-clients-will-use>)."))
         run_server(store, transport=transport, host=host, port=port,
-                   embedder=embedder, vector_store=vector_store, token=token)
+                   embedder=embedder, vector_store=vector_store, token=token,
+                   tool_concurrency=getattr(args, "tool_concurrency", None))
         return 0
     except KeyboardInterrupt:
         # Ctrl-C is the documented way to stop this server (see the "Ctrl-C to

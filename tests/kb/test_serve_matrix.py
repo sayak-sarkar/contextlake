@@ -288,15 +288,27 @@ def test_sse_transport_is_gated_by_the_same_token(tmp_path):
         store.close()
 
 
-def test_stdio_takes_the_sdk_run_path_untouched(tmp_path, monkeypatch):
-    """The default, most-used transport must be byte-for-byte the old behaviour:
-    MCPServer.run(transport="stdio"), no host/port, no middleware, no token."""
+def test_stdio_stays_a_bare_pipe_with_no_app_or_token(tmp_path, monkeypatch):
+    """The default, most-used transport keeps its posture: no host/port, no
+    middleware, no token, no ASGI app.
+
+    It reaches the SDK through ``run_stdio_async`` rather than
+    ``run(transport="stdio")`` -- the latter is just ``anyio.run`` of the
+    former, and contextlake now owns that ``anyio.run`` because the tool-thread
+    limiter and the SIGTERM handler can only be installed inside a running loop.
+    """
     from contextlake.kb import server as server_mod
     from contextlake.kb.store.sqlite_store import SqliteStore
 
-    calls: list[dict] = []
-    monkeypatch.setattr(server_mod.MCPServer, "run",
-                        lambda self, **kw: calls.append(kw))
+    ran: list[str] = []
+
+    async def _fake_stdio(self):
+        ran.append("stdio")
+
+    monkeypatch.setattr(server_mod.MCPServer, "run_stdio_async", _fake_stdio)
+    monkeypatch.setattr(
+        server_mod.MCPServer, "run",
+        lambda self, **kw: pytest.fail("stdio must not go through the blocking .run()"))
     monkeypatch.setattr(
         server_mod, "build_http_app",
         lambda *a, **k: pytest.fail("stdio must not build an HTTP app"))
@@ -306,7 +318,7 @@ def test_stdio_takes_the_sdk_run_path_untouched(tmp_path, monkeypatch):
         server_mod.run_server(store, transport="stdio")
     finally:
         store.close()
-    assert calls == [{"transport": "stdio"}]
+    assert ran == ["stdio"]
 
 
 def test_env_token_is_reused_and_blank_env_fails_closed(monkeypatch):

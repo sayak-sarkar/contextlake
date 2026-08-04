@@ -589,7 +589,7 @@ def test_get_wiki_serves_cluster_page_by_namespace(tmp_path):
 # (sse_path, message_path, transport_security, host) and would raise
 # TypeError('unexpected keyword argument') on streamable-http-only options like
 # stateless_http/json_response. And only the HTTP family builds an ASGI app at
-# all -- stdio still goes straight through MCPServer.run(). These tests pin the
+# all -- stdio goes straight to MCPServer.run_stdio_async(). These tests pin the
 # exact kwargs each transport gets. (Who may *reach* those apps is
 # test_serve_matrix.py's second half.)
 
@@ -597,9 +597,13 @@ class _FakeServer:
     def __init__(self):
         self.calls = []
         self.apps = []
+        self.stdio_runs = 0
 
     def run(self, **kwargs):
         self.calls.append(kwargs)
+
+    async def run_stdio_async(self):
+        self.stdio_runs += 1
 
     def sse_app(self, **kwargs):
         self.apps.append(("sse_app", kwargs))
@@ -625,7 +629,13 @@ def test_run_server_stdio_passes_no_network_kwargs(monkeypatch):
 
     server_mod.run_server(store=None, transport="stdio")
 
-    assert fake.calls == [{"transport": "stdio"}]
+    # run_stdio_async, not .run(transport="stdio"): the SDK's .run() is exactly
+    # `anyio.run(self.run_stdio_async)`, and contextlake now owns that anyio.run
+    # so it can set the tool-thread limiter and install a SIGTERM handler, both
+    # of which only exist inside a running loop. What stdio gets is otherwise
+    # unchanged, which is what the rest of this test pins.
+    assert fake.stdio_runs == 1
+    assert fake.calls == []
     assert fake.apps == []  # stdio builds no ASGI app and needs no token
 
 

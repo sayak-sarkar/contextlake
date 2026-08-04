@@ -41,6 +41,58 @@ HTTP_TRANSPORTS = frozenset({"streamable-http", "sse"})
 
 TOKEN_ENV = "CONTEXTLAKE_MCP_TOKEN"
 
+# How many tool bodies may run at once.
+#
+# The MCP SDK runs every synchronous tool through
+# ``anyio.to_thread.run_sync`` with no limiter (func_metadata.call_fn_with_arg_validation),
+# so it takes anyio's default of 40 worker threads. Our tool bodies are graph
+# traversals over SQLite, and a traversal is not one query -- it is thousands of
+# small round trips through the store. Forty threads interleaving those on one
+# connection pool spend their time contending rather than working: measured
+# against a real index, twenty concurrent expensive calls cost ~1.97s unbounded
+# versus ~50ms at a limit of one, and the same traversal over in-memory dicts
+# shows a contention ratio of 1.78 against 53.55 for SQLite. The knee is sharp
+# between two and four.
+#
+# Two, not one: the matrix that produced those numbers ran homogeneous batches,
+# where serialising is free. Real editor traffic mixes one slow call with many
+# fast ones, and at a limit of one a single multi-second traversal holds the
+# only token while every cheap lookup queues behind it. Two keeps a slot free
+# for the cheap path and still removes ~93% of the contention.
+TOOL_CONCURRENCY_ENV = "CONTEXTLAKE_MCP_TOOL_CONCURRENCY"
+DEFAULT_TOOL_CONCURRENCY = 2
+
+
+def resolve_tool_concurrency(explicit: int | None = None) -> int:
+    """How many tool bodies may run at once: flag, then env, then the default.
+
+    A non-numeric or non-positive env value is ignored rather than fatal -- this
+    is a performance knob on a server an editor launches, and refusing to start
+    over a typo in a shell profile is worse than serving at the default.
+    """
+    if explicit is not None and explicit > 0:
+        return explicit
+    raw = (os.environ.get(TOOL_CONCURRENCY_ENV) or "").strip()
+    if raw:
+        try:
+            if (n := int(raw)) > 0:
+                return n
+        except ValueError:
+            pass
+    return DEFAULT_TOOL_CONCURRENCY
+
+
+def apply_tool_limiter(limit: int) -> None:
+    """Bound the SDK's tool worker pool. Must run inside the async context.
+
+    anyio's default thread limiter is stored in a run-scoped variable, so it
+    only exists once a loop is running and setting it from module scope would
+    either fail or configure a limiter nothing uses.
+    """
+    import anyio.to_thread
+
+    anyio.to_thread.current_default_thread_limiter().total_tokens = limit
+
 _INSTRUCTIONS = (
     "Query the local code knowledge graph instead of grepping. Results are cited "
     "(source file + verified date) and confidence-tagged: treat EXTRACTED edges as "
@@ -1000,7 +1052,7 @@ class BearerAuthMiddleware:
 
 def build_http_app(
     store: Store, *, transport: str, host: str, token: str,
-    embedder=None, vector_store=None,
+    embedder=None, vector_store=None, tool_concurrency: int | None = None,
 ):
     """The token-gated, Origin-checked ASGI app for an HTTP-family transport.
 
@@ -1013,6 +1065,7 @@ def build_http_app(
     MCP spec, kept for older clients that only speak SSE -- see docs/serve.md);
     its ``/messages/`` POST endpoint is behind the same gate as ``/sse``.
     """
+    tool_concurrency = resolve_tool_concurrency(tool_concurrency)
     server = build_server(store, embedder=embedder, vector_store=vector_store)
     security = transport_security(host)
     if transport == "sse":
@@ -1021,12 +1074,55 @@ def build_http_app(
         app = server.streamable_http_app(
             stateless_http=True, json_response=True,
             transport_security=security, host=host)
-    return BearerAuthMiddleware(app, token)
+    return BearerAuthMiddleware(_ToolLimiterLifespan(app, tool_concurrency), token)
+
+
+class _ToolLimiterLifespan:
+    """Applies the tool-concurrency bound on ASGI lifespan startup.
+
+    uvicorn owns the event loop for the HTTP transports, so there is no
+    ``anyio.run`` of ours to set the limiter in -- and the limiter is
+    run-scoped, so it has to be set inside that loop. Lifespan startup is the
+    first thing that runs there.
+
+    Wrapping rather than passing ``lifespan=`` to the SDK: that app already has
+    a lifespan managing its session manager, and supplying one would replace it.
+    """
+
+    def __init__(self, app, limit: int) -> None:
+        self.app = app
+        self.limit = limit
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope.get("type") == "lifespan":
+            async def _receive():
+                message = await receive()
+                if message.get("type") == "lifespan.startup":
+                    apply_tool_limiter(self.limit)
+                return message
+
+            await self.app(scope, _receive, send)
+            return
+        await self.app(scope, receive, send)
+
+
+async def _run_stdio(server, limit: int) -> None:
+    """The stdio server, run under a loop contextlake owns.
+
+    ``.run(transport="stdio")`` is just ``anyio.run(self.run_stdio_async)``, so
+    replacing it costs nothing and buys the only place the tool limiter can be
+    installed: it lives in a run-scoped variable, so it exists only once a loop
+    is running.
+    """
+    apply_tool_limiter(limit)
+    await server.run_stdio_async()
+
 
 
 def run_server(
     store: Store, transport: str = "stdio", host: str = "127.0.0.1", port: int = 8765,
     embedder=None, vector_store=None, token: str | None = None,
+    tool_concurrency: int | None = None,
 ) -> None:
     """Build and run the MCP server (blocking).
 
@@ -1041,16 +1137,22 @@ def run_server(
     (cmds/serve.py, which also prints it); a missing one is minted rather than
     left off, so no code path can start an unauthenticated socket.
     """
+    limit = resolve_tool_concurrency(tool_concurrency)
     if transport not in HTTP_TRANSPORTS:
-        build_server(store, embedder=embedder, vector_store=vector_store).run(
-            transport=transport)
+        import anyio
+
+        server = build_server(store, embedder=embedder, vector_store=vector_store)
+        anyio.run(_run_stdio, server, limit)
         return
 
     import uvicorn
 
+    # uvicorn installs its own SIGTERM/SIGINT handlers and shuts down gracefully
+    # on both (verified), so the signal work above is stdio-only -- double
+    # handling here would break the shutdown that already works.
     app = build_http_app(
         store, transport=transport, host=host, token=token or resolve_token()[0],
-        embedder=embedder, vector_store=vector_store)
+        embedder=embedder, vector_store=vector_store, tool_concurrency=limit)
     # warning, not the SDK's INFO: cmds/serve.py already prints the one banner
     # line a user needs ("MCP server on http://host:port/path"), and uvicorn's
     # own startup banner plus per-request access log would bury the token line
