@@ -1,0 +1,22 @@
+{
+  "_comment": "Hand-checked ground truth for the synthetic orders/customers/inventory corpus in this directory -- every foreign-key relationship a human reading the DDL would call real, whether or not sql.py's regex extractor actually finds it. tests/kb/test_sql_fixture_corpus.py runs the corpus through index_repo_dir and scores the emitted `references` edges against this list: precision/recall for the SQL parser, quantified rather than asserted. `detectable: false` entries are documented, by-design misses (self-referencing FKs, and FKs attached via a separate ALTER TABLE statement) -- see the comment in the matching .sql file for why. This file has no real customer/company schema in it; every table and relationship was invented for this fixture.",
+  "edges": [
+    {"src": "addresses", "dst": "customers", "detectable": true},
+    {"src": "addresses", "dst": "regions", "detectable": true},
+    {"src": "inventory_items", "dst": "inventory_categories", "detectable": true},
+    {"src": "inventory_items", "dst": "suppliers", "detectable": true},
+    {"src": "suppliers", "dst": "regions", "detectable": true},
+    {"src": "orders", "dst": "customers", "detectable": true},
+    {"src": "orders", "dst": "addresses", "detectable": true},
+    {"src": "order_items", "dst": "orders", "detectable": true},
+    {"src": "order_items", "dst": "inventory_items", "detectable": true},
+    {"src": "customers", "dst": "customers", "detectable": false,
+     "note": "self-referential FK (referred_by); sql.py drops target == name"},
+    {"src": "inventory_categories", "dst": "inventory_categories", "detectable": false,
+     "note": "self-referential FK (parent_category_id); sql.py drops target == name"},
+    {"src": "shipments", "dst": "orders", "detectable": false,
+     "note": "FK attached via ALTER TABLE ADD CONSTRAINT, outside any CREATE TABLE scope"},
+    {"src": "shipments", "dst": "warehouses", "detectable": false,
+     "note": "FK attached via ALTER TABLE ADD CONSTRAINT, outside any CREATE TABLE scope"}
+  ]
+}

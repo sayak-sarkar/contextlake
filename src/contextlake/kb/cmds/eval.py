@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from ... import style
 from ...logging_setup import log
 from ..config import load_kb_config
@@ -15,18 +17,36 @@ def cmd_eval(args) -> int:
     """Score a golden-query set against the index — precision@k / recall@k / MRR."""
     from .. import eval as kb_eval
 
+    as_json = getattr(args, "json", False)
+    if as_json:
+        # stdout is reserved for the JSON payload (a CI job pipes it into a
+        # threshold check) -- route the human-readable log lines to stderr,
+        # same convention as `kb owners --json` / `kb impact --json`.
+        from ...logging_setup import use_stderr
+        use_stderr()
+
     golden_path = getattr(args, "golden", None)
     if not golden_path:
-        log("usage: contextlake kb eval --golden FILE.json [--limit K]")
+        usage = ("contextlake kb eval --golden FILE.json [--limit K] "
+                 "[--retriever fts|semantic|hybrid] [--json]")
+        if as_json:
+            print(json.dumps({"error": "missing_argument", "usage": usage}, indent=2))
+        else:
+            log(f"usage: {usage}")
         return 2
     try:
         golden = kb_eval.load_golden(golden_path)
     except (OSError, ValueError, TypeError) as e:
-        log(f"Cannot load golden set {golden_path!r}: {e}")
+        if as_json:
+            print(json.dumps({"error": "bad_golden_set", "path": str(golden_path),
+                              "detail": str(e)}, indent=2))
+        else:
+            log(f"Cannot load golden set {golden_path!r}: {e}")
         return 1
     k = getattr(args, "limit", None) or 10
     retr_kind = (getattr(args, "retriever", None) or "fts").lower()
     store, store_dir = _open_store(args)
+    vs = None  # only opened for semantic/hybrid; closed in the finally below
     try:
         if retr_kind == "fts":
             retriever = kb_eval.make_fts_retriever(store)
@@ -36,7 +56,12 @@ def cmd_eval(args) -> int:
             from ..embeddings.store import build_vector_store
             embedder = build_embedder(cfg.embeddings)
             if embedder is None:
-                log(_embed_unavailable_hint(cfg.embeddings))
+                hint = _embed_unavailable_hint(cfg.embeddings)
+                if as_json:
+                    print(json.dumps({"error": "embeddings_unavailable", "detail": hint},
+                                     indent=2))
+                else:
+                    log(hint)
                 return 1
             vs = build_vector_store(store_dir / "embeddings.sqlite",
                                     backend=cfg.embeddings.vector_backend)
@@ -45,7 +70,14 @@ def cmd_eval(args) -> int:
             retriever = factory(store, vs, embedder)
         result = kb_eval.evaluate(store, golden, k=k, retriever=retriever)
     finally:
+        if vs is not None:
+            vs.close()
         store.close()
+
+    if as_json:
+        print(json.dumps({"retriever": retr_kind, **result}, indent=2))
+        return 0
+
     log(style.ok(f"Eval [{retr_kind}]: {result['n']} queries @k={k}  ·  "
                  f"P@k={result['precision@k']}  R@k={result['recall@k']}  "
                  f"MRR={result['mrr']}  hit-rate={result['hit_rate']}  ·  "

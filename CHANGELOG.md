@@ -49,6 +49,15 @@ Fixes are in progress; the tests flip to passing when they land.
 - Dependabot now watches the `docker` ecosystem too, so the Dockerfile's pinned base digest gets
   moved forward. A digest pin buys reproducible builds but silently ages out of security updates
   in a way a floating tag does not.
+- Retrieval quality and SQL-parser accuracy are now measured, not just measurable. A weekly
+  workflow runs `kb eval` against the bundled sample graph and fails if the hit rate regresses
+  below a floor set at the current measured value. Only the lexical retriever runs there: the
+  semantic and hybrid ones need an embedder that is not available offline in a public runner.
+- The SQL parser's accuracy is quantified and published in the code-graph docs against a small
+  hand-labelled corpus: precision 0.90, recall 0.69. Every edge it emits is marked `INFERRED`, and
+  until now nobody could say what that was worth. Measuring it turned up a real false positive
+  (a `REFERENCES` inside a comment was being matched) alongside two already-known gap classes.
+- `kb eval` gains `--json`, matching the convention `owners` and `impact` already use.
 - Property-based tests (`hypothesis`) for the invariants that were only ever example-tested:
   `normalize_id`'s idempotence, `make_id`'s part handling, `sanitize_label`'s guarantee that no
   control character and nothing over the length cap ever escapes it, and that `_fts_query` cannot

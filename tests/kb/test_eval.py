@@ -3,6 +3,7 @@ from argparse import Namespace
 
 import pytest
 
+from contextlake.cli import main
 from contextlake.kb.commands import cmd_eval
 from contextlake.kb.eval import (
     GoldenQuery,
@@ -119,6 +120,161 @@ def test_cmd_eval_marks_hits_and_misses_with_colored_glyphs(tmp_path, monkeypatc
     raw = "\n".join(r.getMessage() for r in gls_logs.records)
     assert "\033[32m✓\033[0m CatalogService" in raw   # hit: style.ok(), green + reset
     assert "\033[31m✗\033[0m NoSuchThing" in raw    # miss: style.fail(), red + reset
+
+
+def test_cmd_eval_usage_error_without_golden():
+    assert cmd_eval(Namespace(golden=None, limit=None, retriever=None, config=None)) == 2
+
+
+def test_cmd_eval_usage_error_json(capsys):
+    args = Namespace(golden=None, limit=None, retriever=None, config=None, json=True)
+    assert cmd_eval(args) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"] == "missing_argument"
+
+
+def test_cmd_eval_bad_golden_set_reports_and_exits_1(tmp_path):
+    missing = tmp_path / "does-not-exist.json"
+    args = Namespace(golden=str(missing), limit=None, retriever=None, config=None)
+    assert cmd_eval(args) == 1
+
+
+def test_cmd_eval_bad_golden_set_json(tmp_path, capsys):
+    missing = tmp_path / "does-not-exist.json"
+    args = Namespace(golden=str(missing), limit=None, retriever=None, config=None,
+                     json=True)
+    assert cmd_eval(args) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"] == "bad_golden_set"
+
+
+def test_cmd_eval_semantic_without_embeddings_configured_reports_and_exits_1(tmp_path):
+    """Embeddings are disabled by default -- `--retriever semantic` without a
+    configured provider must fail with the same actionable hint `kb embed`
+    prints, not a stack trace, and must stay offline (no network call)."""
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"queries": [{"query": "x", "expected": ["a"]}]}))
+
+    args = Namespace(golden=str(golden), limit=None, retriever="semantic",
+                     config=str(cfg))
+    assert cmd_eval(args) == 1
+
+
+def test_cmd_eval_semantic_without_embeddings_configured_json(tmp_path, capsys):
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"queries": [{"query": "x", "expected": ["a"]}]}))
+
+    args = Namespace(golden=str(golden), limit=None, retriever="semantic",
+                     config=str(cfg), json=True)
+    assert cmd_eval(args) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"] == "embeddings_unavailable"
+
+
+def test_cmd_eval_semantic_retriever_scores_with_a_fake_embedder(tmp_path, monkeypatch):
+    """With an embedder available, `--retriever semantic` must build a vector
+    store and actually score through it (not just hit the unavailable-hint
+    branch covered above)."""
+    import contextlake.kb.embeddings as emb_pkg
+
+    class _FakeEmbedder:
+        name = "fake"
+
+        def embed(self, texts):
+            return [[float(len(t)), 1.0] for t in texts]
+
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda cfg: _FakeEmbedder())
+
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
+    s.close()
+
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"queries": [{"query": "CatalogService", "expected": ["os"]}]}))
+
+    args = Namespace(golden=str(golden), limit=None, retriever="semantic", config=str(cfg))
+    # nothing was ever embedded into the vector store, so this scores a real
+    # (empty) miss -- the point is exercising the build-vs-and-retrieve path,
+    # not asserting a hit.
+    assert cmd_eval(args) == 0
+
+
+def test_cmd_eval_json_output_is_machine_readable(tmp_path, capsys):
+    """The whole point of `--json`: a CI job can pipe stdout straight into a
+    threshold check without scraping the colored, human-oriented log lines."""
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
+    s.close()
+
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"queries": [
+        {"query": "CatalogService", "expected": ["os"]},
+    ]}))
+
+    args = Namespace(golden=str(golden), limit=None, retriever=None, config=str(cfg),
+                     json=True)
+    assert cmd_eval(args) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["retriever"] == "fts"
+    assert payload["hit_rate"] == 1.0
+    assert payload["n"] == 1
+    assert "per_query" in payload
+
+
+def _store_and_golden(tmp_path):
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_nodes("r", [Node(id="os", repo="r", kind="class", name="CatalogService")])
+    s.close()
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"queries": [
+        {"query": "CatalogService", "expected": ["os"]},
+    ]}))
+    return cfg, golden
+
+
+def test_cli_kb_eval_without_json_flag_prints_human_readable_summary(tmp_path, capsys):
+    """The real entry point, not a hand-built Namespace: `--json` uses
+    `default=argparse.SUPPRESS` (`_S` in cli.py), so omitting the flag must
+    leave `getattr(args, "json", False)` False and print the coloured
+    `Eval [...]:` summary line, never a JSON blob -- the failure mode would be
+    every plain `kb eval` invocation silently switching to JSON output."""
+    cfg, golden = _store_and_golden(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "eval", "--config", str(cfg), "--golden", str(golden)])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    assert "Eval [fts]:" in out
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(out)
+
+
+def test_cli_kb_eval_with_json_flag_prints_only_json(tmp_path, capsys):
+    cfg, golden = _store_and_golden(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["kb", "eval", "--config", str(cfg), "--golden", str(golden), "--json"])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    payload = json.loads(out)          # the whole of stdout must be valid JSON
+    assert payload["hit_rate"] == 1.0
 
 
 def test_make_semantic_retriever_binds_deps():

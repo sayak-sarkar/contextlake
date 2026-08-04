@@ -1,0 +1,107 @@
+name: retrieval-quality
+
+# RC-P2-8 / K-1: `contextlake kb eval` scores retrieval quality (precision@k /
+# recall@k / MRR / hit-rate) against a golden-query set, but nothing ever ran
+# it in CI -- the number was measurable, never actually measured. This job
+# runs it weekly against the bundled sample-graph fixture and fails if the
+# headline metric regresses below a floor, so a retrieval regression (a
+# search-ranking change, an FTS tokenizer tweak, ...) shows up as a red run
+# instead of silently landing.
+#
+# Deliberately its own workflow, not folded into ci.yml: both ci.yml and
+# release.yml are under active parallel work right now, and this is additive
+# reporting on a schedule, not a per-PR gate -- the same shape security.yml
+# already uses for its own weekly scan.
+#
+# OFFLINE BY DESIGN: only `--retriever fts` (the store's own SQLite FTS5
+# search) is scored here. `semantic`/`hybrid` need a configured embedder
+# (Ollama reachable over the network, or an API key) that a public repo's CI
+# cannot assume -- see docs/semantic-search.md. Wiring a semantic score into
+# CI is future work once the project has a CI-safe embedding provider (e.g. a
+# committed cache of the `kb-local` model2vec weights); until then, scoring a
+# job this can't actually run offline would just be a scheduled workflow that
+# fails on every run for reasons unrelated to retrieval quality.
+
+on:
+  schedule:
+    # Weekly, Monday 07:00 UTC -- staggered an hour after security.yml's
+    # 06:00 Monday scan so the two scheduled jobs don't queue on the same
+    # runner slot.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retrieval-quality:
+    name: kb eval (fts retriever, golden-query fixture)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install (with knowledge layer)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,kb]"
+
+      - name: Build the bundled sample graph into a scratch store
+        run: |
+          cfg="$RUNNER_TEMP/eval-kb.toml"
+          printf '[kb]\nstore_dir = "%s/eval-store"\n' "$RUNNER_TEMP" > "$cfg"
+          echo "KB_EVAL_CONFIG=$cfg" >> "$GITHUB_ENV"
+          contextlake kb index --config "$cfg" --source examples/fixtures/sample-graph.json
+
+      - name: Score retrieval quality (fts) against the golden-query set
+        run: |
+          contextlake kb eval --config "$KB_EVAL_CONFIG" \
+            --golden examples/fixtures/golden-queries.json \
+            --retriever fts --json > "$RUNNER_TEMP/eval-result.json"
+          cat "$RUNNER_TEMP/eval-result.json"
+
+      - name: Publish the number and gate on a floor
+        run: |
+          python - "$RUNNER_TEMP/eval-result.json" <<'PY'
+          import json
+          import os
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as f:
+              result = json.load(f)
+
+          summary = (
+              f"### Retrieval quality (fts, golden-query fixture)\n\n"
+              f"| metric | value |\n|---|---|\n"
+              f"| queries | {result['n']} |\n"
+              f"| precision@{result['k']} | {result['precision@k']} |\n"
+              f"| recall@{result['k']} | {result['recall@k']} |\n"
+              f"| MRR | {result['mrr']} |\n"
+              f"| hit-rate | {result['hit_rate']} |\n"
+              f"| est. tokens/query | {result['est_tokens_per_query']} |\n"
+          )
+          print(summary)
+          step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if step_summary:
+              with open(step_summary, "a", encoding="utf-8") as f:
+                  f.write(summary)
+
+          # FLOOR, not a target: measured hit-rate on this fixture is 0.6667 at
+          # the time of writing (2/3 golden queries hit; the exact-name query
+          # scores, the natural-language-phrasing query does not -- FTS5 has no
+          # synonym/semantic matching, which is exactly the gap the semantic
+          # retriever exists to close once it can run in CI). The floor sits
+          # just below the measured value -- not "a nice round number" -- to
+          # absorb SQLite FTS5 version drift across runner images without
+          # papering over a real regression. Ratchet this up deliberately when
+          # the fixture or the retriever improves -- never lower it just to
+          # turn this job green.
+          floor = 0.66
+          hit_rate = result["hit_rate"]
+          print(f"hit-rate {hit_rate} vs floor {floor}")
+          if hit_rate < floor:
+              print(f"::error::Retrieval quality regressed: hit-rate {hit_rate} "
+                    f"is below the {floor} floor.")
+              sys.exit(1)
+          PY

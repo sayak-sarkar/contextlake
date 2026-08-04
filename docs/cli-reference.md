@@ -99,7 +99,7 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
-| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
+| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
 | `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |

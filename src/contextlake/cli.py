@@ -1109,6 +1109,9 @@ Examples:
                    help="which retriever to score (default: fts; semantic/hybrid "
                         "need embeddings)")
     p.add_argument("--limit", type=int, default=_S, help="k for precision@k (default 10)")
+    p.add_argument("--json", action="store_true", default=_S,
+                   help="machine-readable JSON on stdout instead of formatted text "
+                        "(for CI: parse a metric and gate on a threshold)")
 
     p = command("owners", "likely owners / SMEs for a repo or path, from git history",
                 aliases=("who-knows",))
