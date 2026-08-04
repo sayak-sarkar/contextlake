@@ -100,6 +100,12 @@ jobs:
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # A re-run of this workflow, or a version already uploaded by hand,
+          # otherwise fails the whole job on "file already exists" -- which
+          # used to take the GitHub Release down with it (see github-release's
+          # `if` below). Publishing is meant to be idempotent.
+          skip-existing: true
 
   docker:
     name: publish image (ghcr.io)
@@ -155,6 +161,16 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
+          # `latest=false` is load-bearing, not tidiness. metadata-action
+          # defaults to flavor `latest=auto`, which adds a bare `latest` tag
+          # whenever it sees a semver tag -- so this step silently claimed
+          # `latest` too, and because slim is pushed after full it *won*.
+          # Observed on the 5.0.0 release: the full image ended up tagged only
+          # `5.0.0` while `latest` resolved to slim, so a plain
+          # `docker pull ghcr.io/<repo>` handed people an image with no
+          # local-LLM extra and no baked model. `latest` belongs to full.
+          flavor: |
+            latest=false
           tags: |
             type=semver,pattern={{version}},suffix=-slim
             type=raw,value=latest-slim
@@ -178,6 +194,13 @@ jobs:
   github-release:
     name: github release
     needs: [build, publish]
+    # Runs as long as the artifacts exist, even if PyPI publishing failed.
+    # On the 4.0.0 tag `publish` failed on a duplicate file, this job was
+    # skipped as a consequence, and the wheel and sdist had to be attached to
+    # the release by hand. The GitHub Release has value independently of
+    # whether PyPI accepted the upload, and a transient index outage should
+    # not decide whether a release exists.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write   # create / update the GitHub Release

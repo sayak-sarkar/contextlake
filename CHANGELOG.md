@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `docker pull ghcr.io/sayak-sarkar/contextlake` (no tag) returned the **slim** image. The slim
+  build's tag metadata did not disable `metadata-action`'s default `latest=auto`, so it claimed a
+  bare `latest` alongside its own tags, and because slim is pushed after full it won. `latest` now
+  belongs to the full image again. If you pulled `latest` at 5.0.0 and expected the built-in local
+  model, re-pull: the image you have is the slim one.
+- A failed PyPI upload no longer takes the GitHub Release with it. `github-release` depended on
+  `publish` succeeding, so on the 4.0.0 tag a duplicate-file failure skipped it and the wheel and
+  sdist had to be attached by hand. Publishing is now idempotent (`skip-existing`), and the release
+  job runs whenever the artifacts built, since a GitHub Release has value regardless of whether the
+  index accepted the upload.
+
 ## [5.0.0] - 2026-08-04
 
 This release closes a remote-code-execution path and two denial-of-service paths, all three
