@@ -322,10 +322,30 @@ def _abstain_note(gate: dict) -> str:
     return f", {abstained} reviewer(s) returned nothing parseable" if abstained else ""
 
 
+def _log_rejection(label: str, gate: dict) -> None:
+    """Say why a page was dropped, in the vocabulary of whichever gate dropped it.
+
+    A structural rejection (``wiki.validate.structural_gate``) carries a
+    ``reason`` and never reached the council, so reporting it as a council score
+    would point an operator at the reviewer model for a defect no reviewer was
+    asked about.
+    """
+    reason = gate.get("reason")
+    if reason:
+        log(f"  {style.warn(label)}: rejected, {reason} (not sent to the council)",
+            inline=True)
+    else:
+        log(f"  {style.warn(label)}: rejected by council "
+            f"(score {gate['score']}{_abstain_note(gate)})", inline=True)
+    for issue in gate["issues"][:5]:
+        log(f"      - {issue}")
+
+
 def cmd_wiki(args) -> int:
     """Generate provenance-stamped wiki pages from the graph, gated by an LLM council."""
     from ..llm import build_llm, build_review_llm
     from ..wiki.cluster import (
+        CLUSTER_PROMPT_INSTRUCTIONS,
         cluster_fingerprint,
         cluster_page_name,
         cross_repo_edges,
@@ -336,12 +356,14 @@ def cmd_wiki(args) -> int:
     )
     from ..wiki.council import LENSES, council_gate
     from ..wiki.generate import (
+        PROMPT_INSTRUCTIONS,
         generate_page,
         recorded_subsystems,
         render_prompt,
         repo_brief,
         subsystem_names,
     )
+    from ..wiki.validate import structural_gate
 
     store, store_dir = _open_store(args)
     if not _guard_store(store_dir, "wiki"):
@@ -432,9 +454,13 @@ def cmd_wiki(args) -> int:
                         continue
                 try:
                     page = generate_cluster_page(llm, brief)
-                    gate = council_gate(review_llm, page, render_cluster_prompt(brief),
-                                        accept_score=cfg.llm.accept_score,
-                                        council_size=getattr(cfg.llm, "council_size", None))
+                    # Structurally broken output is rejected here without paying for
+                    # the council: no judge is needed to see a page that echoed its
+                    # own instructions or looped one sentence, and a weak one won't.
+                    gate = structural_gate(page, CLUSTER_PROMPT_INSTRUCTIONS) or council_gate(
+                        review_llm, page, render_cluster_prompt(brief),
+                        accept_score=cfg.llm.accept_score,
+                        council_size=getattr(cfg.llm, "council_size", None))
                 except Exception as e:  # noqa: BLE001 - one cluster must not abort the run
                     log(f"  {style.fail(ns)}: {e}", inline=True)
                     failed += 1
@@ -450,8 +476,7 @@ def cmd_wiki(args) -> int:
                     log(f"  {style.ok(ns)}: written (score {gate['score']})", inline=True)
                 else:
                     rejected += 1
-                    log(f"  {style.warn(ns)}: rejected by council "
-                        f"(score {gate['score']}{_abstain_note(gate)})", inline=True)
+                    _log_rejection(ns, gate)
                 progress.advance(ns)
             progress.done()
             fail_tail = f", {failed} failed" if failed else ""
@@ -566,9 +591,15 @@ def cmd_wiki(args) -> int:
                                      path_prefix=path_prefix,
                                      subsystem_modules=subsystem_modules,
                                      brief=brief)
-                gate = council_gate(review_llm, page, render_prompt(brief, path_prefix=path_prefix),
-                                    accept_score=cfg.llm.accept_score,
-                                    council_size=getattr(cfg.llm, "council_size", None))
+                # Structural defects (the page echoed its own instructions, or
+                # looped one sentence) are decided here, before the council and
+                # without a model: they are mechanically visible, and a weak
+                # reviewer demonstrably rubber-stamps them. Rejecting early also
+                # saves the council's round trips on a page that cannot pass.
+                gate = structural_gate(page, PROMPT_INSTRUCTIONS) or council_gate(
+                    review_llm, page, render_prompt(brief, path_prefix=path_prefix),
+                    accept_score=cfg.llm.accept_score,
+                    council_size=getattr(cfg.llm, "council_size", None))
             except Exception as e:  # noqa: BLE001 - one page must not abort the run
                 log(f"  {style.fail(label)}: {e}", inline=True)
                 return "failed"
@@ -580,10 +611,7 @@ def cmd_wiki(args) -> int:
                                       cfg.embeddings.batch_size, source_repo=repo_id)
                 log(f"  {style.ok(label)}: written (score {gate['score']})", inline=True)
                 return "written"
-            log(f"  {style.warn(label)}: rejected by council "
-               f"(score {gate['score']}{_abstain_note(gate)})", inline=True)
-            for issue in gate["issues"][:5]:
-                log(f"      - {issue}")
+            _log_rejection(label, gate)
             return "rejected"
 
         for repo_id, _ in targets:

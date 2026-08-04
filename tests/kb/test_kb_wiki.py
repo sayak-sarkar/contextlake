@@ -17,7 +17,13 @@ from contextlake.kb.state import check_schema
 from contextlake.kb.store.shards import GraphShard, read_shard, write_shard
 from contextlake.kb.store.sqlite_store import SqliteStore
 from contextlake.kb.wiki.council import _parse_review, council_gate, verdict
-from contextlake.kb.wiki.generate import external_context, generate_page, render_prompt, repo_brief
+from contextlake.kb.wiki.generate import (
+    _SUBSYSTEMS_INSTRUCTION,
+    external_context,
+    generate_page,
+    render_prompt,
+    repo_brief,
+)
 
 
 def _shard(store_dir):
@@ -1564,7 +1570,13 @@ class _SubsystemEchoingLlm(_FakeLlm):
         body = "## Overview\nCatalogService charges orders.\n"
         for line in prompt.splitlines():
             if "broken into subsystems" in line:
-                body += f"\n## Architecture\n{line}\n"
+                # Only the fact-bearing half of that line (the subsystem names) --
+                # echoing the directive that follows it is prompt leakage, which
+                # the pre-council validator rejects outright and which no
+                # compliant page would contain. What these tests are checking is
+                # that the NAMES reached the written page.
+                names_only = line.replace(_SUBSYSTEMS_INSTRUCTION, "").strip()
+                body += f"\n## Architecture\n{names_only}\n"
         return body
 
 

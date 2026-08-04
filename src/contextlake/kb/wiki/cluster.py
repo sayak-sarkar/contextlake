@@ -163,6 +163,24 @@ def _phrase_edge(e: dict) -> str:
     return f"{s} depends on {d} ({w} shared package(s))"
 
 
+# The cluster prompt's directive prose, split out for the same reason as
+# `generate.PROMPT_INSTRUCTIONS` (see there): the draft validator matches a
+# generated page against these strings, so an instruction the model echoed
+# instead of followed is caught even after someone rewords it here.
+_SECTIONS_INSTRUCTION = (
+    "Ground every statement in the facts above; do not speculate or invent "
+    "any coupling not listed. Omit a section entirely if the facts above give you "
+    "nothing to say for it -- do not write a heading with no content."
+)
+
+# Deliberately just the one: the other directive in this prompt ("No coupling
+# between these repositories was detected in the graph. Do NOT invent
+# connections; state that the coupling is not detected.") *asks* the page to
+# restate its first sentence, so a compliant page repeating it verbatim is
+# correct output, not leakage.
+CLUSTER_PROMPT_INSTRUCTIONS = (_SECTIONS_INSTRUCTION,)
+
+
 def render_cluster_prompt(brief: dict) -> str:
     """A grounded prompt: member roles + internal/boundary coupling, with an
     explicit no-invention fallback when the graph shows no coupling."""
@@ -209,9 +227,7 @@ def render_cluster_prompt(brief: dict) -> str:
     lines += [
         "",
         f"Write a cluster wiki page in Markdown with sections: {sections}, in that "
-        "order. Ground every statement in the facts above; do not speculate or invent "
-        "any coupling not listed. Omit a section entirely if the facts above give you "
-        "nothing to say for it -- do not write a heading with no content.",
+        "order. " + _SECTIONS_INSTRUCTION,
     ]
     return "\n".join(lines)
 

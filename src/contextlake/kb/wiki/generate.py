@@ -518,6 +518,70 @@ def repo_brief(
     }
 
 
+# The prompt's *directive* prose, split out from `render_prompt` so it has one
+# home. The draft validator (see `.validate`) matches a generated page against
+# these strings to catch a model that echoed its instructions instead of
+# following them, so a reworded instruction keeps being detected without anyone
+# remembering to update a second copy of it. Two rules for anything added here:
+# only directive prose belongs (never a label line like "Recorded decisions
+# (...)", which a page may legitimately quote), and never the interpolated facts
+# themselves -- a repo/module/section name is exactly what a good page repeats,
+# so each constant holds only the invariant tail, with `render_prompt` supplying
+# the fact-bearing lead-in around it.
+_SCOPE_INSTRUCTION = (
+    "Every fact below (symbols, dependencies, files) was drawn exclusively "
+    "from that module, not the whole repository. Write about this module "
+    "only -- do not make claims about the repository as a whole, and do not "
+    "write as if this module IS the whole repository. The relation count "
+    "below excludes any relation to a symbol outside this module -- do not "
+    "treat a low count as evidence this module has few dependencies on the "
+    "rest of the repository; it may not, this simply isn't counted here."
+)
+_GENERATED_PATHS_INSTRUCTION = (
+    "Some files under a generated-output path or with a generator "
+    "marker are present -- treat their contents as derived build "
+    "output, not hand-authored design, unless the facts above say "
+    "otherwise."
+)
+_GOTCHAS_INSTRUCTION = (
+    "For Gotchas, state only that each symbol above has that many callers in "
+    "the graph and is therefore worth extra care/tests when changed — do not "
+    "characterize WHY it has that many callers, and do not call it "
+    "\"foundational\", \"core\", \"critical infrastructure\", or similar: the "
+    "caller count is the only fact given, not an explanation of the symbol's "
+    "role or importance."
+)
+_EXTERNAL_INSTRUCTION = (
+    "The External context items come from connected sources (issue trackers, "
+    "docs, design tools). You MAY use them to enrich the page, but you MUST "
+    "attribute each such statement to its source (name the source/link). "
+    "Never present external claims as facts about the code without attribution."
+)
+_SUBSYSTEMS_INSTRUCTION = (
+    "In the Architecture section, name and briefly describe each subsystem "
+    "rather than attempting to summarize their internals here -- their own pages "
+    "cover that in more depth."
+)
+_SECTIONS_INSTRUCTION = (
+    "Ground every statement in the facts above; do not speculate. Omit a section "
+    "entirely if the facts above give you nothing to say for it — do not write a "
+    "heading with no content."
+)
+
+# The whole directive corpus, static rather than per-brief: a page that echoes an
+# instruction its own prompt never carried is still broken output, and building
+# the corpus from the brief would mean the validator only ever checks the subset
+# that happened to be sent. Order is irrelevant, the validator treats it as a bag.
+PROMPT_INSTRUCTIONS = (
+    _SCOPE_INSTRUCTION,
+    _GENERATED_PATHS_INSTRUCTION,
+    _GOTCHAS_INSTRUCTION,
+    _EXTERNAL_INSTRUCTION,
+    _SUBSYSTEMS_INSTRUCTION,
+    _SECTIONS_INSTRUCTION,
+)
+
+
 def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
     lines = [
         f"Repository: {brief['repo']}",
@@ -525,13 +589,7 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
     if path_prefix:
         lines.append(
             f"Scope: ONLY the `{path_prefix}` module/subsystem of this repository. "
-            "Every fact below (symbols, dependencies, files) was drawn exclusively "
-            "from that module, not the whole repository. Write about this module "
-            "only -- do not make claims about the repository as a whole, and do not "
-            "write as if this module IS the whole repository. The relation count "
-            "below excludes any relation to a symbol outside this module -- do not "
-            "treat a low count as evidence this module has few dependencies on the "
-            "rest of the repository; it may not, this simply isn't counted here."
+            + _SCOPE_INSTRUCTION
         )
     lines += [
         f"Indexed commit: {brief['head']}",
@@ -562,26 +620,14 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
             lines.append("  From the repo's own README:")
             lines.append(f"  \"{brief['readme_excerpt']}\"")
         if brief.get("generated_paths_detected"):
-            lines.append(
-                "  Some files under a generated-output path or with a generator "
-                "marker are present -- treat their contents as derived build "
-                "output, not hand-authored design, unless the facts above say "
-                "otherwise."
-            )
+            lines.append("  " + _GENERATED_PATHS_INSTRUCTION)
     if brief.get("hubs"):
         lines.append("")
         lines.append("Most-depended-on symbols (ranked by caller count in the graph):")
         for h in brief["hubs"][:8]:
             lines.append(f"  - {h['kind']} {h['name']} ({h.get('file') or '?'}), "
                          f"{h['count']} caller(s)")
-        lines.append(
-            "For Gotchas, state only that each symbol above has that many callers in "
-            "the graph and is therefore worth extra care/tests when changed — do not "
-            "characterize WHY it has that many callers, and do not call it "
-            "\"foundational\", \"core\", \"critical infrastructure\", or similar: the "
-            "caller count is the only fact given, not an explanation of the symbol's "
-            "role or importance."
-        )
+        lines.append(_GOTCHAS_INSTRUCTION)
     if brief.get("decisions"):
         lines.append("")
         lines.append("Recorded decisions (from the repo's own ADR/decision docs, "
@@ -597,20 +643,13 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
                 f"  - [source: {item.get('source')}] {item.get('title')} "
                 f"({item.get('uri')}): \"{item.get('snippet')}\""
             )
-        lines.append(
-            "The External context items come from connected sources (issue trackers, "
-            "docs, design tools). You MAY use them to enrich the page, but you MUST "
-            "attribute each such statement to its source (name the source/link). "
-            "Never present external claims as facts about the code without attribution."
-        )
+        lines.append(_EXTERNAL_INSTRUCTION)
     if brief.get("subsystem_modules"):
         lines.append("")
         names = ", ".join(m["prefix"] for m in brief["subsystem_modules"])
         lines.append(
             f"This repo is broken into subsystems, each with its own dedicated wiki page: "
-            f"{names}. In the Architecture section, name and briefly describe each subsystem "
-            f"rather than attempting to summarize their internals here -- their own pages "
-            f"cover that in more depth."
+            f"{names}. " + _SUBSYSTEMS_INSTRUCTION
         )
     sections = "Overview"
     if has_setup_signal:
@@ -623,9 +662,7 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
     lines += [
         "",
         f"Write a wiki page in Markdown with sections: {sections}, in that order. "
-        "Ground every statement in the facts above; do not speculate. Omit a section "
-        "entirely if the facts above give you nothing to say for it — do not write a "
-        "heading with no content.",
+        + _SECTIONS_INSTRUCTION,
     ]
     return "\n".join(lines)
 

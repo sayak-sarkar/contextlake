@@ -267,6 +267,30 @@ def test_cmd_wiki_namespaces_summary_surfaces_a_partial_failure(
     assert "Re-run to retry" in text
 
 
+def test_cmd_wiki_namespace_rejects_a_degenerate_cluster_page(tmp_path, monkeypatch,
+                                                              gls_logs):
+    """The cluster path gets the same pre-council structural gate as the per-repo
+    one: a looping draft is never written, and the council is never asked."""
+    import contextlake.kb.llm as llm_pkg
+    from contextlake.kb.commands import cmd_wiki
+
+    store_dir = _setup_cluster_store(tmp_path, monkeypatch)
+    reviewed = []
+
+    class _LoopingLlm(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            if "Review lens" in prompt:
+                reviewed.append(prompt)
+                return '{"score": 0.97, "issues": []}'
+            return "The pay cluster couples the api repo to the web repo over HTTP. " * 20
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _LoopingLlm())
+    assert cmd_wiki(_ns_args(tmp_path, namespace="acme/pay")) == 0
+    assert not (store_dir / "wiki" / "_clusters" / "acme__pay.md").exists()
+    assert not reviewed
+    assert "degenerate repetition" in gls_logs.text
+
+
 # --- dashboard data layer -------------------------------------------------
 
 def test_dashboard_cluster_detail_and_index(tmp_path):
