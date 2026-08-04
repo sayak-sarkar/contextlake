@@ -54,9 +54,15 @@ docker pull ghcr.io/sayak-sarkar/contextlake   # if you use the image
 ```
 
 Then confirm with `contextlake --version` and re-check your environment with
-`contextlake doctor`. Your existing store and config carry forward — the graph
-re-indexes incrementally on your next `kb index`/`mirror sync`, so there is nothing to migrate by
-hand. See the [changelog](CHANGELOG.md) for what changed between versions.
+`contextlake doctor`. Your existing store and config carry forward.
+
+Do not skip the `doctor` run. A release that changes the parser makes every existing shard
+stale, and a plain `kb index` will not pick that up, because it skips repos whose HEAD commit
+has not moved and upgrading contextlake moves nobody's HEAD. `doctor` compares each shard's
+recorded parser version against the running one and names the repos to rebuild. When it asks,
+run `contextlake kb index --force`. **Upgrading to 5.0.0 requires this for every indexed repo.**
+
+See the [changelog](CHANGELOG.md) for what changed between versions.
 
 ### Install scenarios & flag cheatsheet
 

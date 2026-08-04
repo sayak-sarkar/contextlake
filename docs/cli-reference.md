@@ -150,7 +150,7 @@ Two privilege tiers, and the split is deliberate:
   `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
   and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
   CPU wheel index automatically and says why.
-- **System packages** (git, a C++ toolchain) need administrator rights. The exact command is printed
+- **System packages** (currently just git) need administrator rights. The exact command is printed
   in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
   when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
   never trip a sudo prompt.

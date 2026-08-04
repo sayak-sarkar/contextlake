@@ -374,7 +374,9 @@ Before setting up cron jobs, ensure you have:
 1. **Configuration file set up**: Create `~/.contextlake.ini` with your settings
 
    ```bash
-   cp .contextlake.ini ~/.contextlake.ini
+   contextlake init                       # writes the file for you, prompting for each value
+   # or copy the template and fill it in by hand:
+   cp .contextlake.ini.example ~/.contextlake.ini
    # Edit with your work_dir and gitlab_group
    nano ~/.contextlake.ini
    ```

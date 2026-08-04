@@ -110,6 +110,10 @@ docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
 ```
 
+The `-v` mount is what makes the run worth doing: everything contextlake persists, the
+knowledge store included, is written under it as `.contextlake/`, so it is still there on
+the host after the container exits. Drop the `-v` and the run is ephemeral.
+
 A `:slim` tag is also published — no `llama-cpp-python`, no baked wiki-LLM GGUF,
 much smaller pull. Semantic search still works (the embedder is pure Python);
 point the wiki tier at Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
@@ -140,9 +144,21 @@ uv tool upgrade contextlake                     # uv
 docker pull ghcr.io/sayak-sarkar/contextlake   # image
 ```
 
-Your store and config carry forward. The graph re-indexes incrementally on the next
-`index`/`sync`, so nothing needs migrating. Confirm with `contextlake --version` and
+Your store and config carry forward. Confirm with `contextlake --version`, then run
 `contextlake doctor`.
+
+`doctor` is load-bearing here, not a formality. An upgrade that changes how code is parsed
+leaves every existing shard describing the old parse, and a plain `kb index` will not notice:
+it skips repos whose HEAD commit has not moved, and upgrading contextlake does not move
+anyone's HEAD. `doctor` compares the parser version recorded in each shard against the running
+one and names the repos that need rebuilding. When it asks for one, force it:
+
+```bash
+contextlake kb index --force
+```
+
+Upgrading to **5.0.0 specifically requires this**, for every indexed repo: that release changed
+the parser and every shard written before it is stale.
 
 Uninstall the tool, then optionally remove what it created (it never writes inside your
 repos, so your source is never touched):

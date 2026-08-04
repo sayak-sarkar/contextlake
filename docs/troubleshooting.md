@@ -137,9 +137,11 @@ reach for `--break-system-packages`; it does what it says.
 ## `doctor --fix` printed a `sudo` command instead of running it
 
 Working as designed. `--fix` installs **Python** packages into the current
-interpreter unattended, but a **system** package (git, a C++ toolchain) needs
-administrator rights, so it is only ever offered with a y/N prompt at a real
-terminal. Without a TTY, or with `--skip-interactive`, the exact command is
+interpreter unattended, but a **system** package needs administrator rights, so it
+is only ever offered with a y/N prompt at a real terminal. git is the only such
+package `--fix` offers; a missing C++ toolchain is reported with advice rather
+than an install, because the supported route for `llm-local` is the prebuilt wheel
+described above, which needs no compiler. Without a TTY, or with `--skip-interactive`, the exact command is
 printed and nothing privileged runs. That keeps a CI job or a scripted run from
 ever tripping a sudo prompt. Copy the printed command, run it yourself, and
 re-run `contextlake doctor`.

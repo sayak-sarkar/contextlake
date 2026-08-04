@@ -67,7 +67,7 @@ Windsurf, add the same server in its MCP config (Cascade's *MCP Servers* panel, 
   "mcpServers": {
     "contextlake-kb": {
       "command": "contextlake",
-      "args": ["serve", "--config", "~/.contextlake/kb.toml"]
+      "args": ["kb", "serve", "--config", "~/.contextlake/kb.toml"]
     }
   }
 }
@@ -81,7 +81,7 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
   "servers": {
     "contextlake-kb": {
       "command": "contextlake",
-      "args": ["serve", "--config", "~/.contextlake/kb.toml"]
+      "args": ["kb", "serve", "--config", "~/.contextlake/kb.toml"]
     }
   }
 }
