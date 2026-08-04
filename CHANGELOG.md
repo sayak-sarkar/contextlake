@@ -7,29 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Indexing a hostile or merely corrupted `pom.xml` no longer hangs.** The Maven block regexes
-  were quadratic when closing tags were missing: each unclosed opener sent the lazy match scanning
-  to end-of-string before failing. Closing tags are now indexed in one linear pass and paired with
-  their openers. Measured on a 160KB file with 16k unclosed tags: 39.8s to 0.001s for
-  `<dependency>`, 25.6s to 0.000s for `<parent>`, 29.0s to 0.001s for `<dependencies>`. A truncated
-  pom from an aborted download was enough to trigger this; it never took an attacker.
-- **A deeply nested `.tf` file no longer hangs indexing.** `parse_hcl` was quadratic in nesting
-  depth, and the cost was ours rather than the grammar's: in the installed py-tree-sitter, both
-  `Node.parent` and `Node.next_sibling` re-descend from the tree root, so walking siblings while
-  resolving a reference was O(depth) per step. The traversal now carries the context it needs
-  instead of re-deriving it. Measured at depth 1250 with a reference per level: 138.2s to 0.027s,
-  and 337.4s to 0.037s for the `locals` shape.
-- `normalize_id` is idempotent again, matching its docstring. The punctuation strip ran before
-  `casefold()`, so a fold that expands a character into a base letter plus a combining mark left
-  the mark behind for a second call to remove. **This changes the generated id for exactly 29 code
-  points** (established by checking every code point, not by sampling); none are ASCII or Latin-1,
-  so ordinary identifiers are unaffected. It is slightly lossier for those 29: `ǰ` now normalizes
-  to `j`, so it would collide with a plain `j` where it previously did not. That is unavoidable
-  while also keeping the existing guarantee that output equals its own casefold. The re-index the
-  shard-reproducibility fix already requires picks these up in the same pass.
+## [5.0.0] - 2026-08-04
+
+This release closes a remote-code-execution path and two denial-of-service paths, all three
+reachable by indexing a repository you cloned. Upgrading is recommended for anyone running 4.0.0.
+
+**Migrating from 4.0.0**
+
+1. **Run `contextlake kb index --force`.** The parser version moved to `2`, so every existing shard
+   is stale, and nothing detects that on its own: `needs_reindex` compares only the repo HEAD.
+2. **Mirror commands now exit 1 when repositories failed.** They previously always exited 0. If a
+   script depends on the old behaviour, add `--exit-zero-on-partial`; if it already checks `$?`, it
+   starts working as intended and may go red where it was silently failing.
+3. **`contextlake.py` at the repo root is now `run-contextlake.py`.** Only affects running the
+   launcher from a clone; the installed `contextlake` command and the standalone binaries are
+   unchanged.
+4. **`kb serve --transport http` and `sse` now require a bearer token**, and refuse a non-loopback
+   `--host` without `--allow-remote`. **stdio is unaffected** and needs no token, which is the
+   default and what every documented editor integration uses.
 
 ### Security
+- **Security (breaking for `kb serve --transport http`/`sse`):** the MCP network transports now
+  require authentication. They previously had none, no Origin validation, and no warning, so
+  `kb serve --transport http --host 0.0.0.0` published every indexed symbol, file path, docstring
+  and owner identity to the network. A bearer token is minted at startup and printed once to
+  stderr; requests without it get `401`, a hostile `Origin` gets `403`, a hostile `Host` gets
+  `421`. Set `CONTEXTLAKE_MCP_TOKEN` to pin a stable token for a client config. A non-loopback
+  `--host` is refused unless `--allow-remote` is passed. There is no TLS: the transport is meant
+  for loopback or a tunnel, and says so at startup.
+
+  **stdio is completely unaffected** and needs no token. That is the default and what every
+  documented editor integration uses, so most setups need no change.
+
+  The dashboard's "start MCP server" card spawns that same command with its stderr discarded,
+  which would have thrown the token away and left the card advertising a server nobody could
+  connect to. It now mints the token itself, passes it to the child, stores it in a `0600`
+  pidfile, and shows it on the card.
+- **Security:** `--llm-chat` is now refused with a non-loopback `--host`, the same guard
+  `--allow-mutations` already had. The per-launch token that gates the chat route is served inside
+  `/dashboard.js`, so anyone who could reach the bind could read the token and drive the configured
+  LLM provider at the operator's expense. Host-header pinning does not cover this: pinning is a
+  browser control, and a plain `curl -H 'Host: localhost:PORT' http://<lan-ip>:PORT/dashboard.js`
+  satisfies it and returns the token.
+- **Security:** the dashboard's `POST /api/mcp/serve` no longer accepts an arbitrary bind address.
+  A caller-supplied `host` went into the MCP server unvalidated, so a token holder could publish
+  the whole graph on `0.0.0.0` over a transport with no authentication. The host must now be
+  loopback and the port unprivileged; anything else is a `400`, including a wrong-typed JSON value,
+  which previously raised and surfaced as a `500`.
+- **Security:** the dashboard and graph servers now pin the `Host` header on `GET` as well as
+  `POST`. Only `POST` checked it, so a page whose domain re-resolved to `127.0.0.1` (DNS
+  rebinding) could read the entire code graph cross-origin: `/api/overview`, `/api/repo/<id>`,
+  `/api/search`, `/graph/*`: file paths, symbol names, owner identities. Static assets are
+  deliberately *not* exempt, because `dashboard.js` carries the per-process token and exempting
+  it would hand a rebinding page the key to the mutating routes. One consequence worth knowing:
+  a server bound with `--host 0.0.0.0` and browsed via its LAN address now returns 403; use
+  `http://localhost:PORT` or bind the address you intend to browse. The server prints a hint.
 - **A config file found by directory search can no longer make contextlake execute a program.**
   `.contextlake.kb.toml` is discovered by walking up from the current directory, so a repository you
   cloned could ship one setting `[llm] provider = "cli"` + `command`/`args`, handed straight to
@@ -40,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers keep working
   from a project-local file exactly as before, so directory-scoped config is unaffected. Passing
   `--config` on that same file still honours it: naming the file is the explicit act the gate asks for.
+
 
 ### Added
 - `CONTEXTLAKE_NO_LOCAL_CONFIG=1` skips ancestor config discovery entirely, for both
@@ -117,63 +150,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--exit-zero-on-partial` on every mirror command (and `bootstrap`), for anyone whose scripts
   depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
 
-### Fixed
-- Shard output is now reproducible. Indexing the same commit twice produced different shard bytes
-  every time, because the tree-sitter query cursor returns captures in an order that varies between
-  runs. The set of nodes and edges was always correct (only their order moved), but it made
-  `archive_shard`'s documented "a repo re-indexed at the same commit overwrites identically"
-  invariant false, and defeated any checksum-based reasoning about whether an index is current.
-  Captures are now sorted at the single extraction site, and `PARSER_VERSION` is bumped to `2`.
-
-  **Action required: run `contextlake kb index --force` (add `--workspace <dir>` if you keep the
-  store elsewhere).** Existing shards are stale, and nothing will tell you so: `needs_reindex`
-  compares only the repo HEAD and does not consider the parser version, and `doctor`'s stale-parser
-  check is deliberately scoped to C/C++. An unchanged Python or TypeScript repo will therefore be
-  neither flagged nor rebuilt on its own.
-
-  Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
-  file order still comes from directory traversal, so do not compare shard hashes between CI runners.
-  The regression guard is in-process.
-- **Security (breaking for `kb serve --transport http`/`sse`):** the MCP network transports now
-  require authentication. They previously had none, no Origin validation, and no warning, so
-  `kb serve --transport http --host 0.0.0.0` published every indexed symbol, file path, docstring
-  and owner identity to the network. A bearer token is minted at startup and printed once to
-  stderr; requests without it get `401`, a hostile `Origin` gets `403`, a hostile `Host` gets
-  `421`. Set `CONTEXTLAKE_MCP_TOKEN` to pin a stable token for a client config. A non-loopback
-  `--host` is refused unless `--allow-remote` is passed. There is no TLS: the transport is meant
-  for loopback or a tunnel, and says so at startup.
-
-  **stdio is completely unaffected** and needs no token. That is the default and what every
-  documented editor integration uses, so most setups need no change.
-
-  The dashboard's "start MCP server" card spawns that same command with its stderr discarded,
-  which would have thrown the token away and left the card advertising a server nobody could
-  connect to. It now mints the token itself, passes it to the child, stores it in a `0600`
-  pidfile, and shows it on the card.
-- **Security:** `--llm-chat` is now refused with a non-loopback `--host`, the same guard
-  `--allow-mutations` already had. The per-launch token that gates the chat route is served inside
-  `/dashboard.js`, so anyone who could reach the bind could read the token and drive the configured
-  LLM provider at the operator's expense. Host-header pinning does not cover this: pinning is a
-  browser control, and a plain `curl -H 'Host: localhost:PORT' http://<lan-ip>:PORT/dashboard.js`
-  satisfies it and returns the token.
-- **Security:** the dashboard's `POST /api/mcp/serve` no longer accepts an arbitrary bind address.
-  A caller-supplied `host` went into the MCP server unvalidated, so a token holder could publish
-  the whole graph on `0.0.0.0` over a transport with no authentication. The host must now be
-  loopback and the port unprivileged; anything else is a `400`, including a wrong-typed JSON value,
-  which previously raised and surfaced as a `500`.
-- **Security:** the dashboard and graph servers now pin the `Host` header on `GET` as well as
-  `POST`. Only `POST` checked it, so a page whose domain re-resolved to `127.0.0.1` (DNS
-  rebinding) could read the entire code graph cross-origin: `/api/overview`, `/api/repo/<id>`,
-  `/api/search`, `/graph/*`: file paths, symbol names, owner identities. Static assets are
-  deliberately *not* exempt, because `dashboard.js` carries the per-process token and exempting
-  it would hand a rebinding page the key to the mutating routes. One consequence worth knowing:
-  a server bound with `--host 0.0.0.0` and browsed via its LAN address now returns 403; use
-  `http://localhost:PORT` or bind the address you intend to browse. The server prints a hint.
-- Malformed query parameters return `400` with a JSON body instead of raising inside the handler
-  thread and dumping a traceback with no response. Out-of-range values clamp rather than error,
-  and internal failures return a generic `500` with the traceback going to the log, never to the
-  client. Two further unguarded integer parses on client input (`Content-Length`, and the
-  mutation port) were fixed at the same time.
 
 ### Changed
 - The container image is rebuilt as a multi-stage, non-root, digest-pinned build. It previously
@@ -216,6 +192,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Migrating:** if a script or CI job relies on a mirror command always exiting 0, add
   `--exit-zero-on-partial`. If it already checks the exit status, it starts working as intended,
   expect jobs to go red that were silently failing before.
+
+
+### Fixed
+- **Indexing a hostile or merely corrupted `pom.xml` no longer hangs.** The Maven block regexes
+  were quadratic when closing tags were missing: each unclosed opener sent the lazy match scanning
+  to end-of-string before failing. Closing tags are now indexed in one linear pass and paired with
+  their openers. Measured on a 160KB file with 16k unclosed tags: 39.8s to 0.001s for
+  `<dependency>`, 25.6s to 0.000s for `<parent>`, 29.0s to 0.001s for `<dependencies>`. A truncated
+  pom from an aborted download was enough to trigger this; it never took an attacker.
+- **A deeply nested `.tf` file no longer hangs indexing.** `parse_hcl` was quadratic in nesting
+  depth, and the cost was ours rather than the grammar's: in the installed py-tree-sitter, both
+  `Node.parent` and `Node.next_sibling` re-descend from the tree root, so walking siblings while
+  resolving a reference was O(depth) per step. The traversal now carries the context it needs
+  instead of re-deriving it. Measured at depth 1250 with a reference per level: 138.2s to 0.027s,
+  and 337.4s to 0.037s for the `locals` shape.
+- `normalize_id` is idempotent again, matching its docstring. The punctuation strip ran before
+  `casefold()`, so a fold that expands a character into a base letter plus a combining mark left
+  the mark behind for a second call to remove. **This changes the generated id for exactly 29 code
+  points** (established by checking every code point, not by sampling); none are ASCII or Latin-1,
+  so ordinary identifiers are unaffected. It is slightly lossier for those 29: `ǰ` now normalizes
+  to `j`, so it would collide with a plain `j` where it previously did not. That is unavoidable
+  while also keeping the existing guarantee that output equals its own casefold. The re-index the
+  shard-reproducibility fix already requires picks these up in the same pass.
+
+- Shard output is now reproducible. Indexing the same commit twice produced different shard bytes
+  every time, because the tree-sitter query cursor returns captures in an order that varies between
+  runs. The set of nodes and edges was always correct (only their order moved), but it made
+  `archive_shard`'s documented "a repo re-indexed at the same commit overwrites identically"
+  invariant false, and defeated any checksum-based reasoning about whether an index is current.
+  Captures are now sorted at the single extraction site, and `PARSER_VERSION` is bumped to `2`.
+
+  **Action required: run `contextlake kb index --force` (add `--workspace <dir>` if you keep the
+  store elsewhere).** Existing shards are stale, and nothing will tell you so: `needs_reindex`
+  compares only the repo HEAD and does not consider the parser version, and `doctor`'s stale-parser
+  check is deliberately scoped to C/C++. An unchanged Python or TypeScript repo will therefore be
+  neither flagged nor rebuilt on its own.
+
+  Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
+  file order still comes from directory traversal, so do not compare shard hashes between CI runners.
+  The regression guard is in-process.
+- Malformed query parameters return `400` with a JSON body instead of raising inside the handler
+  thread and dumping a traceback with no response. Out-of-range values clamp rather than error,
+  and internal failures return a generic `500` with the traceback going to the log, never to the
+  client. Two further unguarded integer parses on client input (`Content-Length`, and the
+  mutation port) were fixed at the same time.
+
 
 ## [4.0.0] - 2026-08-04
 

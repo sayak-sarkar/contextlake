@@ -104,11 +104,19 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 The published image bundles the knowledge layer plus the built-in CPU models
 (embedder + a small wiki LLM), so it runs with no Ollama, no API key, and no
 model download at runtime. The PyPI wheel stays the primary install; reach for
-the image on locked-down or offline machines.
+the image on locked-down or offline machines. Runs as a non-root user.
 
 ```bash
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
+```
+
+A `:slim` tag is also published, no `llama-cpp-python`, no baked wiki-LLM GGUF,
+much smaller pull. Semantic search still works (the embedder is pure Python);
+point the wiki tier at Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
+
+```bash
+docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake:slim doctor
 ```
 </details>
 
@@ -416,7 +424,7 @@ docker rmi ghcr.io/sayak-sarkar/contextlake    # if you pulled the image
 ```
 
 That leaves your data in place. contextlake never writes inside your repositories, so
-uninstalling it can't touch your source. To also remove what it created locally ,
+uninstalling it can't touch your source. To also remove what it created locally , 
 all optional, delete only what you don't want to keep:
 
 ```bash
@@ -1184,7 +1192,7 @@ never end up sharing one store.
 
 ## Workspace trust
 
-Because a local config is *discovered* rather than named, one can take effect that you never wrote ,
+Because a local config is *discovered* rather than named, one can take effect that you never wrote , 
 notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the few config keys that
 become part of a command contextlake executes are honoured **only** from the global
 `~/.contextlake/kb.toml` or from a path you pass to `--config`:
@@ -1364,6 +1372,22 @@ semantically searchable.
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a **deliberate undercount**. Render it with
 `contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualize.md).
+
+**Measured, not just asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
+orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
+call real (`expected_edges.json`, 13 edges); `tests/kb/test_sql_fixture_corpus.py` scores the parser's
+emitted `references` edges against it on every CI run. Current numbers on that corpus: **precision 0.90
+(9 true positives / 1 false positive), recall 0.69 (9 / 13 ground-truth edges found)**, a small,
+hand-built corpus, not a claim about the whole fleet, but real and reproducible. Two documented gap
+classes account for the four missed edges, both by design, not bugs: a
+**self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is dropped because the
+extractor excludes `target == name`, and an FK **attached via a separate `ALTER TABLE ... ADD CONSTRAINT`**
+statement is never captured because the scope tracker only scans `REFERENCES` inside a `CREATE TABLE`'s
+own text span. The one measured false positive comes from a **commented-out `REFERENCES` line**: the
+regex has no comment-awareness, so dead DDL history left in a script can resolve into a real-looking edge
+if its target table still exists. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
+the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
+target already met.
 
 ### Architecture decisions (ADRs)
 
@@ -1690,6 +1714,31 @@ name used for reachability checks (default `conversations_info`); `history_tool`
 used to read a channel's messages (default `conversations_history`); `group`, a GitLab group prefixed to each
 repo's path to form the project id; and `per_page`, the API page size (default `50`).
 
+## When a source stops answering
+
+`connect` and `enrich` are the only stages that leave the machine, and a fleet run asks each source once
+per repo. If a source goes down mid-run, contextlake stops asking it rather than paying its `timeout` on
+every remaining repo: after three consecutive failures the source is skipped for 60 seconds, then one
+call is let through to see whether it came back. A run against an unreachable MCP server finishes in
+seconds instead of `timeout x repos`.
+
+You will see this in the output, it is never silent, because "the source was down" and "the source had
+nothing" would otherwise look identical:
+
+```
+resilience: circuit OPEN for mcp:npx:https://mcp.example.test after 3 consecutive
+  failure(s) (TimeoutError) -- further calls are skipped for 60s
+resilience: skipping mcp:npx:https://mcp.example.test for 60s -- circuit open after 3
+  consecutive failure(s) (TimeoutError); results from this source will be incomplete
+```
+
+The name in that line identifies the endpoint by transport and host only, never the rest of the URL,
+since a hosted MCP endpoint can carry a token in its path or query.
+
+Failures the *server* rejected rather than failed on, an unknown tool, a bad token, are reported as
+themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
+source if the server is merely slow.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)
@@ -1825,7 +1874,7 @@ inferred from a stray API key in your environment, because it is not free: a run
 only, so a missing key for the review provider shows up as a run where every page is rejected with
 `N reviewer(s) returned nothing parseable` rather than as a doctor warning.
 
-How many symbols get sampled into that grounding set scales with the repo's own size ,
+How many symbols get sampled into that grounding set scales with the repo's own size , 
 `max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Below about 24,000 graph
 nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
 reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
@@ -2036,7 +2085,7 @@ accept_score = 0.7         # mean council score a page must clear to be written
 # review_model    = "claude-haiku-4-5"  # (usually stronger) backend than the one generating
 ```
 
-Unset, `review_provider` means the council reviews with the same client that generated the page ,
+Unset, `review_provider` means the council reviews with the same client that generated the page , 
 the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
 `pages × council_size` extra calls against that provider, so it is opt-in and never inferred from an
 API key that happens to be in your environment. See
@@ -2173,6 +2222,13 @@ provider = "ollama"
 model    = "qwen2.5:3b"
 timeout  = 1200        # give a slow CPU room; default is 300s (5 min)
 ```
+
+If the endpoint stops answering rather than being slow, raising `timeout` makes things worse: a wiki run
+calls the model once per page. After three consecutive endpoint failures (a timeout, a refused
+connection, a 5xx) the provider is skipped for 60 seconds and then probed once, so a dead Ollama daemon
+or an unreachable API costs the run a few timeouts instead of one per page, and says so in the log. A
+rejected *request* is exempt and always reported as itself, so `model "..." not found, try pulling it
+first` keeps telling you to run `ollama pull` however many pages are left.
 
 Notes: behind a TLS-inspecting corporate proxy the first built-in download needs your OS CA bundle
 (`export REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE`; see `docs/releasing.md`). Don't switch the embedder
@@ -2526,7 +2582,7 @@ API key (install the `llm-local` extra first); `ollama` / `openai` use those bac
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
 symbols and (when available) its own README and conventional setup/config files, with a
-fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions ,
+fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions , 
 sections with nothing to ground them are left out, never emitted empty), plus an attributed
 "external context" block from connected sources when there's real data to cite, and a
 provenance footer citing the exact commit and source files. A **STALE** badge appears next to
@@ -3740,7 +3796,7 @@ below is typed under the `kb` namespace (`contextlake kb index`, `contextlake kb
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
-| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set |
+| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
 | `kb lint` | Graph health audit: stale repos, dangling edges (`--json`) |
 | `doctor` | Environment check: FTS5, git, glab, the store, embeddings, per-source reachability, C/C++ parser-version staleness |
 | `bootstrap` | Run the whole pipeline end to end (sync, index, connect, embed, enrich, wiki, steer) |
@@ -3956,91 +4012,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Known issues
-These are found, measured, and pinned by `xfail`ing tests rather than left to surface in the wild.
-Fixes are in progress; the tests flip to passing when they land.
-- **Indexing a hostile or merely corrupted `pom.xml` can hang.** The Maven dependency-block regex
-  is O(n^2) when closing tags are missing: each unclosed `<dependency>` sends the lazy match
-  scanning to end-of-string before failing. Measured 6.2s for an 80KB tail and 24.9s for 160KB.
-  A truncated pom from an aborted download is enough; it does not take an attacker.
-- **A deeply nested `.tf` file can hang indexing.** `parse_hcl` is O(n^2) in nesting depth
-  (4.5s at depth 10000). The tree-sitter parse itself is linear and accounts for ~1% of that; the
-  cost is contextlake's own walk to the tree root once per reference node.
-- `normalize_id` is not idempotent for characters whose casefold expands into a base letter plus a
-  combining mark (Turkish dotted capital I is the reproducer), which contradicts its docstring. No
-  current caller re-normalizes an existing id, so this is a latent trap rather than a live
-  collision.
+## [5.0.0] - 2026-08-04
+
+This release closes a remote-code-execution path and two denial-of-service paths, all three
+reachable by indexing a repository you cloned. Upgrading is recommended for anyone running 4.0.0.
+
+**Migrating from 4.0.0**
+
+1. **Run `contextlake kb index --force`.** The parser version moved to `2`, so every existing shard
+   is stale, and nothing detects that on its own: `needs_reindex` compares only the repo HEAD.
+2. **Mirror commands now exit 1 when repositories failed.** They previously always exited 0. If a
+   script depends on the old behaviour, add `--exit-zero-on-partial`; if it already checks `$?`, it
+   starts working as intended and may go red where it was silently failing.
+3. **`contextlake.py` at the repo root is now `run-contextlake.py`.** Only affects running the
+   launcher from a clone; the installed `contextlake` command and the standalone binaries are
+   unchanged.
+4. **`kb serve --transport http` and `sse` now require a bearer token**, and refuse a non-loopback
+   `--host` without `--allow-remote`. **stdio is unaffected** and needs no token, which is the
+   default and what every documented editor integration uses.
 
 ### Security
-- **A config file found by directory search can no longer make contextlake execute a program.**
-  `.contextlake.kb.toml` is discovered by walking up from the current directory, so a repository you
-  cloned could ship one setting `[llm] provider = "cli"` + `command`/`args`, handed straight to
-  `subprocess.run` by the next `kb wiki`, `kb enrich`, or `dashboard --llm-chat`. The same hole existed
-  in `[[sources]]`, whose `command`/`args`/`mcp_command` spawn an MCP server over stdio. Those keys are
-  now honoured only from `~/.contextlake/kb.toml` or an explicit `--config` path; from a discovered file
-  they are dropped with a warning naming the file and the key. Nothing else is distrusted: `store_dir`,
-  `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers keep working
-  from a project-local file exactly as before, so directory-scoped config is unaffected. Passing
-  `--config` on that same file still honours it: naming the file is the explicit act the gate asks for.
-
-### Added
-- `CONTEXTLAKE_NO_LOCAL_CONFIG=1` skips ancestor config discovery entirely, for both
-  `.contextlake.ini` and `.contextlake.kb.toml`; only the global file and an explicit `--config` are
-  read. Intended for CI, containers, and anywhere untrusted checkouts are handled in bulk, where opting
-  out of the whole tier is simpler to reason about than the per-key gate above.
-- CI now enforces a coverage floor (`--cov-fail-under=88`) on the full-suite job, so a silent
-  drop from the current 92% can no longer pass green. The floor is deliberately only on that one
-  job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
-  its own partial number, and the core job measures the whole package while skipping `tests/kb`,
-  so its honest total is ~23% and no shared floor can fit both.
-- Property-based tests (`hypothesis`) for the invariants that were only ever example-tested:
-  `normalize_id`'s idempotence, `make_id`'s part handling, `sanitize_label`'s guarantee that no
-  control character and nothing over the length cap ever escapes it, and that `_fts_query` cannot
-  emit a string that makes SQLite's FTS5 raise. Plus a pathological-input corpus for the four
-  regex-based extractors, each bounded by `pytest-timeout`, since they consume untrusted
-  repository content. Three real defects fell out and are recorded as `xfail` with measurements
-  rather than quietly passing: see Known issues.
-- Combinatorial test coverage for the places where options interact rather than act alone: a
-  provider-resolution matrix (embedder/LLM/vector-store builders across every provider, backend
-  and enabled/disabled combination), a serve matrix (transport x embedder-present x
-  vector-store-present, asserting the actually-registered MCP tool set), and a boundary matrix
-  (every `limit`/`hops`/`max_*` at zero, one, either side of the default and very large, plus
-  empty and single-file repos and `None`-valued node fields flowing through the payload, diagram
-  and MCP-model layers). The provider names are discovered from the source rather than hardcoded,
-  so a new provider is covered automatically. This is the class of gap that let the `--llm-chat`
-  non-loopback hole exist: the vulnerability was an untested cell of a flag matrix.
-- Supply-chain scanning: a `security` workflow running `pip-audit` over the full dependency
-  surface (dev plus every `kb` extra), a `ruff --select S` security-lint pass, and CodeQL for
-  Python, on push to main, on pull requests, and weekly so newly-disclosed CVEs surface against an
-  untouched tree. The `--select S` pass is non-blocking for now: it reports ~159 real findings plus
-  ~3,336 `assert`-in-tests hits that are pytest idiom rather than defects, and triaging that
-  backlog is its own piece of work. Deliberately kept out of `pyproject.toml`'s ruff `select` and
-  out of `ci.yml` so it stays additive rather than a new gate on every commit.
-- Dependabot for `pip` and `github-actions`, weekly, with minor/patch grouped per ecosystem so a
-  routine tree-sitter point release does not open a dozen PRs. Major bumps stay ungrouped.
-- Published container images now carry SLSA build provenance and an SPDX SBOM, and are signed
-  keyless with cosign via the workflow's OIDC identity (no key material anywhere). Signing is by
-  digest rather than tag, so the signature is pinned to exactly what was built.
-- `--exit-zero-on-partial` on every mirror command (and `bootstrap`), for anyone whose scripts
-  depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
-
-### Fixed
-- Shard output is now reproducible. Indexing the same commit twice produced different shard bytes
-  every time, because the tree-sitter query cursor returns captures in an order that varies between
-  runs. The set of nodes and edges was always correct (only their order moved), but it made
-  `archive_shard`'s documented "a repo re-indexed at the same commit overwrites identically"
-  invariant false, and defeated any checksum-based reasoning about whether an index is current.
-  Captures are now sorted at the single extraction site, and `PARSER_VERSION` is bumped to `2`.
-
-  **Action required: run `contextlake kb index --force` (add `--workspace <dir>` if you keep the
-  store elsewhere).** Existing shards are stale, and nothing will tell you so: `needs_reindex`
-  compares only the repo HEAD and does not consider the parser version, and `doctor`'s stale-parser
-  check is deliberately scoped to C/C++. An unchanged Python or TypeScript repo will therefore be
-  neither flagged nor rebuilt on its own.
-
-  Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
-  file order still comes from directory traversal, so do not compare shard hashes between CI runners.
-  The regression guard is in-process.
 - **Security (breaking for `kb serve --transport http`/`sse`):** the MCP network transports now
   require authentication. They previously had none, no Origin validation, and no warning, so
   `kb serve --transport http --host 0.0.0.0` published every indexed symbol, file path, docstring
@@ -4076,13 +4067,102 @@ Fixes are in progress; the tests flip to passing when they land.
   it would hand a rebinding page the key to the mutating routes. One consequence worth knowing:
   a server bound with `--host 0.0.0.0` and browsed via its LAN address now returns 403; use
   `http://localhost:PORT` or bind the address you intend to browse. The server prints a hint.
-- Malformed query parameters return `400` with a JSON body instead of raising inside the handler
-  thread and dumping a traceback with no response. Out-of-range values clamp rather than error,
-  and internal failures return a generic `500` with the traceback going to the log, never to the
-  client. Two further unguarded integer parses on client input (`Content-Length`, and the
-  mutation port) were fixed at the same time.
+- **A config file found by directory search can no longer make contextlake execute a program.**
+  `.contextlake.kb.toml` is discovered by walking up from the current directory, so a repository you
+  cloned could ship one setting `[llm] provider = "cli"` + `command`/`args`, handed straight to
+  `subprocess.run` by the next `kb wiki`, `kb enrich`, or `dashboard --llm-chat`. The same hole existed
+  in `[[sources]]`, whose `command`/`args`/`mcp_command` spawn an MCP server over stdio. Those keys are
+  now honoured only from `~/.contextlake/kb.toml` or an explicit `--config` path; from a discovered file
+  they are dropped with a warning naming the file and the key. Nothing else is distrusted: `store_dir`,
+  `languages`, `max_file_bytes`, `[embeddings]`, `[[rules]]`, and non-`cli` LLM providers keep working
+  from a project-local file exactly as before, so directory-scoped config is unaffected. Passing
+  `--config` on that same file still honours it: naming the file is the explicit act the gate asks for.
+
+
+### Added
+- `CONTEXTLAKE_NO_LOCAL_CONFIG=1` skips ancestor config discovery entirely, for both
+  `.contextlake.ini` and `.contextlake.kb.toml`; only the global file and an explicit `--config` are
+  read. Intended for CI, containers, and anywhere untrusted checkouts are handled in bulk, where opting
+  out of the whole tier is simpler to reason about than the per-key gate above.
+- CI now enforces a coverage floor (`--cov-fail-under=88`) on the full-suite job, so a silent
+  drop from the current 92% can no longer pass green. The floor is deliberately only on that one
+  job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
+  its own partial number, and the core job measures the whole package while skipping `tests/kb`,
+  so its honest total is ~23% and no shared floor can fit both.
+- A `slim` container image alongside the full one, for users who do not need the local-LLM extra
+  or the baked GGUF. Both are published on release and signed.
+- Dependabot now watches the `docker` ecosystem too, so the Dockerfile's pinned base digest gets
+  moved forward. A digest pin buys reproducible builds but silently ages out of security updates
+  in a way a floating tag does not.
+- Structured logging and metrics, so the systemd timer this repo ships is actually observable.
+  `--log-format json` emits one object per line carrying a run id that correlates every line of a
+  run across the index/connect/embed/wiki pipeline; `--metrics-file PATH` writes Prometheus
+  textfile format (run duration, repo counts by status, node and edge totals, last-success
+  timestamp) for node_exporter's textfile collector. Timestamps are UTC.
+- `--redact` hashes repo paths and group names in log output. It defaults to on for the log file
+  and off for the console: the console is yours and needs real paths, the file is what gets
+  attached to a bug report. `SECURITY.md` previously told you to scrub logs by hand. Note this is
+  obfuscation for sharing, not a cryptographic guarantee: a short repo name can be confirmed by
+  anyone who guesses it.
+- `--access-log` turns on request logging for the local servers, which previously had none even
+  optionally.
+- `--verbose` now surfaces the traceback on an unexpected failure. It printed only `Error: {e}`,
+  so a user's crash report could not be diagnosed without asking them to reproduce under a
+  debugger.
+- Connectors and model providers are guarded by a circuit breaker with jittered retry. A slow or
+  unreachable endpoint used to cost its full timeout on every call, so the pain scaled with the
+  fleet: measured 160.9s across 40 repos against a blackholed MCP server, versus 12.1s with the
+  breaker, and the guarded cost is constant rather than per-repo. At the shipped 120s MCP timeout
+  over a 480-repo fleet that is roughly 32 hours down to roughly 12 minutes. An open circuit says
+  so in the log rather than returning empty results that read like "nothing found".
+- Retrieval quality and SQL-parser accuracy are now measured, not just measurable. A weekly
+  workflow runs `kb eval` against the bundled sample graph and fails if the hit rate regresses
+  below a floor set at the current measured value. Only the lexical retriever runs there: the
+  semantic and hybrid ones need an embedder that is not available offline in a public runner.
+- The SQL parser's accuracy is quantified and published in the code-graph docs against a small
+  hand-labelled corpus: precision 0.90, recall 0.69. Every edge it emits is marked `INFERRED`, and
+  until now nobody could say what that was worth. Measuring it turned up a real false positive
+  (a `REFERENCES` inside a comment was being matched) alongside two already-known gap classes.
+- `kb eval` gains `--json`, matching the convention `owners` and `impact` already use.
+- Property-based tests (`hypothesis`) for the invariants that were only ever example-tested:
+  `normalize_id`'s idempotence, `make_id`'s part handling, `sanitize_label`'s guarantee that no
+  control character and nothing over the length cap ever escapes it, and that `_fts_query` cannot
+  emit a string that makes SQLite's FTS5 raise. Plus a pathological-input corpus for the four
+  regex-based extractors, each bounded by `pytest-timeout`, since they consume untrusted
+  repository content. Three real defects fell out and are recorded as `xfail` with measurements
+  rather than quietly passing. All three are fixed below; the tests that found them now guard them.
+- Combinatorial test coverage for the places where options interact rather than act alone: a
+  provider-resolution matrix (embedder/LLM/vector-store builders across every provider, backend
+  and enabled/disabled combination), a serve matrix (transport x embedder-present x
+  vector-store-present, asserting the actually-registered MCP tool set), and a boundary matrix
+  (every `limit`/`hops`/`max_*` at zero, one, either side of the default and very large, plus
+  empty and single-file repos and `None`-valued node fields flowing through the payload, diagram
+  and MCP-model layers). The provider names are discovered from the source rather than hardcoded,
+  so a new provider is covered automatically. This is the class of gap that let the `--llm-chat`
+  non-loopback hole exist: the vulnerability was an untested cell of a flag matrix.
+- Supply-chain scanning: a `security` workflow running `pip-audit` over the full dependency
+  surface (dev plus every `kb` extra), a `ruff --select S` security-lint pass, and CodeQL for
+  Python, on push to main, on pull requests, and weekly so newly-disclosed CVEs surface against an
+  untouched tree. The `--select S` pass is non-blocking for now: it reports ~159 real findings plus
+  ~3,336 `assert`-in-tests hits that are pytest idiom rather than defects, and triaging that
+  backlog is its own piece of work. Deliberately kept out of `pyproject.toml`'s ruff `select` and
+  out of `ci.yml` so it stays additive rather than a new gate on every commit.
+- Dependabot for `pip` and `github-actions`, weekly, with minor/patch grouped per ecosystem so a
+  routine tree-sitter point release does not open a dozen PRs. Major bumps stay ungrouped.
+- Published container images now carry SLSA build provenance and an SPDX SBOM, and are signed
+  keyless with cosign via the workflow's OIDC identity (no key material anywhere). Signing is by
+  digest rather than tag, so the signature is pinned to exactly what was built.
+- `--exit-zero-on-partial` on every mirror command (and `bootstrap`), for anyone whose scripts
+  depend on the old always-zero exit status: the run still reports what failed, it just exits 0.
+
 
 ### Changed
+- The container image is rebuilt as a multi-stage, non-root, digest-pinned build. It previously
+  shipped the compiler toolchain (`build-essential`, `cmake`, needed only to compile
+  `llama-cpp-python`) into the final image, ran as root, had no `HEALTHCHECK`, floated on a mutable
+  base tag, and copied the source before installing dependencies so every source edit recompiled
+  the native deps. Measured result: the full image drops from 2.25GB to 1.78GB, and the new `slim`
+  variant is 736MB, about 67% smaller than what shipped before.
 - **The no-install launcher is renamed `contextlake.py` -> `run-contextlake.py`.** At the repo root
   it shadowed the installed package: `python -m ...` puts the working directory first on
   `sys.path`, so `python -m pytest` from a clone failed with `No module named 'contextlake.cli';
@@ -4117,6 +4197,52 @@ Fixes are in progress; the tests flip to passing when they land.
   **Migrating:** if a script or CI job relies on a mirror command always exiting 0, add
   `--exit-zero-on-partial`. If it already checks the exit status, it starts working as intended,
   expect jobs to go red that were silently failing before.
+
+
+### Fixed
+- **Indexing a hostile or merely corrupted `pom.xml` no longer hangs.** The Maven block regexes
+  were quadratic when closing tags were missing: each unclosed opener sent the lazy match scanning
+  to end-of-string before failing. Closing tags are now indexed in one linear pass and paired with
+  their openers. Measured on a 160KB file with 16k unclosed tags: 39.8s to 0.001s for
+  `<dependency>`, 25.6s to 0.000s for `<parent>`, 29.0s to 0.001s for `<dependencies>`. A truncated
+  pom from an aborted download was enough to trigger this; it never took an attacker.
+- **A deeply nested `.tf` file no longer hangs indexing.** `parse_hcl` was quadratic in nesting
+  depth, and the cost was ours rather than the grammar's: in the installed py-tree-sitter, both
+  `Node.parent` and `Node.next_sibling` re-descend from the tree root, so walking siblings while
+  resolving a reference was O(depth) per step. The traversal now carries the context it needs
+  instead of re-deriving it. Measured at depth 1250 with a reference per level: 138.2s to 0.027s,
+  and 337.4s to 0.037s for the `locals` shape.
+- `normalize_id` is idempotent again, matching its docstring. The punctuation strip ran before
+  `casefold()`, so a fold that expands a character into a base letter plus a combining mark left
+  the mark behind for a second call to remove. **This changes the generated id for exactly 29 code
+  points** (established by checking every code point, not by sampling); none are ASCII or Latin-1,
+  so ordinary identifiers are unaffected. It is slightly lossier for those 29: `ǰ` now normalizes
+  to `j`, so it would collide with a plain `j` where it previously did not. That is unavoidable
+  while also keeping the existing guarantee that output equals its own casefold. The re-index the
+  shard-reproducibility fix already requires picks these up in the same pass.
+
+- Shard output is now reproducible. Indexing the same commit twice produced different shard bytes
+  every time, because the tree-sitter query cursor returns captures in an order that varies between
+  runs. The set of nodes and edges was always correct (only their order moved), but it made
+  `archive_shard`'s documented "a repo re-indexed at the same commit overwrites identically"
+  invariant false, and defeated any checksum-based reasoning about whether an index is current.
+  Captures are now sorted at the single extraction site, and `PARSER_VERSION` is bumped to `2`.
+
+  **Action required: run `contextlake kb index --force` (add `--workspace <dir>` if you keep the
+  store elsewhere).** Existing shards are stale, and nothing will tell you so: `needs_reindex`
+  compares only the repo HEAD and does not consider the parser version, and `doctor`'s stale-parser
+  check is deliberately scoped to C/C++. An unchanged Python or TypeScript repo will therefore be
+  neither flagged nor rebuilt on its own.
+
+  Two limits worth knowing: shard bytes are reproducible on one machine, not across machines, since
+  file order still comes from directory traversal, so do not compare shard hashes between CI runners.
+  The regression guard is in-process.
+- Malformed query parameters return `400` with a JSON body instead of raising inside the handler
+  thread and dumping a traceback with no response. Out-of-range values clamp rather than error,
+  and internal failures return a generic `500` with the traceback going to the log, never to the
+  client. Two further unguarded integer parses on client input (`Content-Length`, and the
+  mutation port) were fixed at the same time.
+
 
 ## [4.0.0] - 2026-08-04
 
@@ -4358,7 +4484,7 @@ Fixes are in progress; the tests flip to passing when they land.
   Every `wiki` run now removes all four for a module that is no longer in the qualifying set; it
   costs one indexed key-range lookup per repo and no LLM call, so it isn't gated behind `--force`.
   Pruning is skipped when the empty module list came from the index not answering (a large repo
-  whose index rows are missing or mid-rebuild) rather than from the repo actually changing shape ,
+  whose index rows are missing or mid-rebuild) rather than from the repo actually changing shape , 
   the shard and the index are separate layers, and only the second reading is evidence.
 - **A failed whole-repo wiki page no longer drags every one of that repo's subsystem pages through
   the same failure.** The whole-repo page and its module pages share one LLM and one council, so an
@@ -4643,7 +4769,7 @@ spec-cli-simplification.md`.
 
 ### Fixed
 - **`provider = "auto"` (embeddings and wiki-LLM tiers) no longer commits to a local Ollama that
-  doesn't have the target model pulled.** Root-caused the long-standing "Embedder unavailable ,
+  doesn't have the target model pulled.** Root-caused the long-standing "Embedder unavailable , 
   HTTP Error 404: Not Found" by reproducing it live: Ollama running for one model (e.g. a chat
   model) with the embedding/LLM default (`nomic-embed-text` / `llama3.1`) never pulled used to
   still get picked by "auto" (it only checked the daemon answered `/api/tags`, not whether *this*
@@ -5061,8 +5187,8 @@ spec-cli-simplification.md`.
   so this is a different, honest row shape (file→table, always single-repo).
 - **Docs: typed callouts.** Python-Markdown's built-in `admonition` extension
   (`note`/`warning`/`important`, no new dependency) replaces the handful of
-  existing bold-lead blockquotes that were really a distinct interruption ,
-  a risk before you act, an honest limitation, a must-not-skip guarantee ,
+  existing bold-lead blockquotes that were really a distinct interruption , 
+  a risk before you act, an honest limitation, a must-not-skip guarantee , 
   while generic asides stay plain blockquotes.
 - **Docs: per-page-type hero accent.** A doc page's hero eyebrow now
   recolors by its nav group (Get started/Build your knowledge base/Use
@@ -5110,8 +5236,8 @@ spec-cli-simplification.md`.
 ### Fixed
 
 - **`deploymentdiagram`: a repo's own Python/JS/etc. module nodes no longer
-  leak into the Terraform diagram.** `kind="module"` isn't exclusive to HCL ,
-  `kb/parse.py` emits `kind="module"` package nodes for every code language ,
+  leak into the Terraform diagram.** `kind="module"` isn't exclusive to HCL , 
+  `kb/parse.py` emits `kind="module"` package nodes for every code language , 
   so a repo with both Terraform *and* regular source files was incorrectly
   drawing unrelated source-module nodes as deployment "module" entries. Now
   gated on `lang="hcl"` too. This bug shipped in v2.54.0's `deploymentdiagram`
@@ -5244,7 +5370,7 @@ spec-cli-simplification.md`.
   `.git` to an unrelated ancestor repo.** `git -C <path>` walks *up* the
   filesystem tree past an incomplete/corrupted `.git` to find the nearest real
   one, so a broken checkout could previously be indexed under a completely
-  different repo's remote and commit history, with `0 failed` reported ,
+  different repo's remote and commit history, with `0 failed` reported , 
   found incidentally by the v2.50.0 post-release testing pass. Now verified
   via `git rev-parse --show-toplevel` before any identity lookup is trusted;
   a broken `.git` is skipped with a warning instead.
@@ -5262,7 +5388,7 @@ spec-cli-simplification.md`.
 - **`contextlake init --config <path>` no longer silently ignores `--config`.**
   `init` is the one command that writes both generated files (mirror INI +
   kb.toml) and previously always targeted the fixed defaults
-  (`~/.contextlake.ini` / `~/.contextlake/kb.toml`) regardless of `--config` ,
+  (`~/.contextlake.ini` / `~/.contextlake/kb.toml`) regardless of `--config` , 
   every other command honors it correctly. `--config` now redirects the mirror
   INI, with kb.toml written alongside it as a sibling.
 - **`update`/`branches` no longer keep a green checkmark on their final
@@ -5398,7 +5524,7 @@ spec-cli-simplification.md`.
   field, now the literal JSON-quoted `"score": N` form is tried first, since it
   can't be confused with ordinary prose; (3) the "N out of 10" fallback matched
   anywhere in prose with no context check, so "3 out of 10 endpoints... are
-  undocumented" (a coverage-gap description) was misread as a 0.3 review score ,
+  undocumented" (a coverage-gap description) was misread as a 0.3 review score , 
   now rejects a match immediately followed by a noun, the count-phrase shape
   (`kb/wiki/council.py`).
 
@@ -5560,7 +5686,7 @@ spec-cli-simplification.md`.
   `INFERRED`, same stance as the existing HTTP/event flow extractors.
 - **Intra-repo dataflow: `reads`/`writes` edges from code to the tables/views it queries.** A literal
   `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in any file becomes a `reads`
-  or `writes` edge to the matching `table`/`view` node the SQL DDL extractor already found ,
+  or `writes` edge to the matching `table`/`view` node the SQL DDL extractor already found , 
   resolved by name repo-wide, the same mechanism an FK `references` edge uses, so a query against a
   table this repo never defines is an honest miss, not a guessed link (`kb/flow/data.py`).
   `reads`/`writes` are now in `impact`'s default relation set, so `contextlake impact <table>`
@@ -5582,7 +5708,7 @@ spec-cli-simplification.md`.
   in static mode. `impact()` now returns the seed's own `repo` (`kb/dashboard/data.py`), fixing the
   toggle in live mode and, incidentally, a symbol-view provenance chip that was citing the wrong
   "repo" (actually the raw node id, via a `.split(":")` on an id that never had a colon in it).
-- **Finding #10: shared nodes (`module`/`endpoint`/`topic`, and, found while fixing this ,
+- **Finding #10: shared nodes (`module`/`endpoint`/`topic`, and, found while fixing this , 
   `package` and connector nodes) had their `repo_id` silently overwritten by whichever repo's index
   run touched them last, and could be deleted out from under another repo entirely.** Root cause:
   `SqliteStore.upsert_nodes` stamped every node in a shard's batch with that shard's own `repo_id`,
