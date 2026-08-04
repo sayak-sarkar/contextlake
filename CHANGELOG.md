@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The standalone binaries now bundle the built-in local LLM (`llm-local`) alongside `kb-full`, and
+  install it from a prebuilt wheel rather than compiling. `llama-cpp-python` publishes no wheels to
+  PyPI at all (every one of its 200+ releases is sdist-only), because llama.cpp is built per
+  hardware backend and a single PyPI namespace cannot hold the CPU, CUDA and Metal builds of one
+  version. Upstream ships a separate index per accelerator, the same convention PyTorch uses. The
+  binary now points at the CPU index via `PYAPP_PIP_EXTRA_ARGS`, so first run needs no C++
+  toolchain. The `--only-binary` constraint names that one package deliberately rather than
+  `:all:`, which would forbid a source fallback for every other dependency and let one missing
+  wheel break the whole binary.
+
 ### Fixed
 - `docker pull ghcr.io/sayak-sarkar/contextlake` (no tag) returned the **slim** image. The slim
   build's tag metadata did not disable `metadata-action`'s default `latest=auto`, so it claimed a

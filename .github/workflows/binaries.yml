@@ -65,7 +65,22 @@ jobs:
         env:
           PYAPP_PROJECT_NAME: contextlake
           PYAPP_PROJECT_VERSION: ${{ github.ref_name }}
-          PYAPP_PROJECT_FEATURES: kb-full
+          # llm-local rides along so the standalone binary needs nothing else to
+          # generate a wiki offline. It is the "I don't want to think about Python
+          # packaging" distribution channel, so it should be the one that asks the
+          # least of the user.
+          PYAPP_PROJECT_FEATURES: kb-full,llm-local
+          # llama-cpp-python publishes NO wheels to PyPI (all 207 releases are
+          # sdist-only), because llama.cpp is compiled per hardware backend and one
+          # PyPI namespace cannot hold cpu/cu121/cu124/metal builds of the same
+          # version. Upstream therefore ships a separate index per accelerator, the
+          # same convention PyTorch uses. Without this the binary's first run tries
+          # to compile C++ on a machine chosen precisely because it has no toolchain.
+          #
+          # --only-binary is scoped to that one package rather than :all: on purpose:
+          # :all: would also forbid a source fallback for every kb-full dependency,
+          # so a single missing wheel on any platform would break the binary outright.
+          PYAPP_PIP_EXTRA_ARGS: "--only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu"
           PYAPP_EXEC_SPEC: "contextlake.cli:main"
         run: |
           # GITHUB_ENV only takes effect for LATER steps -- cargo install runs in
