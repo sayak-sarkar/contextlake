@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4e29922">
-<link rel="stylesheet" href="tokens.css?v=4e29922">
-<link rel="stylesheet" href="docs.css?v=4e29922">
-<link rel="stylesheet" href="cmdk.css?v=4e29922">
+<link rel="stylesheet" href="fonts.css?v=42e61ea">
+<link rel="stylesheet" href="tokens.css?v=42e61ea">
+<link rel="stylesheet" href="docs.css?v=42e61ea">
+<link rel="stylesheet" href="cmdk.css?v=42e61ea">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -159,8 +159,8 @@ run <code>contextlake kb index --force</code>. <strong>Upgrading to 5.0.0 requir
 docker<span class="w"> </span>rmi<span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w">    </span><span class="c1"># if you pulled the image</span>
 </code></pre></div>
 <p>That leaves your data in place. contextlake never writes inside your repositories, so
-uninstalling it can't touch your source. To also remove what it created locally , 
-all optional, delete only what you don't want to keep:</p>
+uninstalling it can't touch your source. To also remove what it created locally (all
+optional), delete only what you don't want to keep:</p>
 <div class="highlight"><pre><span></span><code>rm<span class="w"> </span>-rf<span class="w"> </span>~/.contextlake<span class="w">        </span><span class="c1"># knowledge store, kb.toml config, graph/dashboard exports, wiki</span>
 rm<span class="w"> </span>-f<span class="w">  </span>~/.contextlake.ini<span class="w">    </span><span class="c1"># mirror config</span>
 <span class="c1"># your mirrored repos live in your work_dir (default ~/work); delete only if unwanted:</span>
@@ -298,6 +298,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=4e29922"></script>
+<script defer src="cmdk.js?v=42e61ea"></script>
 </body>
 </html>

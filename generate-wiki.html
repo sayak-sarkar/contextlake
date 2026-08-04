@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Generate the wiki · contextlake docs">
 <meta name="twitter:description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generate-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate the wiki", "item": "https://sayak.in/contextlake/generate-wiki"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generate-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate the wiki", "item": "https://sayak.in/contextlake/generate-wiki"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4e29922">
-<link rel="stylesheet" href="tokens.css?v=4e29922">
-<link rel="stylesheet" href="docs.css?v=4e29922">
-<link rel="stylesheet" href="cmdk.css?v=4e29922">
+<link rel="stylesheet" href="fonts.css?v=42e61ea">
+<link rel="stylesheet" href="tokens.css?v=42e61ea">
+<link rel="stylesheet" href="docs.css?v=42e61ea">
+<link rel="stylesheet" href="cmdk.css?v=42e61ea">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -76,7 +76,7 @@ inferred from a stray API key in your environment, because it is not free: a run
 <code>council_size</code> to 1 to cut it threefold). Note that <code>contextlake doctor</code> checks the <em>generation</em> provider
 only, so a missing key for the review provider shows up as a run where every page is rejected with
 <code>N reviewer(s) returned nothing parseable</code> rather than as a doctor warning.</p>
-<p>How many symbols get sampled into that grounding set scales with the repo's own size , 
+<p>How many symbols get sampled into that grounding set scales with the repo's own size:
 <code>max(15, min(80, node_count // 1500))</code>, instead of a flat count of 15. Below about 24,000 graph
 nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
 reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
@@ -221,6 +221,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=4e29922"></script>
+<script defer src="cmdk.js?v=42e61ea"></script>
 </body>
 </html>

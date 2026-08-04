@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4e29922">
-<link rel="stylesheet" href="tokens.css?v=4e29922">
-<link rel="stylesheet" href="docs.css?v=4e29922">
-<link rel="stylesheet" href="cmdk.css?v=4e29922">
+<link rel="stylesheet" href="fonts.css?v=42e61ea">
+<link rel="stylesheet" href="tokens.css?v=42e61ea">
+<link rel="stylesheet" href="docs.css?v=42e61ea">
+<link rel="stylesheet" href="cmdk.css?v=42e61ea">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -106,7 +106,7 @@ knowledge-layer's <code>store_dir</code> defaults to a <code>.contextlake/kb</co
 of the global <code>~/.contextlake/kb</code> (override with <code>--store-dir</code>), so two separate <code>--local</code> projects
 never end up sharing one store.</p>
 <h2 id="workspace-trust">Workspace trust<a class="anchor" href="#workspace-trust" title="Link to this section">#</a></h2>
-<p>Because a local config is <em>discovered</em> rather than named, one can take effect that you never wrote , 
+<p>Because a local config is <em>discovered</em> rather than named, one can take effect that you never wrote:
 notably a <code>.contextlake.kb.toml</code> that came inside a repository you cloned. So the few config keys that
 become part of a command contextlake executes are honoured <strong>only</strong> from the global
 <code>~/.contextlake/kb.toml</code> or from a path you pass to <code>--config</code>:</p>
@@ -338,6 +338,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=4e29922"></script>
+<script defer src="cmdk.js?v=42e61ea"></script>
 </body>
 </html>

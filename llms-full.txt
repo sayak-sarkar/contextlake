@@ -472,8 +472,8 @@ docker rmi ghcr.io/sayak-sarkar/contextlake    # if you pulled the image
 ```
 
 That leaves your data in place. contextlake never writes inside your repositories, so
-uninstalling it can't touch your source. To also remove what it created locally , 
-all optional, delete only what you don't want to keep:
+uninstalling it can't touch your source. To also remove what it created locally (all
+optional), delete only what you don't want to keep:
 
 ```bash
 rm -rf ~/.contextlake        # knowledge store, kb.toml config, graph/dashboard exports, wiki
@@ -1256,7 +1256,7 @@ never end up sharing one store.
 
 ## Workspace trust
 
-Because a local config is *discovered* rather than named, one can take effect that you never wrote , 
+Because a local config is *discovered* rather than named, one can take effect that you never wrote:
 notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the few config keys that
 become part of a command contextlake executes are honoured **only** from the global
 `~/.contextlake/kb.toml` or from a path you pass to `--config`:
@@ -1941,7 +1941,7 @@ inferred from a stray API key in your environment, because it is not free: a run
 only, so a missing key for the review provider shows up as a run where every page is rejected with
 `N reviewer(s) returned nothing parseable` rather than as a doctor warning.
 
-How many symbols get sampled into that grounding set scales with the repo's own size , 
+How many symbols get sampled into that grounding set scales with the repo's own size:
 `max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Below about 24,000 graph
 nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
 reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
@@ -2154,8 +2154,8 @@ accept_score = 0.7         # mean council score a page must clear to be written
 # review_model    = "claude-haiku-4-5"  # (usually stronger) backend than the one generating
 ```
 
-Unset, `review_provider` means the council reviews with the same client that generated the page , 
-the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
+Unset, `review_provider` means the council reviews with the same client that generated the page,
+which is the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
 `pages × council_size` extra calls against that provider, so it is opt-in and never inferred from an
 API key that happens to be in your environment. See
 [Generate the wiki](generate-wiki.md) for the full rationale.
@@ -2663,7 +2663,7 @@ API key (install the `llm-local` extra first); `ollama` / `openai` use those bac
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
 symbols and (when available) its own README and conventional setup/config files, with a
-fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions , 
+fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions;
 sections with nothing to ground them are left out, never emitted empty), plus an attributed
 "external context" block from connected sources when there's real data to cite, and a
 provenance footer citing the exact commit and source files. A **STALE** badge appears next to
@@ -3062,8 +3062,8 @@ Output is chosen with `--format`:
   color-by-attribute tools work directly against them, not just a bare shape.
 - **`cypher`**, `CREATE` statements for a [Neo4j](https://neo4j.com/)/[FalkorDB](https://www.falkordb.com/)
   import: `contextlake kb graph --repo acme/app --format cypher --output g.cypher`, then `cypher-shell -f
-  g.cypher` (or FalkorDB's own loader). Node labels come from `kind`, relationship types from `relation`
- , both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
+  g.cypher` (or FalkorDB's own loader). Node labels come from `kind`, relationship types from `relation`,
+  both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
   quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).
 - **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
   `--format graphml` instead, real typed attributes, not a bespoke shape to parse).
@@ -4123,6 +4123,51 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [5.1.1] - 2026-08-04
+
+Two defects found by manual CLI testing, both of which a developer machine hides.
+
+### Fixed
+- **`kb connect` with a GitLab source could never have worked, and reported success anyway.**
+  Repo ids became canonical `host/namespace/project`, but the connector still prepended the
+  configured group and encoded the whole thing, requesting
+  `projects/group%2Fgitlab.com%2Fns%2Fproj`. Every call 404'd. The host segment is now dropped,
+  and `group` acts as a filter rather than a prefix, since the namespace it used to add is
+  already in the id. A repo with no `origin` remote carries the `name@root-commit` fallback id,
+  which names no GitLab project, and is now skipped rather than requested.
+
+  The second half is why it went unnoticed: `glab api` ran without `check=True`, so a rejected
+  call returned a non-zero code that nothing raised on. The circuit breaker never counted it,
+  never opened, and the resulting empty list was indistinguishable from "no open merge
+  requests", so a source whose every call was refused still printed
+  `✓ Connect complete: 0 external link(s) stored`. A refused call is now a failure the breaker
+  sees and the log names.
+
+  The unit tests passed throughout, because their fixtures used a bare `api/svc` repo id, a form
+  the system stopped emitting. They now derive the fixture from the function that produces it.
+- **`mirror update` and `mirror branches` never authenticated.** The token env was built inline
+  by the clone path and nothing else could reach it, so every fetch ran unauthenticated. On a
+  workstation an ambient git credential helper supplies the credential and hides this entirely.
+  Where the token is the only credential, a container or a CI job, the first sync clones
+  successfully and every later refresh fails with `could not read Username`. All three fetch
+  sites funnel through one helper, which now carries the same header the clone path uses.
+- Removed 106 em-dashes from documentation prose and added a test that keeps them out. The house
+  style has always been to avoid them, but the only thing enforcing it was `de_emdash` in
+  `site/build_docs.py`, which rewrites them at render time. That made the built site look correct
+  while the markdown source accumulated them, and they reached readers everywhere the site is not:
+  the repository on GitHub, the project page on PyPI, and `llms-full.txt`. Fenced code blocks are
+  exempt, since their bytes are meant to match what a terminal actually prints.
+- `doctor` printed a green `✓ config loads` whether or not a config existed, so a machine with
+  no configuration at all looked identical to one whose config loaded cleanly, and the paths it
+  had searched were never shown. The mirror side already reported both properly; the two halves
+  of the tool now agree. A missing config is a warning rather than a failure, since built-in
+  defaults are legitimate, and it does not change `doctor`'s exit code.
+
+  The underlying cause is that "loaded nothing" and "loaded a file that happens to be empty"
+  produce an identical merged result. `KbConfig` now carries `loaded_from` and `searched`,
+  recorded in the one function that knows the precedence chain rather than re-derived by each
+  caller.
 
 ## [5.1.0] - 2026-08-04
 

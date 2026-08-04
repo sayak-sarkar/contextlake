@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4e29922">
-<link rel="stylesheet" href="tokens.css?v=4e29922">
-<link rel="stylesheet" href="docs.css?v=4e29922">
-<link rel="stylesheet" href="cmdk.css?v=4e29922">
+<link rel="stylesheet" href="fonts.css?v=42e61ea">
+<link rel="stylesheet" href="tokens.css?v=42e61ea">
+<link rel="stylesheet" href="docs.css?v=42e61ea">
+<link rel="stylesheet" href="cmdk.css?v=42e61ea">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -124,8 +124,8 @@ a "scope to one module" dropdown (its top-level path segments) instead of an arb
   color-by-attribute tools work directly against them, not just a bare shape.</li>
 <li><strong><code>cypher</code></strong>, <code>CREATE</code> statements for a <a href="https://neo4j.com/" target="_blank" rel="noopener">Neo4j<span class="ext-arrow" aria-hidden="true">↗</span></a>/<a href="https://www.falkordb.com/" target="_blank" rel="noopener">FalkorDB<span class="ext-arrow" aria-hidden="true">↗</span></a>
   import: <code>contextlake kb graph --repo acme/app --format cypher --output g.cypher</code>, then <code>cypher-shell -f
-  g.cypher</code> (or FalkorDB's own loader). Node labels come from <code>kind</code>, relationship types from <code>relation</code>
- , both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
+  g.cypher</code> (or FalkorDB's own loader). Node labels come from <code>kind</code>, relationship types from <code>relation</code>,
+  both backtick-quoted (contextlake's kind/relation vocabularies are open text, not a fixed enum, so
   quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).</li>
 <li><strong><code>json</code></strong>, the raw <code>{nodes, edges, meta}</code> for cytoscape / custom tooling (Gephi/yEd users want
   <code>--format graphml</code> instead, real typed attributes, not a bespoke shape to parse).</li>
@@ -209,6 +209,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=4e29922"></script>
+<script defer src="cmdk.js?v=42e61ea"></script>
 </body>
 </html>
