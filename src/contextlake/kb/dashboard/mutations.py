@@ -60,7 +60,9 @@ def _persist_repo(store, store_dir, repo_id: str, path: Path, head: str | None, 
     write_shard(store_dir, shard)
     archive_shard(store_dir, shard)
     reindex_shard(store, store_dir, repo_id)
-    mark_repo_indexed(store, repo_id, head)
+    # Stamp the parser too, like cmds/index.py does: a dashboard sync that left
+    # the stamp behind would make the row claim a parser the shard never had.
+    mark_repo_indexed(store, repo_id, head, shard.parser_version)
 
 
 def sync_repo(store, store_dir, repo_id: str) -> dict:

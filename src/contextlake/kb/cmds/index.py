@@ -11,7 +11,7 @@ from ... import style
 from ...logging_setup import log
 from ..config import load_kb_config
 from ..model import Repo
-from ..state import mark_repo_indexed, needs_reindex
+from ..state import indexed_parser_version, mark_repo_indexed, needs_reindex
 from ..store.shards import GraphShard, archive_shard, reindex_shard, write_shard
 from ._common import (
     _git_head,
@@ -28,7 +28,12 @@ def _default_index_workers() -> int:
 def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                      skip_generated: bool = True, max_file_bytes: int | None = None,
                      workers: int | None = None, repo_filter: str | None = None) -> int:
-    from ..parse import DEFAULT_MAX_FILE_BYTES, discover_repos, index_repo_dir  # lazy: tree-sitter
+    from ..parse import (  # lazy: tree-sitter
+        DEFAULT_MAX_FILE_BYTES,
+        PARSER_VERSION,
+        discover_repos,
+        index_repo_dir,
+    )
 
     if max_file_bytes is None:
         max_file_bytes = DEFAULT_MAX_FILE_BYTES
@@ -63,27 +68,49 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     mode = "full" if force else "incremental"
     failed = skipped = 0
 
-    # Incremental filter first (cheap serial DB reads): only repos whose HEAD moved.
+    # Incremental filter first (cheap serial DB reads): repos whose HEAD moved, plus
+    # repos whose graph was built by a parser this build no longer agrees with. The
+    # second test is the difference between "unchanged" and "still current": a repo
+    # sitting at the same commit but indexed by an older parser holds a graph this
+    # build would not produce, and answering questions from it is precisely the
+    # confident-but-wrong failure this tool exists to prevent. So it is re-indexed,
+    # not merely reported -- the alternative is a green "unchanged" over a stale
+    # graph, and no amount of wording makes that safe. Announced below, because the
+    # first index after a parser bump doing real work must not come as a surprise.
     todo = []
+    stale_parser: dict[str, int] = {}
     for repo_id, path in repos:
         head = _git_head(Path(path))
-        if not force and not needs_reindex(store, repo_id, head):
-            skipped += 1
-        else:
+        if force or needs_reindex(store, repo_id, head):
             todo.append((repo_id, path, head))
+            continue
+        was = indexed_parser_version(store, store_dir, repo_id)
+        if was != PARSER_VERSION:
+            stale_parser[was or "unknown"] = stale_parser.get(was or "unknown", 0) + 1
+            todo.append((repo_id, path, head))
+        else:
+            skipped += 1
     total = len(todo)
     progress = style.Progress(total=total, label="index")
     if workers is None or workers <= 0:
         workers = _default_index_workers()
     log(f"Found {len(repos)} repositories under {workspace} ({mode}); "
         f"indexing {total} with {workers} worker(s)")
+    if stale_parser:
+        n = sum(stale_parser.values())
+        froms = ", ".join(sorted(stale_parser))
+        log(f"{style.warn()} {n} repo(s) unchanged since their last index were built by an "
+            f"older parser ({froms} -> {PARSER_VERSION}); re-indexing them, because the graph "
+            f"they hold is not the one this build produces.")
 
     def _persist(repo_id, path, head, shard):
         store.upsert_repo(Repo(id=repo_id, path=path))
         write_shard(store_dir, shard)
         archive_shard(store_dir, shard)
         reindex_shard(store, store_dir, repo_id)
-        mark_repo_indexed(store, repo_id, head)
+        # Stamp from the shard, never from PARSER_VERSION: the row then mirrors
+        # the file that was actually written, so the two cannot drift.
+        mark_repo_indexed(store, repo_id, head, shard.parser_version)
 
     def _report(repo_id, shard):
         progress.advance(repo_id)
@@ -173,7 +200,7 @@ def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
     write_shard(store_dir, shard)
     archive_shard(store_dir, shard)
     reindex_shard(store, store_dir, repo_id)
-    mark_repo_indexed(store, repo_id, head)
+    mark_repo_indexed(store, repo_id, head, shard.parser_version)
     st = store.stats()
     log(f"Indexed {repo_id}: {len(shard.nodes)} nodes, {len(shard.edges)} edges "
         f"(store totals: {st.nodes} nodes, {st.edges} edges)")

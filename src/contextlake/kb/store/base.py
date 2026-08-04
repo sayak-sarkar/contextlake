@@ -36,8 +36,18 @@ class Store(ABC):
     def list_repos(self) -> list[Repo]: ...
 
     @abstractmethod
-    def mark_indexed(self, repo_id: str, head_commit: str | None, indexed_at: str) -> None:
-        """Record that a repo was indexed at a commit + timestamp."""
+    def mark_indexed(self, repo_id: str, head_commit: str | None, indexed_at: str,
+                     parser_version: str | None = None) -> None:
+        """Record that a repo was indexed at a commit + timestamp, by a parser.
+
+        ``parser_version`` is the stamp carried by the shard that was just
+        written, not the running build's constant: the store mirrors what is
+        actually on disk, so the two can never drift.
+        """
+
+    @abstractmethod
+    def get_repo_parser_version(self, repo_id: str) -> str | None:
+        """The parser version of the repo's last index, or None if unstamped."""
 
     @abstractmethod
     def get_meta(self, key: str) -> str | None: ...

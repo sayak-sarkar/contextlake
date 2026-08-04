@@ -19,13 +19,13 @@ from pathlib import Path
 from ..model import Confidence, Edge, Node, Provenance, Repo
 from .base import Stats, Store
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS kb_meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS repos (
     repo_id TEXT PRIMARY KEY, path TEXT, host TEXT, default_branch TEXT,
-    head_commit TEXT, indexed_at TEXT, lang_stats TEXT);
+    head_commit TEXT, indexed_at TEXT, lang_stats TEXT, parser_version TEXT);
 CREATE TABLE IF NOT EXISTS nodes (
     node_id TEXT PRIMARY KEY, repo_id TEXT, kind TEXT, name TEXT, qualified_name TEXT,
     file TEXT, line_start INTEGER, line_end INTEGER, lang TEXT, attrs TEXT);
@@ -98,11 +98,21 @@ class SqliteStore(Store):
         build would otherwise fail the very first ``INSERT`` that names a
         column it doesn't have (``edges.attrs``, added for C1 system-context
         edges). ``ALTER TABLE ... ADD COLUMN`` is safe/cheap in SQLite for a
-        nullable column: existing rows just read back NULL for it.
+        nullable column: existing rows just read back NULL for it, and no
+        existing row or column is rewritten, so an established store survives
+        the migration intact.
         """
         cols = {row["name"] for row in self.conn.execute("PRAGMA table_info(edges)")}
         if "attrs" not in cols:
             self.conn.execute("ALTER TABLE edges ADD COLUMN attrs TEXT")
+        # repos.parser_version (v3): which parser built this repo's graph, so the
+        # "does this need re-indexing?" decision can consider more than the repo's
+        # HEAD. NULL means "indexed before this column existed" -- deliberately
+        # distinguishable from any real version string, because callers answer it
+        # by reading the shard rather than by guessing.
+        cols = {row["name"] for row in self.conn.execute("PRAGMA table_info(repos)")}
+        if "parser_version" not in cols:
+            self.conn.execute("ALTER TABLE repos ADD COLUMN parser_version TEXT")
 
     # -- meta -----------------------------------------------------------------
     def _set_meta(self, key: str, value: str) -> None:
@@ -140,12 +150,27 @@ class SqliteStore(Store):
             default_branch=row["default_branch"], head_commit=row["head_commit"],
         )
 
-    def mark_indexed(self, repo_id: str, head_commit: str | None, indexed_at: str) -> None:
+    def mark_indexed(self, repo_id: str, head_commit: str | None, indexed_at: str,
+                     parser_version: str | None = None) -> None:
         self.conn.execute(
-            "UPDATE repos SET head_commit=?, indexed_at=? WHERE repo_id=?",
-            (head_commit, indexed_at, repo_id),
+            "UPDATE repos SET head_commit=?, indexed_at=?, parser_version=? WHERE repo_id=?",
+            (head_commit, indexed_at, parser_version, repo_id),
         )
         self.conn.commit()
+
+    def get_repo_parser_version(self, repo_id: str) -> str | None:
+        """The parser version stamped on the repo's last index, or None when it
+        carries no stamp (indexed before the column existed, or never indexed).
+
+        Kept off :class:`~contextlake.kb.model.Repo` on purpose: ``upsert_repo``
+        does not write this column (only ``mark_indexed`` does, atomically with
+        the head it belongs to), so a field on the model would be writable-looking
+        but silently read-only on that path.
+        """
+        row = self.conn.execute(
+            "SELECT parser_version FROM repos WHERE repo_id=?", (repo_id,)
+        ).fetchone()
+        return row["parser_version"] if row else None
 
     def list_repos(self) -> list[Repo]:
         rows = self.conn.execute("SELECT * FROM repos ORDER BY repo_id").fetchall()

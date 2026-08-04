@@ -155,10 +155,9 @@ def _has_generated_header(source: bytes) -> bool:
 #
 # "1" was the first version stamped. "2" is _sorted_captures: node and edge
 # CONTENT is byte-identical to "1", but their ORDER in the shard changed, so a
-# "1" shard's bytes will never again be reproduced by re-indexing. Note that
-# doctor's stale check only *reports* shards containing C/C++ nodes, so this
-# bump is invisible there for a pure-Python or TypeScript repo -- the release
-# notes, not doctor, are what tell those users to re-index.
+# "1" shard's bytes will never again be reproduced by re-indexing. A bump is
+# language-agnostic to everything that consumes it: doctor flags any shard at an
+# older version, and `kb index` re-indexes it rather than calling it unchanged.
 PARSER_VERSION = "2"
 
 # tree-sitter node types that introduce a named definition, per language.

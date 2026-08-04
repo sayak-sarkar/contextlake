@@ -8,6 +8,7 @@ single-global-graph size ceiling that a monolithic graph would hit at scale).
 
 from __future__ import annotations
 
+import re
 import threading
 from collections import OrderedDict
 from pathlib import Path
@@ -192,6 +193,37 @@ def read_shard_with_identity(
 def read_shard(store_dir: str | Path, repo_id: str) -> GraphShard | None:
     shard, _ = read_shard_with_identity(store_dir, repo_id)
     return shard
+
+
+# ``model_dump_json(indent=2)`` writes fields in model-declaration order, so
+# ``parser_version`` sits in the first few lines, ahead of the nodes/edges that
+# make up essentially the whole file. Anchored to the two-space top-level indent
+# so it can only match the shard's own field, never a string inside a node.
+_PARSER_VERSION_HEAD_BYTES = 8192
+_PARSER_VERSION_RE = re.compile(rb'\n  "parser_version":\s*"([^"]*)"')
+
+
+def peek_parser_version(store_dir: str | Path, repo_id: str) -> str | None:
+    """The shard's ``parser_version`` read from the head of the file, or None if
+    it cannot be answered that cheaply (no shard, or the field is not where the
+    writer puts it).
+
+    Exists because the alternative -- ``read_shard`` -- parses and validates the
+    entire shard, and the caller asking this question is a fleet-wide incremental
+    pass that asks it once per repo. On a several-hundred-repo store with shards
+    running to tens of MB, paying a full parse of every shard to read one short
+    string would turn a cheap pre-filter into the most expensive part of the run.
+    A None answer is never *wrong*, only uninformative: callers fall back to
+    ``read_shard``.
+    """
+    try:
+        p = shard_path(store_dir, repo_id)
+        with p.open("rb") as fh:
+            head = fh.read(_PARSER_VERSION_HEAD_BYTES)
+    except (OSError, ValueError):
+        return None
+    m = _PARSER_VERSION_RE.search(head)
+    return m.group(1).decode("utf-8", "replace") if m else None
 
 
 # --- bi-temporal history: snapshot each indexed shard by commit ------------

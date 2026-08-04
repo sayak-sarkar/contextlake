@@ -82,6 +82,56 @@ def test_incremental_skips_unchanged_until_head_moves(tmp_path, logs):
         store.close()
 
 
+def test_incremental_reindexes_a_repo_whose_parser_moved_on(tmp_path, logs):
+    """A repo at an unchanged commit, built by an older parser, is not "unchanged".
+
+    The upgrade path this covers: index with the previous release, upgrade, then
+    run `kb index`. It used to report the repo unchanged and leave the old graph
+    in place, with doctor and lint both reporting healthy. The repo here is pure
+    Python, which was the hole -- doctor's stale check only looked at C/C++.
+    """
+    from contextlake.kb.parse import PARSER_VERSION
+    from contextlake.kb.store.shards import read_shard
+
+    ws = tmp_path / "ws"
+    _git_repo(ws / "app")
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    try:
+        _index_workspace(store, store_dir, ws)
+        logs.clear()
+        _index_workspace(store, store_dir, ws)
+        assert any("1 unchanged" in m for m in logs)
+
+        # Rewind the store to what the previous release left behind: the shard
+        # stamped by the old parser, and no stamp on the row at all, since that
+        # column did not exist then.
+        [repo] = store.list_repos()
+        shard = read_shard(store_dir, repo.id)
+        shard.parser_version = "1"
+        write_shard(store_dir, shard)
+        store.conn.execute("UPDATE repos SET parser_version=NULL")
+        store.conn.commit()
+
+        logs.clear()
+        _index_workspace(store, store_dir, ws)
+        assert any(f"older parser (1 -> {PARSER_VERSION})" in m for m in logs)  # says why
+        assert any("0 unchanged" in m for m in logs)  # and rebuilds rather than skipping
+        assert read_shard(store_dir, repo.id).parser_version == PARSER_VERSION
+        assert store.get_repo_parser_version(repo.id) == PARSER_VERSION
+
+        # ... and it settles: the next pass is quiet again, so the auto-rebuild
+        # costs one pass after an upgrade, not one on every run.
+        logs.clear()
+        _index_workspace(store, store_dir, ws)
+        assert any("1 unchanged" in m for m in logs)
+        assert not any("older parser" in m for m in logs)
+    finally:
+        store.close()
+
+
 # --- lint (Phase 2.5 graph health) ----------------------------------------
 
 def _seed(store_dir, repo_path, head, edges):

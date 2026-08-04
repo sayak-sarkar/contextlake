@@ -21,6 +21,14 @@ def _check(label: str, ok, detail: str = "") -> bool:
     return bool(ok)
 
 
+def _local_llm_runtime_present() -> bool:
+    """Is the local (llama-cpp-python) LLM runtime importable here?
+
+    Import-free: some Pythons have no prebuilt wheel, so the answer is often "no"
+    and importing to find out would be the expensive way to learn it."""
+    return importlib.util.find_spec("llama_cpp") is not None
+
+
 def _builtin_model_present(cache_dir, model_id: str) -> bool:
     """True if a HuggingFace-cached model dir exists under ``cache_dir/hub``.
 
@@ -73,17 +81,34 @@ def cmd_doctor(args) -> int:
             from ..parse import PARSER_VERSION
             from ..store.shards import read_shard
 
-            stale = [r.id for r in store.list_repos()
-                     if (sh := read_shard(store_dir, r.id)) is not None
-                     and sh.parser_version != PARSER_VERSION
-                     and any(n.lang in ("c", "cpp") for n in sh.nodes)]
+            # Language-agnostic on purpose. This was once scoped to shards
+            # containing C/C++ nodes, back when the only parser change was C++
+            # method/class linkage -- which meant a Python or TypeScript repo
+            # indexed by an older parser was never flagged at all. PARSER_VERSION
+            # has since moved for reasons that change output for every language
+            # (capture ordering, and so shard reproducibility), so the language a
+            # repo happens to be written in cannot be the gate. It stays a useful
+            # *detail* for a shard that does hold C/C++ nodes, so it is reported
+            # as one.
+            stale, cxx = [], []
+            for r in store.list_repos():
+                sh = read_shard(store_dir, r.id)
+                if sh is None or sh.parser_version == PARSER_VERSION:
+                    continue
+                stale.append(r.id)
+                if any(n.lang in ("c", "cpp") for n in sh.nodes):
+                    cxx.append(r.id)
             if stale:
-                _check("C/C++ shards up to date with the current parser", False,
-                        f"{len(stale)} repo(s) indexed with an older parser -- re-index for "
-                        f"corrected method/class linkage: {', '.join(stale[:5])}"
-                        + ("…" if len(stale) > 5 else ""))
+                detail = (f"{len(stale)} repo(s) indexed with an older parser -- re-index "
+                          f"with `contextlake kb index`, which now rebuilds them instead "
+                          f"of reporting them unchanged: {', '.join(stale[:5])}"
+                          + ("…" if len(stale) > 5 else ""))
+                if cxx:
+                    detail += (f" · {len(cxx)} of them hold C/C++ code, so they also gain "
+                               "corrected method/class linkage")
+                _check("shards up to date with the current parser", False, detail)
             else:
-                _check("C/C++ shards up to date with the current parser", True)
+                _check("shards up to date with the current parser", True)
         finally:
             store.close()
 
@@ -132,7 +157,16 @@ def cmd_doctor(args) -> int:
 
         llm = cfg.llm
         if not llm.enabled:
-            _check("wiki LLM", True, "disabled")
+            # "disabled" alone conflated two different situations for anyone asking
+            # why wiki generation is unavailable: a tier switched off in config, and
+            # a tier whose local runtime was never installed. They have different
+            # fixes, so they get different sentences. Still a ✓ either way -- an
+            # off-by-default optional tier is not a fault.
+            detail = "not enabled in config (set [llm] enabled = true, or pass --llm PROVIDER)"
+            if llm.provider in ("builtin", "auto") and not _local_llm_runtime_present():
+                detail += ("; the local runtime (llama-cpp-python) is not installed either: "
+                           "contextlake doctor --fix llm-local")
+            _check("wiki LLM", True, detail)
         elif llm.provider in ("builtin", "auto"):
             from ..llm.builtin import BuiltinLlm
 
@@ -148,7 +182,7 @@ def cmd_doctor(args) -> int:
             # the model file alone is not enough: wiki needs the llama-cpp-python runtime, which
             # has no prebuilt wheel on some Pythons. Report ⚠ when the runtime is absent so doctor
             # doesn't show a green ✓ for a tier that will fail at wiki time.
-            runtime = importlib.util.find_spec("llama_cpp") is not None
+            runtime = _local_llm_runtime_present()
             model_state = "downloaded" if present else "not downloaded (run wiki to fetch)"
             _check("wiki LLM", True if runtime else None,
                    f"{llm.provider} · {bl.repo_id} · {model_state}" if runtime

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **An index left stale by an upgrade is no longer invisible.** `PARSER_VERSION` moved to `2` in
+  5.0.0, but `doctor`'s staleness check only examined C and C++ repositories, and the re-index
+  decision compared the repository HEAD alone. A Python or TypeScript repository indexed by 4.0.0
+  therefore stayed stale indefinitely: `index` reported it unchanged, `doctor` reported OK, and
+  every answer came from a graph built by the old parser while every surface said healthy. That is
+  the confident-but-wrong failure this tool exists to prevent.
+
+  `doctor` now flags a stale shard in any language, and `kb index` rebuilds a parser-stale
+  repository instead of skipping it, announcing why. The re-index is scoped to repositories whose
+  parser version differs, so it is not a blanket `--force` and it settles after one pass. The store
+  schema gains a `parser_version` column (version 3) via an additive migration that leaves existing
+  rows intact; a repository indexed before the column existed falls back to reading the shard.
+
 ### Added
 - `contextlake doctor --fix` resolves missing optional dependencies instead of only naming them.
   With no argument it installs what your **resolved configuration** actually calls for, so a setup
