@@ -92,11 +92,19 @@ uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without i
 The published image bundles the knowledge layer plus the built-in CPU models
 (embedder + a small wiki LLM), so it runs with no Ollama, no API key, and no
 model download at runtime. The PyPI wheel stays the primary install; reach for
-the image on locked-down or offline machines.
+the image on locked-down or offline machines. Runs as a non-root user.
 
 ```bash
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake doctor
 docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake kb index
+```
+
+A `:slim` tag is also published — no `llama-cpp-python`, no baked wiki-LLM GGUF,
+much smaller pull. Semantic search still works (the embedder is pure Python);
+point the wiki tier at Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
+
+```bash
+docker run -v "$PWD:/work" ghcr.io/sayak-sarkar/contextlake:slim doctor
 ```
 </details>
 

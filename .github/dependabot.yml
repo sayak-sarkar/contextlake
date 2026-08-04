@@ -27,3 +27,12 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # The Dockerfile pins its base image by digest for reproducible builds, which
+  # means nothing moves it forward on its own: a pinned digest silently ages out
+  # of security updates in a way a floating tag never does. This is what turns
+  # that pin from a liability back into a deliberate choice.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"

@@ -1,38 +1,109 @@
-# contextlake — bundled knowledge-base image with built-in CPU models.
+# contextlake — container image with the knowledge-base extras.
 #
-# Ships the [kb] + built-in model extras and BAKES IN the pinned models
-# (model2vec embedder + a small Qwen2.5-0.5B GGUF wiki LLM), so `docker run` needs
-# no Ollama, no API key, and no model download at runtime — handy for zero-config
-# or air-gapped use. The PyPI wheel remains the primary install; this image is for
-# turnkey/offline runs.
+# Two variants share this Dockerfile via build targets (default target is
+# "full", i.e. what `docker build .` with no --target produces):
+#
+#   full (default) — ships the [kb,kb-local,llm-local] extras and BAKES IN the
+#                     pinned models (model2vec embedder + a small Qwen2.5-0.5B
+#                     GGUF wiki LLM), so `docker run` needs no Ollama, no API
+#                     key, and no model download at runtime. Large: bundles a
+#                     compiled llama-cpp-python + the GGUF.
+#   slim            — ships [kb,kb-local,kb-vec] only: no llama-cpp-python (so
+#                     no C++ toolchain needed to build it), no baked GGUF.
+#                     Semantic search still works out of the box (model2vec is
+#                     pure Python + numpy); point the wiki tier at Ollama /
+#                     OpenAI / Anthropic / `cli` instead of the built-in LLM.
+#                     Much smaller pull — prefer this unless you need fully
+#                     offline wiki generation.
+#
+#   docker build --target full -t contextlake:full .
+#   docker build --target slim -t contextlake:slim .
 #
 #   docker run -v "$PWD/repositories:/work/repositories" \
 #     ghcr.io/sayak-sarkar/contextlake doctor
-FROM python:3.12-slim
+#
+# The PyPI wheel remains the primary install; these images are for
+# turnkey/offline/no-toolchain use.
 
-# Link the published package to the repo (GitHub connects ghcr packages to their
-# source repository through this label) and describe it for the registry UI.
-LABEL org.opencontainers.image.source="https://github.com/sayak-sarkar/contextlake" \
-      org.opencontainers.image.description="contextlake with the knowledge layer and built-in CPU models baked in (offline turnkey image)" \
-      org.opencontainers.image.licenses="MIT"
+# Base pinned by digest, not just the mutable `3.12-slim` tag, for reproducible
+# builds (D-4). Re-resolve when bumping:
+#   docker pull python:3.12-slim && \
+#   docker inspect python:3.12-slim --format '{{index .RepoDigests 0}}'
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS base
 
-# build-essential + cmake: build llama-cpp-python from source (CPU). git/ca-certs:
-# runtime sync + TLS.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential cmake git ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/opt/contextlake/models \
+    PATH="/opt/venv/bin:$PATH"
+RUN python -m venv /opt/venv
 
-ENV HF_HOME=/opt/contextlake/models \
-    PIP_NO_CACHE_DIR=1 \
-    PYTHONUNBUFFERED=1
-
+# ---- dependency layer -------------------------------------------------------
+# Copy only the packaging manifest plus the one source file setuptools needs to
+# resolve the dynamic version (src/contextlake/__init__.py's __version__) —
+# not the whole tree — so an ordinary source-only edit below can't invalidate
+# this layer and force a full llama-cpp-python recompile on every build (D-3).
+FROM base AS deps
 WORKDIR /src
-COPY . /src
-RUN pip install '.[kb,kb-local,llm-local]'
+COPY pyproject.toml README.md LICENSE ./
+COPY src/contextlake/__init__.py src/contextlake/__init__.py
 
-# Pre-download the built-in models into HF_HOME (no network needed at runtime).
+# ---- full: compiles llama-cpp-python, bakes the GGUF -----------------------
+FROM deps AS build-full
+# build-essential + cmake: compile llama-cpp-python from source (no portable
+# prebuilt CPU wheel for every platform this targets). ca-certificates: TLS
+# for the pip/HF downloads below. Discarded before the runtime stage (D-1) —
+# never shipped to users.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install '.[kb,kb-local,llm-local]'
+COPY . /src
+RUN pip install --no-deps .
 RUN python docker/prefetch_models.py
 
+# ---- slim: no compiler needed, no GGUF baked -------------------------------
+FROM deps AS build-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install '.[kb,kb-local,kb-vec]'
+COPY . /src
+RUN pip install --no-deps .
+# llama-cpp-python isn't installed in this variant; prefetch_models.py detects
+# that and skips the GGUF download, only warming the (pure-Python) embedder.
+RUN python docker/prefetch_models.py
+
+# ---- shared runtime base: no compiler toolchain, non-root ------------------
+FROM base AS runtime-base
+LABEL org.opencontainers.image.source="https://github.com/sayak-sarkar/contextlake" \
+      org.opencontainers.image.licenses="MIT"
+# git: contextlake's own mirror/sync commands shell out to it at runtime.
+# ca-certificates: TLS for git/HF/API calls. No build toolchain here (D-1).
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1000 --shell /usr/sbin/nologin contextlake
 WORKDIR /work
+# Not a long-lived daemon by default (CMD is a one-shot "doctor" run), but this
+# still catches a broken interpreter/venv or a corrupted install (D-5): a
+# non-zero exit here means `contextlake --version` itself can't run.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD contextlake --version || exit 1
+USER contextlake
 ENTRYPOINT ["contextlake"]
 CMD ["doctor"]
+
+FROM runtime-base AS slim
+LABEL org.opencontainers.image.description="contextlake with the knowledge layer and built-in embedder; no baked wiki LLM (smaller pull -- use Ollama/OpenAI/Anthropic/cli for the wiki tier)"
+COPY --from=build-slim --chown=contextlake:contextlake /opt/venv /opt/venv
+COPY --from=build-slim --chown=contextlake:contextlake /opt/contextlake/models /opt/contextlake/models
+
+FROM runtime-base AS full
+LABEL org.opencontainers.image.description="contextlake with the knowledge layer and built-in CPU models baked in (offline turnkey image)"
+# libgomp1: the OpenMP runtime the compiled llama.so links against. Pulled in
+# transitively by build-essential in the old single-stage image; needs to be
+# named explicitly now that the runtime stage no longer has a compiler at all.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+USER contextlake
+COPY --from=build-full --chown=contextlake:contextlake /opt/venv /opt/venv
+COPY --from=build-full --chown=contextlake:contextlake /opt/contextlake/models /opt/contextlake/models

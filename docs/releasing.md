@@ -123,30 +123,43 @@ token** and remove `~/.pypirc`, the workflow no longer needs them. (Manual
 
 ## Container image (ghcr.io)
 
-The same tag push also builds and publishes a Docker image to the **GitHub
-Container Registry** via the `docker` job in `release.yml` (using the built-in
-`GITHUB_TOKEN` with `packages: write`, no extra secret). The image bundles the
-`[kb]` + built-in model extras and **bakes in the pinned models** (see
-[`Dockerfile`](../Dockerfile) and [`docker/prefetch_models.py`](../docker/prefetch_models.py)),
-so `docker run` needs no model download at runtime, useful for zero-config or
-air-gapped use:
+The same tag push also builds and publishes **two** Docker image variants to the
+**GitHub Container Registry** via the `docker` job in `release.yml` (using the
+built-in `GITHUB_TOKEN` with `packages: write`, no extra secret) — both built from
+the same multi-stage [`Dockerfile`](../Dockerfile) (see also
+[`docker/prefetch_models.py`](../docker/prefetch_models.py)), non-root, with no
+compiler toolchain in the final image:
+
+- **full** (`--target full`) — the `[kb,kb-local,llm-local]` extras with the pinned
+  models **baked in** (model2vec embedder + a small GGUF wiki LLM), so `docker run`
+  needs no Ollama, no API key, and no model download at runtime. Useful for
+  zero-config or air-gapped use, at the cost of a larger pull.
+- **slim** (`--target slim`) — the `[kb,kb-local,kb-vec]` extras only: no
+  `llama-cpp-python`, no baked GGUF, much smaller pull. Semantic search still works
+  out of the box (model2vec is pure Python); point the wiki tier at
+  Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
 
 ```bash
 docker run -v "$PWD/repositories:/work/repositories" \
-  ghcr.io/sayak-sarkar/contextlake doctor
+  ghcr.io/sayak-sarkar/contextlake doctor          # full
+docker run -v "$PWD/repositories:/work/repositories" \
+  ghcr.io/sayak-sarkar/contextlake:slim doctor     # slim
 ```
 
-Tags published: the release version (e.g. `2.1.5`) and `latest`. PyPI remains the
-**primary** distribution; GitHub Packages does not host PyPI-style Python packages,
-so the image is the only relevant GitHub Packages artifact. Note the image is large
-(it compiles `llama-cpp-python` and bundles a GGUF) and the build downloads the
-models from HuggingFace, fine on GitHub's runners. To **build locally behind a
-TLS-inspecting proxy**, pass your OS CA bundle so the in-build HF download trusts it,
-e.g. `docker build --network=host --build-arg ... ` after baking
-`REQUESTS_CA_BUNDLE` into the build (or build on a network without interception).
+Tags published: the release version and `latest` for the full image (e.g. `2.1.5`,
+`latest`), and the release version + `-slim`, plus rolling `slim`/`latest-slim`
+aliases, for the slim image (e.g. `2.1.5-slim`, `slim`, `latest-slim`). PyPI remains
+the **primary** distribution; GitHub Packages does not
+host PyPI-style Python packages, so these images are the only relevant GitHub
+Packages artifacts. The full image is still large (it compiles `llama-cpp-python`
+and bundles a GGUF) and its build downloads the models from HuggingFace, fine on
+GitHub's runners. To **build locally behind a TLS-inspecting proxy**, pass your OS
+CA bundle so the in-build HF download trusts it, e.g. `docker build --network=host
+--build-arg ... ` after baking `REQUESTS_CA_BUNDLE` into the build (or build on a
+network without interception).
 
-The image is **public by default for public repos**; check the package's visibility
-under the repo's *Packages* once published.
+Both images are **public by default for public repos**; check the package's
+visibility under the repo's *Packages* once published.
 
 ## Single-binary releases (PyApp)
 

@@ -44,6 +44,11 @@ Fixes are in progress; the tests flip to passing when they land.
   job: putting it in `pyproject`'s `addopts` would make every narrow `pytest -k ...` run fail on
   its own partial number, and the core job measures the whole package while skipping `tests/kb`,
   so its honest total is ~23% and no shared floor can fit both.
+- A `slim` container image alongside the full one, for users who do not need the local-LLM extra
+  or the baked GGUF. Both are published on release and signed.
+- Dependabot now watches the `docker` ecosystem too, so the Dockerfile's pinned base digest gets
+  moved forward. A digest pin buys reproducible builds but silently ages out of security updates
+  in a way a floating tag does not.
 - Property-based tests (`hypothesis`) for the invariants that were only ever example-tested:
   `normalize_id`'s idempotence, `make_id`'s part handling, `sanitize_label`'s guarantee that no
   control character and nothing over the length cap ever escapes it, and that `_fts_query` cannot
@@ -134,6 +139,12 @@ Fixes are in progress; the tests flip to passing when they land.
   mutation port) were fixed at the same time.
 
 ### Changed
+- The container image is rebuilt as a multi-stage, non-root, digest-pinned build. It previously
+  shipped the compiler toolchain (`build-essential`, `cmake`, needed only to compile
+  `llama-cpp-python`) into the final image, ran as root, had no `HEALTHCHECK`, floated on a mutable
+  base tag, and copied the source before installing dependencies so every source edit recompiled
+  the native deps. Measured result: the full image drops from 2.25GB to 1.78GB, and the new `slim`
+  variant is 736MB, about 67% smaller than what shipped before.
 - **The no-install launcher is renamed `contextlake.py` -> `run-contextlake.py`.** At the repo root
   it shadowed the installed package: `python -m ...` puts the working directory first on
   `sys.path`, so `python -m pytest` from a clone failed with `No module named 'contextlake.cli';
