@@ -167,8 +167,16 @@ def extract_subgraph(store: Store, seed_ids, *, hops: int = 2, max_nodes: int = 
     return nodes, edges
 
 
+# Share of ``max_nodes`` the one-hop external widening may claim when the repo's
+# own nodes would otherwise fill the budget. A repo view is primarily the repo's
+# own code, so its links (packages, wiki sections, MRs, designs) get a bounded
+# minority slice rather than the unlimited additive allowance they used to have.
+_EXTERNAL_BUDGET_SHARE = 5
+
+
 def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
-                  max_edges: int | None = None, path_prefix: str | None = None,
+                  max_edges: int | None = None, max_fanout: int | None = None,
+                  path_prefix: str | None = None,
                   meta: dict | None = None) -> tuple[list[Node], list[Edge]]:
     """One repo's internal graph: its nodes (capped), plus any node exactly one
     hop out via an outbound edge, and the edges among/to them.
@@ -188,14 +196,25 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     This does not recurse: a one-hop node's own neighbors are never walked, so
     the widening can't cascade into a second hop.
 
-    **Truncation caps:** one-hop external nodes are exempt from ``max_nodes``
-    (they're additive, bounded by however many one-hop neighbors exist -- the
-    node cap governs the size of the *repo-internal* selection query, which
-    runs before any of this). Their edges DO count toward ``max_edges``,
-    though: once an edge reaches the page, a Mermaid renderer can't tell an
-    internal edge from a one-hop external one, so exempting them would
-    reopen the exact ``maxEdges`` render-failure ``max_edges`` exists to
-    prevent.
+    **Truncation caps:** ``max_nodes`` bounds the nodes actually returned, all of
+    them. One-hop external nodes used to be exempt and purely additive, which made
+    the cap a claim rather than a bound: ``--max-nodes 100`` wrote 728 nodes and
+    the default 500 wrote 1186, while ``--help`` said "cap on rendered nodes" and
+    the runtime warning named the same number. They now claim at most
+    ``max_nodes // _EXTERNAL_BUDGET_SHARE`` of the budget, and the repo's own
+    selection gives up its lowest-degree tail to make room -- so the widening
+    still happens on a dense repo, inside the number the user asked for. Their
+    edges count toward ``max_edges`` as before: once an edge reaches the page, a
+    Mermaid renderer can't tell an internal edge from a one-hop external one, so
+    exempting them would reopen the exact ``maxEdges`` render failure
+    ``max_edges`` exists to prevent.
+
+    ``max_fanout`` (opt-in, ``None`` = uncapped here) caps how many outbound edges
+    are taken from any ONE node, the anti-hub bound ``extract_subgraph`` applies to
+    a seeded view. It was accepted on this path and ignored: 0, 1 and 100000 all
+    produced byte-identical output. Uncapped stays the default so an unasked-for
+    view is unchanged; the slice is taken in sorted order, never in whatever order
+    the store returned.
 
     ``max_edges`` is opt-in (``None`` = no additional edge cap beyond whatever
     ``max_nodes`` induces) -- **not on by default**, because not every consumer
@@ -250,11 +269,18 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     edge_truncated = False
     external_ids: set[str] = set()
     ext_cache: dict[str, Node | None] = {}  # avoids a get_node() per repeated dst
+    fanout_truncated = False
     for nid in ids:
         if max_edges is not None and len(edges) >= max_edges:
             edge_truncated = True
             break
-        for e in store.neighbors(nid, direction="out"):
+        out = store.neighbors(nid, direction="out")
+        if max_fanout is not None and len(out) > max_fanout:
+            # Sorted before slicing: which edges survive an anti-hub cap must not
+            # depend on the store's return order (see extract_subgraph, same rule).
+            fanout_truncated = True
+            out = sorted(out, key=lambda e: (e.relation, e.src, e.dst))[:max_fanout]
+        for e in out:
             k = (e.src, e.dst, e.relation)
             if k in edge_keys:
                 continue
@@ -289,11 +315,30 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     # is re-randomised per process, so an unchanged store exported twice produced
     # the same node SET in a different sequence and therefore different bytes --
     # defeating diffing, content-hashing and caching of an export.
-    nodes.extend(ext_cache[nid] for nid in sorted(external_ids))  # already resolved, non-None
-    truncated = node_truncated or edge_truncated
+    ext_ids = sorted(external_ids)
+    dropped_ext = 0
+    if len(nodes) + len(ext_ids) > max_nodes:
+        # The budget is the whole file's, not the selection query's. Externals take
+        # a bounded slice of it; the repo's own lowest-degree tail (the selection is
+        # ordered by degree) gives way for them, and whatever still does not fit is
+        # dropped and counted rather than appended over the cap.
+        keep_ext = min(len(ext_ids), max_nodes // _EXTERNAL_BUDGET_SHARE)
+        dropped_ext = len(ext_ids) - keep_ext
+        ext_ids = ext_ids[:keep_ext]
+        nodes = nodes[:max_nodes - keep_ext]
+        node_truncated = True
+    nodes.extend(ext_cache[nid] for nid in ext_ids)  # already resolved, non-None
+    kept = {n.id for n in nodes}
+    # Induced: an edge into a node the budget dropped must not survive as a dangling
+    # reference (the same rule the max_nodes eviction already had to follow).
+    edges = [e for e in edges if e.src in kept and e.dst in kept]
+    truncated = node_truncated or edge_truncated or fanout_truncated
     if truncated:
         log(f"  truncated: repo {repo_id!r} subgraph exceeds max_nodes={max_nodes}"
-            + (f" or max_edges={max_edges}" if max_edges is not None else ""))
+            + (f" or max_edges={max_edges}" if max_edges is not None else "")
+            + (f" or max_fanout={max_fanout}" if fanout_truncated else "")
+            + (f"; {dropped_ext} linked external node(s) dropped to stay inside "
+               f"max_nodes={max_nodes}" if dropped_ext else ""))
     if meta is not None:
         meta["truncated"] = truncated
         if node_truncated:  # cheap exact total only when we actually capped on nodes

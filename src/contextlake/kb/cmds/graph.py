@@ -116,7 +116,12 @@ def cmd_graph(args) -> int:
                 print(text)
             return 0
 
-        max_fanout = _or_default(getattr(args, "max_fanout", None), 50)
+        # Kept as "unset or a number": a seeded view has always defaulted this to
+        # 50, while a --repo view has no default (capping a repo's containment
+        # fan-out by default would silently hide a file's own symbols). Passing it
+        # through is what makes the flag do anything at all on the --repo path.
+        fanout_arg = getattr(args, "max_fanout", None)
+        max_fanout = _or_default(fanout_arg, 50)
         hops = _or_default(getattr(args, "hops", None), 2)
         overview = getattr(args, "overview", False)
         # The overview is a fleet inventory — default to loading every repo (so any
@@ -137,7 +142,8 @@ def cmd_graph(args) -> int:
             meta["mode"] = "overview"
         elif getattr(args, "repo", None) and not _has_seed(args):
             nodes, edges = viz.repo_subgraph(store, args.repo, max_nodes=max_nodes,
-                                             max_edges=max_edges, meta=meta)
+                                             max_edges=max_edges, max_fanout=fanout_arg,
+                                             meta=meta)
             # empty AND not a known repo -> the id is wrong; suggest close ones
             # (a real repo with nodes renders even without a repos-table row).
             if not nodes and store.get_repo(args.repo) is None:

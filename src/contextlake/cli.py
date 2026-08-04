@@ -1167,7 +1167,8 @@ Examples:
                         "repo can pack well over 500 edges into 500 nodes, which used to "
                         "exceed Mermaid's own hard maxEdges limit and fail to render)")
     p.add_argument("--max-fanout", dest="max_fanout", type=_COUNT, default=_S,
-                   help="per-node neighbour cap, anti-hub (default 50)")
+                   help="per-node neighbour cap, anti-hub (seeded views default to 50; "
+                        "a --repo view is uncapped unless you pass this)")
     p.add_argument("--relation", default=_S, help="only follow edges of this relation")
     p.add_argument("--direction", choices=["in", "out", "both"], default=_S,
                    help="edge direction to follow (default both)")

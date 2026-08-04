@@ -151,16 +151,53 @@ def test_repo_subgraph_one_hop_external_nodes_do_not_recurse(store):
     assert ("x", "y") not in {(e.src, e.dst) for e in edges}
 
 
-def test_repo_subgraph_one_hop_external_nodes_exempt_from_max_nodes(store):
-    # the node cap governs the repo-internal selection query; one-hop external
-    # nodes are additive on top of it, not counted against it.
+def test_repo_subgraph_one_hop_external_nodes_share_the_max_nodes_budget(store):
+    # They used to be exempt and purely additive, which made the cap a claim
+    # rather than a bound: --max-nodes 100 wrote 728 nodes on a real repo. The
+    # budget is now the whole file's, and the log says what it had to drop.
     store.upsert_nodes("r", [_node("a", repo="r")])
     store.upsert_nodes("other", [_node(f"x{i}", repo="other") for i in range(5)])
     store.upsert_edges("r", [_edge("a", f"x{i}") for i in range(5)])
-    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=1)
-    ids = {n.id for n in nodes}
-    assert "a" in ids
-    assert {f"x{i}" for i in range(5)} <= ids  # none dropped by max_nodes=1
+    meta: dict = {}
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=1, meta=meta)
+    assert [n.id for n in nodes] == ["a"]        # 1 node asked for, 1 node written
+    assert edges == []                            # nothing dangles into a dropped node
+    assert meta["truncated"] is True
+
+    # with room for them, they still come along -- the widening is not disabled
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=100)
+    assert {n.id for n in nodes} == {"a", *(f"x{i}" for i in range(5))}
+
+
+def test_repo_subgraph_never_returns_more_nodes_than_max_nodes(store):
+    # 20 in-repo nodes each linking out to a distinct external one: the old code
+    # returned max_nodes + (however many externals existed).
+    store.upsert_nodes("r", [_node(f"n{i:02d}", repo="r") for i in range(20)])
+    store.upsert_nodes("other", [_node(f"x{i:02d}", repo="other") for i in range(20)])
+    store.upsert_edges("r", [_edge(f"n{i:02d}", f"x{i:02d}") for i in range(20)])
+    for cap in (1, 5, 10, 20):
+        nodes, edges = viz.repo_subgraph(store, "r", max_nodes=cap)
+        assert len(nodes) <= cap, f"max_nodes={cap} returned {len(nodes)} nodes"
+        ids = {n.id for n in nodes}
+        assert all(e.src in ids and e.dst in ids for e in edges)
+    # the externals get a bounded slice rather than being dropped outright
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=10)
+    assert sum(1 for n in nodes if n.repo == "other") == 2   # 10 // 5
+
+
+def test_repo_subgraph_honours_max_fanout(store):
+    # Accepted and completely inert on this path: 0, 1 and 100000 produced
+    # byte-identical output on a repo with a genuine hub.
+    store.upsert_nodes("r", [_node("hub", kind="class")]
+                       + [_node(f"leaf{i:02d}") for i in range(30)])
+    store.upsert_edges("r", [_edge("hub", f"leaf{i:02d}") for i in range(30)])
+    meta: dict = {}
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=100, max_fanout=5, meta=meta)
+    assert len([e for e in edges if e.src == "hub"]) == 5
+    assert meta["truncated"] is True
+    # unset means uncapped, exactly as before
+    _, edges = viz.repo_subgraph(store, "r", max_nodes=100)
+    assert len([e for e in edges if e.src == "hub"]) == 30
 
 
 def test_repo_subgraph_one_hop_external_edges_count_toward_max_edges(store):
@@ -1483,6 +1520,55 @@ def test_cli_explicit_max_edges_overrides_default_for_any_format(tmp_path, capsy
     assert e.value.code == 0
     parsed = json.loads(capsys.readouterr().out)
     assert len(parsed["edges"]) == 10
+
+
+def test_cli_repo_view_writes_no_more_nodes_than_max_nodes(tmp_path, capsys):
+    # The user-facing shape of the bug: the console named the cap, the meta
+    # reported truncation, and the FILE held 7x the cap because the one-hop
+    # widening was added on top of it afterwards.
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    s = SqliteStore(kb / "index.sqlite")
+    s.upsert_nodes("r", [_node(f"n{i:02d}", kind="class") for i in range(20)])
+    s.upsert_nodes("(external)", [_node(f"p{i:02d}", repo="(external)", kind="package")
+                                  for i in range(20)])
+    s.upsert_edges("r", [_edge(f"n{i:02d}", f"p{i:02d}", "depends_on") for i in range(20)])
+    s.close()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{kb.as_posix()}"\n')
+
+    for cap in (5, 10):
+        out = tmp_path / f"g{cap}.json"
+        with pytest.raises(SystemExit) as e:
+            main(["kb", "graph", "--repo", "r", "--format", "json", "--max-nodes", str(cap),
+                  "--output", str(out), "--config", str(cfg)])
+        assert e.value.code == 0
+        payload = json.loads(out.read_text())
+        assert len(payload["nodes"]) <= cap
+        assert payload["meta"]["node_count"] == len(payload["nodes"])
+        assert f"({len(payload['nodes'])} nodes" in capsys.readouterr().out
+
+
+def test_cli_repo_view_max_fanout_is_not_inert(tmp_path, capsys):
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    s = SqliteStore(kb / "index.sqlite")
+    s.upsert_nodes("r", [_node("hub", kind="class")] + [_node(f"l{i:02d}") for i in range(30)])
+    s.upsert_edges("r", [_edge("hub", f"l{i:02d}") for i in range(30)])
+    s.close()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{kb.as_posix()}"\n')
+
+    counts = []
+    for fanout in ("3", "30"):
+        out = tmp_path / f"g{fanout}.json"
+        with pytest.raises(SystemExit) as e:
+            main(["kb", "graph", "--repo", "r", "--format", "json", "--max-fanout", fanout,
+                  "--output", str(out), "--config", str(cfg)])
+        assert e.value.code == 0
+        counts.append(len(json.loads(out.read_text())["edges"]))
+    capsys.readouterr()
+    assert counts == [3, 30]   # was [30, 30]: the flag did nothing on this path
 
 
 def test_text_format_to_stdout_is_not_log_polluted_under_truncation(tmp_path, capsys):
