@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<title>Troubleshooting · contextlake docs</title>
+<meta name="description" content="Install and mirror problems that have actually been hit, each with the fix and the reason behind it.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://sayak.in/contextlake/troubleshooting">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Troubleshooting · contextlake docs">
+<meta property="og:description" content="Install and mirror problems that have actually been hit, each with the fix and the reason behind it.">
+<meta property="og:url" content="https://sayak.in/contextlake/troubleshooting">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Troubleshooting · contextlake docs">
+<meta name="twitter:description" content="Install and mirror problems that have actually been hit, each with the fix and the reason behind it.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Troubleshooting", "description": "Install and mirror problems that have actually been hit, each with the fix and the reason behind it.", "url": "https://sayak.in/contextlake/troubleshooting", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Troubleshooting", "item": "https://sayak.in/contextlake/troubleshooting"}]}]}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css?v=18ad908">
+<link rel="stylesheet" href="tokens.css?v=18ad908">
+<link rel="stylesheet" href="docs.css?v=18ad908">
+<link rel="stylesheet" href="cmdk.css?v=18ad908">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
+  </button>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Get started</h2><nav aria-label="Get started"><a href="docs">Overview</a><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="usage">Mirror repositories</a><a href="knowledge-layer">Knowledge layer</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="model-providers">Model providers</a><a href="bootstrap">Bootstrap and keep fresh</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a><a href="ownership">Ownership and SMEs</a></nav><h2>Understand it</h2><nav aria-label="Understand it"><a href="internals">Architecture</a><a href="storage">Storage</a><a href="comparison">How contextlake compares</a><a href="benchmarks">Benchmarks</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference">Command reference</a><a href="console-output">Reading the console output</a><a href="troubleshooting" class="active">Troubleshooting</a><a href="changelog">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Reference</span><span aria-hidden="true">/</span><span aria-current="page">Troubleshooting</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Reference</div><h1>Troubleshooting</h1><p class="doc-sub">Install and mirror problems that have actually been hit, each with the fix and the reason behind it.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>Problems that have actually been hit while installing or running contextlake, each with the
+fix and the reason behind it. If you hit something that is not here, please
+<a href="https://github.com/sayak-sarkar/contextlake/issues" target="_blank" rel="noopener">open an issue<span class="ext-arrow" aria-hidden="true">↗</span></a>: a reproducible failure
+is worth more to this page than a guess.</p>
+<p>Working on contextlake itself rather than using it? The contributor-side problems
+(a distro-owned PyJWT, <code>pre-commit</code> diffs, slow local test runs) live in
+<a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
+<h2 id="the-knowledge-layer-will-not-install">The knowledge layer will not install<a class="anchor" href="#the-knowledge-layer-will-not-install" title="Link to this section">#</a></h2>
+<p><code>[kb]</code> needs Python 3.10 or newer, because the <code>mcp</code> SDK does. The mirror side of contextlake
+supports 3.9, so an install can resolve and then fail at import if you are on 3.9. Check with
+<code>python3 --version</code>.</p>
+<p>The extra also pulls a tree-sitter grammar per supported language, several with native
+wheels. On a platform without prebuilt wheels those build from source, which is slow rather
+than broken.</p>
+<h2 id="pip-install-contextlakellm-local-tries-to-compile-c"><code>pip install "contextlake[llm-local]"</code> tries to compile C++<a class="anchor" href="#pip-install-contextlakellm-local-tries-to-compile-c" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>Building wheel for llama-cpp-python (pyproject.toml) ... error
+CMake Error: could not find cmake ...
+</code></pre></div>
+<p>Expected on every platform and every Python version, and only on a <strong>pip</strong> install.
+<code>llama-cpp-python</code> publishes no wheels to PyPI at all, so pip has nothing to install but the
+sources and falls back to compiling <code>llama.cpp</code>, which needs <code>cmake</code> plus a C++ toolchain.</p>
+<p>Let contextlake attach the prebuilt CPU wheel index for you:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">          </span><span class="c1"># --dry-run prints the command and stops</span>
+</code></pre></div>
+<p>The standalone binary already carries that index in its bootstrap configuration, and the full
+Docker image ships the runtime baked in, so neither channel hits this. For the command by
+hand, see <a href="install#the-built-in-wiki-llm-needs-one-extra-flag">Install and upgrade</a>; for
+the CUDA and Metal indexes, and why the extra cannot carry the index URL itself, see
+<a href="model-providers#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in LLM</a>.</p>
+<p>If you would rather skip the native build entirely, use Ollama for the wiki tier
+(<code>--llm ollama</code>).</p>
+<h2 id="contextlake-doctor-fix-says-the-environment-is-externally-managed"><code>contextlake doctor --fix</code> says the environment is externally managed<a class="anchor" href="#contextlake-doctor-fix-says-the-environment-is-externally-managed" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>error: externally-managed-environment
+</code></pre></div>
+<p>Your distribution marked the system Python as managed by its own package manager (PEP 668),
+and pip refuses to write into it. <code>--fix</code> reports this rather than retrying, because the fix
+is where contextlake lives, not which flag you pass:</p>
+<div class="highlight"><pre><span></span><code>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>.<span class="w"> </span>.venv/bin/activate
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span>
+</code></pre></div>
+<p>or let <code>pipx</code> own the environment: <code>pipx install "contextlake[kb-full]"</code>. Never reach for
+<code>--break-system-packages</code>; it does what it says.</p>
+<h2 id="doctor-fix-printed-a-sudo-command-instead-of-running-it"><code>doctor --fix</code> printed a <code>sudo</code> command instead of running it<a class="anchor" href="#doctor-fix-printed-a-sudo-command-instead-of-running-it" title="Link to this section">#</a></h2>
+<p>Working as designed. <code>--fix</code> installs <strong>Python</strong> packages into the current interpreter
+unattended, but a <strong>system</strong> package needs administrator rights, so it is only ever offered
+with a y/N prompt at a real terminal. <code>git</code> is the only such package <code>--fix</code> offers. Without
+a TTY, or with <code>--skip-interactive</code>, the exact command is printed and nothing privileged
+runs. That keeps a CI job or a scripted run from ever tripping a sudo prompt. Copy the
+printed command, run it yourself, and re-run <code>contextlake doctor</code>.</p>
+<h2 id="the-mirror">The mirror<a class="anchor" href="#the-mirror" title="Link to this section">#</a></h2>
+<p>Symptoms specific to mirroring a fleet, and what to do about each.</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>"Cache file not found"</strong></td>
+<td>Run <code>contextlake mirror fetch</code> first to populate the projects cache.</td>
+</tr>
+<tr>
+<td><strong>"Permission denied" during cloning</strong></td>
+<td>Make sure <code>glab</code> is authenticated (<code>glab auth login</code>) and you can reach the repositories.</td>
+</tr>
+<tr>
+<td><strong>"Timeout" errors</strong></td>
+<td>Raise the relevant <code>*_timeout</code> settings, check connectivity, or lower <code>max_workers</code> (set it to <code>1</code> to run serially). Behind a TLS-inspecting proxy, set <code>GITLAB_TOKEN</code> so enumeration uses the built-in HTTP client.</td>
+</tr>
+<tr>
+<td><strong>"Detached HEAD" states</strong></td>
+<td>Handled automatically, the repo is skipped for pulls rather than failing.</td>
+</tr>
+<tr>
+<td><strong>Nested <code>.git</code> directories</strong></td>
+<td>A repo cloned into a subfolder of itself. <code>contextlake mirror verify</code> flags it; fix by moving the inner tree up one level and removing the empty folder.</td>
+</tr>
+<tr>
+<td><strong>Cron job not running</strong></td>
+<td>Check <code>crontab -l</code>, use absolute paths, and test the exact command in a shell first; inspect cron logs (<code>grep CRON /var/log/syslog</code>). See <a href="usage#scheduling-and-automation">Scheduling and automation</a>.</td>
+</tr>
+<tr>
+<td><strong>Large log files</strong></td>
+<td>Set up log rotation, see <a href="usage#scheduling-and-automation">Scheduling and automation</a>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="still-stuck">Still stuck<a class="anchor" href="#still-stuck" title="Link to this section">#</a></h2>
+<p>Run <code>contextlake doctor</code> and include its full output in your issue. It reports the resolved
+config paths, what is on your PATH, the store's real counts, and which optional pieces are
+missing, which is most of what anyone would ask you for anyway.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="install">Install and upgrade</a>, every channel, and how to upgrade safely</li>
+<li><a href="console-output">Reading the console output</a>, decoding a run</li>
+<li><a href="cli-reference">Command reference</a>, the exact flags</li>
+<li><a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a>, problems you hit working on contextlake itself</li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="install"><span>Install and upgrade</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="cli-reference"><span>Command reference</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#the-knowledge-layer-will-not-install">The knowledge layer will not install</a></li>
+<li><a href="#pip-install-contextlakellm-local-tries-to-compile-c">pip install "contextlake[llm-local]" tries to compile C++</a></li>
+<li><a href="#contextlake-doctor-fix-says-the-environment-is-externally-managed">contextlake doctor --fix says the environment is externally managed</a></li>
+<li><a href="#doctor-fix-printed-a-sudo-command-instead-of-running-it">doctor --fix printed a sudo command instead of running it</a></li>
+<li><a href="#the-mirror">The mirror</a></li>
+<li><a href="#still-stuck">Still stuck</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+  </nav>
+</div></footer>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
+<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>
+<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
+<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
+s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
+<script defer src="cmdk.js?v=18ad908"></script>
+</body>
+</html>

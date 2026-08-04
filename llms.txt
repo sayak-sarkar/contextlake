@@ -7,6 +7,7 @@
 ## Get started
 
 - [Overview](https://sayak.in/contextlake/docs): A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.
+- [Install and upgrade](https://sayak.in/contextlake/install): Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.
 - [Quickstart](https://sayak.in/contextlake/quickstart): Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.
 - [Configuration](https://sayak.in/contextlake/configuration): Config-file precedence and the full settings reference for the mirror layer.
 
@@ -51,6 +52,7 @@
 
 - [Command reference](https://sayak.in/contextlake/cli-reference): Every contextlake command at a glance, with links to the page that documents each in depth.
 - [Reading the console output](https://sayak.in/contextlake/console-output): Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.
+- [Troubleshooting](https://sayak.in/contextlake/troubleshooting): Install and mirror problems that have actually been hit, each with the fix and the reason behind it.
 - [Changelog](https://sayak.in/contextlake/changelog): Release history for contextlake.
 
 ## Source
