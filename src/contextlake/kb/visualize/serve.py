@@ -213,4 +213,3 @@ def serve_site(store: Store, *, host: str = "127.0.0.1", port: int = 8765,
         log("Stopping graph site server")
     finally:
         srv.shutdown()
-

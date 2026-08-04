@@ -177,4 +177,3 @@ def cmd_embed(args) -> int:
             vs.close()
     finally:
         store.close()
-

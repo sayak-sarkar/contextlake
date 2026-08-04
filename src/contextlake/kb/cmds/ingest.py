@@ -141,4 +141,3 @@ def cmd_ingest(args) -> int:
                 vs.close()
     finally:
         store.close()
-

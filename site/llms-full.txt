@@ -38,7 +38,7 @@ package, where a symbol is really defined across dozens of repos, and it starts 
 
 **contextlake gives your tools the real source to read.** It mirrors your repositories to
 your machine, indexes them into a queryable knowledge graph, and serves that graph to your
-editor over [MCP](https://modelcontextprotocol.io). Everything runs locally and offline, 
+editor over [MCP](https://modelcontextprotocol.io). Everything runs locally and offline,
 no code leaves your machine, and it carries no credentials of its own.
 
 ## How it works
@@ -323,7 +323,7 @@ Source: https://sayak.in/contextlake/quickstart
 # Quick start
 
 From a fresh machine to a fully-wired AI workspace, your GitLab repos mirrored,
-indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro, 
+indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro,
 in a few minutes. Everything beyond the mirror is optional and off by default.
 
 ## 1. Prerequisites
@@ -416,7 +416,7 @@ docker rmi ghcr.io/sayak-sarkar/contextlake    # if you pulled the image
 ```
 
 That leaves your data in place. contextlake never writes inside your repositories, so
-uninstalling it can't touch your source. To also remove what it created locally , 
+uninstalling it can't touch your source. To also remove what it created locally ,
 all optional, delete only what you don't want to keep:
 
 ```bash
@@ -804,7 +804,7 @@ The only thing that blocks an `update` is a *dirty working tree*.
 
 ### Safety checks
 
-1. **Clean Workspace Check** (the main guard): detects a dirty working tree, 
+1. **Clean Workspace Check** (the main guard): detects a dirty working tree,
    uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
    `update` and `branches` so local work is never clobbered.
 2. **Automatic Stashing**: optionally stashes a dirty tree so `update` can proceed
@@ -1184,7 +1184,7 @@ never end up sharing one store.
 
 ## Workspace trust
 
-Because a local config is *discovered* rather than named, one can take effect that you never wrote , 
+Because a local config is *discovered* rather than named, one can take effect that you never wrote ,
 notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the few config keys that
 become part of a command contextlake executes are honoured **only** from the global
 `~/.contextlake/kb.toml` or from a path you pass to `--config`:
@@ -1825,7 +1825,7 @@ inferred from a stray API key in your environment, because it is not free: a run
 only, so a missing key for the review provider shows up as a run where every page is rejected with
 `N reviewer(s) returned nothing parseable` rather than as a doctor warning.
 
-How many symbols get sampled into that grounding set scales with the repo's own size , 
+How many symbols get sampled into that grounding set scales with the repo's own size ,
 `max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Below about 24,000 graph
 nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
 reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
@@ -2036,7 +2036,7 @@ accept_score = 0.7         # mean council score a page must clear to be written
 # review_model    = "claude-haiku-4-5"  # (usually stronger) backend than the one generating
 ```
 
-Unset, `review_provider` means the council reviews with the same client that generated the page , 
+Unset, `review_provider` means the council reviews with the same client that generated the page ,
 the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
 `pages × council_size` extra calls against that provider, so it is opt-in and never inferred from an
 API key that happens to be in your environment. See
@@ -2526,7 +2526,7 @@ API key (install the `llm-local` extra first); `ollama` / `openai` use those bac
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
 symbols and (when available) its own README and conventional setup/config files, with a
-fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions , 
+fixed section order (Overview, Setup & Run, Architecture, Dependencies, Gotchas, Decisions ,
 sections with nothing to ground them are left out, never emitted empty), plus an attributed
 "external context" block from connected sources when there's real data to cite, and a
 provenance footer citing the exact commit and source files. A **STALE** badge appears next to
@@ -2670,7 +2670,7 @@ explain / search), resolves the symbol or repo, and returns one labeled answer (
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
 no wiki exists yet). An agent that would rather not choose among the tools can just `ask`.
 
-**Most of it needs no model.** The underlying graph tools work on their own , 
+**Most of it needs no model.** The underlying graph tools work on their own ,
 `search_code`, `find_definition`, `find_callers`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
 `repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
@@ -3056,7 +3056,7 @@ Treat contextlake as a **scale-and-correctness tool first, a token-cost tool sec
 
 ## Methodology
 
-- **Substrate:** a real, private software estate of **~680 repositories** , 
+- **Substrate:** a real, private software estate of **~680 repositories** ,
   ~1.0 million graph nodes, ~1.9 million edges, ~900,000 semantic vectors, and ~21 GB
   of source on disk. (No proprietary names, paths, or symbols are reproduced here.)
 - **Token counts:** [`tiktoken`](https://github.com/openai/tiktoken) `cl100k_base`, a
@@ -4358,7 +4358,7 @@ Fixes are in progress; the tests flip to passing when they land.
   Every `wiki` run now removes all four for a module that is no longer in the qualifying set; it
   costs one indexed key-range lookup per repo and no LLM call, so it isn't gated behind `--force`.
   Pruning is skipped when the empty module list came from the index not answering (a large repo
-  whose index rows are missing or mid-rebuild) rather than from the repo actually changing shape , 
+  whose index rows are missing or mid-rebuild) rather than from the repo actually changing shape ,
   the shard and the index are separate layers, and only the second reading is evidence.
 - **A failed whole-repo wiki page no longer drags every one of that repo's subsystem pages through
   the same failure.** The whole-repo page and its module pages share one LLM and one council, so an
@@ -4643,7 +4643,7 @@ spec-cli-simplification.md`.
 
 ### Fixed
 - **`provider = "auto"` (embeddings and wiki-LLM tiers) no longer commits to a local Ollama that
-  doesn't have the target model pulled.** Root-caused the long-standing "Embedder unavailable , 
+  doesn't have the target model pulled.** Root-caused the long-standing "Embedder unavailable ,
   HTTP Error 404: Not Found" by reproducing it live: Ollama running for one model (e.g. a chat
   model) with the embedding/LLM default (`nomic-embed-text` / `llama3.1`) never pulled used to
   still get picked by "auto" (it only checked the daemon answered `/api/tags`, not whether *this*
@@ -5061,8 +5061,8 @@ spec-cli-simplification.md`.
   so this is a different, honest row shape (file→table, always single-repo).
 - **Docs: typed callouts.** Python-Markdown's built-in `admonition` extension
   (`note`/`warning`/`important`, no new dependency) replaces the handful of
-  existing bold-lead blockquotes that were really a distinct interruption , 
-  a risk before you act, an honest limitation, a must-not-skip guarantee , 
+  existing bold-lead blockquotes that were really a distinct interruption ,
+  a risk before you act, an honest limitation, a must-not-skip guarantee ,
   while generic asides stay plain blockquotes.
 - **Docs: per-page-type hero accent.** A doc page's hero eyebrow now
   recolors by its nav group (Get started/Build your knowledge base/Use
@@ -5110,8 +5110,8 @@ spec-cli-simplification.md`.
 ### Fixed
 
 - **`deploymentdiagram`: a repo's own Python/JS/etc. module nodes no longer
-  leak into the Terraform diagram.** `kind="module"` isn't exclusive to HCL , 
-  `kb/parse.py` emits `kind="module"` package nodes for every code language , 
+  leak into the Terraform diagram.** `kind="module"` isn't exclusive to HCL ,
+  `kb/parse.py` emits `kind="module"` package nodes for every code language ,
   so a repo with both Terraform *and* regular source files was incorrectly
   drawing unrelated source-module nodes as deployment "module" entries. Now
   gated on `lang="hcl"` too. This bug shipped in v2.54.0's `deploymentdiagram`
@@ -5244,7 +5244,7 @@ spec-cli-simplification.md`.
   `.git` to an unrelated ancestor repo.** `git -C <path>` walks *up* the
   filesystem tree past an incomplete/corrupted `.git` to find the nearest real
   one, so a broken checkout could previously be indexed under a completely
-  different repo's remote and commit history, with `0 failed` reported , 
+  different repo's remote and commit history, with `0 failed` reported ,
   found incidentally by the v2.50.0 post-release testing pass. Now verified
   via `git rev-parse --show-toplevel` before any identity lookup is trusted;
   a broken `.git` is skipped with a warning instead.
@@ -5262,7 +5262,7 @@ spec-cli-simplification.md`.
 - **`contextlake init --config <path>` no longer silently ignores `--config`.**
   `init` is the one command that writes both generated files (mirror INI +
   kb.toml) and previously always targeted the fixed defaults
-  (`~/.contextlake.ini` / `~/.contextlake/kb.toml`) regardless of `--config` , 
+  (`~/.contextlake.ini` / `~/.contextlake/kb.toml`) regardless of `--config` ,
   every other command honors it correctly. `--config` now redirects the mirror
   INI, with kb.toml written alongside it as a sibling.
 - **`update`/`branches` no longer keep a green checkmark on their final
@@ -5398,7 +5398,7 @@ spec-cli-simplification.md`.
   field, now the literal JSON-quoted `"score": N` form is tried first, since it
   can't be confused with ordinary prose; (3) the "N out of 10" fallback matched
   anywhere in prose with no context check, so "3 out of 10 endpoints... are
-  undocumented" (a coverage-gap description) was misread as a 0.3 review score , 
+  undocumented" (a coverage-gap description) was misread as a 0.3 review score ,
   now rejects a match immediately followed by a noun, the count-phrase shape
   (`kb/wiki/council.py`).
 
@@ -5560,7 +5560,7 @@ spec-cli-simplification.md`.
   `INFERRED`, same stance as the existing HTTP/event flow extractors.
 - **Intra-repo dataflow: `reads`/`writes` edges from code to the tables/views it queries.** A literal
   `SELECT ... FROM` / `INSERT INTO` / `UPDATE ... SET` / `DELETE FROM` in any file becomes a `reads`
-  or `writes` edge to the matching `table`/`view` node the SQL DDL extractor already found , 
+  or `writes` edge to the matching `table`/`view` node the SQL DDL extractor already found ,
   resolved by name repo-wide, the same mechanism an FK `references` edge uses, so a query against a
   table this repo never defines is an honest miss, not a guessed link (`kb/flow/data.py`).
   `reads`/`writes` are now in `impact`'s default relation set, so `contextlake impact <table>`
@@ -5582,7 +5582,7 @@ spec-cli-simplification.md`.
   in static mode. `impact()` now returns the seed's own `repo` (`kb/dashboard/data.py`), fixing the
   toggle in live mode and, incidentally, a symbol-view provenance chip that was citing the wrong
   "repo" (actually the raw node id, via a `.split(":")` on an id that never had a colon in it).
-- **Finding #10: shared nodes (`module`/`endpoint`/`topic`, and, found while fixing this , 
+- **Finding #10: shared nodes (`module`/`endpoint`/`topic`, and, found while fixing this ,
   `package` and connector nodes) had their `repo_id` silently overwritten by whichever repo's index
   run touched them last, and could be deleted out from under another repo entirely.** Root cause:
   `SqliteStore.upsert_nodes` stamped every node in a shard's batch with that shard's own `repo_id`,
@@ -6927,7 +6927,7 @@ real one; this release closes them.
 ### Changed
 
 - **Branch name alone no longer causes an `update` to be skipped.** A repo with a clean
-  working tree is now fetched and fast-forwarded on whatever branch it is checked out on, 
+  working tree is now fetched and fast-forwarded on whatever branch it is checked out on,
   feature branches included. The only thing that blocks an `update` is a *dirty working tree*
   (uncommitted/unstaged/untracked changes), which is still skipped (or stashed with
   `--auto-stash`). `protect_working_branches` now applies **only** to the `branches` command,
@@ -7015,7 +7015,7 @@ real one; this release closes them.
 
 - **Slimmed the README** (~1,320 → ~860 lines): the deep Technical Documentation /
   architecture moved into `docs/internals.md`, and the inline version history now
-  points to `CHANGELOG.md`. Fleshed out the `lint` and `doctor` docs. (Docs only, 
+  points to `CHANGELOG.md`. Fleshed out the `lint` and `doctor` docs. (Docs only,
   no code or layout changes, which already follow standard src-layout conventions.)
 
 ## [1.15.0] - 2026-06-22
@@ -7072,7 +7072,7 @@ real one; this release closes them.
 ### Added
 
 - **Steering-layer generation** (`steer` command): writes workspace-specific
-  steering files so local AI tools pick up the knowledge graph natively, 
+  steering files so local AI tools pick up the knowledge graph natively,
   `AGENTS.md` (overview + knowledge tools + guardrails), a thin `CLAUDE.md` that
   imports it, `.windsurfrules`, `.kiro/steering/`, and a merged `.mcp.json` entry
   for the MCP server. Content is grounded in the indexed repos/languages/

@@ -26,7 +26,7 @@ package, where a symbol is really defined across dozens of repos, and it starts 
 
 **contextlake gives your tools the real source to read.** It mirrors your repositories to
 your machine, indexes them into a queryable knowledge graph, and serves that graph to your
-editor over [MCP](https://modelcontextprotocol.io). Everything runs locally and offline, 
+editor over [MCP](https://modelcontextprotocol.io). Everything runs locally and offline,
 no code leaves your machine, and it carries no credentials of its own.
 
 ## How it works

@@ -223,4 +223,3 @@ def cmd_graph(args) -> int:
         return 0
     finally:
         store.close()
-

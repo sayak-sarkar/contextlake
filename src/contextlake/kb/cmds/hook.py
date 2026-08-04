@@ -103,4 +103,3 @@ def cmd_hook(args) -> int:
         if not config:
             log("  (uses the default kb.toml; pass --config to pin a specific one.)")
     return 0
-

@@ -81,4 +81,3 @@ def cmd_lint(args) -> int:
         return 0 if clean else 1
     finally:
         store.close()
-

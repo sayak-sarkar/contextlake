@@ -107,4 +107,3 @@ def cmd_dashboard(args) -> int:
                     allow_mutations=allow_mutations,
                     workspace=getattr(args, "workspace", None),
                     llm_chat=llm_chat)
-

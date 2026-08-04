@@ -138,4 +138,3 @@ def cmd_query(args) -> int:
         return 0
     finally:
         store.close()
-

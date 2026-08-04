@@ -78,4 +78,3 @@ def cmd_impact(args) -> int:
         return 0
     finally:
         store.close()
-

@@ -259,7 +259,7 @@ The only thing that blocks an `update` is a *dirty working tree*.
 
 ### Safety checks
 
-1. **Clean Workspace Check** (the main guard): detects a dirty working tree, 
+1. **Clean Workspace Check** (the main guard): detects a dirty working tree,
    uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
    `update` and `branches` so local work is never clobbered.
 2. **Automatic Stashing**: optionally stashes a dirty tree so `update` can proceed

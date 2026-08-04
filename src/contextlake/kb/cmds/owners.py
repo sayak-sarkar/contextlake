@@ -71,4 +71,3 @@ def cmd_owners(args) -> int:
         log(f"  {i}. {o.name}  —  {o.commits} commit(s), {o.lines} line(s), "
             f"last {o.last_active}, {o.share * 100:.0f}%")
     return 0
-

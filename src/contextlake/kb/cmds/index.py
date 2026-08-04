@@ -256,4 +256,3 @@ def cmd_index(args) -> int:
         )
     finally:
         store.close()
-

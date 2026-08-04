@@ -36,7 +36,7 @@ Treat contextlake as a **scale-and-correctness tool first, a token-cost tool sec
 
 ## Methodology
 
-- **Substrate:** a real, private software estate of **~680 repositories** , 
+- **Substrate:** a real, private software estate of **~680 repositories** ,
   ~1.0 million graph nodes, ~1.9 million edges, ~900,000 semantic vectors, and ~21 GB
   of source on disk. (No proprietary names, paths, or symbols are reproduced here.)
 - **Token counts:** [`tiktoken`](https://github.com/openai/tiktoken) `cl100k_base`, a

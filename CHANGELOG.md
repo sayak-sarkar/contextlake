@@ -3026,7 +3026,7 @@ real one; this release closes them.
 ### Changed
 
 - **Branch name alone no longer causes an `update` to be skipped.** A repo with a clean
-  working tree is now fetched and fast-forwarded on whatever branch it is checked out on, 
+  working tree is now fetched and fast-forwarded on whatever branch it is checked out on,
   feature branches included. The only thing that blocks an `update` is a *dirty working tree*
   (uncommitted/unstaged/untracked changes), which is still skipped (or stashed with
   `--auto-stash`). `protect_working_branches` now applies **only** to the `branches` command,
@@ -3114,7 +3114,7 @@ real one; this release closes them.
 
 - **Slimmed the README** (~1,320 → ~860 lines): the deep Technical Documentation /
   architecture moved into `docs/internals.md`, and the inline version history now
-  points to `CHANGELOG.md`. Fleshed out the `lint` and `doctor` docs. (Docs only, 
+  points to `CHANGELOG.md`. Fleshed out the `lint` and `doctor` docs. (Docs only,
   no code or layout changes, which already follow standard src-layout conventions.)
 
 ## [1.15.0] - 2026-06-22
@@ -3171,7 +3171,7 @@ real one; this release closes them.
 ### Added
 
 - **Steering-layer generation** (`steer` command): writes workspace-specific
-  steering files so local AI tools pick up the knowledge graph natively, 
+  steering files so local AI tools pick up the knowledge graph natively,
   `AGENTS.md` (overview + knowledge tools + guardrails), a thin `CLAUDE.md` that
   imports it, `.windsurfrules`, `.kiro/steering/`, and a merged `.mcp.json` entry
   for the MCP server. Content is grounded in the indexed repos/languages/

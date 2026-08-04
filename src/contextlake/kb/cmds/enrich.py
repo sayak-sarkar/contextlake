@@ -62,4 +62,3 @@ def cmd_enrich(args) -> int:
                 vector_store.close()
     finally:
         store.close()
-

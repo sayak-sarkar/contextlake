@@ -1,7 +1,7 @@
 # Quick start
 
 From a fresh machine to a fully-wired AI workspace, your GitLab repos mirrored,
-indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro, 
+indexed into a local knowledge graph, and exposed to Claude Code / Windsurf / Kiro,
 in a few minutes. Everything beyond the mirror is optional and off by default.
 
 ## 1. Prerequisites

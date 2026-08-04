@@ -177,4 +177,3 @@ def cmd_doctor(args) -> int:
 
     print(style.bold(style.green("OK")) if ok else style.bold(style.red("Problems found")))
     return 0 if ok else 1
-

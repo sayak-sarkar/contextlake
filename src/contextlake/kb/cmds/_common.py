@@ -124,4 +124,3 @@ def _git_head(path: Path) -> str | None:
         return out.stdout.strip() or None if out.returncode == 0 else None
     except (OSError, subprocess.SubprocessError):
         return None
-

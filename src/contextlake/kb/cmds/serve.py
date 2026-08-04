@@ -158,4 +158,3 @@ def cmd_serve(args) -> int:
             import os
 
             os._exit(0)
-

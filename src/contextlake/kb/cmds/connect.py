@@ -242,4 +242,3 @@ def cmd_connect(args) -> int:
                 vector_store.close()
     finally:
         store.close()
-

@@ -139,4 +139,3 @@ def cmd_steer(args) -> int:
         return 0
     finally:
         store.close()
-

@@ -694,4 +694,3 @@ def cmd_wiki(args) -> int:
         if vs is not None:
             vs.close()
         store.close()
-

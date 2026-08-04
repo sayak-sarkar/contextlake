@@ -35,4 +35,3 @@ def dispatch(command: str, args) -> int:
         "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
         "enrich": cmd_enrich, "dashboard": cmd_dashboard, "hook": cmd_hook,
     }[command](args)
-

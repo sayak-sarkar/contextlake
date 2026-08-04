@@ -88,4 +88,3 @@ def cmd_eval(args) -> int:
         log(f"  {mark} {p['query'][:60]:60s} P={p['precision@k']:.2f} "
             f"R={p['recall@k']:.2f} rr={p['rr']:.2f}")
     return 0
-

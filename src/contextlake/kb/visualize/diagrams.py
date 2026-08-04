@@ -558,4 +558,3 @@ def to_deployment_diagram(payload: dict) -> str:
         seen.add((src, dst))
         lines.append(f"  {alias[src]} --> {alias[dst]}")
     return "\n".join(lines)
-
