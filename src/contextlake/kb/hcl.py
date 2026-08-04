@@ -81,22 +81,31 @@ def _top_level_blocks(root: ts.Node) -> list[ts.Node]:
     return out
 
 
-def _reference_segments(var_expr: ts.Node) -> tuple[str, list[str]]:
+def _reference_segments(
+    var_expr: ts.Node, siblings: list[ts.Node], index: int
+) -> tuple[str, list[str]]:
     """From a ``variable_expr`` node, return (root_identifier, [segment, ...]).
 
     Segments are the consecutive following ``get_attr`` siblings' identifiers,
     stopping at the first non-``get_attr`` sibling (index/splat/operator), so
     ``aws_x.y[0].id`` and ``aws_x.y[*].id`` both yield root ``aws_x``, segs ``[y]``.
+
+    ``siblings``/``index`` are the node's own position in its parent's child
+    list, supplied by :func:`_walk_ctx`, because ``Node.next_sibling`` is
+    O(depth) per access in py-tree-sitter (it re-descends from the tree root),
+    which made this walk O(depth^2) on a deeply nested file. Sliced by index
+    rather than by ``siblings[index + 1:]`` so a node with very many siblings
+    does not pay a list copy per reference either.
     """
     root = _text(var_expr)
     segs: list[str] = []
-    sib = var_expr.next_sibling
-    while sib is not None and sib.type == "get_attr":
-        ident = next((c for c in sib.children if c.type == "identifier"), None)
+    i = index + 1
+    while i < len(siblings) and siblings[i].type == "get_attr":
+        ident = next((c for c in siblings[i].children if c.type == "identifier"), None)
         if ident is None:
             break
         segs.append(_text(ident))
-        sib = sib.next_sibling
+        i += 1
     return root, segs
 
 
@@ -116,26 +125,52 @@ def _reference_address(root: str, segs: list[str]) -> str | None:
     return f"{root}.{segs[0]}" if segs else None
 
 
-def _walk(node: ts.Node):
-    stack = [node]
+def _is_locals_block(block: ts.Node | None) -> bool:
+    if block is None or block.type != "block":
+        return False
+    kids = block.children
+    return bool(kids) and kids[0].type == "identifier" and _text(kids[0]) == "locals"
+
+
+def _walk_ctx(root: ts.Node):
+    """Depth-first walk yielding ``(node, siblings, index, top_block, local_attr)``.
+
+    Visit order is exactly that of a plain ``stack.pop()`` /
+    ``stack.extend(children)`` walk, so the order references are emitted in is
+    unchanged. What changes is that everything the reference pass needs to know
+    about a node's surroundings - its position among its siblings, its
+    outermost enclosing ``block``, and the ``locals`` attribute it sits under -
+    is carried *down* the traversal instead of being recovered afterwards by
+    climbing back up.
+
+    That matters because ``Node.parent`` and ``Node.next_sibling`` are O(depth)
+    per access in py-tree-sitter (each re-descends from the tree root), while
+    ``Node.children`` is not. Recovering a node's context by climbing therefore
+    cost O(depth) per node over O(depth) nodes, making ``parse_hcl`` O(depth^2)
+    on a deeply nested ``.tf`` file: 0.29s / 1.18s / 4.87s at nesting depth
+    2500 / 5000 / 10000, against 0.034s for the raw tree-sitter parse of the
+    deepest of those. The grammar was never the problem.
+
+    ``local_attr`` is the ``attribute`` node directly under a ``locals`` block's
+    body that encloses this node, if any - a reference inside one belongs to
+    that specific ``local.<attr>``, not to the block. Nested ones simply
+    overwrite as the walk descends, so the innermost wins.
+    """
+    stack: list[tuple[ts.Node, ts.Node | None, list[ts.Node], int,
+                      ts.Node | None, ts.Node | None]] = [(root, None, [root], 0, None, None)]
     while stack:
-        n = stack.pop()
-        yield n
-        stack.extend(n.children)
-
-
-def _enclosing_local_attr(node: ts.Node) -> ts.Node | None:
-    """The ``attribute`` node directly under a ``locals`` block body, if any."""
-    n = node
-    while n is not None:
-        if n.type == "attribute" and n.parent is not None and n.parent.type == "body" \
-                and n.parent.parent is not None and n.parent.parent.type == "block":
-            block = n.parent.parent
-            kids = block.children
-            if kids and kids[0].type == "identifier" and _text(kids[0]) == "locals":
-                return n
-        n = n.parent
-    return None
+        node, parent, siblings, index, top_block, local_attr = stack.pop()
+        if top_block is None and node.type == "block":
+            top_block = node
+        yield node, siblings, index, top_block, local_attr
+        kids = node.children
+        if not kids:
+            continue
+        marks_locals = node.type == "body" and _is_locals_block(parent)
+        stack.extend(
+            (child, node, kids, i, top_block,
+             child if (marks_locals and child.type == "attribute") else local_attr)
+            for i, child in enumerate(kids))
 
 
 def parse_hcl(
@@ -196,35 +231,31 @@ def parse_hcl(
 
     refs: list[tuple[str, str, str, int]] = []
 
-    def _src_id_for(node: ts.Node) -> str | None:
-        # A ref inside a locals block belongs to its specific local.<attr> node.
-        top_block: ts.Node | None = None
-        n = node
-        while n is not None:
-            if n.type == "block":
-                top_block = n
-            n = n.parent
+    def _src_id_for(top_block: ts.Node | None, local_attr: ts.Node | None) -> str | None:
+        # Both arguments come from _walk_ctx; deriving them here by walking
+        # node.parent to the root is what used to make this quadratic.
         if top_block is None:
             return None
-        kids = top_block.children
-        if kids and kids[0].type == "identifier" and _text(kids[0]) == "locals":
-            attr = _enclosing_local_attr(node)
-            if attr is None:
+        # A ref inside a locals block belongs to its specific local.<attr> node.
+        if _is_locals_block(top_block):
+            if local_attr is None:
                 return None
-            name_node = attr.child_by_field_name("name") or (
-                attr.named_child(0) if attr.named_child_count else None)
+            name_node = local_attr.child_by_field_name("name") or (
+                local_attr.named_child(0) if local_attr.named_child_count else None)
             if name_node is None:
                 return None
             return make_id(repo_id, rel_path, f"local.{_text(name_node)}")
         return block_to_id.get(top_block.id)
 
     seen: set[tuple[str, str]] = set()
-    for var_expr in (n for n in _walk(tree.root_node) if n.type == "variable_expr"):
-        root, segs = _reference_segments(var_expr)
+    for var_expr, siblings, index, top_block, local_attr in _walk_ctx(tree.root_node):
+        if var_expr.type != "variable_expr":
+            continue
+        root, segs = _reference_segments(var_expr, siblings, index)
         address = _reference_address(root, segs)
         if address is None:
             continue
-        src_id = _src_id_for(var_expr)
+        src_id = _src_id_for(top_block, local_attr)
         if src_id is None:
             continue
         key = (src_id, address)

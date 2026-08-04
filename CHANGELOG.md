@@ -7,20 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Known issues
-These are found, measured, and pinned by `xfail`ing tests rather than left to surface in the wild.
-Fixes are in progress; the tests flip to passing when they land.
-- **Indexing a hostile or merely corrupted `pom.xml` can hang.** The Maven dependency-block regex
-  is O(n^2) when closing tags are missing: each unclosed `<dependency>` sends the lazy match
-  scanning to end-of-string before failing. Measured 6.2s for an 80KB tail and 24.9s for 160KB.
-  A truncated pom from an aborted download is enough; it does not take an attacker.
-- **A deeply nested `.tf` file can hang indexing.** `parse_hcl` is O(n^2) in nesting depth
-  (4.5s at depth 10000). The tree-sitter parse itself is linear and accounts for ~1% of that; the
-  cost is contextlake's own walk to the tree root once per reference node.
-- `normalize_id` is not idempotent for characters whose casefold expands into a base letter plus a
-  combining mark (Turkish dotted capital I is the reproducer), which contradicts its docstring. No
-  current caller re-normalizes an existing id, so this is a latent trap rather than a live
-  collision.
+### Fixed
+- **Indexing a hostile or merely corrupted `pom.xml` no longer hangs.** The Maven block regexes
+  were quadratic when closing tags were missing: each unclosed opener sent the lazy match scanning
+  to end-of-string before failing. Closing tags are now indexed in one linear pass and paired with
+  their openers. Measured on a 160KB file with 16k unclosed tags: 39.8s to 0.001s for
+  `<dependency>`, 25.6s to 0.000s for `<parent>`, 29.0s to 0.001s for `<dependencies>`. A truncated
+  pom from an aborted download was enough to trigger this; it never took an attacker.
+- **A deeply nested `.tf` file no longer hangs indexing.** `parse_hcl` was quadratic in nesting
+  depth, and the cost was ours rather than the grammar's: in the installed py-tree-sitter, both
+  `Node.parent` and `Node.next_sibling` re-descend from the tree root, so walking siblings while
+  resolving a reference was O(depth) per step. The traversal now carries the context it needs
+  instead of re-deriving it. Measured at depth 1250 with a reference per level: 138.2s to 0.027s,
+  and 337.4s to 0.037s for the `locals` shape.
+- `normalize_id` is idempotent again, matching its docstring. The punctuation strip ran before
+  `casefold()`, so a fold that expands a character into a base letter plus a combining mark left
+  the mark behind for a second call to remove. **This changes the generated id for exactly 29 code
+  points** (established by checking every code point, not by sampling); none are ASCII or Latin-1,
+  so ordinary identifiers are unaffected. It is slightly lossier for those 29: `ǰ` now normalizes
+  to `j`, so it would collide with a plain `j` where it previously did not. That is unavoidable
+  while also keeping the existing guarantee that output equals its own casefold. The re-index the
+  shard-reproducibility fix already requires picks these up in the same pass.
 
 ### Security
 - **A config file found by directory search can no longer make contextlake execute a program.**
@@ -70,7 +77,7 @@ Fixes are in progress; the tests flip to passing when they land.
   emit a string that makes SQLite's FTS5 raise. Plus a pathological-input corpus for the four
   regex-based extractors, each bounded by `pytest-timeout`, since they consume untrusted
   repository content. Three real defects fell out and are recorded as `xfail` with measurements
-  rather than quietly passing: see Known issues.
+  rather than quietly passing. All three are fixed below; the tests that found them now guard them.
 - Combinatorial test coverage for the places where options interact rather than act alone: a
   provider-resolution matrix (embedder/LLM/vector-store builders across every provider, backend
   and enabled/disabled combination), a serve matrix (transport x embedder-present x

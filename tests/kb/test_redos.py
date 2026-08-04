@@ -15,17 +15,13 @@ the low tens-of-KB: large enough to be a meaningful stress case, small enough
 that a healthy parser finishes in milliseconds and the whole file stays a
 negligible fraction of the suite's ~65s budget.
 
-Two tests below are marked ``xfail`` for REAL bugs this fuzzing found (see
-RC-P1-6 report): ``parse_manifest`` on a Maven ``pom.xml`` with many unclosed
-``<dependency>``/``<parent>`` tags is O(n^2) (confirmed by direct
-measurement: 6s at 8k reps, ~25s at 16k reps -- quadratic scaling, not just a
-slow constant), and ``parse_hcl`` on deeply nested block bodies is *also*
-O(n^2) -- but, verified by isolating the raw ``tree-sitter-hcl`` ``parse()``
-call (linear, 33ms at depth 10000) from the rest of ``parse_hcl``, the
-quadratic cost is in contextlake's *own* ``_src_id_for`` helper (an
-O(depth)-per-call parent-chain walk run once per ``variable_expr`` node, of
-which there are O(depth) at this depth), not in the third-party grammar.
-Neither is fixed here -- this task is tests only.
+This fuzzing found two REAL quadratic blowups, both since fixed:
+``parse_manifest`` on a Maven ``pom.xml`` with many unclosed
+``<dependency>``/``<parent>``/``<dependencies>`` tags, and ``parse_hcl`` on
+deeply nested block bodies -- the latter in contextlake's own tree navigation,
+not in the third-party grammar (the raw ``tree-sitter-hcl`` ``parse()`` was
+linear and about 1% of the runtime). The last two tests in this file are the
+regression guards for those fixes and carry the before/after numbers.
 """
 
 from __future__ import annotations
@@ -138,86 +134,74 @@ def test_http_flow_extractor_survives_pathological_input(fixture, lang):
 
 
 # ---------------------------------------------------------------------------
-# Known bugs (xfail, not fixed here) -- confirmed by direct wall-clock
-# measurement before writing these tests (see RC-P1-6 report for the raw
-# numbers). Reproduced at a scale chosen to reliably exceed the 2s budget
-# while still completing in a few seconds if the timeout somehow didn't fire
-# (verified empirically that pytest-timeout's SIGALRM interrupts CPython's
-# regex engine mid-match, so these consistently land as a ~2s XFAIL, not a
-# multi-second hang). Generated in-code rather than committed as fixture
-# files: the repro needs a precisely-tuned repetition count, and committing a
-# ~150KB blob to a public repo whose only purpose is "be slow" isn't worth it
-# when a 3-line generator reproduces it exactly.
+# Regression guards for two quadratic blowups this fuzzing found and that are
+# now fixed. Both were confirmed by direct wall-clock measurement before and
+# after the fix, at the sizes below. They stay here as *active* tests (they
+# were xfail while the bugs were open) because both fixes are easy to undo
+# accidentally: the manifest one by reintroducing a single
+# `<tag ...>(.*?)</tag>` regex, the HCL one by reaching for `Node.parent` or
+# `Node.next_sibling` again. Inputs are generated in-code rather than committed
+# as fixture files -- the repro needs a tuned repetition count, and committing
+# a ~150KB blob whose only purpose is "be slow" isn't worth it when three
+# lines reproduce it exactly.
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "REAL BUG (RC-P1-6): parse_manifest's Maven dependency-block regex "
-        "(_MVN_DEP_BLOCK = r'<dependency\\b[^>]*>(.*?)</dependency>', DOTALL) "
-        "is O(n^2) on a pom.xml with many unclosed <dependency> tags: for each "
-        "of k occurrences, the lazy .*? scans forward to the (absent) closing "
-        "tag, i.e. to end-of-string, before failing and trying the next "
-        "occurrence -- O(k * remaining_length) total. Measured directly (no "
-        "timeout): 8k reps/80KB tail -> 6.2s, 16k reps/160KB tail -> 24.9s; "
-        "doubling input ~quadruples time, confirming O(n^2) not just a large "
-        "constant. _MVN_NON_PROJECT and _MVN_PARENT_BLOCK share the same "
-        "'[^>]*>(.*?)</TAG>' shape and are presumed to share the bug (not "
-        "independently measured at this scale). A ~350KB adversarial or "
-        "merely truncated/corrupted pom.xml is a plausible real file and "
-        "would hang kb indexing for tens of seconds. Not fixed here -- tests "
-        "only per task scope."
-    ),
-)
 @pytest.mark.timeout(2)
-def test_manifest_pom_unclosed_dependency_tags_is_quadratic():
-    # pytest-timeout is what turns this into a fast ~2s XFAIL; without the
-    # plugin registered, nothing would interrupt the call and it would just
-    # run to its full ~13s before (non-strict) XPASSing. importorskip keeps
-    # this test itself fast and honest when the dev extra isn't installed,
-    # matching test_properties.py's guard for the same "optional dev
-    # dependency, not always present" reason.
+def test_manifest_pom_unclosed_dependency_tags_is_not_quadratic():
+    """A pom.xml full of unclosed <dependency> tags must not blow up.
+
+    The old `_MVN_DEP_BLOCK = r'<dependency\\b[^>]*>(.*?)</dependency>'` (DOTALL)
+    was O(n^2) here: for each of k openers the lazy `.*?` scanned forward to the
+    absent closing tag, i.e. to end-of-string, before failing and moving on.
+    Measured 6.5s at 8k reps/80KB tail and 39.8s at 16k/160KB -- more than
+    quadrupling per doubling. `_MVN_PARENT_BLOCK` (6.0s -> 25.6s) and
+    `_MVN_NON_PROJECT` (7.7s -> 29.0s) shared the shape and the bug; all three
+    now pair openers with closing tags found in one linear pass and land at
+    ~0.001s. A truncated pom from an aborted download is enough to trigger this;
+    it does not take an attacker.
+    """
+    # pytest-timeout is what bounds this if the fix is ever reverted; without
+    # the plugin registered nothing would interrupt the call and a regression
+    # would show up as a ~18s hang instead of a failure. importorskip keeps
+    # this test honest when the dev extra isn't installed, matching
+    # test_properties.py's guard for the same reason.
     pytest.importorskip("pytest_timeout")
-    # 12k reps was empirically ~13s unbounded; comfortably over the 2s budget
-    # while the whole test (interrupted at ~2s by pytest-timeout) stays fast.
     content = b"<dependency>" * 12_000 + b"x" * 120_000
-    parse_manifest("repo", "pom.xml", content)
+    nodes, edges = parse_manifest("repo", "pom.xml", content)
+    assert isinstance(nodes, list)
+    assert isinstance(edges, list)
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "REAL BUG (RC-P1-6): parse_hcl is O(n^2) on deeply nested block "
-        "bodies -- and it's contextlake's own code, not the tree-sitter-hcl "
-        "grammar. Measured directly (no timeout) on "
-        "'resource \"a\" \"b\" {\\n' + '  x = {\\n'*depth + '}\\n'*depth + '}\\n': "
-        "full parse_hcl() takes depth=2500 -> 0.28s, depth=5000 -> 1.10s, "
-        "depth=10000 -> 4.52s (~4x time per 2x depth == O(depth^2)). Isolating "
-        "the raw tree_sitter Parser.parse() call from the rest of parse_hcl "
-        "shows parse() alone is fast and linear (depth=10000 -> 0.033s, "
-        "~1% of the total) -- the quadratic cost is entirely in what "
-        "parse_hcl does with the tree afterward. This deeply-right-nested "
-        "'x = { x = { ... } }' shape is parsed as ~depth variable_expr nodes "
-        "(one per nesting level; NOT the zero I first assumed before "
-        "measuring -- an earlier version of this reason was wrong about "
-        "that). hcl.py's _src_id_for(node) (~line 199) walks node.parent up "
-        "to the tree root on every call to find the enclosing top-level "
-        "block; called once per variable_expr node at increasing depths, "
-        "that's an O(depth)-per-call walk run O(depth) times == O(depth^2) "
-        "total, squarely in contextlake's own code. A deeply/adversarially "
-        "nested .tf file can still hang kb indexing. Not fixed here -- tests "
-        "only per task scope; a real fix would cache each node's enclosing "
-        "top-level block instead of walking to the root from scratch every "
-        "time (e.g. during the same _walk pass that already visits every "
-        "node once)."
-    ),
-)
 @pytest.mark.timeout(2)
-def test_hcl_deep_nesting_is_quadratic():
+@pytest.mark.parametrize("shape", ["no_refs", "refs", "locals"])
+def test_hcl_deep_nesting_is_not_quadratic(shape):
+    """Deeply nested block bodies must not blow up -- and the cost was ours.
+
+    `parse_hcl` was O(depth^2): 0.38s / 1.40s / 6.03s at depth 2500 / 5000 /
+    10000, while the raw tree_sitter `Parser.parse()` of the deepest of those
+    took 0.034s (about 1% of the total). The cause was py-tree-sitter's
+    `Node.parent` and `Node.next_sibling`, which each re-descend from the tree
+    root -- O(depth) per access, called once per node at increasing depth.
+    `hcl._walk_ctx` now carries that context down the traversal instead.
+
+    Three shapes because they exercise different accessors, and the first one
+    alone would have missed two of them: `no_refs` produces zero refs (every
+    `variable_expr` is a bare object key, so `_reference_address` returns None)
+    and so only ever reaches `_reference_segments`/`next_sibling`; `refs` and
+    `locals` produce a ref per level and so also reach `_src_id_for` and the
+    enclosing-`locals`-attribute lookup, which used `.parent`.
+    """
     pytest.importorskip("pytest_timeout")  # see the sibling manifest test's comment
     depth = 10_000
-    content = (
-        b'resource "a" "b" {\n' + b"  x = {\n" * depth + b"}\n" * depth + b"}\n"
-    )
-    parse_hcl("repo", "main.tf", content)
+    if shape == "no_refs":
+        content = b'resource "a" "b" {\n' + b"  x = {\n" * depth + b"}\n" * depth + b"}\n"
+    elif shape == "refs":
+        body = "".join(f"  x{i} = {{\n    r{i} = var.v{i}\n" for i in range(depth))
+        content = ('resource "a" "b" {\n' + body + "  }\n" * depth + "}\n").encode()
+    else:
+        body = "".join(f"    x{i} = {{\n      r{i} = var.v{i}\n" for i in range(depth))
+        content = ("locals {\n  top = {\n" + body + "    }\n" * depth + "  }\n}\n").encode()
+    nodes, refs = parse_hcl("repo", "main.tf", content)
+    assert isinstance(nodes, list)
+    assert isinstance(refs, list)

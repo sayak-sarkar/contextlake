@@ -11,6 +11,7 @@ Supported: ``pyproject.toml`` (PyPI), ``package.json`` (npm), ``*.csproj`` (NuGe
 
 from __future__ import annotations
 
+import bisect
 import json
 import re
 from datetime import date
@@ -31,12 +32,28 @@ _MANIFEST_FILES = {"pyproject.toml", "package.json"}
 # spirit as _PKG_REF for .csproj) rather than an XML AST — robust to namespaces.
 _MVN_GROUP = re.compile(r"<groupId>\s*([^<\s][^<]*?)\s*</groupId>", re.IGNORECASE)
 _MVN_ARTIFACT = re.compile(r"<artifactId>\s*([^<\s][^<]*?)\s*</artifactId>", re.IGNORECASE)
-_MVN_DEP_BLOCK = re.compile(r"<dependency\b[^>]*>(.*?)</dependency>", re.DOTALL | re.IGNORECASE)
-_MVN_PARENT_BLOCK = re.compile(r"<parent\b[^>]*>(.*?)</parent>", re.DOTALL | re.IGNORECASE)
+# Element blocks are matched by pairing an opening tag with a closing tag found
+# in a separate linear pass (see _xml_blocks), NOT by a single
+# ``<tag\b[^>]*>(.*?)</tag>`` regex. That single-regex form is O(n^2) on a
+# pom.xml whose closing tags are missing -- and a truncated download is enough
+# to produce one. For each of k unclosed openers the lazy ``.*?`` scans forward
+# to end-of-string before giving up, so cost grows as k * remaining_length:
+# measured 7.1s for 8k unclosed <dependency> tags with an 80KB tail and 27.0s
+# at double that, i.e. genuinely quadratic rather than a large constant.
+# ``[^<>]`` rather than ``[^>]`` inside the opening tag for the same reason:
+# ``[^>]*>`` re-scans to end-of-string from every ``<dependency`` that has no
+# ``>`` after it at all (a second, ~10x smaller quadratic: 0.65s -> 2.5s on the
+# same doubling). No well-formed XML has a raw ``<`` inside a tag, so nothing
+# valid changes shape.
+_MVN_DEP_OPEN = re.compile(r"<(dependency)\b[^<>]*>", re.IGNORECASE)
+_MVN_DEP_CLOSE = re.compile(r"</(dependency)>", re.IGNORECASE)
+_MVN_PARENT_OPEN = re.compile(r"<(parent)\b[^<>]*>", re.IGNORECASE)
+_MVN_PARENT_CLOSE = re.compile(r"</(parent)>", re.IGNORECASE)
 # Sections whose groupId/artifactId are NOT the project's own coordinate.
-_MVN_NON_PROJECT = re.compile(
-    r"<(dependencies|dependencyManagement|build|profiles|reporting|parent|pluginManagement|plugins)\b"
-    r"[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
+_MVN_NON_PROJECT_TAGS = (
+    "dependencies|dependencyManagement|build|profiles|reporting|parent|pluginManagement|plugins")
+_MVN_NON_PROJECT_OPEN = re.compile(rf"<({_MVN_NON_PROJECT_TAGS})\b[^<>]*>", re.IGNORECASE)
+_MVN_NON_PROJECT_CLOSE = re.compile(rf"</({_MVN_NON_PROJECT_TAGS})>", re.IGNORECASE)
 
 
 def is_manifest(filename: str) -> bool:
@@ -47,6 +64,46 @@ def is_manifest(filename: str) -> bool:
 def _dep_name(spec: str) -> str | None:
     m = _DEP_NAME.match(spec.strip())
     return m.group(0) if m else None
+
+
+def _xml_blocks(
+    text: str, open_re: re.Pattern[str], close_re: re.Pattern[str]
+) -> list[tuple[int, int, int, int]]:
+    """Locate ``<tag ...>inner</tag>`` blocks as ``(start, inner_start, inner_end, end)``.
+
+    Same result as ``re.finditer(r'<tag\\b[^>]*>(.*?)</tag>', DOTALL)`` -- leftmost,
+    non-overlapping, closed by the *nearest* following closing tag -- but linear
+    instead of quadratic, because every closing tag is located once up front and
+    then looked up by bisection rather than re-scanned for from each opener.
+
+    ``open_re`` and ``close_re`` must each capture the tag name in group 1;
+    an opener is paired only with a closer of the same (case-insensitive) name.
+    An opener with no closer after it is skipped rather than ending the scan:
+    with a multi-tag alternation a later opener of a *different* name may still
+    close, which is exactly what ``re.sub`` would have done.
+    """
+    closes: dict[str, list[tuple[int, int]]] = {}
+    for m in close_re.finditer(text):
+        closes.setdefault(m.group(1).lower(), []).append((m.start(), m.end()))
+    if not closes:
+        return []
+    close_starts = {name: [s for s, _e in spans] for name, spans in closes.items()}
+
+    blocks: list[tuple[int, int, int, int]] = []
+    pos = 0
+    for m in open_re.finditer(text):
+        if m.start() < pos:
+            continue  # nested inside a block already taken; re.finditer skips these too
+        spans = closes.get(m.group(1).lower())
+        if not spans:
+            continue
+        i = bisect.bisect_left(close_starts[m.group(1).lower()], m.end())
+        if i >= len(spans):
+            continue
+        close_start, close_end = spans[i]
+        blocks.append((m.start(), m.end(), close_start, close_end))
+        pos = close_end
+    return blocks
 
 
 def _mvn_coord(block: str) -> str | None:
@@ -61,8 +118,9 @@ def _mvn_coord(block: str) -> str | None:
 
 def _maven_deps(text: str) -> list[str]:
     out = []
-    for m in _MVN_DEP_BLOCK.finditer(text):
-        coord = _mvn_coord(m.group(1))
+    for _start, inner_start, inner_end, _end in _xml_blocks(
+            text, _MVN_DEP_OPEN, _MVN_DEP_CLOSE):
+        coord = _mvn_coord(text[inner_start:inner_end])
         if coord:
             out.append(coord)
     return out
@@ -71,7 +129,14 @@ def _maven_deps(text: str) -> list[str]:
 def _maven_project_coord(text: str) -> str | None:
     # The project's own coordinate is the first groupId/artifactId that is NOT
     # inside a dependency/parent/build/etc. section.
-    stripped = _MVN_NON_PROJECT.sub("", text)
+    kept: list[str] = []
+    cut = 0
+    for start, _inner_start, _inner_end, end in _xml_blocks(
+            text, _MVN_NON_PROJECT_OPEN, _MVN_NON_PROJECT_CLOSE):
+        kept.append(text[cut:start])
+        cut = end
+    kept.append(text[cut:])
+    stripped = "".join(kept)
     a = _MVN_ARTIFACT.search(stripped)
     if a is None:
         return None
@@ -79,9 +144,10 @@ def _maven_project_coord(text: str) -> str | None:
     g = _MVN_GROUP.search(stripped)
     group = g.group(1).strip() if g else ""
     if not group:  # groupId inherited from <parent>
-        pm = _MVN_PARENT_BLOCK.search(text)
-        if pm:
-            pg = _MVN_GROUP.search(pm.group(1))
+        parents = _xml_blocks(text, _MVN_PARENT_OPEN, _MVN_PARENT_CLOSE)
+        if parents:
+            _s, inner_start, inner_end, _e = parents[0]
+            pg = _MVN_GROUP.search(text[inner_start:inner_end])
             group = pg.group(1).strip() if pg else ""
     return f"{group}:{artifact}" if group else artifact
 

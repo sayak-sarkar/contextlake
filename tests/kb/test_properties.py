@@ -40,26 +40,16 @@ _SLOW = settings(max_examples=100, deadline=None, suppress_health_check=[HealthC
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "REAL BUG (found by this property test, not fixed -- see task RC-P1-6 "
-        "report): normalize_id is NOT always idempotent, contradicting its own "
-        "docstring. Root cause: the \\w-based punctuation strip runs BEFORE "
-        "casefold(), so a casefold() that *expands* a character into a base "
-        "letter plus a combining mark never gets a second punctuation-strip "
-        "pass within one call. U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE "
-        "('İ') full-casefolds to 'i' + U+0307 COMBINING DOT ABOVE (two "
-        "codepoints) -- but U+0307 alone is not matched by \\w, so a *second* "
-        "normalize_id call strips it as punctuation and then strips the now-"
-        "trailing '_' too: normalize_id('İ') == 'i\\u0307' but "
-        "normalize_id(normalize_id('İ')) == 'i'. The @example below pins this "
-        "down deterministically; without it hypothesis's random search only "
-        "sometimes lands on this character class within max_examples=100."
-    ),
-)
 @_SLOW
-@example("İ")  # U+0130, the confirmed counterexample; see reason= above
+# U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE was the counterexample that
+# proved normalize_id contradicted its own docstring: it full-casefolds to 'i' +
+# U+0307 COMBINING DOT ABOVE, and U+0307 is not \w, so with the punctuation
+# strip running BEFORE casefold() the mark survived the call that produced it
+# and only a *second* call removed it -- normalize_id('İ') was 'i̇' while
+# normalize_id(normalize_id('İ')) was 'i'. ids.py now casefolds first. Pinned as
+# an @example rather than left to random search, which only sometimes lands on
+# this character class within max_examples=100.
+@example("İ")
 @given(st.text())
 def test_normalize_id_is_idempotent(s):
     once = normalize_id(s)
@@ -113,16 +103,9 @@ def test_make_id_matches_normalize_id_of_joined_parts(parts):
     assert make_id(*parts) == expected
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "Inherits the normalize_id idempotence bug (see "
-        "test_normalize_id_is_idempotent's reason=): make_id('İ') delegates "
-        "straight to normalize_id, so the same U+0130 casefold-expansion "
-        "counterexample applies. Pinned via @example below."
-    ),
-)
 @_SLOW
+# make_id delegates straight to normalize_id, so it inherited the same U+0130
+# casefold-expansion counterexample; kept pinned here to guard both paths.
 @example(["İ"])
 @given(st.lists(_PART, max_size=6))
 def test_make_id_is_idempotent_like_normalize_id(parts):
