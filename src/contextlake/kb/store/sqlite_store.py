@@ -420,6 +420,21 @@ class SqliteStore(Store):
         self.conn.execute("DELETE FROM repos WHERE repo_id=?", (repo_id,))
         self.conn.commit()
 
+    def prune_orphan_nodes(self, repo_id: str) -> int:
+        orphans = (
+            "SELECT node_id FROM nodes WHERE repo_id=? AND node_id NOT IN "
+            "(SELECT src FROM edges UNION SELECT dst FROM edges)"
+        )
+        # FTS first, and off the same subquery: node_fts has no foreign key onto
+        # nodes, so deleting the rows first would leave the search index holding
+        # ids that no longer resolve.
+        self.conn.execute(
+            f"DELETE FROM node_fts WHERE node_id IN ({orphans})", (repo_id,))
+        cur = self.conn.execute(
+            f"DELETE FROM nodes WHERE node_id IN ({orphans})", (repo_id,))
+        self.conn.commit()
+        return cur.rowcount or 0
+
     def stats(self) -> Stats:
         repos = self.conn.execute("SELECT COUNT(*) c FROM repos").fetchone()["c"]
         nodes = self.conn.execute("SELECT COUNT(*) c FROM nodes").fetchone()["c"]

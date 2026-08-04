@@ -92,6 +92,18 @@ class Store(ABC):
         renamed, migrated to a new canonical id) -- not for a routine re-index,
         which should keep the row and just clear its content."""
 
+    @abstractmethod
+    def prune_orphan_nodes(self, repo_id: str) -> int:
+        """Drop nodes in ``repo_id`` that no edge references. Returns how many.
+
+        For the ``(external)`` partition, whose nodes exist only to be linked to
+        code. Connector output is split across two partitions -- the edges live
+        in the per-repo ``@connect:`` partition, the nodes they point at in
+        ``(external)`` -- so the stale-data sweep that clears the partition
+        removes a repo's connector edges and leaves its nodes behind. An
+        external node with no edges cannot surface in any answer and is not
+        reachable by any traversal, so it is not a node, it is litter."""
+
     def __enter__(self) -> Store:
         return self
 

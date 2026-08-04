@@ -52,8 +52,9 @@ from ..core import classify_error, retry_with_backoff
 from ..logging_setup import get_logger
 
 __all__ = [
-    "CircuitBreaker", "CircuitOpenError", "breaker_for", "describe", "endpoint_key",
-    "is_endpoint_failure", "is_retryable", "note_unavailable", "reset_breakers",
+    "CircuitBreaker", "CircuitOpenError", "breaker_for", "degraded_calls", "describe",
+    "endpoint_key", "is_endpoint_failure", "is_retryable", "note_unavailable",
+    "reset_breakers",
 ]
 
 # Three strikes before a source is written off: enough that a single blip or a
@@ -152,15 +153,40 @@ def _timed_out(exc: BaseException) -> bool:
     return isinstance(reason, _TIMEOUT_TYPES)
 
 
+def _child_stderr(exc: BaseException) -> str:
+    """The child process's own error text, if ``exc`` carries any.
+
+    ``CalledProcessError`` and ``TimeoutExpired`` both capture stderr when the
+    call used ``capture_output``, but neither puts it in ``str(exc)``. Decoded
+    here because the attribute is bytes unless the call passed ``text=True``.
+    """
+    raw = getattr(exc, "stderr", None)
+    if isinstance(raw, (bytes, bytearray)):
+        raw = raw.decode("utf-8", "replace")
+    return raw.strip() if isinstance(raw, str) else ""
+
+
 def describe(exc: BaseException) -> str:
     """A log-ready reason for ``exc``, seeing through the task-group wrappers.
 
     Without this every MCP failure reads "unhandled errors in a TaskGroup
     (1 sub-exception)", which tells a user nothing about whether the server was
     slow, refused, or rejected the request.
+
+    A failed child process needs the same treatment for the same reason:
+    ``str(CalledProcessError)`` is only "Command '[...]' returned non-zero exit
+    status 1", so a DNS failure, a 401 from an expired token and a 404 for a
+    project that moved all read identically -- and the one line that says which
+    was thrown away with the child's stderr. It is appended instead. Truncated,
+    because a CLI can be verbose and this is one log line.
     """
     inner = _unwrap(exc)
-    return str(inner).strip() or type(inner).__name__
+    reason = str(inner).strip() or type(inner).__name__
+    stderr = _child_stderr(inner)
+    if not stderr:
+        return reason
+    first = stderr.splitlines()[0][:200]
+    return f"{reason}: {first}" if first not in reason else reason
 
 
 def is_endpoint_failure(exc: BaseException) -> bool:
@@ -360,6 +386,8 @@ class CircuitBreaker:
 
 _breakers: dict[str, CircuitBreaker] = {}
 _registry_lock = threading.Lock()
+# Best-effort calls written off since the process started (see `degraded_calls`).
+_degraded_calls = 0
 
 
 def breaker_for(key: str, **kwargs) -> CircuitBreaker:
@@ -382,8 +410,25 @@ def breaker_for(key: str, **kwargs) -> CircuitBreaker:
 def reset_breakers() -> None:
     """Forget every breaker. For tests -- breaker state is process-wide, so a
     test that trips one would otherwise short-circuit an unrelated later one."""
+    global _degraded_calls
     with _registry_lock:
         _breakers.clear()
+        _degraded_calls = 0
+
+
+def degraded_calls() -> int:
+    """How many best-effort calls have been written off so far this process.
+
+    Logging a swallowed failure keeps it visible to a human reading the console,
+    but a command still has to *decide* with it: a connect run whose every call
+    was refused stored no links for a reason, and printing the same green
+    "0 links stored" as a healthy run made an expired token indistinguishable
+    from a repo with no open work. Callers snapshot this around their own run
+    and compare, so the count stays a per-run measure despite being kept
+    process-wide (the breakers it sits beside are process-wide too).
+    """
+    with _registry_lock:
+        return _degraded_calls
 
 
 def note_unavailable(what: str, exc: BaseException) -> None:
@@ -395,7 +440,14 @@ def note_unavailable(what: str, exc: BaseException) -> None:
     is logged here instead. A refused call is the exception: :meth:`_enter`
     already announced the open circuit once, and repeating it per repo would
     bury the announcement it duplicates.
+
+    Every call through here counts toward :func:`degraded_calls`, refused ones
+    included -- a call the breaker skipped still produced nothing, and the
+    caller's success/failure decision needs to know that.
     """
+    global _degraded_calls
+    with _registry_lock:
+        _degraded_calls += 1
     if isinstance(exc, CircuitOpenError):
         return
     get_logger().warning("%s unavailable: %s", what, describe(exc))

@@ -31,6 +31,7 @@ from contextlake.kb.resilience import (
     CircuitBreaker,
     CircuitOpenError,
     breaker_for,
+    degraded_calls,
     describe,
     endpoint_key,
     is_endpoint_failure,
@@ -428,3 +429,40 @@ def test_unreachable_ollama_llm_opens_after_three_calls(monkeypatch, no_sleep):
     with pytest.raises(CircuitOpenError):
         client.generate("hello")
     assert len(calls) == before, "the fourth generate() must not reach the daemon"
+
+
+def _called_process_error(stderr):
+    return subprocess.CalledProcessError(
+        1, ["glab", "api", "projects/x/merge_requests"], output="", stderr=stderr)
+
+
+def test_describe_surfaces_the_child_processes_own_stderr():
+    """A failed CLI call has to say which failure it was.
+
+    `str(CalledProcessError)` is only "Command '[...]' returned non-zero exit
+    status 1", so a DNS failure, a 401 from an expired token and a 404 for a
+    moved project all read identically -- the one line that distinguishes them
+    is on the child's stderr, which was being thrown away.
+    """
+    unauthorized = describe(_called_process_error("401 Unauthorized (HTTP 401)\n"))
+    not_found = describe(_called_process_error("404 Not Found (HTTP 404)\n"))
+
+    assert "401" in unauthorized
+    assert "404" in not_found
+    assert unauthorized != not_found, "an invalid token must not read like a missing project"
+
+
+def test_describe_keeps_working_when_there_is_no_child_stderr():
+    assert describe(ConnectionRefusedError("connection refused")) == "connection refused"
+    assert describe(_called_process_error("")) == describe(_called_process_error(None))
+
+
+def test_note_unavailable_counts_swallowed_calls_so_callers_can_judge_the_run():
+    """Connector calls are contractually non-raising, so a command cannot see a
+    dead source through a try/except. Counting the write-offs is what lets a run
+    that fetched nothing because everything failed avoid reporting success."""
+    reset_breakers()
+    before = degraded_calls()
+    note_unavailable("gitlab (glab api)", _called_process_error("401 Unauthorized\n"))
+    note_unavailable("gitlab (glab api)", CircuitOpenError("glab-api", 42.0))
+    assert degraded_calls() - before == 2, "a refused call produced nothing too"

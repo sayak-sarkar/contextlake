@@ -68,7 +68,7 @@ def test_clone_missing_skips_already_present(
 
 
 def test_verify_structure_reports_nested_and_extra(tmp_path, base_config, monkeypatch, gls_logs):
-    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g, **kw: dict(PROJECTS))
     (tmp_path / "g" / "a" / ".git").mkdir(parents=True)
     (tmp_path / "g" / "a" / "inner" / ".git").mkdir(parents=True)  # nested
     (tmp_path / "g" / "extra" / ".git").mkdir(parents=True)  # not in GitLab
@@ -82,7 +82,7 @@ def test_verify_structure_reports_nested_and_extra(tmp_path, base_config, monkey
 def test_verify_structure_summary_emitted_per_line(tmp_path, base_config, monkeypatch, gls_logs):
     # HO-2: kv() must be logged one row per call, never a single multi-line
     # log() call, so each row gets its own timestamp/format.
-    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g, **kw: dict(PROJECTS))
     (tmp_path / "g" / "a" / ".git").mkdir(parents=True)
     core.verify_structure(str(tmp_path), base_config, "g")
     kv_lines = [rec.getMessage() for rec in gls_logs.records if "Valid" in rec.getMessage()]
@@ -98,7 +98,7 @@ def test_verify_structure_summary_emitted_per_line(tmp_path, base_config, monkey
 
 
 def test_show_status_counts(tmp_path, base_config, monkeypatch, gls_logs):
-    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(PROJECTS))
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g, **kw: dict(PROJECTS))
     (tmp_path / "g" / "a" / ".git").mkdir(parents=True)
     core.show_status(str(tmp_path), base_config, "g")
     # styled, right-aligned summary: "<glyph> Synchronized   1"
@@ -265,3 +265,76 @@ def test_switch_repository_branches_reports_progress(
         assert message in text
     for i in range(1, 3):
         assert f"[{i}/2]" in text
+
+
+def test_verify_honours_the_repos_filter_on_both_sides(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """Filtering only the local side would report every unmatched project as
+    `missing`, so a scoped verify would look broken rather than scoped."""
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g, **kw: dict(PROJECTS))
+    (tmp_path / "g" / "a" / ".git").mkdir(parents=True)
+    (tmp_path / "g" / "b" / ".git").mkdir(parents=True)
+
+    cfg = base_config.copy()
+    cfg["repo_filter"] = "g/a"
+    result = core.verify_structure(str(tmp_path), cfg, "g")
+
+    assert result.ok == 1  # only g/a considered
+    assert re.search(r"Missing\s+0\b", gls_logs.text)
+    assert re.search(r"Extra\s+0\b", gls_logs.text)
+
+
+def test_status_on_a_cold_cache_reports_instead_of_enumerating(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """`status` reads as an inspection and is the first command of the day. On a
+    cold cache it silently enumerated the whole forge and wrote the cache, which
+    can take 30-50s and can fail on the network."""
+    called = []
+    monkeypatch.setattr(core, "fetch_gitlab_projects",
+                        lambda g, c: called.append(g) or {})
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path / "cache"), cache_json="p.json", cache_file="p.txt")
+
+    core.show_status(str(tmp_path), cfg, "g")
+
+    assert called == [], "status must not enumerate the forge"
+    assert "run 'fetch' first" in gls_logs.text
+    assert not (tmp_path / "cache" / "p.json").exists(), "status must not write the cache"
+
+
+def test_a_filter_that_matches_nothing_locally_says_so(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """Honouring --repos makes "matched nothing" reachable, and a typo must not
+    read as a clean run over an empty set. fetch already warns for the same
+    situation against the project list."""
+    make_local_repo(tmp_path, "blog")
+    monkeypatch.setattr(core, "update_repository",
+                        lambda p, wd, cfg: ("nochange", p, "Already"))
+
+    cfg = base_config.copy()
+    cfg["repo_filter"] = "no-such-repo"
+    core.update_repositories(str(tmp_path), cfg)
+
+    assert "No local repositories matched" in gls_logs.text
+
+
+def test_verify_on_a_cold_cache_is_read_only_as_its_help_promises(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """`mirror verify`'s own help says "(read-only)" and "change nothing", but a
+    cold cache made it enumerate the forge and write the cache -- the same
+    defect as status."""
+    called = []
+    monkeypatch.setattr(core, "fetch_gitlab_projects",
+                        lambda g, c: called.append(g) or {})
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path / "cache"), cache_json="p.json", cache_file="p.txt")
+
+    core.verify_structure(str(tmp_path), cfg, "g")
+
+    assert called == [], "verify must not enumerate the forge"
+    assert "run 'fetch' first" in gls_logs.text
+    assert not (tmp_path / "cache" / "p.json").exists()

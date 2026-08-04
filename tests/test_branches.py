@@ -219,3 +219,26 @@ def test_switch_repository_branches_summary_line_warns_on_partial_failure(
     summary = [ln for ln in gls_logs.text.splitlines() if "Branch switch complete" in ln][0]
     assert "⚠" in summary
     assert "✓" not in summary
+
+
+def test_branches_honours_the_repos_filter(tmp_path, base_config, monkeypatch):
+    """Same defect as update: --repos was accepted and ignored, while the
+    failure hint this command prints recommends exactly that flag."""
+    for name in ("blog", "api"):
+        make_local_repo(tmp_path, name)
+    project = {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}
+    monkeypatch.setattr(core, "load_gitlab_projects",
+                        lambda c, g: {"blog": dict(project), "api": dict(project)})
+    seen = []
+
+    def record(path, projects, work_dir, cfg):
+        seen.append(path)
+        return ("ok", path, "Already")
+
+    monkeypatch.setattr(core, "switch_repository_branch", record)
+
+    cfg = base_config.copy()
+    cfg["repo_filter"] = "blog"
+    switch_repository_branches(str(tmp_path), cfg, "grp")
+
+    assert seen == ["blog"]

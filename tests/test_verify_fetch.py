@@ -357,3 +357,51 @@ def test_fetch_repo_filter_narrows_the_cache(tmp_path, base_config, fake_subproc
     assert set(result) == {"api", "billing-core", "billing-reports"}
     cached = json.loads((tmp_path / "p.json").read_text())
     assert set(cached) == {"api", "billing-core", "billing-reports"}
+
+
+def _serve_projects(fake_subprocess, names):
+    page1 = [{"path_with_namespace": f"g/{n}", "http_url_to_repo": "h",
+              "ssh_url_to_repo": "s", "archived": False, "default_branch": "main"}
+             for n in names]
+    fake_subprocess.handler = lambda cmd, **k: (
+        FakeCompleted(stdout=json.dumps(page1)) if "&page=1" in cmd[-1]
+        else FakeCompleted(stdout="[]"))
+
+
+def test_unfiltered_fetch_over_a_scoped_cache_says_the_scope_widened(
+    tmp_path, base_config, fake_subprocess, gls_logs
+):
+    """`fetch --repos api` narrows the cache, and clone/update/branches/verify
+    all key off it. A later `sync` runs an unfiltered fetch that overwrites that
+    cache, so a user who scoped to a subset got the whole group cloned with no
+    warning at all."""
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path), cache_json="p.json", cache_file="p.txt")
+
+    _serve_projects(fake_subprocess, ("api", "web", "billing"))
+    scoped = cfg.copy()
+    scoped["repo_filter"] = "api"
+    assert set(fetch_gitlab_projects("g", scoped)) == {"api"}
+
+    gls_logs.records.clear()
+    _serve_projects(fake_subprocess, ("api", "web", "billing"))
+    assert len(fetch_gitlab_projects("g", cfg)) == 3
+
+    text = gls_logs.text
+    assert "scoped to --repos 'api'" in text
+    assert "widens" in text
+
+
+def test_an_unfiltered_fetch_over_an_unfiltered_cache_stays_quiet(
+    tmp_path, base_config, fake_subprocess, gls_logs
+):
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path), cache_json="p.json", cache_file="p.txt")
+    _serve_projects(fake_subprocess, ("api", "web"))
+    fetch_gitlab_projects("g", cfg)
+
+    gls_logs.records.clear()
+    _serve_projects(fake_subprocess, ("api", "web"))
+    fetch_gitlab_projects("g", cfg)
+
+    assert "widens" not in gls_logs.text

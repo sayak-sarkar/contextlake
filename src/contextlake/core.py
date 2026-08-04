@@ -553,7 +553,9 @@ def fetch_gitlab_projects(gitlab_group, config):
                         if match_repo_filter(v.get("full_path", k), k, patterns)}
         log(style.dim(f"Repo filter {patterns} -> {len(all_projects)} of {before} projects"))
 
+    _warn_if_widening_scope(cache_json, patterns, len(all_projects))
     _write_caches(all_projects, cache_json, cache_file)
+    _record_cache_filter(cache_json, patterns)
     if not all_projects:
         if patterns:
             log(style.warn(f"No projects matched --repos {patterns} — "
@@ -600,6 +602,54 @@ def fetch_result(projects, config) -> StageResult:
     return StageResult(ok=count)
 
 
+def _cache_filter_path(cache_json):
+    """Sidecar recording which ``--repos`` filter produced the cache next to it.
+
+    A sidecar rather than a key inside the JSON: that file is a flat map of
+    project path -> project, and every reader iterates its keys as projects, so
+    a metadata entry there would be read back as a repository.
+    """
+    return cache_json + ".filter"
+
+
+def _read_cache_filter(cache_json):
+    try:
+        with open(_cache_filter_path(cache_json)) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def _record_cache_filter(cache_json, patterns):
+    """Remember the filter this cache was written with (or that it had none)."""
+    try:
+        with open(_cache_filter_path(cache_json), "w") as f:
+            f.write(",".join(patterns))
+    except OSError:
+        pass  # advisory only: never fail a good fetch over the breadcrumb
+
+
+def _warn_if_widening_scope(cache_json, patterns, new_count):
+    """Say so when an unfiltered fetch replaces a deliberately scoped cache.
+
+    `fetch --repos demo` narrows the cache, and clone/update/branches/verify all
+    key off it. A later `sync` runs an unfiltered fetch that silently overwrites
+    that cache, so a user who scoped to a handful of repos got the entire group
+    cloned with no warning -- the widening is announced instead. Advisory only:
+    the flag stays a per-invocation choice rather than becoming sticky, which
+    would surprise in the other direction.
+    """
+    if patterns:
+        return
+    previous = _read_cache_filter(cache_json)
+    if not previous:
+        return
+    log(style.warn(
+        f"The cached project list was scoped to --repos {previous!r}; this run was not, "
+        f"so the scope widens to the whole group ({new_count} projects). "
+        "Re-run with --repos to keep it narrow."))
+
+
 def _write_caches(all_projects, cache_json, cache_file):
     """Persist the project map as JSON and as a pipe-delimited text cache."""
     os.makedirs(os.path.dirname(cache_json) or ".", exist_ok=True)
@@ -610,10 +660,15 @@ def _write_caches(all_projects, cache_json, cache_file):
             f.write(f"{path}|{p['ssh']}|{p['http']}|{p['default_branch']}|{p['archived']}\n")
 
 
-def load_gitlab_projects(config, gitlab_group):
+def load_gitlab_projects(config, gitlab_group, allow_fetch=True):
     """Load the cached project map, normalizing legacy list-shaped JSON.
 
-    Falls back to a fresh fetch when no usable cache exists.
+    Falls back to a fresh fetch when no usable cache exists, unless
+    ``allow_fetch`` is False -- then a cold cache returns ``{}`` and the caller
+    reports it. ``status`` reads as an inspection and is the first command of
+    the day, so silently enumerating the whole forge (30-50s, and able to fail
+    on the network) and writing the cache was a surprise from a command whose
+    job is to describe state, not change it.
     """
     _, cache_json = get_cache_paths(config)
 
@@ -648,6 +703,8 @@ def load_gitlab_projects(config, gitlab_group):
             if normalized:
                 return _remember_repo_names(normalized)
 
+    if not allow_fetch:
+        return {}
     log("Cache not found or invalid, fetching fresh data...")
     return fetch_gitlab_projects(gitlab_group, config)
 
@@ -664,6 +721,35 @@ def get_local_repos(work_dir):
     # unless redaction is actually in use.
     observability.add_repo_names(local_repos)
     return local_repos
+
+
+def filtered_local_repos(work_dir, config):
+    """Local repo paths, narrowed by ``--repos``/``repo_filter``.
+
+    ``fetch`` applies the filter to the project cache, so ``clone`` inherits it;
+    ``update``/``branches``/``verify`` walk the work directory instead and so
+    accepted the flag and ignored it. That is worse than not supporting it: the
+    hint those same commands print on failure recommends
+    ``--repos <name>`` as the way to retry just the failures, so a user
+    following it re-ran the entire fleet.
+
+    A local repo has only its group-relative path to match on (the forge's
+    ``full_path`` lives in the project cache, which these commands do not
+    consult), so that one spelling is passed as both of
+    :func:`match_repo_filter`'s arguments.
+    """
+    repos = get_local_repos(work_dir)
+    patterns = repo_filter_patterns(config)
+    if not patterns:
+        return repos
+    matched = [p for p in repos if match_repo_filter(p, p, patterns)]
+    # A typo in the pattern must not read as a clean run over nothing, which is
+    # the shape honouring the filter newly makes reachable here. `fetch` already
+    # says this for the same situation against the project list.
+    if not matched:
+        log(style.warn(f"No local repositories matched --repos {patterns}; "
+                       "check the pattern against `contextlake mirror status`"))
+    return matched
 
 
 def is_valid_git_repo(full_path):
@@ -719,12 +805,13 @@ def _build_clone_cmd(project_path, http_url, full_path, method, token=None,
 def _clone_once(clone_cmd, timeout, env=None, dest=None):
     """Run a single clone attempt, raising on failure so retry can engage.
 
-    Clearing ``dest`` is part of the attempt, not a one-time step before the
-    retry loop. A clone that fails partway leaves a partially populated
+    Clearing ``dest`` belongs to the attempt, not to a one-time step before the
+    retry loop. A clone that dies partway leaves a partially populated
     destination behind, and ``git clone`` refuses a non-empty directory -- so
     every retry died instantly on "destination path already exists" instead of
-    retrying the clone, which made ``max_retries`` dead for exactly the failures
-    it exists for, and replaced the real first error with a misleading one.
+    actually retrying. That made ``max_retries`` dead for precisely the failures
+    it exists for, and replaced the real first error with a misleading one. Each
+    attempt now starts from the same state the first one did.
     """
     if dest and os.path.exists(dest):
         shutil.rmtree(dest, ignore_errors=True)
@@ -1377,9 +1464,13 @@ def clone_missing_repos(work_dir, config, gitlab_group):
                 handle(*fut.result())
 
     progress.done()
-    log(style.ok("Clone complete: " + _summarize({
+    # Glyph follows the outcome, as update and branches already do: a green tick
+    # over "1 failed" is the summary contradicting its own counts, and it is the
+    # line a fleet run is skimmed by.
+    glyph = style.ok() if not failures else style.warn()
+    log(f"{glyph} Clone complete: " + _summarize({
         "successful": successes, "skipped": skipped, "dry-run": dry, "failed": failures,
-    })))
+    }))
     # A dry run cloned nothing, so it is skipped work, not a success -- only
     # `failures` (what the loop already classified as an error) drives the exit code.
     return StageResult(ok=len(successes), failed=len(failures),
@@ -1388,9 +1479,13 @@ def clone_missing_repos(work_dir, config, gitlab_group):
 
 def update_repositories(work_dir, config):
     """Update every local repository."""
-    log("Updating all repositories...")
+    # Say which set is being updated before saying how many: "all repositories"
+    # over a filtered count contradicts itself the moment --repos is in play.
+    patterns = repo_filter_patterns(config)
+    log(f"Updating repositories matching {','.join(patterns)}..." if patterns
+        else "Updating all repositories...")
 
-    local_repos = get_local_repos(work_dir)
+    local_repos = filtered_local_repos(work_dir, config)
     max_workers = _int(config, "max_workers", "8")
     log(f"Found {len(local_repos)} local repositories")
 
@@ -1453,7 +1548,7 @@ def switch_repository_branches(work_dir, config, gitlab_group):
         log("No projects loaded")
         return StageResult()
 
-    local_repos = get_local_repos(work_dir)
+    local_repos = filtered_local_repos(work_dir, config)
     max_workers = _int(config, "max_workers", "8")
 
     buckets = {"switched": [], "already": [], "skipped": [], "empty": [], "dry-run": [],
@@ -1532,12 +1627,22 @@ def verify_structure(work_dir, config, gitlab_group):
     """Verify the local tree matches GitLab and flag repos nested inside repos."""
     log("Verifying repository structure...")
 
-    projects = load_gitlab_projects(config, gitlab_group)
+    # Read-only, as this command's own help promises ("compare the local
+    # workspace against GitLab (read-only)" / "change nothing"): a cold cache is
+    # reported, never filled by enumerating the forge. Same reasoning as status.
+    projects = load_gitlab_projects(config, gitlab_group, allow_fetch=False)
     if not projects:
-        log("No projects loaded")
+        log(f"{style.warn()} No projects loaded, run 'fetch' first")
         return StageResult()
 
-    local_repos = get_local_repos(work_dir)
+    # Both sides, not just the local one: verify compares the project list
+    # against the work directory, so filtering only local repos would report
+    # every unmatched project as `missing` and make a scoped verify look broken.
+    patterns = repo_filter_patterns(config)
+    if patterns:
+        projects = {k: v for k, v in projects.items()
+                    if match_repo_filter(v.get("full_path", k), k, patterns)}
+    local_repos = filtered_local_repos(work_dir, config)
     valid, missing, extra, invalid = [], [], [], []
 
     for path in set(local_repos) | set(projects.keys()):
@@ -1581,7 +1686,9 @@ def show_status(work_dir, config, gitlab_group):
     """Show a read-only summary of local vs GitLab state."""
     log(style.bold("Synchronization status"))
 
-    projects = load_gitlab_projects(config, gitlab_group)
+    # Read-only on purpose: never enumerate the forge from `status` (see
+    # load_gitlab_projects). Nothing to report is reported, not fixed silently.
+    projects = load_gitlab_projects(config, gitlab_group, allow_fetch=False)
     if not projects:
         log(f"{style.warn()} No projects loaded, run 'fetch' first")
         return

@@ -234,3 +234,40 @@ def test_watch_loop_stops_on_interrupt():
 
     n = _watch_loop(lambda: calls.append(1), interval=0, sleep=boom)  # unbounded but interrupted
     assert n == 1 and len(calls) == 1
+
+
+def test_single_repo_index_skips_an_unchanged_head_like_the_workspace_path(tmp_path, logs):
+    """`kb index <repo>` re-parsed on every run, contradicting --force's own
+    help ("only repos whose HEAD moved") -- which --workspace does honour. Same
+    store, same commit, seconds apart."""
+    from contextlake.kb.commands import cmd_index
+
+    repo = tmp_path / "app"
+    _git_repo(repo)
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+
+    def _args(force=False):
+        return Namespace(config=None, store_dir=str(store_dir), workspace=None,
+                         source=str(repo), repo="app", force=force)
+
+    assert cmd_index(_args()) == 0
+    assert any("Indexed app" in m for m in logs)
+
+    logs.clear()
+    assert cmd_index(_args()) == 0
+    assert any("unchanged" in m for m in logs), "an unchanged HEAD must be skipped"
+    assert not any("Indexed app" in m for m in logs), "it re-parsed instead of skipping"
+
+    # --force still re-indexes regardless, as its help says
+    logs.clear()
+    assert cmd_index(_args(force=True)) == 0
+    assert any("Indexed app" in m for m in logs)
+
+    # a new commit moves HEAD -> it re-indexes without --force
+    (repo / "m.py").write_text("def foo():\n    return 1\n\ndef bar():\n    return 2\n")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-q", "-m", "c2"], repo)
+    logs.clear()
+    assert cmd_index(_args()) == 0
+    assert any("Indexed app" in m for m in logs)

@@ -146,7 +146,8 @@ def test_update_failure_counted_by_the_real_stage_reaches_the_exit_code(
 def test_verify_fails_only_on_an_invalid_repo_not_a_missing_one(monkeypatch, tmp_path):
     """A cloned path with no .git is corruption (exit 1); a project simply not
     cloned yet is routine (archived projects never are) and must stay exit 0."""
-    monkeypatch.setattr(core, "load_gitlab_projects", lambda config, group: dict(_PROJECTS))
+    monkeypatch.setattr(core, "load_gitlab_projects",
+                        lambda config, group, **kw: dict(_PROJECTS))
 
     assert cli.main(["mirror", "verify", "--work-dir", str(tmp_path)]) is None  # missing
 

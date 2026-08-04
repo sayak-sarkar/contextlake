@@ -235,3 +235,84 @@ def test_cmd_connect_gitlab_without_rules(tmp_path, monkeypatch):
         assert store.nodes_by_name("team/api#2")  # issue node landed
     finally:
         store.close()
+
+
+class _Src:
+    """A SourceCfg-shaped stand-in: connector options arrive as model extras."""
+
+    def __init__(self, **extra):
+        self.name = "gl"
+        self.mcp = None
+        self.model_extra = extra
+
+
+def test_numeric_source_options_are_coerced_however_they_were_written():
+    """`--set timeout=3` stores the string "3" (a plain KEY=VALUE split, and a
+    hand-edited config can be quoted too). Left as a string it reached
+    `subprocess.run(timeout="3")`, which raises TypeError on every call: zero
+    requests made, and the run still reported success."""
+    conn = orch.build_gitlab(_Src(timeout="3", per_page="10"))
+    assert conn.timeout == 3.0
+    assert conn.per_page == 10
+    assert isinstance(conn.timeout, float)
+    assert isinstance(conn.per_page, int)
+
+
+def test_numeric_source_options_still_accept_real_numbers():
+    conn = orch.build_gitlab(_Src(timeout=7, per_page=25))
+    assert conn.timeout == 7.0
+    assert conn.per_page == 25
+
+
+def test_unparseable_numeric_option_falls_back_instead_of_failing_every_call(gls_logs):
+    conn = orch.build_gitlab(_Src(timeout="banana"))
+    assert conn.timeout == 30  # the documented default
+    assert any("banana" in r.getMessage() for r in gls_logs.records)
+
+
+class _DeadGL:
+    """The same source after the network went away: every call yields nothing."""
+
+    name = "gl"
+
+    def fetch(self, repo_id):
+        return ([], [])
+
+    def fetch_changes(self, repo_id, mr_iid):
+        return []
+
+
+def test_a_fetchless_reconnect_does_not_strand_the_nodes_it_unlinked(tmp_path, monkeypatch):
+    """Connect once with the network up, then again with it down.
+
+    Connector edges live in the @connect partition and its nodes in (external),
+    so the stale sweep removed the edges and left the nodes: an orphan that no
+    traversal can reach and no code question can surface.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir(parents=True)
+    (tmp_path / "kb.toml").write_text(_CFG.format(store=store_dir.as_posix()))
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_repo(Repo(id="team/api", path=str(tmp_path / "repo")))
+    s.close()
+
+    monkeypatch.setattr(orch, "build_gitlab", lambda src: _StubGL())
+    assert cmd_connect(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        assert store.nodes_by_name("team/api!1"), "precondition: the MR node landed"
+    finally:
+        store.close()
+
+    monkeypatch.setattr(orch, "build_gitlab", lambda src: _DeadGL())
+    cmd_connect(Namespace(config=str(tmp_path / "kb.toml")))
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        assert not store.nodes_by_name("team/api!1"), "unlinked node left stranded"
+        assert not store.nodes_by_name("team/api#2"), "unlinked node left stranded"
+    finally:
+        store.close()

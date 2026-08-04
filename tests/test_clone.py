@@ -147,6 +147,44 @@ def test_clone_retries_then_succeeds(tmp_path, base_config, fake_subprocess, no_
     assert state["n"] == 2  # retried once
 
 
+def test_clone_retry_starts_from_a_clean_destination(
+    tmp_path, base_config, fake_subprocess, no_sleep, monkeypatch
+):
+    """A retry must start from the state the first attempt started from.
+
+    The handler emulates the one git behaviour that matters here: git refuses a
+    destination directory that already has content. A first attempt that dies
+    partway leaves exactly that behind, so unless each attempt clears the
+    destination, every retry fails instantly on "already exists" -- the real
+    first error is replaced by a misleading one and max_retries buys nothing.
+    """
+    monkeypatch.setattr(core.shutil, "which", lambda _: None)  # force git
+    dest = tmp_path / "g" / "p"
+    state = {"n": 0}
+
+    def handler(cmd, **kwargs):
+        if "clone" not in cmd:
+            return FakeCompleted()
+        state["n"] += 1
+        if dest.exists() and any(dest.iterdir()):
+            return FakeCompleted(returncode=1, stderr=(
+                f"fatal: destination path '{dest}' already exists "
+                "and is not an empty directory."))
+        if state["n"] == 1:
+            (dest / ".git").mkdir(parents=True)  # partially populated, then dies
+            return FakeCompleted(returncode=1, stderr="connection reset")
+        return FakeCompleted(returncode=0)
+
+    fake_subprocess.handler = handler
+    status, _, msg = clone_repository(
+        "g/p", "grp/g/p", "http", "ssh", str(tmp_path),
+        _cfg(base_config, clone_method="git", max_retries="3"),
+    )
+    assert status == "ok", msg
+    assert state["n"] == 2  # the retry cloned, rather than dying on "already exists"
+    assert "already exists" not in msg
+
+
 # --- clone_missing_repos loop: unified status_line rendering (H1) ----------
 
 _LOOP_PROJECTS = {"g/p": {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}}
@@ -183,3 +221,22 @@ def test_clone_missing_repos_failure_line_has_fail_glyph(
     text = gls_logs.text
     assert "✗" in text
     assert "boom" in text
+
+
+def test_clone_summary_line_warns_on_partial_failure(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """A green tick over "1 failed" is the summary contradicting its own counts.
+    update and branches already swap to the warn glyph; clone did not."""
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g: dict(_LOOP_PROJECTS))
+    monkeypatch.setattr(
+        core, "clone_repository",
+        lambda lp, gp, h, s, wd, cfg: ("error", lp, "fatal: boom"),
+    )
+
+    core.clone_missing_repos(str(tmp_path), base_config, "g")
+
+    summary = [ln for ln in gls_logs.text.splitlines() if "Clone complete" in ln][0]
+    assert "1 failed" in summary
+    assert "⚠" in summary
+    assert "✓" not in summary

@@ -142,6 +142,7 @@ def _symbol_keys_for(store_dir, repo_id: str, path: str, pattern: str | None) ->
 
 def cmd_connect(args) -> int:
     from ..connectors.orchestrate import connect_partition
+    from ..model import EXTERNAL_REPO
     from ..references import extract_issue_keys, scrape_links
 
     store, store_dir = _open_store(args)
@@ -178,6 +179,13 @@ def cmd_connect(args) -> int:
             return 1
 
         def _connect_once() -> int:
+            from ..resilience import degraded_calls
+
+            # Connector methods are contractually non-raising: an unreachable
+            # source yields [] so one dead source cannot break the graph. That
+            # makes the per-source try/except below blind to them, so the run's
+            # verdict is taken from what the calls themselves reported instead.
+            degraded_before = degraded_calls()
             targets = _connect_targets(args, store)
             if not targets:
                 log("No repos to enrich (index some first, or pass --workspace/--source)")
@@ -221,12 +229,34 @@ def cmd_connect(args) -> int:
                 total_edges += len(merged_edges)
                 if merged_edges:
                     log(f"  {repo_id}: {len(merged_edges)} link(s)", inline=True)
+
+            # `clear_repo` swept each repo's connector EDGES, which live in its
+            # @connect partition; the nodes they pointed at live in `(external)`
+            # and survived it. A run that fetched nothing (network down, token
+            # expired) therefore left those nodes stranded with no edges in
+            # either direction -- unreachable by any traversal, and invisible to
+            # exactly the code questions they exist to answer. Once after the
+            # loop, not once per repo: it is a store-wide sweep, and nothing
+            # between iterations depends on it having run.
+            store.prune_orphan_nodes(EXTERNAL_REPO)
+            degraded = degraded_calls() - degraded_before
             log(style.summary_line(
-                "ok", f"Connect complete: {total_edges} external link(s) stored"))
+                "ok" if not degraded else "warn",
+                f"Connect complete: {total_edges} external link(s) stored"))
+            if degraded:
+                log(style.warn(
+                    f"{degraded} source call(s) returned nothing because the source was "
+                    "unavailable (reasons logged above); these results are incomplete"))
             # Honest exit: every source call attempted failed (e.g. an unreachable
             # connector) -> a failure, even though per-repo errors were logged.
             if attempts and src_failed == attempts:
                 log(style.warn(f"All {attempts} source call(s) failed — no links stored"))
+                return 1
+            # Nothing stored *and* calls were written off is not an empty result,
+            # it is a failed one: an expired token, a dead host and a 404 all land
+            # here, and exiting 0 made them indistinguishable from a clean run
+            # over a repo with no open work.
+            if degraded and not total_edges:
                 return 1
             return 0
 

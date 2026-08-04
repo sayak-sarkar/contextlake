@@ -26,6 +26,30 @@ def connect_partition(repo_id: str) -> str:
     return f"@connect:{repo_id}"
 
 
+def _num(extra: dict, key: str, default, cast):
+    """A numeric connector option, coerced from however it was written.
+
+    Read-side rather than write-side on purpose. ``--set KEY=VALUE`` is a plain
+    string split, so ``--set timeout=3`` stores TOML's ``timeout = "3"``, and a
+    hand-edited config can carry the same quoting -- coercing only in ``--set``
+    would fix one of those and leave the other. Coercing every ``--set`` value
+    that merely *looks* numeric is worse still: it would silently rewrite
+    identifier-shaped values (numeric group ids, channel ids) into integers.
+
+    Untyped it was a real outage: ``subprocess.run(timeout="3")`` raises
+    ``TypeError`` on every call, so zero requests were made and the run still
+    reported success. A value that cannot be a number is reported and the
+    default used, rather than left to fail once per call.
+    """
+    value = extra.get(key, default)
+    try:
+        return cast(value)
+    except (TypeError, ValueError):
+        from ...logging_setup import log
+        log(f"  source option {key}={value!r} is not a number; using {default}")
+        return default
+
+
 def build_atlassian(src) -> AtlassianConnector:
     """Construct a connector from a SourceCfg (connector-specific keys via extras)."""
     extra = getattr(src, "model_extra", None) or {}
@@ -33,7 +57,7 @@ def build_atlassian(src) -> AtlassianConnector:
         src.name,
         mcp_url=src.mcp or DEFAULT_MCP_URL,
         auth_dir=extra.get("auth_dir"),
-        timeout=extra.get("timeout", 120),
+        timeout=_num(extra, "timeout", 120, float),
     )
 
 
@@ -48,7 +72,7 @@ def build_figma(src):
         mcp_command=extra.get("mcp_command"),
         hosts=extra.get("hosts", DEFAULT_HOSTS),
         auth_dir=extra.get("auth_dir"),
-        timeout=extra.get("timeout", 120),
+        timeout=_num(extra, "timeout", 120, float),
     )
 
 
@@ -60,8 +84,8 @@ def build_gitlab(src):
     return GitLabConnector(
         src.name,
         group=extra.get("group"),
-        timeout=extra.get("timeout", 30),
-        per_page=extra.get("per_page", 50),
+        timeout=_num(extra, "timeout", 30, float),
+        per_page=_num(extra, "per_page", 50, int),
     )
 
 
@@ -83,7 +107,7 @@ def build_slack(src):
         verify_tool=extra.get("verify_tool", DEFAULT_VERIFY_TOOL),
         history_tool=extra.get("history_tool", DEFAULT_HISTORY_TOOL),
         auth_dir=extra.get("auth_dir"),
-        timeout=extra.get("timeout", 120),
+        timeout=_num(extra, "timeout", 120, float),
     )
 
 

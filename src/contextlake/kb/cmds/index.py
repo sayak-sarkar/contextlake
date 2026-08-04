@@ -263,6 +263,19 @@ def cmd_index(args) -> int:
                     ))
             repo_id = getattr(args, "repo", None) or src.resolve().name  # "." -> cwd name
             head = _git_head(src)
+            # Same incremental gate --workspace applies, for the same reasons and
+            # in the same order: HEAD unmoved AND the graph built by this parser
+            # means there is nothing to redo. Only --workspace honoured it, so a
+            # single-repo index always re-parsed, contradicting --force's own help
+            # ("only repos whose HEAD moved"). --force still bypasses both tests.
+            if not getattr(args, "force", False) and not needs_reindex(store, repo_id, head):
+                from ..parse import PARSER_VERSION
+
+                if indexed_parser_version(store, store_dir, repo_id) == PARSER_VERSION:
+                    log(f"{repo_id} is unchanged since its last index "
+                        f"(HEAD {(head or '?')[:8]}); nothing to do. "
+                        "Pass --force to re-index anyway.")
+                    return 0
             shard = index_repo_dir(str(src), repo_id, head_commit=head, **parse_opts)
             return _store_and_index(store, store_dir, repo_id, src.resolve(), head, shard)
 

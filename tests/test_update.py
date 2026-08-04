@@ -575,3 +575,22 @@ def test_without_auto_stash_the_skip_message_is_unchanged(
     status, _, msg = update_repository("a", str(tmp_path), base_config)
     assert status == "skip"
     assert msg == "Skipped (unsafe: Uncommitted changes (or indeterminate working-tree state))"
+
+def test_update_honours_the_repos_filter_it_tells_users_to_retry_with(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """`--repos` was accepted and ignored here, while the failure hint this same
+    command prints recommends exactly that flag to retry just the failures. On a
+    fleet, following the advice re-ran everything."""
+    for name in ("blog", "api", "docs"):
+        make_local_repo(tmp_path, name)
+    seen = []
+    monkeypatch.setattr(core, "update_repository",
+                        lambda p, wd, cfg: (seen.append(p), ("nochange", p, "Already"))[1])
+
+    cfg = base_config.copy()
+    cfg["repo_filter"] = "blog"
+    update_repositories(str(tmp_path), cfg)
+
+    assert seen == ["blog"]
+    assert "Found 1 local repositories" in gls_logs.text

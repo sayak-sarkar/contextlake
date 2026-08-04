@@ -361,3 +361,46 @@ def test_connect_sweeps_stale_connector_vectors(tmp_path, monkeypatch):
         assert ids  # ...and this pass's own channel vector survived the sweep
     finally:
         vs.close()
+
+
+def test_connect_does_not_report_success_when_every_call_was_written_off(
+        tmp_path, monkeypatch, gls_logs):
+    """An expired token must not read like a repo with no open work.
+
+    Connector methods are contractually non-raising, so a source whose every
+    call 401s returns [] and the enricher itself "succeeds". That made a dead
+    source produce a green tick, `0 external link(s) stored` and exit 0 --
+    byte-identical to a healthy run over a quiet repo.
+    """
+    import subprocess
+
+    import contextlake.kb.cmds.connect as cmds
+    from contextlake.kb.resilience import note_unavailable, reset_breakers
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_CONFIG.format(store=store_dir.as_posix()))
+    repo = tmp_path / "app"
+    repo.mkdir()
+    reset_breakers()
+
+    def unauthorized_enricher(repo_id, keys, links, symbol_keys):
+        # Exactly what a connector does with a rejected call: log the reason and
+        # return empty, rather than raise.
+        note_unavailable("gitlab (glab api)", subprocess.CalledProcessError(
+            1, ["glab", "api", "projects/x/merge_requests"], output="",
+            stderr="401 Unauthorized (HTTP 401)\n"))
+        return [], []
+
+    monkeypatch.setattr(cmds, "_build_enrichers",
+                        lambda sources, store, **kw: ([unauthorized_enricher], ["gl"]))
+    monkeypatch.setattr(refs, "extract_issue_keys", lambda path, pattern, **k: ["PROJ-1"])
+    monkeypatch.setattr(refs, "scrape_links", lambda path, patterns, **k: [])
+
+    args = Namespace(config=str(cfg), workspace=None, source=str(repo), repo="group/app")
+    assert cmd_connect(args) == 1, "a run where every call was refused is not a success"
+
+    text = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "401" in text, "the reason the calls failed must reach the user"
+    assert not re.search(r"✓ Connect complete", text), "no green tick over a failed run"
