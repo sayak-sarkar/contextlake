@@ -36,6 +36,26 @@ def _pipeline_for(source_type: str) -> str:
     return "connect" if source_type in _CONNECT_TYPES else "ingest"
 
 
+# Keys whose value would be a literal credential. Refused rather than written:
+# the module's contract (see the docstring above) is that a secret is referenced
+# by env-var *name*, and nothing reads a bare `token` anyway -- the sources that
+# authenticate (kb/sources/api.py, kb/sources/graphql.py) read `token_env`. A
+# secret written where no connector can use it is a leak that buys nothing.
+_SECRET_KEYS = {"token", "api_key", "apikey", "access_token", "password", "secret",
+                "private_key"}
+
+
+def _reject_literal_secrets(src: dict) -> str | None:
+    """The error text for the first literal-secret key in ``src``, else None."""
+    for key in src:
+        if key.lower() in _SECRET_KEYS:
+            return (f"refusing to write a literal secret into the config: {key!r}. "
+                    f"Reference it by environment-variable NAME instead, e.g. "
+                    f"--set token_env=MY_TOKEN -- the value stays in your "
+                    f"environment and only the name is stored.")
+    return None
+
+
 def _parse_set_flags(pairs: list[str] | None) -> dict:
     """Repeatable ``--set KEY=VALUE`` flags into a dict."""
     out: dict = {}
@@ -114,10 +134,20 @@ def cmd_source_add(args) -> int:
         return 2
     stdin_key = getattr(args, "from_stdin", None)
     if stdin_key:
+        # Checked before stdin is read, so a piped secret is never even held in
+        # this process's memory on the path that would refuse it anyway.
+        refusal = _reject_literal_secrets({stdin_key: None})
+        if refusal:
+            log(style.fail(refusal))
+            return 2
         value = _read_stdin_value(stdin_key)
         if value is None:
             return 2
         src[stdin_key] = value
+    refusal = _reject_literal_secrets(src)
+    if refusal:
+        log(style.fail(refusal))
+        return 2
     if not src.get("type") or not src.get("name"):
         if _interactive():
             src = _prompt_missing(src)

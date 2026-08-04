@@ -39,6 +39,16 @@ def test_init_writes_both_configs(tmp_path, monkeypatch):
     assert "enabled = false" in kb  # embeddings off unless asked
 
 
+def test_init_writes_owner_readable_only_configs(tmp_path, monkeypatch):
+    """Generated configs are the user's own: the kb one is what `kb source add`
+    later appends connector options to, and neither belongs to every account on
+    the machine."""
+    rc = _run(tmp_path, monkeypatch, platform="github", group="acme")
+    assert rc == 0
+    for path in ((tmp_path / ".contextlake.ini"), (tmp_path / ".contextlake/kb.toml")):
+        assert oct(path.stat().st_mode & 0o777) == "0o600", path
+
+
 def test_init_config_flag_redirects_both_generated_files(tmp_path, monkeypatch):
     """init is the one command that writes BOTH config files -- --config (every
     other command's isolation flag) must redirect them, not be silently

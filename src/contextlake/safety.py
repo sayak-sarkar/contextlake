@@ -80,20 +80,74 @@ def check_repository_safety(local_path, work_dir, config):
     return len(warnings) == 0, warnings
 
 
+def _stash_top(full_path):
+    """The sha of the stash currently on top of the stack, or None if empty."""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--quiet', '--verify', 'refs/stash'],
+            capture_output=True, text=True, cwd=full_path, timeout=30,
+        )
+    except (OSError, SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
 def stash_changes(full_path, config):
-    """Stash changes in a repository."""
+    """Stash changes in a repository.
+
+    Returns ``(ok, message, stash_sha)``. The sha is what makes the stash
+    restorable: ``git stash push`` exits 0 even when it stashed *nothing* (a tree
+    dirtied only by untracked files has nothing to take without ``-u``), so an
+    exit code alone cannot tell "your work is now in a stash" from "your work is
+    still in the tree". Comparing the top of the stash stack before and after
+    also proves the stash on top is *ours* -- popping a stash the user made
+    earlier would destroy unrelated work.
+    """
     auto_stash = config.get('auto_stash', 'false').lower() == 'true'
     if not auto_stash:
-        return False, "Auto-stash disabled in config"
+        return False, "Auto-stash disabled in config", None
 
+    before = _stash_top(full_path)
     try:
         result = subprocess.run(
             ['git', 'stash', 'push', '-m', 'contextlake_auto_stash'],
             capture_output=True, text=True, cwd=full_path, timeout=30,
         )
-        if result.returncode == 0:
-            return True, "Changes stashed successfully"
-        else:
-            return False, result.stderr.strip()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
+        return False, str(e)[:100], None
+    if result.returncode != 0:
+        return False, result.stderr.strip(), None
+
+    after = _stash_top(full_path)
+    if after is None or after == before:
+        return False, ("Nothing was stashed -- only untracked files are dirty, "
+                       "and those need `git stash -u`"), None
+    return True, "Changes stashed successfully", after
+
+
+def restore_stash(full_path, stash_sha):
+    """Pop the stash ``stash_changes`` created, putting the work back.
+
+    Refuses unless ``stash_sha`` is still on top of the stack: ``git stash pop``
+    always takes the top entry, so popping after something else was stashed on
+    top would restore the wrong changes. The refusal leaves the stash intact --
+    an unrestored stash the user is told about is recoverable; a wrongly popped
+    one is not.
+    """
+    top = _stash_top(full_path)
+    if top != stash_sha:
+        return False, ("the auto-stash is no longer on top of the stash stack "
+                       "-- recover it with `git stash list` / `git stash pop`")
+    try:
+        result = subprocess.run(
+            ['git', 'stash', 'pop'],
+            capture_output=True, text=True, cwd=full_path, timeout=30,
+        )
+    except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
         return False, str(e)[:100]
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "git stash pop failed").strip()
+        return False, detail.splitlines()[0]
+    return True, "Stashed changes restored"

@@ -121,7 +121,13 @@ def _write(path: str, content: str, *, force: bool) -> bool:
         log(f"  {style.warn('exists')} {path} — kept (use --force to overwrite)")
         return False
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content, encoding="utf-8")
+    # Owner-only, and the mode is set as the file is created rather than
+    # chmod-ed afterwards (no world-readable window). These files name the
+    # fleet, and the kb one is what `kb source add` later appends connector
+    # options to -- both belong to the user who ran init, nobody else.
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(content)
     log(f"  {style.ok('wrote')} {path}")
     return True
 

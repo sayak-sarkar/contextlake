@@ -482,3 +482,96 @@ def test_fetch_without_a_token_inherits_the_ambient_environment(
     fake_subprocess.handler = handler
     update_repository("team/api", str(tmp_path), _token_config(base_config))
     assert seen.get("env") is None
+
+
+# --- --auto-stash is a round trip -----------------------------------------
+
+def _dirty(monkeypatch):
+    _safe(monkeypatch, safe=False,
+          warnings=["Uncommitted changes (or indeterminate working-tree state)"])
+
+
+def _stash_config(base_config):
+    return {**base_config, "auto_stash": "true"}
+
+
+def _stashes(monkeypatch, restore):
+    """Stub the stash pair; returns the list of shas restore_stash was called with."""
+    monkeypatch.setattr(core, "stash_changes",
+                        lambda *a, **k: (True, "Changes stashed successfully", "sha1"))
+    seen = []
+
+    def _restore(path, sha):
+        seen.append(sha)
+        return restore
+
+    monkeypatch.setattr(core, "restore_stash", _restore)
+    return seen
+
+
+def test_auto_stash_restores_the_stash_after_updating(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """The stash has to come back: leaving it parked silently removes the user's
+    edits from the working tree, and nothing on screen says a stash exists."""
+    _dirty(monkeypatch)
+    restored = _stashes(monkeypatch, (True, "Stashed changes restored"))
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="main")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, _ = update_repository("a", str(tmp_path), _stash_config(base_config))
+    assert status in ("ok", "nochange")
+    assert restored == ["sha1"], "the auto-stash was never popped"
+
+
+def test_auto_stash_reports_an_error_when_the_stash_cannot_be_restored(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """An outstanding stash must reach the run's failure count -- a green summary
+    over work still parked in a stash is exactly the surprise to avoid."""
+    _dirty(monkeypatch)
+    _stashes(monkeypatch, (False, "conflict while popping"))
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="main")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, msg = update_repository("a", str(tmp_path), _stash_config(base_config))
+    assert status == "error"
+    assert "stashed" in msg and "conflict while popping" in msg
+
+
+def test_auto_stash_restores_even_when_the_update_fails(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """A failed fetch must not strand the stash either."""
+    _dirty(monkeypatch)
+    restored = _stashes(monkeypatch, (True, "Stashed changes restored"))
+
+    def handler(cmd, **kwargs):
+        if _branch_main(cmd):
+            return FakeCompleted(stdout="main")
+        if "fetch" in cmd:
+            return FakeCompleted(returncode=1, stderr="fatal: could not read from remote")
+        return FakeCompleted()
+
+    fake_subprocess.handler = handler
+    status, _, _ = update_repository("a", str(tmp_path), _stash_config(base_config))
+    assert status == "error"
+    assert restored == ["sha1"], "a failed update left the stash behind"
+
+
+def test_without_auto_stash_the_skip_message_is_unchanged(
+    tmp_path, base_config, fake_subprocess, monkeypatch
+):
+    """No stash was attempted, so there is nothing to explain in the message."""
+    _dirty(monkeypatch)
+    status, _, msg = update_repository("a", str(tmp_path), base_config)
+    assert status == "skip"
+    assert msg == "Skipped (unsafe: Uncommitted changes (or indeterminate working-tree state))"

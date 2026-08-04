@@ -51,10 +51,19 @@ def _load_document(path: Path):
 def _write_document(path: Path, doc) -> None:
     """Write ``doc`` to ``path`` atomically: a temp sibling file then
     ``os.replace`` (atomic rename on POSIX), so a crash mid-write never leaves
-    ``path`` truncated or half-written."""
+    ``path`` truncated or half-written.
+
+    Owner-only (0600), and set on the temp file *before* the content lands:
+    ``os.replace`` keeps the temp file's mode, so a chmod afterwards would leave
+    a window in which the file is world-readable. This config names every source
+    a fleet is wired to, and a connector option can carry a private endpoint
+    URL -- the default 0644 published all of it to every account on the machine.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(tomlkit.dumps(doc))
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(tomlkit.dumps(doc))
     os.replace(tmp, path)
 
 

@@ -20,7 +20,7 @@ from functools import partial
 from . import observability, style
 from .config import get_cache_paths
 from .logging_setup import log
-from .safety import check_repository_safety, is_safe_branch, stash_changes
+from .safety import check_repository_safety, is_safe_branch, restore_stash, stash_changes
 
 
 def _status(i, total, state, path, message):
@@ -716,8 +716,18 @@ def _build_clone_cmd(project_path, http_url, full_path, method, token=None,
     return ["git", "clone", http_url, full_path], None
 
 
-def _clone_once(clone_cmd, timeout, env=None):
-    """Run a single clone attempt, raising on failure so retry can engage."""
+def _clone_once(clone_cmd, timeout, env=None, dest=None):
+    """Run a single clone attempt, raising on failure so retry can engage.
+
+    Clearing ``dest`` is part of the attempt, not a one-time step before the
+    retry loop. A clone that fails partway leaves a partially populated
+    destination behind, and ``git clone`` refuses a non-empty directory -- so
+    every retry died instantly on "destination path already exists" instead of
+    retrying the clone, which made ``max_retries`` dead for exactly the failures
+    it exists for, and replaced the real first error with a misleading one.
+    """
+    if dest and os.path.exists(dest):
+        shutil.rmtree(dest, ignore_errors=True)
     result = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=timeout,
                             env=env)
     if result.returncode != 0:
@@ -757,7 +767,7 @@ def clone_repository(local_path, gitlab_path, http, ssh, work_dir, config):
 
     try:
         retry_with_backoff(
-            _clone_once, clone_cmd, clone_timeout, env=clone_env,
+            _clone_once, clone_cmd, clone_timeout, env=clone_env, dest=full_path,
             max_retries=_int(config, "max_retries", "3"),
             backoff_initial=_float(config, "backoff_initial", "1"),
             backoff_max=_float(config, "backoff_max", "30"),
@@ -863,25 +873,63 @@ def _fetch_with_retry(git_args, full_path, fetch_timeout, config):
 
 
 def update_repository(local_path, work_dir, config):
-    """Fetch + fast-forward a single repo's current branch (safety-gated)."""
+    """Fetch + fast-forward a single repo's current branch (safety-gated).
+
+    ``--auto-stash`` is a round trip, not a one-way move: the stash is popped
+    again once the update is done. Stashing without restoring left the user's
+    edits out of the working tree with nothing on screen saying a stash existed,
+    which is the surprise the safety flags exist to prevent. A pop that fails is
+    reported as an error rather than a quiet note, so the outstanding stash
+    reaches the run's failure count instead of being buried in a green summary.
+    """
     full_path = os.path.join(work_dir, local_path)
+    dry_run = _is_truthy(config, "dry_run")
+
+    safe, warnings = check_repository_safety(local_path, work_dir, config)
+    stash_sha = None
+    if not safe:
+        reason = f'Skipped (unsafe: {", ".join(warnings)})'
+        has_changes = any("Uncommitted changes" in w for w in warnings)
+        if not has_changes or dry_run or not _is_truthy(config, "auto_stash"):
+            return ("skip", local_path, reason)
+        # Why the stash failed is appended only when one was actually attempted:
+        # the default path never tried, so it has nothing to explain.
+        stash_success, stash_msg, stash_sha = stash_changes(full_path, config)
+        if not stash_success:
+            return ("skip", local_path, f"{reason} -- {stash_msg}")
+        log(f"{style.yellow('⚠')} {style.cyan(local_path)}: {stash_msg}")
+
+    try:
+        result = _update_synced(local_path, full_path, config)
+    finally:
+        # In the finally so a Ctrl-C between here and the return still puts the
+        # user's work back -- an interrupted run must not be the one that leaves
+        # a stash behind.
+        restored = restore_msg = None
+        if stash_sha:
+            restored, restore_msg = restore_stash(full_path, stash_sha)
+            if not restored:
+                log(f"{style.yellow('⚠')} {style.cyan(local_path)}: "
+                    f"your changes are still stashed -- {restore_msg}")
+    if stash_sha and not restored:
+        return ("error", local_path,
+                f"Updated, but restoring your stashed changes failed: {restore_msg}")
+    return result
+
+
+def _update_synced(local_path, full_path, config):
+    """The fetch/fast-forward itself, once the tree is known safe to touch.
+
+    Split out of ``update_repository`` so the auto-stash restore wraps every exit
+    path of this half, including the error ones -- a stash must come back whether
+    the update succeeded, failed, or timed out. Total by construction: every
+    failure is a returned tuple, never an exception.
+    """
     fetch_timeout = _int(config, "fetch_timeout", "60")
     pull_timeout = _int(config, "pull_timeout", "60")
     dry_run = _is_truthy(config, "dry_run")
 
     try:
-        safe, warnings = check_repository_safety(local_path, work_dir, config)
-        if not safe:
-            has_changes = any("Uncommitted changes" in w for w in warnings)
-            if has_changes and not dry_run:
-                stash_success, stash_msg = stash_changes(full_path, config)
-                if stash_success:
-                    log(f"{style.yellow('⚠')} {style.cyan(local_path)}: {stash_msg}")
-                else:
-                    return ("skip", local_path, f'Skipped (unsafe: {", ".join(warnings)})')
-            else:
-                return ("skip", local_path, f'Skipped (unsafe: {", ".join(warnings)})')
-
         # _run_git raises on a non-zero exit, so a failed branch read surfaces as a
         # clean per-repo error instead of an empty string that fetches branch "".
         # A repo with no commits yet has no HEAD to resolve -- this describes what

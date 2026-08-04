@@ -140,36 +140,81 @@ def test_add_missing_required_fields_non_interactive_errors(tmp_path, gls_logs, 
     assert "requires" in gls_logs.text.lower()
 
 
-def test_add_never_echoes_secret_set_value(tmp_path, gls_logs):
+def test_add_refuses_a_literal_secret_and_names_the_env_var_key(tmp_path, gls_logs):
+    """A bare `token` is refused, not stored: nothing reads it (only `token_env`
+    is consumed), so writing it leaks a secret to disk and buys nothing."""
     cfg = tmp_path / "kb.toml"
     rc = source_cmd.cmd_source(
         _args("add", str(cfg), type="api", name="tickets",
               set=["token=super-secret-value"]))
-    assert rc == 0
+    assert rc == 2
+    assert not cfg.exists()
     assert "super-secret-value" not in gls_logs.text
+    assert "token_env" in gls_logs.text
+
+
+def test_add_never_echoes_a_set_value(tmp_path, gls_logs):
+    cfg = tmp_path / "kb.toml"
+    rc = source_cmd.cmd_source(
+        _args("add", str(cfg), type="api", name="tickets",
+              set=["token_env=MY_TICKETS_TOKEN", "url=https://api.example.com/v1/x"]))
+    assert rc == 0
+    assert "https://api.example.com/v1/x" not in gls_logs.text
 
 
 def test_add_from_stdin_reads_the_value_and_never_echoes_it(tmp_path, gls_logs, monkeypatch):
-    """--from-stdin keeps a secret out of shell history entirely -- it must
-    never appear as a CLI argument, only read off the pipe."""
+    """--from-stdin keeps a sensitive value out of shell history entirely -- it
+    must never appear as a CLI argument, only read off the pipe."""
     monkeypatch.setattr(source_cmd.sys.stdin, "isatty", lambda: False)
-    monkeypatch.setattr(source_cmd.sys.stdin, "readline", lambda: "piped-secret-value\n")
+    monkeypatch.setattr(source_cmd.sys.stdin, "readline",
+                        lambda: "https://mcp.example/private\n")
+    cfg = tmp_path / "kb.toml"
+    rc = source_cmd.cmd_source(
+        _args("add", str(cfg), type="atlassian", name="jira", from_stdin="mcp"))
+    assert rc == 0
+    assert "https://mcp.example/private" not in gls_logs.text
+    assert _toml(cfg)["sources"][0]["mcp"] == "https://mcp.example/private"
+
+
+def test_add_from_stdin_refuses_a_literal_secret_key_without_reading_stdin(
+    tmp_path, gls_logs, monkeypatch
+):
+    """The help's old worked example was `--from-stdin token`, which wrote the
+    piped secret straight into the config file. It is refused now, and refused
+    before the pipe is read at all."""
+    monkeypatch.setattr(source_cmd.sys.stdin, "isatty", lambda: False)
+
+    def _never(*_a, **_k):
+        raise AssertionError("stdin was read for a key that must be refused")
+
+    monkeypatch.setattr(source_cmd.sys.stdin, "readline", _never)
     cfg = tmp_path / "kb.toml"
     rc = source_cmd.cmd_source(
         _args("add", str(cfg), type="api", name="tickets", from_stdin="token"))
-    assert rc == 0
-    assert "piped-secret-value" not in gls_logs.text
-    assert _toml(cfg)["sources"][0]["token"] == "piped-secret-value"
+    assert rc == 2
+    assert not cfg.exists()
+    assert "token_env" in gls_logs.text
 
 
 def test_add_from_stdin_on_a_tty_errors_instead_of_hanging(tmp_path, gls_logs, monkeypatch):
     monkeypatch.setattr(source_cmd.sys.stdin, "isatty", lambda: True)
     cfg = tmp_path / "kb.toml"
     rc = source_cmd.cmd_source(
-        _args("add", str(cfg), type="api", name="tickets", from_stdin="token"))
+        _args("add", str(cfg), type="atlassian", name="jira", from_stdin="mcp"))
     assert rc != 0
     assert not cfg.exists()
     assert "--from-stdin" in gls_logs.text
+
+
+def test_written_config_is_owner_readable_only(tmp_path):
+    """The file a source lands in must not be world-readable: it names every
+    source the fleet is wired to, and connector options can carry private URLs."""
+    cfg = tmp_path / "kb.toml"
+    rc = source_cmd.cmd_source(
+        _args("add", str(cfg), type="api", name="tickets",
+              set=["url=https://api.example.com/v1/x"]))
+    assert rc == 0
+    assert oct(cfg.stat().st_mode & 0o777) == "0o600"
 
 
 # --- list ----------------------------------------------------------------------

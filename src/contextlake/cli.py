@@ -578,7 +578,8 @@ def _add_mirror(p, hidden=False):
         dest="require_clean_workspace",
         help="allow operations with uncommitted changes")
     add_advanced("--auto-stash", action="store_true", dest="auto_stash",
-        help="automatically stash changes before operations (default: false)")
+        help="stash uncommitted changes before updating and restore them "
+             "afterwards (default: false)")
     add_advanced("--no-auto-stash", action="store_false", dest="auto_stash",
         help="disable automatic stashing")
 
@@ -856,7 +857,7 @@ Examples:
 Examples:
   contextlake mirror sync               full synchronization
   contextlake mirror sync --dry-run     show what would happen, change nothing
-  contextlake mirror sync --auto-stash  stash dirty trees before updating
+  contextlake mirror sync --auto-stash  stash dirty trees, update, restore them
                 """)
     _add_mirror(p)
     _add_report(p, no_audit=True)
@@ -963,9 +964,10 @@ fail (exit 1).
                    help="extra connector option (repeatable)")
     p.add_argument("--from-stdin", default=_S, metavar="KEY",
                    help="add: read this option's value from stdin instead of the "
-                        "command line, so a secret never lands in shell history "
-                        "(e.g. printf '%%s' \"$TOKEN\" | contextlake kb source add jira "
-                        "--from-stdin token)")
+                        "command line, so it never lands in shell history "
+                        "(e.g. printf '%%s' \"$MCP_URL\" | contextlake kb source add jira "
+                        "--type atlassian --from-stdin mcp). Literal credentials are "
+                        "refused -- name the env var instead: --set token_env=MY_TOKEN")
 
     p = command("connect", "enrich the graph from configured sources "
                            "(GitLab MRs/issues, Atlassian, Figma)")
