@@ -20,10 +20,13 @@ search, and a minimap; it opens straight from `file://`:
 </p>
 
 Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. Bound the result
-with `--hops` (default 2), `--max-nodes` (500), `--max-edges` (400 for `--repo` views -- a dense repo can
+with `--hops` (default 2), `--max-nodes` (500, a bound on the **whole file**: one-hop external
+nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
+leave unused), `--max-edges` (400 for `--repo` views -- a dense repo can
 pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges independently means it always renders, possibly truncated, never errors), `--max-fanout` (50,
-a per-node cap that stops hub nodes from exploding), `--relation`, and `--direction {in,out,both}`, whatever
+capping edges independently means it always renders, possibly truncated, never errors), `--max-fanout` (a per-node cap that
+stops hub nodes from exploding: 50 on a seeded view, uncapped on a `--repo` view unless you
+pass it, since capping containment fan-out by default would hide a file's own symbols), `--relation`, and `--direction {in,out,both}`, whatever
 is dropped is **logged**, never silently truncated. For a `--repo` view over `--max-nodes`, which nodes
 survive the cut is now ranked by degree (highest-connected nodes kept first, ties broken by node id)
 rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
@@ -39,7 +42,8 @@ Output is chosen with `--format`:
   by degree; edges are styled by relation/confidence with their labels hidden until you click a node (so
   the view stays readable). Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`,
   `breadthfirst`, `circle`, `grid`) in the page, set the initial one with `--layout`. `--open` launches the
-  browser; `--cdn` produces a small online-only file instead.
+  browser; `--cdn` produces a small online-only file instead, and applies to `--site` as well as
+  the single-file export.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces

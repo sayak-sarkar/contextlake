@@ -2960,7 +2960,20 @@ reading: when `--limit` is reached the whole walk stops, so what you get is a bo
 most trustworthy edges rather than an arbitrary prefix. The output says `(truncated)` when that
 happened. There is no pagination; raise `--limit` instead.
 
-**Ambiguity is reported, not guessed at.** A symbol defined in several repos makes `impact` say so,
+**Ambiguity is reported, not guessed at.** This holds at two levels.
+
+Within one repository, a name matching several definitions no longer silently takes the first. The
+seed is named with its `file:line`, the alternatives are listed with the `--node` id that selects
+each, every hit cites the call site the edge came from, and a footer counts how much of the answer
+rests on name-only resolution:
+
+```text
+  seed: function site/cmdk.js:113 (5 matched 'close'; used the first)
+        or: method src/store/base.py:27  --node <id>
+  h1  site/cmdk.js  (file)  via calls at site/cmdk.js:121  [inferred]
+```
+
+A symbol defined in several **repos** makes `impact` say so,
 name how many repos define it, list the candidates, and exit `1`, so you can narrow it yourself:
 
 ```text
@@ -3054,7 +3067,7 @@ followed by up to three numbered lines ending in a percentage.
 | Command | Top-level JSON | Notes |
 | --- | --- | --- |
 | `kb query` | an **array** of hits | keys `repo`, `file`, `line`, `kind`, `name`, `qualified_name`. No score field |
-| `kb impact` | an **object** | `target`, `hops`, `truncated`, `affected[]`; `confidence` is lower-case |
+| `kb impact` | an **object** | `target` (with `file`/`line`), `hops`, `truncated`, `ambiguous`, `other_definitions[]`, `affected[]`; each hit carries `id`, `file`, `line`, `via_file`, `via_line`, `name_candidates`. `confidence` is lower-case |
 | `kb owners` | an **object** | `repo`, `path`, `owners[]`; email and raw score are not included |
 
 Three behaviours that bite scripts:
@@ -3594,10 +3607,13 @@ search, and a minimap; it opens straight from `file://`:
 </p>
 
 Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. Bound the result
-with `--hops` (default 2), `--max-nodes` (500), `--max-edges` (400 for `--repo` views -- a dense repo can
+with `--hops` (default 2), `--max-nodes` (500, a bound on the **whole file**: one-hop external
+nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
+leave unused), `--max-edges` (400 for `--repo` views -- a dense repo can
 pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges independently means it always renders, possibly truncated, never errors), `--max-fanout` (50,
-a per-node cap that stops hub nodes from exploding), `--relation`, and `--direction {in,out,both}`, whatever
+capping edges independently means it always renders, possibly truncated, never errors), `--max-fanout` (a per-node cap that
+stops hub nodes from exploding: 50 on a seeded view, uncapped on a `--repo` view unless you
+pass it, since capping containment fan-out by default would hide a file's own symbols), `--relation`, and `--direction {in,out,both}`, whatever
 is dropped is **logged**, never silently truncated. For a `--repo` view over `--max-nodes`, which nodes
 survive the cut is now ranked by degree (highest-connected nodes kept first, ties broken by node id)
 rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
@@ -3613,7 +3629,8 @@ Output is chosen with `--format`:
   by degree; edges are styled by relation/confidence with their labels hidden until you click a node (so
   the view stays readable). Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`,
   `breadthfirst`, `circle`, `grid`) in the page, set the initial one with `--layout`. `--open` launches the
-  browser; `--cdn` produces a small online-only file instead.
+  browser; `--cdn` produces a small online-only file instead, and applies to `--site` as well as
+  the single-file export.
 - **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces

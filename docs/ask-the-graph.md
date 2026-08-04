@@ -116,7 +116,20 @@ reading: when `--limit` is reached the whole walk stops, so what you get is a bo
 most trustworthy edges rather than an arbitrary prefix. The output says `(truncated)` when that
 happened. There is no pagination; raise `--limit` instead.
 
-**Ambiguity is reported, not guessed at.** A symbol defined in several repos makes `impact` say so,
+**Ambiguity is reported, not guessed at.** This holds at two levels.
+
+Within one repository, a name matching several definitions no longer silently takes the first. The
+seed is named with its `file:line`, the alternatives are listed with the `--node` id that selects
+each, every hit cites the call site the edge came from, and a footer counts how much of the answer
+rests on name-only resolution:
+
+```text
+  seed: function site/cmdk.js:113 (5 matched 'close'; used the first)
+        or: method src/store/base.py:27  --node <id>
+  h1  site/cmdk.js  (file)  via calls at site/cmdk.js:121  [inferred]
+```
+
+A symbol defined in several **repos** makes `impact` say so,
 name how many repos define it, list the candidates, and exit `1`, so you can narrow it yourself:
 
 ```text
@@ -210,7 +223,7 @@ followed by up to three numbered lines ending in a percentage.
 | Command | Top-level JSON | Notes |
 | --- | --- | --- |
 | `kb query` | an **array** of hits | keys `repo`, `file`, `line`, `kind`, `name`, `qualified_name`. No score field |
-| `kb impact` | an **object** | `target`, `hops`, `truncated`, `affected[]`; `confidence` is lower-case |
+| `kb impact` | an **object** | `target` (with `file`/`line`), `hops`, `truncated`, `ambiguous`, `other_definitions[]`, `affected[]`; each hit carries `id`, `file`, `line`, `via_file`, `via_line`, `name_candidates`. `confidence` is lower-case |
 | `kb owners` | an **object** | `repo`, `path`, `owners[]`; email and raw score are not included |
 
 Three behaviours that bite scripts:
