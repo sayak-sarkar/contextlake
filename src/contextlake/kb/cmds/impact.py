@@ -6,6 +6,7 @@ import json
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ._common import (
     _open_store,
 )
@@ -23,8 +24,8 @@ def cmd_impact(args) -> int:
     from ..impact import blast_radius, chosen_one_of, other_definitions, resolve_target
 
     target = (getattr(args, "args", []) or [None])[0]
-    hops = getattr(args, "hops", None) or 3
-    limit = getattr(args, "limit", None) or 100
+    hops = _or_default(getattr(args, "hops", None), 3)
+    limit = _or_default(getattr(args, "limit", None), 100)
     repo = getattr(args, "repo", None)
     as_json = getattr(args, "json", False)
     if as_json:

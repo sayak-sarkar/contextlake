@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ..config import load_kb_config
 from ..http_base import LOOPBACK_HOSTS
 
@@ -53,7 +54,7 @@ def cmd_dashboard(args) -> int:
         out_dir = Path(site) if site else (dash_dir / "site")
         anonymize = getattr(args, "anonymize", False)
         repos = getattr(args, "repos", None)
-        group_depth = getattr(args, "group_depth", None) or 1
+        group_depth = _or_default(getattr(args, "group_depth", None), 1)
         src = "the bundled demo fleet" if sample else "the local store"
         log(f"Building dashboard site from {src}…")
         build_dashboard_site(store_dir, out_dir, repos=repos, anonymize=anonymize,

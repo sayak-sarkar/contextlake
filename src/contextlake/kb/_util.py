@@ -17,6 +17,17 @@ def chunks(seq, n):
         yield seq[i:i + n]
 
 
+def _or_default(value, default):
+    """``value`` unless it was never supplied, in which case ``default``.
+
+    Deliberately not ``value or default``: every numeric flag used that spelling,
+    so an explicit ``--limit 0`` / ``--max-nodes 0`` / ``--hops 0`` was indistinguishable
+    from "unset" and silently became the default -- the same bug in three commands.
+    Only ``None`` means unset.
+    """
+    return default if value is None else value
+
+
 def hush_hf_hub() -> None:
     """Quiet Hugging Face Hub download noise before a model fetch.
 

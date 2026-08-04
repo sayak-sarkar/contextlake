@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ._common import (
     _open_store,
     _unknown_repo_msg,
@@ -73,7 +74,7 @@ def cmd_graph(args) -> int:
                     "deploymentdiagram output is not supported for --c4; use --format dot or html.")
                 return 1
 
-            group_depth = getattr(args, "group_depth", None) or 1
+            group_depth = _or_default(getattr(args, "group_depth", None), 1)
             repos_arg = getattr(args, "repos", None)
             repos_filter = None
             if repos_arg:
@@ -115,12 +116,12 @@ def cmd_graph(args) -> int:
                 print(text)
             return 0
 
-        max_fanout = getattr(args, "max_fanout", None) or 50
-        hops = getattr(args, "hops", None) or 2
+        max_fanout = _or_default(getattr(args, "max_fanout", None), 50)
+        hops = _or_default(getattr(args, "hops", None), 2)
         overview = getattr(args, "overview", False)
         # The overview is a fleet inventory — default to loading every repo (so any
         # is findable); neighbourhood/repo views stay bounded at 500.
-        max_nodes = getattr(args, "max_nodes", None) or (5000 if overview else 500)
+        max_nodes = _or_default(getattr(args, "max_nodes", None), 5000 if overview else 500)
         # Only the Mermaid-rendered formats have a hard edge-count limit of their
         # own to protect against (see repo_subgraph's docstring) -- html (cytoscape)
         # and dot have no such limit and must keep showing every edge among the

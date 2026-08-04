@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ...logging_setup import log
+from .._util import _or_default
 
 if TYPE_CHECKING:  # avoid importing the model at call time; we only need types here
     from ..model import Edge, Node
@@ -80,7 +81,7 @@ def seed_ids_from_args(store: Store, args) -> list[str]:
     kind = getattr(args, "kind", None)
     repo = getattr(args, "repo", None)
     name = getattr(args, "name", None)
-    limit = getattr(args, "limit", None) or 20
+    limit = _or_default(getattr(args, "limit", None), 20)
     if name:
         nodes = store.nodes_by_name(name, kind=kind, repo=repo)
     else:

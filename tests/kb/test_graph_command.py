@@ -94,6 +94,16 @@ def test_extract_skips_unknown_seed(store):
     assert {n.id for n in nodes} == {"a"}
 
 
+def test_seed_limit_of_zero_means_zero_not_the_default(store):
+    # `limit or 20` made an explicit 0 indistinguishable from "unset". The CLI now
+    # refuses 0 at parse time, but the falsiness was the root cause and it is
+    # reachable from any library caller, so it is pinned here too.
+    from types import SimpleNamespace
+    store.upsert_nodes("r", [_node(f"n{i}", name="dup") for i in range(3)])
+    args = SimpleNamespace(node=None, kind=None, repo=None, name="dup", limit=0)
+    assert viz.seed_ids_from_args(store, args) == []
+
+
 def test_repo_subgraph_includes_one_hop_neighbors_outside_the_repo(store):
     # a->x used to be dropped entirely (both endpoints had to be in-repo); it's
     # now surfaced one hop out -- the same shape as a linked GitLab MR/Figma

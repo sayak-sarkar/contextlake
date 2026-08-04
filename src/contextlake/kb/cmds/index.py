@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ..model import Repo
 from ..state import indexed_parser_version, mark_repo_indexed, needs_reindex
 from ..store.shards import GraphShard, archive_shard, reindex_shard, write_shard
@@ -221,7 +222,7 @@ def cmd_index(args) -> int:
             force = getattr(args, "force", False)
             repo_filter = getattr(args, "repos", None)
             if getattr(args, "watch", False):
-                interval = getattr(args, "interval", None) or 60
+                interval = _or_default(getattr(args, "interval", None), 60)
                 log(f"{style.cyan('watch')}: re-indexing {workspace} every "
                     f"{interval}s (Ctrl-C to stop)")
                 _watch_loop(

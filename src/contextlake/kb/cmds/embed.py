@@ -6,6 +6,7 @@ import importlib.util
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ._common import (
     _connect_targets,
     _guard_store,
@@ -168,7 +169,7 @@ def cmd_embed(args) -> int:
                 return 0
 
             if getattr(args, "watch", False):
-                interval = getattr(args, "interval", None) or 60
+                interval = _or_default(getattr(args, "interval", None), 60)
                 log(f"{style.cyan('watch')}: re-embedding every {interval}s (Ctrl-C to stop)")
                 _watch_loop(_embed_once, interval=interval)
                 return 0

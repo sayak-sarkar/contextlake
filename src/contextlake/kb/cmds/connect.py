@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ._common import (
     _connect_targets,
     _open_store,
@@ -262,7 +263,7 @@ def cmd_connect(args) -> int:
 
         try:
             if getattr(args, "watch", False):
-                interval = getattr(args, "interval", None) or 60
+                interval = _or_default(getattr(args, "interval", None), 60)
                 log(f"{style.cyan('watch')}: re-connecting every {interval}s (Ctrl-C to stop)")
                 _watch_loop(_connect_once, interval=interval)
                 return 0

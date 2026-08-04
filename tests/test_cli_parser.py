@@ -547,3 +547,49 @@ def test_argcomplete_absence_is_a_silent_noop(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         main(["--version"])
     assert exc.value.code == 0
+
+
+# --- numeric bounds ------------------------------------------------------
+# A cap that can only produce a nonsense result is refused where it is typed.
+# Before this, `--limit 0` meant "the default", `--limit -1` reached SQLite as
+# `LIMIT -1` and returned every row, and `--max-nodes -1` wrote an empty graph
+# and reported success.
+
+@pytest.mark.parametrize("argv", [
+    ["kb", "query", "x", "--limit", "0"],
+    ["kb", "query", "x", "--limit", "-1"],
+    ["kb", "query", "x", "--limit", "1000000000"],
+    ["kb", "graph", "--repo", "r", "--max-nodes", "0"],
+    ["kb", "graph", "--repo", "r", "--max-nodes", "-1"],
+    ["kb", "graph", "--repo", "r", "--max-edges", "-1"],
+    ["kb", "graph", "--repo", "r", "--max-fanout", "0"],
+    ["kb", "impact", "s", "--hops", "0"],
+    ["kb", "impact", "s", "--hops", "-1"],
+    ["kb", "owners", "r", "--limit", "0"],
+])
+def test_nonsense_numeric_bounds_are_refused_at_parse_time(argv, capsys):
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(argv)
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "must be between" in err
+
+
+@pytest.mark.parametrize("argv,attr,value", [
+    (["kb", "query", "x", "--limit", "1"], "limit", 1),
+    (["kb", "graph", "--repo", "r", "--max-nodes", "1"], "max_nodes", 1),
+    # zero edges is a real request -- a nodes-only view -- so it stays allowed
+    (["kb", "graph", "--repo", "r", "--max-edges", "0"], "max_edges", 0),
+    (["kb", "impact", "s", "--hops", "1"], "hops", 1),
+])
+def test_usable_numeric_bounds_still_parse(argv, attr, value):
+    assert getattr(build_parser().parse_args(argv), attr) == value
+
+
+def test_numeric_bounds_are_checked_on_the_pre_subparser_spelling_too(capsys):
+    # Every one of these flags is also accepted before the command name; a bound
+    # enforced only on the leaf parser would leave that spelling wide open.
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["--limit", "-1", "kb", "query", "x"])
+    assert exc.value.code == 2
+    assert "must be between" in capsys.readouterr().err

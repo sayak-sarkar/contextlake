@@ -6,6 +6,7 @@ import json
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ._common import (
     _open_store,
     kb_config,
@@ -45,7 +46,7 @@ def _query_as_of(args, commit: str, *, as_json: bool = False) -> int:
         if (text in n.name.lower()
             or (n.qualified_name and text in n.qualified_name.lower()))
         and (kind is None or n.kind == kind)
-    ][:getattr(args, "limit", None) or 20]
+    ][:_or_default(getattr(args, "limit", None), 20)]
     if as_json:
         print(json.dumps([_hit_json(n) for n in hits], indent=2))
         return 0
@@ -106,7 +107,7 @@ def cmd_query(args) -> int:
         return _query_as_of(args, as_of, as_json=as_json)
     store, _ = _open_store(args)
     try:
-        limit = getattr(args, "limit", None) or 20
+        limit = _or_default(getattr(args, "limit", None), 20)
         retr_kind = (getattr(args, "retriever", None) or "fts").lower()
         results = None
         if retr_kind in ("semantic", "hybrid"):

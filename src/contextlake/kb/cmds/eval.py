@@ -6,6 +6,7 @@ import json
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ._common import (
     _open_store,
     kb_config,
@@ -43,7 +44,7 @@ def cmd_eval(args) -> int:
         else:
             log(f"Cannot load golden set {golden_path!r}: {e}")
         return 1
-    k = getattr(args, "limit", None) or 10
+    k = _or_default(getattr(args, "limit", None), 10)
     retr_kind = (getattr(args, "retriever", None) or "fts").lower()
     store, store_dir = _open_store(args)
     vs = None  # only opened for semantic/hybrid; closed in the finally below

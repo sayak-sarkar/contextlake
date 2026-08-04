@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ... import style
 from ...logging_setup import log
+from .._util import _or_default
 from ._common import (
     _open_store,
     _repo_id_suggestions,
@@ -20,7 +21,7 @@ def cmd_owners(args) -> int:
 
     target = (getattr(args, "args", []) or [None])[0]
     subpath = getattr(args, "path", None)
-    limit = getattr(args, "limit", None) or 10
+    limit = _or_default(getattr(args, "limit", None), 10)
     as_json = getattr(args, "json", False)
     if as_json:
         from ...logging_setup import use_stderr

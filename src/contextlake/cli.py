@@ -454,6 +454,45 @@ _DEFAULTS = {
 _S = argparse.SUPPRESS
 
 
+def _bounded_int(minimum: int, maximum: int):
+    """An argparse ``type`` for a numeric bound, checked where the user typed it.
+
+    Every one of these flags used to be a plain ``int`` applied as ``value or
+    default``, which made three separate lies possible: ``--limit 0`` meant "the
+    default" rather than none, ``--limit -1`` reached SQLite as ``LIMIT -1`` and
+    returned *every* row (the one input a user expects to be refused disabled the
+    safety rail), and ``--max-nodes -1`` wrote an empty graph and reported
+    success. Bounds that can only produce a nonsense result are refused up front
+    with the range in the message, instead of being reinterpreted downstream.
+    """
+    def parse(raw: str) -> int:
+        try:
+            value = int(raw)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"invalid int value: {raw!r}") from None
+        if not minimum <= value <= maximum:
+            raise argparse.ArgumentTypeError(
+                f"must be between {minimum} and {maximum} (got {value})")
+        return value
+    # argparse prints this in "invalid <name> value" errors, so name it usefully.
+    parse.__name__ = f"int[{minimum}..{maximum}]"
+    return parse
+
+
+# A count of things to return or render. Zero is refused: it reads as "none",
+# which no caller wants, and it used to silently mean "the default" instead.
+_COUNT = _bounded_int(1, 1_000_000)
+# Traversal depth: at least one hop, or there is nothing to report.
+_HOPS = _bounded_int(1, 1_000)
+# The one bound where zero is a real request: a nodes-only view with no edges
+# drawn. Negatives stay refused.
+_MAX_EDGES = _bounded_int(0, 1_000_000)
+# Path-prefix grouping depth (repo ids are paths, not arbitrarily deep).
+_DEPTH = _bounded_int(1, 64)
+# A polling interval in whole seconds, up to a day.
+_SECONDS = _bounded_int(1, 86_400)
+
+
 class _RootHelpFormatter(argparse.RawDescriptionHelpFormatter):
     """The root parser's own flat, 29-entry "commands:" listing (one line per
     subparser, alphabetical-ish registration order) is replaced by the epilog's
@@ -599,7 +638,7 @@ def _add_report(p, *, no_audit=False):
 def _add_watch(p, what):
     p.add_argument("--watch", action="store_true", default=_S,
                    help=f"keep re-running {what} on an interval (Ctrl-C to stop)")
-    p.add_argument("--interval", type=int, default=_S,
+    p.add_argument("--interval", type=_SECONDS, default=_S,
                    help="--watch: seconds between passes (default 60)")
 
 
@@ -628,9 +667,14 @@ def _root_hidden_flags(p):
                  "--no-wiki", "--force", "--watch", "--overview", "--open", "--cdn",
                  "--serve", "--anonymize", "--sample", "--c4", "--c1"):
         add(flag, action="store_true")
-    for flag in ("--interval", "--port", "--limit", "--hops", "--max-nodes", "--max-edges",
-                 "--max-fanout", "--group-depth"):
-        add(flag, type=int)
+    # Same validating types as the leaf parsers: this pre-subparser spelling
+    # (`contextlake --limit -1 kb query x`) is a real way in, so a bound checked
+    # only on the leaf would leave it wide open.
+    for flag, kind in (("--interval", _SECONDS), ("--limit", _COUNT), ("--hops", _HOPS),
+                       ("--max-nodes", _COUNT), ("--max-edges", _MAX_EDGES),
+                       ("--max-fanout", _COUNT), ("--group-depth", _DEPTH)):
+        add(flag, type=kind)
+    add("--port", type=int)
     add("--llm", choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"])
     add("--transport", choices=["stdio", "http", "sse"])
     add("--retriever", choices=("fts", "semantic", "hybrid"))
@@ -978,7 +1022,7 @@ fail (exit 1).
     p = command("embed", "build semantic vectors for the graph (needs [embeddings] config)")
     p.add_argument("--force", action="store_true", default=_S,
                    help="re-embed every repo (default: only changed repos)")
-    p.add_argument("--limit", type=int, default=_S, help="max nodes to embed per repo")
+    p.add_argument("--limit", type=_COUNT, default=_S, help="max nodes to embed per repo")
     _add_watch(p, "the embedder")
 
     p = command("lint", "graph-health checks: stale repos and dangling edges")
@@ -1000,7 +1044,7 @@ fail (exit 1).
                         "prefix (e.g. team/api), narrating their cross-repo coupling")
     p.add_argument("--namespaces", action="store_true", default=_S,
                    help="generate a cluster page for every namespace at --depth")
-    p.add_argument("--depth", type=int, default=_S, metavar="N",
+    p.add_argument("--depth", type=_DEPTH, default=_S, metavar="N",
                    help="--namespaces: repo-id prefix depth to group by (default 2)")
     p.add_argument("--force", action="store_true", default=_S,
                    help="regenerate pages even when the graph is unchanged")
@@ -1070,7 +1114,7 @@ Examples:
     p.add_argument("args", nargs="*", metavar="text", help="the search text")
     p.add_argument("--kind", default=_S, help="filter by node kind")
     p.add_argument("--repo", default=_S, help="filter by repo")
-    p.add_argument("--limit", type=int, default=_S, help="max results (default 20)")
+    p.add_argument("--limit", type=_COUNT, default=_S, help="max results (default 20)")
     p.add_argument("--as-of", dest="as_of", default=_S,
                    help="search a repo's snapshot at this indexed commit (needs --repo)")
     p.add_argument("--retriever", choices=("fts", "semantic", "hybrid"), default=_S,
@@ -1114,15 +1158,15 @@ Examples:
                         "unindexed internal service). Requires --c4.")
     p.add_argument("--kind", default=_S, help="filter seeds by node kind")
     p.add_argument("--repo", default=_S, help="filter seeds by repo")
-    p.add_argument("--limit", type=int, default=_S, help="max seed nodes")
-    p.add_argument("--hops", type=int, default=_S, help="expansion radius (default 2)")
-    p.add_argument("--max-nodes", dest="max_nodes", type=int, default=_S,
+    p.add_argument("--limit", type=_COUNT, default=_S, help="max seed nodes")
+    p.add_argument("--hops", type=_HOPS, default=_S, help="expansion radius (default 2)")
+    p.add_argument("--max-nodes", dest="max_nodes", type=_COUNT, default=_S,
                    help="cap on rendered nodes (default 500)")
-    p.add_argument("--max-edges", dest="max_edges", type=int, default=_S,
+    p.add_argument("--max-edges", dest="max_edges", type=_MAX_EDGES, default=_S,
                    help="cap on rendered edges for --repo views (default 400 -- a dense "
                         "repo can pack well over 500 edges into 500 nodes, which used to "
                         "exceed Mermaid's own hard maxEdges limit and fail to render)")
-    p.add_argument("--max-fanout", dest="max_fanout", type=int, default=_S,
+    p.add_argument("--max-fanout", dest="max_fanout", type=_COUNT, default=_S,
                    help="per-node neighbour cap, anti-hub (default 50)")
     p.add_argument("--relation", default=_S, help="only follow edges of this relation")
     p.add_argument("--direction", choices=["in", "out", "both"], default=_S,
@@ -1162,7 +1206,7 @@ Examples:
                    help="--site: only build repo pages whose id matches a pattern "
                         "(comma-separated glob/substring); --c4: only include "
                         "matching repos in the namespace boundaries")
-    p.add_argument("--group-depth", dest="group_depth", type=int, default=_S,
+    p.add_argument("--group-depth", dest="group_depth", type=_DEPTH, default=_S,
                    help="--c4: namespace-grouping depth from repo-id path prefixes "
                         "(default 1)")
     _add_net(p)
@@ -1204,7 +1248,7 @@ supported route for llm-local is a prebuilt wheel that needs no compiler.
     p.add_argument("--retriever", choices=("fts", "semantic", "hybrid"), default=_S,
                    help="which retriever to score (default: fts; semantic/hybrid "
                         "need embeddings)")
-    p.add_argument("--limit", type=int, default=_S, help="k for precision@k (default 10)")
+    p.add_argument("--limit", type=_COUNT, default=_S, help="k for precision@k (default 10)")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted text "
                         "(for CI: parse a metric and gate on a threshold)")
@@ -1213,7 +1257,7 @@ supported route for llm-local is a prebuilt wheel that needs no compiler.
                 aliases=("who-knows",))
     p.add_argument("args", nargs="*", metavar="repo-or-path", help="a repo id or a path")
     p.add_argument("--path", default=_S, help="restrict to a sub-path")
-    p.add_argument("--limit", type=int, default=_S, help="max owners listed (default 10)")
+    p.add_argument("--limit", type=_COUNT, default=_S, help="max owners listed (default 10)")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted text")
 
@@ -1222,8 +1266,8 @@ supported route for llm-local is a prebuilt wheel that needs no compiler.
     p.add_argument("args", nargs="*", metavar="node-or-symbol",
                    help="a node id or symbol name")
     p.add_argument("--repo", default=_S, help="disambiguate the symbol by repo")
-    p.add_argument("--hops", type=int, default=_S, help="reverse depth (default 3)")
-    p.add_argument("--limit", type=int, default=_S, help="max nodes listed (default 100)")
+    p.add_argument("--hops", type=_HOPS, default=_S, help="reverse depth (default 3)")
+    p.add_argument("--limit", type=_COUNT, default=_S, help="max nodes listed (default 100)")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted text")
 
@@ -1272,7 +1316,7 @@ Examples:
                    help="build a static offline export into DIR")
     p.add_argument("--repos", default=_S, metavar="PATTERN",
                    help="--site: only include repos matching a pattern")
-    p.add_argument("--group-depth", dest="group_depth", type=int, default=_S,
+    p.add_argument("--group-depth", dest="group_depth", type=_DEPTH, default=_S,
                    help="domain-grouping depth from repo-id path prefixes (default 1)")
     p.add_argument("--anonymize", action="store_true", default=_S,
                    help="--site: hash git-author identities + strip external link "
