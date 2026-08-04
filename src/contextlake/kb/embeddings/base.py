@@ -30,6 +30,60 @@ class Embedder(ABC):
         """Return one vector per input text, in the same order."""
 
 
+def embedder_runtime_state(embedder) -> tuple[bool | None, str]:
+    """Whether ``embedder`` could actually answer a query, and why not.
+
+    ``build_embedder`` returns a *configured candidate*: constructing one is
+    deliberately cheap and never touches the network, so a non-None return says
+    the config named a provider, not that the provider works here. The built-in
+    embedders only import their engine and fetch their model on the first
+    ``embed()``, which is why a caller can report a capability as available and
+    still fail on the first real query.
+
+    Three states, mirroring how ``doctor`` reports the wiki LLM tier:
+
+    - ``True``  usable right now.
+    - ``None``  usable only with network: the engine is installed but its model
+      is not in the local cache, so the first query has to fetch it.
+    - ``False`` unusable here: the engine's optional extra is not installed, and
+      no amount of network fixes that without an install.
+
+    Probed the same import-free, offline way ``doctor`` probes (``find_spec``
+    plus a look at the model cache) rather than by calling ``embed()``. A real
+    call is the only *certain* answer, but it downloads the model from the Hub
+    inside server startup and spends the remote providers' circuit-breaker
+    budget before any client has asked for anything -- paying a network round
+    trip, and possibly a large download, to print one accurate banner line.
+
+    Remote providers (ollama, openai) hold no local model, so there is nothing
+    to check without a request; they report ``True`` and their reachability
+    surfaces where it always did, on the query that needs them.
+    """
+    if embedder is None:
+        return False, "no embedder configured"
+    engine = getattr(embedder, "engine", None)
+    model_id = getattr(embedder, "model_id", None)
+    cache_dir = getattr(embedder, "cache_dir", None)
+    # Duck-typed rather than isinstance(BuiltinEmbedder): importing the class
+    # here would drag the builtin module into every caller, and a test double
+    # carrying the same three attributes deserves the same answer.
+    if not (engine and model_id and cache_dir):
+        return True, ""
+    from .builtin import _ENGINE_EXTRA
+
+    if importlib.util.find_spec(engine) is None:
+        extra = _ENGINE_EXTRA.get(engine, "kb-local")
+        return False, (f"the {engine!r} engine is not installed "
+                       f"(pip install 'contextlake[{extra}]')")
+    from pathlib import Path
+
+    hub = Path(cache_dir).expanduser() / "hub"
+    if not (hub / ("models--" + model_id.replace("/", "--"))).is_dir():
+        return None, (f"model {model_id} is not downloaded yet; the first query "
+                      "fetches it, and fails if this machine is offline")
+    return True, ""
+
+
 def build_embedder(cfg) -> Embedder | None:
     """Construct an Embedder from an EmbeddingsCfg, or None when disabled.
 

@@ -98,6 +98,14 @@ def test_serve_matrix_registers_expected_tools_and_logs_why_not(
         captured.update(kw)
 
     monkeypatch.setattr("contextlake.kb.server.run_server", _fake_run_server)
+    # This file's axes are transport x embedder x vector-store, not embedder
+    # *readiness*: the banner now reports whether the engine can actually load
+    # here, which depends on whether the optional `kb-local` extra is installed
+    # in the running environment (CI installs `.[dev,kb]`, which excludes it).
+    # Pinning the ready state keeps every cell asserting the thing this file is
+    # about; the readiness branches have their own tests below.
+    monkeypatch.setattr("contextlake.kb.embeddings.embedder_runtime_state",
+                        lambda embedder: (True, ""))
 
     rc = commands_mod.cmd_serve(_serve_args(cfg, transport))
 
@@ -367,3 +375,141 @@ def test_allow_remote_starts_the_server_and_warns(tmp_path, gls_logs, monkeypatc
     token = captured["token"]
     assert token and token not in msgs
     assert token in capsys.readouterr().err
+
+
+# --- Embedder readiness: the banner must report runtime state, not config ---
+#
+# `build_embedder` returns a configured *candidate* without loading anything --
+# the built-in engines import their library and fetch their model on the first
+# embed(). So "the config named a provider" and "semantic search works here"
+# are different questions, and the startup banner used to answer the first one
+# while claiming to answer the second.
+
+
+def _semantic_serve_args(tmp_path, monkeypatch):
+    """A serve invocation that reaches the semantic banner: embeddings enabled
+    and a vector-store file on disk (serve.py gates the banner on both).
+
+    ``cache_dir`` is pinned inside tmp_path so the built-in model is definitely
+    absent from it -- otherwise the answer depends on whatever the developer
+    running the suite happens to have downloaded.
+    """
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(
+        f'[kb]\nstore_dir = "{store_dir}"\n'
+        '\n[embeddings]\nenabled = true\nprovider = "builtin"\n'
+        f'cache_dir = "{tmp_path / "models"}"\n'
+    )
+    store_dir.mkdir(parents=True, exist_ok=True)
+    (store_dir / "embeddings.sqlite").touch()
+    monkeypatch.setattr("contextlake.kb.server.run_server", lambda *a, **k: None)
+    return _serve_args(cfg, "stdio")
+
+
+def test_serve_banner_does_not_claim_semantic_search_when_the_engine_cannot_load(
+    tmp_path, gls_logs, monkeypatch,
+):
+    """The reported defect: with the engine absent, the banner said "Semantic
+    search enabled" and every semantic/hybrid query then failed at call time.
+
+    Driven through the real condition (the engine module not being importable)
+    rather than by stubbing the readiness helper, so this fails on the old
+    banner's *behaviour* and not merely on a missing symbol.
+    """
+    import importlib.util as _u
+
+    args = _semantic_serve_args(tmp_path, monkeypatch)
+    real = _u.find_spec
+    monkeypatch.setattr(_u, "find_spec",
+                        lambda name, *a, **k: None if name == "model2vec" else real(name, *a, **k))
+
+    assert commands_mod.cmd_serve(args) == 0
+
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "Semantic search enabled" not in msgs
+    assert "cannot load on this machine" in msgs
+    assert "kb-local" in msgs  # the actionable install name
+
+
+def test_serve_banner_flags_a_model_that_still_has_to_be_downloaded(
+    tmp_path, gls_logs, monkeypatch,
+):
+    """Engine installed but model not cached: it works online and fails offline,
+    so the capability is announced *and* the caveat is stated."""
+    import importlib.util as _u
+
+    args = _semantic_serve_args(tmp_path, monkeypatch)
+    real = _u.find_spec
+    # Engine importable, model cache empty (cache_dir is under tmp_path).
+    monkeypatch.setattr(_u, "find_spec",
+                        lambda name, *a, **k: object() if name == "model2vec"
+                        else real(name, *a, **k))
+
+    assert commands_mod.cmd_serve(args) == 0
+
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "Semantic search enabled" in msgs  # it does work, given network
+    assert "not downloaded" in msgs and "offline" in msgs
+
+
+def test_serve_banner_stays_plain_when_the_embedder_is_ready(
+    tmp_path, gls_logs, monkeypatch,
+):
+    args = _semantic_serve_args(tmp_path, monkeypatch)
+    monkeypatch.setattr("contextlake.kb.embeddings.embedder_runtime_state",
+                        lambda embedder: (True, ""))
+
+    assert commands_mod.cmd_serve(args) == 0
+
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "Semantic search enabled" in msgs
+    assert "cannot load" not in msgs
+
+
+def test_embedder_runtime_state_reports_a_missing_engine_as_unusable(tmp_path, monkeypatch):
+    import importlib.util as _u
+
+    from contextlake.kb.embeddings import embedder_runtime_state
+    from contextlake.kb.embeddings.builtin import BuiltinEmbedder
+
+    emb = BuiltinEmbedder(engine="model2vec", cache_dir=str(tmp_path))
+    real = _u.find_spec
+    monkeypatch.setattr(_u, "find_spec",
+                        lambda name, *a, **k: None if name == "model2vec" else real(name, *a, **k))
+
+    ready, why = embedder_runtime_state(emb)
+    assert ready is False
+    # The extra's install name is the actionable part -- a bare "not installed"
+    # leaves the reader to guess which package fixes it.
+    assert "kb-local" in why
+
+
+def test_embedder_runtime_state_separates_not_downloaded_from_not_installed(
+    tmp_path, monkeypatch,
+):
+    import importlib.util as _u
+
+    from contextlake.kb.embeddings import embedder_runtime_state
+    from contextlake.kb.embeddings.builtin import BuiltinEmbedder
+
+    emb = BuiltinEmbedder(engine="model2vec", cache_dir=str(tmp_path))
+    monkeypatch.setattr(_u, "find_spec", lambda name, *a, **k: object())
+
+    ready, why = embedder_runtime_state(emb)
+    assert ready is None  # usable, but only with network
+    assert "offline" in why
+
+    cached = tmp_path / "hub" / ("models--" + emb.model_id.replace("/", "--"))
+    cached.mkdir(parents=True)
+    assert embedder_runtime_state(emb) == (True, "")
+
+
+def test_embedder_runtime_state_leaves_remote_providers_alone(tmp_path):
+    """Ollama/OpenAI hold no local model -- there is nothing to check without a
+    request, and probing would spend circuit-breaker budget at startup."""
+    from contextlake.kb.embeddings import embedder_runtime_state
+    from contextlake.kb.embeddings.ollama import OllamaEmbedder
+
+    assert embedder_runtime_state(OllamaEmbedder(model="nomic-embed-text")) == (True, "")
+    assert embedder_runtime_state(None)[0] is False

@@ -87,8 +87,26 @@ def cmd_serve(args) -> int:
 
             embedder = candidate
             vector_store = build_vector_store(vec_path, backend=cfg.embeddings.vector_backend)
-            log(f"Semantic search enabled ({vector_store.name} store, "
-                f"{vector_store.count()} vectors)")
+            # Report what the embedder can do *here*, not what the config asked
+            # for. build_embedder hands back a candidate without loading
+            # anything, so announcing the config's intent as a working capability
+            # is how this banner came to read "Semantic search enabled" on a
+            # machine where the engine was missing and every semantic/hybrid
+            # query then failed at call time.
+            from ..embeddings import embedder_runtime_state
+
+            ready, why = embedder_runtime_state(embedder)
+            if ready is False:
+                log(style.warn(
+                    f"semantic_search / hybrid_search are registered, but the embedder "
+                    f"cannot load on this machine: {why}"))
+                log(style.dim("  Every semantic or hybrid query will fail until that is "
+                              "fixed; graph search and every other tool work without it"))
+            else:
+                log(f"Semantic search enabled ({vector_store.name} store, "
+                    f"{vector_store.count()} vectors)")
+                if ready is None:
+                    log(style.dim(f"  {why}"))
         else:
             # Say so out loud: these two tools silently vanishing from the MCP tool
             # list otherwise reads as a broken server, not an unconfigured tier.
