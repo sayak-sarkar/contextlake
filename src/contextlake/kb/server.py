@@ -979,6 +979,19 @@ def build_server(
         # lexical probe is also embedder-independent, which a tuned constant is not:
         # this ships four embedding providers and a constant fitted to one is silently
         # wrong for the other three.
+        #
+        # Known limitation, measured rather than assumed: the probe is the FTS index,
+        # which covers name/qualified_name/file but NOT docstrings, while node_text()
+        # does embed docstrings. Of 15 rare words sampled from this repo's own prose,
+        # 4 (heuristic, interleaved, corrupting, contention) are in embedded text and
+        # absent from the name index, so a question whose ONLY terms are such words is
+        # refused although the vectors could have answered. Two things keep that
+        # acceptable: the refusal names the exact terms, so it is checkable and
+        # retryable rather than silent; and one indexed term anywhere in the question
+        # is enough to let the hits through, which is why 0 of 22 realistic
+        # multi-word questions were refused. Widening the probe properly means
+        # indexing docstrings in FTS -- a schema change whose behaviour would then
+        # differ between reindexed and not-yet-reindexed stores, which is worse.
         terms = content_terms(question)
         unmatched = [t for t in terms if not store.search(t, limit=1)]
         anchored = len(terms) > len(unmatched)   # at least one term IS in the index

@@ -67,6 +67,7 @@ _STOP = frozenset(
     "where who what how why which does do did defined definition calls call "
     "caller callers used uses use depends depend dependents owns owner knows "
     "know wrote maintainer maintains explain describe about work works breaks "
+    "summarise summarize summary overview "
     "break if i change remove delete rename modify impact blast radius safe "
     "package repo repository function class method module symbol code you me "
     "please can could would should extends extend implements implement subclass "
