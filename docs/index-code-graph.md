@@ -47,8 +47,17 @@ installed -- `contextlake kb index` rebuilds those on its next run, so they pick
 `contextlake kb lint` audits the graph itself, reporting **stale repos** (HEAD moved since they were
 indexed), **dangling edges** (an edge whose endpoint node is missing), and the same **older-parser** repos
 doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
-lint that means dangling edges or HEAD-stale repos; the older-parser count is reported but deliberately kept
-out of its exit code, so upgrading to a build with a new parser can't turn a green CI gate red on its own.
+lint that means dangling edges, HEAD-stale repos, or repos it cannot read; the older-parser count is reported
+but deliberately kept out of its exit code, so upgrading to a build with a new parser can't turn a green CI
+gate red on its own.
+
+Two states are reported apart from stale, because re-indexing clears a stale repository and cannot clear
+either of them:
+
+- **empty** -- the repository has no commits at all, so there is no HEAD and nothing to index. Reported,
+  and not counted against the exit code: there is nothing for a reader to do about it.
+- **unreadable** -- the recorded path no longer exists, or git will not answer for a repository there.
+  Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.
 
 ## What the graph captures
 

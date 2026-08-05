@@ -134,19 +134,20 @@ def test_incremental_reindexes_a_repo_whose_parser_moved_on(tmp_path, logs):
 
 # --- lint (Phase 2.5 graph health) ----------------------------------------
 
-def _seed(store_dir, repo_path, head, edges, parser_version=None):
+def _seed(store_dir, repo_path, head, edges, parser_version=None, repo_id="app"):
     """Seed one repo's shard. ``parser_version`` defaults to this build's, so a
     seeded store is current in every sense unless a test says otherwise."""
     from contextlake.kb.parse import PARSER_VERSION
 
     store = SqliteStore(store_dir / "index.sqlite")
     check_schema(store)
-    store.upsert_repo(Repo(id="app", path=str(repo_path)))
-    nodes = [Node(id="a", repo="app", kind="function", name="foo")]
-    write_shard(store_dir, GraphShard(repo="app", head_commit=head, nodes=nodes, edges=edges,
+    store.upsert_repo(Repo(id=repo_id, path=str(repo_path)))
+    nodes = [Node(id="a", repo=repo_id, kind="function", name="foo")]
+    write_shard(store_dir, GraphShard(repo=repo_id, head_commit=head, nodes=nodes,
+                                      edges=edges,
                                       parser_version=parser_version or PARSER_VERSION))
-    reindex_shard(store, store_dir, "app")
-    mark_repo_indexed(store, "app", head)
+    reindex_shard(store, store_dir, repo_id)
+    mark_repo_indexed(store, repo_id, head)
     store.close()
 
 
@@ -357,3 +358,70 @@ def test_a_first_index_redacts_repo_ids_before_it_names_them(tmp_path, logs):
             store.close()
     finally:
         observability.reset_redactions()
+
+
+def test_lint_calls_a_commitless_repo_empty_not_stale(tmp_path, monkeypatch, logs):
+    """A repository with no commits is empty, not stale.
+
+    Observed on a real fleet: two repositories were reported stale on every run
+    with "HEAD moved or never finished -- re-run index", and re-indexing never
+    cleared them, because they have no commits at all. There is no HEAD to move,
+    so the staleness test matched permanently and the instruction it printed could
+    not work. lint now says the true thing and does not fail the run over it.
+    """
+    from contextlake.kb.commands import lint_result
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    repo = tmp_path / "blank"
+    repo.mkdir()
+    _git(["init", "-q", "-b", "main"], repo)   # initialised, never committed to
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    _seed(store_dir, repo, None, [], repo_id="blank")
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        res = lint_result(store, store_dir)
+    finally:
+        store.close()
+    assert res["stale"] == 0 and res["stale_repos"] == []
+    assert res["empty"] == 1 and res["empty_repos"] == ["blank"]
+    assert res["unreadable"] == 0
+
+    assert cmd_lint(Namespace(config=str(cfg))) == 0    # not a fault
+    assert any("empty: blank" in m for m in logs)
+    assert not any("stale: blank" in m for m in logs)
+
+
+def test_lint_calls_a_vanished_checkout_unreadable_not_stale(tmp_path, monkeypatch, logs):
+    """The other half of the same mistake: a repository whose checkout is gone
+    cannot be re-indexed either, and "re-run index" is equally useless advice.
+    Unlike an empty repo this IS a fault -- nothing can be cited from it -- so it
+    still fails the run, but it is named for what it is."""
+    from contextlake.kb.commands import lint_result
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    repo = tmp_path / "gone"
+    head = _git_repo(repo)
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+    _seed(store_dir, repo, head, [], repo_id="gone")
+    import shutil
+    shutil.rmtree(repo)
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        res = lint_result(store, store_dir)
+    finally:
+        store.close()
+    assert res["stale"] == 0 and res["empty"] == 0
+    assert res["unreadable"] == 1
+    assert res["unreadable_repos"][0]["repo"] == "gone"
+    assert res["unreadable_repos"][0]["reason"] == "missing"
+
+    assert cmd_lint(Namespace(config=str(cfg))) == 1
+    assert any("unreadable: gone" in m for m in logs)

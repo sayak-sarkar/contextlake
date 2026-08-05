@@ -196,3 +196,39 @@ def _git_head(path: Path) -> str | None:
         return out.stdout.strip() or None if out.returncode == 0 else None
     except (OSError, subprocess.SubprocessError):
         return None
+
+
+def _git_commit_state(path: Path | None) -> str:
+    """Why :func:`_git_head` could not name a commit: ``"missing"``,
+    ``"unreadable"``, ``"empty"``, or ``"ok"`` when it can.
+
+    ``_git_head`` collapses four genuinely different situations into one ``None``,
+    and a caller that reports all four the same way ends up telling the user
+    something that cannot be true. ``kb lint`` did exactly that: it called a
+    repository with no commits at all "stale, re-run index", on every run,
+    forever, when re-running index is the one thing that cannot help.
+
+    ``rev-list -n 1 --all`` is the emptiness probe: an initialised repository with
+    no objects answers with an empty string and exit 0, which no other state
+    produces. It is gated on :func:`is_own_gitdir` for the reason ``_git_head``
+    documents -- git walks up past a broken ``.git`` and would otherwise answer
+    about an ancestor repository's history.
+    """
+    from ..repo_identity import is_own_gitdir
+
+    if path is None:
+        return "unreadable"
+    if not path.exists():
+        return "missing"
+    if not is_own_gitdir(str(path)):
+        return "unreadable"
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(path), "rev-list", "-n", "1", "--all"],
+            capture_output=True, text=True, errors="replace", timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unreadable"
+    if out.returncode != 0:
+        return "unreadable"
+    return "ok" if out.stdout.strip() else "empty"

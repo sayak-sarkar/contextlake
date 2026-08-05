@@ -610,11 +610,12 @@ def test_owners_json_empty_argument_is_still_valid_json(tmp_path, capsys):
 
 def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
     """A fixture repo indexed from a graph-shard JSON (not a real git checkout)
-    has no HEAD to compare against, so lint always reports it stale -- pinning
-    that deterministic outcome here doubles as documenting the exit-code
-    contract: --json mirrors the human path (exit 1 on an unclean graph, not
-    just on a malformed request), so a CI script checking $? sees the same
-    signal a human running `contextlake lint` would."""
+    has no HEAD to compare against, and git cannot read a repository at the path
+    it recorded, so lint reports it unreadable -- pinning that deterministic
+    outcome here doubles as documenting the exit-code contract: --json mirrors the
+    human path (exit 1 on an unclean graph, not just on a malformed request), so a
+    CI script checking $? sees the same signal a human running `contextlake lint`
+    would."""
     import json
 
     cfg = _kb_config(tmp_path)
@@ -625,15 +626,20 @@ def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert set(payload) == {"repos", "checked", "stale", "dangling",
-                            "parser_stale", "stale_repos", "parser_stale_repos",
+                            "parser_stale", "empty", "unreadable", "stale_repos",
+                            "empty_repos", "unreadable_repos", "parser_stale_repos",
                             "dangling_sample"}
-    assert payload["stale"] == 1
-    # ...and parser-stale for the same reason it is HEAD-stale: the fixture is a
-    # hand-written shard carrying no parser_version, so no parser this build knows
-    # produced it. Both counts include it -- they answer different questions, and
-    # a repo can genuinely be both (this is what `doctor` reports for it too).
+    # Not "stale": there is no history here that moved on, so telling the reader
+    # to re-run index would be advice that cannot work.
+    assert payload["stale"] == 0 and payload["empty"] == 0
+    assert payload["unreadable"] == 1
+    # ...and parser-stale as well: the fixture is a hand-written shard carrying no
+    # parser_version, so no parser this build knows produced it. The two counts
+    # answer different questions and a repo can genuinely be both (this is what
+    # `doctor` reports for it too).
     assert payload["parser_stale"] == 1
-    assert payload["parser_stale_repos"] == payload["stale_repos"]
+    assert payload["parser_stale_repos"] == [
+        d["repo"] for d in payload["unreadable_repos"]]
 
 
 def test_impact_json_empty_argument_is_still_valid_json(tmp_path, capsys):

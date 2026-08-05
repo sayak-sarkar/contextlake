@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`kb lint` no longer calls a repository with no commits "stale".** Two repositories on a real fleet
+  were reported stale on every run with "HEAD moved or never finished, re-run index", and re-indexing
+  never cleared them, because they have no commits: there is no HEAD to move, so the staleness test
+  matched permanently and the instruction it printed could not work. A repository with no commits is
+  now reported as `empty`, and one whose path is gone (or that git will not answer for) as
+  `unreadable`, each with wording that says what it is. `empty` does not count against a clean lint,
+  since nothing a reader can do clears it; `unreadable` still does, because nothing can be cited from
+  it. `graph_health` and the dashboard health API carry the same new `empty`/`unreadable` fields, and
+  `stale` in all three is now genuine staleness only.
+
 ### Fixed
 - **A commit git cannot decode as UTF-8 no longer kills the command.** Every place contextlake read a
   child process's output decoded it strictly, so one byte git could not map raised

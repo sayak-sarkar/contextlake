@@ -708,9 +708,11 @@ def path(store, src: str, dst: str, *, max_hops: int = 6, repo: str | None = Non
 def health(store, store_dir) -> dict:
     """Knowledge-graph health: stale repos + dangling edges (reuses ``lint_result``).
 
-    ``parser_stale`` rides along so all three surfaces over ``lint_result`` (CLI,
-    MCP, this API) carry the same shape. The panel in dashboard.js does not render
-    it yet and grades "clean" on stale+dangling exactly as before.
+    ``parser_stale``, ``empty`` and ``unreadable`` ride along so all three surfaces
+    over ``lint_result`` (CLI, MCP, this API) carry the same shape. The panel in
+    dashboard.js does not render them yet and grades "clean" on stale+dangling
+    exactly as before -- which is now correct rather than merely unchanged, since
+    a repository with no commits no longer inflates ``stale``.
     """
     from ..commands import lint_result
 
@@ -721,7 +723,11 @@ def health(store, store_dir) -> dict:
         "stale": res["stale"],
         "dangling": res["dangling"],
         "parser_stale": res["parser_stale"],
+        "empty": res["empty"],
+        "unreadable": res["unreadable"],
         "stale_repos": [sanitize_label(x) for x in res["stale_repos"]],
+        "empty_repos": [sanitize_label(x) for x in res["empty_repos"]],
+        "unreadable_repos": [sanitize_label(d["repo"]) for d in res["unreadable_repos"]],
         "parser_stale_repos": [sanitize_label(x) for x in res["parser_stale_repos"]],
         "dangling_sample": [{
             "repo": sanitize_label(d["repo"]), "src": sanitize_label(d["src"]),

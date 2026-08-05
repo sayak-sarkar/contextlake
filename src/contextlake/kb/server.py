@@ -377,6 +377,15 @@ class GraphHealthOut(BaseModel):
     # be both, and each count answers its own question (see commands.lint_result).
     parser_stale: int = 0
     parser_stale_repos: list[str] = Field(default_factory=list)
+    # Carved out of `stale`, not overlapping it. A repository with no commits has
+    # no HEAD to compare against, so it matched the staleness test on every run
+    # and no amount of re-indexing could clear it; `unreadable` is a repository
+    # whose path is gone or that git will not answer for. Both used to be counted
+    # and described as "stale, re-run index", which was true of neither.
+    empty: int = 0
+    empty_repos: list[str] = Field(default_factory=list)
+    unreadable: int = 0
+    unreadable_repos: list[str] = Field(default_factory=list)
 
 
 class AskOut(BaseModel):
@@ -1014,6 +1023,10 @@ def build_server(
         Read ``indexed`` before the counts: a store that has never been indexed
         reports zero of everything, which is also what a perfectly healthy fleet
         reports. ``indexed=false`` says the zeros mean "nothing to check".
+
+        ``empty`` (the repository has no commits) and ``unreadable`` (its path is
+        gone, or git will not answer for it) are reported apart from ``stale``:
+        re-indexing clears a stale repository and cannot clear either of those.
         """
         from .commands import lint_result
         sp = getattr(store, "path", None)
@@ -1023,7 +1036,8 @@ def build_server(
             # knowable, and zeroing that alongside the checks turned "nothing was
             # checked" into "there is nothing here", which is a different answer.
             "repos": len(store.list_repos()), "checked": 0, "stale": 0, "dangling": 0,
-            "parser_stale": 0, "stale_repos": [], "parser_stale_repos": [],
+            "parser_stale": 0, "empty": 0, "unreadable": 0, "stale_repos": [],
+            "empty_repos": [], "unreadable_repos": [], "parser_stale_repos": [],
             "dangling_sample": []}
         return GraphHealthOut(
             # lint_result's own `repos` is len(store.list_repos()), so this is the
@@ -1031,7 +1045,10 @@ def build_server(
             indexed=res["repos"] > 0,
             repos=res["repos"], checked=res["checked"], stale=res["stale"],
             dangling=res["dangling"], parser_stale=res["parser_stale"],
+            empty=res["empty"], unreadable=res["unreadable"],
             stale_repos=[sanitize_label(x) for x in res["stale_repos"]],
+            empty_repos=[sanitize_label(x) for x in res["empty_repos"]],
+            unreadable_repos=[sanitize_label(d["repo"]) for d in res["unreadable_repos"]],
             parser_stale_repos=[sanitize_label(x) for x in res["parser_stale_repos"]],
             dangling_sample=[DanglingOut(
                 repo=sanitize_label(d["repo"]), src=sanitize_label(d["src"]),
