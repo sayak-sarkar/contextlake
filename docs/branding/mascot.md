@@ -67,7 +67,7 @@ points toward the content, the CTA, or the pebble, never off-page.**
 
 Pebble renders painterly everywhere (hero, OG/social, illustration, onboarding, the mark, app icons).
 The one exception is the 16-32px favicon tier, a simplified silhouette used purely because painterly
-shading doesn't survive that much downsampling — see BRANDING.md section 2.3. It is a technical
+shading doesn't survive that much downsampling, see BRANDING.md section 2.3. It is a technical
 simplification of the one character, not a second logo register.
 
 ## Do / don't

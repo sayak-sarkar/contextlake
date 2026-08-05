@@ -24,12 +24,17 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 # The prose surfaces. `docs/*.md` builds the site; README is also the PyPI project
 # page; QUICKSTART is linked from both.
-DOC_FILES = sorted(REPO.glob("docs/*.md")) + [
+DOC_FILES = sorted(REPO.glob("docs/**/*.md")) + [
     REPO / "README.md",
     REPO / "QUICKSTART.md",
     # Added after the guard was found not to cover it: contributor-facing prose
     # is still prose, and it had accumulated its own em-dashes unnoticed.
     REPO / "CONTRIBUTING.md",
+    # Same lesson a second time. A `docs/*.md` glob missed both the nested pages
+    # under docs/ and the root-level roadmap, and an audit found every "Shipped"
+    # bullet in ROADMAP.md carrying one. A rule that covers most of the prose
+    # gets re-broken in the part it does not cover.
+    REPO / "ROADMAP.md",
 ]
 
 
