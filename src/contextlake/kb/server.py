@@ -1050,6 +1050,54 @@ class BearerAuthMiddleware:
         return False
 
 
+class _QuietSseRejection:
+    """Stops a correctly-refused SSE request from being logged as a crash.
+
+    The SDK's ``connect_sse`` (``mcp/server/sse.py``) sends the Host/Origin
+    rejection response and *then* raises ``ValueError("Request validation
+    failed")``, so a request the server refused exactly as designed unwinds into
+    uvicorn's ASGI error handler and prints a ~50-line traceback. Measured: the
+    same three hostile-header probes produced 3 tracebacks and 165 stderr lines
+    over SSE against 0 and 10 over streamable HTTP, whose SDK path returns the
+    rejection instead of raising. The client-visible 403/421 is identical either
+    way; the cost is operator noise, and a log-based alert on "Exception in ASGI
+    application" firing on traffic that was handled perfectly.
+
+    Narrow on two axes deliberately. It swallows only once a response has
+    already started -- the client has its 403/421 and there is nothing left to
+    report -- and only for that exact message, so if the SDK ever reworks this
+    path the behaviour degrades to today's noisy traceback rather than to an
+    error silently hidden. Anything else, including a ``ValueError`` raised
+    before a response went out, propagates untouched.
+
+    SSE only: the streamable-HTTP path does not raise, so wrapping it would add
+    a guard with nothing to guard against.
+    """
+
+    _MESSAGE = "Request validation failed"
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def _send(message):
+            nonlocal started
+            if message.get("type") == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, _send)
+        except ValueError as exc:
+            if not (started and str(exc) == self._MESSAGE):
+                raise
+
+
 def build_http_app(
     store: Store, *, transport: str, host: str, token: str,
     embedder=None, vector_store=None, tool_concurrency: int | None = None,
@@ -1069,7 +1117,7 @@ def build_http_app(
     server = build_server(store, embedder=embedder, vector_store=vector_store)
     security = transport_security(host)
     if transport == "sse":
-        app = server.sse_app(transport_security=security, host=host)
+        app = _QuietSseRejection(server.sse_app(transport_security=security, host=host))
     else:
         app = server.streamable_http_app(
             stateless_http=True, json_response=True,

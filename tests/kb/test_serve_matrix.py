@@ -288,6 +288,79 @@ def test_sse_transport_is_gated_by_the_same_token(tmp_path):
         store.close()
 
 
+@pytest.mark.parametrize("header,value,expected", [
+    ("Origin", "http://evil.example.com", 403),
+    ("Host", "evil.example.com", 421),
+])
+def test_sse_rejects_a_hostile_header_without_raising_through_asgi(
+        tmp_path, header, value, expected):
+    """The SDK's SSE path sends the rejection and *then* raises
+    ``ValueError("Request validation failed")`` (mcp/server/sse.py), so a request
+    the server refused exactly as designed reached uvicorn's ASGI error handler
+    and logged a ~50-line traceback: measured at 3 tracebacks / 165 stderr lines
+    for three hostile-header probes, against 0 / 10 for the same probes over
+    streamable HTTP. TestClient re-raises server exceptions, so this asserts the
+    status the client already got AND that nothing escaped to be logged.
+    """
+    from starlette.testclient import TestClient
+
+    from contextlake.kb.server import build_http_app
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    try:
+        app = build_http_app(store, transport="sse", host="127.0.0.1", token=TOKEN)
+        with TestClient(app, base_url=LOOPBACK_BASE) as client:
+            r = client.get("/sse", headers={"Authorization": f"Bearer {TOKEN}",
+                                            header: value})
+        assert r.status_code == expected
+    finally:
+        store.close()
+
+
+def test_the_sse_rejection_guard_never_hides_a_genuine_error():
+    """Both halves of the narrowness, without a socket. The guard swallows only
+    the SDK's exact post-rejection ValueError, and only once a response has
+    already gone out -- so a real failure still surfaces, and if the SDK ever
+    reworks that path this degrades to the noisy traceback rather than to a
+    silently hidden error."""
+    from contextlake.kb.server import _QuietSseRejection
+
+    def _app(exc, *, respond):
+        async def _run(scope, receive, send):
+            if respond:
+                await send({"type": "http.response.start", "status": 403, "headers": []})
+                await send({"type": "http.response.body", "body": b""})
+            raise exc
+        return _run
+
+    scope = {"type": "http"}
+
+    async def _send(_message):
+        return None
+
+    async def _receive():
+        return {"type": "http.request"}
+
+    swallowed = ValueError("Request validation failed")
+    asyncio.run(_QuietSseRejection(_app(swallowed, respond=True))(scope, _receive, _send))
+
+    # same exception, but nothing was sent: the client got no answer, so the
+    # error is the only signal there is and it has to propagate
+    with pytest.raises(ValueError, match="Request validation failed"):
+        asyncio.run(_QuietSseRejection(_app(swallowed, respond=False))(scope, _receive, _send))
+
+    # a response went out, but this is not the SDK's rejection
+    other = ValueError("something else went wrong")
+    with pytest.raises(ValueError, match="something else"):
+        asyncio.run(_QuietSseRejection(_app(other, respond=True))(scope, _receive, _send))
+
+    # not a ValueError at all
+    with pytest.raises(RuntimeError):
+        asyncio.run(_QuietSseRejection(
+            _app(RuntimeError("boom"), respond=True))(scope, _receive, _send))
+
+
 def test_stdio_stays_a_bare_pipe_with_no_app_or_token(tmp_path, monkeypatch):
     """The default, most-used transport keeps its posture: no host/port, no
     middleware, no token, no ASGI app.
