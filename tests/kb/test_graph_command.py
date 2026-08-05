@@ -257,6 +257,77 @@ def test_repo_subgraph_max_nodes_eviction_does_not_leak_back_in_as_one_hop(store
     assert all(e.src in ids and e.dst in ids for e in edges)
 
 
+def _kind_biased_repo(store):
+    """A repo whose degree ranking starves a whole node kind: 40 ``function``
+    nodes wired into a hub-plus-ring (every one of them degree >= 2) and 12
+    ``table`` nodes paired off by a ``references`` edge (every one of them
+    degree exactly 1). Any cap below 40 therefore keeps only functions, which
+    is the shape measured on a real repo -- 0 of 412 tables and 0 of 402
+    Terraform resources survived, while 100% of the packages did."""
+    store.upsert_nodes("r", [_node(f"f{i:02d}") for i in range(40)]
+                       + [_node(f"t{i:02d}", kind="table") for i in range(12)])
+    edges = [_edge("f00", f"f{i:02d}") for i in range(1, 40)]
+    edges += [_edge(f"f{i:02d}", f"f{i + 1:02d}") for i in range(1, 39)]
+    # paired, not a star: a star's centre would out-rank the functions and the
+    # kind would no longer be starved, which is the condition under test.
+    edges += [_edge(f"t{i + 1:02d}", f"t{i:02d}", relation="references")
+              for i in range(0, 12, 2)]
+    store.upsert_edges("r", edges)
+
+
+def test_repo_subgraph_reserves_a_floor_for_a_kind_degree_ranking_starves(store):
+    # Plain `ORDER BY degree DESC` is kind-biased: a minority kind whose members
+    # are all low-degree (tables, Terraform resources, states) gets dropped
+    # wholesale, so a repo that plainly has a schema renders an empty ER diagram.
+    _kind_biased_repo(store)
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=20)
+    kinds = [n.kind for n in nodes]
+    assert len(nodes) == 20                    # the cap is still a bound
+    assert kinds.count("table") == 5           # a 20 // 2 reserve, split 2 ways
+    assert kinds.count("function") == 15
+
+
+def test_repo_subgraph_kind_floor_takes_only_the_shortfall(store):
+    # A kind already at or above its floor must displace nothing, so a view that
+    # starves nothing is identical to one computed with no floors at all. The two
+    # kinds are interleaved by node id here precisely so that plain degree ranking
+    # already represents both, which is the condition being pinned.
+    store.upsert_nodes("r", [_node(f"n{i:02d}", kind="function" if i % 2 == 0 else "class")
+                             for i in range(30)])
+    store.upsert_edges("r", [_edge("n00", f"n{i:02d}") for i in range(1, 30)])
+    nodes, _ = viz.repo_subgraph(store, "r", max_nodes=20)
+    assert len(nodes) == 20
+    # both kinds sit above their floor of 5 (10 each), so this is exactly what
+    # degree ranking chose alone: the hub, then the id-sorted degree-1 tail.
+    assert {n.id for n in nodes} == {f"n{i:02d}" for i in range(20)}
+
+
+def test_repo_subgraph_kind_floor_survives_the_one_hop_link_budget(store):
+    # The link budget evicts the node list's lowest-degree tail, and a floored
+    # node is by construction in that tail -- so an unguarded eviction there
+    # silently undoes the floor the selection just applied.
+    _kind_biased_repo(store)
+    store.upsert_nodes("other", [_node(f"x{i:02d}", repo="other") for i in range(10)])
+    store.upsert_edges("r", [_edge(f"f{i:02d}", f"x{i:02d}") for i in range(10)])
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=20)
+    assert len(nodes) == 20                                  # the cap still holds
+    assert sum(1 for n in nodes if n.kind == "table") == 5
+    assert sum(1 for n in nodes if n.repo == "other") == 4   # 20 // 5
+    ids = {n.id for n in nodes}
+    assert all(e.src in ids and e.dst in ids for e in edges)
+
+
+def test_repo_er_diagram_is_not_empty_when_the_repo_has_tables(store):
+    # The end the finding names: the ER diagram of a repo with a real schema came
+    # out as a comment saying there was nothing to draw, because the selection had
+    # already dropped every table before the renderer ever saw the payload.
+    _kind_biased_repo(store)
+    nodes, edges = viz.repo_subgraph(store, "r", max_nodes=20)
+    text = viz.to_er_diagram(viz.to_payload(nodes, edges, {"mode": "repo"}))
+    assert "no table/view definitions in this view" not in text
+    assert text.count("||--o{") >= 2
+
+
 def _dense_hub(store, leaves=20):
     """A synthetic repo where a small node cap still yields MORE edges than
     nodes -- a hub with fan-out to every leaf, plus every leaf calling every

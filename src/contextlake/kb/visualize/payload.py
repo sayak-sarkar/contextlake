@@ -173,6 +173,72 @@ def extract_subgraph(store: Store, seed_ids, *, hops: int = 2, max_nodes: int = 
 # minority slice rather than the unlimited additive allowance they used to have.
 _EXTERNAL_BUDGET_SHARE = 5
 
+# Share of ``max_nodes`` the per-kind floors below may claim between them. Only a
+# kind's actual shortfall is ever taken -- a kind already at or above its floor
+# displaces nothing -- so a view that starves no kind is identical to one computed
+# with no floors at all. It exists because ranking purely by degree turns out to be
+# kind-biased in practice, not just kind-neutral-with-noise: a repo with 412 table
+# and 402 Terraform resource nodes rendered 0 of each into its default view while
+# keeping 100% of its package nodes, which is also why its ER and deployment
+# diagrams came out empty on a repo that plainly has both a schema and infra.
+_KIND_FLOOR_SHARE = 2
+
+
+def _kind_floors(available: dict[str, int], budget: int) -> dict[str, int]:
+    """Max-min fair split of ``budget`` across the node kinds present in a view.
+
+    Progressive filling: every kind is offered an equal slice, a kind holding
+    fewer nodes than its slice takes only what it has and hands the remainder
+    back, and that repeats until nothing more can be given away. So a rare kind
+    (4 ``state`` nodes) cannot sit on budget the others could use, and a common
+    one cannot claim the whole reserve. Kinds are walked in sorted order, so the
+    remainder of an uneven division always lands in the same place and the
+    resulting selection stays byte-reproducible across runs.
+    """
+    floors: dict[str, int] = {}
+    pending = sorted(available)
+    remaining = budget
+    while pending:
+        share = remaining // len(pending)
+        if share <= 0:
+            break
+        small = [k for k in pending if available[k] <= share]
+        if not small:
+            for kind in pending:
+                floors[kind] = share
+                remaining -= share
+            break
+        for kind in small:
+            floors[kind] = available[kind]
+            remaining -= available[kind]
+            pending.remove(kind)
+    return floors
+
+
+def _evict_lowest_degree_tail(items: list, need: int, kind_of, floors: dict[str, int]):
+    """Drop ``need`` items from the end of a degree-ordered ``items`` list,
+    stepping over any whose kind is already down to its floor.
+
+    Returns ``(kept, evicted)``; ``evicted`` can be short of ``need`` when the
+    floors hold the line, which the caller has to absorb elsewhere rather than
+    exceed its own budget.
+    """
+    live: dict[str, int] = {}
+    for item in items:
+        kind = kind_of(item)
+        live[kind] = live.get(kind, 0) + 1
+    kept = list(items)
+    evicted = 0
+    i = len(kept) - 1
+    while evicted < need and i >= 0:
+        kind = kind_of(kept[i])
+        if live[kind] > floors.get(kind, 0):
+            del kept[i]
+            live[kind] -= 1
+            evicted += 1
+        i -= 1
+    return kept, evicted
+
 
 def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
                   max_edges: int | None = None, max_fanout: int | None = None,
@@ -211,6 +277,19 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     exempting them would reopen the exact ``maxEdges`` render failure
     ``max_edges`` exists to prevent.
 
+    **Per-kind floors.** Ranking purely by degree is not kind-neutral: measured on
+    a real repo, the default view kept 100% of its ``package`` nodes and **0 of
+    412** ``table``, **0 of 402** ``resource`` and **0 of 4** ``state`` nodes, so
+    a repo that plainly has a schema and infrastructure rendered an empty
+    ``erdiagram`` and ``deploymentdiagram`` while the console reported hundreds of
+    nodes. Whole kinds are now guaranteed a floor -- a max-min fair split of
+    ``max_nodes // _KIND_FLOOR_SHARE`` across the kinds present (see
+    :func:`_kind_floors`) -- and only a kind's actual *shortfall* is ever taken,
+    from the selection's lowest-degree tail, so a view that starves no kind is
+    unchanged and the total still never exceeds ``max_nodes``. The floors are
+    honoured at both eviction points: the selection itself, and the one-hop link
+    budget below, where a floored node sits in exactly the tail that gives way.
+
     ``max_fanout`` (opt-in, ``None`` = uncapped here) caps how many outbound edges
     are taken from any ONE node, the anti-hub bound ``extract_subgraph`` applies to
     a seeded view. It was accepted on this path and ignored: 0, 1 and 100000 all
@@ -247,23 +326,64 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
         params.append(clean)
         params.append(escaped + "/%")
     deg_params = [repo_id, repo_id]
-    rows = store.conn.execute(
-        f"""
-        SELECT n.node_id FROM nodes n
+    ranked = f"""
+        SELECT n.node_id, n.kind, COALESCE(SUM(deg.c), 0) AS d FROM nodes n
         LEFT JOIN (
             SELECT src AS node_id, COUNT(*) AS c FROM edges WHERE repo_id=? GROUP BY src
             UNION ALL
             SELECT dst AS node_id, COUNT(*) AS c FROM edges WHERE repo_id=? GROUP BY dst
         ) deg ON deg.node_id = n.node_id
-        WHERE {where}
-        GROUP BY n.node_id
-        ORDER BY COALESCE(SUM(deg.c), 0) DESC, n.node_id ASC
+        WHERE {where}{{kind}}
+        GROUP BY n.node_id, n.kind
+        ORDER BY d DESC, n.node_id ASC
         LIMIT ?
-        """,
-        (*deg_params, *params, max_nodes + 1),
-    ).fetchall()
+    """
+    rows = store.conn.execute(
+        ranked.format(kind=""), (*deg_params, *params, max_nodes + 1)).fetchall()
     node_truncated = len(rows) > max_nodes
-    ids = [r[0] for r in rows[:max_nodes]]
+
+    floors_cache: dict[str, int] | None = None
+
+    def floors() -> dict[str, int]:
+        """This view's per-kind floors -- computed at most once, and only if a
+        caller actually has to drop something (the common untruncated view pays
+        for neither the extra query nor the arithmetic)."""
+        nonlocal floors_cache
+        if floors_cache is None:
+            budget = max_nodes // _KIND_FLOOR_SHARE if max_nodes > 0 else 0
+            available = dict(store.conn.execute(
+                f"SELECT kind, COUNT(*) FROM nodes n WHERE {where} GROUP BY kind",
+                tuple(params)).fetchall()) if budget else {}
+            # A single-kind view has nothing to starve, and a floor there would
+            # only ever re-derive the ranking the query already produced.
+            floors_cache = _kind_floors(available, budget) if len(available) > 1 else {}
+        return floors_cache
+
+    selected = rows[:max_nodes]
+    if node_truncated and floors():
+        held = {kind: 0 for kind in floors()}
+        for _, kind, _d in selected:
+            if kind in held:
+                held[kind] += 1
+        short = {k: floors()[k] - held[k] for k in sorted(held) if held[k] < floors()[k]}
+        if short:
+            have = {nid for nid, _k, _d in selected}
+            # A kind's members that made the global cut are exactly its
+            # highest-degree ones, so its top `floor` rows minus what is already
+            # selected is precisely the shortfall, in the same order.
+            extra = [r for kind in short
+                     for r in store.conn.execute(
+                         ranked.format(kind=" AND n.kind=?"),
+                         (*deg_params, *params, kind, floors()[kind])).fetchall()
+                     if r[0] not in have]
+            selected, evicted = _evict_lowest_degree_tail(
+                selected, len(extra), lambda r: r[1], floors())
+            # Re-ranked, not appended: the view stays "the top max_nodes by
+            # degree, subject to the floors" rather than "...plus a low-degree
+            # annex", which keeps the edge walk below and the link budget's
+            # tail eviction both meaning what they say.
+            selected = sorted(selected + extra[:evicted], key=lambda r: (-r[2], r[0]))
+    ids = [nid for nid, _k, _d in selected]
     seen = set(ids)
     nodes = [n for nid in ids if (n := store.get_node(nid)) is not None]
     edges: list[Edge] = []
@@ -317,7 +437,8 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
     # is re-randomised per process, so an unchanged store exported twice produced
     # the same node SET in a different sequence and therefore different bytes --
     # defeating diffing, content-hashing and caching of an export.
-    ext_ids = sorted(external_ids)
+    all_ext = sorted(external_ids)
+    ext_ids = all_ext
     dropped_ext = 0
     if len(nodes) + len(ext_ids) > max_nodes:
         # The budget is the whole file's, not the selection query's. Externals fill
@@ -330,11 +451,20 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
         leftover = max_nodes - len(nodes)
         keep_ext = min(len(ext_ids),
                        leftover or max_nodes // _EXTERNAL_BUDGET_SHARE)
-        dropped_ext = len(ext_ids) - keep_ext
-        ext_ids = ext_ids[:keep_ext]
         if len(nodes) > max_nodes - keep_ext:
-            nodes = nodes[:max_nodes - keep_ext]
-            node_truncated = True   # in-repo nodes really were left out
+            # The tail gives way, but never past a kind's floor: a floored node
+            # is by construction at the low-degree end, so an unguarded slice
+            # here would quietly undo the floor the selection just applied.
+            need = len(nodes) - (max_nodes - keep_ext)
+            nodes, evicted = _evict_lowest_degree_tail(
+                nodes, need, lambda n: n.kind, floors())
+            if evicted < need:
+                # The floors held; the link slice yields the difference instead,
+                # so the total is still exactly max_nodes either way.
+                keep_ext -= need - evicted
+            node_truncated = node_truncated or evicted > 0  # in-repo nodes left out
+        dropped_ext = len(all_ext) - keep_ext
+        ext_ids = all_ext[:keep_ext]
     nodes.extend(ext_cache[nid] for nid in ext_ids)  # already resolved, non-None
     kept = {n.id for n in nodes}
     # Induced: an edge into a node the budget dropped must not survive as a dangling
