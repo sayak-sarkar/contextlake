@@ -1852,8 +1852,8 @@ def verify_structure(work_dir, config, gitlab_group):
     # was never asked about. Only positively-attributed foreign repos drop out (see
     # `belongs_to_other_group`), so a stray clone with no readable origin is still
     # reported exactly as before.
-    local_repos, foreign = in_group_repos(
-        work_dir, filtered_local_repos(work_dir, config), gitlab_group)
+    all_local = filtered_local_repos(work_dir, config)
+    local_repos, foreign = in_group_repos(work_dir, all_local, gitlab_group)
     valid, missing, extra, invalid = [], [], [], []
 
     for path in set(local_repos) | set(projects.keys()):
@@ -1862,7 +1862,12 @@ def verify_structure(work_dir, config, gitlab_group):
             local_path
         )
 
-    nested = find_nested_repos(local_repos)
+    # The UNSCOPED list, deliberately. Nesting is a property of the disk layout,
+    # not of which group is being synced: a clone from another group sitting
+    # inside this group's working tree is precisely the corruption this check
+    # exists to catch, and scoping it here would make `verify --group A` blind to
+    # exactly the case that most needs reporting.
+    nested = find_nested_repos(all_local)
 
     for line in _verify_summary(len(valid), len(missing), len(extra), len(invalid),
                                 len(nested), foreign):

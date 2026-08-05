@@ -493,3 +493,21 @@ def test_a_clone_with_no_readable_origin_is_still_reported(tmp_path, base_config
 
     assert re.search(r"Extra\s+1\b", gls_logs.text)
     assert "mystery" in gls_logs.text
+
+
+def test_nested_detection_still_sees_a_clone_from_another_group(tmp_path, base_config,
+                                                                monkeypatch, gls_logs):
+    """Group scoping must not reach the nested-repo check. A clone from another
+    group sitting inside this group's working tree is exactly the corruption that
+    check exists to catch, so narrowing its input would blind `verify` to the case
+    that most needs reporting."""
+    monkeypatch.setattr(core, "load_gitlab_projects",
+                        lambda c, g, **kw: dict(_ALPHA_PROJECTS))
+    _clone_from(tmp_path, "team/api", "https://example.test/alpha/team/api.git")
+    _clone_from(tmp_path, "team/api/vendored",
+                "git@example.test:beta/platform/beacon.git")
+    core.verify_structure(str(tmp_path), base_config, "alpha")
+
+    assert re.search(r"Nested\s+1\b", gls_logs.text)
+    assert "team/api/vendored" in gls_logs.text
+    assert re.search(r"Extra\s+0\b", gls_logs.text)     # still not an Extra repo
