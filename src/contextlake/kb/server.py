@@ -356,6 +356,12 @@ class DanglingOut(BaseModel):
 
 
 class GraphHealthOut(BaseModel):
+    # Whether this store holds any indexed repo at all. Zero stale, zero dangling
+    # and zero parser-stale is the exact output of a perfectly healthy fleet, and
+    # it was also the output of a store that has never been indexed: the counts
+    # were not wrong, they were unqualified. False means every count below is zero
+    # because there is nothing to check, not because everything checked out.
+    indexed: bool = True
     repos: int
     checked: int                     # edges checked
     stale: int                       # repos whose HEAD moved past the index
@@ -1002,6 +1008,10 @@ def build_server(
         repos whose graph an older parser built (re-index to refresh), and dangling
         edges (pointing at a missing node). The dashboard's health panel; offline
         (reads local git HEADs).
+
+        Read ``indexed`` before the counts: a store that has never been indexed
+        reports zero of everything, which is also what a perfectly healthy fleet
+        reports. ``indexed=false`` says the zeros mean "nothing to check".
         """
         from .commands import lint_result
         sp = getattr(store, "path", None)
@@ -1009,6 +1019,7 @@ def build_server(
             "repos": 0, "checked": 0, "stale": 0, "dangling": 0, "parser_stale": 0,
             "stale_repos": [], "parser_stale_repos": [], "dangling_sample": []}
         return GraphHealthOut(
+            indexed=store.stats().repos > 0,
             repos=res["repos"], checked=res["checked"], stale=res["stale"],
             dangling=res["dangling"], parser_stale=res["parser_stale"],
             stale_repos=[sanitize_label(x) for x in res["stale_repos"]],

@@ -1282,3 +1282,24 @@ def test_shortest_path_distinguishes_a_typo_from_a_disconnection(tmp_path):
         assert same["found"] is True and same["hops"] == 0
     finally:
         s.close()
+
+
+def test_graph_health_says_when_there_is_nothing_to_be_healthy_about(tmp_path):
+    """Zero stale, zero dangling, zero parser-stale is the exact output of a
+    perfectly healthy fleet, and it was also the output of a store that has never
+    been indexed. The counts were not wrong, they were unqualified: an operator
+    asking "is the knowledge base healthy?" was told yes about one that does not
+    exist."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    try:
+        empty = _unwrap(asyncio.run(
+            _call(build_server(s), "graph_health", {})).structured_content)
+        assert empty["indexed"] is False
+        assert empty["repos"] == 0 and empty["stale"] == 0 and empty["dangling"] == 0
+
+        s.upsert_repo(Repo(id="team/api", path=str(tmp_path)))
+        real = _unwrap(asyncio.run(
+            _call(build_server(s), "graph_health", {})).structured_content)
+        assert real["indexed"] is True
+    finally:
+        s.close()

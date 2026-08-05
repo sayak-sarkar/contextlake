@@ -115,6 +115,18 @@ def cmd_serve(args) -> int:
             log(style.dim(f"semantic_search / hybrid_search not registered ({why}); "
                           "graph search and every other tool work without them"))
 
+        # An empty store starts, banners, and serves all twenty tools; every one
+        # of them then answers confidently with nothing, and `graph_health`
+        # reports zero stale and zero dangling -- the exact output of a perfectly
+        # healthy fleet. Same reasoning as the semantic-search line above: a tier
+        # that is missing rather than broken has to say so out loud, and "the
+        # graph is empty" is the more consequential of the two. Deliberately
+        # after use_stderr(): on stdio, stdout is the JSON-RPC stream.
+        if store.stats().repos == 0:
+            log(style.warn("This store holds no indexed repository, so every tool will "
+                           "answer and every answer will be empty."))
+            log(style.dim("  Index one first: contextlake kb index"))
+
         log(f"Serving knowledge graph over MCP ({transport})")
         # stdio has no bind address to report; the network transports do, and a
         # blocking server that never says where it listens reads as broken, not

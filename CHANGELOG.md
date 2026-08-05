@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   question appears anywhere in the index, and every hit carries the number it was ranked by, so a
   caller can judge the ranking instead of trusting it.
 
+- **`kb serve` says when the store it is serving has never been indexed, and `graph_health` reports
+  `indexed`.** An empty store started, printed its banner and served every tool, with no line
+  anywhere saying the graph was empty; `graph_health` then answered zero stale, zero dangling and
+  zero parser-stale, which is the exact output of a perfectly healthy fleet. The counts were not
+  wrong, they were unqualified. Startup now warns and names the command to fix it, the same way an
+  unconfigured embeddings tier already does, and `indexed=false` says the zeros mean "nothing to
+  check" rather than "nothing to fix".
 - **`shortest_path` returns an envelope instead of a bare list.** It was the only tool whose output
   shape could not express a miss, so a typo'd node id and a genuine "these two are unconnected"
   were the same empty list -- and the docstring's "empty if none" described only the second. It now

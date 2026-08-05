@@ -598,3 +598,40 @@ def test_embedder_runtime_state_leaves_remote_providers_alone(tmp_path):
 
     assert embedder_runtime_state(OllamaEmbedder(model="nomic-embed-text")) == (True, "")
     assert embedder_runtime_state(None)[0] is False
+
+
+def test_serve_says_out_loud_that_the_store_has_never_been_indexed(
+    tmp_path, gls_logs, monkeypatch,
+):
+    """An empty store started, printed its banner, and served all twenty tools
+    with no line anywhere saying the graph was empty -- so every confident,
+    correctly-shaped, entirely empty answer read as a fact about the fleet.
+    The unconfigured-embeddings tier already gets exactly this treatment."""
+    cfg, _ = _kb_config(tmp_path, embeddings_enabled=False)
+    monkeypatch.setattr("contextlake.kb.server.run_server", lambda *a, **k: None)
+
+    assert commands_mod.cmd_serve(_serve_args(cfg, "stdio")) == 0
+
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "no indexed repository" in msgs
+    assert "contextlake kb index" in msgs
+
+
+def test_serve_stays_quiet_about_emptiness_once_a_repo_is_indexed(
+    tmp_path, gls_logs, monkeypatch,
+):
+    """The warning is about an empty store, not a decoration on every start."""
+    from contextlake.kb.model import Repo
+    from contextlake.kb.store.sqlite_store import SqliteStore
+
+    cfg, store_dir = _kb_config(tmp_path, embeddings_enabled=False)
+    store_dir.mkdir(parents=True, exist_ok=True)
+    s = SqliteStore(store_dir / "index.sqlite")
+    s.upsert_repo(Repo(id="team/api", path=str(tmp_path)))
+    s.close()
+    monkeypatch.setattr("contextlake.kb.server.run_server", lambda *a, **k: None)
+
+    assert commands_mod.cmd_serve(_serve_args(cfg, "stdio")) == 0
+
+    msgs = "\n".join(r.getMessage() for r in gls_logs.records)
+    assert "no indexed repository" not in msgs
