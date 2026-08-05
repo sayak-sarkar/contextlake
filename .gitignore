@@ -20,6 +20,10 @@ venv/
 # Test / lint caches
 .pytest_cache/
 .ruff_cache/
+# hypothesis caches its downloaded unicode tables and its failing-example
+# database here. Untracked but unignored meant one `git add -A` away from
+# committing ~1 MB of generated data.
+.hypothesis/
 .coverage
 htmlcov/
 coverage.xml
