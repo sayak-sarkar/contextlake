@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=80045cb">
-<link rel="stylesheet" href="tokens.css?v=80045cb">
-<link rel="stylesheet" href="docs.css?v=80045cb">
-<link rel="stylesheet" href="cmdk.css?v=80045cb">
+<link rel="stylesheet" href="fonts.css?v=c82b7b1">
+<link rel="stylesheet" href="tokens.css?v=c82b7b1">
+<link rel="stylesheet" href="docs.css?v=c82b7b1">
+<link rel="stylesheet" href="cmdk.css?v=c82b7b1">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -254,6 +254,17 @@ since a hosted MCP endpoint can carry a token in its path or query.</p>
 <p>Failures the <em>server</em> rejected rather than failed on, an unknown tool, a bad token, are reported as
 themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise <code>timeout</code> on the
 source if the server is merely slow.</p>
+<h2 id="when-one-repository-is-unreadable">When one repository is unreadable<a class="anchor" href="#when-one-repository-is-unreadable" title="Link to this section">#</a></h2>
+<p>A repository that fails outright costs that repository, not the run. <code>connect</code> names it, skips it, and
+carries on with the rest:</p>
+<div class="highlight"><pre><span></span><code>  api-gateway: &#39;utf-8&#39; codec can&#39;t decode byte 0x96 in position 99486: invalid start byte
+⚠ Connect complete: 143 external link(s) stored
+⚠ 1 of 20 repo(s) failed and were skipped; the rest were enriched. Re-run to retry
+  them, or narrow with `contextlake kb connect &lt;repo-id&gt;`.
+</code></pre></div>
+<p>The exit code is non-zero when any repository was skipped, the same verdict <code>kb index</code> gives a
+workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
+for, so the run should not read as clean.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="index-code-graph">Index the code graph</a></li>
@@ -269,6 +280,7 @@ source if the server is merely slow.</p>
 <li><a href="#query-driven-enrichment">Query-driven enrichment</a></li>
 <li><a href="#aggregating-documents-rag">Aggregating documents (RAG)</a></li>
 <li><a href="#when-a-source-stops-answering">When a source stops answering</a></li>
+<li><a href="#when-one-repository-is-unreadable">When one repository is unreadable</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -298,6 +310,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=80045cb"></script>
+<script defer src="cmdk.js?v=c82b7b1"></script>
 </body>
 </html>

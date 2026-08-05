@@ -1378,10 +1378,16 @@
   "health": {
     "repos": 7,
     "checked": 36,
-    "stale": 7,
+    "stale": 0,
     "dangling": 0,
     "parser_stale": 7,
-    "stale_repos": [
+    "empty": 0,
+    "shard": 0,
+    "unreadable": 7,
+    "stale_repos": [],
+    "empty_repos": [],
+    "shard_repos": [],
+    "unreadable_repos": [
       "acme/auth-service",
       "acme/catalog-api",
       "acme/notifications",

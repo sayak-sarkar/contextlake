@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=80045cb">
-<link rel="stylesheet" href="tokens.css?v=80045cb">
-<link rel="stylesheet" href="docs.css?v=80045cb">
-<link rel="stylesheet" href="cmdk.css?v=80045cb">
+<link rel="stylesheet" href="fonts.css?v=c82b7b1">
+<link rel="stylesheet" href="tokens.css?v=c82b7b1">
+<link rel="stylesheet" href="docs.css?v=c82b7b1">
+<link rel="stylesheet" href="cmdk.css?v=c82b7b1">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -103,6 +103,20 @@ graph-propagation ranking:</p>
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
 </p>
 
+<h3 id="when-the-query-has-no-anchor">When the query has no anchor<a class="anchor" href="#when-the-query-has-no-anchor" title="Link to this section">#</a></h3>
+<p>A vector index has no concept of "no match": it returns its k nearest however far away they are, and every
+one of them is a real node with a real file and line, so an answer about nothing you asked reads as cited
+and checkable. <code>--retriever semantic|hybrid</code> therefore refuses a query when <strong>not one</strong> of its content
+terms appears anywhere in the index, and names the terms it could not find:</p>
+<div class="highlight"><pre><span></span><code>No matches for &#39;SamlAssertionValidator&#39;: nothing indexed matches &#39;SamlAssertionValidator&#39;.
+  No results are shown rather than the nearest k, which would all be real nodes and none of
+  them about this query. Index the repo that should answer it, or retry with a term the graph knows.
+</code></pre></div>
+<p>One indexed term anywhere in the query is enough to let the hits through, so ordinary multi-word questions
+are unaffected. The exit code stays 0: "nothing in here is about that" is a valid answer. The
+<code>semantic_search</code> and <code>hybrid_search</code> MCP tools apply the same rule over the same store, and return an
+empty list rather than prose. With <code>[embeddings]</code> off the query degrades to keyword search instead, which
+has its own notion of "no match" and needs no floor.</p>
 <h2 id="measuring-retrieval-quality">Measuring retrieval quality<a class="anchor" href="#measuring-retrieval-quality" title="Link to this section">#</a></h2>
 <p><code>contextlake kb eval</code> keeps retrieval falsifiable. Point it at a <strong>golden-query JSON file</strong>, each entry pairs
 a query with the node ids it should return:</p>
@@ -130,7 +144,10 @@ whether the numbers move.</p>
 <ul>
 <li><a href="#backends-and-tuning">Backends and tuning</a></li>
 <li><a href="#what-gets-embedded">What gets embedded</a></li>
-<li><a href="#which-model">Which model?</a></li>
+<li><a href="#which-model">Which model?</a><ul>
+<li><a href="#when-the-query-has-no-anchor">When the query has no anchor</a></li>
+</ul>
+</li>
 <li><a href="#measuring-retrieval-quality">Measuring retrieval quality</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
@@ -161,6 +178,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=80045cb"></script>
+<script defer src="cmdk.js?v=c82b7b1"></script>
 </body>
 </html>

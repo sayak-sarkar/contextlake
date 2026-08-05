@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=80045cb">
-<link rel="stylesheet" href="tokens.css?v=80045cb">
-<link rel="stylesheet" href="docs.css?v=80045cb">
-<link rel="stylesheet" href="cmdk.css?v=80045cb">
+<link rel="stylesheet" href="fonts.css?v=c82b7b1">
+<link rel="stylesheet" href="tokens.css?v=c82b7b1">
+<link rel="stylesheet" href="docs.css?v=c82b7b1">
+<link rel="stylesheet" href="cmdk.css?v=c82b7b1">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -61,6 +61,16 @@ index, so a scheduled (cron) run stays cheap; pass <code>--force</code> to rebui
 N]</code> to keep re-indexing in a loop (the same <code>--watch</code> / <code>--interval</code> flags also drive <code>connect</code> and
 <code>embed</code>). Every indexed snapshot is kept, so <code>query "&lt;text&gt;" --repo R --as-of &lt;commit&gt;</code> does
 <strong>time-travel</strong>, it searches repo <code>R</code> as it was at a previously-indexed commit.</p>
+<h2 id="re-indexing-one-repository-by-its-id">Re-indexing one repository by its id<a class="anchor" href="#re-indexing-one-repository-by-its-id" title="Link to this section">#</a></h2>
+<p>A repository's <strong>id</strong> is derived from its <code>origin</code> remote (so it survives being moved or re-cloned) and has
+no relation to where the clone sits on disk. That is the id <code>kb lint</code> and the dashboard report, so
+<code>--source</code> accepts it directly:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--source<span class="w"> </span>example.com/team/widgets<span class="w">   </span><span class="c1"># the id, exactly as reported</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--source<span class="w"> </span>widgets<span class="w">                    </span><span class="c1"># the tail, when only one repo ends that way</span>
+</code></pre></div>
+<p>The repository is re-indexed under the id it was already filed as, never a second time under its directory
+name. If the id is unknown, the error names near-miss ids from the store; if it is known but its recorded
+checkout is gone, the error names the path it was indexed from.</p>
 <h2 id="parallelism-and-noise-pruning">Parallelism and noise-pruning<a class="anchor" href="#parallelism-and-noise-pruning" title="Link to this section">#</a></h2>
 <p>Repositories are parsed across <strong>worker processes</strong> (CPU-bound work) while the SQLite store is written
 serially from the parent. The <code>spawn</code> start method is used on every platform, so behaviour is identical on
@@ -87,8 +97,19 @@ installed -- <code>contextlake kb index</code> rebuilds those on its next run, s
 <code>contextlake kb lint</code> audits the graph itself, reporting <strong>stale repos</strong> (HEAD moved since they were
 indexed), <strong>dangling edges</strong> (an edge whose endpoint node is missing), and the same <strong>older-parser</strong> repos
 doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
-lint that means dangling edges or HEAD-stale repos; the older-parser count is reported but deliberately kept
-out of its exit code, so upgrading to a build with a new parser can't turn a green CI gate red on its own.</p>
+lint that means dangling edges, HEAD-stale repos, or repos it cannot read; the older-parser count is reported
+but deliberately kept out of its exit code, so upgrading to a build with a new parser can't turn a green CI
+gate red on its own.</p>
+<p>Two states are reported apart from stale, because re-indexing clears a stale repository and cannot clear
+either of them:</p>
+<ul>
+<li><strong>empty</strong> -- the repository has no commits at all, so there is no HEAD and nothing to index. Reported,
+  and not counted against the exit code: there is nothing for a reader to do about it.</li>
+<li><strong>shard-imported</strong> -- indexed from a graph-shard JSON rather than a checkout, so it has no history to
+  be behind. Also advisory, for the same reason.</li>
+<li><strong>unreadable</strong> -- the recorded path no longer exists, or git will not answer for a repository there.
+  Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.</li>
+</ul>
 <h2 id="what-the-graph-captures">What the graph captures<a class="anchor" href="#what-the-graph-captures" title="Link to this section">#</a></h2>
 <p>Indexing builds a typed graph of your source. tree-sitter extracts files, classes, functions/methods,
 interfaces, imports, an intra-repo <strong>call graph</strong>, and an <strong>inheritance graph</strong> (<code>inherits</code> edges for
@@ -285,6 +306,7 @@ getting a silent best-guess.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#incremental-and-time-travel">Incremental and time-travel</a></li>
+<li><a href="#re-indexing-one-repository-by-its-id">Re-indexing one repository by its id</a></li>
 <li><a href="#parallelism-and-noise-pruning">Parallelism and noise-pruning</a></li>
 <li><a href="#health-and-maintenance">Health and maintenance</a></li>
 <li><a href="#what-the-graph-captures">What the graph captures</a><ul>
@@ -327,6 +349,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=80045cb"></script>
+<script defer src="cmdk.js?v=c82b7b1"></script>
 </body>
 </html>

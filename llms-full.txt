@@ -1193,8 +1193,18 @@ contextlake mirror status
   `sync`) will fetch it.
 - **Extra** = a repo is in your workspace but not on the remote, usually one that was
   renamed, archived, or removed there; `contextlake` leaves it alone for you to review.
+- **Other groups** = clones whose `origin` remote says they came from a different group. Only shown
+  when there are any. See below.
 
 A fully synced workspace shows `0` for both.
+
+**Workspaces holding more than one group.** Local paths are relative to the group, so a clone of
+`alpha/team/api` and one of `beta/team/api` both land at `team/api` and the path cannot say which
+group a repo came from. `status`, `verify`, and the branch-switch pass therefore read each clone's
+`origin` remote and leave repos from other groups out of scope: they are counted under **Other
+groups** rather than reported as **Extra**, and the branch pass does not try to switch them. Only a
+repo whose origin positively names a different group drops out. A clone with no origin, or one whose
+config cannot be read, is still reported as before, so a genuinely stray checkout never goes quiet.
 
 ### `mirror fetch`: fetch every project you can see
 
@@ -1616,6 +1626,21 @@ N]` to keep re-indexing in a loop (the same `--watch` / `--interval` flags also 
 `embed`). Every indexed snapshot is kept, so `query "<text>" --repo R --as-of <commit>` does
 **time-travel**, it searches repo `R` as it was at a previously-indexed commit.
 
+## Re-indexing one repository by its id
+
+A repository's **id** is derived from its `origin` remote (so it survives being moved or re-cloned) and has
+no relation to where the clone sits on disk. That is the id `kb lint` and the dashboard report, so
+`--source` accepts it directly:
+
+```bash
+contextlake kb index --source example.com/team/widgets   # the id, exactly as reported
+contextlake kb index --source widgets                    # the tail, when only one repo ends that way
+```
+
+The repository is re-indexed under the id it was already filed as, never a second time under its directory
+name. If the id is unknown, the error names near-miss ids from the store; if it is known but its recorded
+checkout is gone, the error names the path it was indexed from.
+
 ## Parallelism and noise-pruning
 
 Repositories are parsed across **worker processes** (CPU-bound work) while the SQLite store is written
@@ -1647,8 +1672,19 @@ installed -- `contextlake kb index` rebuilds those on its next run, so they pick
 `contextlake kb lint` audits the graph itself, reporting **stale repos** (HEAD moved since they were
 indexed), **dangling edges** (an edge whose endpoint node is missing), and the same **older-parser** repos
 doctor reports, so the two commands never disagree about one store. Both exit non-zero on problems -- for
-lint that means dangling edges or HEAD-stale repos; the older-parser count is reported but deliberately kept
-out of its exit code, so upgrading to a build with a new parser can't turn a green CI gate red on its own.
+lint that means dangling edges, HEAD-stale repos, or repos it cannot read; the older-parser count is reported
+but deliberately kept out of its exit code, so upgrading to a build with a new parser can't turn a green CI
+gate red on its own.
+
+Two states are reported apart from stale, because re-indexing clears a stale repository and cannot clear
+either of them:
+
+- **empty** -- the repository has no commits at all, so there is no HEAD and nothing to index. Reported,
+  and not counted against the exit code: there is nothing for a reader to do about it.
+- **shard-imported** -- indexed from a graph-shard JSON rather than a checkout, so it has no history to
+  be behind. Also advisory, for the same reason.
+- **unreadable** -- the recorded path no longer exists, or git will not answer for a repository there.
+  Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.
 
 ## What the graph captures
 
@@ -2089,6 +2125,22 @@ Failures the *server* rejected rather than failed on, an unknown tool, a bad tok
 themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
 source if the server is merely slow.
 
+## When one repository is unreadable
+
+A repository that fails outright costs that repository, not the run. `connect` names it, skips it, and
+carries on with the rest:
+
+```
+  api-gateway: 'utf-8' codec can't decode byte 0x96 in position 99486: invalid start byte
+⚠ Connect complete: 143 external link(s) stored
+⚠ 1 of 20 repo(s) failed and were skipped; the rest were enriched. Re-run to retry
+  them, or narrow with `contextlake kb connect <repo-id>`.
+```
+
+The exit code is non-zero when any repository was skipped, the same verdict `kb index` gives a
+workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
+for, so the run should not read as clean.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)
@@ -2165,6 +2217,25 @@ graph-propagation ranking:
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
 </p>
+
+### When the query has no anchor
+
+A vector index has no concept of "no match": it returns its k nearest however far away they are, and every
+one of them is a real node with a real file and line, so an answer about nothing you asked reads as cited
+and checkable. `--retriever semantic|hybrid` therefore refuses a query when **not one** of its content
+terms appears anywhere in the index, and names the terms it could not find:
+
+```
+No matches for 'SamlAssertionValidator': nothing indexed matches 'SamlAssertionValidator'.
+  No results are shown rather than the nearest k, which would all be real nodes and none of
+  them about this query. Index the repo that should answer it, or retry with a term the graph knows.
+```
+
+One indexed term anywhere in the query is enough to let the hits through, so ordinary multi-word questions
+are unaffected. The exit code stays 0: "nothing in here is about that" is a valid answer. The
+`semantic_search` and `hybrid_search` MCP tools apply the same rule over the same store, and return an
+empty list rather than prose. With `[embeddings]` off the query degrades to keyword search instead, which
+has its own notion of "no match" and needs no floor.
 
 ## Measuring retrieval quality
 
@@ -5096,6 +5167,68 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [6.1.0] - 2026-08-06
+
+### Added
+- **`kb index --source` accepts an indexed repository id, not just a path.** `kb lint` reports a
+  repository by its logical id, which is derived from the `origin` remote and has no relation to where
+  the clone sits on disk, so the id it printed could not be acted on: every path spelling of it
+  answered "No such file or directory", and the reader was left holding an identifier with nothing to
+  do with it. `--source` now resolves an id (or a unique tail of one, so `widgets` works for
+  `example.com/team/widgets`) to that repository's recorded checkout and re-indexes it under the id it
+  was already filed as. When the id is unknown the error names near-miss ids from the store; when it
+  is known but its checkout is gone, the error names the path it was indexed from.
+
+### Changed
+- **A workspace holding several groups no longer reads as full of anomalies.** With group A already
+  cloned, `mirror sync --group B` reported every group-A repo as `Extra` and sent it through the
+  branch-switch pass, which could only answer `Not in GitLab list`. Local paths are relative to the
+  group, so `A/team/api` and `B/team/api` both land at `team/api` and the path cannot say which group
+  a clone came from; `status`, `verify` and the branch pass now read each clone's `origin` remote and
+  count out-of-group repos under a new `Other groups` row instead. The scoping is one-sided: only a
+  repo whose origin positively names a different group drops out, so a clone with no origin, or one
+  whose config cannot be read, is still reported exactly as before. Nested-repo detection is
+  deliberately left unscoped: nesting is a property of the disk layout rather than of the group being
+  synced, and a clone from another group sitting inside this group's working tree is precisely the
+  corruption that check exists to report.
+- **`kb lint` no longer calls a repository with no commits "stale".** Two repositories on a real fleet
+  were reported stale on every run with "HEAD moved or never finished, re-run index", and re-indexing
+  never cleared them, because they have no commits: there is no HEAD to move, so the staleness test
+  matched permanently and the instruction it printed could not work. A repository with no commits is
+  now reported as `empty`, one imported from a graph-shard JSON as `shard`, and one whose path is gone
+  (or that git will not answer for) as `unreadable`, each with wording that says what it is. `empty`
+  and `shard` do not count against a clean lint, since nothing a reader can do clears them;
+  `unreadable` still does, because nothing can be cited from it. `graph_health` and the dashboard
+  health API carry the same new fields, `stale` in all three is now genuine staleness only, and the
+  dashboard's health panel gained an `Unreadable` tile and list so that fault is still visible there.
+
+### Fixed
+- **`kb query --retriever semantic|hybrid` applies the same relevance floor the MCP tools do.**
+  `semantic_search` and `hybrid_search` have refused a query with no anchor in the index since 6.0.0,
+  but the CLI called the retriever factories directly and skipped the check, so the same store
+  answered the same question two ways: an empty list over MCP, and k confident unrelated hits on the
+  terminal. The predicate now lives in one module both surfaces use. The CLI does not merely go
+  quiet: it names the terms the index has never seen, so the refusal is checkable and retryable. The
+  exit code stays 0, and `--json` still prints a bare (empty) array with the reason on stderr. The
+  floor applies where `[embeddings]` is enabled, which is exactly the condition under which the MCP
+  server exposes `semantic_search`/`hybrid_search` at all; without embeddings the query degrades to
+  keyword search, which has its own notion of "no match".
+- **A commit git cannot decode as UTF-8 no longer kills the command.** Every place contextlake read a
+  child process's output decoded it strictly, so one byte git could not map raised
+  `UnicodeDecodeError` out of `subprocess.run` itself, before any of the surrounding error handling
+  could run. `kb connect` over a 20-repository fleet died on
+  `'utf-8' codec can't decode byte 0x96 in position 99486` and stored nothing. Git output is bytes:
+  commit subjects, author names and file paths carry whatever encoding their author's machine used,
+  and 0x96 is the cp1252 en-dash that older Windows tooling writes constantly. All 26 captured
+  subprocess calls now decode with `errors="replace"`, and a guard test fails the build if a new one
+  does not.
+- **One bad repository no longer aborts `kb connect` for the whole fleet.** Only the connector calls
+  were guarded; reading a repo's branches and commit subjects, blaming its files, and writing its
+  partition were not, so a single unreadable repository stopped the run before the other nineteen
+  were reached. Each repository is now contained: it is named, skipped, and the rest are enriched.
+  A run with any skipped repository exits non-zero, matching what `kb index` already does for a repo
+  that failed to parse.
 
 ## [6.0.0] - 2026-08-05
 

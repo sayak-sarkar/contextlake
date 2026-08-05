@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=80045cb">
-<link rel="stylesheet" href="tokens.css?v=80045cb">
-<link rel="stylesheet" href="docs.css?v=80045cb">
-<link rel="stylesheet" href="cmdk.css?v=80045cb">
+<link rel="stylesheet" href="fonts.css?v=c82b7b1">
+<link rel="stylesheet" href="tokens.css?v=c82b7b1">
+<link rel="stylesheet" href="docs.css?v=c82b7b1">
+<link rel="stylesheet" href="cmdk.css?v=c82b7b1">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -121,8 +121,17 @@ available as its own command:</p>
   <code>sync</code>) will fetch it.</li>
 <li><strong>Extra</strong> = a repo is in your workspace but not on the remote, usually one that was
   renamed, archived, or removed there; <code>contextlake</code> leaves it alone for you to review.</li>
+<li><strong>Other groups</strong> = clones whose <code>origin</code> remote says they came from a different group. Only shown
+  when there are any. See below.</li>
 </ul>
 <p>A fully synced workspace shows <code>0</code> for both.</p>
+<p><strong>Workspaces holding more than one group.</strong> Local paths are relative to the group, so a clone of
+<code>alpha/team/api</code> and one of <code>beta/team/api</code> both land at <code>team/api</code> and the path cannot say which
+group a repo came from. <code>status</code>, <code>verify</code>, and the branch-switch pass therefore read each clone's
+<code>origin</code> remote and leave repos from other groups out of scope: they are counted under <strong>Other
+groups</strong> rather than reported as <strong>Extra</strong>, and the branch pass does not try to switch them. Only a
+repo whose origin positively names a different group drops out. A clone with no origin, or one whose
+config cannot be read, is still reported as before, so a genuinely stray checkout never goes quiet.</p>
 <h3 id="mirror-fetch-fetch-every-project-you-can-see"><code>mirror fetch</code>: fetch every project you can see<a class="anchor" href="#mirror-fetch-fetch-every-project-you-can-see" title="Link to this section">#</a></h3>
 <p>Retrieves all repositories from the configured group / org / workspace / owner and caches them
 locally.</p>
@@ -403,6 +412,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=80045cb"></script>
+<script defer src="cmdk.js?v=c82b7b1"></script>
 </body>
 </html>
