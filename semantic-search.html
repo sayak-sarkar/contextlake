@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Semantic search · contextlake docs">
 <meta name="twitter:description" content="Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Semantic search", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/semantic-search", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-03"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Semantic search", "item": "https://sayak.in/contextlake/semantic-search"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Semantic search", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/semantic-search", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Semantic search", "item": "https://sayak.in/contextlake/semantic-search"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=18ad908">
-<link rel="stylesheet" href="tokens.css?v=18ad908">
-<link rel="stylesheet" href="docs.css?v=18ad908">
-<link rel="stylesheet" href="cmdk.css?v=18ad908">
+<link rel="stylesheet" href="fonts.css?v=80045cb">
+<link rel="stylesheet" href="tokens.css?v=80045cb">
+<link rel="stylesheet" href="docs.css?v=80045cb">
+<link rel="stylesheet" href="cmdk.css?v=80045cb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,21 +43,26 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Get started</h2><nav aria-label="Get started"><a href="docs">Overview</a><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="usage">Mirror repositories</a><a href="knowledge-layer">Knowledge layer</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search" class="active">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="model-providers">Model providers</a><a href="bootstrap">Bootstrap and keep fresh</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a><a href="ownership">Ownership and SMEs</a></nav><h2>Understand it</h2><nav aria-label="Understand it"><a href="internals">Architecture</a><a href="storage">Storage</a><a href="comparison">How contextlake compares</a><a href="benchmarks">Benchmarks</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference">Command reference</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a><a href="changelog">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search" class="active">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Semantic search</span></nav>
     <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Semantic search</h1><p class="doc-sub">Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <p>Semantic search (optional) adds natural-language retrieval on top of the graph, so you can find code by
-what it does even when you don't know its name. Enable <code>[embeddings]</code> in the config (local-first, vectors
-come from an Ollama model by default, so code never leaves the machine), run <code>contextlake kb embed</code> to
-vectorize the indexed nodes into a local store, and <code>serve</code> then exposes two retrieval tools:</p>
+what it does even when you don't know its name. Set <code>enabled = true</code> under <code>[embeddings]</code> in the config,
+run <code>contextlake kb embed</code> to vectorize the indexed nodes into a local store, and <code>serve</code> then exposes two
+retrieval tools:</p>
 <ul>
 <li><strong><code>semantic_search</code></strong> for queries where the exact symbol name is unknown.</li>
 <li><strong><code>hybrid_search</code></strong>, which seeds Personalized PageRank with the embedding hits and propagates relevance
   across the graph (HippoRAG-style) to surface structurally related nodes, a function's callers, a
   package's dependents, that a pure semantic match would miss.</li>
 </ul>
+<p><strong>Where the vectors come from.</strong> <code>provider</code> defaults to <code>auto</code>, which uses a local Ollama when the daemon
+is reachable <em>and</em> already has the configured model pulled, and otherwise the built-in CPU embedder (the
+<code>kb-local</code> extra). If neither is available it embeds nothing rather than reaching for a network service.
+Both of those run on your machine, so on the defaults your code never leaves it; name <code>provider =
+"openai"</code> explicitly if you want a hosted model instead.</p>
 <h2 id="backends-and-tuning">Backends and tuning<a class="anchor" href="#backends-and-tuning" title="Link to this section">#</a></h2>
 <p>The vector store uses an exact pure-Python cosine scan by default; install the optional ANN backend with
 <code>pip install "contextlake[kb-vec]"</code> (sqlite-vec) for larger workspaces. Three <code>[embeddings]</code> keys tune it:</p>
@@ -72,17 +77,21 @@ vectorize the indexed nodes into a local store, and <code>serve</code> then expo
 <p>The code <strong>definitions</strong> (classes, functions, methods, interfaces, structs, enums) and HTTP endpoints,
 each with its name, qualified name, file path, and captured <strong>signature and docstring</strong>, so a
 natural-language query like <em>"refund a payment to the original card"</em> finds the right function even when
-its name says nothing of the sort. (Measured on the golden-query harness, adding signature + docstring
-doubled MRR and took hit-rate to 100% on natural-language queries.) File, module, and package nodes are
+its name says nothing of the sort. A name alone is thin signal for a natural-language query; the signature
+and the docstring are where the words the query actually uses tend to live. File, module, and package nodes are
 deliberately not embedded: a path or a shared package name is low semantic signal, and skipping them keeps
 results clean and avoids re-embedding cross-repo shared nodes once per referencing repo.</p>
 <h2 id="which-model">Which model?<a class="anchor" href="#which-model" title="Link to this section">#</a></h2>
-<p>With that content embedded, the tiny static models punch far above their weight: on a 24-query
-natural-language bake-off, the default <code>potion-base-8M</code> (~30MB, ~1ms per query) outscored the ONNX
-<code>bge-small</code> transformer, and <code>minishlab/potion-base-32M</code> (~120MB, same engine and extra) scored best of
-all, MRR 0.95 with a perfect hit-rate, at a tenth of the ONNX query latency. If you want the quality bump,
-it's one config line: <code>model = "minishlab/potion-base-32M"</code> under <code>[embeddings]</code> (on a fresh vector store,
-the identity guard refuses to mix models).</p>
+<p>The default is <code>minishlab/potion-base-8M</code>, a <strong>static</strong> embedding model: it looks each token up in a
+table instead of running a transformer forward pass, which is why it is small enough to ship as a CPU
+default and fast enough that query latency is not the thing you notice. <code>minishlab/potion-base-32M</code> is
+the larger sibling of the same family, one config line away: <code>model = "minishlab/potion-base-32M"</code> under
+<code>[embeddings]</code> (on a fresh vector store, the identity guard refuses to mix models). The <code>kb-fastembed</code>
+extra plus <code>engine = "fastembed"</code> swaps the static model for an ONNX transformer (<code>bge-small</code>) instead.</p>
+<p>Which one is better <strong>on your code</strong> is a question with a local answer, and
+<a href="#measuring-retrieval-quality"><code>kb eval</code></a> is how to get it: build a golden set from queries your team
+actually types, embed with one model, score, re-embed with the other, score again. No published ranking
+of these models against somebody else's corpus is worth as much as that run.</p>
 <p>Like <code>index</code>, <code>embed</code> is <strong>incremental</strong>: it re-embeds only repos whose indexed HEAD moved since they were
 last embedded, so a scheduled refresh over a large fleet stays cheap. Pass <code>--force</code> to re-embed
 everything. When an upgrade changes the embedded text format itself, <code>embed</code> detects the stale store and
@@ -152,6 +161,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=18ad908"></script>
+<script defer src="cmdk.js?v=80045cb"></script>
 </body>
 </html>

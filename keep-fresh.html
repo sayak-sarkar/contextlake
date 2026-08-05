@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<title>Bootstrap and keep it fresh · contextlake docs</title>
+<meta name="description" content="Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://sayak.in/contextlake/keep-fresh">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Bootstrap and keep it fresh · contextlake docs">
+<meta property="og:description" content="Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.">
+<meta property="og:url" content="https://sayak.in/contextlake/keep-fresh">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Bootstrap and keep it fresh · contextlake docs">
+<meta name="twitter:description" content="Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Bootstrap and keep it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keep-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Bootstrap and keep it fresh", "item": "https://sayak.in/contextlake/keep-fresh"}]}]}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css?v=80045cb">
+<link rel="stylesheet" href="tokens.css?v=80045cb">
+<link rel="stylesheet" href="docs.css?v=80045cb">
+<link rel="stylesheet" href="cmdk.css?v=80045cb">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
+  </button>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh" class="active">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Operate it</span><span aria-hidden="true">/</span><span aria-current="page">Bootstrap and keep it fresh</span></nav>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Operate it</div><h1>Bootstrap and keep it fresh</h1><p class="doc-sub">Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p><code>bootstrap</code> runs the whole pipeline in one command, and it is safe to re-run, so the same command
+that sets a workspace up is the one that keeps it current. This page covers that command, how to
+schedule it, how to re-index the moment you commit, and how to tell afterwards whether an
+unattended run went well.</p>
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
+<ul>
+<li>A configured workspace: <code>contextlake init</code>, or the two config files in place. See
+  <a href="configuration">Configuration</a>.</li>
+<li>The <code>[kb]</code> extra installed, for everything past the mirror stage.
+  See <a href="install">Install and upgrade</a>.</li>
+</ul>
+<h2 id="one-command-for-the-whole-pipeline">One command for the whole pipeline<a class="anchor" href="#one-command-for-the-whole-pipeline" title="Link to this section">#</a></h2>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then enrich, then wiki, then steer." width="760">
+</p>
+
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
+</code></pre></div>
+<p><code>--llm builtin</code> powers the wiki stage with a zero-setup CPU model, so this single command builds the
+whole knowledge layer (graph, vectors, and wiki) for every repo. Use <code>--llm ollama</code>, <code>openai</code>,
+<code>anthropic</code>, <code>cli</code> or <code>auto</code> for better prose; the pre-command form
+<code>contextlake --llm builtin bootstrap</code> also works. Without any <code>--llm</code>, and with <code>[llm]</code> disabled in
+<code>kb.toml</code>, the wiki stage no-ops and everything else still runs.</p>
+<p>The stages run in this order, and each can be skipped except the two marked otherwise:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Stage</th>
+<th>Skip with</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Mirror repositories (fetch, clone, update, branches, verify)</td>
+<td><code>--no-sync</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Audit repositories for health and age</td>
+<td><code>--no-audit</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Index the code graph</td>
+<td>not skippable</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Connect knowledge sources</td>
+<td><code>--no-connect</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Build semantic vectors</td>
+<td><code>--no-embed</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Enrich from connected sources</td>
+<td><code>--no-enrich</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Generate the wiki</td>
+<td><code>--no-wiki</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td>Write editor steering (<code>.mcp.json</code>, <code>AGENTS.md</code>, and so on)</td>
+<td>not skippable</td>
+</tr>
+</tbody>
+</table>
+<p>A failing knowledge-layer stage (3 to 8) warns, records the failure, and lets the rest of the run
+continue. <strong>Indexing is the exception</strong>: the graph is what every later stage reads, so if <code>index</code>
+fails the run stops there and exits <code>1</code> rather than building vectors and prose on top of nothing. An
+unreachable remote in stage 1 is also recorded and continued past, so the knowledge layer still gets
+built from the clones already on disk.</p>
+<p>Stage 2 is the one gap in that promise: the audit stage is not wrapped in the same guard, so an error
+there, which in practice means failing to write the report file, ends the run before indexing starts.</p>
+<p>Both config files are read from their default locations (<code>~/.contextlake.ini</code> and
+<code>~/.contextlake/kb.toml</code>, or the nearest ancestor directory's <code>.contextlake.ini</code> /
+<code>.contextlake.kb.toml</code> if one exists, see
+<a href="configuration#directory-scoped-config">Directory-scoped config</a>); pass <code>--config</code> to point
+elsewhere. An unrecognized <code>[kb]</code> key or table is warned about and ignored, so a typo like <code>store</code>
+for <code>store_dir</code> is surfaced rather than silently dropping the run into the wrong store. An explicit
+<code>--config</code> path that does not exist is a hard error rather than a silent fall-through to the next
+file in the precedence chain, which could point at a completely different store than the one you
+meant.</p>
+<h3 id="composing-the-stages-yourself">Composing the stages yourself<a class="anchor" href="#composing-the-stages-yourself" title="Link to this section">#</a></h3>
+<p>Every stage is standalone, idempotent, and composable:</p>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Command(s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blank to fully enriched workspace</td>
+<td><code>contextlake init</code> then <code>contextlake bootstrap</code></td>
+</tr>
+<tr>
+<td>Add a connector, re-enrich the wiki</td>
+<td><code>contextlake kb source add jira ...</code> then <code>contextlake kb enrich</code> then <code>contextlake kb wiki</code></td>
+</tr>
+<tr>
+<td>Single repo, enriched</td>
+<td><code>contextlake kb index .</code> then <code>contextlake kb source add ...</code> then <code>contextlake kb enrich</code> then <code>contextlake kb wiki</code> then <code>contextlake kb serve</code></td>
+</tr>
+<tr>
+<td>Refresh enrichment only</td>
+<td><code>contextlake kb enrich</code> then <code>contextlake kb wiki --force</code></td>
+</tr>
+<tr>
+<td>Manage or inspect sources</td>
+<td><code>contextlake kb source list</code> or <code>contextlake kb source test &lt;name&gt;</code> or <code>contextlake doctor</code></td>
+</tr>
+<tr>
+<td>Disable a noisy source</td>
+<td><code>contextlake kb source disable &lt;name&gt;</code> then re-run <code>contextlake kb enrich</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="keep-it-fresh-on-a-schedule">Keep it fresh on a schedule<a class="anchor" href="#keep-it-fresh-on-a-schedule" title="Link to this section">#</a></h2>
+<p><code>bootstrap</code> is incremental and branch-safe: it re-mirrors, re-indexes only the repos whose HEAD
+moved (or whose shard was built by an older parser), refreshes the knowledge layer, and rewrites the
+steering, without touching an in-progress working tree.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>contextlake installs no scheduler of its own. There is no built-in cron entry and no systemd unit
+written for you; the one thing it does install is the git hook in the next section. Everything
+below is you wiring it to your own scheduler, which is why the exit codes and the metrics file
+matter.</p>
+</div>
+<h3 id="before-your-first-cron-entry">Before your first cron entry<a class="anchor" href="#before-your-first-cron-entry" title="Link to this section">#</a></h3>
+<ol>
+<li><strong>Have a config file.</strong> Cron does not read the directory you happened to be in when you tested.</li>
+</ol>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>init<span class="w">                       </span><span class="c1"># writes the file for you, prompting for each value</span>
+<span class="c1"># or copy the shipped template and fill it in by hand:</span>
+cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>~/.contextlake.ini
+</code></pre></div>
+<ol start="2">
+<li><strong>Use absolute paths.</strong> <code>which contextlake</code> and use what it prints; cron's <code>PATH</code> is not yours.</li>
+<li><strong>Run the exact command in a shell first.</strong> Most "cron is broken" reports are the command
+   failing the same way interactively.</li>
+</ol>
+<h3 id="cron-entries-that-do-something-useful">Cron entries that do something useful<a class="anchor" href="#cron-entries-that-do-something-useful" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code># a full sync every day at 02:00
+0 2 * * * cd /home/user/work &amp;&amp; /usr/bin/contextlake mirror sync &gt;&gt; /tmp/contextlake.log 2&gt;&amp;1
+
+# hourly updates, no branch switching (for a CI box that should stay put)
+0 * * * * cd /home/user/work &amp;&amp; /usr/bin/contextlake mirror update &gt;&gt; /tmp/contextlake.log 2&gt;&amp;1
+
+# the whole pipeline, every 30 minutes
+*/30 * * * * /usr/bin/contextlake bootstrap &gt;&gt; ~/.contextlake/refresh.log 2&gt;&amp;1
+</code></pre></div>
+<p>Or use the shipped systemd units as a starting point:
+<a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.service" target="_blank" rel="noopener"><code>examples/contextlake.service</code><span class="ext-arrow" aria-hidden="true">↗</span></a> and
+<a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.timer" target="_blank" rel="noopener"><code>examples/contextlake.timer</code><span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
+<h3 id="more-than-one-workspace">More than one workspace<a class="anchor" href="#more-than-one-workspace" title="Link to this section">#</a></h3>
+<p>Give each workspace its own config file and name it explicitly:</p>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_primary.ini<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
+<span class="s">[contextlake]</span>
+<span class="s">work_dir = ~/work</span>
+<span class="s">gitlab_group = example-group-primary</span>
+<span class="s">EOF</span>
+
+cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_secondary.ini<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
+<span class="s">[contextlake]</span>
+<span class="s">work_dir = ~/Projects/Secondary</span>
+<span class="s">gitlab_group = example-group-secondary</span>
+<span class="s">EOF</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>0 2   * * * cd /home/user/work &amp;&amp; /usr/bin/contextlake --config ~/.contextlake_primary.ini mirror sync   &gt;&gt; /tmp/primary.log 2&gt;&amp;1
+0 */6 * * * cd /home/user/work &amp;&amp; /usr/bin/contextlake --config ~/.contextlake_secondary.ini mirror update &gt;&gt; /tmp/secondary.log 2&gt;&amp;1
+</code></pre></div>
+<h2 id="re-index-on-commit-git-hook">Re-index on commit (git hook)<a class="anchor" href="#re-index-on-commit-git-hook" title="Link to this section">#</a></h2>
+<p>For freshness between scheduled runs, install a <code>post-commit</code> hook that re-indexes a repo the moment
+you commit to it:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>install<span class="w">                     </span><span class="c1"># the repo in the current directory</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>install<span class="w"> </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># every git repo under a mirror</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>status<span class="w">  </span>--workspace<span class="w"> </span>~/src<span class="w">   </span><span class="c1"># which repos are wired</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>hook<span class="w"> </span>uninstall<span class="w">                   </span><span class="c1"># remove it (any pre-existing hook is kept)</span>
+</code></pre></div>
+<p>The hook runs <code>contextlake kb index &lt;repo&gt;</code> detached, so the commit returns immediately, and it
+re-uses the repo's stored id so it updates the same graph node rather than creating a duplicate. It
+is written inside a delimited managed block, so a hook you already had is appended to rather than
+overwritten, and only that block is refreshed on re-runs.</p>
+<p>Mirror-wide work (fetching new clones, pruning) still belongs to <code>bootstrap</code> on a schedule. The
+hook keeps your <em>local edits</em> current in between.</p>
+<p>If two contextlake processes ever target one store at once (a scheduled <code>bootstrap</code> and a
+hook-triggered <code>index</code>, say), the second takes an advisory single-writer lock
+(<code>&lt;store_dir&gt;/.contextlake.lock</code>) and refuses rather than interleaving SQLite writes, naming the
+process that holds it. A lock left by a crashed run is reclaimed automatically; override it (rarely
+correct) with <code>CONTEXTLAKE_ALLOW_CONCURRENT=1</code>.</p>
+<h2 id="watching-an-unattended-run">Watching an unattended run<a class="anchor" href="#watching-an-unattended-run" title="Link to this section">#</a></h2>
+<p>An exit code tells you <em>that</em> something broke. These flags tell you <em>what</em>, after the fact.</p>
+<div class="highlight"><pre><span></span><code><span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--log-format<span class="w"> </span>json<span class="w"> </span>--log-file<span class="w"> </span>/var/log/contextlake/run.log<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--metrics-file<span class="w"> </span>/var/lib/node_exporter/textfile/contextlake.prom
+</code></pre></div>
+<ul>
+<li><strong><code>--log-format json</code></strong> emits one JSON object per line, each stamped with a <code>run_id</code> (pin your own
+  with <code>CONTEXTLAKE_RUN_ID</code>), the <code>command</code>, and, on per-repo lines, <code>repo</code>, <code>status</code>,
+  <code>duration_ms</code>, and <code>error_type</code> on failures.</li>
+<li><strong><code>--metrics-file</code></strong> writes Prometheus textfile-collector output: run duration, exit code, repo
+  counts by outcome, graph size, and a last-success timestamp that survives a failing run. Point
+  node_exporter's <code>--collector.textfile.directory</code> at that directory.</li>
+<li><strong><code>--log-file</code></strong> keeps a full-detail copy and is redacted by default (workspace paths, <code>$HOME</code>,
+  the group name, a self-hosted forge hostname, repository names), so the copy you attach to a bug
+  report needs no manual scrubbing. <code>--redact</code> extends that to the console; <code>--no-redact</code> turns it
+  off entirely.</li>
+<li><strong><code>--access-log</code></strong> turns on request logging for the local HTTP servers (<code>kb dashboard</code>,
+  <code>kb graph --serve</code>, <code>kb serve --transport http|sse</code>), which are otherwise silent.</li>
+</ul>
+<p>For the exit codes to alert on, the JSON shape, and the metric names, see
+<a href="console-output">Reading the console output</a>.</p>
+<h3 id="log-files-and-rotation">Log files and rotation<a class="anchor" href="#log-files-and-rotation" title="Link to this section">#</a></h3>
+<p><code>--log-file</code> rotates itself: it uses a rotating handler capped at 5 MB with 3 backups
+(<code>setup_logging</code> in <code>src/contextlake/logging_setup.py</code>), so that file cannot grow without bound and
+needs no logrotate entry.</p>
+<p>A shell redirect (<code>&gt;&gt; /tmp/contextlake.log</code>) is a different thing and does grow without bound.
+Rotate that one yourself:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/logrotate.d/contextlake<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
+<span class="s">/tmp/contextlake.log {</span>
+<span class="s">    daily</span>
+<span class="s">    rotate 7</span>
+<span class="s">    compress</span>
+<span class="s">    delaycompress</span>
+<span class="s">    missingok</span>
+<span class="s">    notifempty</span>
+<span class="s">    create 0644 user user</span>
+<span class="s">}</span>
+<span class="s">EOF</span>
+</code></pre></div>
+<h3 id="alerting-on-a-failed-run">Alerting on a failed run<a class="anchor" href="#alerting-on-a-failed-run" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>&gt;<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
+<span class="s">#!/bin/bash</span>
+<span class="s">cd /home/user/work</span>
+<span class="s">contextlake mirror sync &gt;&gt; /tmp/contextlake.log 2&gt;&amp;1</span>
+<span class="s">EXIT_CODE=$?</span>
+
+<span class="s">if [ $EXIT_CODE -ne 0 ]; then</span>
+<span class="s">    echo &quot;contextlake sync failed with exit code $EXIT_CODE&quot; | mail -s &quot;contextlake sync failure&quot; user@example.com</span>
+<span class="s">fi</span>
+<span class="s">EOF</span>
+chmod<span class="w"> </span>+x<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh
+</code></pre></div>
+<p>If you would rather alert on staleness than on failure, use the metrics file:
+<code>contextlake_last_success_timestamp_seconds</code> is carried forward by a failing run rather than erased,
+which is what makes a "no successful sync for six hours" alert possible.</p>
+<h2 id="verification">Verification<a class="anchor" href="#verification" title="Link to this section">#</a></h2>
+<p>After a scheduled run has fired at least once:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor
+tail<span class="w"> </span>-n<span class="w"> </span><span class="m">5</span><span class="w"> </span>/var/log/contextlake/run.log
+</code></pre></div>
+<p><code>doctor</code> should report a reachable store with non-zero repo, node and edge counts, and no repos
+flagged as built by an older parser. The log's last lines should carry the same <code>run_id</code> across the
+pipeline's stages, which is how you confirm you are reading one run and not two interleaved ones.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="index-code-graph">Index the code graph</a>, the stage everything else builds on</li>
+<li><a href="generate-wiki">Generate the wiki</a>, the stage that needs a model</li>
+<li><a href="console-output">Reading the console output</a>, exit codes, JSON logs, and metric names</li>
+<li><a href="troubleshooting">Troubleshooting</a>, when a scheduled run stops working</li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="console-output"><span>Reading the console output</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="troubleshooting"><span>Troubleshooting</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#one-command-for-the-whole-pipeline">One command for the whole pipeline</a><ul>
+<li><a href="#composing-the-stages-yourself">Composing the stages yourself</a></li>
+</ul>
+</li>
+<li><a href="#keep-it-fresh-on-a-schedule">Keep it fresh on a schedule</a><ul>
+<li><a href="#before-your-first-cron-entry">Before your first cron entry</a></li>
+<li><a href="#cron-entries-that-do-something-useful">Cron entries that do something useful</a></li>
+<li><a href="#more-than-one-workspace">More than one workspace</a></li>
+</ul>
+</li>
+<li><a href="#re-index-on-commit-git-hook">Re-index on commit (git hook)</a></li>
+<li><a href="#watching-an-unattended-run">Watching an unattended run</a><ul>
+<li><a href="#log-files-and-rotation">Log files and rotation</a></li>
+<li><a href="#alerting-on-a-failed-run">Alerting on a failed run</a></li>
+</ul>
+</li>
+<li><a href="#verification">Verification</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+  </nav>
+</div></footer>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
+<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>
+<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
+<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
+s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
+<script defer src="cmdk.js?v=80045cb"></script>
+</body>
+</html>

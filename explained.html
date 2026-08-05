@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<title>contextlake, explained · contextlake docs</title>
+<meta name="description" content="What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://sayak.in/contextlake/explained">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="contextlake, explained · contextlake docs">
+<meta property="og:description" content="What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.">
+<meta property="og:url" content="https://sayak.in/contextlake/explained">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="contextlake, explained · contextlake docs">
+<meta name="twitter:description" content="What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "contextlake, explained", "description": "What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.", "url": "https://sayak.in/contextlake/explained", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "contextlake, explained", "item": "https://sayak.in/contextlake/explained"}]}]}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css?v=80045cb">
+<link rel="stylesheet" href="tokens.css?v=80045cb">
+<link rel="stylesheet" href="docs.css?v=80045cb">
+<link rel="stylesheet" href="cmdk.css?v=80045cb">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
+  </button>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained" class="active">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Understand it</span><span aria-hidden="true">/</span><span aria-current="page">contextlake, explained</span></nav>
+    <header class="doc-hero" data-kind="understand"><div class="doc-hero-text"><div class="doc-eyebrow">Understand it</div><h1>contextlake, explained</h1><p class="doc-sub">What changes on your screen, the three layers underneath it, the design decisions and the alternatives they turned down, the confidence model, and the honest limits.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>What changes on your screen when you attach contextlake to an AI tool, what is underneath that,
+and why each part is built the way it is. Read the first section and stop, and you will still have
+a whole answer; each section after it goes one level deeper.</p>
+<p>This is the page for deciding whether to adopt contextlake and for understanding the reasoning
+behind it. For getting it running, start at <a href="install">Install and upgrade</a> instead.</p>
+<h2 id="the-problem-in-one-example">The problem, in one example<a class="anchor" href="#the-problem-in-one-example" title="Link to this section">#</a></h2>
+<p>Ask a coding assistant <em>"where is the retry logic in this project?"</em> and it answers, confidently.
+It may even be right. But it is pattern-matching against the millions of projects it saw in
+training, not reading yours, and a fluent guess and a correct answer look identical. So you check
+every one, which is most of the value gone.</p>
+<p>Here is the same question, without and with a knowledge layer attached.</p>
+<p><strong>Without.</strong> "Retry logic is typically implemented in a <code>utils/retry.py</code> module using exponential
+backoff with a decorator. You'll usually find it wrapped around HTTP calls."</p>
+<p>Plausible, generic, and possibly describing a different codebase entirely. There is nothing in it
+to verify.</p>
+<p><strong>With.</strong> "<code>retry_with_backoff</code> is defined in <code>acme/billing-service</code>, at
+<code>src/billing/http.py:214</code>. Three call sites depend on it: <code>charge</code> (<code>src/billing/charge.py:88</code>),
+<code>refund</code> (<code>src/billing/refund.py:41</code>), and <code>sync_ledger</code> (<code>src/billing/ledger.py:302</code>). Those are
+<code>calls</code> edges, resolved by name and so marked <code>INFERRED</code>; the <code>contains</code> edge placing the function
+in that file is <code>EXTRACTED</code>."</p>
+<p>Every claim carries a location, and every location came out of a parse of your source rather than
+out of a model's memory. You can open the file. And the second half of that answer is the part
+worth noticing: the tool distinguishes what it read from what it deduced, rather than presenting
+both with the same confidence. That distinction is <a href="#confidence-and-provenance">its own section below</a>.</p>
+<p>That difference is the whole product. Everything below is the machinery that makes the second
+answer possible, and the reasons it is shaped that way.</p>
+<h3 id="what-produces-the-citation">What produces the citation<a class="anchor" href="#what-produces-the-citation" title="Link to this section">#</a></h3>
+<p>Not prompt engineering, and not the model being careful. A node in the graph carries <code>file</code>,
+<code>line_start</code> and <code>line_end</code> as first-class fields, and an edge carries <code>provenance</code>, which is a
+required <code>source_file</code> plus <code>source_line</code> plus <code>verified_at</code>
+(<code>Node</code> and <code>Provenance</code> in <code>src/contextlake/kb/model.py</code>). An assistant reporting
+<code>src/billing/http.py:214</code> is reading a column, not composing a sentence. The model docstring in
+that file states the intent plainly: the anti-hallucination contract is structural, not advisory.</p>
+<h2 id="what-it-is-three-layers-you-adopt-one-at-a-time">What it is: three layers you adopt one at a time<a class="anchor" href="#what-it-is-three-layers-you-adopt-one-at-a-time" title="Link to this section">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it does</th>
+<th>What you get without the next one</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mirror</strong></td>
+<td>Clones every repository you can reach on a GitLab group, GitHub org, Bitbucket workspace or Gitea owner, keeps each on its most active branch, and keeps them current</td>
+<td>A local, always-fresh copy of the fleet. Useful on its own, with <code>grep</code> if nothing else</td>
+</tr>
+<tr>
+<td><strong>Knowledge</strong></td>
+<td>Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki</td>
+<td>Terminal answers: <a href="ask-the-graph">Ask the graph</a></td>
+</tr>
+<tr>
+<td><strong>Serve</strong></td>
+<td>Exposes the graph over MCP, plus a local dashboard and a graph visualizer</td>
+<td>Answers inside your editor and your agents</td>
+</tr>
+</tbody>
+</table>
+<p>Only the first layer is required. <code>pip install contextlake</code> pulls exactly one dependency
+(<code>argcomplete</code>, declared in <code>pyproject.toml</code>), which is a deliberate constraint rather than an
+accident: keeping several hundred repositories cloned and current should not require a
+machine-learning stack to be installable. The knowledge layer is the <code>[kb]</code> extra and needs
+Python 3.10 or newer, because the <code>mcp</code> SDK does.</p>
+<p>Everything runs on your machine. The repositories, the graph, the vectors and the generated prose
+are local files. The only outbound traffic is cloning from your own git host, the optional
+connectors, and a model provider if you choose one that is not local.</p>
+<h2 id="why-it-is-built-this-way">Why it is built this way<a class="anchor" href="#why-it-is-built-this-way" title="Link to this section">#</a></h2>
+<p>Each of the decisions below is recorded in the source with the alternative it turned down, so what
+follows is the project's own reasoning rather than a reconstruction of it. Where the codebase does
+<em>not</em> record a reason, this page says so instead of inventing one.</p>
+<h3 id="the-store-is-a-file-not-a-service">The store is a file, not a service<a class="anchor" href="#the-store-is-a-file-not-a-service" title="Link to this section">#</a></h3>
+<p>Everything persists in two SQLite databases plus a tree of JSON files, under one store directory
+(<code>~/.contextlake/kb</code> by default, <code>DEFAULT_STORE_DIR</code> in <code>src/contextlake/kb/config.py</code>). There is
+no daemon to start, no port to bind and no credential to manage, and SQLite ships inside Python, so
+the graph tier adds no install surface beyond the parsers. Keyword search is the <code>node_fts</code> FTS5
+virtual table in that same schema, rather than a separate search engine.</p>
+<p>The honest caveat: the codebase does not record a comparison against a graph database. What it does
+record is the shape of the trade it <em>is</em> making, which is a single-machine tool with one writer.
+Two contextlake processes aimed at one store are refused by an advisory lock naming the process
+that holds it, rather than interleaved.</p>
+<h3 id="the-database-is-not-the-source-of-truth-and-a-monolithic-graph-was-rejected">The database is not the source of truth, and a monolithic graph was rejected<a class="anchor" href="#the-database-is-not-the-source-of-truth-and-a-monolithic-graph-was-rejected" title="Link to this section">#</a></h3>
+<p>Each repository's parse result is its own JSON shard; <code>index.sqlite</code> is a denormalized index built
+from those shards and can be dropped and rebuilt at any time. The reason is written down in
+<code>src/contextlake/kb/store/shards.py</code>: a shard is self-contained, so a repository can be re-indexed
+in isolation and shards stay small, "sidestepping the single-global-graph size ceiling that a
+monolithic graph would hit at scale".</p>
+<p>The consequences you can feel: a corrupted index is an inconvenience rather than a re-parse of the
+fleet, and the authoritative form stays readable with ordinary tools. Every shard is also
+snapshotted per indexed commit under <code>history/</code>, which is what makes <code>kb query --as-of &lt;commit&gt;</code>
+work at all.</p>
+<p>That same module also retracts a claim it used to make, which is worth reading if you were thinking
+of hashing shards: snapshots overwrite identically only for the same commit, <em>the same parser
+version, on the same machine</em>, because file nodes are emitted in <code>os.walk</code> order and that is
+filesystem-dependent. It is a reliable answer to "did this local store change" and not a basis for
+content-addressing across machines.</p>
+<h3 id="an-open-vocabulary-for-kinds-and-relations">An open vocabulary for kinds and relations<a class="anchor" href="#an-open-vocabulary-for-kinds-and-relations" title="Link to this section">#</a></h3>
+<p>A node's <code>kind</code> and an edge's <code>relation</code> are plain strings, not enums, and
+<code>src/contextlake/kb/model.py</code> states the reason in its module docstring: they are open "the way
+Graphify treats them", so a new parser or connector can introduce a new kind without a schema
+migration. <code>table</code>, <code>route</code>, <code>endpoint</code>, <code>adr</code> and <code>state</code> all arrived that way.</p>
+<p>The trade is real. Nothing stops a typo becoming a new kind, and the containment is convention
+rather than a constraint.</p>
+<h3 id="caching-bounded-by-memory-not-by-entry-count">Caching bounded by memory, not by entry count<a class="anchor" href="#caching-bounded-by-memory-not-by-entry-count" title="Link to this section">#</a></h3>
+<p>A small decision with a measurement attached, and a good example of the house style. The shard
+cache is capped by estimated resident bytes rather than by number of entries, because parsed
+objects cost far more memory than their JSON: measured at roughly 13 times on a real
+20,000-node, 97,000-edge shard, 27.6 MB on disk against about 363 MB resident
+(<code>src/contextlake/kb/store/shards.py</code>). An entry-count cap of, say, 256 would pin dozens of large
+shards in memory before it ever fired, which on the multi-hundred-repo fleets this is for trades a
+latency bug for an out-of-memory one.</p>
+<h3 id="the-repository-list-cache-moved-out-of-tmp-for-three-stated-reasons">The repository-list cache moved out of <code>/tmp</code>, for three stated reasons<a class="anchor" href="#the-repository-list-cache-moved-out-of-tmp-for-three-stated-reasons" title="Link to this section">#</a></h3>
+<p>The mirror's cache names every repository your account can enumerate, together with its clone URLs,
+which makes its location a privacy decision rather than a scratch-file one. It used to default to
+<code>/tmp</code>, and <code>src/contextlake/config.py</code> records why that was wrong on three counts: <code>/tmp</code> sits
+outside the user's home, so no HOME-based isolation reaches it; it is world-readable on a shared
+host; and its path is predictable, so another user can pre-create a file or symlink there first.
+It now defaults under <code>~/.cache/contextlake</code>, in a per-workspace subdirectory created <code>0700</code>.</p>
+<p>A directory <em>you</em> configure explicitly is created but never re-permissioned, on the grounds that
+silently changing the mode of a path you pointed the tool at is a side effect nobody asked for.</p>
+<h3 id="config-that-can-run-a-program-is-trusted-by-provenance-not-by-content">Config that can run a program is trusted by provenance, not by content<a class="anchor" href="#config-that-can-run-a-program-is-trusted-by-provenance-not-by-content" title="Link to this section">#</a></h3>
+<p>Config is discovered by walking up from the current directory, the way git finds <code>.git</code>. That is
+the feature, and it is also a hole: a config file can arrive inside a repository you cloned. The
+settings that would cause contextlake to <em>run a program</em> are therefore honoured only from a file
+you named with <code>--config</code> or from your own home config.</p>
+<p><code>src/contextlake/kb/trust.py</code> records both alternatives it turned down. Distrusting a
+directory-scoped file wholesale was rejected because directory-scoped config is the point, and a
+project-local <code>store_dir</code> or <code>languages</code> should keep working. A separate trust registry
+(<code>contextlake trust &lt;path&gt;</code> plus a trusted-paths file) was rejected as a new top-level CLI surface
+belonging to neither namespace, when <code>--config PATH</code> already means "I meant this file".</p>
+<h3 id="parser-staleness-is-repaired-not-just-reported">Parser staleness is repaired, not just reported<a class="anchor" href="#parser-staleness-is-repaired-not-just-reported" title="Link to this section">#</a></h3>
+<p>The clearest recorded reasoning in the project, because it documents a failure it shipped. When
+<code>PARSER_VERSION</code> moved to <code>2</code>, the staleness check only examined C and C++ repositories and the
+re-index decision compared the repository HEAD alone. A Python or TypeScript repository indexed by
+the previous major therefore stayed stale indefinitely: <code>index</code> reported it unchanged, <code>doctor</code>
+reported OK, and every answer came from a graph built by the old parser while every surface said
+healthy.</p>
+<p><code>kb index</code> now re-indexes a repository whose recorded parser version differs from the running one
+even though its HEAD has not moved, and says so. The comment in
+<code>src/contextlake/kb/cmds/index.py</code> states the reasoning: the alternative is "a green 'unchanged'
+over a stale graph, and no amount of wording makes that safe".</p>
+<p><code>kb lint</code> deliberately went the other way and keeps parser staleness <em>out</em> of its exit code, on the
+grounds that such a graph is out of date rather than broken, and folding it in would turn every
+upgrade into a red CI gate. Two commands, opposite calls, each with its reason written down.</p>
+<h3 id="serving-over-mcp">Serving over MCP<a class="anchor" href="#serving-over-mcp" title="Link to this section">#</a></h3>
+<p>MCP is an open protocol for letting an assistant call external tools, and it is what editors and
+agents already speak, so wiring contextlake into one is a config entry rather than a client-side
+integration. (That is an observation about the protocol, not a decision record; the codebase does
+not argue the case against an API of its own.)</p>
+<p>Twenty tools are registered unconditionally; <code>semantic_search</code> and <code>hybrid_search</code> bring it to
+twenty-two, and register only when an embedder and a vector store both exist
+(<code>build_server</code> in <code>src/contextlake/kb/server.py</code>). A server started without embeddings says so
+and serves the other twenty rather than failing.</p>
+<h3 id="why-the-network-transports-are-authenticated-and-stdio-is-not">Why the network transports are authenticated and stdio is not<a class="anchor" href="#why-the-network-transports-are-authenticated-and-stdio-is-not" title="Link to this section">#</a></h3>
+<p><code>stdio</code> is the default: your editor spawns the server as a child process and talks over a pipe it
+owns, so there is nothing to authenticate against. The HTTP transports are different, because a
+socket that answers with real file paths, symbol names and owner identities is worth protecting.
+They require a bearer token on every request, validate <code>Origin</code> and <code>Host</code> against the bound
+address, and refuse a non-loopback bind unless you pass <code>--allow-remote</code>.</p>
+<p>The token gate is ASGI middleware wrapping the whole application
+(<code>BearerAuthMiddleware</code> in <code>src/contextlake/kb/server.py</code>), which has a consequence worth knowing
+before you debug it: an unauthenticated request to <em>any</em> path, the root included, gets <code>401</code>, not
+<code>404</code>. Nothing is encrypted in transit; for anything past your own machine, put TLS or an SSH
+tunnel in front. See <a href="serve">Serve it to your editor</a>.</p>
+<h2 id="confidence-and-provenance">Confidence and provenance<a class="anchor" href="#confidence-and-provenance" title="Link to this section">#</a></h2>
+<p>This is the design decision the rest depends on, so it gets its own section.</p>
+<p>Every edge in the graph records how it was derived. Not as an annotation somebody remembered to
+add, but as a required field on the model: <code>Edge.confidence</code> and <code>Edge.provenance</code> have no
+defaults (<code>src/contextlake/kb/model.py</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Confidence</th>
+<th>Means</th>
+<th>Comes from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EXTRACTED</code></td>
+<td>Read directly out of the source. Ground truth</td>
+<td>Containment and imports straight off the syntax tree; a manifest that literally names the dependency; a merge request whose diff demonstrably touched a file</td>
+</tr>
+<tr>
+<td><code>INFERRED</code></td>
+<td>Deduced. Probably right, not proven</td>
+<td>A call resolved by name to exactly one definition; a foreign key recognised by pattern; an HTTP route matched to its handler</td>
+</tr>
+<tr>
+<td><code>AMBIGUOUS</code></td>
+<td>Genuinely uncertain, flagged for a human to settle</td>
+<td>A name that resolves to several definitions and could mean any of them; a free-text mention of a symbol in a ticket or a message</td>
+</tr>
+</tbody>
+</table>
+<p>Note where the line falls, because it is stricter than you might guess: "this file contains this
+class" is <code>EXTRACTED</code>, and "this function calls that one" is <code>INFERRED</code>, because the call is matched
+by name and a name can lie. A call that matches several definitions is <code>AMBIGUOUS</code> rather than
+resolved to a favourite, and one that matches more than a cap is dropped rather than degraded.</p>
+<p>The alternative is a graph that records only the relationship. It is smaller, faster to build, and
+it makes every fact sound equally certain, which is precisely the failure this tool exists to fix.
+With confidence recorded, an assistant can state a containment as fact, hedge on a name-matched
+call, and say it does not know when the graph does not know. Without it, the assistant is back to
+sounding confident about everything.</p>
+<p><code>kb impact</code> is where you see it pay off: incoming edges are walked highest-confidence first, so
+when a result is truncated at <code>--limit</code>, what you kept is the trustworthy part rather than an
+arbitrary slice.</p>
+<h3 id="what-an-inferred-edge-is-actually-worth">What an inferred edge is actually worth<a class="anchor" href="#what-an-inferred-edge-is-actually-worth" title="Link to this section">#</a></h3>
+<p>Rather than describing inference as accurate, the SQL extractor's inferred foreign keys are scored
+against a hand-labelled corpus on every CI run: <strong>precision 1.00 and recall 0.69</strong> against
+13 ground-truth edges (<code>tests/kb/fixtures/sql/</code>, scored by
+<code>tests/kb/test_sql_fixture_corpus.py</code>, which also asserts that these pages quote what it measures).
+Both documented gap classes, and the false positive that masking comments removed, are written down
+in <a href="index-code-graph#databases-sql-ddl">Index the code graph</a>.</p>
+<p>That is a small synthetic corpus and not a claim about your codebase. It is published because
+"how much should I distrust an <code>INFERRED</code> SQL edge" is a question with a number, and a number you
+can reproduce is worth more than an adjective.</p>
+<h2 id="generated-prose-and-how-it-is-kept-honest">Generated prose, and how it is kept honest<a class="anchor" href="#generated-prose-and-how-it-is-kept-honest" title="Link to this section">#</a></h2>
+<p>A graph answers precise questions well and vague ones badly. "Who calls this function" is a
+traversal; "what does this service do, and why" is not stored anywhere and has to be written. So
+contextlake generates a wiki, which reintroduces exactly the risk it exists to remove: a model
+writing about code will invent things.</p>
+<p>Four mechanisms constrain it, and the third is the most interesting because of what it says about
+the second.</p>
+<ol>
+<li><strong>Grounding.</strong> The model is handed a brief assembled from the graph, with file and line
+   references already attached, and asked to organise evidence rather than recall it.</li>
+<li><strong>A review council.</strong> A second pass scores the draft against the graph. Pages below the accept
+   threshold are reported as rejected rather than published, with per-lens reasons.</li>
+<li><strong>A deterministic gate that runs before the council.</strong> Added because the council was measurably
+   not enough: in a controlled run the shipped default provider scored a page that was one
+   sentence repeated 32 times at 0.967, the highest of that run, and accepted another whose
+   "Gotchas" section was the prompt's own guardrail reproduced word for word. Self-review is not
+   independent, so a model's failure modes are invisible to it, and a stronger judge moved those
+   verdicts without making them reliable.</li>
+<li><strong>Coverage honesty.</strong> Each page states how much of the repository it reflects, and very large
+   repositories get a page per subsystem rather than one page claiming to cover everything.</li>
+</ol>
+<p>The gate's thresholds are measured, not picked. Pages a human judged sound share no run of even
+six normalized words with the instruction text, while the leaking page shared a run of 61, so the
+instruction-leak rule fires at 12. The highest legitimate sentence repeat across the same corpus is
+4 and the degenerate pages hit 31 and 32, so the repetition rule fires above 8
+(<code>_LEAK_RUN_WORDS</code> and <code>_MAX_REPEATS</code> in <code>src/contextlake/kb/wiki/validate.py</code>, each with the
+measurement in a comment beside it).</p>
+<p>That module is also candid about its ceiling, which is the honest version of this section: it
+checks structure, not truth. One page passes the gate while claiming its module is the only module
+in the repository. A well-formed page is not a correct one.</p>
+<h2 id="how-contextlake-compares">How contextlake compares<a class="anchor" href="#how-contextlake-compares" title="Link to this section">#</a></h2>
+<p>The thing other local code-context tools do not center on is a <strong>continuously mirrored fleet
+rather than a single indexed folder</strong>. Point contextlake at a group, an org or a workspace and it
+keeps every repository checked out on its most active branch, refreshed on a schedule, with the
+graph, search and wiki built across all of them at once.</p>
+<p><strong><a href="https://graphify.com/" target="_blank" rel="noopener">Graphify<span class="ext-arrow" aria-hidden="true">↗</span></a></strong> parses a single codebase with tree-sitter into an
+AST-derived graph, on-device, with no vector index and no generated wiki by design. So there is no
+meaning-based search when you have the concept and not the symbol name, no generated prose about
+what a service does, and its quickstart runs against one project at a time. contextlake's open
+<code>kind</code>/<code>relation</code> vocabulary is borrowed directly from how Graphify treats them, and says so in
+the source.</p>
+<p><strong><a href="https://github.com/abhigyanpatwari/GitNexus" target="_blank" rel="noopener">GitNexus<span class="ext-arrow" aria-hidden="true">↗</span></a></strong> reaches for several of the same
+pieces: a graph, vectors, a wiki, MCP serving. The difference is upstream of all of them. GitNexus
+indexes what you point it at, on demand: a repo, a ZIP, a URL. contextlake maintains a standing
+mirror of an entire group, tracking each repository's most active branch over time, so you wire an
+editor once and repositories appear in it as they are added rather than per project.</p>
+<p><strong><a href="https://deepwiki.com" target="_blank" rel="noopener">DeepWiki<span class="ext-arrow" aria-hidden="true">↗</span></a></strong> turns a GitHub repo into an AI-generated wiki on demand,
+with citations, diagrams and a free MCP server. It solves a real problem, a different one: the
+free tier reaches public repositories, running your own through it privately is a paid path with
+your source going through someone else's infrastructure, and each wiki is scoped to one repository
+with no fleet underneath it. contextlake's equivalent is a standing local asset you can query
+offline and indefinitely.</p>
+<p>If your problem is "one repository and I want a good wiki for it", those tools are aimed at you.
+If it is "hundreds of repositories and no single place that knows all of them", that is what this
+is built for.</p>
+<h2 id="what-it-is-not-good-at">What it is not good at<a class="anchor" href="#what-it-is-not-good-at" title="Link to this section">#</a></h2>
+<p>The honest list, because a tool that only publishes its wins is being sold to you rather than
+described.</p>
+<ul>
+<li><strong>Greenfield work in an empty repository.</strong> There is nothing to ground against, so the benefit
+  is close to zero. Everything this tool does well is grounding new code in an estate that already
+  exists (<a href="benchmarks">what it saves, and how to measure it</a>).</li>
+<li><strong>Making one correct generation shorter.</strong> The code you need is the code you need. What drops is
+  the number of attempts, and that is a mechanism argument, not something measured.</li>
+<li><strong>Semantic recall.</strong> The built-in CPU embedder is fast, not frontier-grade. Results are cited
+  and advisory; verify them.</li>
+<li><strong>Wiki quality on the smallest local model.</strong> The default 0.5B model produces pages the council
+  frequently rejects, and reviews it cannot parse. A capable backend changes this
+  (<a href="model-providers">Model providers</a>).</li>
+<li><strong>Scale beyond one machine.</strong> Single writer, local files, no clustering, no multi-tenancy.</li>
+<li><strong>Encryption in transit.</strong> The HTTP transports authenticate but do not encrypt.</li>
+<li><strong>Some structure is skipped rather than guessed at.</strong> Framework routes, realtime channels,
+  templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
+  SQL foreign keys miss about three in ten.</li>
+<li><strong>A fixed cost per agent session.</strong> The tool schemas (20, or 22 once embeddings exist) load once
+  whether or not a tool is called, which can be net-negative if the agent calls it for questions it
+  does not help with.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="benchmarks">Benchmarks</a>, where the token and correctness impact comes from, and how to measure
+  it on your own repositories</li>
+<li><a href="install">Install and upgrade</a>, if you have decided to try it</li>
+<li><a href="internals">Architecture and internals</a>, the same machinery at implementation depth</li>
+<li><a href="ask-the-graph">Ask the graph</a>, the questions this page promised you can ask</li>
+<li><a href="index-code-graph">Index the code graph</a>, what the graph actually contains</li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="benchmarks"><span>Benchmarks</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="install"><span>Install and upgrade</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#the-problem-in-one-example">The problem, in one example</a><ul>
+<li><a href="#what-produces-the-citation">What produces the citation</a></li>
+</ul>
+</li>
+<li><a href="#what-it-is-three-layers-you-adopt-one-at-a-time">What it is: three layers you adopt one at a time</a></li>
+<li><a href="#why-it-is-built-this-way">Why it is built this way</a><ul>
+<li><a href="#the-store-is-a-file-not-a-service">The store is a file, not a service</a></li>
+<li><a href="#the-database-is-not-the-source-of-truth-and-a-monolithic-graph-was-rejected">The database is not the source of truth, and a monolithic graph was rejected</a></li>
+<li><a href="#an-open-vocabulary-for-kinds-and-relations">An open vocabulary for kinds and relations</a></li>
+<li><a href="#caching-bounded-by-memory-not-by-entry-count">Caching bounded by memory, not by entry count</a></li>
+<li><a href="#the-repository-list-cache-moved-out-of-tmp-for-three-stated-reasons">The repository-list cache moved out of /tmp, for three stated reasons</a></li>
+<li><a href="#config-that-can-run-a-program-is-trusted-by-provenance-not-by-content">Config that can run a program is trusted by provenance, not by content</a></li>
+<li><a href="#parser-staleness-is-repaired-not-just-reported">Parser staleness is repaired, not just reported</a></li>
+<li><a href="#serving-over-mcp">Serving over MCP</a></li>
+<li><a href="#why-the-network-transports-are-authenticated-and-stdio-is-not">Why the network transports are authenticated and stdio is not</a></li>
+</ul>
+</li>
+<li><a href="#confidence-and-provenance">Confidence and provenance</a><ul>
+<li><a href="#what-an-inferred-edge-is-actually-worth">What an inferred edge is actually worth</a></li>
+</ul>
+</li>
+<li><a href="#generated-prose-and-how-it-is-kept-honest">Generated prose, and how it is kept honest</a></li>
+<li><a href="#how-contextlake-compares">How contextlake compares</a></li>
+<li><a href="#what-it-is-not-good-at">What it is not good at</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+  </nav>
+</div></footer>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
+<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>
+<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
+<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
+s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
+<script defer src="cmdk.js?v=80045cb"></script>
+</body>
+</html>

@@ -5,31 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>Reading the console output · contextlake docs</title>
-<meta name="description" content="Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.">
+<meta name="description" content="Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://sayak.in/contextlake/console-output">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="contextlake">
 <meta property="og:title" content="Reading the console output · contextlake docs">
-<meta property="og:description" content="Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.">
+<meta property="og:description" content="Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.">
 <meta property="og:url" content="https://sayak.in/contextlake/console-output">
 <meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
 <meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Reading the console output · contextlake docs">
-<meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.">
+<meta name="twitter:description" content="Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Reading the console output", "description": "Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Reading the console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Reading the console output", "description": "Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.", "url": "https://sayak.in/contextlake/console-output", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Reading the console output", "item": "https://sayak.in/contextlake/console-output"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=18ad908">
-<link rel="stylesheet" href="tokens.css?v=18ad908">
-<link rel="stylesheet" href="docs.css?v=18ad908">
-<link rel="stylesheet" href="cmdk.css?v=18ad908">
+<link rel="stylesheet" href="fonts.css?v=80045cb">
+<link rel="stylesheet" href="tokens.css?v=80045cb">
+<link rel="stylesheet" href="docs.css?v=80045cb">
+<link rel="stylesheet" href="cmdk.css?v=80045cb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,18 +43,21 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Get started</h2><nav aria-label="Get started"><a href="docs">Overview</a><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="usage">Mirror repositories</a><a href="knowledge-layer">Knowledge layer</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="model-providers">Model providers</a><a href="bootstrap">Bootstrap and keep fresh</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a><a href="ownership">Ownership and SMEs</a></nav><h2>Understand it</h2><nav aria-label="Understand it"><a href="internals">Architecture</a><a href="storage">Storage</a><a href="comparison">How contextlake compares</a><a href="benchmarks">Benchmarks</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference">Command reference</a><a href="console-output" class="active">Reading the console output</a><a href="troubleshooting">Troubleshooting</a><a href="changelog">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output" class="active">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
-    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Reference</span><span aria-hidden="true">/</span><span aria-current="page">Reading the console output</span></nav>
-    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Reference</div><h1>Reading the console output</h1><p class="doc-sub">Decode the progress bar, the status glyph vocabulary, and the stdout/stderr split.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Operate it</span><span aria-hidden="true">/</span><span aria-current="page">Reading the console output</span></nav>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Operate it</div><h1>Reading the console output</h1><p class="doc-sub">Decode the progress bar, the status glyph vocabulary, the JSON logs, the stdout/stderr split, and the four exit codes.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <p>A <code>bootstrap</code> (or a standalone <code>index</code> / <code>embed</code> / <code>wiki</code>, and the mirror-tier <code>clone</code> / <code>update</code> /
 <code>branches</code>) prints progress as it goes. Most lines are self-explanatory; a few are worth decoding.</p>
 <h2 id="the-live-progress-bar">The live progress bar<a class="anchor" href="#the-live-progress-bar" title="Link to this section">#</a></h2>
-<p>One shared renderer is used by every long-running command, so it looks the same everywhere: <code>[████████░░░░]
-42/678 (6%) · 12:30 elapsed · ~2:58:14 left · 3.4/min</code> (bar, done/total, percent, elapsed time, estimated
-time remaining, and rate in items/min). The ETA is a moving-average estimate over recent items (that's
-what the <code>~</code> marks), and it's count-based, each item counts equally rather than being weighted by size.
+<p>One shared renderer is used by every long-running command, so it looks the same everywhere:
+<code>[█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min</code> (bar, done/total, percent,
+elapsed time, estimated time remaining, and rate in items/min). The ETA is the <strong>cumulative mean</strong> so far, elapsed time divided
+by items done, projected over what's left (that's what the <code>~</code> marks), and it's count-based, each item
+counts equally rather than being weighted by size. A trailing window was tried and rejected: with a
+worker pool the gaps between completions are spiky enough that a short window swung the estimate between
+seconds and half an hour, where the cumulative figure smooths itself and settles as the run goes on.
 When a run's total isn't known up front, the bar drops the percent/ETA and shows <code>done · elapsed · rate</code>
 instead, rather than guessing. Across every long-running command (including <code>connect</code>, <code>ingest</code>, and
 <code>enrich</code>, which don't use the shared bar), the clock only shows up on the bar itself (where there is one)
@@ -123,13 +126,57 @@ summary (<code>✓ Embed complete: ...</code>, <code>✓ Lint: ...</code>, and s
 <p><strong><code>--plain</code></strong> (same effect as setting <code>NO_COLOR=1</code>) strips ANSI color, even on a TTY, useful when piping
 into a tool that doesn't expect escape codes. It doesn't touch the glyphs themselves, <code>✓</code>/<code>⚠</code>/<code>✗</code> and the
 rest still print; only the color wrapped around them is gone.</p>
+<h2 id="when-you-mistype-a-command-or-a-flag">When you mistype a command or a flag<a class="anchor" href="#when-you-mistype-a-command-or-a-flag" title="Link to this section">#</a></h2>
+<p>The error output is part of the console output, so it gets the same treatment as the rest: say what is
+wrong, then say what to do about it.</p>
+<p>A mistyped command suggests the closest real one instead of dumping the full command list:</p>
+<div class="highlight"><pre><span></span><code>$ contextlake fetc
+✗ Unknown command: &#39;fetc&#39;
+
+Did you mean: mirror fetch?
+
+Run &#39;contextlake --help&#39; to see all commands.
+</code></pre></div>
+<p>The match runs against every command name <strong>and its aliases</strong> (<code>blast-radius</code> for <code>impact</code>, <code>who-knows</code>
+for <code>owners</code>), then shows the canonical, namespaced verb, matching what <code>--help</code> teaches. This is also
+what answers the retired flat spellings: <code>contextlake fetch</code> no longer parses, so it fails here like any
+other unknown command and is pointed at <code>mirror fetch</code>.</p>
+<p>Flags never match on a partial name or abbreviation. <code>contextlake kb index --work-d /tmp</code> reports
+<code>unrecognized arguments: --work-d</code> rather than silently guessing you meant <code>--workspace</code>: a prefix is
+treated the same as an unknown flag, so a typo fails loudly instead of doing the wrong thing.</p>
+<p>A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
+letter, not a shortened prefix) does get a suggestion, scoped to that command's own flags:</p>
+<div class="highlight"><pre><span></span><code>$ contextlake kb index --worksapce .
+✗ Unknown flag: &#39;--worksapce&#39;
+
+Did you mean: --workspace?
+</code></pre></div>
+<p>A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
+reporting it as simply unrecognized:</p>
+<div class="highlight"><pre><span></span><code>$ contextlake bootstrap --local
+✗ &#39;--local&#39; isn&#39;t a flag on &#39;bootstrap&#39;
+
+It&#39;s used by: init, kb source.
+
+Run &#39;contextlake bootstrap --help&#39; to see bootstrap&#39;s own flags.
+</code></pre></div>
+<p>A value-taking flag immediately followed by another recognized flag (its value was left out, so the next
+flag lands where the value should be) names the real problem instead of arguing you forgot a value
+entirely:</p>
+<div class="highlight"><pre><span></span><code>$ contextlake kb dashboard --serve --workspace --open
+✗ &#39;--workspace&#39; needs a value, but the next token (&#39;--open&#39;) is itself a recognized flag
+
+Put the value right after --workspace, e.g. &#39;--workspace &lt;value&gt; --open&#39;.
+</code></pre></div>
 <h2 id="machine-readable-logs-log-format-json">Machine-readable logs: <code>--log-format json</code><a class="anchor" href="#machine-readable-logs-log-format-json" title="Link to this section">#</a></h2>
 <p>Everything above describes output composed for a person. When the reader is a log collector instead --
 the systemd timer in <code>examples/</code>, a cron wrapper, CI -- <code>--log-format json</code> prints one JSON object per
 line and nothing else:</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;ts&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-08-04T05:45:19Z&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;level&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INFO&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;msg&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Cloned&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bcd5bd3d69cb&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;mirror clone&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;repo&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;team/api&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;duration_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">812</span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;ts&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-08-04T05:45:19Z&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;level&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INFO&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;msg&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;[1/12] ✓ team/api: Cloned&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bcd5bd3d69cb&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;mirror clone&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;repo&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;team/api&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;duration_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">812</span><span class="p">}</span>
 </code></pre></div>
 <ul>
+<li><strong><code>msg</code></strong> is the same composed line a person would have seen, counter and glyph included, not a bare
+  verb. Query the structured fields beside it (<code>status</code>, <code>repo</code>, <code>error_type</code>) rather than parsing it.</li>
 <li><strong><code>run_id</code></strong> is generated once per invocation and stamped on every line, so an interleaved journal can
   be split back into runs, and one <code>bootstrap</code>'s index / connect / embed / wiki stages read as one story.
   Set <code>CONTEXTLAKE_RUN_ID</code> to pin your own (a systemd invocation id, a CI job id) and have contextlake's
@@ -212,7 +259,9 @@ separately.</p>
 <li><strong><code>contextlake kb serve --transport http</code>/<code>sse</code> prints its bind URL</strong> once it starts listening --
   <code>✓ MCP server on http://127.0.0.1:8765/mcp  (Ctrl-C to stop)</code> for <code>http</code>, or the same with an <code>/sse</code>
   suffix for <code>sse</code> -- so you don't have to guess the host/port/path before pointing an editor at it.
-  Both URLs include the path because neither transport is served at the bare root: that really is a 404.
+  Both URLs include the path because neither transport is served at the bare root. Note that probing
+  the root will not tell you that: the bearer-token middleware wraps the whole app, so an
+  unauthenticated request to any path, the root included, answers <code>401</code> rather than <code>404</code>.
   <code>stdio</code> transport has no address to report and stays quiet on that line.</li>
 <li><strong>The network transports print their bearer token right under that URL, on stderr.</strong> A socket that
   serves the whole graph needs a credential, and a credential you cannot find is the same as a server
@@ -226,27 +275,117 @@ separately.</p>
   a hint to run <code>contextlake kb index</code> first, instead of logging the same success line it would for a
   populated graph.</li>
 <li><strong>A single-writer lock message</strong> naming another process means two runs targeted one store at once (see
-  the git-hook note under <a href="bootstrap">Bootstrap and keep fresh</a>).</li>
+  the git-hook note under <a href="keep-fresh">Bootstrap and keep it fresh</a>).</li>
 </ul>
 <p>Warnings from the model download itself (Hugging Face symlink/auth notices) are silenced; the real
 progress still shows.</p>
+<h2 id="what-it-exited-with">What it exited with<a class="anchor" href="#what-it-exited-with" title="Link to this section">#</a></h2>
+<p>Four codes across the CLI, plus one that only <code>kb serve</code> can produce.</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Means</th>
+<th>Typical causes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Nothing failed</td>
+<td>A clean run; also a run where work was deliberately skipped, a <code>--dry-run</code>, <code>--help</code>, <code>version</code>, and a search that matched nothing</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Something failed</td>
+<td>Any repo failed in <code>mirror fetch</code> / <code>clone</code> / <code>update</code> / <code>branches</code> / <code>verify</code> / <code>sync</code>; a failed <code>bootstrap</code> stage; a <code>kb</code> command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad <code>--config</code> path; <code>doctor</code> when the report found a problem</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>You and the CLI disagree about the command</td>
+<td>An unknown command, an unrecognized flag, a flag whose value is missing, a <code>kb query</code> / <code>impact</code> / <code>owners</code> with no target, an unknown <code>--platform</code> or shell, or no group configured on a command that needs one</td>
+</tr>
+<tr>
+<td><code>130</code></td>
+<td><code>Ctrl-C</code> on a command that was still working</td>
+<td>Interrupted at any point, including during <code>init</code>. Not the long-running servers, see below</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The long-running commands are the exception, and deliberately so.</strong> <code>kb serve</code>,
+<code>kb dashboard --serve</code>, <code>kb graph --serve</code> and <code>kb graph --site --serve</code> are meant to be ended by
+you, and each says <code>Ctrl-C to stop</code> on the line announcing where it listens (<code>kb serve --transport
+stdio</code> is the one with no address to announce). Stopping them that way is the documented ending
+rather than an interruption: each catches the interrupt, prints its own stop
+line (<code>Stopping MCP server</code>, <code>Stopping dashboard server</code>, <code>Stopping graph server</code>,
+<code>Stopping graph site server</code>) and exits <code>0</code>. The <code>--watch</code> loops on <code>kb index</code>, <code>kb embed</code> and
+<code>kb connect</code> end the same way, finishing normally rather than aborting. <code>130</code> is for a command
+that was interrupted mid-job.</p>
+<p><code>kb serve</code> adds one code the rest of the CLI never uses:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>When</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td><code>Ctrl-C</code>, on any transport; <code>SIGTERM</code> on <code>stdio</code></td>
+<td>The requested stop, completed</td>
+</tr>
+<tr>
+<td><code>143</code></td>
+<td><code>SIGTERM</code> on <code>--transport http</code> / <code>sse</code></td>
+<td><code>128 + 15</code>, "terminated by SIGTERM"</td>
+</tr>
+</tbody>
+</table>
+<p><code>143</code> is what a supervisor expects from a process it asked to stop, not a fault: uvicorn drains
+connections and shuts down first, then re-raises the signal it captured so the exit status
+reports the termination honestly. <code>stdio</code> reaches <code>0</code> on <code>SIGTERM</code> because it installs its own
+handler and routes both signals into the same shutdown <code>Ctrl-C</code> takes; before that it had none, so
+a supervisor's <code>SIGTERM</code> killed it outright and its cleanup never ran. See
+<a href="serve#stopping-it">Serve it to your editor</a>.</p>
+<p>Three things worth knowing about <code>1</code>:</p>
+<ul>
+<li><strong>A partial run counts as a failure.</strong> Some repositories synced and others did not is still <code>1</code>,
+  which is the point: before that, a completely broken sync looked identical to a healthy one.
+  <code>sync</code> aggregates across all its stages, so one failed clone fails the run, and <code>bootstrap</code>
+  counts a failed mirror stage exactly as it counts a failed knowledge-layer stage.</li>
+<li><strong>Deliberate skips are not failures.</strong> Already up to date, a protected working branch, a
+  <code>--dry-run</code>: none of those affect the code. <code>mirror verify</code> fails only on a cloned path that is
+  not a valid git repository, not on repos that are merely missing or extra.</li>
+<li><strong><code>--exit-zero-on-partial</code> exits <code>0</code> anyway</strong> when some repositories failed. The failures are
+  still reported; they just do not fail the job.</li>
+</ul>
+<p><code>mirror status</code> and <code>mirror audit</code> only report, so they do not fail on what they find. An empty
+result from <code>kb query</code>, <code>kb impact</code> or <code>kb owners</code> is also <code>0</code>: if you are scripting, test the
+payload rather than the exit code to detect "found nothing".</p>
+<p><code>--verbose</code> changes what a crash leaves behind: the top-level handler re-raises instead of printing
+<code>Error: &lt;message&gt;</code> alone, so a bug report can carry the traceback without anyone having to
+reproduce the failure under a debugger.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
-<li><a href="bootstrap">Bootstrap and keep fresh</a></li>
+<li><a href="keep-fresh">Bootstrap and keep it fresh</a></li>
 <li><a href="index-code-graph">Index the code graph</a></li>
 <li><a href="cli-reference"><code>contextlake</code> command reference</a></li>
 </ul>
-    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="cli-reference"><span>Command reference</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="docs"><span>Overview</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="cli-reference"><span>Command reference</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="troubleshooting"><span>Troubleshooting</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#the-live-progress-bar">The live progress bar</a></li>
 <li><a href="#one-status-vocabulary-everywhere">One status vocabulary, everywhere</a></li>
+<li><a href="#when-you-mistype-a-command-or-a-flag">When you mistype a command or a flag</a></li>
 <li><a href="#machine-readable-logs-log-format-json">Machine-readable logs: --log-format json</a></li>
 <li><a href="#sharing-a-log-redact">Sharing a log: --redact</a></li>
 <li><a href="#metrics-for-an-unattended-run-metrics-file">Metrics for an unattended run: --metrics-file</a></li>
 <li><a href="#the-stdout-stderr-split">The stdout / stderr split</a></li>
 <li><a href="#decoding-specific-lines">Decoding specific lines</a></li>
+<li><a href="#what-it-exited-with">What it exited with</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -276,6 +415,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=18ad908"></script>
+<script defer src="cmdk.js?v=80045cb"></script>
 </body>
 </html>

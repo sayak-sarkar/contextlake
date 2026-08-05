@@ -4,32 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
-<title>Architecture · contextlake docs</title>
-<meta name="description" content="How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.">
+<title>Architecture and internals · contextlake docs</title>
+<meta name="description" content="How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://sayak.in/contextlake/internals">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="contextlake">
-<meta property="og:title" content="Architecture · contextlake docs">
-<meta property="og:description" content="How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.">
+<meta property="og:title" content="Architecture and internals · contextlake docs">
+<meta property="og:description" content="How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.">
 <meta property="og:url" content="https://sayak.in/contextlake/internals">
 <meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
 <meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Architecture · contextlake docs">
-<meta name="twitter:description" content="How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.">
+<meta name="twitter:title" content="Architecture and internals · contextlake docs">
+<meta name="twitter:description" content="How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Architecture", "description": "How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.", "url": "https://sayak.in/contextlake/internals", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Architecture", "item": "https://sayak.in/contextlake/internals"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Architecture and internals", "description": "How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.", "url": "https://sayak.in/contextlake/internals", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Architecture and internals", "item": "https://sayak.in/contextlake/internals"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=18ad908">
-<link rel="stylesheet" href="tokens.css?v=18ad908">
-<link rel="stylesheet" href="docs.css?v=18ad908">
-<link rel="stylesheet" href="cmdk.css?v=18ad908">
+<link rel="stylesheet" href="fonts.css?v=80045cb">
+<link rel="stylesheet" href="tokens.css?v=80045cb">
+<link rel="stylesheet" href="docs.css?v=80045cb">
+<link rel="stylesheet" href="cmdk.css?v=80045cb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,289 +43,487 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Get started</h2><nav aria-label="Get started"><a href="docs">Overview</a><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="usage">Mirror repositories</a><a href="knowledge-layer">Knowledge layer</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="model-providers">Model providers</a><a href="bootstrap">Bootstrap and keep fresh</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a><a href="ownership">Ownership and SMEs</a></nav><h2>Understand it</h2><nav aria-label="Understand it"><a href="internals" class="active">Architecture</a><a href="storage">Storage</a><a href="comparison">How contextlake compares</a><a href="benchmarks">Benchmarks</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference">Command reference</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a><a href="changelog">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals" class="active">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
-    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Understand it</span><span aria-hidden="true">/</span><span aria-current="page">Architecture</span></nav>
-    <header class="doc-hero" data-kind="understand"><div class="doc-hero-text"><div class="doc-eyebrow">Under the hood</div><h1>Architecture & internals</h1><p class="doc-sub">How all three layers work inside, the store, concurrency, branch selection, extraction, and the offline boundary.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Reference</span><span aria-hidden="true">/</span><span aria-current="page">Architecture and internals</span></nav>
+    <header class="doc-hero"><div class="doc-hero-text"><div class="doc-eyebrow">Reference</div><h1>Architecture and internals</h1><p class="doc-sub">How all three layers work inside: the store on disk, concurrency, branch selection, versioning and staleness, and the two invariants.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
-<blockquote>
-<p>Deep-dive companion to the <a href="docs">README</a>: how the core sync and the
-knowledge layer work under the hood.</p>
-</blockquote>
-<h2 id="core-sync-internals">Core sync internals<a class="anchor" href="#core-sync-internals" title="Link to this section">#</a></h2>
-<h3 id="architecture">Architecture<a class="anchor" href="#architecture" title="Link to this section">#</a></h3>
-<p>The tool is built as a modular Python CLI application with the following components:</p>
-<h4 id="configuration-system">Configuration system<a class="anchor" href="#configuration-system" title="Link to this section">#</a></h4>
-<p>The tool uses a hierarchical configuration system with the following precedence:</p>
-<ol>
-<li>
-<p><strong>Configuration Files</strong> (using Python's <code>configparser</code>):
-   - Local config: <code>.contextlake.ini</code> in the nearest ancestor directory, walking up from cwd to the
-     filesystem root (<code>find_ancestor_config()</code> in <code>config.py</code>), same discovery model as git's <code>.git</code>
-   - Global config: <code>~/.contextlake.ini</code> in home directory
-   - Custom config: Specified via <code>--config</code> CLI argument</p>
-</li>
-<li>
-<p><strong>Default Values</strong>: Built-in defaults for all settings</p>
-</li>
-<li>
-<p><strong>CLI Arguments</strong>: Override all other settings</p>
-</li>
-</ol>
-<p><strong>Configuration loading flow</strong>, <code>load_config()</code> merges each layer over the one
-before it, so the most specific source wins:</p>
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
-</p>
-
-<h4 id="core-modules">Core modules<a class="anchor" href="#core-modules" title="Link to this section">#</a></h4>
-<p>The sync core is plain Python (stdlib only). Its functions group by responsibility,
-each command in the <a href="usage">Usage guide</a> maps onto one group:</p>
+<p>How contextlake works inside: the three tiers and what each is allowed to depend on, how the mirror
+picks branches and authenticates, how the knowledge store is laid out and versioned, what is on
+disk and what deliberately is not, and the two invariants that keep it out of your repositories.</p>
+<p>This is the implementation-depth companion to <a href="explained">contextlake, explained</a>, which covers
+the same machinery at reasoning depth. Where the two disagree, this page is the one that names
+files.</p>
+<h2 id="three-tiers-depending-downward-only">Three tiers, depending downward only<a class="anchor" href="#three-tiers-depending-downward-only" title="Link to this section">#</a></h2>
 <table>
 <thead>
 <tr>
-<th>Responsibility</th>
-<th>What it does</th>
+<th>Tier</th>
+<th>Package</th>
+<th>Depends on</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Config</strong></td>
-<td>Load and merge INI files (local / global / custom), expand <code>~</code>, resolve cache paths.</td>
+<td>Mirror core</td>
+<td><code>contextlake</code></td>
+<td>The Python standard library, plus <code>argcomplete</code>, plus the external <code>git</code> and <code>glab</code> binaries</td>
 </tr>
 <tr>
-<td><strong>Discover</strong></td>
-<td><code>fetch</code> accessible GitLab projects (via <code>glab</code>, filtered by group prefix, archived dropped) and cache them; enumerate local <code>.git</code> repos.</td>
+<td>Knowledge layer</td>
+<td><code>contextlake.kb</code>, the <code>[kb]</code> extra</td>
+<td>The mirror core, tree-sitter grammars, pydantic, the <code>mcp</code> SDK</td>
 </tr>
 <tr>
-<td><strong>Clone</strong></td>
-<td>Clone missing repos concurrently (<code>ThreadPoolExecutor</code>, <code>max_workers</code>), creating namespace parents, with per-op timeouts.</td>
-</tr>
-<tr>
-<td><strong>Update</strong></td>
-<td>Fetch + fast-forward each repo's current branch concurrently, handling detached HEAD.</td>
-</tr>
-<tr>
-<td><strong>Branches</strong></td>
-<td>Rank each repo's branches by <code>git rev-list --count</code> and switch to the most active (subject to branch safety).</td>
-</tr>
-<tr>
-<td><strong>Verify / status</strong></td>
-<td>Compare local vs GitLab, detect nested <code>.git</code>, report missing / extra / synced.</td>
-</tr>
-<tr>
-<td><strong>CLI</strong></td>
-<td><code>main()</code> loads config, parses args (CLI overrides config), and dispatches to a command handler.</td>
+<td>Serving</td>
+<td><code>kb/server.py</code>, <code>kb/dashboard/</code>, <code>kb graph</code></td>
+<td>The knowledge layer, read-only</td>
 </tr>
 </tbody>
 </table>
-<h3 id="data-flow">Data flow<a class="anchor" href="#data-flow" title="Link to this section">#</a></h3>
+<p>The mirror core declares exactly one pip dependency (<code>pyproject.toml</code>), which is the constraint that
+keeps <code>pip install contextlake</code> viable on a locked-down machine. The knowledge layer is imported
+lazily from the CLI, so the core runs with the extra absent and says so if you reach for a <code>kb</code>
+verb without it. <code>[kb]</code> needs Python 3.10 or newer because the <code>mcp</code> SDK does; the core declares
+<code>requires-python = "&gt;=3.10"</code>, one floor shared by both tiers.</p>
+<h2 id="configuration">Configuration<a class="anchor" href="#configuration" title="Link to this section">#</a></h2>
+<p>Two config systems, one per tier, both merging the same way: built-in defaults, then a global file,
+then the nearest ancestor directory's local file, then an explicit <code>--config</code>, then CLI flags.</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Global</th>
+<th>Directory-scoped</th>
+<th>Constant</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mirror</td>
+<td><code>~/.contextlake.ini</code></td>
+<td><code>.contextlake.ini</code></td>
+<td><code>CONFIG_FILE</code>, <code>LOCAL_CONFIG_FILE</code> in <code>src/contextlake/config.py</code></td>
+</tr>
+<tr>
+<td>Knowledge</td>
+<td><code>~/.contextlake/kb.toml</code></td>
+<td><code>.contextlake.kb.toml</code></td>
+<td><code>GLOBAL_CONFIG</code>, <code>LOCAL_CONFIG</code> in <code>src/contextlake/kb/config.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>Discovery walks up from the current directory to the filesystem root, the way git finds <code>.git</code>.</p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/data-flow.png" alt="Sync data flow: a contextlake command is parsed and dispatched, then fetches the accessible projects via glab, caches them, scans the workspace for local .git repos, compares GitLab vs local, runs git operations (clone/fetch/pull/switch), and logs a per-repo report." width="600">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
 </p>
 
-<h3 id="concurrency-model">Concurrency model<a class="anchor" href="#concurrency-model" title="Link to this section">#</a></h3>
-<p>The tool uses Python's <code>ThreadPoolExecutor</code> for concurrent operations:</p>
-<ul>
-<li><strong>Cloning</strong>: 8 parallel workers</li>
-<li><strong>Updating</strong>: 8 parallel workers</li>
-<li><strong>Branch Switching</strong>: 8 parallel workers</li>
-</ul>
-<p>Each worker operates independently with its own timeout:</p>
-<ul>
-<li>Clone operations: 300s timeout</li>
-<li>Fetch operations: 60s timeout</li>
-<li>Branch operations: 30s timeout</li>
-<li>Pull operations: 60s timeout</li>
-</ul>
-<h3 id="error-handling">Error handling<a class="anchor" href="#error-handling" title="Link to this section">#</a></h3>
-<p>The tool implements comprehensive error handling:</p>
-<ol>
-<li><strong>Timeout Handling</strong>: All subprocess calls have explicit timeouts</li>
-<li><strong>Exception Catching</strong>: All functions catch and report exceptions</li>
-<li><strong>Status Reporting</strong>: Operations return status tuples for tracking</li>
-<li><strong>Graceful Degradation</strong>: Failed operations don't stop the entire process</li>
-<li><strong>Detailed Logging</strong>: All errors are logged with context</li>
-</ol>
-<h3 id="cache-management">Cache management<a class="anchor" href="#cache-management" title="Link to this section">#</a></h3>
-<p>The tool uses two cache files:</p>
-<ol>
-<li><strong><code>&lt;cache_dir&gt;/gitlab_projects.json</code></strong></li>
-</ol>
-<ul>
-<li>Full JSON response from GitLab API</li>
-<li>Used for debugging and detailed inspection</li>
-<li>Contains complete project metadata</li>
-</ul>
-<ol start="2">
-<li><strong><code>&lt;cache_dir&gt;/gitlab_projects.txt</code></strong></li>
-</ol>
-<ul>
-<li>Pipe-delimited format for faster loading</li>
-<li>Format: <code>path_with_namespace|ssh_url|http_url|default_branch|archived</code></li>
-<li>Primary data source for all operations</li>
-</ul>
-<p><code>&lt;cache_dir&gt;</code> defaults to a per-workspace subdirectory of <code>~/.cache/contextlake</code>
-(<code>$XDG_CACHE_HOME/contextlake</code> when that is set), created <code>0700</code>. The cache names every
-repository the account can enumerate, so it is keyed on the workspace, platform and group:
-two workspaces never share one file. Set <code>cache_dir</code> to use one exact directory instead.</p>
-<p>Cache is refreshed by running the <code>fetch</code> command or <code>sync</code> (which includes fetch).</p>
-<h3 id="branch-selection-algorithm">Branch selection algorithm<a class="anchor" href="#branch-selection-algorithm" title="Link to this section">#</a></h3>
-<p>To identify the most active branch the tool:</p>
-<ol>
-<li><strong>Fetches all branches</strong> with <code>git for-each-ref</code> (collecting each branch's last
-   commit date)</li>
-<li><strong>Calculates commit count</strong> per branch via <code>git rev-list --count origin/branch</code></li>
-<li><strong>Scores and ranks</strong> branches according to <code>branch_strategy</code></li>
-<li><strong>Switches</strong> to the top branch (and pulls) if it differs from the current one</li>
-</ol>
-<p>The <code>branch_strategy</code> setting controls step 3:</p>
-<ul>
-<li><code>commits</code>, rank purely by commit count (legacy behaviour)</li>
-<li><code>recency</code>, rank purely by most recent commit</li>
-<li><code>hybrid</code> (default), a weighted blend of normalized commit count and recency,
-  so a branch that is both busy and recently active wins; this avoids picking a
-  long-lived branch that has gone stale, or a brand-new branch with few commits</li>
-</ul>
-<p>Branch switching is skipped entirely for repositories checked out on a working
-branch (see <a href="usage#branch-safety">Branch safety</a>).</p>
-<h3 id="directory-structure-mapping">Directory structure mapping<a class="anchor" href="#directory-structure-mapping" title="Link to this section">#</a></h3>
-<p>The tool maintains GitLab's exact directory structure:</p>
-<div class="highlight"><pre><span></span><code>GitLab Path: your-gitlab-group/backend/services/api-gateway
-Local Path:  backend/services/api-gateway
-
-GitLab Path: your-gitlab-group/backend/pricing/quote-engine
-Local Path:  backend/pricing/quote-engine
-
-GitLab Path: your-gitlab-group/frontend/platform/ui-toolkit
-Local Path:  frontend/platform/ui-toolkit
+<p>One carve-out matters for safety. Settings that would cause contextlake to <em>run a program</em> are
+honoured only from a file you named explicitly or from your own home config, never from a file found
+by the directory walk, because such a file can arrive inside a repository you cloned. The gate is on
+provenance rather than content, so a project-local <code>store_dir</code>, <code>languages</code> or <code>[[rules]]</code> keeps
+working (<code>src/contextlake/kb/trust.py</code>). The full settings tables are on
+<a href="configuration">Configuration</a>.</p>
+<h2 id="the-mirror-layer">The mirror layer<a class="anchor" href="#the-mirror-layer" title="Link to this section">#</a></h2>
+<h3 id="discovering-repositories">Discovering repositories<a class="anchor" href="#discovering-repositories" title="Link to this section">#</a></h3>
+<p><code>mirror fetch</code> enumerates every project the account can see on the configured group, drops archived
+ones, and caches the result in two files under <code>&lt;cache_dir&gt;</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Shape</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gitlab_projects.json</code></td>
+<td>The full API response</td>
+<td>Inspection and debugging</td>
+</tr>
+<tr>
+<td><code>gitlab_projects.txt</code></td>
+<td><code>path_with_namespace\|ssh_url\|http_url\|default_branch\|archived</code></td>
+<td>The primary data source for every other command</td>
+</tr>
+</tbody>
+</table>
+<p><code>cache_dir</code> defaults to <code>~/.cache/contextlake</code> (<code>$XDG_CACHE_HOME/contextlake</code> when that is set), in
+a per-workspace subdirectory keyed on the workspace path, platform and group, created <code>0700</code>
+(<code>src/contextlake/config.py</code>). Two workspaces therefore never share one cache file. A <code>cache_dir</code>
+you configure yourself is used verbatim, without a subdirectory, and is created but never
+re-permissioned.</p>
+<p>That file lists every repository your account can enumerate along with its clone URLs, which is why
+its location is treated as a privacy decision. <code>/tmp</code> was the old default and was rejected on three
+recorded grounds: it is outside your home, so no HOME-based isolation reaches it; it is
+world-readable on a shared host; and its path is predictable enough for another user to pre-create
+a file or a symlink there.</p>
+<h3 id="local-paths-mirror-the-namespace-tree">Local paths mirror the namespace tree<a class="anchor" href="#local-paths-mirror-the-namespace-tree" title="Link to this section">#</a></h3>
+<p><code>to_local_path</code> in <code>src/contextlake/core.py</code> strips the configured group prefix, so the local tree
+reproduces everything below the group:</p>
+<div class="highlight"><pre><span></span><code>Remote path: acme/backend/services/api-gateway
+Local path:  backend/services/api-gateway
 </code></pre></div>
-<p>The <code>your-gitlab-group/</code> prefix is stripped when creating local paths.</p>
-<h3 id="performance-characteristics">Performance characteristics<a class="anchor" href="#performance-characteristics" title="Link to this section">#</a></h3>
-<p><strong>Typical Performance Metrics</strong> (based on a large workspace of several hundred repositories):</p>
+<p>A path outside the configured group is returned unchanged.</p>
+<h3 id="concurrency">Concurrency<a class="anchor" href="#concurrency" title="Link to this section">#</a></h3>
+<p>Everything in the mirror layer is <code>ThreadPoolExecutor</code>, because the work is subprocess-bound rather
+than CPU-bound. <code>max_workers</code> defaults to <code>8</code> for cloning, updating and branch switching.</p>
+<p>Cloning is the one stage with an adaptive pool. It processes in waves and resizes between them,
+stepping the worker count down by one toward <code>min_workers</code> (default <code>2</code>) when the observed error
+rate exceeds <code>error_threshold</code> (default <code>0.5</code>), and back up when it falls below half of it. The
+window is 10 results, so it does nothing at all until 10 clones have been recorded
+(<code>AdaptiveWorkerPool</code> in <code>src/contextlake/core.py</code>). Set <code>adaptive_workers = false</code> for a flat pool.</p>
+<p>Every subprocess call carries an explicit timeout: <code>clone_timeout</code> 300s, <code>fetch_timeout</code> 60s,
+<code>pull_timeout</code> 60s, <code>branch_timeout</code> 30s (<code>DEFAULT_CONFIG</code> in <code>src/contextlake/config.py</code>). A repo
+that fails does not stop the run; it is counted, reported, and reflected in the exit code.</p>
+<h3 id="how-the-most-active-branch-is-chosen">How the most active branch is chosen<a class="anchor" href="#how-the-most-active-branch-is-chosen" title="Link to this section">#</a></h3>
+<p><code>_collect_branch_info</code> reads every remote branch with
+<code>git for-each-ref --sort=-committerdate refs/remotes/origin/</code>, dropping <code>origin/HEAD</code> by exact
+match, then counts commits per branch with <code>git rev-list --count origin/&lt;branch&gt;</code>.
+<code>select_most_active_branch</code> scores them per <code>branch_strategy</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Score</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>commits</code></td>
+<td>Highest commit count. The original behaviour</td>
+</tr>
+<tr>
+<td><code>recency</code></td>
+<td>Most recent commit</td>
+</tr>
+<tr>
+<td><code>hybrid</code> (default)</td>
+<td><code>0.6 * normalized(count) + 0.4 * normalized(recency)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Normalization is min-max <strong>across that repository's own branches</strong>, not against any absolute scale,
+so the weights compare a branch to its siblings. There is no time window: the count is every commit
+on the branch, and the timestamp is the branch tip's commit date.</p>
+<p>Two edge cases worth knowing. When every candidate shares a count and a timestamp the normalizer
+returns <code>1.0</code> for all of them, so the winner is the first in iteration order, which is the most
+recently committed branch. And when the upstream branch a repo is on disappears, the same selection
+runs again to pick a replacement rather than leaving the clone stranded.</p>
+<p>Branch switching is skipped entirely for a repository on a working branch, see
+<a href="usage#branch-safety">Branch safety</a>.</p>
+<h3 id="authenticating-a-refresh">Authenticating a refresh<a class="anchor" href="#authenticating-a-refresh" title="Link to this section">#</a></h3>
+<p>Cloning, <code>update</code>'s fetch and both of <code>branches</code>' fetches run with an authenticated child
+environment when a token is available. The token is read from the environment variable named by
+<code>gitlab_token_env</code> or <code>token_env</code>, defaulting per platform:</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Token variable</th>
+<th>Clone user</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GitLab</td>
+<td><code>GITLAB_TOKEN</code></td>
+<td><code>oauth2</code></td>
+</tr>
+<tr>
+<td>GitHub</td>
+<td><code>GITHUB_TOKEN</code></td>
+<td><code>x-access-token</code></td>
+</tr>
+<tr>
+<td>Bitbucket</td>
+<td><code>BITBUCKET_TOKEN</code></td>
+<td><code>x-token-auth</code></td>
+</tr>
+<tr>
+<td>Gitea</td>
+<td><code>GITEA_TOKEN</code></td>
+<td><code>oauth2</code></td>
+</tr>
+</tbody>
+</table>
+<p>The token value itself is only ever read from the environment; the config file names the variable,
+never the secret. It reaches git as an <code>http.extraHeader</code> passed through <code>GIT_CONFIG_KEY_*</code> /
+<code>GIT_CONFIG_VALUE_*</code> in the child environment, offset past any <code>GIT_CONFIG_*</code> entries you already
+set. That is deliberate on two counts, both recorded in <code>src/contextlake/core.py</code>: it never appears
+on the command line, where <code>ps</code> would show it, and it never appears in the clone URL, where git
+would persist it into <code>.git/config</code>.</p>
+<p>Without a token, cloning falls back to <code>glab repo clone</code> when <code>glab</code> is installed, else plain
+<code>git clone</code> over HTTPS. Force one path with <code>clone_method = git</code> or <code>glab</code>.</p>
+<h2 id="the-knowledge-layer">The knowledge layer<a class="anchor" href="#the-knowledge-layer" title="Link to this section">#</a></h2>
+<h3 id="shards-are-the-source-of-truth-sqlite-is-the-index">Shards are the source of truth, SQLite is the index<a class="anchor" href="#shards-are-the-source-of-truth-sqlite-is-the-index" title="Link to this section">#</a></h3>
+<p>Each repository's parse result is written as a self-contained JSON shard at
+<code>&lt;store_dir&gt;/graph/&lt;repo_id&gt;.json</code>, the repo namespace nesting as directories. <code>index.sqlite</code> is a
+denormalized cross-repo index built from those shards, and it can be dropped and rebuilt at any
+time (<code>src/contextlake/kb/store/sqlite_store.py</code>). The reason for the split is recorded in
+<code>src/contextlake/kb/store/shards.py</code>: a shard is self-contained, so one repository can be
+re-indexed in isolation, and shards stay small rather than hitting the size ceiling a single global
+graph would.</p>
+<p>Shard files also exist for synthetic partitions, which is how non-code content stays separable from
+code: <code>@ingest:&lt;name&gt;</code>, <code>@enrich:&lt;repo&gt;</code>, <code>@connect:&lt;repo&gt;</code> and <code>@wiki</code>. A re-run of one of those
+stages cleanly replaces its own partition without touching the code shard. Keep these distinct from
+the <strong>sentinel repo ids</strong> <code>(shared)</code>, <code>(packages)</code>, <code>(external)</code> and <code>(system)</code>, which are
+attribution values on nodes <em>inside</em> real shards rather than shard files of their own.</p>
+<p>Every shard is also snapshotted per indexed commit under <code>&lt;store_dir&gt;/history/&lt;repo_id&gt;/</code>, which is
+what <code>kb query --as-of &lt;commit&gt;</code> reads.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A snapshot overwrites identically only for the same commit, by the same parser version, on the
+same machine. File nodes are emitted in <code>os.walk</code> order, which is filesystem-dependent, so shard
+bytes are a sound answer to "did this local store change" and are not a basis for comparing
+hashes between machines or CI runners (<code>src/contextlake/kb/store/shards.py</code> says so in
+<code>archive_shard</code>'s docstring).</p>
+</div>
+<h3 id="the-index-schema">The index schema<a class="anchor" href="#the-index-schema" title="Link to this section">#</a></h3>
+<p>Five tables plus a full-text virtual table:</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kb_meta</code></td>
+<td>Key/value bookkeeping, including the schema stamp</td>
+</tr>
+<tr>
+<td><code>repos</code></td>
+<td>One row per indexed repository: path, host, default branch, head commit, index time, language stats, parser version</td>
+</tr>
+<tr>
+<td><code>nodes</code></td>
+<td>Every symbol: id, repo, kind, name, qualified name, file, line start, line end, language, attrs</td>
+</tr>
+<tr>
+<td><code>edges</code></td>
+<td>Every relationship: src, dst, relation, confidence, context, the three provenance columns, weight, a cross-repo flag, attrs</td>
+</tr>
+<tr>
+<td><code>external</code></td>
+<td>Declared, and currently unused. Connector content lands as ordinary nodes and edges in the synthetic partitions above</td>
+</tr>
+<tr>
+<td><code>node_fts</code></td>
+<td>An FTS5 virtual table over node name, qualified name and file</td>
+</tr>
+</tbody>
+</table>
+<p>Five indexes: <code>edges.src</code>, <code>edges.dst</code>, <code>edges.cross_repo</code>, <code>nodes.repo_id</code> and <code>nodes.kind</code>. Those
+are exactly the columns a traversal filters on, which is to say "what does this call", "what calls
+this", and "what crosses a repository boundary".</p>
+<p>Migrations are additive only, by <code>ALTER TABLE ... ADD COLUMN</code>, so an older store opens without a
+rebuild.</p>
+<h3 id="three-version-numbers-three-different-questions">Three version numbers, three different questions<a class="anchor" href="#three-version-numbers-three-different-questions" title="Link to this section">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Constant</th>
+<th>Where</th>
+<th>Answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PARSER_VERSION</code></td>
+<td><code>src/contextlake/kb/parse.py</code></td>
+<td>"Would today's parser produce a different graph for this repo?"</td>
+</tr>
+<tr>
+<td><code>SCHEMA_VERSION</code></td>
+<td><code>src/contextlake/kb/store/sqlite_store.py</code></td>
+<td>"Can this build read this index?"</td>
+</tr>
+<tr>
+<td><code>SCHEMA_VERSION</code></td>
+<td><code>src/contextlake/kb/embeddings/store.py</code></td>
+<td>The same question for the vector store</td>
+</tr>
+</tbody>
+</table>
+<p>They are independent lineages; do not read one as the other. The schema stamp is read before it is
+written, so an index written by a newer build is never silently stamped down to an older number,
+and a stamp that is present but unparsable is left alone rather than normalised away so that it can
+be reported.</p>
+<h3 id="how-staleness-is-decided">How staleness is decided<a class="anchor" href="#how-staleness-is-decided" title="Link to this section">#</a></h3>
+<p>Two separate questions, asked separately on purpose.</p>
 <ul>
-<li><strong>Fetch</strong>: 30-60 seconds (depends on GitLab API response time)</li>
-<li><strong>Clone</strong>: 5-10 minutes (for missing repos, concurrent)</li>
-<li><strong>Update</strong>: 3-5 minutes (all repos, concurrent)</li>
-<li><strong>Branch Switching</strong>: 5-10 minutes (all repos, concurrent)</li>
-<li><strong>Verify</strong>: 30-60 seconds</li>
-<li><strong>Full Sync</strong>: 15-30 minutes (all operations)</li>
+<li><strong><code>needs_reindex</code> is HEAD-only.</strong> It compares the repository's current git HEAD against the
+  commit recorded for it. That is cheap and it is the common case.</li>
+<li><strong><code>indexed_parser_version</code> asks the other question</strong>, resolving through the <code>repos.parser_version</code>
+  column, then a cheap peek at the head of the shard file, then a full shard read. An unknown answer
+  counts as stale.</li>
 </ul>
-<p><strong>Performance Optimization Tips:</strong></p>
-<ol>
-<li>Run <code>fetch</code> less frequently if repository list doesn't change often</li>
-<li>Use <code>update</code> for frequent syncs (faster than full sync)</li>
-<li>Run <code>branches</code> only when branch management is needed</li>
-<li>Adjust ThreadPoolExecutor worker count based on system resources</li>
-</ol>
-<h3 id="security-considerations">Security considerations<a class="anchor" href="#security-considerations" title="Link to this section">#</a></h3>
-<ol>
-<li><strong>Authentication</strong>: Uses <code>glab</code> authentication (tokens, SSH keys, etc.)</li>
-<li><strong>HTTPS Cloning</strong>: Default cloning method uses HTTPS for better compatibility</li>
-<li><strong>No Credential Storage</strong>: Does not store credentials; relies on <code>glab</code> auth</li>
-<li><strong>Local Operations</strong>: All git operations are local; no external API calls beyond initial fetch</li>
-<li><strong>File Permissions</strong>: Respects existing file permissions; creates directories with default umask</li>
-</ol>
-<h3 id="extension-points">Extension points<a class="anchor" href="#extension-points" title="Link to this section">#</a></h3>
-<p>The tool can be extended by:</p>
-<ol>
-<li><strong>Adding New Commands</strong>: Add new function and update <code>main()</code> command dispatch</li>
-<li><strong>Custom Branch Selection</strong>: Modify <code>switch_repository_branch()</code> algorithm</li>
-<li><strong>Additional Verification</strong>: Add checks in <code>verify_structure()</code></li>
-<li><strong>Custom Output Formats</strong>: Modify logging functions</li>
-<li><strong>Integration Hooks</strong>: Add pre/post operation hooks</li>
-</ol>
-<h3 id="dependencies">Dependencies<a class="anchor" href="#dependencies" title="Link to this section">#</a></h3>
+<p><code>kb index</code> uses both, short-circuited: a repository whose HEAD moved is queued without consulting
+the parser version at all, and only the otherwise-unchanged repositories are checked for a parser
+mismatch. Those are re-indexed rather than merely reported, and the run announces how many and from
+which version. The comment in <code>src/contextlake/kb/cmds/index.py</code> gives the reasoning: a repo at the
+same commit indexed by an older parser holds a graph this build would not produce, and the
+alternative is "a green 'unchanged' over a stale graph, and no amount of wording makes that safe".</p>
+<p><code>kb lint</code> reports the same repositories but deliberately keeps them out of its exit code, on the
+grounds that such a graph is out of date rather than broken, and a version bump should not turn
+every CI gate red on its own. <code>doctor</code> reports it as advisory for the same reason. All three read
+the same signal, so they cannot disagree about one store.</p>
+<h3 id="parallel-parsing-serial-writes">Parallel parsing, serial writes<a class="anchor" href="#parallel-parsing-serial-writes" title="Link to this section">#</a></h3>
+<p><code>kb index</code> parses repositories across a <strong>process</strong> pool (the work is CPU-bound) and persists from
+the parent process serially, because SQLite must be written from one place. The <code>spawn</code> start method
+is used on every platform so behaviour is identical on Linux, macOS and Windows, with an automatic
+serial fallback if the pool cannot start. Workers default to <code>min(8, cpu_count - 1)</code>; set
+<code>[kb] index_workers</code> to tune it, or <code>1</code> to force serial.</p>
+<h3 id="locking-and-connections">Locking and connections<a class="anchor" href="#locking-and-connections" title="Link to this section">#</a></h3>
+<p>An advisory single-writer lock lives at <code>&lt;store_dir&gt;/.contextlake.lock</code> and carries the holder's
+pid, command, host and start time. A second process on the same host is refused by name rather than
+allowed to interleave SQLite writes; a lock left by a dead process is reclaimed automatically;
+<code>CONTEXTLAKE_ALLOW_CONCURRENT=1</code> overrides it and is rarely correct.</p>
+<p>Today <code>kb index</code>, <code>kb embed</code>, <code>kb wiki</code> and the dashboard's mutating routes take that lock; the
+dashboard holds it for the one mutation only, never for the server's lifetime, and answers <code>409</code> with
+the current holder's details if something else has it. <code>connect</code>, <code>ingest</code> and <code>enrich</code> write without
+it.</p>
+<p>SQLite runs in WAL mode with <strong>one connection per thread</strong>, not one per store. That is forced by
+serving: the MCP SDK dispatches every synchronous tool call through a worker thread pool with no
+opt-out, so a store that outlives a single call cannot hand the same connection to every thread.</p>
+<h2 id="what-is-on-disk">What is on disk<a class="anchor" href="#what-is-on-disk" title="Link to this section">#</a></h2>
+<p>Everything contextlake generates lives under one store directory, <code>~/.contextlake/kb</code> by default
+(<code>DEFAULT_STORE_DIR</code> in <code>src/contextlake/kb/config.py</code>), overridable with <code>store_dir</code> in <code>kb.toml</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Path under <code>store_dir</code></th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>index.sqlite</code></td>
+<td>The cross-repo graph and FTS index</td>
+</tr>
+<tr>
+<td><code>graph/&lt;repo_id&gt;.json</code></td>
+<td>Per-repo graph shards, the source of truth</td>
+</tr>
+<tr>
+<td><code>history/&lt;repo_id&gt;/&lt;commit&gt;.json</code></td>
+<td>Bitemporal snapshots, one per indexed commit</td>
+</tr>
+<tr>
+<td><code>embeddings.sqlite</code></td>
+<td>Semantic vectors, once <code>kb embed</code> has run</td>
+</tr>
+<tr>
+<td><code>wiki/</code></td>
+<td>Generated wiki pages, including <code>wiki/_modules/</code> for per-subsystem pages</td>
+</tr>
+<tr>
+<td><code>graphs/</code></td>
+<td>Rendered visualizations from <code>kb graph</code>, including the <code>--site</code> export</td>
+</tr>
+<tr>
+<td><code>dashboard/</code></td>
+<td>The dashboard's site export and its pid and log files</td>
+</tr>
+<tr>
+<td><code>.contextlake.lock</code></td>
+<td>The advisory single-writer lock</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-lives-outside-the-store-and-why">What lives outside the store, and why<a class="anchor" href="#what-lives-outside-the-store-and-why" title="Link to this section">#</a></h3>
+<p>Four things do not, so "delete the store" is not the same as "delete everything":</p>
 <ul>
-<li><strong>Python 3.9+</strong>: Core language (the optional knowledge layer needs 3.10+)</li>
-<li><strong>configparser</strong>: Configuration file parsing (standard library)</li>
-<li><strong>argparse</strong>: CLI argument parsing (standard library)</li>
-<li><strong>subprocess</strong>: Git and system command execution (standard library)</li>
-<li><strong>concurrent.futures</strong>: Parallel processing (standard library)</li>
-<li><strong>json</strong>: Data serialization (standard library)</li>
-<li><strong>datetime</strong>: Timestamp generation (standard library)</li>
-<li><strong>pathlib</strong>: Path manipulation (standard library)</li>
-<li><strong>glab</strong>: GitLab CLI tool (external dependency)</li>
-<li><strong>git</strong>: Version control system (external dependency)</li>
+<li><strong>Downloaded CPU models</strong>, at <code>~/.contextlake/models</code> (<code>DEFAULT_CACHE_DIR</code> in
+  <code>src/contextlake/kb/embeddings/builtin.py</code> and <code>src/contextlake/kb/llm/builtin.py</code>). That is a
+  <em>sibling</em> of the default store, not a directory inside it, so a store pointed elsewhere does not
+  move the models. Both also set <code>HF_HOME</code> to that directory unless you already set it.</li>
+<li><strong>The mirror's repository-list cache</strong>, under <code>cache_dir</code> as described above.</li>
+<li><strong>The mirror audit report</strong>, written next to that cache as <code>repo_audit.json</code> and a matching
+  <code>.csv</code>, or wherever <code>--report</code> points.</li>
+<li><strong>Shell completion</strong>, which is a delimited block in <code>~/.bashrc</code> or <code>~/.zshrc</code>, or a file at
+  <code>~/.config/fish/completions/contextlake.fish</code>, plus a marker at
+  <code>~/.contextlake/.completion_setup_done</code> recording your decision. Only written when an interactive
+  run offered it and you accepted, or when you passed <code>--completion</code>.</li>
 </ul>
-<h3 id="git-integration">Git integration<a class="anchor" href="#git-integration" title="Link to this section">#</a></h3>
-<p>To avoid committing sensitive configuration to version control, add the configuration file to your <code>.gitignore</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Add to .gitignore</span>
-.contextlake.ini
-~/.contextlake.ini
-</code></pre></div>
-<p>For team usage, consider including a sample configuration file:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Add .contextlake.ini.example to git</span>
-cp<span class="w"> </span>.contextlake.ini<span class="w"> </span>.contextlake.ini.example
-git<span class="w"> </span>add<span class="w"> </span>.contextlake.ini.example
-
-<span class="c1"># Update .gitignore</span>
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;.contextlake.ini&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>.gitignore
-</code></pre></div>
-<p>Team members can then:</p>
-<div class="highlight"><pre><span></span><code>cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>.contextlake.ini
-<span class="c1"># Edit with their personal settings</span>
-</code></pre></div>
-<h2 id="knowledge-layer-architecture">Knowledge-layer architecture<a class="anchor" href="#knowledge-layer-architecture" title="Link to this section">#</a></h2>
-<p>The optional <code>contextlake.kb</code> subsystem (the <code>[kb]</code> extra) layers a knowledge graph
-over the mirrored repos. Its pieces:</p>
+<p><code>kb steer</code> is the fifth and is a deliberate carve-out rather than an exception to fix: it writes
+<code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.windsurfrules</code>, <code>.kiro/steering/</code>, <code>.mcp.json</code>, <code>.vscode/mcp.json</code> and a
+skills library into the directory you point <code>--out</code> at, defaulting to the current one, because an
+editor has to find those at the workspace root it opens. <code>bootstrap</code> steers the mirror root, which
+is not itself a repository.</p>
+<h2 id="the-two-invariants">The two invariants<a class="anchor" href="#the-two-invariants" title="Link to this section">#</a></h2>
+<h3 id="inv-1-generated-files-never-land-inside-a-mirrored-repo">INV-1: generated files never land inside a mirrored repo<a class="anchor" href="#inv-1-generated-files-never-land-inside-a-mirrored-repo" title="Link to this section">#</a></h3>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>No contextlake-generated file is ever written inside a mirrored repository's working tree.</p>
+</div>
+<p>The mirror holds your repositories untouched; everything built from them lives under the separate
+store. <code>tests/kb/test_no_repo_pollution.py</code> enforces it by hashing every file in two temporary git
+repositories, driving four verbs over them (<code>kb index --workspace</code>, <code>kb graph --overview</code>,
+<code>kb query</code>, and <code>kb steer --out</code> at the mirror root), and asserting both trees are byte-identical
+afterwards. It also asserts the store materialised outside the mirror.</p>
+<p>Four verbs, not all of them: <code>wiki</code>, <code>embed</code>, <code>connect</code>, <code>ingest</code>, <code>enrich</code> and <code>dashboard</code> are not
+exercised by that test today.</p>
+<h3 id="inv-2-the-offline-boundary">INV-2: the offline boundary<a class="anchor" href="#inv-2-the-offline-boundary" title="Link to this section">#</a></h3>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Parsing, the graph, FTS, query, visualization and embedding all run with no network. The
+connectors are the opt-in exception, and even they degrade rather than fail.</p>
+</div>
+<p><code>tests/kb/test_offline_boundary.py</code> enforces it by patching <code>socket.getaddrinfo</code> and
+<code>socket.create_connection</code> to raise, then asserting that <code>kb index</code>, <code>kb query</code>, <code>kb graph
+--overview</code>, <code>kb lint</code>, <code>kb embed</code>, <code>kb connect</code> and <code>kb dashboard --site</code> all still succeed.
+<code>connect</code> in particular must skip and warn rather than crash, which is what makes running in an
+egress-restricted environment safe.</p>
+<p>Two honest limits on that guarantee. The test patches those two socket entry points rather than all
+of them, so a raw socket to a literal IP address would not be caught. And <code>wiki</code>, <code>ingest</code>,
+<code>enrich</code>, <code>serve</code> and <code>steer</code> are not exercised offline by it.</p>
+<p>The built-in embedding model is fetched once and cached, after which embedding is offline too.
+Connector results, once fetched, stay queryable offline.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
-<li><strong>Model &amp; store</strong> (<code>kb/model.py</code>, <code>kb/store/</code>): pydantic <code>Node</code>/<code>Edge</code>/<code>Repo</code> carry
-  provenance + confidence; a SQLite + FTS5 cross-repo index (<code>sqlite_store.py</code>) is
-  built from per-repo JSON <strong>shards</strong> (<code>shards.py</code>), the durable source of truth.
-  Each shard is also snapshotted by commit under <code>history/</code> for bi-temporal queries.</li>
-<li><strong>Extraction</strong> (<code>kb/parse.py</code>, <code>kb/manifest.py</code>, <code>kb/references.py</code>, <code>kb/hcl.py</code>, <code>kb/sql.py</code>):
-  tree-sitter builds the code graph (defs/imports/containment + an inferred call graph)
-  across 14 languages / 13 tree-sitter grammars (Python, JavaScript, TypeScript, TSX, C#, Go, Java, C,
-  C++, Rust, Ruby, PHP, Scala, Kotlin; TypeScript and TSX share one grammar);
-  Terraform/HCL (<code>kb/hcl.py</code>) yields an infrastructure <code>depends_on</code> graph
-  (resource/data/variable/output/module/local blocks with <code>var.</code>/<code>module.</code>/<code>data.</code>/resource
-  references resolved within a repo); SQL DDL (<code>kb/sql.py</code>) yields a referential graph
-  (table/view/procedure defs with <code>references</code> edges from foreign keys, resolved within
-  a repo); manifests yield the cross-repo dependency graph; references capture issue
-  keys and doc links.</li>
-<li><strong>Connectors</strong> (<code>kb/connectors/</code>): Atlassian, Figma, and GitLab sources on one
-  generic seam (fetched over MCP / <code>glab</code>), written into an isolated graph partition
-  so code re-indexing never disturbs them.</li>
-<li><strong>Semantic tier</strong> (<code>kb/embeddings/</code>): a pluggable <code>Embedder</code> (Ollama / OpenAI), a
-  vector store (pure-Python cosine or optional <code>sqlite-vec</code>), and hybrid graph+vector
-  (Personalized PageRank) retrieval.</li>
-<li><strong>Wiki tier</strong> (<code>kb/llm/</code>, <code>kb/wiki/</code>): a pluggable <code>LlmClient</code> generates
-  provenance-stamped pages gated by a verification council.</li>
-<li><strong>Serving &amp; steering</strong> (<code>kb/server.py</code>, <code>kb/steer/</code>): an MCP server exposes the
-  graph tools; <code>steer</code> writes the per-tool steering files + skills library.</li>
-<li><strong>CLI</strong> (<code>kb/commands.py</code>): the <code>index/connect/embed/lint/wiki/steer/serve/query/
-  doctor</code> handlers, dispatched from the main CLI and imported lazily so the core tool
-  runs without the extra installed.</li>
+<li><a href="explained">contextlake, explained</a>, the same decisions at reasoning depth</li>
+<li><a href="index-code-graph">Index the code graph</a>, what the parser actually extracts</li>
+<li><a href="configuration">Configuration</a>, the full settings reference</li>
+<li><a href="usage">Mirror repositories</a>, the commands this layer implements</li>
+<li><a href="cli-reference"><code>contextlake</code> command reference</a>, every flag</li>
 </ul>
-<h2 id="storage-invariants">Storage &amp; invariants<a class="anchor" href="#storage-invariants" title="Link to this section">#</a></h2>
-<p>Everything contextlake generates lives under <strong>one store directory</strong>, kept safe by two test-locked
-invariants: <strong>INV-1</strong> (no generated file is ever written inside a mirrored repo, the mirror holds your
-repos untouched) and <strong>INV-2</strong>, the offline boundary (parse, graph, FTS, query, visualize, and embed all
-run fully offline; only <code>connect</code> may reach the network, and even it degrades rather than fails).</p>
-<p>The full store layout, both invariants with their enforcing tests, and the steering-files carve-out are
-on the <a href="storage">Storage</a> page.</p>
-    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="storage"><span>Storage</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="knowledge-layer"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="explained"><span>contextlake, explained</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="cli-reference"><span>Command reference</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
-<li><a href="#core-sync-internals">Core sync internals</a><ul>
-<li><a href="#architecture">Architecture</a></li>
-<li><a href="#data-flow">Data flow</a></li>
-<li><a href="#concurrency-model">Concurrency model</a></li>
-<li><a href="#error-handling">Error handling</a></li>
-<li><a href="#cache-management">Cache management</a></li>
-<li><a href="#branch-selection-algorithm">Branch selection algorithm</a></li>
-<li><a href="#directory-structure-mapping">Directory structure mapping</a></li>
-<li><a href="#performance-characteristics">Performance characteristics</a></li>
-<li><a href="#security-considerations">Security considerations</a></li>
-<li><a href="#extension-points">Extension points</a></li>
-<li><a href="#dependencies">Dependencies</a></li>
-<li><a href="#git-integration">Git integration</a></li>
+<li><a href="#three-tiers-depending-downward-only">Three tiers, depending downward only</a></li>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#the-mirror-layer">The mirror layer</a><ul>
+<li><a href="#discovering-repositories">Discovering repositories</a></li>
+<li><a href="#local-paths-mirror-the-namespace-tree">Local paths mirror the namespace tree</a></li>
+<li><a href="#concurrency">Concurrency</a></li>
+<li><a href="#how-the-most-active-branch-is-chosen">How the most active branch is chosen</a></li>
+<li><a href="#authenticating-a-refresh">Authenticating a refresh</a></li>
 </ul>
 </li>
-<li><a href="#knowledge-layer-architecture">Knowledge-layer architecture</a></li>
-<li><a href="#storage-invariants">Storage &amp; invariants</a></li>
+<li><a href="#the-knowledge-layer">The knowledge layer</a><ul>
+<li><a href="#shards-are-the-source-of-truth-sqlite-is-the-index">Shards are the source of truth, SQLite is the index</a></li>
+<li><a href="#the-index-schema">The index schema</a></li>
+<li><a href="#three-version-numbers-three-different-questions">Three version numbers, three different questions</a></li>
+<li><a href="#how-staleness-is-decided">How staleness is decided</a></li>
+<li><a href="#parallel-parsing-serial-writes">Parallel parsing, serial writes</a></li>
+<li><a href="#locking-and-connections">Locking and connections</a></li>
+</ul>
+</li>
+<li><a href="#what-is-on-disk">What is on disk</a><ul>
+<li><a href="#what-lives-outside-the-store-and-why">What lives outside the store, and why</a></li>
+</ul>
+</li>
+<li><a href="#the-two-invariants">The two invariants</a><ul>
+<li><a href="#inv-1-generated-files-never-land-inside-a-mirrored-repo">INV-1: generated files never land inside a mirrored repo</a></li>
+<li><a href="#inv-2-the-offline-boundary">INV-2: the offline boundary</a></li>
+</ul>
+</li>
+<li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
 </div>
@@ -354,6 +552,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=18ad908"></script>
+<script defer src="cmdk.js?v=80045cb"></script>
 </body>
 </html>

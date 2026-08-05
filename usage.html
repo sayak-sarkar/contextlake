@@ -5,31 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <title>Mirror repositories · contextlake docs</title>
-<meta name="description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.">
+<meta name="description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://sayak.in/contextlake/usage">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="contextlake">
 <meta property="og:title" content="Mirror repositories · contextlake docs">
-<meta property="og:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.">
+<meta property="og:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta property="og:url" content="https://sayak.in/contextlake/usage">
 <meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
 <meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Mirror repositories · contextlake docs">
-<meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.">
+<meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=18ad908">
-<link rel="stylesheet" href="tokens.css?v=18ad908">
-<link rel="stylesheet" href="docs.css?v=18ad908">
-<link rel="stylesheet" href="cmdk.css?v=18ad908">
+<link rel="stylesheet" href="fonts.css?v=80045cb">
+<link rel="stylesheet" href="tokens.css?v=80045cb">
+<link rel="stylesheet" href="docs.css?v=80045cb">
+<link rel="stylesheet" href="cmdk.css?v=80045cb">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -43,59 +43,34 @@
   <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
 </div></header>
 <div class="shell">
-  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Get started</h2><nav aria-label="Get started"><a href="docs">Overview</a><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="usage" class="active">Mirror repositories</a><a href="knowledge-layer">Knowledge layer</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a><a href="model-providers">Model providers</a><a href="bootstrap">Bootstrap and keep fresh</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a><a href="ownership">Ownership and SMEs</a></nav><h2>Understand it</h2><nav aria-label="Understand it"><a href="internals">Architecture</a><a href="storage">Storage</a><a href="comparison">How contextlake compares</a><a href="benchmarks">Benchmarks</a></nav><h2>Writing style</h2><nav aria-label="Writing style"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a></nav><h2>Brand</h2><nav aria-label="Brand"><a href="brand">Brand overview</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="cli-reference">Command reference</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a><a href="changelog">Changelog</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage" class="active">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
   <main class="prose" id="doc">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Build your knowledge base</span><span aria-hidden="true">/</span><span aria-current="page">Mirror repositories</span></nav>
-    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Mirror repositories</h1><p class="doc-sub">Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety and scheduling.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    <header class="doc-hero" data-kind="build"><div class="doc-hero-text"><div class="doc-eyebrow">Build your knowledge base</div><h1>Mirror repositories</h1><p class="doc-sub">Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
     
 <p>Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
-active branch, verify, and audit, with branch-safety guardrails and scheduling. New here? Start with the
-<a href="quickstart">Quickstart</a>. For settings see <a href="configuration">Configuration</a>; for the knowledge
-layer see the <a href="knowledge-layer">Knowledge layer</a> overview.</p>
+active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
+<a href="quickstart">Quickstart</a>. For settings see <a href="configuration">Configuration</a>; for scheduling a
+sync see <a href="keep-fresh">Bootstrap and keep it fresh</a>; for the knowledge layer see the
+<a href="knowledge-layer">Knowledge layer</a> overview.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Knowledge-layer commands (<code>index</code>, <code>connect</code>, <code>embed</code>, <code>wiki</code>, <code>query</code>, <code>graph</code>, and so on) are
 documented in the <a href="knowledge-layer">Knowledge layer</a> overview and the
 <a href="cli-reference">command reference</a>. This page covers the mirror and sync commands.</p>
 </div>
+<p><strong>Four platforms, one vocabulary.</strong> <code>mirror</code> runs against GitLab (the default), GitHub, Bitbucket and
+Gitea, including its Codeberg and Forgejo flavors. Pick one with <code>platform</code> in the config file or
+<code>contextlake init --platform github</code>, and name the group / org / workspace / owner with the generic
+<code>group</code> key (<a href="configuration">Configuration</a>). The word <em>GitLab</em> outlives that choice in several
+places: this page's wording, the <code>--group</code> help text, the cached project files
+(<code>gitlab_projects.txt</code> / <code>.json</code>) and the <code>GitLab projects (active)</code> line in <code>mirror status</code>. Read
+all of those as "the remote you configured", whichever one it is.</p>
 <h2 id="command-reference">Command reference<a class="anchor" href="#command-reference" title="Link to this section">#</a></h2>
 <p>Every command carries its own scoped help, <code>contextlake &lt;command&gt; --help</code> shows
 just that command's flags with worked examples, and bare <code>contextlake</code> prints the
-full command list.</p>
-<h3 id="shell-completion">Shell completion<a class="anchor" href="#shell-completion" title="Link to this section">#</a></h3>
-<p>On by default, and set up automatically, no command to remember. <code>argcomplete</code> is a core
-dependency, so <code>pip install contextlake</code> alone is enough, no separate extra; a plain <code>pip install</code>
-has no post-install hook to run anything at (that's a deliberate Python packaging limitation, not a
-gap here), so instead the <strong>first time any command runs in a real interactive terminal</strong>,
-contextlake registers completion for you, once, and says so in the log. Skipped entirely in
-non-interactive contexts (CI, Docker, a piped command) where there's no shell to configure, set
-<code>CONTEXTLAKE_NO_AUTO_COMPLETION=1</code> to opt out of this check altogether. An <strong>interactive</strong>
-<code>contextlake init</code> offers the same registration explicitly (on by default; pass <code>--no-completion</code>
-to skip) if you'd rather decide up front, and an explicit decline there is remembered, the
-automatic check never overrides it later. A <strong>non-interactive</strong> <code>init</code> (<code>--skip-interactive</code>, or a
-piped stdin) never touches your shell startup file: nobody was asked, so pass <code>--completion</code> to opt
-in, or run <code>contextlake completion</code> afterwards.</p>
-<p>Run it again on demand (a different shell, after skipping it once, or just to re-run it) with:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>completion<span class="w">          </span><span class="c1"># auto-detect $SHELL and register</span>
-contextlake<span class="w"> </span>completion<span class="w"> </span>zsh<span class="w">      </span><span class="c1"># register for zsh explicitly, regardless of $SHELL</span>
-</code></pre></div>
-<p>This, <code>init</code>'s own prompt, and the automatic first-run check all write whichever of these applies,
-once, idempotently:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># bash, appended to ~/.bashrc</span>
-<span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">&quot;</span>
-
-<span class="c1"># zsh, appended to ~/.zshrc (needs bashcompinit; most zsh setups already load it)</span>
-autoload<span class="w"> </span>-U<span class="w"> </span>bashcompinit<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>bashcompinit
-<span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">&quot;</span>
-
-<span class="c1"># fish, a dedicated file, written once</span>
-register-python-argcomplete<span class="w"> </span>--shell<span class="w"> </span>fish<span class="w"> </span>contextlake<span class="w"> </span>&gt;<span class="w"> </span>~/.config/fish/completions/contextlake.fish
-</code></pre></div>
-<p>For a shell other than bash/zsh/fish, or to do it by hand, copy the block above for your shell and
-open a new shell afterward. <code>contextlake &lt;TAB&gt;</code> then completes every command and, inside a command,
-every one of its flags, generated live from the same parser that runs the command, so it can never
-drift out of sync with the actual CLI surface. Uses
-<a href="https://github.com/kislyuk/argcomplete" target="_blank" rel="noopener">argcomplete<span class="ext-arrow" aria-hidden="true">↗</span></a> (pure Python, no dependencies of its own).</p>
+full command list. Shell tab-completion is registered for you on first run; see
+<a href="cli-reference#shell-completion">Shell completion</a>.</p>
 <p><strong>Mirror a subset with <code>--repos</code>.</strong> Every mirror command (and <code>bootstrap</code> / <code>kb index
 --workspace</code>) accepts <code>--repos PATTERN</code>, a comma-separated <strong>glob/substring</strong> filter
 over your repo paths, so you can mirror and index just a handful instead of the whole
@@ -108,6 +83,11 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w
 group-qualified path or its local path (case-insensitive). It scopes the whole
 pipeline: <code>fetch</code> narrows the cached project list, and <code>clone</code> / <code>update</code> / <code>branches</code>
 / <code>verify</code> / <code>status</code> / <code>bootstrap</code> all follow from that.</p>
+<p>The scope belongs to the invocation, not to the cache. Pass the same <code>--repos</code> to each
+command (or set <code>repo_filter</code> in your config to make it permanent). A command run at a
+<em>different</em> scope re-enumerates rather than answering from a project list some other
+filter shaped, and <code>status</code>, which cannot enumerate, says so instead of reporting a
+subset as the group.</p>
 <p><strong>Preview with <code>-n</code> / <code>--dry-run</code>.</strong> Every mirror command accepts <code>-n</code> (the short form, matching the
 near-universal <code>rm</code>/<code>cp</code>/<code>make</code> convention) to show what would happen without cloning, updating, or
 switching a single branch:</p>
@@ -122,62 +102,69 @@ available as its own command:</p>
 </p>
 
 <h3 id="mirror-status-check-current-synchronization-status"><code>mirror status</code>: check current synchronization status<a class="anchor" href="#mirror-status-check-current-synchronization-status" title="Link to this section">#</a></h3>
-<p>Shows the current state of your workspace compared to GitLab.</p>
+<p>Shows the current state of your workspace compared to the remote, from the fetch cache.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>status
 </code></pre></div>
 <p><strong>Example output:</strong></p>
-<div class="highlight"><pre><span></span><code>GitLab projects (cached): 128      # repos you can see on GitLab
-Local repositories:       128      # repos cloned in your workspace
-Synchronized:             127      # present in both and matching
-Missing:                  1        # on GitLab but not cloned yet
-Extra:                    1        # cloned locally but not on GitLab
+<div class="highlight"><pre><span></span><code>  • GitLab projects (active)  128
+  • Local repositories        128
+  ✓ Synchronized              127
+  ⚠ Missing                     1
+  ⚠ Extra                       1
 </code></pre></div>
 <ul>
-<li><strong>Missing</strong> = a repo exists on GitLab but isn't in your workspace, <code>clone</code> (or
+<li><strong>GitLab projects (active)</strong> = projects you can see on the remote, archived ones excluded. The
+  count comes from the fetch cache, so it is as fresh as your last <code>fetch</code>.</li>
+<li><strong>Local repositories</strong> = repos cloned in your workspace.</li>
+<li><strong>Synchronized</strong> = present in both, and matching.</li>
+<li><strong>Missing</strong> = a repo exists on the remote but isn't in your workspace, <code>clone</code> (or
   <code>sync</code>) will fetch it.</li>
-<li><strong>Extra</strong> = a repo is in your workspace but not on GitLab, usually one that was
+<li><strong>Extra</strong> = a repo is in your workspace but not on the remote, usually one that was
   renamed, archived, or removed there; <code>contextlake</code> leaves it alone for you to review.</li>
 </ul>
 <p>A fully synced workspace shows <code>0</code> for both.</p>
-<h3 id="mirror-fetch-fetch-all-gitlab-projects"><code>mirror fetch</code>: fetch all GitLab projects<a class="anchor" href="#mirror-fetch-fetch-all-gitlab-projects" title="Link to this section">#</a></h3>
-<p>Retrieves all repositories from the specified GitLab group and caches them locally.</p>
+<h3 id="mirror-fetch-fetch-every-project-you-can-see"><code>mirror fetch</code>: fetch every project you can see<a class="anchor" href="#mirror-fetch-fetch-every-project-you-can-see" title="Link to this section">#</a></h3>
+<p>Retrieves all repositories from the configured group / org / workspace / owner and caches them
+locally.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>fetch
 </code></pre></div>
 <p>This command:</p>
 <ul>
-<li>Uses the GitLab API with pagination to fetch all projects</li>
+<li>Uses the configured platform's REST API with pagination to fetch all projects</li>
 <li>Includes subgroups automatically</li>
 <li>Skips archived repositories</li>
 <li>Caches results in <code>gitlab_projects.txt</code> and <code>gitlab_projects.json</code>, under a
   per-workspace subdirectory of <code>~/.cache/contextlake</code> (override with <code>cache_dir</code>)</li>
 </ul>
 <h3 id="mirror-clone-clone-missing-repositories"><code>mirror clone</code>: clone missing repositories<a class="anchor" href="#mirror-clone-clone-missing-repositories" title="Link to this section">#</a></h3>
-<p>Clones any repositories that exist in GitLab but are missing locally.</p>
+<p>Clones any repositories that exist on the remote but are missing locally.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>clone
 </code></pre></div>
 <p>This command:</p>
 <ul>
-<li>Compares cached GitLab projects with local repositories</li>
-<li>Creates directory structure matching GitLab's group/subgroup hierarchy</li>
+<li>Compares the cached project list with local repositories</li>
+<li>Creates a directory structure mirroring the remote's group/subgroup hierarchy</li>
 <li>Uses HTTPS cloning for better authentication</li>
 <li>Clones up to 8 repositories concurrently</li>
 <li>Handles timeouts gracefully (300s per repository)</li>
 </ul>
-<p>How each repo is cloned (<code>clone_method = auto</code>, the default): with <code>GITLAB_TOKEN</code>
-set, contextlake clones with plain <code>git</code>, passing the token as an auth header
+<p>How each repo is cloned (<code>clone_method = auto</code>, the default): with the platform's token env var set
+(<code>GITLAB_TOKEN</code>, <code>GITHUB_TOKEN</code>, <code>BITBUCKET_TOKEN</code> or <code>GITEA_TOKEN</code>, or whatever <code>token_env</code> names),
+contextlake clones with plain <code>git</code>, passing the token as an auth header
 through the child environment, never on the command line and never in the URL, so
 it can't leak into <code>ps</code> output or <code>.git/config</code>. Without a token it uses <code>glab repo
-clone</code> (glab's own auth) when glab is installed, else plain <code>git clone</code> over HTTPS.
-Set <code>clone_method = git</code> or <code>glab</code> to force one path.</p>
+clone</code> (glab's own auth) when glab is installed, which is a GitLab-only path, else plain
+<code>git clone</code> over HTTPS. Set <code>clone_method = git</code> or <code>glab</code> to force one path.</p>
 <h3 id="mirror-update-update-existing-repositories"><code>mirror update</code>: update existing repositories<a class="anchor" href="#mirror-update-update-existing-repositories" title="Link to this section">#</a></h3>
 <p>Fetches and pulls the latest changes for all local repositories.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>update
 </code></pre></div>
 <p>This command:</p>
 <ul>
-<li>Fetches all remote branches</li>
-<li>Updates the current branch with latest changes from origin</li>
-<li>Handles detached HEAD states appropriately</li>
+<li>Fetches the current branch from <code>origin</code></li>
+<li>Fast-forwards it to <code>origin</code>, never merging or rebasing</li>
+<li>Skips a repo on a detached HEAD, there is no branch to fast-forward</li>
+<li>Skips a branch that has diverged from its upstream, and says so, for you to reconcile by hand</li>
 <li>Reports repositories that are already up to date</li>
 </ul>
 <h3 id="mirror-branches-switch-to-most-active-branches"><code>mirror branches</code>: switch to most active branches<a class="anchor" href="#mirror-branches-switch-to-most-active-branches" title="Link to this section">#</a></h3>
@@ -198,15 +185,15 @@ that is both busy and recently touched wins. Two alternatives exist: <code>commi
 commit count, the legacy behaviour) and <code>recency</code> (most recent commit). Archived repos,
 repos without branches, and detached-HEAD states are skipped.</p>
 <h3 id="mirror-verify-verify-repository-structure"><code>mirror verify</code>: verify repository structure<a class="anchor" href="#mirror-verify-verify-repository-structure" title="Link to this section">#</a></h3>
-<p>Checks that the local workspace structure matches GitLab exactly.</p>
+<p>Checks that the local workspace structure matches the remote exactly.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>verify
 </code></pre></div>
 <p>This command:</p>
 <ul>
-<li>Compares local repositories with GitLab project list</li>
+<li>Compares local repositories with the cached project list</li>
 <li>Identifies nested <code>.git</code> directory structures (indicates incorrect cloning)</li>
-<li>Lists extra local repositories (not in GitLab)</li>
-<li>Lists missing repositories (in GitLab but not local)</li>
+<li>Lists extra local repositories (not on the remote)</li>
+<li>Lists missing repositories (on the remote but not local)</li>
 <li>Reports synchronization status</li>
 </ul>
 <h3 id="mirror-sync-full-synchronization"><code>mirror sync</code>: full synchronization<a class="anchor" href="#mirror-sync-full-synchronization" title="Link to this section">#</a></h3>
@@ -215,7 +202,7 @@ repos without branches, and detached-HEAD states are skipped.</p>
 </code></pre></div>
 <p>This command executes:</p>
 <ol>
-<li><code>fetch</code> - Get latest GitLab project list</li>
+<li><code>fetch</code> - Get the latest project list</li>
 <li><code>clone</code> - Clone missing repositories</li>
 <li><code>update</code> - Update existing repositories</li>
 <li><code>branches</code> - Switch to active branches</li>
@@ -224,7 +211,8 @@ repos without branches, and detached-HEAD states are skipped.</p>
 </ol>
 <h3 id="mirror-audit-repo-health-age-report"><code>mirror audit</code>: repo health &amp; age report<a class="anchor" href="#mirror-audit-repo-health-age-report" title="Link to this section">#</a></h3>
 <p>Scans every local clone and reports which repos are effectively empty and how old/active
-they are. Runs automatically at the end of <code>sync</code>/<code>bootstrap</code>, or on demand:</p>
+they are. Runs automatically at the end of <code>sync</code>, and in <code>bootstrap</code> immediately after the mirror
+step (stage 2 of 8, before the knowledge layer is built), or on demand:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>audit<span class="w">                       </span><span class="c1"># summary to console + report to &lt;cache_dir&gt;/repo_audit.json</span>
 contextlake<span class="w"> </span>mirror<span class="w"> </span>audit<span class="w"> </span>--report<span class="w"> </span>./audit.json<span class="w"> </span><span class="c1"># choose where the per-repo JSON + .csv are written</span>
 contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--no-audit<span class="w">             </span><span class="c1"># run sync without the audit step</span>
@@ -241,105 +229,96 @@ offline from the fetch cache.</p>
 <h2 id="branch-safety">Branch safety<a class="anchor" href="#branch-safety" title="Link to this section">#</a></h2>
 <p>The tool protects your local work without getting in your way. The guiding rule:
 <strong>a clean repo is always safe to act on, the branch name alone never causes a skip.</strong>
-The only thing that blocks an <code>update</code> is a <em>dirty working tree</em>.</p>
+The only <em>setting</em> that blocks an <code>update</code> is the one that catches a <em>dirty working tree</em>.</p>
+<p>Two states stop an <code>update</code> on a clean tree as well, and neither is configurable, because both are
+about there being no fast-forward to perform rather than about protecting your work: a repo on a
+<strong>detached HEAD</strong> (no branch to update) and a branch that has <strong>diverged from its upstream</strong> (a
+mirror fast-forwards, it never merges or rebases). Both are reported per repo as skips with the
+reason, so a green run is not a promise that every clean repo moved. See
+<a href="console-output">Reading the console output</a>.</p>
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
 </p>
 
-<h3 id="safety-checks">Safety checks<a class="anchor" href="#safety-checks" title="Link to this section">#</a></h3>
+<h3 id="the-three-checks">The three checks<a class="anchor" href="#the-three-checks" title="Link to this section">#</a></h3>
 <ol>
-<li><strong>Clean Workspace Check</strong> (the main guard): detects a dirty working tree,
-   uncommitted, unstaged, or untracked changes. A dirty repo is skipped by both
-   <code>update</code> and <code>branches</code> so local work is never clobbered.</li>
-<li><strong>Automatic Stashing</strong>: optionally stashes a dirty tree so <code>update</code> can proceed
-   instead of skipping.</li>
-<li><strong>Working-Branch Protection</strong> (applies to <code>branches</code> only): keeps the <code>branches</code>
-   command from switching a repo off a branch outside <code>safe_branches</code>, so you are
-   never moved off a feature branch you are working on. This does <strong>not</strong> affect
-   <code>update</code>, a clean feature branch is still pulled.</li>
+<li><strong>Clean-workspace check</strong>, the main guard. Detects a dirty working tree: uncommitted, unstaged,
+   or untracked changes. A dirty repo is skipped by both <code>update</code> and <code>branches</code>, so local work is
+   never clobbered.</li>
+<li><strong>Automatic stashing</strong>, optional. Stashes a dirty tree so <code>update</code> can proceed instead of
+   skipping. It affects <code>update</code> only.</li>
+<li><strong>Working-branch protection</strong>, which applies to <code>branches</code> only. It keeps <code>branches</code> from moving
+   a repo off a branch outside <code>safe_branches</code>, so you are never switched away from a feature branch
+   you are working on.</li>
 </ol>
-<h3 id="configuration_1">Configuration<a class="anchor" href="#configuration_1" title="Link to this section">#</a></h3>
+<h3 id="which-setting-affects-which-command">Which setting affects which command<a class="anchor" href="#which-setting-affects-which-command" title="Link to this section">#</a></h3>
 <table>
 <thead>
 <tr>
 <th>Setting</th>
-<th>Description</th>
+<th><code>mirror update</code></th>
+<th><code>mirror branches</code></th>
 <th>Default</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>require_clean_workspace</code></td>
-<td>Skip repos with a dirty working tree (the main guard)</td>
+<td>yes, the main guard</td>
+<td>yes</td>
 <td><code>true</code></td>
 </tr>
 <tr>
+<td><code>auto_stash</code></td>
+<td>yes</td>
+<td>no effect</td>
+<td><code>false</code></td>
+</tr>
+<tr>
 <td><code>protect_working_branches</code></td>
-<td>Keep <code>branches</code> from switching a repo off a non-safe branch</td>
+<td><strong>no effect</strong></td>
+<td>yes</td>
 <td><code>true</code></td>
 </tr>
 <tr>
 <td><code>safe_branches</code></td>
-<td>Branches the <code>branches</code> command may switch away from</td>
+<td><strong>no effect</strong></td>
+<td>yes, the list <code>branches</code> may switch away from</td>
 <td><code>main,master,develop,development</code></td>
 </tr>
 <tr>
-<td><code>auto_stash</code></td>
-<td>Stash a dirty tree before <code>update</code> instead of skipping</td>
-<td><code>false</code></td>
-</tr>
-<tr>
 <td><code>branch_strategy</code></td>
-<td>How <code>branches</code> picks the most-active branch: <code>hybrid</code> (60% commits + 40% recency), <code>commits</code>, or <code>recency</code></td>
+<td>no effect</td>
+<td><code>hybrid</code> (60% commit count, 40% recency), <code>commits</code>, or <code>recency</code></td>
 <td><code>hybrid</code></td>
 </tr>
 </tbody>
 </table>
-<h3 id="behavior">Behavior<a class="anchor" href="#behavior" title="Link to this section">#</a></h3>
-<p><strong><code>update</code> (fetch + fast-forward the current branch):</strong></p>
-<ul>
-<li>A <strong>clean</strong> repo is updated on whatever branch it is on, feature branches included.</li>
-<li>A repo with a <strong>dirty working tree</strong> is skipped (or stashed first, if <code>auto_stash</code> is on).</li>
-</ul>
-<p><strong><code>branches</code> (switch to the most active branch):</strong></p>
-<ul>
-<li>A repo with a <strong>dirty working tree</strong> is skipped.</li>
-<li>With <code>protect_working_branches = true</code>, a repo on a branch outside <code>safe_branches</code>
-  is left where it is instead of being switched away.</li>
-</ul>
-<h3 id="example-scenarios">Example scenarios<a class="anchor" href="#example-scenarios" title="Link to this section">#</a></h3>
-<h4 id="scenario-1-working-branch-protection-branches-command">Scenario 1: Working-Branch Protection (branches command)<a class="anchor" href="#scenario-1-working-branch-protection-branches-command" title="Link to this section">#</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1"># Repository is on feature/my-feature branch (not in safe branches)</span>
-contextlake<span class="w"> </span>mirror<span class="w"> </span>branches
-
-<span class="c1"># Output:</span>
-<span class="c1"># [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped branch switch (on working branch: feature/my-feature)</span>
+<p>The two "no effect" rows are the ones people get wrong, and they follow from the guiding rule above:
+<code>update</code> pulls the branch you are already on, so being on a feature branch is not a reason to hold
+back. Of the settings in this table, only the dirty-tree guard holds <code>update</code> back; the two
+structural skips above (detached HEAD, diverged branch) are not settings at all.</p>
+<h3 id="what-each-looks-like">What each looks like<a class="anchor" href="#what-each-looks-like" title="Link to this section">#</a></h3>
+<p>A working branch left alone by <code>branches</code>:</p>
+<div class="highlight"><pre><span></span><code>[1/12] ⊘ backend/services/api-gateway: Skipped branch switch (on working branch: feature/my-feature)
 </code></pre></div>
-<blockquote>
-<p>A plain <code>contextlake mirror update</code> would instead <strong>pull <code>feature/my-feature</code></strong> here,
-since the working tree is clean.</p>
-</blockquote>
-<h4 id="scenario-2-uncommitted-changes">Scenario 2: Uncommitted Changes<a class="anchor" href="#scenario-2-uncommitted-changes" title="Link to this section">#</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1"># Repository has uncommitted changes</span>
-contextlake<span class="w"> </span>mirror<span class="w"> </span>update
-
-<span class="c1"># Output:</span>
-<span class="c1"># [2026-06-16 10:00:00] ⊘ backend/services/api-gateway: Skipped (unsafe: Uncommitted changes detected)</span>
+<p>A plain <code>contextlake mirror update</code> would instead pull <code>feature/my-feature</code> here, since the working
+tree is clean.</p>
+<p>A dirty tree skipped by <code>update</code>:</p>
+<div class="highlight"><pre><span></span><code>[1/12] ⊘ backend/services/api-gateway: Skipped (unsafe: Uncommitted changes (or indeterminate working-tree state))
 </code></pre></div>
-<h4 id="scenario-3-auto-stash-enabled">Scenario 3: Auto-Stash Enabled<a class="anchor" href="#scenario-3-auto-stash-enabled" title="Link to this section">#</a></h4>
-<div class="highlight"><pre><span></span><code><span class="c1"># Repository has uncommitted changes, auto-stash enabled</span>
-contextlake<span class="w"> </span>--auto-stash<span class="w"> </span>mirror<span class="w"> </span>update
-
-<span class="c1"># Output:</span>
-<span class="c1"># [2026-06-16 10:00:00] ⚠ backend/services/api-gateway: Changes stashed successfully</span>
-<span class="c1"># [2026-06-16 10:00:00] ✓ backend/services/api-gateway: Updated main</span>
+<p>The same repo with <code>--auto-stash</code>:</p>
+<div class="highlight"><pre><span></span><code>⚠ backend/services/api-gateway: Changes stashed successfully
+[1/12] ✓ backend/services/api-gateway: Updated main
 </code></pre></div>
-<h3 id="customization">Customization<a class="anchor" href="#customization" title="Link to this section">#</a></h3>
-<p>These resilience/safety flags are kept out of <code>contextlake &lt;command&gt; --help</code>'s default listing (run
-<code>contextlake mirror update --help-advanced</code> to see them alongside every other mirror-tier command's flags) --
-they're automation levers, not something to guess at interactively, and every one has the
-<code>.contextlake.ini</code> equivalent below as its primary home.</p>
-<p>You can customize branch safety behavior via configuration or CLI:</p>
+<p>The <code>[i/total]</code> counter is part of every per-repo status line. Redirect the output to a file and each
+line also carries a <code>[YYYY-MM-DD HH:MM:SS]</code> timestamp; on a terminal it does not, because the clock
+is rendered on the right instead. See <a href="console-output">Reading the console output</a>.</p>
+<h3 id="setting-them">Setting them<a class="anchor" href="#setting-them" title="Link to this section">#</a></h3>
+<p>These are automation levers rather than things to guess at interactively, so they are kept out of
+the default <code>--help</code> listing; run <code>contextlake mirror update --help-advanced</code> to see them alongside
+every other mirror-tier flag. Every one has a <code>.contextlake.ini</code> equivalent, which is its primary
+home:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># In .contextlake.ini</span>
 <span class="k">[contextlake]</span>
 <span class="na">protect_working_branches</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">true</span>
@@ -350,166 +329,33 @@ they're automation levers, not something to guess at interactively, and every on
 <div class="highlight"><pre><span></span><code><span class="c1"># Or via CLI</span>
 contextlake<span class="w"> </span>--safe-branches<span class="w"> </span>main,master,develop,staging<span class="w"> </span>--auto-stash<span class="w"> </span>mirror<span class="w"> </span>update
 </code></pre></div>
-<h3 id="disabling-safety-checks">Disabling safety checks<a class="anchor" href="#disabling-safety-checks" title="Link to this section">#</a></h3>
-<p>If you want to disable safety checks (not recommended for production workflows):</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Disable all safety checks</span>
-contextlake<span class="w"> </span>--no-protect-working-branches<span class="w"> </span>--no-require-clean-workspace<span class="w"> </span>mirror<span class="w"> </span>update
+<h3 id="disabling-a-safety-check">Disabling a safety check<a class="anchor" href="#disabling-a-safety-check" title="Link to this section">#</a></h3>
+<p>Turning a guard off is rarely what you want, and one of the two flags people reach for does nothing
+here:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>--no-require-clean-workspace<span class="w"> </span>mirror<span class="w"> </span>update
 </code></pre></div>
-<p><strong>Warning</strong>: Disabling safety checks can lead to conflicts, lost work, or corruption of your local branches. Only disable if you understand the risks.</p>
-<h2 id="scheduling-and-automation">Scheduling and automation<a class="anchor" href="#scheduling-and-automation" title="Link to this section">#</a></h2>
-<h3 id="prerequisites-for-cron-jobs">Prerequisites for cron jobs<a class="anchor" href="#prerequisites-for-cron-jobs" title="Link to this section">#</a></h3>
-<p>Before setting up cron jobs, ensure you have:</p>
-<ol>
-<li><strong>Configuration file set up</strong>: Create <code>~/.contextlake.ini</code> with your settings</li>
-</ol>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>init<span class="w">                       </span><span class="c1"># writes the file for you, prompting for each value</span>
-<span class="c1"># or copy the template and fill it in by hand:</span>
-cp<span class="w"> </span>.contextlake.ini.example<span class="w"> </span>~/.contextlake.ini
-<span class="c1"># Edit with your work_dir and gitlab_group</span>
-nano<span class="w"> </span>~/.contextlake.ini
-</code></pre></div>
-<ol start="2">
-<li><strong>Absolute path to script</strong>: Cron requires absolute paths</li>
-</ol>
-<div class="highlight"><pre><span></span><code>which<span class="w"> </span>python3<span class="w">  </span><span class="c1"># Note the path</span>
-<span class="c1"># Example: /usr/bin/python3</span>
-</code></pre></div>
-<ol start="3">
-<li><strong>Test the command manually first</strong>:</li>
-</ol>
-<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>contextlake<span class="w"> </span>mirror<span class="w"> </span>sync
-</code></pre></div>
-<h3 id="basic-daily-sync">Basic daily sync<a class="anchor" href="#basic-daily-sync" title="Link to this section">#</a></h3>
-<p>Run a full synchronization daily at 2 AM:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Edit crontab</span>
-crontab<span class="w"> </span>-e
-
-<span class="c1"># Add the following line (replace paths as needed)</span>
-<span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>&gt;&gt;<span class="w"> </span>/tmp/contextlake.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
-</code></pre></div>
-<p><strong>Note</strong>: This uses the configuration from <code>~/.contextlake.ini</code>. No need to specify work_dir or gitlab_group in the cron command.</p>
-<h3 id="hourly-updates-no-branch-switching">Hourly updates (no branch switching)<a class="anchor" href="#hourly-updates-no-branch-switching" title="Link to this section">#</a></h3>
-<p>Update repositories hourly without changing branches (for CI/CD environments):</p>
-<div class="highlight"><pre><span></span><code><span class="m">0</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>mirror<span class="w"> </span>update<span class="w"> </span>&gt;&gt;<span class="w"> </span>/tmp/gitlab_hourly.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
-</code></pre></div>
-<h3 id="weekly-full-sync-with-branch-management">Weekly full sync with branch management<a class="anchor" href="#weekly-full-sync-with-branch-management" title="Link to this section">#</a></h3>
-<p>Run full sync including branch switching weekly on Sunday at 3 AM:</p>
-<div class="highlight"><pre><span></span><code><span class="m">0</span><span class="w"> </span><span class="m">3</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>&gt;&gt;<span class="w"> </span>/tmp/gitlab_weekly.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
-</code></pre></div>
-<h3 id="multiple-workspaces">Multiple workspaces<a class="anchor" href="#multiple-workspaces" title="Link to this section">#</a></h3>
-<p>For multiple workspaces, use separate config files:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Create workspace-specific config files</span>
-cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_primary.ini<span class="w"> </span><span class="s">&lt;&lt; EOF</span>
-<span class="s">[contextlake]</span>
-<span class="s">work_dir = ~/work</span>
-<span class="s">gitlab_group = example-group-primary</span>
-<span class="s">EOF</span>
-
-cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_secondary.ini<span class="w"> </span><span class="s">&lt;&lt; EOF</span>
-<span class="s">[contextlake]</span>
-<span class="s">work_dir = ~/Projects/Secondary</span>
-<span class="s">gitlab_group = example-group-secondary</span>
-<span class="s">EOF</span>
-
-<span class="c1"># Add to crontab</span>
-
-<span class="c1"># Sync primary workspace daily</span>
-<span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>--config<span class="w"> </span>~/.contextlake_primary.ini<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>&gt;&gt;<span class="w"> </span>/tmp/gitlab_primary.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
-
-<span class="c1"># Sync secondary workspace every 6 hours</span>
-<span class="m">0</span><span class="w"> </span>*/6<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>--config<span class="w"> </span>~/.contextlake_secondary.ini<span class="w"> </span>mirror<span class="w"> </span>update<span class="w"> </span>&gt;&gt;<span class="w"> </span>/tmp/gitlab_secondary.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
-</code></pre></div>
-<h3 id="monitoring-and-alerts">Monitoring and alerts<a class="anchor" href="#monitoring-and-alerts" title="Link to this section">#</a></h3>
-<p>Add email notifications for failures:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Create a wrapper script</span>
-cat<span class="w"> </span>&gt;<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
-<span class="s">#!/bin/bash</span>
-<span class="s">cd /home/user/work</span>
-<span class="s">contextlake mirror sync &gt;&gt; /tmp/contextlake.log 2&gt;&amp;1</span>
-<span class="s">EXIT_CODE=$?</span>
-
-<span class="s">if [ $EXIT_CODE -ne 0 ]; then</span>
-<span class="s">    echo &quot;GitLab sync failed with exit code $EXIT_CODE&quot; | mail -s &quot;GitLab Sync Failure&quot; user@example.com</span>
-<span class="s">fi</span>
-<span class="s">EOF</span>
-chmod<span class="w"> </span>+x<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh
-
-<span class="c1"># Add to crontab</span>
-<span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh
-</code></pre></div>
-<h3 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" title="Link to this section">#</a></h3>
-<p><code>mirror fetch</code>, <code>clone</code>, <code>update</code>, <code>branches</code>, <code>verify</code> and <code>sync</code> exit <code>0</code> when nothing failed and
-<code>1</code> when anything did, including a partial run, where some repositories synced and others did not.
-<code>sync</code> aggregates across all five stages, so one failed clone fails the whole run, and <code>bootstrap</code>
-counts a failed mirror stage the same way it counts a failed knowledge-layer stage. (<code>mirror status</code>
-and <code>mirror audit</code> only report; they do not fail on what they find.)</p>
-<p>Work that was deliberately skipped (already up to date, a protected working branch, <code>--dry-run</code>) is
-never a failure, and <code>mirror verify</code> fails only on a cloned path that is not a valid git repository,
-not on repos that are merely missing or extra.</p>
-<p><code>Ctrl-C</code> exits <code>130</code>; a bad <code>--config</code> path exits <code>1</code>.</p>
-<p>Pass <code>--exit-zero-on-partial</code> to exit <code>0</code> anyway when some repositories failed, the failures are
-still reported, they just do not fail the job.</p>
-<p><code>--verbose</code> also changes what a crash leaves behind: the top-level handler re-raises instead of
-printing <code>Error: &lt;message&gt;</code> alone, so a bug report can carry the traceback without anyone having to
-reproduce the failure under a debugger.</p>
-<h3 id="observing-an-unattended-run">Observing an unattended run<a class="anchor" href="#observing-an-unattended-run" title="Link to this section">#</a></h3>
-<p>An exit code tells you <em>that</em> something broke; these four flags tell you <em>what</em>, after the fact.</p>
-<div class="highlight"><pre><span></span><code><span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/user/work<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>/usr/bin/contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--log-format<span class="w"> </span>json<span class="w"> </span>--log-file<span class="w"> </span>/var/log/contextlake/run.log<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--metrics-file<span class="w"> </span>/var/lib/node_exporter/textfile/contextlake.prom
-</code></pre></div>
-<ul>
-<li><strong><code>--log-format json</code></strong> emits one JSON object per line, each stamped with a <code>run_id</code> (pin your own
-  with <code>CONTEXTLAKE_RUN_ID</code>), the <code>command</code>, and, on per-repo lines, <code>repo</code>, <code>status</code>,
-  <code>duration_ms</code>, and <code>error_type</code> on failures.</li>
-<li><strong><code>--metrics-file</code></strong> writes Prometheus textfile-collector output: run duration, exit code, repo
-  counts by outcome, graph size, and a last-success timestamp that survives a failing run. Point
-  node_exporter's <code>--collector.textfile.directory</code> at that directory.</li>
-<li><strong><code>--log-file</code></strong> is redacted by default (workspace paths, <code>$HOME</code>, group and repository names), so
-  the copy you attach to a bug report needs no manual scrubbing. <code>--redact</code> extends that to the
-  console; <code>--no-redact</code> turns it off entirely.</li>
-<li><strong><code>--access-log</code></strong> turns on request logging for the local HTTP servers (<code>kb dashboard</code>,
-  <code>kb graph --serve</code>, <code>kb serve --transport http|sse</code>), which are otherwise silent.</li>
-</ul>
-<p>See <a href="console-output">Reading the console output</a> for the exact JSON shape and metric names, and
-<a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.service" target="_blank" rel="noopener"><code>examples/contextlake.service</code><span class="ext-arrow" aria-hidden="true">↗</span></a> for a systemd unit wired up this way.</p>
-<h3 id="log-rotation">Log rotation<a class="anchor" href="#log-rotation" title="Link to this section">#</a></h3>
-<p>To prevent log files from growing indefinitely, set up log rotation:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Create logrotate configuration</span>
-sudo<span class="w"> </span>cat<span class="w"> </span>&gt;<span class="w"> </span>/etc/logrotate.d/contextlake<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
-<span class="s">/tmp/contextlake.log {</span>
-<span class="s">    daily</span>
-<span class="s">    rotate 7</span>
-<span class="s">    compress</span>
-<span class="s">    delaycompress</span>
-<span class="s">    missingok</span>
-<span class="s">    notifempty</span>
-<span class="s">    create 0644 user user</span>
-<span class="s">}</span>
-<span class="s">EOF</span>
-</code></pre></div>
+<p>That one is real: it lets <code>update</code> pull over a dirty working tree, which can leave you with merge
+conflicts or lost work. <code>--no-protect-working-branches</code> has no effect on <code>update</code> at all, because
+<code>update</code> never consults it; it only loosens <code>mirror branches</code>.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="anchor" href="#troubleshooting" title="Link to this section">#</a></h2>
-<p>The mirror's symptom table, along with the install-side problems, now lives on one page:
-<a href="troubleshooting#the-mirror">Troubleshooting</a>. Keeping it there means a reader who is
-stuck looks in one place rather than guessing which page owns their symptom.</p>
-<h2 id="best-practices">Best practices<a class="anchor" href="#best-practices" title="Link to this section">#</a></h2>
-<ol>
-<li><strong>Initial Setup</strong>: Run <code>contextlake mirror sync</code> once to set up full workspace</li>
-<li><strong>Regular Updates</strong>: Use <code>contextlake mirror update</code> for frequent, fast updates</li>
-<li><strong>Branch Management</strong>: Run <code>contextlake mirror branches</code> periodically to stay on active branches</li>
-<li><strong>Monitoring</strong>: Check logs regularly for errors or failures</li>
-<li><strong>Backup</strong>: Commit workspace state to git before major branch switches</li>
-<li><strong>Testing</strong>: Test cron commands manually before adding to crontab</li>
-<li><strong>Documentation</strong>: Keep this documentation updated with any custom configurations</li>
-</ol>
+<p>The mirror's symptom table, along with the install-side problems, lives on one page:
+<a href="troubleshooting#the-mirror">Troubleshooting</a>. Keeping it there means a reader who is stuck
+looks in one place rather than guessing which page owns their symptom.</p>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="keep-fresh">Bootstrap and keep it fresh</a>, scheduling a sync and re-indexing on commit</li>
+<li><a href="configuration">Configuration</a>, the full settings reference</li>
+<li><a href="console-output">Reading the console output</a>, the status glyphs and the exit codes</li>
+<li><a href="knowledge-layer">Knowledge layer</a>, what to build on top of the mirror</li>
+<li><a href="troubleshooting">Troubleshooting</a>, when a mirror command misbehaves</li>
+</ul>
     <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="knowledge-layer"><span>Knowledge layer</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="index-code-graph"><span>Index the code graph</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#command-reference">Command reference</a><ul>
-<li><a href="#shell-completion">Shell completion</a></li>
 <li><a href="#mirror-status-check-current-synchronization-status">mirror status: check current synchronization status</a></li>
-<li><a href="#mirror-fetch-fetch-all-gitlab-projects">mirror fetch: fetch all GitLab projects</a></li>
+<li><a href="#mirror-fetch-fetch-every-project-you-can-see">mirror fetch: fetch every project you can see</a></li>
 <li><a href="#mirror-clone-clone-missing-repositories">mirror clone: clone missing repositories</a></li>
 <li><a href="#mirror-update-update-existing-repositories">mirror update: update existing repositories</a></li>
 <li><a href="#mirror-branches-switch-to-most-active-branches">mirror branches: switch to most active branches</a></li>
@@ -520,28 +366,15 @@ stuck looks in one place rather than guessing which page owns their symptom.</p>
 </li>
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#branch-safety">Branch safety</a><ul>
-<li><a href="#safety-checks">Safety checks</a></li>
-<li><a href="#configuration_1">Configuration</a></li>
-<li><a href="#behavior">Behavior</a></li>
-<li><a href="#example-scenarios">Example scenarios</a></li>
-<li><a href="#customization">Customization</a></li>
-<li><a href="#disabling-safety-checks">Disabling safety checks</a></li>
-</ul>
-</li>
-<li><a href="#scheduling-and-automation">Scheduling and automation</a><ul>
-<li><a href="#prerequisites-for-cron-jobs">Prerequisites for cron jobs</a></li>
-<li><a href="#basic-daily-sync">Basic daily sync</a></li>
-<li><a href="#hourly-updates-no-branch-switching">Hourly updates (no branch switching)</a></li>
-<li><a href="#weekly-full-sync-with-branch-management">Weekly full sync with branch management</a></li>
-<li><a href="#multiple-workspaces">Multiple workspaces</a></li>
-<li><a href="#monitoring-and-alerts">Monitoring and alerts</a></li>
-<li><a href="#exit-codes">Exit codes</a></li>
-<li><a href="#observing-an-unattended-run">Observing an unattended run</a></li>
-<li><a href="#log-rotation">Log rotation</a></li>
+<li><a href="#the-three-checks">The three checks</a></li>
+<li><a href="#which-setting-affects-which-command">Which setting affects which command</a></li>
+<li><a href="#what-each-looks-like">What each looks like</a></li>
+<li><a href="#setting-them">Setting them</a></li>
+<li><a href="#disabling-a-safety-check">Disabling a safety check</a></li>
 </ul>
 </li>
 <li><a href="#troubleshooting">Troubleshooting</a></li>
-<li><a href="#best-practices">Best practices</a></li>
+<li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
 </div>
@@ -570,6 +403,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=18ad908"></script>
+<script defer src="cmdk.js?v=80045cb"></script>
 </body>
 </html>

@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem("cl-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<title>Ask the graph · contextlake docs</title>
+<meta name="description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://sayak.in/contextlake/ask-the-graph">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="contextlake">
+<meta property="og:title" content="Ask the graph · contextlake docs">
+<meta property="og:description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
+<meta property="og:url" content="https://sayak.in/contextlake/ask-the-graph">
+<meta property="og:image" content="https://sayak.in/contextlake/og-card.jpg">
+<meta property="og:image:alt" content="contextlake: a local context layer for your AI tools.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ask the graph · contextlake docs">
+<meta name="twitter:description" content="Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.">
+<meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Ask the graph", "description": "Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.", "url": "https://sayak.in/contextlake/ask-the-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Ask the graph", "item": "https://sayak.in/contextlake/ask-the-graph"}]}]}</script>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#137A8B">
+<link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css?v=80045cb">
+<link rel="stylesheet" href="tokens.css?v=80045cb">
+<link rel="stylesheet" href="docs.css?v=80045cb">
+<link rel="stylesheet" href="cmdk.css?v=80045cb">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<header><div class="nav">
+  <a class="brand" href="./" aria-label="contextlake home"><img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">contextlake</a>
+  <span class="spacer"></span>
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
+  </button>
+  <span class="social-row"><button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden aria-label="Switch theme" title="Switch light / dark theme"><svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg></button><a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a></span>
+</div></header>
+<div class="shell">
+  <aside class="side"><button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Browse docs</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="side-body" id="side-body"><h2>Understand it</h2><nav aria-label="Understand it"><a href="docs">Overview</a><a href="explained">contextlake, explained</a><a href="benchmarks">Benchmarks</a></nav><h2>Get started</h2><nav aria-label="Get started"><a href="install">Install and upgrade</a><a href="quickstart">Quickstart</a><a href="configuration">Configuration</a></nav><h2>Build your knowledge base</h2><nav aria-label="Build your knowledge base"><a href="knowledge-layer">Knowledge layer</a><a href="usage">Mirror repositories</a><a href="index-code-graph">Index the code graph</a><a href="connect-enrich">Connect and enrich</a><a href="semantic-search">Semantic search</a><a href="generate-wiki">Generate the wiki</a></nav><h2>Use it</h2><nav aria-label="Use it"><a href="ask-the-graph" class="active">Ask the graph</a><a href="serve">Serve (MCP)</a><a href="dashboard">Dashboard</a><a href="visualize">Visualize the graph</a></nav><h2>Operate it</h2><nav aria-label="Operate it"><a href="keep-fresh">Bootstrap and keep it fresh</a><a href="console-output">Reading the console output</a><a href="troubleshooting">Troubleshooting</a></nav><h2>Reference</h2><nav aria-label="Reference"><a href="internals">Architecture and internals</a><a href="cli-reference">Command reference</a><a href="model-providers">Model providers</a><a href="changelog">Changelog</a></nav><h2>Project</h2><nav aria-label="Project"><a href="style-guide">Writing style</a><a href="style-guide-voice">Voice and tone</a><a href="style-guide-structure">Page types and structure</a><a href="style-guide-formatting">Formatting</a><a href="style-guide-reference">Word reference</a><a href="brand">Brand overview</a></nav><div class="ext"><div class="social-row"><a class="icon-btn" href="https://github.com/sayak-sarkar/contextlake" aria-label="contextlake on GitHub" title="contextlake on GitHub" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg></a><a class="icon-btn" href="https://pypi.org/project/contextlake/" aria-label="contextlake on PyPI" title="contextlake on PyPI" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px"></a></div></div></div></aside>
+  <main class="prose" id="doc">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="docs">Docs</a><span aria-hidden="true">/</span><span>Use it</span><span aria-hidden="true">/</span><span aria-current="page">Ask the graph</span></nav>
+    <header class="doc-hero" data-kind="use"><div class="doc-hero-text"><div class="doc-eyebrow">Use it</div><h1>Ask the graph</h1><p class="doc-sub">Search the graph from the terminal, trace what a change would break, and find who to ask: `kb query`, `kb impact`, and `kb owners`.</p></div><img class="doc-pebble" src="pebble-doc.png" alt="" aria-hidden="true" width="120" height="120" loading="lazy"></header>
+    
+<p>Three commands answer the questions the graph exists for: <code>kb query</code> finds a symbol, <code>kb impact</code>
+finds what breaks if you change it, and <code>kb owners</code> finds who to ask about it. All three print a
+citation you can open, all three take <code>--json</code>, and none of them needs an editor or an MCP client.</p>
+<p>The same three answers reach an agent over MCP as <code>search_code</code> / <code>semantic_search</code> /
+<code>hybrid_search</code>, <code>blast_radius</code>, and <code>who_knows</code>; see
+<a href="serve">Serve it to your editor</a>. This page is the terminal-side equivalent.</p>
+<h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
+<ul>
+<li>A store with an indexed repo in it: <a href="index-code-graph">Index the code graph</a>, or
+  <code>contextlake bootstrap</code>. <code>kb owners</code> is the exception, it reads git directly and needs neither.</li>
+<li>For <code>--retriever semantic</code> or <code>hybrid</code>, a <code>contextlake kb embed</code> run as well:
+  <a href="semantic-search">Semantic search</a>.</li>
+</ul>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Query an empty store and you get <code>No matches</code>, exit <code>0</code>, which looks exactly like a genuine miss.
+Opening the store creates it if it is absent (<code>SqliteStore.__init__</code> in
+<code>src/contextlake/kb/store/sqlite_store.py</code> runs <code>mkdir(parents=True, exist_ok=True)</code> and applies a
+<code>CREATE TABLE IF NOT EXISTS</code> schema), so nothing tells you the index was never built. Run
+<code>contextlake doctor</code> if the counts look wrong; it reports the store's real node and edge totals.</p>
+</div>
+<h2 id="find-something-kb-query">Find something: <code>kb query</code><a class="anchor" href="#find-something-kb-query" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;CatalogService&quot;</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>charge<span class="w"> </span>--kind<span class="w"> </span><span class="k">function</span><span class="w"> </span>--repo<span class="w"> </span>acme/billing-service
+contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;how do we charge a card&quot;</span><span class="w"> </span>--retriever<span class="w"> </span>semantic
+contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>charge<span class="w"> </span>--repo<span class="w"> </span>acme/billing-service<span class="w"> </span>--as-of<span class="w"> </span>a1b2c3
+</code></pre></div>
+<p>Each hit prints as <code>repo · file:line · kind · name</code>, so every result is a place you can open.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>What it does</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--kind KIND</code></td>
+<td>Only nodes of this kind (<code>function</code>, <code>class</code>, <code>table</code>, …)</td>
+<td>all kinds</td>
+</tr>
+<tr>
+<td><code>--repo REPO</code></td>
+<td>Only this repository</td>
+<td>all repos</td>
+</tr>
+<tr>
+<td><code>--limit N</code></td>
+<td>Most results to print</td>
+<td><code>20</code></td>
+</tr>
+<tr>
+<td><code>--retriever fts\|semantic\|hybrid</code></td>
+<td>Which retrieval mode to use</td>
+<td><code>fts</code></td>
+</tr>
+<tr>
+<td><code>--as-of COMMIT</code></td>
+<td>Search a repo's snapshot at a previously-indexed commit (needs <code>--repo</code>)</td>
+<td>latest</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>A JSON array on stdout; every log line moves to stderr</td>
+<td>off</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-three-retrieval-modes-and-which-to-reach-for">The three retrieval modes, and which to reach for<a class="anchor" href="#the-three-retrieval-modes-and-which-to-reach-for" title="Link to this section">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>How it matches</th>
+<th>Good for</th>
+<th>Bad at</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fts</code> (default)</td>
+<td>SQLite FTS5 over node name, qualified name and file, as <strong>prefix</strong> terms</td>
+<td>a name you know, or its first few characters</td>
+<td>a description of what the code does</td>
+</tr>
+<tr>
+<td><code>semantic</code></td>
+<td>nearest neighbours in embedding space</td>
+<td>"how do we charge a card", where you have the idea and not the name</td>
+<td>an exact rare identifier</td>
+</tr>
+<tr>
+<td><code>hybrid</code></td>
+<td>semantic seeds, then a Personalized PageRank rerank over the graph</td>
+<td>most real questions</td>
+<td>nothing in particular, it is the slowest of the three</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>fts</code> is prefix search, not substring search.</strong> Each word you type becomes a quoted prefix term,
+so <code>Catalog</code> finds <code>CatalogService</code> and <code>Service</code> does not
+(<code>_fts_query</code> in <code>src/contextlake/kb/store/sqlite_store.py</code>). Multiple words are an implicit AND of
+prefix terms. That is the single most common reason a query that "should" match comes back empty.</p>
+<p><strong>Semantic and hybrid degrade to <code>fts</code> rather than failing</strong>, and say so on stderr, when there is no
+embedder configured or the vector store cannot be opened
+(<code>src/contextlake/kb/cmds/query.py</code>, the <code>_semantic_results</code> fallbacks). One gap is worth knowing:
+if the vector store opens but is <em>empty</em>, the retriever returns no results rather than being
+unavailable, so there is no fallback and no warning. An unexpectedly empty
+<code>--retriever semantic</code> run usually means <code>contextlake kb embed</code> has not run yet.</p>
+<p><strong><code>--kind</code> is applied differently per mode.</strong> On <code>fts</code> it is part of the SQL, so <code>--limit 20</code> gives
+you up to 20 matching nodes. On <code>semantic</code> and <code>hybrid</code> it is a filter applied <em>after</em> the retriever
+has already cut to <code>--limit</code>, so <code>--retriever semantic --kind function --limit 20</code> can return far
+fewer than 20 functions even when the repo has hundreds.</p>
+<p><strong><code>--as-of</code> is a different search, not the same search over old data.</strong> It reads the repo's stored
+shard for that commit and matches with a case-insensitive substring test, so it neither uses FTS nor
+honours <code>--retriever</code>. It needs <code>--repo</code>, because history is kept per repository.</p>
+<h3 id="verification">Verification<a class="anchor" href="#verification" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>query<span class="w"> </span>CatalogService<span class="w"> </span>--limit<span class="w"> </span><span class="m">3</span>
+</code></pre></div>
+<p>You should get up to three lines shaped like
+<code>acme/catalog-api · src/catalog/service.py:41 · class · CatalogService</code>. If you get
+<code>No matches for 'CatalogService'</code>, check the index is populated with <code>contextlake doctor</code> before
+suspecting the query.</p>
+<h2 id="see-what-breaks-kb-impact">See what breaks: <code>kb impact</code><a class="anchor" href="#see-what-breaks-kb-impact" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>charge
+contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>charge<span class="w"> </span>--repo<span class="w"> </span>acme/billing-service<span class="w"> </span>--hops<span class="w"> </span><span class="m">2</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>blast-radius<span class="w"> </span>charge<span class="w"> </span>--json<span class="w">          </span><span class="c1"># the same command</span>
+</code></pre></div>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>What it does</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--repo REPO</code></td>
+<td>Disambiguate a symbol defined in more than one repo</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>--hops N</code></td>
+<td>How many reverse hops to walk</td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td><code>--limit N</code></td>
+<td>Most affected nodes to list</td>
+<td><code>100</code></td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>A JSON object on stdout</td>
+<td>off</td>
+</tr>
+</tbody>
+</table>
+<p><code>impact</code> walks the graph <strong>backwards</strong>: it follows edges <em>into</em> the node you named, so it answers
+"what depends on this", not "what does this depend on". Six relations are traversed,
+<code>calls</code>, <code>depends_on</code>, <code>inherits</code>, <code>references</code>, <code>reads</code> and <code>writes</code>
+(<code>DEFAULT_RELATIONS</code> in <code>src/contextlake/kb/impact.py</code>). There is no flag to change that set from the
+CLI; the MCP <code>blast_radius</code> tool takes a <code>relations</code> argument if you need a different walk.
+<code>transitions_to</code> is deliberately outside the default set, see
+<a href="index-code-graph#entity-state-machines">Entity state machines</a>.</p>
+<p>Each affected node is reported once, at the first hop that reached it, with the relation it came
+through and that edge's confidence. Incoming edges are visited <strong>highest-confidence first</strong>
+(<code>EXTRACTED</code>, then <code>INFERRED</code>, then <code>AMBIGUOUS</code>), which is what makes a truncated result still worth
+reading: when <code>--limit</code> is reached the whole walk stops, so what you get is a bounded slice of the
+most trustworthy edges rather than an arbitrary prefix. The output says <code>(truncated)</code> when that
+happened. There is no pagination; raise <code>--limit</code> instead.</p>
+<p><strong>Ambiguity is reported, not guessed at.</strong> This holds at two levels.</p>
+<p>Within one repository, a name matching several definitions no longer silently takes the first. The
+seed is named with its <code>file:line</code> and how many definitions competed for it, the first five
+alternatives that were passed over are listed with their node ids (with a count of any beyond that),
+every hit cites the call site the edge was read from,
+and a footer counts how much of the answer rests on name-only matching:</p>
+<div class="highlight"><pre><span></span><code>Impact of changing close (contextlake_site_cmdk_js_close_113): 1 affected node(s) within 1 hop(s)
+  seed: function site/cmdk.js:113 (3 matched &#39;close&#39;; used the first)
+        or: method src/contextlake/kb/store/base.py:27  --node contextlake_src_contextlake_kb_store_base_py_store_close_27
+        or: method src/contextlake/kb/store/sqlite_store.py:179  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_179
+  h1  contextlake:site/cmdk.js  (file, site/cmdk.js)  via calls at site/cmdk.js:121  [ambiguous, 1 of 3 same-name definitions]
+  1 of 1 hit(s) came from a reference matched by NAME across several same-named definitions; each caller may target a different one. Open the cited call site to confirm.
+</code></pre></div>
+<p><strong>To ask about one of the alternatives instead, pass its node id as the argument</strong>, not as a flag:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>contextlake_src_contextlake_kb_store_base_py_store_close_27
+</code></pre></div>
+<p><code>impact</code> tries an exact node id before it tries anything else, so an id resolves to that one
+definition and nothing else. (The <code>--node</code> prefix those lines are printed with is <code>kb graph</code>'s
+flag name; <code>kb impact</code> has no <code>--node</code> flag and will tell you so if you pass one.)</p>
+<p>The footer is the part worth reading twice. <code>AMBIGUOUS</code> as a label read exactly the same on a
+hand-verified answer where all eleven hits were real and on one carrying 282 false positives, so
+the count is there to say what the label costs <em>in this result</em>: <code>3 of 3</code> means treat the whole
+list as leads, <code>1 of 40</code> means the opposite.</p>
+<p>A symbol defined in several <strong>repos</strong> makes <code>impact</code> say so,
+name how many repos define it, list the candidates, and exit <code>1</code>, so you can narrow it yourself:</p>
+<div class="highlight"><pre><span></span><code>  --repo acme/billing-service   (function charge)
+  --repo acme/catalog-api       (method charge)
+</code></pre></div>
+<p>The candidate list stops at 10 repos even when the count in the line above it is higher.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>A name that matches no node exactly falls back to a fuzzy search and takes the top hit, silently
+(<code>resolve_target</code> in <code>src/contextlake/kb/impact.py</code>). A typo can therefore produce a confident
+blast radius for the wrong symbol. The header line always names the node that was actually
+resolved, <code>Impact of changing &lt;name&gt; (&lt;node id&gt;)</code>, so read it before trusting the list.</p>
+</div>
+<h3 id="verification_1">Verification<a class="anchor" href="#verification_1" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="w"> </span>&lt;a<span class="w"> </span>symbol<span class="w"> </span>you<span class="w"> </span>know<span class="w"> </span>has<span class="w"> </span>callers&gt;<span class="w"> </span>--hops<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+<p>You should see <code>... : N affected node(s) within 1 hop(s)</code> followed by <code>h1</code> lines. A symbol with no
+dependents prints <code>nothing depends on it within 1 hop(s)</code> and exits <code>0</code>; that is a real answer, not
+a failure.</p>
+<h2 id="find-who-to-ask-kb-owners">Find who to ask: <code>kb owners</code><a class="anchor" href="#find-who-to-ask-kb-owners" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w">                  </span><span class="c1"># the whole repo</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>acme/payments-api<span class="w"> </span>--path<span class="w"> </span>src/auth<span class="w">  </span><span class="c1"># one sub-tree</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>.<span class="w">                                  </span><span class="c1"># a directory on disk, no index needed</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>who-knows<span class="w"> </span>acme/payments-api<span class="w"> </span>--json<span class="w">        </span><span class="c1"># the same command</span>
+</code></pre></div>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-owners.png" alt="contextlake kb owners acme/catalog-api output: a recency-weighted SME ranking from git history: Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>What it does</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--path SUBDIR</code></td>
+<td>Rank contributors to this sub-tree only</td>
+<td>the whole repo</td>
+</tr>
+<tr>
+<td><code>--limit N</code></td>
+<td>Most owners to list</td>
+<td><code>10</code></td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>A JSON object on stdout</td>
+<td>off</td>
+</tr>
+</tbody>
+</table>
+<p>Give it a <strong>path that exists on disk</strong> and it never opens the store at all, so
+<code>contextlake kb owners .</code> works on a machine that has never indexed anything. Give it a <strong>repo id</strong>
+and it looks that id up in the store to find the clone; an id it does not know exits <code>1</code> and
+suggests close matches.</p>
+<h3 id="how-the-ranking-works">How the ranking works<a class="anchor" href="#how-the-ranking-works" title="Link to this section">#</a></h3>
+<p>Each contributor's score is</p>
+<div class="highlight"><pre><span></span><code>sum over their commits of (lines_changed + 1) * 0.5 ** (age_days / 180)
+</code></pre></div>
+<p>(<code>src/contextlake/kb/ownership.py</code>, <code>HALFLIFE_DAYS = 180.0</code>). Three consequences worth knowing:</p>
+<ul>
+<li><strong>Volume and recency both count.</strong> The <code>+ 1</code> means a commit scores even when it changed no
+  countable lines, so a prolific reviewer of small changes still ranks.</li>
+<li><strong>Age is measured from the newest commit in the history examined, not from today.</strong> An archived
+  repo therefore still returns a sensible ranking of who was active <em>within that repo's own
+  timeline</em>, and the answer does not drift as time passes.</li>
+<li><strong><code>--path</code> moves that baseline too</strong>, because the newest commit is recomputed over only the
+  commits touching that path.</li>
+</ul>
+<p>The printed percentage is each contributor's share of the total score, not a share of commits.
+Contributors are aggregated by email where there is one, and shown under the name on their most
+recent commit.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code>owners</code> runs exactly one <code>git log --no-merges --numstat</code> and cannot tell you <em>why</em> it came back
+empty: no history, a path that matches nothing, <code>git</code> missing from PATH and the 30-second timeout
+all print <code>No commit history found for &lt;scope&gt;</code> and exit <code>0</code>.</p>
+</div>
+<h3 id="verification_2">Verification<a class="anchor" href="#verification_2" title="Link to this section">#</a></h3>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="w"> </span>.<span class="w"> </span>--limit<span class="w"> </span><span class="m">3</span>
+</code></pre></div>
+<p>In any git repository with history you should get <code>Owners / SMEs for &lt;dir&gt; (recency-weighted):</code>
+followed by up to three numbered lines ending in a percentage.</p>
+<h2 id="scripting-these-commands">Scripting these commands<a class="anchor" href="#scripting-these-commands" title="Link to this section">#</a></h2>
+<p><code>--json</code> on any of the three prints the result on stdout and moves every human line to stderr, so
+<code>contextlake kb query foo --json | jq</code> is safe. The shapes differ per command:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Top-level JSON</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kb query</code></td>
+<td>an <strong>array</strong> of hits</td>
+<td>keys <code>repo</code>, <code>file</code>, <code>line</code>, <code>kind</code>, <code>name</code>, <code>qualified_name</code>. No score field</td>
+</tr>
+<tr>
+<td><code>kb impact</code></td>
+<td>an <strong>object</strong></td>
+<td><code>target</code> (with <code>file</code>/<code>line</code>), <code>hops</code>, <code>truncated</code>, <code>ambiguous</code>, <code>other_definitions[]</code>, <code>affected[]</code>; each hit carries <code>id</code>, <code>file</code>, <code>line</code>, <code>via_file</code>, <code>via_line</code>, <code>name_candidates</code>. <code>confidence</code> is lower-case</td>
+</tr>
+<tr>
+<td><code>kb owners</code></td>
+<td>an <strong>object</strong></td>
+<td><code>repo</code>, <code>path</code>, <code>owners[]</code>; email and raw score are not included</td>
+</tr>
+</tbody>
+</table>
+<p>Three behaviours that bite scripts:</p>
+<ul>
+<li><strong>An empty result is exit <code>0</code></strong>, in all three. Test the payload, not the exit code, to detect
+  "found nothing". Exit <code>2</code> means you gave no search term; exit <code>1</code> means the target could not be
+  resolved.</li>
+<li><strong><code>--limit 0</code> and <code>--hops 0</code> are refused</strong>, with the argument error and exit <code>2</code>: <code>--limit</code> takes
+  1 to 1,000,000 and <code>--hops</code> takes 1 to 1,000. Zero used to be read as "unset" and quietly became
+  the default, which is exactly why it is now an error. Neither ever meant "no limit".</li>
+<li><strong>The <code>--as-of</code> argument check is the one error that ignores <code>--json</code></strong>: <code>--as-of</code> without
+  <code>--repo</code> prints a plain line to stderr and exits <code>2</code> with no JSON error object.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
+<ul>
+<li><a href="serve">Serve it to your editor</a>, the same answers as MCP tools</li>
+<li><a href="index-code-graph">Index the code graph</a>, what the graph contains to be asked about</li>
+<li><a href="semantic-search">Semantic search</a>, what <code>--retriever semantic</code> needs first</li>
+<li><a href="dashboard">The dashboard</a>, the same queries in a browser</li>
+<li><a href="console-output">Reading the console output</a>, decoding a run</li>
+</ul>
+    <section class="next-steps" aria-label="Next steps"><h2>Next steps</h2><div class="next-grid"><a class="next-card" href="serve"><span>Serve (MCP)</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="next-card" href="dashboard"><span>Dashboard</span><svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div></section>
+  </main>
+  <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
+<ul>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#find-something-kb-query">Find something: kb query</a><ul>
+<li><a href="#the-three-retrieval-modes-and-which-to-reach-for">The three retrieval modes, and which to reach for</a></li>
+<li><a href="#verification">Verification</a></li>
+</ul>
+</li>
+<li><a href="#see-what-breaks-kb-impact">See what breaks: kb impact</a><ul>
+<li><a href="#verification_1">Verification</a></li>
+</ul>
+</li>
+<li><a href="#find-who-to-ask-kb-owners">Find who to ask: kb owners</a><ul>
+<li><a href="#how-the-ranking-works">How the ranking works</a></li>
+<li><a href="#verification_2">Verification</a></li>
+</ul>
+</li>
+<li><a href="#scripting-these-commands">Scripting these commands</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+</nav></aside>
+</div>
+<footer><div class="f-in">
+  <span class="tagline"><img src="mark.png" width="28" height="28" alt="" aria-hidden="true" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">Deep context. Clear answers.</span>
+  <nav class="f-links" aria-label="Footer">
+    <a href="./">Home</a><a href="demo/">Live demo</a><a href="changelog">Changelog</a><a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank"><svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M12 2A10 10 0 0 0 8.8 21.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.2-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.8-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"/></svg>GitHub</a><a href="https://pypi.org/project/contextlake/" rel="noopener" target="_blank"><img src="pypi-logo.svg" class="lmark" width="15" height="13" alt="" style="vertical-align:-2px">PyPI</a>
+  </nav>
+</div></footer>
+<script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
+<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
+var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
+var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
+b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
+pre.appendChild(b);});})();</script>
+<script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
+var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
+var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.type="button";b.className="tab-btn";b.setAttribute("role","tab");b.textContent=t.getAttribute("data-label")||("Tab "+(i+1));
+b.addEventListener("click",function(){tabs.forEach(function(x){x.hidden=true;});strip.querySelectorAll(".tab-btn").forEach(function(x){x.setAttribute("aria-selected","false");});t.hidden=false;b.setAttribute("aria-selected","true");});
+strip.appendChild(b);});
+g.insertBefore(strip,g.firstChild);g.classList.add("tabs-js");
+tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").setAttribute("aria-selected","true");});})();</script>
+<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
+s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
+<script defer src="cmdk.js?v=80045cb"></script>
+</body>
+</html>
