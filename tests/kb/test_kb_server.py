@@ -1111,3 +1111,43 @@ def test_repo_side_refuses_an_out_of_vocabulary_direction_directly():
     assert server_mod._repo_side(rows, "a", "out") == rows
     with pytest.raises(ValueError, match="invalid direction: 'sideways'"):
         server_mod._repo_side(rows, "a", "sideways")
+
+
+def test_an_unresolvable_symbol_is_reported_as_unknown_not_as_unaffected(tmp_path):
+    """`blast_radius` seeded the walk with the caller's raw string when it did not
+    resolve, so an unknown symbol came back as a well-formed, non-error, bounded
+    impact analysis of a symbol that does not exist -- "nothing depends on this,
+    safe to change" rendered identically to "I have never heard of this symbol".
+    `find_callers` returned the same empty success without fabricating a seed."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    _seed(s)
+    srv = build_server(s)
+    try:
+        blast = asyncio.run(_call(srv, "blast_radius", {
+            "node_id": "NoSuchSymbolAnywhere"})).structured_content
+        assert blast["total"] == 0 and blast["hits"] == []
+        assert blast["note"] == "No indexed symbol named 'NoSuchSymbolAnywhere'."
+        assert blast["seed"] == "", "an unresolvable seed must not be echoed as a node id"
+
+        callers = asyncio.run(_call(srv, "find_callers", {
+            "node_id": "NoSuchSymbolAnywhere"})).structured_content
+        assert callers["total"] == 0
+        assert callers["note"] == "No indexed symbol named 'NoSuchSymbolAnywhere'."
+
+        # a real symbol with no callers keeps saying nothing: the note is the
+        # miss disclosure, not a label on every empty answer
+        quiet = asyncio.run(_call(srv, "find_callers", {"node_id": "a"})).structured_content
+        assert quiet["total"] == 0 and quiet["note"] is None
+    finally:
+        s.close()
+
+
+def test_a_negative_hops_is_refused_rather_than_answered_emptily(server):
+    """`hops: -1` walked nowhere and returned a clean "nothing is affected" --
+    a nonsense input rendered as a reassuring answer. Zero hops is a real
+    request and still answers."""
+    bad = asyncio.run(_call(server, "blast_radius", {"node_id": "b", "hops": -1}))
+    assert bad.is_error and "hops must be 0 or greater" in bad.content[0].text
+
+    zero = asyncio.run(_call(server, "blast_radius", {"node_id": "b", "hops": 0}))
+    assert not zero.is_error and zero.structured_content["total"] == 0

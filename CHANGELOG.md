@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller can judge the ranking instead of trusting it.
 
 ### Fixed
+- **`blast_radius` answered for symbols it had never heard of.** An unresolvable name was used as
+  the seed anyway, so the tool returned a well-formed, non-error, bounded impact analysis of a
+  symbol that does not exist: "nothing depends on this, safe to change" and "no such symbol is
+  indexed" were the same answer to a question about whether a change is safe. Both `blast_radius`
+  and `find_callers` now say which one it is, in the same words `find_dependents` already used. A
+  negative `hops`, which walked nowhere and reported a reassuring empty reach, is refused; `hops: 0`
+  is a real request and still answers.
 - **An invalid `direction` was answered by three MCP tools and refused by a fourth.**
   `repo_dependencies`, `repo_flow` and `repo_event_flow` matched no branch for a value outside
   `in`/`out`/`both` and returned an empty edge list, so a typo read as "this repository has no

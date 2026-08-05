@@ -631,7 +631,12 @@ def build_server(
             return NodesOut(nodes=[], total=0, truncated=False, note=_NEEDS_SYMBOL)
         nid, why = _as_node_id(node_id)
         if nid is None:
-            return NodesOut(nodes=[], total=0, truncated=False)
+            # Same distinction `find_dependents` already draws, in the same words:
+            # "no such symbol is indexed" and "nothing calls this symbol" are
+            # different facts, and the second is the more reassuring one to get
+            # wrong. An empty list alone cannot tell them apart.
+            return NodesOut(nodes=[], total=0, truncated=False,
+                            note=f"No indexed symbol named {node_id!r}.")
         edges = sorted(store.neighbors(nid, relation="calls", direction="in"),
                        key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
         seen: set[str] = set()
@@ -752,15 +757,30 @@ def build_server(
         Each hit carries its hop distance, the relation, and confidence —
         EXTRACTED-first; verify INFERRED/AMBIGUOUS against the cited source. A
         bounded impact slice, never an exhaustive guarantee (`truncated` says when
-        the cap was hit).
+        the cap was hit). An unresolvable symbol returns `note` saying so, rather
+        than an empty result that reads as "nothing depends on this".
         """
         from .impact import blast_radius as _blast
         node_id = _one_of(node_id, name)
         if node_id is None:
             return BlastRadiusOut(seed="", hops=hops, hits=[], total=0, truncated=False,
                                   note=_NEEDS_SYMBOL)
+        if hops < 0:
+            # A negative reach is not a smaller question, it is not a question:
+            # the walk stops immediately and the empty result reads as "nothing is
+            # affected". Zero is a real request (look zero hops out) and keeps
+            # answering emptily; below zero is refused.
+            raise ValueError(f"hops must be 0 or greater, not {hops}")
         resolved, why = _as_node_id(node_id)
-        nid = resolved or node_id
+        if resolved is None:
+            # The unresolved string used to be used as the seed anyway, so an
+            # unknown symbol came back as a well-formed, non-error, bounded impact
+            # analysis of a symbol that does not exist. "Nothing depends on this,
+            # safe to change" and "I have never heard of this symbol" are opposite
+            # answers to a question about whether a change is safe.
+            return BlastRadiusOut(seed="", hops=hops, hits=[], total=0, truncated=False,
+                                  note=f"No indexed symbol named {node_id!r}.")
+        nid = resolved
         hits, truncated = _blast(store, nid, hops=hops, relations=relations, limit=limit)
         return BlastRadiusOut(
             seed=nid, hops=hops, total=len(hits), truncated=truncated,
