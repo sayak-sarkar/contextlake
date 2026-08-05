@@ -1034,7 +1034,7 @@ def build_server(
         """Shortest path between two nodes over the graph (<= max_hops).
 
         `found` says whether there is one; when there is not, `gap` says which of
-        the two reasons applies — an id the graph does not hold, or two indexed
+        the two reasons applies: an id the graph does not hold, or two indexed
         nodes with no route between them inside `max_hops`. This used to return a
         bare list, which rendered a typo and a genuine disconnection identically.
         """
