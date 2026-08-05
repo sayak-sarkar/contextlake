@@ -35,6 +35,67 @@ def _norm_name(raw: str) -> str:
     return raw.strip().strip("[]").casefold()
 
 
+# Where a comment can begin -- and the one thing that can make those two tokens
+# not a comment at all, a single-quoted literal.
+_MASK_SCAN = re.compile(r"--|/\*|'")
+
+
+def _mask_comments(text: str) -> str:
+    """Blank out ``--`` line comments and ``/* */`` block comments, in place.
+
+    A comment is not a schema. Commented-out DDL is exactly the kind of history
+    line a long-lived script accumulates, and matching inside one invented
+    foreign keys the database does not have -- measured on a fixture whose
+    ``-- region_id INT NULL REFERENCES regions(region_id),`` produced a real
+    ``orders -> regions`` edge, complete with the comment's own line number as
+    its provenance.
+
+    Every masked character is replaced by a space and **newlines are kept**, so
+    the result is the same length with the same line breaks: offsets and
+    ``_line_of`` results are identical to the raw text, and nothing downstream
+    has to re-derive a position.
+
+    Single-quoted literals are stepped over rather than scanned, so a ``--`` or
+    ``/*`` inside one is not mistaken for the start of a comment -- masking from
+    there would swallow the rest of a live statement and silently lose real
+    tables, which is a worse failure than the false positive this fixes. ``''``
+    is the SQL escape for a quote and stays inside the literal. Double-quoted
+    and ``[bracketed]`` identifiers are deliberately not tracked: an identifier
+    containing a comment marker is pathological, and treating ``"`` as a string
+    delimiter would mis-scan the dialects that use it for identifiers.
+    """
+    out = list(text)
+    n = len(text)
+    i = 0
+    while (m := _MASK_SCAN.search(text, i)) is not None:
+        start = m.start()
+        if m.group(0) == "'":
+            j = start + 1
+            while j < n:
+                if text[j] != "'":
+                    j += 1
+                elif j + 1 < n and text[j + 1] == "'":
+                    j += 2      # an escaped quote, still inside the literal
+                else:
+                    j += 1      # the closing quote
+                    break
+            i = j
+            continue
+        if m.group(0) == "--":
+            end = text.find("\n", start)
+            end = n if end < 0 else end
+        else:
+            end = text.find("*/", start + 2)
+            # An unterminated block comment runs to end of file, which is what
+            # every SQL engine does with one too.
+            end = n if end < 0 else end + 2
+        for k in range(start, end):
+            if out[k] != "\n":
+                out[k] = " "
+        i = end
+    return "".join(out)
+
+
 def _line_of(text: str, pos: int) -> int:
     return text.count("\n", 0, pos) + 1
 
@@ -48,7 +109,11 @@ def parse_sql(
     nodes carry structural provenance (file/line) and resolved edges are stamped at
     resolution time, so it is unused here.
     """
-    text = source.decode("utf-8", "replace") if isinstance(source, (bytes, bytearray)) else source
+    raw = source.decode("utf-8", "replace") if isinstance(source, (bytes, bytearray)) else source
+    # Every match below runs against the masked copy, defs included: a CREATE
+    # inside a comment must neither mint a node nor act as the scope boundary
+    # that cuts a live table's FK scope short.
+    text = _mask_comments(raw)
     nodes: list[Node] = []
     refs: list[tuple[str, str, str, int]] = []
 

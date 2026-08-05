@@ -58,6 +58,62 @@ def test_parse_sql_captures_fk_references():
     assert all("." not in t and "[" not in t for _s, t in pairs)
 
 
+def test_commented_out_references_is_not_a_foreign_key():
+    # A commented-out FK is dead DDL a real script accumulates, not a schema:
+    # emitting it invented an `orders -> regions` relationship that the database
+    # does not have, and it resolved like a real edge whenever the named table
+    # happened to exist elsewhere in the repo.
+    sql = (
+        b"CREATE TABLE orders (\n"
+        b"    order_id INT PRIMARY KEY,\n"
+        b"    -- region_id INT NULL REFERENCES regions(region_id),\n"
+        b"    /* legacy_id INT NULL REFERENCES legacy(legacy_id), */\n"
+        b"    /* multi-line:\n"
+        b"       tenant_id INT NULL REFERENCES tenants(tenant_id), */\n"
+        b"    customer_id INT NOT NULL REFERENCES customers(customer_id)\n"
+        b");\n"
+    )
+    nodes, refs = parse_sql("r", "s.sql", sql)
+    assert {n.name for n in nodes} == {"orders"}
+    assert {tgt for _s, tgt, _f, _l in refs} == {"customers"}
+    # the surviving FK still reports the line it was really written on: the mask
+    # preserves every newline, so nothing downstream has to re-derive positions
+    assert [line for _s, _t, _f, line in refs] == [7]
+
+
+def test_a_comment_marker_inside_a_string_literal_does_not_blank_real_ddl():
+    # The inverse failure of the fix above: treating `--` or `/*` inside a quoted
+    # literal as a comment would swallow the rest of the statement and silently
+    # LOSE real tables and FKs, which is worse than the false positive it fixes.
+    sql = (
+        b"CREATE TABLE audit (\n"
+        b"    note NVARCHAR(50) DEFAULT 'n/a -- not set',\n"
+        b"    tag NVARCHAR(50) DEFAULT 'a /* b',\n"
+        b"    quoted NVARCHAR(50) DEFAULT 'it''s -- fine',\n"
+        b"    actor_id INT NOT NULL REFERENCES actors(actor_id)\n"
+        b");\n"
+    )
+    nodes, refs = parse_sql("r", "s.sql", sql)
+    assert {n.name for n in nodes} == {"audit"}
+    assert {tgt for _s, tgt, _f, _l in refs} == {"actors"}
+
+
+def test_commented_out_create_table_defines_nothing():
+    # Same root cause on the def side: a CREATE inside a comment used to mint a
+    # node, and (being a scope boundary) to cut the live table's FK scope short.
+    sql = (
+        b"-- CREATE TABLE ghost (id INT);\n"
+        b"/* CREATE VIEW spectre AS SELECT 1; */\n"
+        b"CREATE TABLE real_table (\n"
+        b"    -- CREATE TABLE decoy (id INT),\n"
+        b"    owner_id INT NOT NULL REFERENCES owners(owner_id)\n"
+        b");\n"
+    )
+    nodes, refs = parse_sql("r", "s.sql", sql)
+    assert {n.name for n in nodes} == {"real_table"}
+    assert {tgt for _s, tgt, _f, _l in refs} == {"owners"}
+
+
 def test_alter_table_fk_not_misattributed():
     sql = (
         b"CREATE TABLE a (id INT PRIMARY KEY);\n"

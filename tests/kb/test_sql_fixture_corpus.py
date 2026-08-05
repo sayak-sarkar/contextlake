@@ -18,6 +18,10 @@ The thresholds below are the honestly *measured* current numbers, not a
 target. If a future change to sql.py's regex moves them, that is a real
 signal -- ratchet the floor up (never lower it to make this pass) and update
 docs/code-graph.md's published numbers to match.
+
+Precision was 0.90 on this corpus until sql.py started masking comments before
+matching, which removed its one false positive; it is 1.00 now, recall
+unchanged at 0.69.
 """
 
 from __future__ import annotations
@@ -55,23 +59,24 @@ def test_sql_fixture_corpus_precision_recall_floor():
     precision = len(true_positives) / len(emitted) if emitted else 0.0
     recall = len(true_positives) / len(ground_truth) if ground_truth else 0.0
 
-    # Measured on this corpus: 9 true positives, 1 false positive (orders ->
-    # regions, from a commented-out REFERENCES line -- the regex has no
-    # comment-awareness), 4 false negatives (2 self-referencing FKs + 2
-    # ALTER-TABLE-attached FKs, all documented misses). These are FLOORS to
-    # ratchet up as sql.py improves, not targets already met -- do not lower
-    # them to make a regression pass.
-    assert precision >= 0.9, (
+    # Measured on this corpus: 9 true positives, 0 false positives, 4 false
+    # negatives (2 self-referencing FKs + 2 ALTER-TABLE-attached FKs, all
+    # documented misses). Precision was 0.90 until sql.py learned to mask
+    # comments before matching -- the floor is ratcheted up to the new measured
+    # value, per this module's own rule. These are FLOORS to ratchet up as
+    # sql.py improves, not targets already met -- do not lower them to make a
+    # regression pass.
+    assert precision >= 1.0, (
         f"SQL parser precision floor regressed: {precision:.4f} "
         f"(false positives: {sorted(false_positives)})")
     assert recall >= 0.69, (
         f"SQL parser recall floor regressed: {recall:.4f} "
         f"(false negatives: {sorted(false_negatives)})")
 
-    # The specific, named false positive this corpus is built to catch: a
-    # commented-out FK is not comment-aware-filtered, so it resolves like a
-    # real one when its target table happens to exist.
-    assert ("orders", "regions") in false_positives
+    # The specific false positive this corpus was built to catch, now pinned as
+    # a negative: a commented-out FK is dead DDL, and must not resolve like a
+    # real one just because the table it names exists elsewhere in the repo.
+    assert ("orders", "regions") not in emitted
 
     # The two documented gap classes, by name -- if either starts resolving,
     # that's real parser progress and expected_edges.json's "detectable"
