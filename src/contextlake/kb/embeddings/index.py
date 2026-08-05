@@ -71,7 +71,7 @@ def embed_repo(store_dir, vector_store, embedder, repo_id, *,
     for batch in chunks(nodes, max(1, batch_size)):
         vectors = embedder.embed([node_text(n) for n in batch])
         vector_store.upsert(
-            (n.id, repo_id, v) for n, v in zip(batch, vectors)
+            (n.id, repo_id, v) for n, v in zip(batch, vectors, strict=True)
         )
         total += len(batch)
     return total

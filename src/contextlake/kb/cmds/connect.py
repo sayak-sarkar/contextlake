@@ -212,7 +212,7 @@ def cmd_connect(args) -> int:
                 if vector_store is not None:
                     vector_store.clear_repo(part)
                 merged_nodes, merged_edges = {}, {}
-                for name, enrich in zip(names, enrichers):
+                for name, enrich in zip(names, enrichers, strict=True):
                     attempts += 1
                     try:
                         nodes, edges = enrich(repo_id, keys, links, symbol_keys)

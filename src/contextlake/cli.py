@@ -1678,7 +1678,15 @@ def _run(argv, metrics):
         import argcomplete
 
         argcomplete.autocomplete(parser)
-    except ImportError:
+    except Exception:  # noqa: BLE001 - completion is a nicety, never a hard dependency
+        # Deliberately broader than ImportError. argcomplete 3.7.1 shipped PEP 604
+        # annotations evaluated at class-definition time while its metadata still
+        # advertised Python 3.8+, so on an older interpreter `import argcomplete`
+        # raised TypeError, sailed straight through an ImportError-only guard, and
+        # took the entire CLI down. Every command, over a tab-completion helper.
+        # The guard's own comment already said the intent: a missing or broken
+        # completion library must not crash the tool. Any failure here means no
+        # tab completion, which is the correct outcome for all of them.
         pass
     args = parser.parse_args(argv)
 

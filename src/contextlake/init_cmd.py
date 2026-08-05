@@ -232,9 +232,15 @@ def _setup_shell_completion(*, interactive: bool, default_on: bool,
     elif shell_name == "fish":
         try:
             path = _write_fish_completion()
-        except ImportError:
-            log(f"{style.warn('completion')} argcomplete not importable; skipping "
-                "(this shouldn't happen -- it's a core dependency).")
+        except Exception:  # noqa: BLE001 - completion is a nicety, never a hard dependency
+            # Broader than ImportError on purpose, matching the guard in cli.py.
+            # argcomplete 3.7.1 shipped annotations that raise TypeError on import
+            # for the interpreters its own metadata claimed to support, and a
+            # TypeError sails straight through an ImportError-only except. The
+            # intent was always "a broken completion library must not take the
+            # command down"; only the exception type was too narrow to deliver it.
+            log(f"{style.warn('completion')} argcomplete not usable here; skipping "
+                "(it is a core dependency, so this usually means a broken install).")
             _mark_completion_decided("argcomplete-missing")
         else:
             log(f"{style.ok('completion')} wrote {path}")

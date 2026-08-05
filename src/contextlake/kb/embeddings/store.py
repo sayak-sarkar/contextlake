@@ -134,7 +134,7 @@ class VectorStore:
         for node_id, dim, norm, blob in self.conn.execute(sql, params):
             if dim != qlen:
                 continue
-            dot = sum(a * b for a, b in zip(query, _unpack(blob)))
+            dot = sum(a * b for a, b in zip(query, _unpack(blob), strict=True))
             scored.append((node_id, dot / (qnorm * norm)))
         scored.sort(key=lambda t: t[1], reverse=True)
         return scored[:k]

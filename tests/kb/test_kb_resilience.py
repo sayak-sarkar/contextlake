@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import io
 import json
-import socket
 import subprocess
 import urllib.error
 
@@ -175,7 +174,7 @@ def _http_error(code: int, body: dict | None = None) -> urllib.error.HTTPError:
 
 @pytest.mark.parametrize("exc", [
     ConnectionRefusedError("refused"),
-    socket.timeout("timed out"),
+    TimeoutError("timed out"),
     subprocess.TimeoutExpired(["glab"], 30),
     urllib.error.URLError("name resolution failed"),
     _http_error(500),
@@ -250,7 +249,7 @@ def test_mcp_wrapped_rejection_still_does_not_count_against_the_endpoint():
 def test_timeouts_are_never_retried_but_fast_failures_are():
     # A timeout already burned its whole budget; repeating it doubles the stall
     # this module exists to remove.
-    assert is_retryable(socket.timeout("timed out")) is False
+    assert is_retryable(TimeoutError("timed out")) is False
     assert is_retryable(subprocess.TimeoutExpired(["glab"], 30)) is False
     assert is_retryable(ConnectionRefusedError("refused")) is True
     assert is_retryable(_http_error(503)) is True

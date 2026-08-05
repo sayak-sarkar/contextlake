@@ -24,7 +24,13 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 # The prose surfaces. `docs/*.md` builds the site; README is also the PyPI project
 # page; QUICKSTART is linked from both.
-DOC_FILES = sorted(REPO.glob("docs/*.md")) + [REPO / "README.md", REPO / "QUICKSTART.md"]
+DOC_FILES = sorted(REPO.glob("docs/*.md")) + [
+    REPO / "README.md",
+    REPO / "QUICKSTART.md",
+    # Added after the guard was found not to cover it: contributor-facing prose
+    # is still prose, and it had accumulated its own em-dashes unnoticed.
+    REPO / "CONTRIBUTING.md",
+]
 
 
 def _prose_lines(text: str):

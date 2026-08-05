@@ -111,7 +111,7 @@ def link_documents_to_symbols(store, repo_id: str | None, nodes: list[Node],
     if not symbols:
         return []
     edges: list[Edge] = []
-    for node, text in zip(nodes, texts):
+    for node, text in zip(nodes, texts, strict=True):
         matches = match_symbol_mentions(text or "", symbols)
         if not matches:
             continue

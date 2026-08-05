@@ -27,7 +27,7 @@ def _embed_documents(vs, embedder, repo_id, nodes, texts, batch_size) -> int:
             identity = (getattr(embedder, "identity", None)
                         or getattr(embedder, "name", "embedder"))
             guard_store_identity(vs, identity, len(vecs[0]))
-        vs.upsert((n.id, repo_id, v) for n, v in zip(bn, vecs))
+        vs.upsert((n.id, repo_id, v) for n, v in zip(bn, vecs, strict=True))
         written += len(bn)
     return written
 
