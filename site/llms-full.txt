@@ -7408,7 +7408,7 @@ real one; this release closes them.
   `contextlake wiki <repo>`); blast-radius / out-of-snapshot views offer **"Run live server"**.
 - **`--llm <provider>` and `--llm-model <model>` CLI flags** for `wiki`, enable the LLM tier
   inline (`builtin` | `ollama` | `openai`) without editing `kb.toml`, e.g.
-  `contextlake wiki flx/app --llm builtin`.
+  `contextlake wiki acme/app --llm builtin`.
 - **A guided dashboard tour** ([docs/dashboard.md](docs/dashboard.md)), a step-by-step
   walkthrough with screenshots (fleet layouts, repo anatomy, the architecture graph, blast
   radius, and generating a wiki), linked from the README and knowledge-layer docs.
