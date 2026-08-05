@@ -296,6 +296,11 @@ class AskOut(BaseModel):
     route: str                       # definition|callers|dependents|impact|owners|explain|search
     target: str | None = None        # the symbol / repo the question resolved to
     note: str                        # plain-language: what answered, and the trust label
+    # False when nothing satisfied the question AS ASKED -- the graph established a
+    # negative (no such definition / no such repo / no query term is indexed at all).
+    # Any `nodes` alongside answered=False are leads from a fallback search, never an
+    # answer: read `note` for which. An agent must not present them as the answer.
+    answered: bool = True
     nodes: list[NodeOut] = []         # definition | callers | dependents | search
     blast: BlastRadiusOut | None = None   # impact
     owners: OwnersOut | None = None       # owners
@@ -805,6 +810,12 @@ def build_server(
         )
 
         route, target = classify(question)
+        # A negative the graph actually PROVED, kept alive to the end of the handler.
+        # The definition and explain routes used to overwrite `route` with SEARCH on a
+        # miss and re-answer by embedding the whole question, which deleted the one
+        # fact the graph had established -- that nothing by that name is indexed --
+        # before the answer left the server. `route` is no longer rewritten.
+        established: str | None = None
 
         def _out(note, **kw):
             return AskOut(question=question, route=route, target=target, note=note, **kw)
@@ -845,8 +856,11 @@ def build_server(
             hits = find_definition(target, repo=repo) if target else []
             if hits:
                 return _out(f"Definition(s) of {target!r} — EXTRACTED, cited.", nodes=hits)
-            # fall through to a search when the exact name isn't a definition
-            route = SEARCH
+            # Still fall through to a search (the definition rule also fires on genuine
+            # prose questions like "where is configuration loaded"), but carry the miss
+            # out with the answer instead of discarding it.
+            established = (f"No definition named {target!r} is indexed." if target
+                           else "No symbol was found in the question to look up.")
 
         if route == CALLERS:
             nid, why = _resolve_id(target)
@@ -915,13 +929,14 @@ def build_server(
                                     + " — here is its grounded anatomy (top symbols, "
                                     "packages, languages) from the graph. Run "
                                     "`contextlake kb wiki` for prose.", brief=b)
-            # not a repo we know: degrade to a semantic/keyword explanation search
-            route = SEARCH
+            # Not a repo we know. Degrade to a search, but say what was established:
+            # the question named something, and no indexed repo matches it.
+            established = (f"No indexed repo matching {target!r}." if target
+                           else "No repo was named in the question.")
 
-        # SEARCH (fallback for everything else, and for definition/explain misses).
-        # `route` has already been reassigned to SEARCH above where we fell through,
-        # so _out records it correctly.
-        route = SEARCH
+        # SEARCH: the classified route for an open question, and the fallback after a
+        # definition/explain miss. `route` keeps its classified value either way -- see
+        # `established` above for why it is no longer rewritten to SEARCH here.
         if question.strip() and embedder is not None and vector_store is not None:
             vec = embedder.embed([question])[0]
             out: list[NodeOut] = []
@@ -929,12 +944,22 @@ def build_server(
                 n = store.get_node(nid)
                 if n:
                     out.append(_node_out(n))
-            return _out("Semantic search over the graph (names + signatures + docstrings); "
-                        "'wiki'/'document' hits are ADVISORY. No exact route matched.",
-                        nodes=out)
-        hits = search_code(question, repo=repo, limit=k)
-        return _out("Full-text search over node names (no embeddings configured). "
-                    "No exact route matched.", nodes=hits)
+            found = ("Semantic search over the graph (names + signatures + docstrings); "
+                     "'wiki'/'document' hits are ADVISORY.")
+        else:
+            out = search_code(question, repo=repo, limit=k)
+            found = "Full-text search over node names (no embeddings configured)."
+
+        if established:
+            tail = (" The nodes below are leads from a fallback " + found[0].lower()
+                    + found[1:] + " They are NOT an answer to the question as asked."
+                    if out else " A fallback search over the whole question found "
+                    "nothing either.")
+            return _out(established + tail, answered=False, nodes=out)
+        if not out:
+            return _out("Nothing in the knowledge base matched this question. "
+                        + found, answered=False, nodes=[])
+        return _out(found + " No exact route matched.", nodes=out)
 
     @mcp.resource("kb://stats")
     def stats_resource() -> str:

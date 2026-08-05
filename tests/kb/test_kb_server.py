@@ -436,6 +436,53 @@ def test_ask_empty_question_with_embedder_configured_does_not_crash(tmp_path):
         store.close()
 
 
+def test_ask_reports_a_definition_miss_as_a_miss(tmp_path):
+    """The headline acceptance failure: asked where a symbol that does not exist
+    is defined, `ask` returned real, resolvable, unrelated citations and no
+    statement that nothing matched, while `find_definition` on the same name
+    correctly returned empty.
+
+    The handler classified the question as `definition`, missed, then overwrote
+    the route with `search` and re-answered by embedding the whole question, so
+    the established negative never reached the client.
+    """
+    from contextlake.kb.embeddings.store import VectorStore
+
+    class _FakeEmbedder:
+        name = "fake"
+
+        def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+
+    store = SqliteStore(tmp_path / "kb.sqlite")
+    _seed(store)
+    vs = VectorStore(tmp_path / "embeddings.sqlite")
+    # every node is a perfect cosine match, so the fallback search cannot come
+    # back empty by accident -- the miss has to be reported despite the hits
+    vs.upsert([("a", "team/api", [1.0, 0.0]), ("b", "team/api", [1.0, 0.0])])
+    try:
+        srv = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
+        res = asyncio.run(
+            _call(srv, "ask", {"question": "Where is FrobnicateTheWidget defined?"}))
+        out = res.structured_content
+
+        # find_definition is the control: it is already correct
+        direct = asyncio.run(
+            _call(srv, "find_definition", {"name": "FrobnicateTheWidget"})).structured_content
+        assert direct["result"] == []
+
+        assert out["route"] == "definition"       # not rewritten to "search"
+        assert out["answered"] is False
+        assert "FrobnicateTheWidget" in out["note"]
+        assert out["note"].lower().startswith("no definition named")
+        # any nodes carried alongside must be labelled as leads, not an answer
+        if out["nodes"]:
+            assert "not an answer" in out["note"].lower()
+    finally:
+        vs.close()
+        store.close()
+
+
 def test_ask_handles_unresolvable_symbol(server):
     # a callers question about a symbol that isn't indexed must not raise
     res = asyncio.run(_call(server, "ask", {"question": "who calls NotARealSymbol"}))
@@ -498,10 +545,20 @@ def test_ask_owners_resolves_a_short_repo_name_too(tmp_path):
 
 
 def test_ask_explain_reports_when_no_repo_matches_at_all(server):
-    # a target that resolves to no repo at all still degrades to search cleanly
+    """A target that resolves to no repo still degrades to a search, but the miss
+    has to survive the degrade.
+
+    This used to assert route == "search": the handler overwrote the classified
+    route on the way to the fallback, so the one thing the graph had established
+    -- no indexed repo is named zzz-nonexistent-repo -- was gone by the time the
+    answer left the server, and the fallback's hits read as an answer.
+    """
     res = asyncio.run(_call(server, "ask", {"question": "explain the zzz-nonexistent-repo"}))
     out = res.structured_content
-    assert out["route"] == "search"
+    assert out["route"] == "explain"          # not rewritten to "search"
+    assert out["answered"] is False
+    assert "zzz-nonexistent-repo" in out["note"]
+    assert out["note"].lower().startswith("no indexed repo matching")
 
 
 def test_ask_routes_subclasses(tmp_path):
