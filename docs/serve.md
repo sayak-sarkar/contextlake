@@ -271,8 +271,14 @@ over SQLite, and a traversal is not one query, it is thousands of small round tr
 store. Forty threads interleaving those on one connection pool spend their time contending rather
 than working, and what they are contending for is the store round-trips, not the Python: the same
 traversal run over in-memory dictionaries does not degrade the same way. The default therefore has
-to sit near the low end rather than merely below anyio's 40, which is what
-`tests/kb/test_serve_concurrency.py` pins, along with each transport actually setting the limiter.
+to sit near the low end rather than merely below anyio's 40.
+
+The bound is applied to the **tool bodies themselves**, not by shrinking that worker pool. The pool
+is sized separately, to the bound plus a reserve for transport I/O, because the SDK's stdio
+transport borrows worker threads for its own `readline` and `flush`: with the pool set to the bound
+outright, `--tool-concurrency 1` left stdin holding the only token and the server answered nothing
+at all. `tests/kb/test_serve_concurrency.py` pins both halves, that the bound still bounds
+concurrent tool bodies and that stdio still answers at a limit of one.
 
 **The cheap tools come out faster too**, which is the counterintuitive part and the reason not to
 think of this as a throughput-for-latency trade. `search_code` and the other short lookups pay
@@ -283,7 +289,8 @@ making them queue for a slot.
 **Two rather than one**, because a limit of one is only free when every call costs the same. Real
 editor traffic mixes one slow call with many fast ones, and at a limit of one a single multi-second
 traversal holds the only token while every cheap lookup waits behind it. Two keeps a slot free for
-the cheap path while still keeping the pool far away from the width where contention dominates.
+the cheap path while still keeping the server far away from the width where contention dominates.
+One is a supported setting, not a trap: set it if your traffic is one caller at a time.
 
 Precedence is the flag, then `$CONTEXTLAKE_MCP_TOOL_CONCURRENCY`, then the default. A value that
 is not a positive integer is ignored rather than fatal, whichever of the two it came from
