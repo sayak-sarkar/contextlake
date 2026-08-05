@@ -737,6 +737,41 @@ def test_find_callers_and_blast_radius_disclose_a_name_collision(tmp_path):
         s.close()
 
 
+def test_graph_walk_tools_accept_the_name_argument_too(tmp_path):
+    """find_definition takes `name`, search_code takes `query`, and these two took
+    `node_id` -- so the obvious first call from an agent failed with a raw pydantic
+    validation dump, an error about a schema addressed to nobody. `name` is now an
+    accepted alias, and a call with neither gets an instruction instead of a dump.
+    """
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    prov = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="svc", repo="r", kind="class", name="CatalogService"),
+        Node(id="c1", repo="r", kind="function", name="checkout"),
+    ]
+    edges = [Edge(src="c1", dst="svc", relation="calls",
+                  confidence=Confidence.EXTRACTED, provenance=prov)]
+    s.upsert_repo(Repo(id="r", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h1", nodes=nodes, edges=edges))
+    reindex_shard(s, tmp_path, "r")
+    srv = build_server(s)
+    try:
+        for tool, key in (("find_callers", "total"), ("blast_radius", "total")):
+            by_name = asyncio.run(
+                _call(srv, tool, {"name": "CatalogService"})).structured_content
+            by_id = asyncio.run(
+                _call(srv, tool, {"node_id": "CatalogService"})).structured_content
+            assert by_name[key] == by_id[key] == 1, tool
+
+            # neither spelling supplied: an instruction, not a validation dump
+            empty = asyncio.run(_call(srv, tool, {})).structured_content
+            assert empty[key] == 0
+            assert "node_id" in empty["note"] and "name" in empty["note"], tool
+    finally:
+        s.close()
+
+
 def test_get_wiki_serves_cluster_page_by_namespace(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     _seed(s)

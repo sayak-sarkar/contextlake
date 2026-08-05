@@ -145,3 +145,18 @@ def test_localhost_counts_as_loopback(tmp_path, monkeypatch):
             "--host", "localhost"]
     assert cmd_dashboard(_args(argv)) == 0
     assert called["allow_mutations"] is True and called["llm_chat"] is True
+
+
+def test_serve_with_site_is_refused_rather_than_silently_dropped(tmp_path, monkeypatch):
+    """--site used to win silently: `--serve --site out/` built a static snapshot,
+    exited 0 and never served, so the flag the user typed did nothing and nothing
+    said so. Two flags asking for different things must not resolve by precedence
+    nobody documented."""
+    called = _stub_serving(tmp_path, monkeypatch)
+    lines = _captured_log(monkeypatch)
+    argv = ["kb", "dashboard", "--serve", "--site", str(tmp_path / "out")]
+    assert cmd_dashboard(_args(argv)) == 1
+    assert not called, "a refused run must never reach serve_dashboard"
+    assert not (tmp_path / "out").exists(), "a refused run must not build either"
+    (refusal,) = [line for line in lines if "--serve" in line and "--site" in line]
+    assert "Pick one" in refusal

@@ -491,6 +491,19 @@ _MAX_EDGES = _bounded_int(0, 1_000_000)
 _DEPTH = _bounded_int(1, 64)
 # A polling interval in whole seconds, up to a day.
 _SECONDS = _bounded_int(1, 86_400)
+# A TCP port. Zero is kept legal because it is a real request -- bind an ephemeral
+# port -- but anything outside the range only ever reached the socket layer, which
+# raised OverflowError from inside asyncio/socketserver AFTER the server had done
+# its startup work and printed the bearer token. A successful-looking banner
+# followed by a stack trace was the one numeric flag this validation missed.
+_PORT = _bounded_int(0, 65_535)
+# Tool worker slots. resolve_tool_concurrency() deliberately ignores a nonsense
+# ENV value and serves at the default, arguing that refusing to start over a typo
+# in a shell profile is worse -- which is right for an env var an editor inherits,
+# and wrong for a flag someone typed just now. Typed explicitly, 0 / -1 / 10**9
+# silently became 2 with nothing printed. The env var keeps its lenient path; the
+# flag gets the same treatment as every other numeric option.
+_CONCURRENCY = _bounded_int(1, 1_024)
 
 
 class _RootHelpFormatter(argparse.RawDescriptionHelpFormatter):
@@ -644,7 +657,7 @@ def _add_watch(p, what):
 
 def _add_net(p):
     p.add_argument("--host", default=_S, help="bind host (default 127.0.0.1)")
-    p.add_argument("--port", type=int, default=_S, help="bind port")
+    p.add_argument("--port", type=_PORT, default=_S, help="bind port")
 
 
 def _root_hidden_flags(p):
@@ -674,7 +687,7 @@ def _root_hidden_flags(p):
                        ("--max-nodes", _COUNT), ("--max-edges", _MAX_EDGES),
                        ("--max-fanout", _COUNT), ("--group-depth", _DEPTH)):
         add(flag, type=kind)
-    add("--port", type=int)
+    add("--port", type=_PORT)
     add("--llm", choices=["auto", "ollama", "openai", "builtin", "anthropic", "cli"])
     add("--transport", choices=["stdio", "http", "sse"])
     add("--retriever", choices=("fts", "semantic", "hybrid"))
@@ -1106,8 +1119,8 @@ to pin one across restarts. stdio needs no token. See docs/serve.md.
     p.add_argument("--allow-remote", dest="allow_remote", action="store_true", default=_S,
                    help="--transport http/sse: permit a non-loopback --host "
                         "(refused otherwise; the graph would face the network)")
-    p.add_argument("--tool-concurrency", dest="tool_concurrency", type=int, default=_S,
-                   metavar="N",
+    p.add_argument("--tool-concurrency", dest="tool_concurrency", type=_CONCURRENCY,
+                   default=_S, metavar="N",
                    help="how many tool calls may run at once (default 2; also "
                         "$CONTEXTLAKE_MCP_TOOL_CONCURRENCY). Raising it past a few "
                         "slows the server down -- the tools contend on the store")

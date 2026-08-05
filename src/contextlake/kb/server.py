@@ -93,6 +93,14 @@ def apply_tool_limiter(limit: int) -> None:
 
     anyio.to_thread.current_default_thread_limiter().total_tokens = limit
 
+# What the two graph-walk tools say when neither spelling of their one required
+# argument arrives. They took `node_id` while every neighbouring tool took `name`
+# or `query`, so the obvious first call failed with a raw pydantic validation dump
+# -- an error about a schema, addressed to nobody, in place of an instruction.
+_NEEDS_SYMBOL = ("Pass the symbol as `node_id` or `name` -- either a node id "
+                 "(e.g. 'src/svc.py::CatalogService') or a bare symbol name "
+                 "(e.g. 'CatalogService').")
+
 _INSTRUCTIONS = (
     "Query the local code knowledge graph instead of grepping. Results are cited "
     "(source file + verified date) and confidence-tagged: treat EXTRACTED edges as "
@@ -447,6 +455,10 @@ def build_server(
         """Find definition(s) with an exact name — 'where is X defined?'."""
         return [_node_out(n) for n in store.nodes_by_name(name, kind=kind, repo=repo)]
 
+    def _one_of(*values: str | None) -> str | None:
+        """The first non-empty of several spellings of the same argument."""
+        return next((v for v in values if v and v.strip()), None)
+
     def _as_node_id(node_id_or_name: str) -> tuple[str | None, str | None]:
         """Accept a node id OR a bare symbol name, plus the disclosure it needs.
 
@@ -474,13 +486,18 @@ def build_server(
         return matches[0].id, chosen_one_of(node_id_or_name, len(matches)) or None
 
     @mcp.tool()
-    def find_callers(node_id: str, limit: int = 50) -> NodesOut:
+    def find_callers(node_id: str | None = None, name: str | None = None,
+                     limit: int = 50) -> NodesOut:
         """Find the definitions that call a node — 'who calls X?' (incoming calls edges).
 
-        `node_id` accepts a node id **or a bare symbol name** (e.g. ``CatalogService``),
-        resolved to its first matching definition. EXTRACTED-first, capped at `limit`;
-        `truncated`/`total` flag hot symbols with more callers than returned.
+        Pass the symbol as `node_id` **or** `name` — either a node id or a bare symbol
+        name (e.g. ``CatalogService``), resolved to its first matching definition.
+        EXTRACTED-first, capped at `limit`; `truncated`/`total` flag hot symbols with
+        more callers than returned.
         """
+        node_id = _one_of(node_id, name)
+        if node_id is None:
+            return NodesOut(nodes=[], total=0, truncated=False, note=_NEEDS_SYMBOL)
         nid, why = _as_node_id(node_id)
         if nid is None:
             return NodesOut(nodes=[], total=0, truncated=False)
@@ -581,11 +598,13 @@ def build_server(
                         weight=e["weight"], context=e.get("context")) for e in kept])
 
     @mcp.tool()
-    def blast_radius(node_id: str, hops: int = 3, relations: list[str] | None = None,
+    def blast_radius(node_id: str | None = None, name: str | None = None, hops: int = 3,
+                     relations: list[str] | None = None,
                      limit: int = 100) -> BlastRadiusOut:
         """What could break if you change this node — bounded transitive REVERSE reach.
 
-        `node_id` accepts a node id **or a bare symbol name** (e.g. ``CatalogService``),
+        Pass the symbol as `node_id` **or** `name` — either a node id or a bare symbol
+        name (e.g. ``CatalogService``),
         resolved to its first matching definition. Walks INCOMING edges (who calls /
         depends on / subclasses the node) breadth-first up to `hops`, capped at
         `limit`, over `relations` (default calls + depends_on + inherits).
@@ -595,6 +614,10 @@ def build_server(
         the cap was hit).
         """
         from .impact import blast_radius as _blast
+        node_id = _one_of(node_id, name)
+        if node_id is None:
+            return BlastRadiusOut(seed="", hops=hops, hits=[], total=0, truncated=False,
+                                  note=_NEEDS_SYMBOL)
         resolved, why = _as_node_id(node_id)
         nid = resolved or node_id
         hits, truncated = _blast(store, nid, hops=hops, relations=relations, limit=limit)

@@ -51,6 +51,16 @@ def cmd_dashboard(args) -> int:
     sample = getattr(args, "sample", False)
     site = getattr(args, "site", None)
     if site is not None:
+        # --site and --serve ask for different things: one writes a static export
+        # and exits, the other holds a socket open. --site won silently, so
+        # `--serve --site out/` built a snapshot, exited 0, and never served --
+        # the flag the user typed did nothing and nothing said so.
+        if getattr(args, "serve", False):
+            log(style.fail(
+                "--serve and --site ask for different things: --serve runs a local "
+                "server, --site writes a static export and exits.\n"
+                "  Pick one -- drop --site to serve, or drop --serve to build."))
+            return 1
         out_dir = Path(site) if site else (dash_dir / "site")
         anonymize = getattr(args, "anonymize", False)
         repos = getattr(args, "repos", None)
