@@ -162,9 +162,23 @@ contextlake doctor
 
 `--version` should print the version you just installed. `doctor` checks the whole knowledge
 layer in one pass (SQLite FTS5, `git` and `glab` on PATH, config, the store's real counts,
-the built-in embedder, the ANN index) and exits non-zero if anything is wrong, so it also
-works as a CI health gate. A fresh machine with no store yet is expected to report a missing
-config as a warning, not a failure.
+the built-in embedder, the ANN index, shard freshness) and prints a line per check.
+
+**Read the output, do not gate on the exit code alone.** `doctor` exits non-zero only when the
+environment cannot support a run at all: FTS5 missing, `git` missing, or the config and store
+unreadable. Everything else is reported and does not fail the command, including **shard
+staleness** and the optional tiers (`glab`, embeddings, the ANN index, the wiki model). That
+matches `kb lint`, which deliberately keeps staleness out of its exit code for the same reason:
+a stale shard is a thing to act on, not a broken install, and failing a build over one would
+make the check unusable on any workspace mid-migration.
+
+The consequence is worth stating plainly, because it is the opposite of what an exit code
+usually implies: **a store full of stale shards prints a red mark for each and still exits 0.**
+If you want a build to stop on that, parse the output or use `kb lint`'s report, and see the
+upgrade section below.
+
+A fresh machine with no store yet is expected to report a missing config as a warning, not a
+failure.
 
 If `doctor` names something missing, `contextlake doctor --fix` installs it. That is the next section.
 

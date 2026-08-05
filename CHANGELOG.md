@@ -13,8 +13,9 @@ the one that fails quietly.
 **Re-index every store.** The parser version moved from 2 to 3, so every shard built by an earlier
 release is stale. A stale store does not error: it keeps answering, from a graph an old parser
 produced. Run `contextlake kb index` against each workspace after upgrading. `contextlake doctor`
-reports a stale shard rather than showing a clean bill of health, so it is the fastest way to tell
-whether you still need to.
+names the repositories that are out of date, which is the fastest way to see whether you still
+need to, but **read its output rather than its exit code**: shard staleness is reported and does
+not fail the command, the same way `kb lint` treats it.
 
 **`shortest_path` returns an object, not a list.** Any MCP client reading the tool's result as a
 bare array of nodes must read `nodes` instead. The shape changed because the old one had nowhere to
