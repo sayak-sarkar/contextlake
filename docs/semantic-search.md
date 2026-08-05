@@ -1,14 +1,20 @@
 # Semantic search
 
 Semantic search (optional) adds natural-language retrieval on top of the graph, so you can find code by
-what it does even when you don't know its name. Enable `[embeddings]` in the config (local-first, vectors
-come from an Ollama model by default, so code never leaves the machine), run `contextlake kb embed` to
-vectorize the indexed nodes into a local store, and `serve` then exposes two retrieval tools:
+what it does even when you don't know its name. Set `enabled = true` under `[embeddings]` in the config,
+run `contextlake kb embed` to vectorize the indexed nodes into a local store, and `serve` then exposes two
+retrieval tools:
 
 - **`semantic_search`** for queries where the exact symbol name is unknown.
 - **`hybrid_search`**, which seeds Personalized PageRank with the embedding hits and propagates relevance
   across the graph (HippoRAG-style) to surface structurally related nodes, a function's callers, a
   package's dependents, that a pure semantic match would miss.
+
+**Where the vectors come from.** `provider` defaults to `auto`, which uses a local Ollama when the daemon
+is reachable *and* already has the configured model pulled, and otherwise the built-in CPU embedder (the
+`kb-local` extra). If neither is available it embeds nothing rather than reaching for a network service.
+Both of those run on your machine, so on the defaults your code never leaves it; name `provider =
+"openai"` explicitly if you want a hosted model instead.
 
 ## Backends and tuning
 
@@ -26,19 +32,24 @@ The vector store uses an exact pure-Python cosine scan by default; install the o
 The code **definitions** (classes, functions, methods, interfaces, structs, enums) and HTTP endpoints,
 each with its name, qualified name, file path, and captured **signature and docstring**, so a
 natural-language query like *"refund a payment to the original card"* finds the right function even when
-its name says nothing of the sort. (Measured on the golden-query harness, adding signature + docstring
-doubled MRR and took hit-rate to 100% on natural-language queries.) File, module, and package nodes are
+its name says nothing of the sort. A name alone is thin signal for a natural-language query; the signature
+and the docstring are where the words the query actually uses tend to live. File, module, and package nodes are
 deliberately not embedded: a path or a shared package name is low semantic signal, and skipping them keeps
 results clean and avoids re-embedding cross-repo shared nodes once per referencing repo.
 
 ## Which model?
 
-With that content embedded, the tiny static models punch far above their weight: on a 24-query
-natural-language bake-off, the default `potion-base-8M` (~30MB, ~1ms per query) outscored the ONNX
-`bge-small` transformer, and `minishlab/potion-base-32M` (~120MB, same engine and extra) scored best of
-all, MRR 0.95 with a perfect hit-rate, at a tenth of the ONNX query latency. If you want the quality bump,
-it's one config line: `model = "minishlab/potion-base-32M"` under `[embeddings]` (on a fresh vector store,
-the identity guard refuses to mix models).
+The default is `minishlab/potion-base-8M`, a **static** embedding model: it looks each token up in a
+table instead of running a transformer forward pass, which is why it is small enough to ship as a CPU
+default and fast enough that query latency is not the thing you notice. `minishlab/potion-base-32M` is
+the larger sibling of the same family, one config line away: `model = "minishlab/potion-base-32M"` under
+`[embeddings]` (on a fresh vector store, the identity guard refuses to mix models). The `kb-fastembed`
+extra plus `engine = "fastembed"` swaps the static model for an ONNX transformer (`bge-small`) instead.
+
+Which one is better **on your code** is a question with a local answer, and
+[`kb eval`](#measuring-retrieval-quality) is how to get it: build a golden set from queries your team
+actually types, embed with one model, score, re-embed with the other, score again. No published ranking
+of these models against somebody else's corpus is worth as much as that run.
 
 Like `index`, `embed` is **incremental**: it re-embeds only repos whose indexed HEAD moved since they were
 last embedded, so a scheduled refresh over a large fleet stays cheap. Pass `--force` to re-embed

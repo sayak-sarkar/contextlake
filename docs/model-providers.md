@@ -188,19 +188,14 @@ The wiki's quality is bounded by the model behind it. The graph facts fed in are
 is how well the model turns them into prose (and the verification council rejects weak pages regardless, so
 a smaller model mostly means *more rejections* and blander accepted pages).
 
-A measured A/B on one repo (`contextlake`, 1810 graph nodes, identical facts + 3-lens council) on a
-**CPU-only** host (no GPU, e.g. WSL2 without GPU passthrough):
-
-| model | where | speed | result |
-|-------|-------|-------|--------|
-| built-in `Qwen2.5-0.5B` (GGUF) | in-process CPU | fast enough | page written (~119 words), accurate but **thin and generic** |
-| Ollama `qwen2.5:1.5b` | CPU (no GPU) | ~1.7 tok/s | **timed out**, a full page + reviews needs ~10 min/repo |
-| Ollama `qwen2.5:3b` | CPU (no GPU) | ~0.85 tok/s | **timed out**, ~20 min/repo |
-
-The lesson is about **hardware, not model quality**: a 1.5B-3B model writes better prose than the 0.5B,
-but on a CPU-only box it is too slow to finish a page in reasonable time (and, at fleet scale, wholly
-impractical). Those models shine when Ollama has a **GPU**, e.g. Ollama on a Windows host with a discrete
-GPU generates in *seconds*, not minutes. So:
+The constraint that decides this for most people is **hardware, not model quality**. Generating one wiki
+page is not one model call: it is the page, plus a review from each council lens, plus a rewrite when the
+council rejects it. So the question is not whether a 1.5B-3B model writes better prose than the built-in
+0.5B (it does) but whether your host can finish that many calls: if a single call takes minutes, which is
+the ordinary case for a 1.5B-3B model on a CPU with no GPU, the run reaches the default 300-second
+`timeout` below before a page is done. The built-in 0.5B stays under it, and pays for that with thin,
+generic prose the council often rejects. The same 1.5B-3B models answer in seconds once Ollama has a
+**GPU** (including Ollama on a Windows host with a discrete GPU, reached from WSL). So:
 
 - **CPU-only, offline, quick:** the **built-in 0.5B**, fast to set up, basic prose. Or a **hosted API** if
   quality matters and you accept per-token cost.

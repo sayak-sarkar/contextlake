@@ -302,8 +302,8 @@ The honest list, because a tool that only publishes its wins is being sold to yo
 described.
 
 - **Greenfield work in an empty repository.** There is nothing to ground against, so the benefit
-  is close to zero. The measured gains are all on grounding new code in an estate that already
-  exists ([Benchmarks](benchmarks.md)).
+  is close to zero. Everything this tool does well is grounding new code in an estate that already
+  exists ([what it saves, and how to measure it](benchmarks.md)).
 - **Making one correct generation shorter.** The code you need is the code you need. What drops is
   the number of attempts, and that is a mechanism argument, not something measured.
 - **Semantic recall.** The built-in CPU embedder is fast, not frontier-grade. Results are cited
@@ -316,12 +316,13 @@ described.
 - **Some structure is skipped rather than guessed at.** Framework routes, realtime channels,
   templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
   SQL foreign keys miss about three in ten.
-- **A fixed cost per agent session.** Roughly 3,400 tokens of tool schemas load once, which can be
-  net-negative if the agent calls it for questions it does not help with.
+- **A fixed cost per agent session.** The 22 tool schemas load once whether or not a tool is called,
+  which can be net-negative if the agent calls it for questions it does not help with.
 
 ## See also
 
-- [Benchmarks](benchmarks.md), the measured token and correctness impact
+- [Benchmarks](benchmarks.md), where the token and correctness impact comes from, and how to measure
+  it on your own repositories
 - [Install and upgrade](install.md), if you have decided to try it
 - [Architecture and internals](internals.md), the same machinery at implementation depth
 - [Ask the graph](ask-the-graph.md), the questions this page promised you can ask

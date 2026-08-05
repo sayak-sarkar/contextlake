@@ -128,9 +128,9 @@ PAGES = [
      "pebble-doc.png",
      [("dashboard.html", "Dashboard"), ("serve.html", "Serve (MCP)")]),
     ("benchmarks.html", "docs/benchmarks.md", "Benchmarks", "What it actually saves",
-     "Understand it", "An honest, measured look at the token, cost, and correctness "
-     "impact of connecting the contextlake MCP to your AI coding tools, new-code "
-     "grounding first, plus search, maintenance, and the caveats.",
+     "Understand it", "Where the token, cost, and correctness impact of connecting the "
+     "contextlake MCP to your AI coding tools comes from, new-code grounding first, "
+     "plus search, maintenance, the caveats, and how to measure it on your own repos.",
      "pebble-doc.png",
      [("explained.html", "contextlake, explained"), ("install.html", "Install and upgrade")]),
     ("internals.html", "docs/internals.md", "Architecture and internals",

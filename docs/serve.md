@@ -12,7 +12,7 @@ explain / search), resolves the symbol or repo, and returns one labeled answer (
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
 no wiki exists yet). An agent that would rather not choose among the tools can just `ask`.
 
-**Most of it needs no model.** The underlying graph tools work on their own ,
+**Most of it needs no model.** The underlying graph tools work on their own:
 `search_code`, `find_definition`, `find_callers`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
 `repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
@@ -20,9 +20,11 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 resource with the store counts.
 
 `semantic_search` / `hybrid_search` are the two exceptions: they register **only when
-embeddings exist** (an `[embeddings]` section in `kb.toml` and a `contextlake kb embed`
-run). Without that, the server starts fine and says so, the two tools are simply
-absent from the tool list, and everything above still works.
+embeddings exist**, which takes both halves, `enabled = true` under `[embeddings]` in
+`kb.toml` (the section on its own is not enough, `enabled` defaults to `false`) and a
+`contextlake kb embed` run to create the vector store. Without both, the server starts
+fine and says so, the two tools are simply absent from the tool list, and everything
+above still works.
 
 ## The quick way: let contextlake wire your editors
 
@@ -267,12 +269,10 @@ The MCP SDK runs every synchronous tool body through `anyio.to_thread.run_sync` 
 so it takes anyio's default of 40 worker threads. contextlake's tool bodies are graph traversals
 over SQLite, and a traversal is not one query, it is thousands of small round trips through the
 store. Forty threads interleaving those on one connection pool spend their time contending rather
-than working. Measured against a real index, twenty concurrent expensive calls cost about **1.97 s
-unbounded** against about **50 ms at a limit of one**; the same traversal run over in-memory
-dictionaries instead of SQLite shows a contention ratio of 1.78 against 53.55, so what is being
-paid for is the store round-trips, not the Python. The knee is sharp between two and four. The
-measurements and the reasoning are recorded above `TOOL_CONCURRENCY_ENV` in
-`src/contextlake/kb/server.py`.
+than working, and what they are contending for is the store round-trips, not the Python: the same
+traversal run over in-memory dictionaries does not degrade the same way. The default therefore has
+to sit near the low end rather than merely below anyio's 40, which is what
+`tests/kb/test_serve_concurrency.py` pins, along with each transport actually setting the limiter.
 
 **The cheap tools come out faster too**, which is the counterintuitive part and the reason not to
 think of this as a throughput-for-latency trade. `search_code` and the other short lookups pay
@@ -280,10 +280,10 @@ store round-trips as well, just fewer of them, so in an unbounded burst they sit
 same contention as the traversals do. Bounding the pool takes that away from them rather than
 making them queue for a slot.
 
-**Two rather than one**, because those measurements ran homogeneous batches, where serialising
-costs nothing. Real editor traffic mixes one slow call with many fast ones, and at a limit of one a
-single multi-second traversal holds the only token while every cheap lookup waits behind it. Two
-keeps a slot free for the cheap path and still removes about 93% of the contention.
+**Two rather than one**, because a limit of one is only free when every call costs the same. Real
+editor traffic mixes one slow call with many fast ones, and at a limit of one a single multi-second
+traversal holds the only token while every cheap lookup waits behind it. Two keeps a slot free for
+the cheap path while still keeping the pool far away from the width where contention dominates.
 
 Precedence is the flag, then `$CONTEXTLAKE_MCP_TOOL_CONCURRENCY`, then the default. A value that
 is not a positive integer is ignored rather than fatal, whichever of the two it came from

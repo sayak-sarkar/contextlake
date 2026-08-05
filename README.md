@@ -242,7 +242,7 @@ opt-in via `--llm-chat`). Try it with zero setup via `contextlake kb dashboard -
 - **[docs/serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**, serve the graph over MCP + wire your editor
 - **[docs/keep-fresh.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/keep-fresh.md)**, bootstrap, scheduling, and re-indexing on commit
 - **[docs/explained.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/explained.md)**, what changes for you, and why it is built this way
-- **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, an honest, measured look at the token/cost/correctness impact
+- **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, where the token/cost/correctness impact comes from, and how to measure it yourself
 - **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture and internals
 - **[docs/releasing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
 - **[CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[ROADMAP.md](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[CONTRIBUTING.md](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**
