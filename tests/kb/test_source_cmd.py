@@ -451,3 +451,44 @@ def test_verify_source_without_timeout_leaves_connector_default(monkeypatch):
     monkeypatch.setattr(orch, "build_atlassian", lambda src: stub)
     source_cmd.verify_source(SourceCfg(type="atlassian", name="jira"))
     assert stub.timeout == 120
+
+
+def _type_help() -> str:
+    """The `--type` help string, as `kb source --help` renders it."""
+    from contextlake.cli import build_parser
+
+    def _subparsers(parser):
+        for action in parser._actions:
+            # a dict-valued `choices` is the subparser map; a plain list of
+            # choices is an ordinary constrained argument
+            choices = getattr(action, "choices", None)
+            if isinstance(choices, dict):
+                yield from choices.values()
+
+    for kb in _subparsers(build_parser()):
+        for verb in _subparsers(kb):
+            if verb.prog.endswith("kb source"):
+                return next(a.help for a in verb._actions
+                            if "--type" in (a.option_strings or []))
+    raise AssertionError("could not find `kb source --type` in the parser")
+
+
+def test_the_type_help_names_every_source_type_this_build_ships():
+    """The help named 7 types while the build ships 9: `slack` and `graphql` are
+    real, shipped types (kb/connectors/slack.py, kb/sources/graphql.py) that a
+    user reading --help had no way to discover. --type is deliberately an open
+    set, so this is not about rejecting anything -- it is about the help naming
+    what is actually there."""
+    shipped = source_cmd.known_source_types()
+    assert {"slack", "graphql"} <= set(shipped)   # the two the help left out
+    help_text = _type_help()
+    missing = [t for t in shipped if t not in help_text]
+    assert not missing, f"--type help does not name shipped type(s): {missing}"
+
+
+def test_the_interactive_prompt_offers_every_shipped_type():
+    """The prompt and the help drifted apart because each hard-coded its own
+    list. Both read the one registry now."""
+    prompt = source_cmd._type_prompt()
+    missing = [t for t in source_cmd.known_source_types() if t not in prompt]
+    assert not missing, f"the add prompt does not offer shipped type(s): {missing}"

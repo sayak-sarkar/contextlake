@@ -36,6 +36,27 @@ def _pipeline_for(source_type: str) -> str:
     return "connect" if source_type in _CONNECT_TYPES else "ingest"
 
 
+def known_source_types() -> tuple[str, ...]:
+    """Every source type this build actually ships: the connector types plus the
+    built-in ingest sources and any installed plugin.
+
+    ``--type`` is deliberately an OPEN set -- a plugin registers its own name
+    through the ``contextlake.sources`` entry point (see
+    :mod:`kb.sources.base`) -- so this is not what ``--type`` accepts. It is
+    what a user can rely on being present, and so what a listing of types owes
+    them. The CLI help and the interactive prompt each used to carry their own
+    hand-written list; they disagreed with each other and both with the build,
+    leaving ``slack`` and ``graphql`` shipped but undiscoverable from ``--help``.
+    """
+    from .sources import discover_sources
+
+    return tuple(sorted(_CONNECT_TYPES | set(discover_sources())))
+
+
+def _type_prompt() -> str:
+    return f"Source type ({'/'.join(known_source_types())})"
+
+
 # Keys whose value would be a literal credential. Refused rather than written:
 # the module's contract (see the docstring above) is that a secret is referenced
 # by env-var *name*, and nothing reads a bare `token` anyway -- the sources that
@@ -91,8 +112,7 @@ def _prompt_missing(src: dict) -> dict:
     from ..init_cmd import _MCP_DEFAULTS, _ask  # lazy: keeps this module import-cheap
 
     if not src.get("type"):
-        src["type"] = _ask(
-            "Source type (atlassian/figma/gitlab/slack/files/web/api/graphql/mcp)", "files")
+        src["type"] = _ask(_type_prompt(), "files")
     if not src.get("name"):
         log("  Source name is a local nickname you pick to reference this "
             "connection later (contextlake kb source test <name>) -- it is not "

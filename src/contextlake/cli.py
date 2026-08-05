@@ -1001,8 +1001,13 @@ fail (exit 1).
                    help="add/remove/enable/disable: target the nearest ancestor "
                         "directory's .contextlake.kb.toml (or create one in cwd) "
                         "instead of the global config")
+    # Spelled out rather than read from kb.source_cmd.known_source_types(): the
+    # parser is built on every invocation and importing the source registry to
+    # name it would put five module imports on the startup path. A test pins
+    # this string against that registry, so the two cannot drift again.
     p.add_argument("--type", default=_S,
-                   help="atlassian | figma | gitlab | mcp | files | web | api")
+                   help="atlassian | api | figma | files | gitlab | graphql | mcp | "
+                        "slack | web (or an installed plugin's type)")
     p.add_argument("--mcp", default=_S, help="MCP server URL (atlassian/figma/mcp)")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
                    help="extra connector option (repeatable)")
