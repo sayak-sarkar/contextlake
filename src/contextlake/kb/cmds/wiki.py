@@ -532,6 +532,17 @@ def cmd_wiki(args) -> int:
             # (unlike the basename-only convention the older cluster-page code
             # path uses, which is imprecise for its own wiki/_clusters/ pages).
             rel_filename = wiki_file.relative_to(wiki_dir).as_posix()
+            # Before anything else, including the freshness check: a repo that
+            # indexed to no symbols at all has nothing for a page to be about,
+            # and that is knowable from the shard alone. Asked first so an
+            # ungrounded page already on disk is not kept alive by the backfill
+            # below, which is the one path that makes a page newly searchable.
+            if not shard.nodes:
+                log(f"  {style.warn(label)}: no page — {repo_id} indexed to 0 symbols, so "
+                    "there is nothing to ground one in"
+                    + (f" (delete the stale {rel_filename} by hand)"
+                       if wiki_file.exists() else ""), inline=True)
+                return "rejected"
             head = shard.head_commit
             if not force and wiki_file.exists() and head:
                 prev = wiki_file.read_text(encoding="utf-8", errors="replace")
@@ -604,6 +615,31 @@ def cmd_wiki(args) -> int:
             # rather than generating a near-empty, ungrounded page.
             if brief is None or (path_prefix and not brief["node_count"]):
                 return "absent"
+            # The finer half of the same question, now that the brief exists: a
+            # scope with no FILE-BACKED symbol has nothing derived from code
+            # behind it, so every sentence a model wrote would come from the
+            # README and the prompt's own framing. Measured on a one-file repo
+            # that indexed to 0 nodes and still published a confident 119-line
+            # page, scored 0.987, presenting the forge's boilerplate README as
+            # the project's own architecture.
+            #
+            # Decided here rather than inside `structural_gate`, which by
+            # contract sees only the draft: grounding is a property of the
+            # INPUT, known before the model is called at all. Gating on the
+            # draft would pay for a generation and a council review to reject
+            # something already known to be unwritable, and would put a second,
+            # differently-shaped argument into a gate whose whole value is that
+            # it is model-free and text-only.
+            #
+            # Counted exactly as `provenance_footer` counts it, so the refusal
+            # and the disclosure can never disagree about what grounding means.
+            grounding = brief.get("coverage_total")
+            if grounding is None:
+                grounding = brief.get("node_count")
+            if not grounding:
+                log(f"  {style.warn(label)}: no page — 0 file-backed symbols in scope, so "
+                    "nothing in it would be derived from the code", inline=True)
+                return "rejected"
             try:
                 # `brief` above is exactly the brief this page needs (same
                 # store/path_prefix/subsystem_modules), so hand it over rather

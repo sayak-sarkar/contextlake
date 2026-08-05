@@ -270,3 +270,74 @@ def test_cmd_wiki_still_writes_a_sound_page(tmp_path, monkeypatch):
     monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
     assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
     assert (store_dir / "wiki" / "r.md").exists()
+
+
+def _setup_repo_with(tmp_path, nodes):
+    """`_setup_repo`, but with the shard's node list under the test's control."""
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir(parents=True)
+    (tmp_path / "kb.toml").write_text(_CFG.format(store=store_dir.as_posix()))
+    store = SqliteStore(store_dir / "index.sqlite")
+    check_schema(store)
+    store.upsert_repo(Repo(id="r", path=str(tmp_path / "r")))
+    store.close()
+    write_shard(store_dir, GraphShard(repo="r", head_commit="abc123", nodes=nodes, edges=[]))
+    return store_dir
+
+
+def test_cmd_wiki_refuses_a_repo_that_indexed_to_nothing(tmp_path, monkeypatch, gls_logs):
+    """A repo that indexed to 0 symbols published a confident page all the same,
+    written from the README and the prompt's own framing, and the council scored
+    it 0.987. A page with nothing behind it should not be generated at all."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo_with(tmp_path, [])
+    drafted = []
+
+    class _CountingLlm(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            if "Review lens" not in prompt:
+                drafted.append(prompt)
+            return super().generate(prompt, system=system)
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _CountingLlm())
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert not (store_dir / "wiki" / "r.md").exists()
+    assert not drafted, "nothing to ground a page in must be decided before the model runs"
+    assert "indexed to 0 symbols" in gls_logs.text
+    assert "0 written, 1 rejected" in gls_logs.text
+
+
+def test_cmd_wiki_refuses_a_repo_with_no_file_backed_symbol(tmp_path, monkeypatch, gls_logs):
+    """The finer case: symbols exist but none is attached to a file, so the
+    coverage ratio the footer reports would be over a total of zero and nothing
+    on the page would be derived from code."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo_with(tmp_path, [
+        Node(id="pkg", repo="(packages)", kind="package", name="requests"),
+        Node(id="topic", repo="r", kind="topic", name="billing"),
+    ])
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.99))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert not (store_dir / "wiki" / "r.md").exists()
+    assert "0 file-backed symbols in scope" in gls_logs.text
+
+
+def test_cmd_wiki_does_not_revive_an_ungrounded_page_already_on_disk(
+    tmp_path, monkeypatch, gls_logs
+):
+    """The freshness path keeps a commit-fresh page searchable without
+    regenerating it, so a page written before this guard existed would have gone
+    on being backfilled into the index forever."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo_with(tmp_path, [])
+    wiki = store_dir / "wiki"
+    wiki.mkdir(parents=True)
+    (wiki / "r.md").write_text("# r\n\nA confident page.\n\n---\n"
+                               "*Generated from the knowledge graph of `r` at commit "
+                               "`abc123` on 2026-08-01.*\n")
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm())
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert "indexed to 0 symbols" in gls_logs.text
+    assert "0 written, 1 rejected" in gls_logs.text
+    assert "delete the stale r.md by hand" in gls_logs.text

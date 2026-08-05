@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`kb wiki` published a confident page for a repository with nothing behind it.** A one-file
+  repo that indexed to 0 symbols still produced a 119-line page, scored 0.987 by the council,
+  presenting the forge's boilerplate README as the project's own setup and architecture. A page
+  grounded in nothing is now not generated at all: a repo whose shard holds no symbols, or a
+  scope with no file-backed symbol, is refused before the model is called, counted as a rejection
+  and named in the log. The refusal counts grounding exactly as the provenance footer does, so
+  the two can never disagree, and it runs ahead of the freshness check, so an ungrounded page
+  already on disk stops being backfilled into the search index.
 - **`init` omitted `platform` whenever it equalled the default, and a config above it then
   supplied a different one.** `init --local --platform gitlab` wrote no `platform` key at all,
   so a global `~/.contextlake.ini` saying `platform = github` filled the gap and `mirror clone`
