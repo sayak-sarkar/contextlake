@@ -804,7 +804,6 @@ def build_server(
             EXPLAIN,
             IMPACT,
             OWNERS,
-            SEARCH,
             SUBCLASSES,
             classify,
         )
