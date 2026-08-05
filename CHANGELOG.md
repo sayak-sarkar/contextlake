@@ -7,7 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Python 3.10 is now the minimum for the whole tool.** The mirror core previously claimed 3.9
+  while the knowledge layer needed 3.10, so the project had two floors and the documentation had
+  to explain which half you were using. There is one floor now. `pip` declines cleanly on an older
+  interpreter, so nothing breaks silently.
+- **`--tool-concurrency 1` is a supported setting, and the bound works differently.** It used to
+  hang the stdio transport outright, with no error and no timeout: the SDK wraps stdin and stdout
+  with no limiter of its own, so its blocking reader borrowed from the very thread limiter the flag
+  shrank, and at one token it never gave the token back. The bound now sits on the tool bodies
+  themselves and the worker pool is sized to the bound plus a reserve for transport I/O, so a limit
+  of one is safe on stdio, streamable HTTP and SSE alike. The default is unchanged at 2.
+- **`semantic_search` and `hybrid_search` return each hit's `score`, and return nothing when a
+  question has no anchor in the index.** A nearest-neighbour index has no concept of "no match": it
+  returns its k nearest however far away they are, so both tools answered every query with k
+  confident, correctly cited, entirely unrelated hits. They now refuse when not one term in the
+  question appears anywhere in the index, and every hit carries the number it was ranked by, so a
+  caller can judge the ranking instead of trusting it.
+
 ### Fixed
+- **`ask`'s dependents answer ignored the repository you asked about.** `find_dependents` had no
+  repository parameter at all, so `ask` accepted `repo` in its schema and then answered across the
+  whole fleet: a scope leak, not merely a missing filter. The route also never resolved its target
+  and reported "INFERRED from manifests" over an empty result. It now resolves the target, honours
+  the scope, and says plainly when it found nothing.
+- **`find_callers` and `blast_radius` hid name collisions that `find_definition` disclosed.** When
+  a name resolved to several distinct symbols, one was silently chosen. All three now say so.
+- **Numeric options accepted values that could not work.** `--port` took anything, and
+  `--tool-concurrency` accepted 0, negatives and absurdly large values; both are now range-checked
+  and refused with the bound named. `dashboard --serve --site` asked for two mutually exclusive
+  outputs and picked one silently; it now refuses. The `CONTEXTLAKE_MCP_TOOL_CONCURRENCY`
+  environment variable deliberately keeps its lenient path: a stale value in a shell profile should
+  not stop an editor from starting.
 - **Every `kb` failure that was not a config error escaped as a raw traceback, at any verbosity.**
   The mirror side of the CLI has long had a top-level guard that reports the error on one line and
   re-raises only under `--verbose`; the kb side caught `ConfigError` and `KeyboardInterrupt` and
