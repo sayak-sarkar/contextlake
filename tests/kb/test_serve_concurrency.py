@@ -29,6 +29,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -37,10 +38,12 @@ import anyio.to_thread
 import pytest
 
 from contextlake.kb.server import (
+    _TRANSPORT_IO_RESERVE,
     DEFAULT_TOOL_CONCURRENCY,
     TOOL_CONCURRENCY_ENV,
     _run_stdio,
     build_http_app,
+    build_server,
     resolve_tool_concurrency,
 )
 from contextlake.kb.state import check_schema
@@ -102,7 +105,7 @@ def test_stdio_bounds_the_tool_thread_pool():
     anyio.run(_run_stdio, server, 3)
     assert server.ran
     # Without the fix this is anyio's default of 40.
-    assert server.tokens == 3
+    assert server.tokens == 3 + _TRANSPORT_IO_RESERVE
 
 
 def test_stdio_limiter_is_read_inside_the_loop_not_at_import():
@@ -111,7 +114,8 @@ def test_stdio_limiter_is_read_inside_the_loop_not_at_import():
     a, b = _FakeServer(), _FakeServer()
     anyio.run(_run_stdio, a, 2)
     anyio.run(_run_stdio, b, 6)
-    assert (a.tokens, b.tokens) == (2, 6)
+    assert (a.tokens, b.tokens) == (2 + _TRANSPORT_IO_RESERVE,
+                                    6 + _TRANSPORT_IO_RESERVE)
 
 
 # --- HTTP: the ASGI lifespan hook -------------------------------------------
@@ -144,7 +148,7 @@ def test_http_transports_bound_the_pool_on_lifespan_startup(tmp_path, transport)
         seen = anyio.run(_drive_lifespan, app)
     finally:
         store.close()
-    assert seen.get("tokens") == 3
+    assert seen.get("tokens") == 3 + _TRANSPORT_IO_RESERVE
 
 
 def test_http_lifespan_still_starts_the_sdks_own_session_manager(tmp_path):
@@ -176,7 +180,7 @@ def test_http_app_falls_back_to_the_default_bound(tmp_path, monkeypatch):
         seen = anyio.run(_drive_lifespan, app)
     finally:
         store.close()
-    assert seen.get("tokens") == DEFAULT_TOOL_CONCURRENCY
+    assert seen.get("tokens") == DEFAULT_TOOL_CONCURRENCY + _TRANSPORT_IO_RESERVE
 
 
 # --- SIGTERM ----------------------------------------------------------------
@@ -274,3 +278,122 @@ def _handshake(proc, *, deadline: float) -> None:
             if b'"result"' in buf:
                 return
     pytest.fail("stdio server never answered initialize")
+
+
+# --- the bound moved off the worker pool and onto the tool bodies -----------
+
+_STDIO_PROBE = """
+import json, subprocess, sys
+proc = subprocess.Popen(
+    [sys.executable, "-c", {driver!r}],
+    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+req = json.dumps({{"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                   "params": {{"protocolVersion": "2024-11-05", "capabilities": {{}},
+                              "clientInfo": {{"name": "probe", "version": "0"}}}}}})
+proc.stdin.write(req + chr(10))
+proc.stdin.flush()
+line = proc.stdout.readline()
+print("GOT" if line.strip() else "EMPTY")
+proc.kill()
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+def test_stdio_answers_initialize_at_a_tool_concurrency_of_one(tmp_path):
+    """A limit of one used to hang the stdio transport outright.
+
+    The bound was applied by shrinking anyio's default thread limiter, which is
+    not private to tool bodies: the SDK's stdio transport wraps stdin and stdout
+    with anyio.wrap_file and passes no limiter, so readline, write and flush all
+    borrowed the same tokens. At one token the stdin_reader task sat inside a
+    blocking readline holding it, and stdout_writer could never acquire one to
+    flush a reply. The server started, printed its banner, and answered nothing:
+    no error, no warning, no timeout, on the transport every editor uses, at the
+    value the module's own benchmark recommends as fastest.
+
+    Driven as a real subprocess speaking raw JSON-RPC with no client library, so
+    nothing can mask a hang, and out of process because the failure mode is
+    something that never replies.
+    """
+    src = str(Path(__file__).resolve().parents[2] / "src")
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    _store(store_dir).close()
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir.as_posix()}"\n')
+
+    driver = (f"import sys; sys.path.insert(0, {src!r})\n"
+              "from contextlake.cli import main\n"
+              f"sys.exit(main(['kb', 'serve', '--config', {str(cfg)!r}, "
+              "'--tool-concurrency', '1']))\n")
+    probe = tmp_path / "probe.py"
+    probe.write_text(_STDIO_PROBE.format(driver=driver))
+
+    out = subprocess.run([sys.executable, str(probe)], capture_output=True,
+                         text=True, timeout=90)
+    assert "GOT" in out.stdout, f"stdio never answered initialize: {out.stdout!r}"
+
+
+def test_the_tool_bound_still_bounds_concurrent_tool_bodies(tmp_path):
+    """Moving the bound off the thread limiter must not quietly remove it.
+
+    Drives the REGISTERED callable, which is the wrapper a wire call goes
+    through, rather than the bare function every in-process caller sees. The
+    count is taken *inside* the tool body, since that is what the bound is
+    about -- counting arrivals at the wrapper would measure the callers.
+    """
+    store = _store(tmp_path)
+    real = store.stats
+    state = {"now": 0, "peak": 0}
+    lock = threading.Lock()
+
+    def slow_stats():
+        with lock:
+            state["now"] += 1
+            state["peak"] = max(state["peak"], state["now"])
+        try:
+            time.sleep(0.05)   # wide enough for contention to be observable
+            return real()
+        finally:
+            with lock:
+                state["now"] -= 1
+
+    try:
+        server = build_server(store, tool_concurrency=2)
+        store.stats = slow_stats
+        registered = server._tool_manager.get_tool("graph_stats").fn
+        threads = [threading.Thread(target=registered) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=30)
+        assert state["peak"] <= 2, state
+        assert state["peak"] >= 2, "the bound must not have serialised to one"
+    finally:
+        store.stats = real
+        store.close()
+
+
+def test_ask_can_call_other_tools_while_holding_the_bound(tmp_path):
+    """`ask` calls find_definition, find_callers, blast_radius and others
+    directly. If registration replaced those names with the guarded wrapper, a
+    non-reentrant bound would deadlock `ask` against itself at a limit of one --
+    trading a transport hang for a tool hang. MCPServer.tool returns the original
+    function, and the registration here preserves that.
+    """
+    store = _store(tmp_path)
+    try:
+        server = build_server(store, tool_concurrency=1)
+        registered = server._tool_manager.get_tool("ask").fn
+        done = []
+
+        def call():
+            done.append(registered(question="where is CatalogService defined"))
+
+        worker = threading.Thread(target=call)
+        worker.start()
+        worker.join(timeout=20)
+        assert not worker.is_alive(), "ask deadlocked against its own tool bound"
+        assert done and done[0].route
+    finally:
+        store.close()

@@ -17,11 +17,13 @@ validation. See :func:`build_http_app`.
 
 from __future__ import annotations
 
+import functools
 import hmac
 import json
 import os
 import re
 import secrets
+import threading
 from collections import deque
 from pathlib import Path
 
@@ -59,8 +61,27 @@ TOKEN_ENV = "CONTEXTLAKE_MCP_TOKEN"
 # fast ones, and at a limit of one a single multi-second traversal holds the
 # only token while every cheap lookup queues behind it. Two keeps a slot free
 # for the cheap path and still removes ~93% of the contention.
+#
+# Re-measured on a much larger store (57,720 nodes / 251,738 edges), the knee
+# moves left: eight concurrent blast_radius calls cost 204ms at a limit of one,
+# 373ms at two, and 8,705ms at eight. So one is the fastest setting on a big
+# graph, and the mixed-traffic argument above -- which was never re-measured --
+# is the only thing still recommending two. Two remains the default because
+# changing it would be a behaviour change for every user justified by a
+# homogeneous-batch benchmark; one is a supported, and now safe, choice.
+#
+# "Now safe" is load-bearing. A limit of one used to HANG the stdio transport
+# outright, and it was the bound being applied through the wrong mechanism that
+# did it -- see apply_tool_limiter.
 TOOL_CONCURRENCY_ENV = "CONTEXTLAKE_MCP_TOOL_CONCURRENCY"
 DEFAULT_TOOL_CONCURRENCY = 2
+
+# Worker threads kept back for transport I/O, over and above the tool bound.
+# The SDK's stdio transport wraps stdin and stdout with anyio.wrap_file and
+# passes no limiter of its own, so its blocking readline, write and flush all
+# draw on the same default thread limiter. Two tasks need one each (stdin_reader
+# parked in readline, stdout_writer flushing a reply); the rest is headroom.
+_TRANSPORT_IO_RESERVE = 4
 
 
 def resolve_tool_concurrency(explicit: int | None = None) -> int:
@@ -83,7 +104,21 @@ def resolve_tool_concurrency(explicit: int | None = None) -> int:
 
 
 def apply_tool_limiter(limit: int) -> None:
-    """Bound the SDK's tool worker pool. Must run inside the async context.
+    """Size the SDK's worker pool. Must run inside the async context.
+
+    This used to BE the tool bound: it set anyio's default thread limiter to
+    ``limit`` outright. That limiter is not private to tool bodies. The SDK's
+    stdio transport wraps stdin and stdout with ``anyio.wrap_file`` and passes no
+    limiter, so ``readline``, ``write`` and ``flush`` borrow from the very same
+    tokens. At ``limit = 1`` the stdin_reader task sat inside a blocking
+    ``readline`` holding the only token and stdout_writer could never acquire one
+    to flush a reply: the server started, printed its banner, and then answered
+    nothing at all -- no error, no warning, no timeout, on the default and
+    most-used transport, at the value the benchmark above recommends.
+
+    The bound now lives on the tool bodies themselves (see build_server), which
+    is what it was always trying to express. This function keeps the pool from
+    being needlessly wide, and reserves slots the transport can always get.
 
     anyio's default thread limiter is stored in a run-scoped variable, so it
     only exists once a loop is running and setting it from module scope would
@@ -91,7 +126,8 @@ def apply_tool_limiter(limit: int) -> None:
     """
     import anyio.to_thread
 
-    anyio.to_thread.current_default_thread_limiter().total_tokens = limit
+    anyio.to_thread.current_default_thread_limiter().total_tokens = (
+        limit + _TRANSPORT_IO_RESERVE)
 
 # What the two graph-walk tools say when neither spelling of their one required
 # argument arrives. They took `node_id` while every neighbouring tool took `name`
@@ -392,6 +428,7 @@ def _bfs_path(store: Store, src_id: str, dst_id: str, max_hops: int) -> list[str
 
 def build_server(
     store: Store, *, name: str = "contextlake-kb", embedder=None, vector_store=None,
+    tool_concurrency: int | None = None,
 ) -> MCPServer:
     # host/port/stateless_http/json_response moved to run_server()/.run() --
     # this SDK version's server object no longer takes them at construction
@@ -399,6 +436,27 @@ def build_server(
     from .. import __version__
 
     mcp = MCPServer(name, instructions=_INSTRUCTIONS, version=__version__)
+
+    # The tool bound, expressed on the thing it is about. Bounding worker threads
+    # instead (see apply_tool_limiter) put transport I/O inside the same budget
+    # and hung stdio at a limit of one.
+    #
+    # Registered wrapper vs. bare function is the load-bearing detail: MCPServer.tool
+    # returns the original function, so every name in this scope stays unbounded and
+    # `ask` -- which calls find_definition, find_callers, blast_radius and others
+    # directly -- cannot deadlock against a bound it is already holding. Only calls
+    # arriving over the wire go through the wrapper, which is exactly the traffic the
+    # measurement was about.
+    _tool_slots = threading.Semaphore(resolve_tool_concurrency(tool_concurrency))
+
+    def bounded_tool(fn):
+        @functools.wraps(fn)
+        def guarded(*args, **kwargs):
+            with _tool_slots:
+                return fn(*args, **kwargs)
+
+        mcp.add_tool(guarded)
+        return fn
 
     def _term_anchors(query: str) -> tuple[list[str], bool]:
         """``(terms the index has never seen, whether any term IS indexed)``.
@@ -424,14 +482,14 @@ def build_server(
         unmatched, anchored = _term_anchors(query)
         return bool(unmatched) and not anchored
 
-    @mcp.tool()
+    @bounded_tool
     def graph_stats() -> StatsOut:
         """Counts of indexed repos/nodes/edges and the edge-confidence breakdown."""
         st = store.stats()
         return StatsOut(repos=st.repos, nodes=st.nodes, edges=st.edges,
                         by_confidence=st.by_confidence)
 
-    @mcp.tool()
+    @bounded_tool
     def who_knows(repo: str, path: str | None = None, limit: int = 10) -> OwnersOut:
         """Likely owners / subject-matter experts for `repo` (optionally a sub-`path`).
 
@@ -450,13 +508,13 @@ def build_server(
                      last_active=o.last_active, share=round(o.share, 4))
             for o in owners])
 
-    @mcp.tool()
+    @bounded_tool
     def get_node(node_id: str) -> NodeOut | None:
         """Fetch a single graph node by its id."""
         n = store.get_node(node_id)
         return _node_out(n) if n else None
 
-    @mcp.tool()
+    @bounded_tool
     def get_neighbors(
         node_id: str, relation: str | None = None, direction: str = "both", limit: int = 50
     ) -> NeighborsOut:
@@ -472,14 +530,14 @@ def build_server(
         kept, total, truncated = _budget(edges, limit)
         return NeighborsOut(edges=[_edge_out(e) for e in kept], total=total, truncated=truncated)
 
-    @mcp.tool()
+    @bounded_tool
     def search_code(
         query: str, kind: str | None = None, repo: str | None = None, limit: int = 20
     ) -> list[NodeOut]:
         """Search the graph for nodes by name/symbol, with optional kind and repo filters."""
         return [_node_out(n) for n in store.search(query, kind=kind, repo=repo, limit=limit)]
 
-    @mcp.tool()
+    @bounded_tool
     def find_definition(
         name: str, kind: str | None = None, repo: str | None = None
     ) -> list[NodeOut]:
@@ -516,7 +574,7 @@ def build_server(
         from .impact import chosen_one_of
         return matches[0].id, chosen_one_of(node_id_or_name, len(matches)) or None
 
-    @mcp.tool()
+    @bounded_tool
     def find_callers(node_id: str | None = None, name: str | None = None,
                      limit: int = 50) -> NodesOut:
         """Find the definitions that call a node — 'who calls X?' (incoming calls edges).
@@ -547,7 +605,7 @@ def build_server(
         return NodesOut(nodes=kept, total=total, truncated=truncated,
                         note=(f"Callers of {node_id!r}{why}." if why else None))
 
-    @mcp.tool()
+    @bounded_tool
     def find_dependents(package: str, limit: int = 50,
                         repo: str | None = None) -> NodesOut:
         """Find files/repos that depend on a package — cross-repo 'who uses X?'.
@@ -579,7 +637,7 @@ def build_server(
         kept, total, truncated = _budget(out, limit)
         return NodesOut(nodes=kept, total=total, truncated=truncated)
 
-    @mcp.tool()
+    @bounded_tool
     def repo_dependencies(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
         """Repo→repo package dependencies for `repo` (the cross-repo architecture map).
 
@@ -599,7 +657,7 @@ def build_server(
                         relation=e["relation"], confidence=e["confidence"],
                         weight=e["weight"]) for e in kept])
 
-    @mcp.tool()
+    @bounded_tool
     def repo_flow(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
         """Repo→repo HTTP request flow for `repo` (who calls whom over HTTP).
 
@@ -620,7 +678,7 @@ def build_server(
                         relation=e["relation"], confidence=e["confidence"],
                         weight=e["weight"], context=e.get("context")) for e in kept])
 
-    @mcp.tool()
+    @bounded_tool
     def repo_event_flow(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
         """Repo→repo EVENT flow for `repo` (who publishes events that whom consumes).
 
@@ -641,7 +699,7 @@ def build_server(
                         relation=e["relation"], confidence=e["confidence"],
                         weight=e["weight"], context=e.get("context")) for e in kept])
 
-    @mcp.tool()
+    @bounded_tool
     def blast_radius(node_id: str | None = None, name: str | None = None, hops: int = 3,
                      relations: list[str] | None = None,
                      limit: int = 100) -> BlastRadiusOut:
@@ -676,7 +734,7 @@ def build_server(
                            via_line=h.via_line, name_candidates=h.name_candidates)
                   for h in hits])
 
-    @mcp.tool()
+    @bounded_tool
     def get_wiki(repo: str) -> WikiOut:
         """The generated LLM-wiki page for a repo, or a namespace's cluster page.
 
@@ -716,7 +774,7 @@ def build_server(
             current_commit=sanitize_label(current) if current else None,
             markdown=sanitize_label(raw, max_len=200_000))
 
-    @mcp.tool()
+    @bounded_tool
     def get_readme(repo: str) -> ReadmeOut:
         """The repo's own README, read from its local clone (offline).
 
@@ -735,7 +793,7 @@ def build_server(
                                      markdown=sanitize_label(raw, max_len=200_000))
         return ReadmeOut(repo=sanitize_label(repo), found=False, path=None, markdown="")
 
-    @mcp.tool()
+    @bounded_tool
     def get_repo_brief(repo: str) -> RepoBriefOut:
         """A repo's 'anatomy' — grounded facts from its indexed graph (offline).
 
@@ -763,7 +821,7 @@ def build_server(
             packages=[sanitize_label(p) for p in brief["packages"]],
             files=[sanitize_label(f) for f in brief["files"]])
 
-    @mcp.tool()
+    @bounded_tool
     def list_repos(include_stats: bool = True, limit: int = 500) -> ReposOut:
         """The repo fleet — the dashboard's repository list (offline).
 
@@ -788,7 +846,7 @@ def build_server(
         total = store.conn.execute("SELECT COUNT(*) FROM repos").fetchone()[0]
         return ReposOut(total=total, truncated=truncated, repos=repos)
 
-    @mcp.tool()
+    @bounded_tool
     def get_repo_links(repo: str) -> RepoLinksOut:
         """A repo's cross-links to external knowledge — Jira / Confluence / Figma /
         GitLab / Slack — grouped by relation (tracked_by / documented_by /
@@ -815,7 +873,7 @@ def build_server(
         total = sum(len(v) for v in grouped.values())
         return RepoLinksOut(repo=sanitize_label(repo), total=total, links=grouped)
 
-    @mcp.tool()
+    @bounded_tool
     def graph_health() -> GraphHealthOut:
         """Knowledge-graph health — stale repos (local HEAD moved past the index),
         repos whose graph an older parser built (re-index to refresh), and dangling
@@ -837,14 +895,14 @@ def build_server(
                 relation=d["relation"], dst=sanitize_label(d["dst"]))
                 for d in res["dangling_sample"]])
 
-    @mcp.tool()
+    @bounded_tool
     def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:
         """Shortest path between two nodes over the graph (<= max_hops). Empty if none."""
         path_ids = _bfs_path(store, src_id, dst_id, max_hops)
         return [_node_out(n) for nid in path_ids if (n := store.get_node(nid))]
 
     if embedder is not None and vector_store is not None:
-        @mcp.tool()
+        @bounded_tool
         def semantic_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
             """Semantic (embedding) search over indexed nodes — for natural-language
             queries where exact names are unknown. Results are ranked by similarity,
@@ -866,7 +924,7 @@ def build_server(
                     out.append(_node_out(n, score=score))
             return out
 
-        @mcp.tool()
+        @bounded_tool
         def hybrid_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
             """Hybrid retrieval: seed with embeddings, then rank by Personalized
             PageRank over the graph. Surfaces structurally-related nodes (callers,
@@ -887,7 +945,7 @@ def build_server(
                     out.append(_node_out(n, score=score))
             return out
 
-    @mcp.tool()
+    @bounded_tool
     def ask(question: str, k: int = 8, repo: str | None = None) -> AskOut:
         """One question, auto-routed to the right substrate — for agents that would
         rather ask in plain language than pick among the graph tools.
@@ -1301,7 +1359,8 @@ def build_http_app(
     its ``/messages/`` POST endpoint is behind the same gate as ``/sse``.
     """
     tool_concurrency = resolve_tool_concurrency(tool_concurrency)
-    server = build_server(store, embedder=embedder, vector_store=vector_store)
+    server = build_server(store, embedder=embedder, vector_store=vector_store,
+                          tool_concurrency=tool_concurrency)
     security = transport_security(host)
     if transport == "sse":
         app = _QuietSseRejection(server.sse_app(transport_security=security, host=host))
@@ -1432,7 +1491,8 @@ def run_server(
     if transport not in HTTP_TRANSPORTS:
         import anyio
 
-        server = build_server(store, embedder=embedder, vector_store=vector_store)
+        server = build_server(store, embedder=embedder, vector_store=vector_store,
+                              tool_concurrency=limit)
         anyio.run(_run_stdio, server, limit)
         return
 
