@@ -248,6 +248,18 @@ class BlastRadiusOut(BaseModel):
     note: str | None = None
 
 
+class PathOut(BaseModel):
+    """A path query has three outcomes and a bare node list rendered them
+    identically: a real route, an endpoint the graph has never heard of, and two
+    indexed nodes with nothing between them. Only the third is what an empty
+    answer reads as, and it was the only one the old docstring described."""
+    nodes: list[NodeOut]     # src .. dst in order; empty unless `found`
+    found: bool              # a path exists within max_hops
+    hops: int                # edges traversed (0 when src == dst, or when not found)
+    # Which of the two misses this is. None whenever `found`.
+    gap: str | None = None
+
+
 class OwnerOut(BaseModel):
     name: str
     commits: int
@@ -1007,10 +1019,26 @@ def build_server(
                 for d in res["dangling_sample"]])
 
     @bounded_tool
-    def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> list[NodeOut]:
-        """Shortest path between two nodes over the graph (<= max_hops). Empty if none."""
+    def shortest_path(src_id: str, dst_id: str, max_hops: int = 6) -> PathOut:
+        """Shortest path between two nodes over the graph (<= max_hops).
+
+        `found` says whether there is one; when there is not, `gap` says which of
+        the two reasons applies — an id the graph does not hold, or two indexed
+        nodes with no route between them inside `max_hops`. This used to return a
+        bare list, which rendered a typo and a genuine disconnection identically.
+        """
+        absent = [f"{label}={nid!r}" for label, nid in
+                  (("src_id", src_id), ("dst_id", dst_id)) if not store.get_node(nid)]
+        if absent:
+            return PathOut(nodes=[], found=False, hops=0,
+                           gap="no indexed node with " + " or ".join(absent))
         path_ids = _bfs_path(store, src_id, dst_id, max_hops)
-        return [_node_out(n) for nid in path_ids if (n := store.get_node(nid))]
+        if not path_ids:
+            return PathOut(nodes=[], found=False, hops=0,
+                           gap=f"both nodes are indexed, but no path of {max_hops} hop(s) "
+                               "or fewer connects them")
+        nodes = [_node_out(n) for nid in path_ids if (n := store.get_node(nid))]
+        return PathOut(nodes=nodes, found=True, hops=len(nodes) - 1)
 
     if embedder is not None and vector_store is not None:
         @bounded_tool

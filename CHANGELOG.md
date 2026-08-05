@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   question appears anywhere in the index, and every hit carries the number it was ranked by, so a
   caller can judge the ranking instead of trusting it.
 
+- **`shortest_path` returns an envelope instead of a bare list.** It was the only tool whose output
+  shape could not express a miss, so a typo'd node id and a genuine "these two are unconnected"
+  were the same empty list -- and the docstring's "empty if none" described only the second. It now
+  returns `nodes`, `found`, `hops` and a `gap` naming which of the two misses occurred. Callers
+  reading the old top-level list need to read `nodes` instead.
 - **Five repository-scoped MCP tools now report `found`.** `who_knows`, `get_repo_links`,
   `repo_dependencies`, `repo_flow` and `repo_event_flow` echoed the caller's own string back with
   an empty payload, so a mistyped repository id was indistinguishable from a known repository with

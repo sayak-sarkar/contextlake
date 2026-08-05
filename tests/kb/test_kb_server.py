@@ -76,8 +76,9 @@ def test_find_callers(server):
 
 def test_shortest_path(server):
     res = asyncio.run(_call(server, "shortest_path", {"src_id": "a", "dst_id": "b"}))
-    items = _unwrap(res.structured_content)
-    assert [n["id"] for n in items] == ["a", "b"]
+    out = _unwrap(res.structured_content)
+    assert [n["id"] for n in out["nodes"]] == ["a", "b"]
+    assert out["found"] is True and out["hops"] == 1 and out["gap"] is None
 
 
 def test_find_dependents(tmp_path):
@@ -1244,5 +1245,40 @@ def test_who_knows_separates_an_unknown_repo_from_one_with_no_clone(tmp_path):
             _call(srv, "who_knows", {"repo": "team/api"})).structured_content)
         assert no_clone["found"] is True
         assert "no local clone" in no_clone["ranking_gap"]
+    finally:
+        s.close()
+
+
+def test_shortest_path_distinguishes_a_typo_from_a_disconnection(tmp_path):
+    """The return type was a bare `list[NodeOut]`, the only tool in the file whose
+    output shape could not express a miss: a typo'd node id and a genuine "these
+    two are unconnected" were the same empty list, and the docstring's "Empty if
+    none" described only the second."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    _seed(s)
+    # an island: indexed, but no edge reaches it from the seeded pair
+    s.upsert_nodes("team/api", [Node(id="island", repo="team/api", kind="function",
+                                     name="orphan")])
+    srv = build_server(s)
+    try:
+        typo = _unwrap(asyncio.run(_call(srv, "shortest_path", {
+            "src_id": "a", "dst_id": "no-such-node"})).structured_content)
+        assert typo["found"] is False and typo["nodes"] == []
+        assert "no indexed node with" in typo["gap"] and "dst_id" in typo["gap"]
+
+        both = _unwrap(asyncio.run(_call(srv, "shortest_path", {
+            "src_id": "nope-a", "dst_id": "nope-b"})).structured_content)
+        assert both["found"] is False
+        assert "src_id" in both["gap"] and "dst_id" in both["gap"]
+
+        apart = _unwrap(asyncio.run(_call(srv, "shortest_path", {
+            "src_id": "a", "dst_id": "island"})).structured_content)
+        assert apart["found"] is False and apart["nodes"] == []
+        assert "both nodes are indexed" in apart["gap"]
+        assert apart["gap"] != typo["gap"], "a typo and a disconnection must not read alike"
+
+        same = _unwrap(asyncio.run(_call(srv, "shortest_path", {
+            "src_id": "a", "dst_id": "a"})).structured_content)
+        assert same["found"] is True and same["hops"] == 0
     finally:
         s.close()
