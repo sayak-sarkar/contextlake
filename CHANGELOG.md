@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **A workspace holding several groups no longer reads as full of anomalies.** With group A already
+  cloned, `mirror sync --group B` reported every group-A repo as `Extra` and sent it through the
+  branch-switch pass, which could only answer `Not in GitLab list`. Local paths are relative to the
+  group, so `A/team/api` and `B/team/api` both land at `team/api` and the path cannot say which group
+  a clone came from; `status`, `verify` and the branch pass now read each clone's `origin` remote and
+  count out-of-group repos under a new `Other groups` row instead. The scoping is one-sided: only a
+  repo whose origin positively names a different group drops out, so a clone with no origin, or one
+  whose config cannot be read, is still reported exactly as before.
 - **`kb lint` no longer calls a repository with no commits "stale".** Two repositories on a real fleet
   were reported stale on every run with "HEAD moved or never finished, re-run index", and re-indexing
   never cleared them, because they have no commits: there is no HEAD to move, so the staleness test

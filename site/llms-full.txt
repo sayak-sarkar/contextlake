@@ -1193,8 +1193,18 @@ contextlake mirror status
   `sync`) will fetch it.
 - **Extra** = a repo is in your workspace but not on the remote, usually one that was
   renamed, archived, or removed there; `contextlake` leaves it alone for you to review.
+- **Other groups** = clones whose `origin` remote says they came from a different group. Only shown
+  when there are any. See below.
 
 A fully synced workspace shows `0` for both.
+
+**Workspaces holding more than one group.** Local paths are relative to the group, so a clone of
+`alpha/team/api` and one of `beta/team/api` both land at `team/api` and the path cannot say which
+group a repo came from. `status`, `verify`, and the branch-switch pass therefore read each clone's
+`origin` remote and leave repos from other groups out of scope: they are counted under **Other
+groups** rather than reported as **Extra**, and the branch pass does not try to switch them. Only a
+repo whose origin positively names a different group drops out. A clone with no origin, or one whose
+config cannot be read, is still reported as before, so a genuinely stray checkout never goes quiet.
 
 ### `mirror fetch`: fetch every project you can see
 
@@ -5158,6 +5168,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **A workspace holding several groups no longer reads as full of anomalies.** With group A already
+  cloned, `mirror sync --group B` reported every group-A repo as `Extra` and sent it through the
+  branch-switch pass, which could only answer `Not in GitLab list`. Local paths are relative to the
+  group, so `A/team/api` and `B/team/api` both land at `team/api` and the path cannot say which group
+  a clone came from; `status`, `verify` and the branch pass now read each clone's `origin` remote and
+  count out-of-group repos under a new `Other groups` row instead. The scoping is one-sided: only a
+  repo whose origin positively names a different group drops out, so a clone with no origin, or one
+  whose config cannot be read, is still reported exactly as before.
 - **`kb lint` no longer calls a repository with no commits "stale".** Two repositories on a real fleet
   were reported stale on every run with "HEAD moved or never finished, re-run index", and re-indexing
   never cleared them, because they have no commits: there is no HEAD to move, so the staleness test

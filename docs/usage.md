@@ -92,8 +92,18 @@ contextlake mirror status
   `sync`) will fetch it.
 - **Extra** = a repo is in your workspace but not on the remote, usually one that was
   renamed, archived, or removed there; `contextlake` leaves it alone for you to review.
+- **Other groups** = clones whose `origin` remote says they came from a different group. Only shown
+  when there are any. See below.
 
 A fully synced workspace shows `0` for both.
+
+**Workspaces holding more than one group.** Local paths are relative to the group, so a clone of
+`alpha/team/api` and one of `beta/team/api` both land at `team/api` and the path cannot say which
+group a repo came from. `status`, `verify`, and the branch-switch pass therefore read each clone's
+`origin` remote and leave repos from other groups out of scope: they are counted under **Other
+groups** rather than reported as **Extra**, and the branch pass does not try to switch them. Only a
+repo whose origin positively names a different group drops out. A clone with no origin, or one whose
+config cannot be read, is still reported as before, so a genuinely stray checkout never goes quiet.
 
 ### `mirror fetch`: fetch every project you can see
 

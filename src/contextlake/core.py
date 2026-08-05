@@ -6,6 +6,7 @@ import base64
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import time
@@ -91,6 +92,92 @@ def to_local_path(path_with_namespace, gitlab_group):
     if path_with_namespace.startswith(prefix):
         return path_with_namespace[len(prefix):]
     return path_with_namespace
+
+
+_SCP_LIKE = re.compile(r"^[\w.-]+@([\w.-]+):(.+)$")
+
+
+def _remote_namespace(url):
+    """A remote URL's ``group/sub/project`` path: host, scheme, credentials and a
+    trailing ``.git`` removed, lowercased. ``None`` if there is no path to read."""
+    url = (url or "").strip()
+    if not url:
+        return None
+    m = _SCP_LIKE.match(url)          # git@host:group/project.git
+    path = m.group(2) if m else urllib.parse.urlsplit(url).path
+    path = path.strip("/")
+    if path.endswith(".git"):
+        path = path[: -len(".git")]
+    return path.lower() or None
+
+
+def read_origin_url(repo_dir):
+    """The ``origin`` remote URL recorded in a clone's ``.git/config``, or None.
+
+    Read from the file rather than asked of ``git``, deliberately. ``verify`` and
+    ``status`` promise to be read-only and fast over a whole fleet, and spawning
+    one ``git remote get-url`` per repository would put hundreds of processes
+    behind two commands whose entire job is to print a summary. The config file is
+    where git itself keeps this, and reading it is a single small open().
+
+    Hand-parsed rather than fed to ``configparser`` because git's config format is
+    only INI-ish: it permits repeated keys, tabs before names, and section headers
+    like ``[remote "origin"]`` that a strict parser rejects outright. A parse
+    failure here must degrade to "unknown", never raise.
+    """
+    cfg = os.path.join(repo_dir, ".git", "config")
+    try:
+        with open(cfg, encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+    except OSError:
+        # Includes the gitlink case (a submodule/worktree `.git` FILE, so
+        # `.git/config` is not a path) -- unknown, which callers treat as
+        # in-scope rather than guessing.
+        return None
+    section = None
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith("[") and s.endswith("]"):
+            section = s[1:-1].strip().lower()
+        elif section == 'remote "origin"' and "=" in s and not s.startswith("#"):
+            key, _, value = s.partition("=")
+            if key.strip().lower() == "url":
+                return value.strip()
+    return None
+
+
+def belongs_to_other_group(work_dir, local_path, gitlab_group):
+    """True only when this clone's origin says it came from a DIFFERENT group.
+
+    A workspace legitimately holds several groups: `to_local_path` strips the
+    ``<group>/`` prefix, so a clone of ``group-a/team/api`` and one of
+    ``group-b/team/api`` both live at ``team/api`` and the path on disk cannot
+    answer which group a repository came from. The origin remote can, and it is
+    the only thing that can.
+
+    Deliberately one-sided. An unreadable config, a clone with no origin, a URL
+    with no path: all return False, so they keep being reported exactly as before.
+    Only a positively-attributed foreign repository is excluded from this run's
+    scope, which is the difference between narrowing a report and suppressing it.
+    """
+    group = (gitlab_group or "").strip("/").lower()
+    if not group:
+        return False
+    ns = _remote_namespace(read_origin_url(os.path.join(work_dir, local_path)))
+    if not ns:
+        return False
+    return not (ns == group or ns.startswith(group + "/"))
+
+
+def in_group_repos(work_dir, local_paths, gitlab_group):
+    """``(this group's local repos, the count attributed to another group)``."""
+    scoped, foreign = [], 0
+    for p in local_paths:
+        if belongs_to_other_group(work_dir, p, gitlab_group):
+            foreign += 1
+        else:
+            scoped.append(p)
+    return scoped, foreign
 
 
 def classify_error(error_msg):
@@ -1649,7 +1736,15 @@ def switch_repository_branches(work_dir, config, gitlab_group):
         log("No projects loaded")
         return StageResult()
 
-    local_repos = filtered_local_repos(work_dir, config)
+    # Scoped to the group being synced. A workspace holding several groups sent
+    # every other group's clone through this pass, where it fetched nothing,
+    # switched nothing, and printed "⊘ <repo>: Not in GitLab list" -- an anomaly
+    # report for repositories that are simply not this run's business.
+    local_repos, foreign = in_group_repos(
+        work_dir, filtered_local_repos(work_dir, config), gitlab_group)
+    if foreign:
+        log(f"  {foreign} local repo(s) belong to another group; not in scope for "
+            f"--group {gitlab_group}")
     max_workers = _int(config, "max_workers", "8")
 
     buckets = {"switched": [], "already": [], "skipped": [], "empty": [], "dry-run": [],
@@ -1707,11 +1802,15 @@ def _report_list(label, items, limit=10):
         log(f"  ... and {len(items) - limit} more")
 
 
-def _verify_summary(valid, missing, extra, invalid, nested, width=None):
+def _verify_summary(valid, missing, extra, invalid, nested, other_groups=0, width=None):
     """Styled, aligned glyph summary rows for `verify_structure` (pure, testable).
 
     Mirrors `_status_summary`'s glyph-prefixed-label treatment, but renders
     through `style.kv` instead of hand-rolled `align_right` calls.
+
+    ``other_groups`` only earns a row when there are any: it counts repositories
+    this run was not asked about, which in the ordinary single-group workspace is
+    always zero and would be one more line of nothing to read past.
     """
     rows = [
         (style.green("✓"), "Valid", valid),
@@ -1720,6 +1819,10 @@ def _verify_summary(valid, missing, extra, invalid, nested, width=None):
         (style.red("✗") if invalid else style.dim("·"), "Invalid", invalid),
         (style.yellow("⚠") if nested else style.dim("·"), "Nested", nested),
     ]
+    if other_groups:
+        # Dim, never a warning glyph: a workspace holding several groups is a
+        # supported arrangement, not an anomaly.
+        rows.append((style.dim("·"), "Other groups", other_groups))
     pairs = [(f"  {glyph} {label}", str(n)) for glyph, label, n in rows]
     return style.kv(pairs, width=width).splitlines()
 
@@ -1743,7 +1846,14 @@ def verify_structure(work_dir, config, gitlab_group):
     if patterns:
         projects = {k: v for k, v in projects.items()
                     if match_repo_filter(v.get("full_path", k), k, patterns)}
-    local_repos = filtered_local_repos(work_dir, config)
+    # Scoped to the group being verified, for the reason `switch_repository_branches`
+    # is: a workspace holding several groups had every other group's clone reported
+    # as an Extra repository, which is an anomaly report about repositories this run
+    # was never asked about. Only positively-attributed foreign repos drop out (see
+    # `belongs_to_other_group`), so a stray clone with no readable origin is still
+    # reported exactly as before.
+    local_repos, foreign = in_group_repos(
+        work_dir, filtered_local_repos(work_dir, config), gitlab_group)
     valid, missing, extra, invalid = [], [], [], []
 
     for path in set(local_repos) | set(projects.keys()):
@@ -1754,7 +1864,8 @@ def verify_structure(work_dir, config, gitlab_group):
 
     nested = find_nested_repos(local_repos)
 
-    for line in _verify_summary(len(valid), len(missing), len(extra), len(invalid), len(nested)):
+    for line in _verify_summary(len(valid), len(missing), len(extra), len(invalid),
+                                len(nested), foreign):
         log(line)
     _report_list("Missing repositories", missing)
     _report_list("Extra repositories", extra)
@@ -1768,8 +1879,11 @@ def verify_structure(work_dir, config, gitlab_group):
                        skipped=len(missing) + len(extra))
 
 
-def _status_summary(active, local, synced, missing, extra, width=None):
-    """Styled, right-aligned glyph summary lines for `status` (pure, testable)."""
+def _status_summary(active, local, synced, missing, extra, other_groups=0, width=None):
+    """Styled, right-aligned glyph summary lines for `status` (pure, testable).
+
+    ``other_groups`` only earns a row when there are any -- see `_verify_summary`.
+    """
     rows = [
         (style.dim("•"), "GitLab projects (active)", active),
         (style.dim("•"), "Local repositories", local),
@@ -1777,6 +1891,8 @@ def _status_summary(active, local, synced, missing, extra, width=None):
         (style.yellow("⚠") if missing else style.dim("·"), "Missing", missing),
         (style.yellow("⚠") if extra else style.dim("·"), "Extra", extra),
     ]
+    if other_groups:
+        rows.append((style.dim("·"), "Other groups", other_groups))
     if width is None:  # widest "  glyph label" (4 visible chrome) + gap + widest count
         width = 4 + max(len(label) for _, label, _ in rows) + 2 \
             + max(len(str(n)) for _, _, n in rows)
@@ -1813,7 +1929,12 @@ def show_status(work_dir, config, gitlab_group):
     # project list against the work directory, so narrowing one side and not the
     # other invents a difference that is not there: a fully-synced workspace
     # reported every non-matching clone as an Extra repository.
-    local_repos = set(filtered_local_repos(work_dir, config))
+    # And scoped to the group, as `verify` is: a workspace holding several groups
+    # had every other group's clone counted as both a Local repository and an Extra
+    # one, so a fully-synced workspace read as full of anomalies.
+    scoped, foreign = in_group_repos(
+        work_dir, filtered_local_repos(work_dir, config), gitlab_group)
+    local_repos = set(scoped)
     active_projects = {k: v for k, v in projects.items() if not v["archived"]}
 
     synchronized = [p for p in active_projects if p in local_repos]
@@ -1821,7 +1942,7 @@ def show_status(work_dir, config, gitlab_group):
     extra = [p for p in local_repos if p not in active_projects]
 
     for line in _status_summary(len(active_projects), len(local_repos),
-                                len(synchronized), len(missing), len(extra)):
+                                len(synchronized), len(missing), len(extra), foreign):
         log(line)
     _report_list("Missing repositories", missing)
     _report_list("Extra repositories", extra)

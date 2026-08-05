@@ -403,3 +403,93 @@ def test_status_narrows_both_sides_of_the_comparison(tmp_path, base_config, gls_
     assert re.search(r"Synchronized\s+1\b", text)
     assert re.search(r"Extra\s+0\b", text)
     assert "Extra repositories" not in text
+
+
+# --- multi-group workspaces --------------------------------------------------
+
+_ALPHA_PROJECTS = {
+    "team/api": {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"},
+}
+
+
+def _clone_from(root, rel_path, origin):
+    """A local clone carrying the origin remote a real `git clone` would record."""
+    git = root / rel_path / ".git"
+    git.mkdir(parents=True)
+    (git / "config").write_text(
+        "[core]\n\trepositoryformatversion = 0\n"
+        f'[remote "origin"]\n\turl = {origin}\n'
+        "\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+    )
+
+
+def _multi_group_workspace(tmp_path):
+    """A workspace legitimately holding two groups. The local paths cannot tell
+    them apart -- `to_local_path` strips the `<group>/` prefix -- so only the
+    origin remote can."""
+    _clone_from(tmp_path, "team/api", "https://example.test/alpha/team/api.git")
+    _clone_from(tmp_path, "platform/atlas", "git@example.test:beta/platform/atlas.git")
+
+
+def test_verify_does_not_call_another_group_an_extra_repo(tmp_path, base_config,
+                                                          monkeypatch, gls_logs):
+    """Syncing group alpha in a workspace that also holds group beta reported
+    every beta clone as an Extra repository. A workspace holding several groups is
+    a supported arrangement, so repos outside `--group` are out of scope, not
+    anomalies."""
+    monkeypatch.setattr(core, "load_gitlab_projects",
+                        lambda c, g, **kw: dict(_ALPHA_PROJECTS))
+    _multi_group_workspace(tmp_path)
+    core.verify_structure(str(tmp_path), base_config, "alpha")
+
+    assert re.search(r"Valid\s+1\b", gls_logs.text)
+    assert re.search(r"Extra\s+0\b", gls_logs.text)
+    assert re.search(r"Other groups\s+1\b", gls_logs.text)
+    assert "platform/atlas" not in gls_logs.text     # never listed as an anomaly
+
+
+def test_status_does_not_count_another_group_as_extra(tmp_path, base_config,
+                                                      monkeypatch, gls_logs):
+    monkeypatch.setattr(core, "load_gitlab_projects",
+                        lambda c, g, **kw: dict(_ALPHA_PROJECTS))
+    _multi_group_workspace(tmp_path)
+    core.show_status(str(tmp_path), base_config, "alpha")
+
+    assert re.search(r"Local repositories\s+1\b", gls_logs.text)
+    assert re.search(r"Synchronized\s+1\b", gls_logs.text)
+    assert re.search(r"Extra\s+0\b", gls_logs.text)
+    assert re.search(r"Other groups\s+1\b", gls_logs.text)
+
+
+def test_branches_pass_skips_repos_from_another_group(tmp_path, base_config,
+                                                      monkeypatch, gls_logs):
+    """The branch pass sent every other group's clone through a switch that could
+    only ever answer "Not in GitLab list" -- fetching nothing, switching nothing,
+    and printing an anomaly line per repo. It is not asked about them at all now."""
+    monkeypatch.setattr(core, "load_gitlab_projects",
+                        lambda c, g, **kw: dict(_ALPHA_PROJECTS))
+    _multi_group_workspace(tmp_path)
+    seen = []
+    monkeypatch.setattr(core, "switch_repository_branch",
+                        lambda p, projects, wd, cfg: seen.append(p) or ("ok", p, "Already on main"))
+
+    core.switch_repository_branches(str(tmp_path), base_config, "alpha")
+
+    assert seen == ["team/api"]
+    assert "Not in GitLab list" not in gls_logs.text
+    assert "belong to another group" in gls_logs.text
+
+
+def test_a_clone_with_no_readable_origin_is_still_reported(tmp_path, base_config,
+                                                           monkeypatch, gls_logs):
+    """The scoping is one-sided on purpose. Only a positively-attributed foreign
+    repo drops out; a stray clone whose origin cannot be read keeps being reported
+    exactly as before, so narrowing the report never becomes suppressing it."""
+    monkeypatch.setattr(core, "load_gitlab_projects",
+                        lambda c, g, **kw: dict(_ALPHA_PROJECTS))
+    _clone_from(tmp_path, "team/api", "https://example.test/alpha/team/api.git")
+    (tmp_path / "mystery" / ".git").mkdir(parents=True)   # no config, no origin
+    core.verify_structure(str(tmp_path), base_config, "alpha")
+
+    assert re.search(r"Extra\s+1\b", gls_logs.text)
+    assert "mystery" in gls_logs.text
