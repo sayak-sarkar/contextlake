@@ -23,7 +23,7 @@ Source: https://sayak.in/contextlake/docs
 <p align="center">
   <a href="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml"><img src="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/contextlake/"><img src="https://img.shields.io/pypi/v/contextlake?color=137A8B" alt="PyPI"></a>
-  <img src="https://img.shields.io/badge/python-3.10%2B%20(3.9%2B%20core)-blue" alt="Python 3.10+ for the knowledge layer, 3.9+ for the mirror core">
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/offline-first-2BB3A3" alt="Offline-first">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT">
 </p>
@@ -69,11 +69,12 @@ finish in **[QUICKSTART](https://github.com/sayak-sarkar/contextlake/blob/main/Q
 
 ```bash
 pip install "contextlake[kb]"       # the full tool: mirror + graph, search, wiki, MCP server
-pip install contextlake             # mirror-only core (no pip dependencies at all)
+pip install contextlake             # mirror-only core (one dependency: argcomplete)
 ```
 
 Everything in the quickstart below needs the `[kb]` extra (Python 3.10+); the plain
-install is just the mirroring CLI and runs on Python 3.9+.
+install is just the mirroring CLI. Both need Python 3.10 or newer: one floor for the whole
+tool, since the split floor the mirror core used to allow only ever surprised people.
 
 Prefer an isolated, zero-setup install? [`uv`](https://docs.astral.sh/uv/) fetches the right
 Python and an isolated environment for you:
@@ -195,7 +196,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
-| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`/`sse`) |
+| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`/`sse`; `--tool-concurrency N` bounds concurrent tool calls, default `2`, raising it makes the server slower) |
 | `kb steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
 | `kb lint` · `doctor` · `kb eval` | Graph health · environment check · retrieval-quality scoring |
 
@@ -253,7 +254,7 @@ opt-in via `--llm-chat`). Try it with zero setup via `contextlake kb dashboard -
 - **[docs/serve.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serve.md)**, serve the graph over MCP + wire your editor
 - **[docs/keep-fresh.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/keep-fresh.md)**, bootstrap, scheduling, and re-indexing on commit
 - **[docs/explained.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/explained.md)**, what changes for you, and why it is built this way
-- **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, an honest, measured look at the token/cost/correctness impact
+- **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, where the token/cost/correctness impact comes from, and how to measure it yourself
 - **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture and internals
 - **[docs/releasing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
 - **[CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[ROADMAP.md](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[CONTRIBUTING.md](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**
@@ -491,10 +492,11 @@ arbitrary slice.
 ### What an inferred edge is actually worth
 
 Rather than describing inference as accurate, the SQL extractor's inferred foreign keys are scored
-against a hand-labelled corpus on every CI run: **precision 0.90 and recall 0.69** against
+against a hand-labelled corpus on every CI run: **precision 1.00 and recall 0.69** against
 13 ground-truth edges (`tests/kb/fixtures/sql/`, scored by
-`tests/kb/test_sql_fixture_corpus.py`). Both documented gap classes and the one measured false
-positive are written down in [Index the code graph](index-code-graph.md#databases-sql-ddl).
+`tests/kb/test_sql_fixture_corpus.py`, which also asserts that these pages quote what it measures).
+Both documented gap classes, and the false positive that masking comments removed, are written down
+in [Index the code graph](index-code-graph.md#databases-sql-ddl).
 
 That is a small synthetic corpus and not a claim about your codebase. It is published because
 "how much should I distrust an `INFERRED` SQL edge" is a question with a number, and a number you
@@ -571,8 +573,8 @@ The honest list, because a tool that only publishes its wins is being sold to yo
 described.
 
 - **Greenfield work in an empty repository.** There is nothing to ground against, so the benefit
-  is close to zero. The measured gains are all on grounding new code in an estate that already
-  exists ([Benchmarks](benchmarks.md)).
+  is close to zero. Everything this tool does well is grounding new code in an estate that already
+  exists ([what it saves, and how to measure it](benchmarks.md)).
 - **Making one correct generation shorter.** The code you need is the code you need. What drops is
   the number of attempts, and that is a mechanism argument, not something measured.
 - **Semantic recall.** The built-in CPU embedder is fast, not frontier-grade. Results are cited
@@ -585,12 +587,13 @@ described.
 - **Some structure is skipped rather than guessed at.** Framework routes, realtime channels,
   templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
   SQL foreign keys miss about three in ten.
-- **A fixed cost per agent session.** Roughly 3,400 tokens of tool schemas load once, which can be
-  net-negative if the agent calls it for questions it does not help with.
+- **A fixed cost per agent session.** The 22 tool schemas load once whether or not a tool is called,
+  which can be net-negative if the agent calls it for questions it does not help with.
 
 ## See also
 
-- [Benchmarks](benchmarks.md), the measured token and correctness impact
+- [Benchmarks](benchmarks.md), where the token and correctness impact comes from, and how to measure
+  it on your own repositories
 - [Install and upgrade](install.md), if you have decided to try it
 - [Architecture and internals](internals.md), the same machinery at implementation depth
 - [Ask the graph](ask-the-graph.md), the questions this page promised you can ask
@@ -614,7 +617,7 @@ real result.
 
 - **Python 3.10 or newer** for the knowledge layer. The `[kb]` extra depends on the `mcp`
   SDK, which requires 3.10, so that is the floor for anything beyond mirroring
-  (`pyproject.toml`, the `kb` extra). The mirror core declares `requires-python = ">=3.9"`
+  (`pyproject.toml`, the `kb` extra). The whole tool declares `requires-python = ">=3.10"`
   and runs there happily.
 - **`git`** on your PATH.
 - **A platform token, only for fleet mirroring**: `GITLAB_TOKEN` (a PAT with `read_api` and
@@ -836,6 +839,26 @@ insist on it.
 `contextlake kb index --force` still exists and still rebuilds everything unconditionally.
 Use it when you want a full rebuild, not because an upgrade requires one.
 
+### Parser version `3` rebuilds every existing store
+
+`PARSER_VERSION` is now `3`, which means **every store built before that release reports stale**,
+under `doctor` and in `kb lint`'s advisory line, and the next `contextlake kb index` rebuilds all
+of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs what your
+first one did, once, rather than the near-instant no-op an unchanged workspace usually gets. Budget
+for it before you run it inside a hook or a CI job on a large mirror.
+
+The bump earns that. Version `3` is language-aware name resolution
+(`_LANG_FAMILY` in `src/contextlake/kb/parse.py`): a `calls` or `inherits` reference no longer
+resolves to a same-named definition in an unrelated language, and an `AMBIGUOUS` edge now records
+how many candidates it was one of. That is what makes `kb impact` able to say a JavaScript
+`close()` is not the Python `close()` you meant, and to count how much of an answer rests on
+name-only matching (see [Ask the graph](ask-the-graph.md#see-what-breaks-kb-impact)).
+
+The catch is that the fix lives in the parser, so it reaches an already-built store only when the
+shards are rebuilt. A version bump is exactly the mechanism that makes that happen without asking
+you to know it was needed: a graph carried forward untouched would keep answering with the old
+resolution, and every surface would keep calling it healthy.
+
 ## Uninstall
 
 Remove the tool:
@@ -915,7 +938,7 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 
 ## 1. Prerequisites
 
-- **Python 3.10+** (the knowledge layer needs 3.10; the core sync works on 3.9+)
+- **Python 3.10+**, one floor for the whole tool, mirror and knowledge layer alike
 - **`git`**, plus your platform's token: **`GITLAB_TOKEN`** (a PAT with `read_api` +
   `read_repository`), or `GITHUB_TOKEN` / `BITBUCKET_TOKEN` / `GITEA_TOKEN` with
   `platform = github|bitbucket|gitea` in the config. On GitLab, an authenticated
@@ -1074,6 +1097,14 @@ sync see [Bootstrap and keep it fresh](keep-fresh.md); for the knowledge layer s
 > documented in the [Knowledge layer](knowledge-layer.md) overview and the
 > [command reference](cli-reference.md). This page covers the mirror and sync commands.
 
+**Four platforms, one vocabulary.** `mirror` runs against GitLab (the default), GitHub, Bitbucket and
+Gitea, including its Codeberg and Forgejo flavors. Pick one with `platform` in the config file or
+`contextlake init --platform github`, and name the group / org / workspace / owner with the generic
+`group` key ([Configuration](configuration.md)). The word *GitLab* outlives that choice in several
+places: this page's wording, the `--group` help text, the cached project files
+(`gitlab_projects.txt` / `.json`) and the `GitLab projects (active)` line in `mirror status`. Read
+all of those as "the remote you configured", whichever one it is.
+
 ## Command reference
 
 Every command carries its own scoped help, `contextlake <command> --help` shows
@@ -1117,7 +1148,7 @@ available as its own command:
 
 ### `mirror status`: check current synchronization status
 
-Shows the current state of your workspace compared to GitLab.
+Shows the current state of your workspace compared to the remote, from the fetch cache.
 
 ```bash
 contextlake mirror status
@@ -1126,23 +1157,28 @@ contextlake mirror status
 **Example output:**
 
 ```text
-GitLab projects (cached): 128      # repos you can see on GitLab
-Local repositories:       128      # repos cloned in your workspace
-Synchronized:             127      # present in both and matching
-Missing:                  1        # on GitLab but not cloned yet
-Extra:                    1        # cloned locally but not on GitLab
+  • GitLab projects (active)  128
+  • Local repositories        128
+  ✓ Synchronized              127
+  ⚠ Missing                     1
+  ⚠ Extra                       1
 ```
 
-- **Missing** = a repo exists on GitLab but isn't in your workspace, `clone` (or
+- **GitLab projects (active)** = projects you can see on the remote, archived ones excluded. The
+  count comes from the fetch cache, so it is as fresh as your last `fetch`.
+- **Local repositories** = repos cloned in your workspace.
+- **Synchronized** = present in both, and matching.
+- **Missing** = a repo exists on the remote but isn't in your workspace, `clone` (or
   `sync`) will fetch it.
-- **Extra** = a repo is in your workspace but not on GitLab, usually one that was
+- **Extra** = a repo is in your workspace but not on the remote, usually one that was
   renamed, archived, or removed there; `contextlake` leaves it alone for you to review.
 
 A fully synced workspace shows `0` for both.
 
-### `mirror fetch`: fetch all GitLab projects
+### `mirror fetch`: fetch every project you can see
 
-Retrieves all repositories from the specified GitLab group and caches them locally.
+Retrieves all repositories from the configured group / org / workspace / owner and caches them
+locally.
 
 ```bash
 contextlake mirror fetch
@@ -1150,7 +1186,7 @@ contextlake mirror fetch
 
 This command:
 
-- Uses the GitLab API with pagination to fetch all projects
+- Uses the configured platform's REST API with pagination to fetch all projects
 - Includes subgroups automatically
 - Skips archived repositories
 - Caches results in `gitlab_projects.txt` and `gitlab_projects.json`, under a
@@ -1158,7 +1194,7 @@ This command:
 
 ### `mirror clone`: clone missing repositories
 
-Clones any repositories that exist in GitLab but are missing locally.
+Clones any repositories that exist on the remote but are missing locally.
 
 ```bash
 contextlake mirror clone
@@ -1166,18 +1202,19 @@ contextlake mirror clone
 
 This command:
 
-- Compares cached GitLab projects with local repositories
-- Creates directory structure matching GitLab's group/subgroup hierarchy
+- Compares the cached project list with local repositories
+- Creates a directory structure mirroring the remote's group/subgroup hierarchy
 - Uses HTTPS cloning for better authentication
 - Clones up to 8 repositories concurrently
 - Handles timeouts gracefully (300s per repository)
 
-How each repo is cloned (`clone_method = auto`, the default): with `GITLAB_TOKEN`
-set, contextlake clones with plain `git`, passing the token as an auth header
+How each repo is cloned (`clone_method = auto`, the default): with the platform's token env var set
+(`GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN` or `GITEA_TOKEN`, or whatever `token_env` names),
+contextlake clones with plain `git`, passing the token as an auth header
 through the child environment, never on the command line and never in the URL, so
 it can't leak into `ps` output or `.git/config`. Without a token it uses `glab repo
-clone` (glab's own auth) when glab is installed, else plain `git clone` over HTTPS.
-Set `clone_method = git` or `glab` to force one path.
+clone` (glab's own auth) when glab is installed, which is a GitLab-only path, else plain
+`git clone` over HTTPS. Set `clone_method = git` or `glab` to force one path.
 
 ### `mirror update`: update existing repositories
 
@@ -1189,9 +1226,10 @@ contextlake mirror update
 
 This command:
 
-- Fetches all remote branches
-- Updates the current branch with latest changes from origin
-- Handles detached HEAD states appropriately
+- Fetches the current branch from `origin`
+- Fast-forwards it to `origin`, never merging or rebasing
+- Skips a repo on a detached HEAD, there is no branch to fast-forward
+- Skips a branch that has diverged from its upstream, and says so, for you to reconcile by hand
 - Reports repositories that are already up to date
 
 ### `mirror branches`: switch to most active branches
@@ -1218,7 +1256,7 @@ repos without branches, and detached-HEAD states are skipped.
 
 ### `mirror verify`: verify repository structure
 
-Checks that the local workspace structure matches GitLab exactly.
+Checks that the local workspace structure matches the remote exactly.
 
 ```bash
 contextlake mirror verify
@@ -1226,10 +1264,10 @@ contextlake mirror verify
 
 This command:
 
-- Compares local repositories with GitLab project list
+- Compares local repositories with the cached project list
 - Identifies nested `.git` directory structures (indicates incorrect cloning)
-- Lists extra local repositories (not in GitLab)
-- Lists missing repositories (in GitLab but not local)
+- Lists extra local repositories (not on the remote)
+- Lists missing repositories (on the remote but not local)
 - Reports synchronization status
 
 ### `mirror sync`: full synchronization
@@ -1242,7 +1280,7 @@ contextlake mirror sync
 
 This command executes:
 
-1. `fetch` - Get latest GitLab project list
+1. `fetch` - Get the latest project list
 2. `clone` - Clone missing repositories
 3. `update` - Update existing repositories
 4. `branches` - Switch to active branches
@@ -1252,7 +1290,8 @@ This command executes:
 ### `mirror audit`: repo health & age report
 
 Scans every local clone and reports which repos are effectively empty and how old/active
-they are. Runs automatically at the end of `sync`/`bootstrap`, or on demand:
+they are. Runs automatically at the end of `sync`, and in `bootstrap` immediately after the mirror
+step (stage 2 of 8, before the knowledge layer is built), or on demand:
 
 ```bash
 contextlake mirror audit                       # summary to console + report to <cache_dir>/repo_audit.json
@@ -1276,7 +1315,14 @@ contextlake's config-file precedence and the full settings reference now have th
 
 The tool protects your local work without getting in your way. The guiding rule:
 **a clean repo is always safe to act on, the branch name alone never causes a skip.**
-The only thing that blocks an `update` is a *dirty working tree*.
+The only *setting* that blocks an `update` is the one that catches a *dirty working tree*.
+
+Two states stop an `update` on a clean tree as well, and neither is configurable, because both are
+about there being no fast-forward to perform rather than about protecting your work: a repo on a
+**detached HEAD** (no branch to update) and a branch that has **diverged from its upstream** (a
+mirror fast-forwards, it never merges or rebases). Both are reported per repo as skips with the
+reason, so a green run is not a promise that every clean repo moved. See
+[Reading the console output](console-output.md).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
@@ -1305,7 +1351,8 @@ The only thing that blocks an `update` is a *dirty working tree*.
 
 The two "no effect" rows are the ones people get wrong, and they follow from the guiding rule above:
 `update` pulls the branch you are already on, so being on a feature branch is not a reason to hold
-back. Only a dirty tree is.
+back. Of the settings in this table, only the dirty-tree guard holds `update` back; the two
+structural skips above (detached HEAD, diverged branch) are not settings at all.
 
 ### What each looks like
 
@@ -1458,11 +1505,11 @@ one in the current directory if none exists yet in the chain); once a project ha
 commands land in it by default without needing `--local` again. An explicit `--config PATH` always takes
 precedence over both the local and global tiers.
 
-`init --local` also scopes the *values* it writes, not just the config file's location: `work_dir`
-defaults to the current directory (override interactively, or with `--work-dir`), and the
-knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to that workspace instead
+`init --local` also scopes one of the *values* it writes, not just the config file's location: the
+knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to the workspace instead
 of the global `~/.contextlake/kb` (override with `--store-dir`), so two separate `--local` projects
-never end up sharing one store.
+never end up sharing one store. `work_dir` is not part of that: **every** `contextlake init` defaults
+it to the current directory, `--local` or not (override interactively, or with `--work-dir`).
 
 ## Workspace trust
 
@@ -1653,16 +1700,18 @@ high-value defs and FK references and is a **deliberate undercount**. Render it 
 **Measured, not just asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
 orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
 call real (`expected_edges.json`, 13 edges); `tests/kb/test_sql_fixture_corpus.py` scores the parser's
-emitted `references` edges against it on every CI run. Current numbers on that corpus: **precision 0.90
-(9 true positives / 1 false positive), recall 0.69 (9 / 13 ground-truth edges found)**, a small,
-hand-built corpus, not a claim about the whole fleet, but real and reproducible. Two documented gap
-classes account for the four missed edges, both by design, not bugs: a
-**self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is dropped because the
-extractor excludes `target == name`, and an FK **attached via a separate `ALTER TABLE ... ADD CONSTRAINT`**
-statement is never captured because the scope tracker only scans `REFERENCES` inside a `CREATE TABLE`'s
-own text span. The one measured false positive comes from a **commented-out `REFERENCES` line**: the
-regex has no comment-awareness, so dead DDL history left in a script can resolve into a real-looking edge
-if its target table still exists. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
+emitted `references` edges against it on every CI run, and asserts this page still quotes what it
+measures. Current numbers on that corpus: **precision 1.00 (9 true positives / 0 false positives),
+recall 0.69 (9 / 13 ground-truth edges found)**, a small, hand-built corpus, not a claim about the whole
+fleet, but real and reproducible. Two documented gap classes account for the four missed edges, both by
+design, not bugs: a **self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is
+dropped because the extractor excludes `target == name`, and an FK **attached via a separate
+`ALTER TABLE ... ADD CONSTRAINT`** statement is never captured because the scope tracker only scans
+`REFERENCES` inside a `CREATE TABLE`'s own text span. Precision was 0.90 on this corpus until the
+extractor learned to blank out `--` and `/* */` comments before matching: its one false positive was a
+commented-out `REFERENCES` line, dead DDL history that resolved into a real-looking edge because the
+table it named still existed elsewhere in the repo. That case is now pinned as a negative in the corpus
+test. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
 the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
 target already met.
 
@@ -1804,7 +1853,9 @@ and work alongside hand-editing if you mix approaches.
 The commands:
 
 - **`contextlake kb source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
-  type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to `kb.toml`. Pass
+  type, offering every type this build ships, the four connectors (`atlassian`, `figma`, `gitlab`,
+  `slack`) plus the built-in ingest sources (`files`, `web`, `api`, `graphql`, `mcp`) and any
+  installed plugin, provides sane defaults, and writes the entry to `kb.toml`. Pass
   `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
   (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below): `--set
   token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
@@ -1812,7 +1863,8 @@ The commands:
   "$TOKEN" | contextlake kb source add jira --type atlassian --from-stdin token`.
 
 - **`contextlake kb source list`**: show all configured connectors (the effective merged config from
-  `~/.contextlake/kb.toml`, `.contextlake/kb.toml` if present, and the built-in defaults), with
+  `~/.contextlake/kb.toml`, the nearest ancestor directory's `.contextlake.kb.toml` if one exists, and
+  the built-in defaults), with
   reachability status.
 - **`contextlake kb source test SOURCE`**: verify that a specific connector works. Reaches its API, reads
   credentials from the configured env var, lists available items. Shows you exactly what each source will
@@ -2030,14 +2082,20 @@ Source: https://sayak.in/contextlake/semantic-search
 # Semantic search
 
 Semantic search (optional) adds natural-language retrieval on top of the graph, so you can find code by
-what it does even when you don't know its name. Enable `[embeddings]` in the config (local-first, vectors
-come from an Ollama model by default, so code never leaves the machine), run `contextlake kb embed` to
-vectorize the indexed nodes into a local store, and `serve` then exposes two retrieval tools:
+what it does even when you don't know its name. Set `enabled = true` under `[embeddings]` in the config,
+run `contextlake kb embed` to vectorize the indexed nodes into a local store, and `serve` then exposes two
+retrieval tools:
 
 - **`semantic_search`** for queries where the exact symbol name is unknown.
 - **`hybrid_search`**, which seeds Personalized PageRank with the embedding hits and propagates relevance
   across the graph (HippoRAG-style) to surface structurally related nodes, a function's callers, a
   package's dependents, that a pure semantic match would miss.
+
+**Where the vectors come from.** `provider` defaults to `auto`, which uses a local Ollama when the daemon
+is reachable *and* already has the configured model pulled, and otherwise the built-in CPU embedder (the
+`kb-local` extra). If neither is available it embeds nothing rather than reaching for a network service.
+Both of those run on your machine, so on the defaults your code never leaves it; name `provider =
+"openai"` explicitly if you want a hosted model instead.
 
 ## Backends and tuning
 
@@ -2055,19 +2113,24 @@ The vector store uses an exact pure-Python cosine scan by default; install the o
 The code **definitions** (classes, functions, methods, interfaces, structs, enums) and HTTP endpoints,
 each with its name, qualified name, file path, and captured **signature and docstring**, so a
 natural-language query like *"refund a payment to the original card"* finds the right function even when
-its name says nothing of the sort. (Measured on the golden-query harness, adding signature + docstring
-doubled MRR and took hit-rate to 100% on natural-language queries.) File, module, and package nodes are
+its name says nothing of the sort. A name alone is thin signal for a natural-language query; the signature
+and the docstring are where the words the query actually uses tend to live. File, module, and package nodes are
 deliberately not embedded: a path or a shared package name is low semantic signal, and skipping them keeps
 results clean and avoids re-embedding cross-repo shared nodes once per referencing repo.
 
 ## Which model?
 
-With that content embedded, the tiny static models punch far above their weight: on a 24-query
-natural-language bake-off, the default `potion-base-8M` (~30MB, ~1ms per query) outscored the ONNX
-`bge-small` transformer, and `minishlab/potion-base-32M` (~120MB, same engine and extra) scored best of
-all, MRR 0.95 with a perfect hit-rate, at a tenth of the ONNX query latency. If you want the quality bump,
-it's one config line: `model = "minishlab/potion-base-32M"` under `[embeddings]` (on a fresh vector store,
-the identity guard refuses to mix models).
+The default is `minishlab/potion-base-8M`, a **static** embedding model: it looks each token up in a
+table instead of running a transformer forward pass, which is why it is small enough to ship as a CPU
+default and fast enough that query latency is not the thing you notice. `minishlab/potion-base-32M` is
+the larger sibling of the same family, one config line away: `model = "minishlab/potion-base-32M"` under
+`[embeddings]` (on a fresh vector store, the identity guard refuses to mix models). The `kb-fastembed`
+extra plus `engine = "fastembed"` swaps the static model for an ONNX transformer (`bge-small`) instead.
+
+Which one is better **on your code** is a question with a local answer, and
+[`kb eval`](#measuring-retrieval-quality) is how to get it: build a golden set from queries your team
+actually types, embed with one model, score, re-embed with the other, score again. No published ranking
+of these models against somebody else's corpus is worth as much as that run.
 
 Like `index`, `embed` is **incremental**: it re-embeds only repos whose indexed HEAD moved since they were
 last embedded, so a scheduled refresh over a large fleet stays cheap. Pass `--force` to re-embed
@@ -2152,7 +2215,7 @@ only, so a missing key for the review provider shows up as a run where every pag
 `N reviewer(s) returned nothing parseable` rather than as a doctor warning.
 
 How many symbols get sampled into that grounding set scales with the repo's own size:
-`max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Below about 24,000 graph
+`max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Up to 22,500 graph
 nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
 reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
 dispatchers) carry proportionally more grounding depth, bounded so the prompt stays a fixed cost.
@@ -2470,19 +2533,14 @@ The wiki's quality is bounded by the model behind it. The graph facts fed in are
 is how well the model turns them into prose (and the verification council rejects weak pages regardless, so
 a smaller model mostly means *more rejections* and blander accepted pages).
 
-A measured A/B on one repo (`contextlake`, 1810 graph nodes, identical facts + 3-lens council) on a
-**CPU-only** host (no GPU, e.g. WSL2 without GPU passthrough):
-
-| model | where | speed | result |
-|-------|-------|-------|--------|
-| built-in `Qwen2.5-0.5B` (GGUF) | in-process CPU | fast enough | page written (~119 words), accurate but **thin and generic** |
-| Ollama `qwen2.5:1.5b` | CPU (no GPU) | ~1.7 tok/s | **timed out**, a full page + reviews needs ~10 min/repo |
-| Ollama `qwen2.5:3b` | CPU (no GPU) | ~0.85 tok/s | **timed out**, ~20 min/repo |
-
-The lesson is about **hardware, not model quality**: a 1.5B-3B model writes better prose than the 0.5B,
-but on a CPU-only box it is too slow to finish a page in reasonable time (and, at fleet scale, wholly
-impractical). Those models shine when Ollama has a **GPU**, e.g. Ollama on a Windows host with a discrete
-GPU generates in *seconds*, not minutes. So:
+The constraint that decides this for most people is **hardware, not model quality**. Generating one wiki
+page is not one model call: it is the page, plus a review from each council lens, plus a rewrite when the
+council rejects it. So the question is not whether a 1.5B-3B model writes better prose than the built-in
+0.5B (it does) but whether your host can finish that many calls: if a single call takes minutes, which is
+the ordinary case for a 1.5B-3B model on a CPU with no GPU, the run reaches the default 300-second
+`timeout` below before a page is done. The built-in 0.5B stays under it, and pays for that with thin,
+generic prose the council often rejects. The same 1.5B-3B models answer in seconds once Ollama has a
+**GPU** (including Ollama on a Windows host with a discrete GPU, reached from WSL). So:
 
 - **CPU-only, offline, quick:** the **built-in 0.5B**, fast to set up, basic prose. Or a **hosted API** if
   quality matters and you accept per-token cost.
@@ -2567,9 +2625,14 @@ The stages run in this order, and each can be skipped except the two marked othe
 | 7 | Generate the wiki | `--no-wiki` |
 | 8 | Write editor steering (`.mcp.json`, `AGENTS.md`, and so on) | not skippable |
 
-A failing stage warns, records the failure, and lets the rest of the run continue. **Indexing is the
-exception**: the graph is what every later stage reads, so if `index` fails the run stops there and
-exits `1` rather than building vectors and prose on top of nothing.
+A failing knowledge-layer stage (3 to 8) warns, records the failure, and lets the rest of the run
+continue. **Indexing is the exception**: the graph is what every later stage reads, so if `index`
+fails the run stops there and exits `1` rather than building vectors and prose on top of nothing. An
+unreachable remote in stage 1 is also recorded and continued past, so the knowledge layer still gets
+built from the clones already on disk.
+
+Stage 2 is the one gap in that promise: the audit stage is not wrapped in the same guard, so an error
+there, which in practice means failing to write the report file, ends the run before indexing starts.
 
 Both config files are read from their default locations (`~/.contextlake.ini` and
 `~/.contextlake/kb.toml`, or the nearest ancestor directory's `.contextlake.ini` /
@@ -2963,15 +3026,34 @@ happened. There is no pagination; raise `--limit` instead.
 **Ambiguity is reported, not guessed at.** This holds at two levels.
 
 Within one repository, a name matching several definitions no longer silently takes the first. The
-seed is named with its `file:line`, the alternatives are listed with the `--node` id that selects
-each, every hit cites the call site the edge came from, and a footer counts how much of the answer
-rests on name-only resolution:
+seed is named with its `file:line` and how many definitions competed for it, the first five
+alternatives that were passed over are listed with their node ids (with a count of any beyond that),
+every hit cites the call site the edge was read from,
+and a footer counts how much of the answer rests on name-only matching:
 
 ```text
-  seed: function site/cmdk.js:113 (5 matched 'close'; used the first)
-        or: method src/store/base.py:27  --node <id>
-  h1  site/cmdk.js  (file)  via calls at site/cmdk.js:121  [inferred]
+Impact of changing close (contextlake_site_cmdk_js_close_113): 1 affected node(s) within 1 hop(s)
+  seed: function site/cmdk.js:113 (3 matched 'close'; used the first)
+        or: method src/contextlake/kb/store/base.py:27  --node contextlake_src_contextlake_kb_store_base_py_store_close_27
+        or: method src/contextlake/kb/store/sqlite_store.py:179  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_179
+  h1  contextlake:site/cmdk.js  (file, site/cmdk.js)  via calls at site/cmdk.js:121  [ambiguous, 1 of 3 same-name definitions]
+  1 of 1 hit(s) came from a reference matched by NAME across several same-named definitions; each caller may target a different one. Open the cited call site to confirm.
 ```
+
+**To ask about one of the alternatives instead, pass its node id as the argument**, not as a flag:
+
+```bash
+contextlake kb impact contextlake_src_contextlake_kb_store_base_py_store_close_27
+```
+
+`impact` tries an exact node id before it tries anything else, so an id resolves to that one
+definition and nothing else. (The `--node ` prefix those lines are printed with is `kb graph`'s
+flag name; `kb impact` has no `--node` flag and will tell you so if you pass one.)
+
+The footer is the part worth reading twice. `AMBIGUOUS` as a label read exactly the same on a
+hand-verified answer where all eleven hits were real and on one carrying 282 false positives, so
+the count is there to say what the label costs *in this result*: `3 of 3` means treat the whole
+list as leads, `1 of 40` means the opposite.
 
 A symbol defined in several **repos** makes `impact` say so,
 name how many repos define it, list the candidates, and exit `1`, so you can narrow it yourself:
@@ -3075,8 +3157,9 @@ Three behaviours that bite scripts:
 - **An empty result is exit `0`**, in all three. Test the payload, not the exit code, to detect
   "found nothing". Exit `2` means you gave no search term; exit `1` means the target could not be
   resolved.
-- **`--limit 0` and `--hops 0` are treated as unset** and fall back to the defaults above. Neither
-  means "no limit".
+- **`--limit 0` and `--hops 0` are refused**, with the argument error and exit `2`: `--limit` takes
+  1 to 1,000,000 and `--hops` takes 1 to 1,000. Zero used to be read as "unset" and quietly became
+  the default, which is exactly why it is now an error. Neither ever meant "no limit".
 - **The `--as-of` argument check is the one error that ignores `--json`**: `--as-of` without
   `--repo` prints a plain line to stderr and exits `2` with no JSON error object.
 
@@ -3412,7 +3495,7 @@ explain / search), resolves the symbol or repo, and returns one labeled answer (
 facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
 no wiki exists yet). An agent that would rather not choose among the tools can just `ask`.
 
-**Most of it needs no model.** The underlying graph tools work on their own ,
+**Most of it needs no model.** The underlying graph tools work on their own:
 `search_code`, `find_definition`, `find_callers`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
 `repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
@@ -3420,9 +3503,11 @@ no wiki exists yet). An agent that would rather not choose among the tools can j
 resource with the store counts.
 
 `semantic_search` / `hybrid_search` are the two exceptions: they register **only when
-embeddings exist** (an `[embeddings]` section in `kb.toml` and a `contextlake kb embed`
-run). Without that, the server starts fine and says so, the two tools are simply
-absent from the tool list, and everything above still works.
+embeddings exist**, which takes both halves, `enabled = true` under `[embeddings]` in
+`kb.toml` (the section on its own is not enough, `enabled` defaults to `false`) and a
+`contextlake kb embed` run to create the vector store. Without both, the server starts
+fine and says so, the two tools are simply absent from the tool list, and everything
+above still works.
 
 ## The quick way: let contextlake wire your editors
 
@@ -3450,6 +3535,60 @@ server natively:
 managed block is appended (and just that block is refreshed on re-runs). `.mcp.json` and
 `.vscode/mcp.json` are merged so your other servers stay; a skill file you wrote with the same
 name is kept as-is; custom layers like `.devin/` are left untouched.
+
+### The generated `AGENTS.md` names the store it was built from
+
+Near the top of the managed block:
+
+```text
+Generated by `contextlake kb steer` from the knowledge store at
+`/home/you/.contextlake/kb`. If those counts look wrong, check that
+this is the store you meant -- the output path and the store are chosen
+separately.
+```
+
+That line exists because those two things really are chosen by different inputs: `--out` (or
+`--workspace`, or the current directory) decides where the files land, while the config chain
+decides which store the symbol counts and repository list are read from. Running `steer` from the
+wrong directory therefore rewrote a correct 5,500-symbol `AGENTS.md` down to a two-symbol one,
+exit `0`, no warning, and every number in the replacement was accurate for the store that happened
+to resolve. Confident, tiny and wrong is the worst shape a steering file can take, because an
+agent reading it has no way to tell it from a workspace that genuinely holds two symbols. Naming
+the store puts the swap in the diff.
+
+### What the generated `.mcp.json` pins, and what it deliberately does not
+
+An MCP client execs `contextlake kb serve` with the *workspace* as its working directory, not the
+directory you ran `steer` in. With no `--config` on that command line the server re-resolves the
+store by walking up from there, so it can serve a different store than the files beside it
+describe. Writing `--config <path>` into the entry removes the ambiguity, and `steer` does that
+whenever it can (`_implicit_binding` in `src/contextlake/kb/cmds/steer.py`):
+
+| Which config chose the store | Pinned into `.mcp.json`? |
+| --- | --- |
+| One you named with `--config` | Yes, made absolute first |
+| A config somewhere non-default, already trusted | Yes: nothing else would find it |
+| Your global `~/.contextlake/kb.toml` | No, on purpose |
+| An ancestor-discovered `.contextlake.kb.toml` | No, and you are warned when it matters |
+| No config file anywhere | No, and none is needed |
+
+**The global config is not pinned even though it is the usual answer.** `.mcp.json` is a file you
+commit and share, and pinning writes an absolute `/home/<you>/...` into it: a teammate who clones
+the repository gets a launcher naming a path that does not exist on their machine, plus your home
+directory layout in version control. Leaving it out costs nothing, because an unpinned launcher
+walks up from the workspace and lands on the global config anyway, on *their* machine, which is
+the store they should be served.
+
+**An ancestor-discovered config is not pinned either**, for a different reason: naming a file on a
+command line is exactly the act that promotes its gated keys to trusted (see
+[Workspace trust](configuration.md#workspace-trust)), so auto-pinning one would launder a file you
+never chose into a privileged one. You get a warning instead, and only in the case that actually
+bites, when the workspace sits outside that config's directory *and* that config is what set
+`store_dir`:
+
+```text
+⚠ /path/to/workspace is outside /path/to/config-dir, so the generated MCP entry will resolve a different store than this run used (/path/to/store). Re-run with --config <path> to pin it (naming it on the command line is also what makes its gated keys trusted).
+```
 
 ## Wiring it by hand
 
@@ -3506,6 +3645,30 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
   dropping it. Its endpoint is `http://127.0.0.1:8765/sse`. Use `sse` only if your client
   specifically requires it (some clients, e.g. Devin's custom-MCP-server setup, list SSE as a
   distinct, separate option from HTTP), pick `http` first. Authenticated exactly like `http`.
+
+### Stopping it
+
+`Ctrl-C` stops every transport and exits `0`. Ending a server the documented way is not a
+failure, so `kb serve` does not use the `130` an interrupted command usually exits with (see
+[Reading the console output](console-output.md#what-it-exited-with)).
+
+| How it stops | `stdio` | `http` / `sse` |
+| --- | --- | --- |
+| `Ctrl-C` (SIGINT) | `0` | `0` |
+| `SIGTERM` (`systemctl stop`, `docker stop`, a supervisor) | `0` | `143` |
+
+`stdio` installs its own handler for both signals through asyncio's wakeup fd, which is what makes
+an **idle** server stoppable at all. Python only runs a signal handler at a bytecode boundary in
+the main thread, and that thread is parked in the selector with no traffic coming, so without the
+wakeup fd an interrupt sits unhandled until a request happens to arrive (`_run_stdio` in
+`src/contextlake/kb/server.py`). Both signals then unwind through one path, which closes the store
+and the vector store on the way out.
+
+`143` on the network transports is `128 + 15`, the conventional "terminated by SIGTERM" code, and
+it is what a supervisor reads as a clean stop rather than a crash. uvicorn owns those transports:
+it handles the signal itself, drains connections and shuts the session manager down, then restores
+the default handler and re-raises the signal, so the process reports the termination it was asked
+for *after* the shutdown has already finished.
 
 ### Authenticating the network transports
 
@@ -3574,6 +3737,42 @@ Devin's own MCP settings. What `contextlake kb steer` *does* give Devin (and any
 plain workspace context) is `AGENTS.md`: the portable part travels; the MCP wiring itself
 doesn't.
 
+## How many tool calls run at once
+
+```bash
+contextlake kb serve --tool-concurrency 4
+CONTEXTLAKE_MCP_TOOL_CONCURRENCY=4 contextlake kb serve
+```
+
+**The default is `2`, and raising it makes the server slower.** That is the opposite of what a
+concurrency knob usually does, so it is worth writing down why. The bound applies to every
+transport, not just the network ones.
+
+The MCP SDK runs every synchronous tool body through `anyio.to_thread.run_sync` with no limiter,
+so it takes anyio's default of 40 worker threads. contextlake's tool bodies are graph traversals
+over SQLite, and a traversal is not one query, it is thousands of small round trips through the
+store. Forty threads interleaving those on one connection pool spend their time contending rather
+than working, and what they are contending for is the store round-trips, not the Python: the same
+traversal run over in-memory dictionaries does not degrade the same way. The default therefore has
+to sit near the low end rather than merely below anyio's 40, which is what
+`tests/kb/test_serve_concurrency.py` pins, along with each transport actually setting the limiter.
+
+**The cheap tools come out faster too**, which is the counterintuitive part and the reason not to
+think of this as a throughput-for-latency trade. `search_code` and the other short lookups pay
+store round-trips as well, just fewer of them, so in an unbounded burst they sit in exactly the
+same contention as the traversals do. Bounding the pool takes that away from them rather than
+making them queue for a slot.
+
+**Two rather than one**, because a limit of one is only free when every call costs the same. Real
+editor traffic mixes one slow call with many fast ones, and at a limit of one a single multi-second
+traversal holds the only token while every cheap lookup waits behind it. Two keeps a slot free for
+the cheap path while still keeping the pool far away from the width where contention dominates.
+
+Precedence is the flag, then `$CONTEXTLAKE_MCP_TOOL_CONCURRENCY`, then the default. A value that
+is not a positive integer is ignored rather than fatal, whichever of the two it came from
+(`resolve_tool_concurrency`): this is a performance knob on a server your editor launches, and
+refusing to start over a typo in a shell profile is worse than serving at the default.
+
 ## Once connected
 
 Ask the agent things like *"where is `CatalogService` defined?"*, *"who calls `charge`?"*, or
@@ -3607,14 +3806,25 @@ search, and a minimap; it opens straight from `file://`:
 </p>
 
 Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. Bound the result
-with `--hops` (default 2), `--max-nodes` (500, a bound on the **whole file**: one-hop external
+with `--max-nodes` (500, or 5000 on `--overview`, which is a fleet inventory and defaults to loading
+every repo so any of them is findable; it is a bound on the **whole file**: one-hop external
 nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
-leave unused), `--max-edges` (400 for `--repo` views -- a dense repo can
+leave unused), `--max-edges` (no cap by default, which is what the `html` and `dot` renderers want,
+and 400 for the Mermaid-rendered formats `mermaid` / `classdiagram` / `statediagram` / `erdiagram` /
+`deploymentdiagram` -- a dense repo can
 pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges independently means it always renders, possibly truncated, never errors), `--max-fanout` (a per-node cap that
+capping edges there means it always renders, possibly truncated, never errors), and `--max-fanout` (a per-node cap that
 stops hub nodes from exploding: 50 on a seeded view, uncapped on a `--repo` view unless you
-pass it, since capping containment fan-out by default would hide a file's own symbols), `--relation`, and `--direction {in,out,both}`, whatever
-is dropped is **logged**, never silently truncated. For a `--repo` view over `--max-nodes`, which nodes
+pass it, since capping containment fan-out by default would hide a file's own symbols), whatever
+is dropped is **logged**, never silently truncated.
+
+`--hops` (default 2), `--relation` and `--direction {in,out,both}` shape the **walk**, so they apply
+to the seeded modes (`--node` / `--name` / `--search`) only. `--overview` and `--repo` do not walk
+outward from a seed, so passing those three with either of them has no effect. What each mode does
+take: a seeded view, all of them; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
+`--overview`, `--max-nodes` alone.
+
+For a `--repo` view over `--max-nodes`, which nodes
 survive the cut is now ranked by degree (highest-connected nodes kept first, ties broken by node id)
 rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
 instead of whatever happened to sort first. On the dashboard, a repo too large to show in one diagram gets
@@ -3736,207 +3946,205 @@ just never used until this view asks for it.
 # Benchmarks
 Source: https://sayak.in/contextlake/benchmarks
 
-# Benchmarks: what contextlake actually saves
+# What contextlake saves, and how to measure it
 
-An honest, measured look at what connecting the contextlake MCP server to an AI
-coding tool (Claude, Devin, Copilot, Cursor, Windsurf …) does to token usage, and,
-just as importantly, where it *doesn't* help.
+What connecting the contextlake MCP server to an AI coding tool (Claude, Devin, Copilot, Cursor,
+Windsurf …) does to token usage, where it helps most, and where it does not help at all.
 
-These numbers come from real measurements against a large private multi-repo estate,
-not a synthetic demo. We publish the caveats alongside the wins because a benchmark
-without its assumptions is marketing, not data.
+> [!IMPORTANT]
+> **This page publishes no benchmark figures, on purpose.** It used to. Those numbers were taken on
+> one private estate and no script, dataset, or result file was ever committed with them, so nobody,
+> including us, could re-run them. A figure you cannot reproduce is a claim wearing a number's
+> clothes, so they have been removed rather than restated. What is left is the mechanism, which you
+> can check by reading the code, and a procedure for measuring the effect on your own repositories,
+> which is the only place a number should decide anything for you.
 
 ## The short version
 
-- **Writing new code in an existing estate is where it matters most.** New code in a
-  large codebase is not greenfield invention, it is mostly *grounding*: which service
-  to call, its real signature, the pattern to follow, whether a utility already exists,
-  where it plugs in. That work is almost entirely retrieval, and it is where hallucinated
-  integrations and duplicated code come from. On our estate, grounding one new-code task
-  cost **~3,700 tokens with contextlake vs ~16,800 without (~4.6× fewer), before a
-  single line is generated**, and with higher confidence, because it matches *concepts*,
-  not just keywords.
-- **Search of every kind**, semantic / knowledge search, "who calls X", "what breaks
-  if I change X", "which repo has X", is the other strong case, where brute-force is
-  intractable or hugely wasteful on a large fleet.
-- **Assessing impact on and maintaining unfamiliar existing code** benefits for the same
-  reason: orientation is retrieval.
-- **What it does *not* do (with nuance):** it does not make a *single correct
-  generation* shorter, the code you need is the code you need. But across a whole task
-  it does cut *total* generation, by reducing failed attempts and reinvented code (see
-  [Does it cut generation tokens?](#does-it-cut-generation-tokens)). It also helps little
-  on true greenfield work in an empty repo, there is nothing to ground against.
-- **On cost:** real but modest on per-token API billing; the larger lever is *rework
-  avoided* (a hallucinated integration is a failed build, a re-prompt, and a wasted
-  review), which is time and correctness more than a line item.
+- **Writing new code in an existing estate is where it matters most.** New code in a large codebase
+  is not greenfield invention, it is mostly *grounding*: which service to call, its real signature,
+  the pattern to follow, whether a utility already exists, where it plugs in. That work is almost
+  entirely retrieval, and it is where hallucinated integrations and duplicated code come from.
+  contextlake answers those questions from an index, cited, and matches *concepts* rather than just
+  keywords.
+- **Search of every kind**, semantic / knowledge search, "who calls X", "what breaks if I change X",
+  "which repo has X", is the other strong case, where brute-force is intractable or hugely wasteful
+  on a large fleet.
+- **Assessing impact on and maintaining unfamiliar existing code** benefits for the same reason:
+  orientation is retrieval.
+- **What it does *not* do (with nuance):** it does not make a *single correct generation* shorter,
+  the code you need is the code you need. But across a whole task it does cut *total* generation, by
+  reducing failed attempts and reinvented code (see
+  [Does it cut generation tokens?](#does-it-cut-generation-tokens)). It also helps little on true
+  greenfield work in an empty repo, there is nothing to ground against.
+- **On cost:** real but modest on per-token API billing; the larger lever is *rework avoided* (a
+  hallucinated integration is a failed build, a re-prompt, and a wasted review), which is time and
+  correctness more than a line item.
 
 Treat contextlake as a **scale-and-correctness tool first, a token-cost tool second.**
 
-## Methodology
+## Where the difference comes from
 
-- **Substrate:** a real, private software estate of **~680 repositories** ,
-  ~1.0 million graph nodes, ~1.9 million edges, ~900,000 semantic vectors, and ~21 GB
-  of source on disk. (No proprietary names, paths, or symbols are reproduced here.)
-- **Token counts:** [`tiktoken`](https://github.com/openai/tiktoken) `cl100k_base`, a
-  reasonable cross-model proxy for "tokens". Real source in this estate measured at
-  **~4.8 characters per token**.
-- **Both sides are measured, not modeled.** The *contextlake* figure is the actual MCP
-  tool response an agent ingests (the structured JSON). The *baseline* is what an agent
-  gathers without contextlake, `grep` over the same source, plus the file reads that
-  follow, measured on the same 21 GB.
-- **The baseline is realistic, not worst-case.** A well-scoped agent that greps a single
-  known repo is cheaper than one that greps the whole fleet; the figures below sit
-  between those extremes.
-- Measured on contextlake **v2.33.2**.
+Per question, what the agent ingests with contextlake against what it gathers without it. This is a
+description of the two mechanisms, not a measurement of either:
 
-## Results (per query)
+| Question | contextlake | Without it (grep + reads) |
+| --- | --- | --- |
+| **Where is X defined?** | One ranked, cited definition per candidate | Every textual occurrence of the name, then the file reads needed to tell a definition from a mention |
+| **Who calls X?** | The resolved call edges, cited and budgeted | Raw hits including the definition, comments, and strings, with no way to tell a call from a coincidence |
+| **What breaks if I change X?** | Transitive dependents, hop-tagged, across repos | First-level textual hits only |
+| **Semantic / knowledge search** | Ranked, cited hits for a *concept* | Keyword hits for whichever keyword you guessed |
+| **Who owns / knows repo X?** | Ranked from git history in one call | `git log`, which is cheap and already local |
+| **Explain / brief a repo** | One brief assembled from the graph and the wiki | The README plus however many files it takes |
 
-One fixed cost applies to any session: the **~22 MCP tool schemas load once, ≈ 3,400
-tokens**.
+Two of those rows are capability differences rather than savings: **transitive reach** and **concept
+matching** are not things a grep-and-read loop does more expensively, they are things it does not do
+at all, at any budget. The middle rows are where a token saving is plausible, and the size of it
+depends entirely on how common the name is and how disciplined the agent's search would otherwise
+have been.
 
-| Question | contextlake | Without it (grep + reads) | Ratio / note |
-| --- | --- | --- | --- |
-| **Where is X defined?** | ~160 tokens, cited | ~6,200 tokens for a common name … down to ~230 for a rare one | **1.4×–~40×**, precise and ranked |
-| **Who calls X?** | ~1,400–3,400 tokens (all callers, cited, budgeted) | ~7,000 tokens (100+ raw hits incl. the definition, comments, strings) | **~2–5×**, and *complete* |
-| **What breaks if I change X?** | ~9,800 tokens (up to 100 transitive hits, hop-tagged, cross-repo) | grep cannot do transitive reach; first-level only, ~7,000 tokens and incomplete | **a capability, not just a saving** |
-| **Semantic / knowledge search** | ~1,100 tokens (8 ranked, cited) | keyword grep across the fleet returns **10–28 million tokens** (100K–200K hits), intractable to read | **orders of magnitude**, with higher recall |
-| **Who owns / knows repo X?** | ~300–500 tokens | `git log` (cheap) | modest |
-| **Explain / brief a repo** | ~1,300–1,500 tokens | read the README + several files, ~5,000–20,000 tokens | **~4–10×** |
+The other structural difference is that brute-force search costs *time* as well as tokens on a large
+fleet: a fleet-wide grep for a common term returns more hits than an agent can read, before it opens
+a single file. contextlake answers the same question from its index in one bounded, cited call.
 
-A note on scale: on this estate a single `grep` pass took **3–5 seconds** and returned
-tens of thousands of hits (millions of tokens) for a common term, before the agent
-reads a single file. contextlake answers the same question from its index in one
-bounded, cited call.
+## The one fixed cost
+
+Any session pays for the tool schemas once, whether or not it calls a tool: **22 of them** (19
+always, 2 more when embeddings exist, plus the `ask` router, all listed in [Serve](serve.md)). That
+cost is real, and it can leave you net-negative if the agent reaches for the server on questions it
+does not help with. There is no published token figure for it here for the reason at the top of the
+page; the recipe in [Measure it on your own repositories](#measure-it-on-your-own-repositories)
+counts it in the same pass as everything else.
 
 ## By use case, honestly
 
 ### New code development: the most important case
 
-In a real company you rarely write code into a vacuum; you add a feature, endpoint, or
-service to an estate that already has hundreds of repositories. Most of that work is
-**grounding the new code in existing reality**: which service to call and its real
-signature, the established pattern to model on, whether a utility for this already
-exists, and where the new code plugs in. That is retrieval, and it is exactly where an
-ungrounded model hallucinates an integration or reinvents a helper.
+In a real company you rarely write code into a vacuum; you add a feature, endpoint, or service to an
+estate that already has hundreds of repositories. Most of that work is **grounding the new code in
+existing reality**: which service to call and its real signature, the established pattern to model
+on, whether a utility for this already exists, and where the new code plugs in. That is retrieval,
+and it is exactly where an ungrounded model hallucinates an integration or reinvents a helper.
 
-We measured a realistic new-code task, *"add a feature that integrates with an existing
-service, following existing conventions"*, as the sequence of grounding questions an
-agent asks before it writes anything:
+A realistic new-code task, *"add a feature that integrates with an existing service, following
+existing conventions"*, decomposes into a sequence of grounding questions the agent asks before it
+writes anything:
 
-| Grounding step | contextlake | Baseline (grep + reads) |
-| --- | --- | --- |
-| Find the pattern to follow (semantic) | ~1,100 tok | ~2,700 tok, keyword-only |
-| Find how to integrate (semantic) | ~780 tok | ~2,100 tok, keyword-only |
-| The API to call (definition) | ~640 tok | (part of the file reads below) |
-| Usage examples to model on (callers) | included | included below |
-| Check a utility isn't reinvented (semantic) | ~1,050 tok | ~2,000 tok, keyword-only |
-| Read candidate service/pattern files |, | ~10,000 tok (≈8 files) |
-| **Grounding total** | **~3,700 tokens** | **~16,800 tokens** |
+1. Find the pattern to follow (semantic search, no exact name to grep for).
+2. Find how to integrate with the existing service (semantic search again).
+3. Look up the API to call (definition lookup).
+4. Find usage examples to model on (callers).
+5. Check a utility for this is not already there (semantic search).
 
-So the grounding phase alone is **~4.6× cheaper**, and finishes with *cited, concept-
-matched* context instead of keyword hits the model has to guess from, **before a single
-line is generated.** The larger, harder-to-quantify win sits downstream: correct
-grounding prevents the hallucinated integration or the duplicate util that turns into a
-failed build, a re-prompt, and a wasted review.
+With contextlake, each is one cited call. Without it, steps 1, 2 and 5 have no keyword to search for
+and degrade into reading candidate files, which is where the bulk of the baseline's tokens go. The
+grounding phase finishes with *cited, concept-matched* context instead of keyword hits the model has
+to guess from, **before a single line is generated.** The larger, harder-to-quantify win sits
+downstream: correct grounding prevents the hallucinated integration or the duplicate util that turns
+into a failed build, a re-prompt, and a wasted review.
 
-What contextlake does **not** shorten is a single *correct* generation, the code you
-need is the code you need, and it helps little on true greenfield work in an empty repo,
-where there is nothing to ground against.
+What contextlake does **not** shorten is a single *correct* generation, the code you need is the code
+you need, and it helps little on true greenfield work in an empty repo, where there is nothing to
+ground against.
 
 ### Does it cut generation tokens?
 
-Short answer: not the way "measured" implies, but yes at the level of a whole task. A
-single correct generation is irreducible. What contextlake reduces is the *number* of
-generations and the *amount of new code* generated, ranked by impact:
+Short answer: not the way "measured" implies, but yes at the level of a whole task. A single correct
+generation is irreducible. What contextlake reduces is the *number* of generations and the *amount of
+new code* generated, ranked by impact:
 
-1. **It cuts the hallucinate → fail → regenerate loop (biggest lever).** The expensive
-   thing isn't the first draft; it's the second, third, and fourth. An ungrounded model
-   invents an import, calls the wrong service, or guesses a signature; the build fails;
-   the agent regenerates. Every retry is generation tokens spent again. Grounding in the
-   *real* API/signature/pattern collapses N attempts toward 1, the failure mode that
-   dominates new-code work in a large estate.
-2. **Reuse instead of reinvent.** When semantic search surfaces an existing
-   client/util/validator, the agent emits a *call* (a few tokens) instead of a
-   reimplementation (tens–hundreds), and doesn't add a duplicate to the codebase.
-3. **Surgical edits instead of full rewrites.** With a precise definition + blast radius,
-   the agent emits a small diff rather than regenerating a whole file "to be safe."
-4. **Less defensive/exploratory/hedged output.** Precise context yields one confident
-   implementation instead of multiple candidate approaches and just-in-case scaffolding.
+1. **It cuts the hallucinate → fail → regenerate loop (biggest lever).** The expensive thing isn't
+   the first draft; it's the second, third, and fourth. An ungrounded model invents an import, calls
+   the wrong service, or guesses a signature; the build fails; the agent regenerates. Every retry is
+   generation tokens spent again. Grounding in the *real* API/signature/pattern collapses N attempts
+   toward 1, the failure mode that dominates new-code work in a large estate.
+2. **Reuse instead of reinvent.** When semantic search surfaces an existing client/util/validator,
+   the agent emits a *call* (a few tokens) instead of a reimplementation (tens to hundreds), and
+   doesn't add a duplicate to the codebase.
+3. **Surgical edits instead of full rewrites.** With a precise definition + blast radius, the agent
+   emits a small diff rather than regenerating a whole file "to be safe."
+4. **Less defensive/exploratory/hedged output.** Precise context yields one confident implementation
+   instead of multiple candidate approaches and just-in-case scaffolding.
 
-**The honest boundary:** the irreducible core (typing out the correct code) can't shrink;
-if the first generation would already be correct without contextlake, the saving is ~0;
-and it can't rescue a model that ignores the context it was handed.
+**The honest boundary:** the irreducible core (typing out the correct code) can't shrink; if the
+first generation would already be correct without contextlake, the saving is ~0; and it can't rescue
+a model that ignores the context it was handed.
 
 > [!WARNING]
-> **This is a mechanism argument, not a measured number.** Everything labeled "measured"
-> on this page is retrieval/grounding tokens. Quantifying the generation saving honestly
+> **This is a mechanism argument, not a measured number.** Quantifying the generation saving honestly
 > means counting *total* output tokens across a real multi-attempt task, with and without
-> contextlake, which we have **not** run. Treat the mechanisms above as *why* total
-> generation drops, not as a benchmarked figure.
+> contextlake, which we have **not** run. Treat the mechanisms above as *why* total generation drops,
+> not as a benchmarked figure.
 
 ### Search: the other strong case
 
-On a large estate, brute-force search is either intractable (a concept query
-keyword-grepped fleet-wide produced *tens of millions* of tokens) or slow and noisy.
-contextlake turns it into an O(1), cited, ranked call, and semantic search finds
-conceptually-related code that keyword search misses entirely.
+On a large estate, brute-force search is either intractable (a concept query has no single keyword to
+grep for, and the keyword you pick returns more than an agent can read) or slow and noisy.
+contextlake turns it into a bounded, cited, ranked call, and semantic search finds conceptually
+related code that keyword search misses entirely.
 
 ### Modifying / maintaining existing code: a moderate win
 
-Largest when the code is unfamiliar. The value is orientation: *where is this, who calls
-it, what breaks if I touch it, who owns it*, answered in one cited call instead of many
-grep → read → re-grep round-trips.
+Largest when the code is unfamiliar. The value is orientation: *where is this, who calls it, what
+breaks if I touch it, who owns it*, answered in one cited call instead of many grep → read → re-grep
+round-trips.
 
 ## Translating to ACU / dollars / subscription
 
 Different tools bill differently, so the honest answer differs per platform.
 
-- **Claude via MCP (per-token API).** This is the only place token deltas map *directly*
-  to money. But a per-*query* ratio is not a per-*session* saving: most agent tokens are
-  reasoning, generation, and the conversation growing turn over turn, not retrieval.
-  Expect roughly **10–40% fewer *input* tokens on retrieval-heavy sessions, and ≈0 on
-  generation-heavy ones.** (Separately, *output* tokens can drop too, via fewer failed
-  regenerations and less reinvented code, but that is a mechanism, not a measured figure;
-  see [Does it cut generation tokens?](#does-it-cut-generation-tokens).) Meaningful across
-  a team and a large estate; not a headline cut on any single session.
+- **Claude via MCP (per-token API).** This is the only place token deltas map *directly* to money.
+  But a per-*query* ratio is not a per-*session* saving: most agent tokens are reasoning, generation,
+  and the conversation growing turn over turn, not retrieval. A retrieval-heavy session is where any
+  input-token saving shows up at all, and a generation-heavy one is where it disappears. (Separately,
+  *output* tokens can drop too, via fewer failed regenerations and less reinvented code, but that is
+  a mechanism, not a measured figure; see
+  [Does it cut generation tokens?](#does-it-cut-generation-tokens).)
 
-- **Devin (ACU).** We did **not** measure this, and anyone quoting you an ACU number is
-  guessing. An ACU is compute-time, not tokens; the plausible lever is *exploration
-  steps and rework avoided*, which is highly task-dependent. Expect a meaningful
-  reduction on exploration-heavy, unfamiliar-fleet tasks and ≈0 on tightly-scoped
-  generation tasks, a hypothesis to A/B test, not a measured claim.
+- **Devin (ACU).** We did **not** measure this, and anyone quoting you an ACU number is guessing. An
+  ACU is compute-time, not tokens; the plausible lever is *exploration steps and rework avoided*,
+  which is highly task-dependent. Expect a meaningful reduction on exploration-heavy,
+  unfamiliar-fleet tasks and ≈0 on tightly-scoped generation tasks, a hypothesis to A/B test, not a
+  measured claim.
 
-- **VS Code + Copilot (flat subscription).** There is no per-token bill to save. The
-  value is **accuracy and speed**: fewer wrong suggestions from missing cross-repo
-  context, better-targeted file reads, and staying inside the context window. It shows
-  up as developer time and correctness, not a line item.
+- **VS Code + Copilot (flat subscription).** There is no per-token bill to save. The value is
+  **accuracy and speed**: fewer wrong suggestions from missing cross-repo context, better-targeted
+  file reads, and staying inside the context window. It shows up as developer time and correctness,
+  not a line item.
 
 ## Caveats worth reading
 
-- These are **per-query** figures. Whole-task savings are diluted by all the
-  non-retrieval tokens around them, don't multiply a 40× onto your whole bill.
-- The **baseline depends on how the agent searches.** A smart, well-scoped agent spends
-  less than the fleet-grep baseline; a naive one spends more.
-- contextlake adds a **fixed ~3,400-token schema cost** per session and can be
-  net-negative if an agent calls it for questions it doesn't help with.
-- **Semantic recall is good, not perfect**, the built-in CPU embedder is fast, not
-  frontier-grade. Results are cited and advisory; verify against the source.
-- Measured on **one large estate**; your mileage varies with fleet size and the mix of
-  questions your team actually asks.
+- Whatever you measure will be **per-query**. Whole-task savings are diluted by all the non-retrieval
+  tokens around them, so don't multiply a per-query ratio onto your whole bill.
+- The **baseline depends on how the agent searches.** A smart, well-scoped agent that greps one known
+  repository spends far less than one that greps the whole fleet. Both are realistic; they are not
+  the same baseline, and a ratio means nothing without saying which one you used.
+- contextlake adds a **fixed schema cost per session** and can be net-negative if an agent calls it
+  for questions it doesn't help with.
+- **Semantic recall is good, not perfect**, the built-in CPU embedder is fast, not frontier-grade.
+  Results are cited and advisory; verify against the source.
+- Fleet size and the mix of questions your team actually asks dominate everything here. A result from
+  someone else's estate does not transfer to yours, which is the other half of why this page no
+  longer prints one.
 
-## Reproduce it
+## Measure it on your own repositories
 
-The measurements above are straightforward to reproduce on your own repositories:
+The comparison is straightforward to run, and yours is the one worth having:
 
 1. Index your repos (`contextlake bootstrap` or `contextlake kb index --workspace …`).
-2. Pick a handful of representative questions your team actually asks.
-3. For each, measure **both** the contextlake MCP response (the JSON the agent
-   receives) and the baseline your agent would otherwise gather (`grep` output + the
-   files it would read), and tokenize both with the same tokenizer
-   (`tiktoken` `cl100k_base` here).
+2. Pick a handful of representative questions your team actually asks, and write them down before
+   you look at any output. Post-hoc question selection is how benchmarks flatter themselves.
+3. For each question, capture **both** sides: the contextlake MCP response (the JSON the agent
+   receives, which you can get from `contextlake kb query --json`, `kb impact --json`, and the other
+   `--json` commands) and the baseline your agent would otherwise gather (the `grep` output plus the
+   files it would then read).
+4. Tokenize both with the **same** tokenizer, the one your model actually uses, and record the
+   tokenizer and the contextlake version alongside the numbers. Both change; a figure without them
+   ages into fiction, which is what happened to the numbers this page used to carry.
+5. Add the one-off schema cost once per session, not once per query.
 
-The point is not a single magic number, it is to see, on *your* codebase and *your*
-question mix, where the retrieval cost actually lives.
+The point is not a single magic number, it is to see, on *your* codebase and *your* question mix,
+where the retrieval cost actually lives.
 
 ---
 
@@ -3965,7 +4173,7 @@ The mirror core declares exactly one pip dependency (`pyproject.toml`), which is
 keeps `pip install contextlake` viable on a locked-down machine. The knowledge layer is imported
 lazily from the CLI, so the core runs with the extra absent and says so if you reach for a `kb`
 verb without it. `[kb]` needs Python 3.10 or newer because the `mcp` SDK does; the core declares
-`requires-python = ">=3.9"`.
+`requires-python = ">=3.10"`, one floor shared by both tiers.
 
 ## Configuration
 
@@ -4187,8 +4395,10 @@ pid, command, host and start time. A second process on the same host is refused 
 allowed to interleave SQLite writes; a lock left by a dead process is reclaimed automatically;
 `CONTEXTLAKE_ALLOW_CONCURRENT=1` overrides it and is rarely correct.
 
-Today `kb index`, `kb embed` and `kb wiki` take that lock. `connect`, `ingest`, `enrich` and the
-dashboard's mutating routes write without it.
+Today `kb index`, `kb embed`, `kb wiki` and the dashboard's mutating routes take that lock; the
+dashboard holds it for the one mutation only, never for the server's lifetime, and answers `409` with
+the current holder's details if something else has it. `connect`, `ingest` and `enrich` write without
+it.
 
 SQLite runs in WAL mode with **one connection per thread**, not one per store. That is forced by
 serving: the MCP SDK dispatches every synchronous tool call through a worker thread pool with no
@@ -4353,7 +4563,9 @@ safety-check flags (`--max-retries`, `--backoff-initial` / `--backoff-max`, `--a
 their `--no-` counterparts). They are automation levers rather than things to guess at from a bare
 `--help`, and every one has a `.contextlake.ini` equivalent as its primary home (see
 [Branch safety](usage.md#branch-safety)), so they are kept out of the default listing. Run
-`contextlake <command> --help-advanced` to see them.
+`contextlake mirror <command> --help-advanced` to see them. The flag exists on those 8 commands and
+on `bootstrap`, which takes the same flag group, and nowhere else: nothing under `kb` has a hidden
+tier to reveal, and there is no top-level `contextlake --help-advanced` either.
 
 ## The command surface
 
@@ -4407,7 +4619,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
 | `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
-| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`) |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 | `kb hook` | Install, remove or inspect the `post-commit` hook that re-indexes a repo on commit |
 
@@ -4416,8 +4628,10 @@ Covered in depth under [Mirror repositories](usage.md).
 
 ## Exit codes
 
-Four: `0` nothing failed, `1` something did, `2` the invocation was wrong, `130` interrupted. The
-conditions behind each are on
+Four: `0` nothing failed, `1` something did, `2` the invocation was wrong, `130` interrupted
+mid-job. The long-running servers are not in that last one: `Ctrl-C` is how you are told to stop
+them, so they exit `0`, and `kb serve --transport http`/`sse` exits `143` on `SIGTERM` after
+uvicorn's graceful shutdown. The conditions behind each are on
 [Reading the console output](console-output.md#what-it-exited-with).
 
 ## See also
@@ -4441,10 +4655,13 @@ A `bootstrap` (or a standalone `index` / `embed` / `wiki`, and the mirror-tier `
 
 ## The live progress bar
 
-One shared renderer is used by every long-running command, so it looks the same everywhere: `[████████░░░░]
-42/678 (6%) · 12:30 elapsed · ~2:58:14 left · 3.4/min` (bar, done/total, percent, elapsed time, estimated
-time remaining, and rate in items/min). The ETA is a moving-average estimate over recent items (that's
-what the `~` marks), and it's count-based, each item counts equally rather than being weighted by size.
+One shared renderer is used by every long-running command, so it looks the same everywhere:
+`[█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min` (bar, done/total, percent,
+elapsed time, estimated time remaining, and rate in items/min). The ETA is the **cumulative mean** so far, elapsed time divided
+by items done, projected over what's left (that's what the `~` marks), and it's count-based, each item
+counts equally rather than being weighted by size. A trailing window was tried and rejected: with a
+worker pool the gaps between completions are spiky enough that a short window swung the estimate between
+seconds and half an hour, where the cumulative figure smooths itself and settles as the run goes on.
 When a run's total isn't known up front, the bar drops the percent/ETA and shows `done · elapsed · rate`
 instead, rather than guessing. Across every long-running command (including `connect`, `ingest`, and
 `enrich`, which don't use the shared bar), the clock only shows up on the bar itself (where there is one)
@@ -4548,9 +4765,11 @@ the systemd timer in `examples/`, a cron wrapper, CI -- `--log-format json` prin
 line and nothing else:
 
 ```json
-{"ts": "2026-08-04T05:45:19Z", "level": "INFO", "msg": "Cloned", "run_id": "bcd5bd3d69cb", "command": "mirror clone", "repo": "team/api", "status": "ok", "duration_ms": 812}
+{"ts": "2026-08-04T05:45:19Z", "level": "INFO", "msg": "[1/12] ✓ team/api: Cloned", "run_id": "bcd5bd3d69cb", "command": "mirror clone", "repo": "team/api", "status": "ok", "duration_ms": 812}
 ```
 
+- **`msg`** is the same composed line a person would have seen, counter and glyph included, not a bare
+  verb. Query the structured fields beside it (`status`, `repo`, `error_type`) rather than parsing it.
 - **`run_id`** is generated once per invocation and stamped on every line, so an interleaved journal can
   be split back into runs, and one `bootstrap`'s index / connect / embed / wiki stages read as one story.
   Set `CONTEXTLAKE_RUN_ID` to pin your own (a systemd invocation id, a CI job id) and have contextlake's
@@ -4670,14 +4889,38 @@ progress still shows.
 
 ## What it exited with
 
-Four codes, and only four.
+Four codes across the CLI, plus one that only `kb serve` can produce.
 
 | Code | Means | Typical causes |
 | --- | --- | --- |
 | `0` | Nothing failed | A clean run; also a run where work was deliberately skipped, a `--dry-run`, `--help`, `version`, and a search that matched nothing |
 | `1` | Something failed | Any repo failed in `mirror fetch` / `clone` / `update` / `branches` / `verify` / `sync`; a failed `bootstrap` stage; a `kb` command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad `--config` path; `doctor` when the report found a problem |
 | `2` | You and the CLI disagree about the command | An unknown command, an unrecognized flag, a flag whose value is missing, a `kb query` / `impact` / `owners` with no target, an unknown `--platform` or shell, or no group configured on a command that needs one |
-| `130` | `Ctrl-C` | Interrupted at any point, including during `init` |
+| `130` | `Ctrl-C` on a command that was still working | Interrupted at any point, including during `init`. Not the long-running servers, see below |
+
+**The long-running commands are the exception, and deliberately so.** `kb serve`,
+`kb dashboard --serve`, `kb graph --serve` and `kb graph --site --serve` are meant to be ended by
+you, and each says `Ctrl-C to stop` on the line announcing where it listens (`kb serve --transport
+stdio` is the one with no address to announce). Stopping them that way is the documented ending
+rather than an interruption: each catches the interrupt, prints its own stop
+line (`Stopping MCP server`, `Stopping dashboard server`, `Stopping graph server`,
+`Stopping graph site server`) and exits `0`. The `--watch` loops on `kb index`, `kb embed` and
+`kb connect` end the same way, finishing normally rather than aborting. `130` is for a command
+that was interrupted mid-job.
+
+`kb serve` adds one code the rest of the CLI never uses:
+
+| Code | When | Why |
+| --- | --- | --- |
+| `0` | `Ctrl-C`, on any transport; `SIGTERM` on `stdio` | The requested stop, completed |
+| `143` | `SIGTERM` on `--transport http` / `sse` | `128 + 15`, "terminated by SIGTERM" |
+
+`143` is what a supervisor expects from a process it asked to stop, not a fault: uvicorn drains
+connections and shuts down first, then re-raises the signal it captured so the exit status
+reports the termination honestly. `stdio` reaches `0` on `SIGTERM` because it installs its own
+handler and routes both signals into the same shutdown `Ctrl-C` takes; before that it had none, so
+a supervisor's `SIGTERM` killed it outright and its cleanup never ran. See
+[Serve it to your editor](serve.md#stopping-it).
 
 Three things worth knowing about `1`:
 
@@ -4724,7 +4967,8 @@ Working on contextlake itself rather than using it? The contributor-side problem
 ## The knowledge layer will not install
 
 `[kb]` needs Python 3.10 or newer, because the `mcp` SDK does. The mirror side of contextlake
-supports 3.9, so an install can resolve and then fail at import if you are on 3.9. Check with
+needs 3.10 or newer as well, so pip refuses the install outright rather than
+leaving you a half-working one. Check with
 `python3 --version`.
 
 The extra also pulls a tree-sitter grammar per supported language, several with native

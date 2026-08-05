@@ -222,10 +222,11 @@ arbitrary slice.
 ### What an inferred edge is actually worth
 
 Rather than describing inference as accurate, the SQL extractor's inferred foreign keys are scored
-against a hand-labelled corpus on every CI run: **precision 0.90 and recall 0.69** against
+against a hand-labelled corpus on every CI run: **precision 1.00 and recall 0.69** against
 13 ground-truth edges (`tests/kb/fixtures/sql/`, scored by
-`tests/kb/test_sql_fixture_corpus.py`). Both documented gap classes and the one measured false
-positive are written down in [Index the code graph](index-code-graph.md#databases-sql-ddl).
+`tests/kb/test_sql_fixture_corpus.py`, which also asserts that these pages quote what it measures).
+Both documented gap classes, and the false positive that masking comments removed, are written down
+in [Index the code graph](index-code-graph.md#databases-sql-ddl).
 
 That is a small synthetic corpus and not a claim about your codebase. It is published because
 "how much should I distrust an `INFERRED` SQL edge" is a question with a number, and a number you

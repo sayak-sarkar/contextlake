@@ -37,6 +37,9 @@ from contextlake.kb.parse import index_repo_dir
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sql"
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# Every page that prints these figures. Both of them drifted once already,
+# because the only thing keeping them current was a comment.
+PUBLISHING_DOCS = ("docs/index-code-graph.md", "docs/explained.md")
 
 
 def _load_ground_truth() -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
@@ -99,23 +102,23 @@ def test_published_numbers_match_the_docs():
     figure (which is exactly what happened while the pointer in this module's
     header named a file that had been renamed away).
     """
-    doc = REPO_ROOT / "docs" / "index-code-graph.md"
-    assert doc.exists(), (
-        f"{doc.relative_to(REPO_ROOT)} is where these numbers are published. If the "
-        "page moved, update this test and the module docstring together, or the "
-        "published figures go stale unnoticed again.")
-
     ground_truth, _detectable = _load_ground_truth()
     emitted = _emitted_reference_pairs(index_repo_dir(str(FIXTURE_DIR), "fixtures/sql"))
     true_positives = emitted & ground_truth
     precision = len(true_positives) / len(emitted) if emitted else 0.0
     recall = len(true_positives) / len(ground_truth) if ground_truth else 0.0
 
-    text = doc.read_text(encoding="utf-8")
-    for phrase in (f"precision {precision:.2f}", f"recall {recall:.2f}"):
-        assert phrase in text, (
-            f"{doc.relative_to(REPO_ROOT)} does not publish {phrase!r}. The corpus "
-            "moved; update the page to match the measurement.")
+    for name in PUBLISHING_DOCS:
+        doc = REPO_ROOT / name
+        assert doc.exists(), (
+            f"{name} is one of the pages that publishes these numbers. If it moved, "
+            "update this list and the module docstring together, or the published "
+            "figures go stale unnoticed again.")
+        text = doc.read_text(encoding="utf-8")
+        for phrase in (f"precision {precision:.2f}", f"recall {recall:.2f}"):
+            assert phrase in text, (
+                f"{name} does not publish {phrase!r}. The corpus moved; update the "
+                "page to match the measurement.")
 
 
 def test_sql_fixture_corpus_emitted_edges_are_all_inferred_confidence():
