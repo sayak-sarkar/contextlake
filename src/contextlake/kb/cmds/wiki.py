@@ -358,6 +358,7 @@ def cmd_wiki(args) -> int:
     from ..wiki.generate import (
         PROMPT_INSTRUCTIONS,
         generate_page,
+        grounded_symbol_count,
         recorded_subsystems,
         render_prompt,
         repo_brief,
@@ -631,12 +632,10 @@ def cmd_wiki(args) -> int:
             # differently-shaped argument into a gate whose whole value is that
             # it is model-free and text-only.
             #
-            # Counted exactly as `provenance_footer` counts it, so the refusal
-            # and the disclosure can never disagree about what grounding means.
-            grounding = brief.get("coverage_total")
-            if grounding is None:
-                grounding = brief.get("node_count")
-            if not grounding:
+            # Counted through the same helper the provenance footer's coverage
+            # ratio uses, so the refusal and the disclosure cannot disagree
+            # about what grounding means for one page.
+            if not grounded_symbol_count(brief):
                 log(f"  {style.warn(label)}: no page — 0 file-backed symbols in scope, so "
                     "nothing in it would be derived from the code", inline=True)
                 return "rejected"

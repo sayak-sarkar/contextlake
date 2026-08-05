@@ -311,7 +311,7 @@ def wiki_generate_estimate(store, store_dir, *, repo_id: str | None = None,
     "would regenerate" -- the estimate makes that cost explicit instead of it
     being a surprise after the run has already started.
     """
-    from ..wiki.generate import repo_brief
+    from ..wiki.generate import grounded_symbol_count, repo_brief
 
     if repo_id:
         r = store.get_repo(repo_id)
@@ -324,6 +324,12 @@ def wiki_generate_estimate(store, store_dir, *, repo_id: str | None = None,
     for r in repos:
         brief = repo_brief(store_dir, r.id)
         if brief is None:
+            continue
+        # A repo with nothing behind it is refused by the run itself (see
+        # `cmds.wiki._run_page`), so counting it here would break this
+        # estimate's one promise: a run regenerates at least as many as it
+        # said, never fewer.
+        if not grounded_symbol_count(brief):
             continue
         wiki_file = wiki_dir / (r.id.replace("/", "__") + ".md")
         stale_or_missing = True

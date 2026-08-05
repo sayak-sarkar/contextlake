@@ -357,3 +357,18 @@ def test_wiki_generate_start_stop_lifecycle_on_empty_store(tmp_path):
         raise AssertionError("wiki generation subprocess did not finish in time")
     assert status["running"] is False
     assert not mut._wiki_pidfile(store_dir).exists()
+
+
+def test_wiki_generate_estimate_does_not_count_a_repo_the_run_will_refuse(tmp_path):
+    """The estimate promises a lower bound: a run regenerates at least as many
+    as it said, never fewer. A repo with nothing behind it is refused by the run
+    itself, so counting it here would make the dashboard promise a page that is
+    never going to be written."""
+    from contextlake.kb.store.shards import GraphShard, write_shard
+
+    store = SqliteStore(tmp_path / "index.sqlite")
+    store.upsert_repo(Repo(id="r", path=str(tmp_path)))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="abc123", nodes=[], edges=[]))
+    result = mut.wiki_generate_estimate(store, tmp_path)
+    assert result["would_regenerate"] == 0
+    store.close()

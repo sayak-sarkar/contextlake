@@ -693,6 +693,23 @@ def recorded_subsystems(page: str) -> str:
     return ",".join(sorted(re.findall(r"`([^`]+)`", m.group(1)))) if m else ""
 
 
+def grounded_symbol_count(brief: dict) -> int | None:
+    """File-backed symbols behind a brief: what "grounded" means for a page.
+
+    One definition for the three places that must agree about it -- the
+    coverage ratio in :func:`provenance_footer`, ``cmd_wiki``'s refusal to
+    write a page with nothing behind it, and the dashboard's estimate of what
+    a run would regenerate. When they each carried their own arithmetic, the
+    disclosure and the decision could disagree about the same page.
+
+    ``node_count`` is the fallback for a hand-built brief predating the field
+    (``is None``, not ``or``, so a legitimate 0 is not silently replaced);
+    ``None`` only for a brief carrying neither.
+    """
+    total = brief.get("coverage_total")
+    return brief.get("node_count") if total is None else total
+
+
 def provenance_footer(brief: dict, verified_at: date | None = None, *,
                       path_prefix: str | None = None) -> str:
     cites = ", ".join(f"`{f}`" for f in brief["files"][:10])
@@ -703,14 +720,10 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
     coverage = ""
     # Both sides of the ratio count file-backed symbols only (see
     # `_repo_brief_core_uncached`), so a whole-repo page and one of its module
-    # pages are comparable. `node_count` is the fallback for a hand-built
-    # brief that predates the field -- `is None`, not `or`, so a legitimate 0
-    # isn't silently replaced. The unit is named in the sentence because the
+    # pages are comparable. The unit is named in the sentence because the
     # prompt's own "N symbols" line counts every node, file-backed or not, and
     # two different numbers with the same name read as a contradiction.
-    total = brief.get("coverage_total")
-    if total is None:
-        total = brief.get("node_count")
+    total = grounded_symbol_count(brief)
     if brief.get("grounded_count") is not None and total:
         pct = round(100 * brief["grounded_count"] / total, 1)
         coverage = (f" Grounded in {brief['grounded_count']}/{total} "
