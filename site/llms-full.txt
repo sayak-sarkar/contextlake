@@ -5085,6 +5085,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This is a major release. Three things need action or awareness before you upgrade, and the first is
+the one that fails quietly.
+
+**Re-index every store.** The parser version moved from 2 to 3, so every shard built by an earlier
+release is stale. A stale store does not error: it keeps answering, from a graph an old parser
+produced. Run `contextlake kb index` against each workspace after upgrading. `contextlake doctor`
+reports a stale shard rather than showing a clean bill of health, so it is the fastest way to tell
+whether you still need to.
+
+**`shortest_path` returns an object, not a list.** Any MCP client reading the tool's result as a
+bare array of nodes must read `nodes` instead. The shape changed because the old one had nowhere to
+put a flag: an unknown source, an unknown destination, and two real nodes with no route between
+them all came back as the same empty list, and only the last is what an empty answer reads as. The
+new envelope carries `nodes`, `found`, `hops` and a `gap` naming which miss occurred.
+
+**Python 3.10 is the minimum.** The mirror core previously claimed 3.9 while the knowledge layer
+needed 3.10. There is one floor now, and `pip` declines cleanly on an older interpreter.
+
+Smaller behaviour changes worth knowing: values that were previously accepted and could not work are
+now refused (out-of-range `--port` and `--tool-concurrency`, and `dashboard --serve --site`), and
+`semantic_search` and `hybrid_search` now return nothing when a question has no anchor in the index
+rather than always returning `k` results.
+
+
 ### Changed
 - **Python 3.10 is now the minimum for the whole tool.** The mirror core previously claimed 3.9
   while the knowledge layer needed 3.10, so the project had two floors and the documentation had
