@@ -428,7 +428,7 @@ def _multi_group_workspace(tmp_path):
     them apart -- `to_local_path` strips the `<group>/` prefix -- so only the
     origin remote can."""
     _clone_from(tmp_path, "team/api", "https://example.test/alpha/team/api.git")
-    _clone_from(tmp_path, "platform/atlas", "git@example.test:beta/platform/atlas.git")
+    _clone_from(tmp_path, "platform/beacon", "git@example.test:beta/platform/beacon.git")
 
 
 def test_verify_does_not_call_another_group_an_extra_repo(tmp_path, base_config,
@@ -445,7 +445,7 @@ def test_verify_does_not_call_another_group_an_extra_repo(tmp_path, base_config,
     assert re.search(r"Valid\s+1\b", gls_logs.text)
     assert re.search(r"Extra\s+0\b", gls_logs.text)
     assert re.search(r"Other groups\s+1\b", gls_logs.text)
-    assert "platform/atlas" not in gls_logs.text     # never listed as an anomaly
+    assert "platform/beacon" not in gls_logs.text     # never listed as an anomaly
 
 
 def test_status_does_not_count_another_group_as_extra(tmp_path, base_config,

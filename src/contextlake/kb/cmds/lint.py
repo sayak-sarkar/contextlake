@@ -137,11 +137,11 @@ def cmd_lint(args) -> int:
             log(f"  stale: {rid} (HEAD moved or never finished — re-run index)")
         for rid in res["empty_repos"]:
             log(f"  empty: {rid} (the repository has no commits, so there is nothing "
-                f"to index — this will not clear by re-indexing)")
+                f"to index -- this will not clear by re-indexing)")
         for d in res["unreadable_repos"]:
             why = ("its path no longer exists" if d["reason"] == "missing"
                    else "git cannot read a repository there")
-            log(f"  unreadable: {d['repo']} ({why}: {d['path'] or 'no path recorded'} — "
+            log(f"  unreadable: {d['repo']} ({why}: {d['path'] or 'no path recorded'} -- "
                 f"re-clone it, or drop it from the store)")
         for rid in res["parser_stale_repos"]:
             log(f"  parser-stale: {rid} (built by an older parser — `contextlake kb "
