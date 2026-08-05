@@ -1,5 +1,6 @@
 """Integration-level tests for the orchestration verbs and CLI dispatch."""
 
+import json
 import re
 
 import pytest
@@ -338,3 +339,46 @@ def test_verify_on_a_cold_cache_is_read_only_as_its_help_promises(
     assert called == [], "verify must not enumerate the forge"
     assert "run 'fetch' first" in gls_logs.text
     assert not (tmp_path / "cache" / "p.json").exists()
+
+
+def _write_scoped_cache(tmp_path, names, scope):
+    """A warm project cache plus the sidecar recording the --repos that built it."""
+    cache = tmp_path / "cache"
+    cache.mkdir(parents=True, exist_ok=True)
+    (cache / "p.json").write_text(json.dumps({
+        n: {"full_path": f"g/{n}", "http": "h", "ssh": "s",
+            "archived": False, "default_branch": "main"} for n in names}))
+    (cache / "p.json.filter").write_text(scope)
+    return {"cache_dir": str(cache), "cache_json": "p.json", "cache_file": "p.txt"}
+
+
+def test_status_refuses_to_pass_off_another_filters_cache_as_the_group(
+    tmp_path, base_config, gls_logs
+):
+    """`status` is the command the docs send you to before a sync. After any
+    filtered run it reported that filter's count as the group total, with no
+    mention that a filter had shaped the cache -- under-reporting a 40-repo group
+    as 2 and looking completely healthy doing it."""
+    cfg = base_config.copy()
+    cfg.update(_write_scoped_cache(tmp_path, ("api", "web"), "api,web"))
+
+    core.show_status(str(tmp_path), cfg, "g")
+
+    text = gls_logs.text
+    assert not re.search(r"GitLab projects \(active\)\s+2\b", text), \
+        "a scoped count must never be presented as the group total"
+    assert "covers only --repos 'api,web'" in text
+
+
+def test_status_names_the_scope_when_it_is_reporting_one(tmp_path, base_config, gls_logs):
+    """With the same --repos in force the cache does answer, and the counts are
+    right -- but they still describe a subset, so the report has to say so."""
+    cfg = base_config.copy()
+    cfg.update(_write_scoped_cache(tmp_path, ("api", "web"), "api,web"))
+    cfg["repo_filter"] = "api,web"
+
+    core.show_status(str(tmp_path), cfg, "g")
+
+    text = gls_logs.text
+    assert "Scoped to --repos api,web" in text
+    assert re.search(r"GitLab projects \(active\)\s+2\b", text)

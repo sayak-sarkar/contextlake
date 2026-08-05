@@ -42,6 +42,12 @@ group-qualified path or its local path (case-insensitive). It scopes the whole
 pipeline: `fetch` narrows the cached project list, and `clone` / `update` / `branches`
 / `verify` / `status` / `bootstrap` all follow from that.
 
+The scope belongs to the invocation, not to the cache. Pass the same `--repos` to each
+command (or set `repo_filter` in your config to make it permanent). A command run at a
+*different* scope re-enumerates rather than answering from a project list some other
+filter shaped, and `status`, which cannot enumerate, says so instead of reporting a
+subset as the group.
+
 **Preview with `-n` / `--dry-run`.** Every mirror command accepts `-n` (the short form, matching the
 near-universal `rm`/`cp`/`make` convention) to show what would happen without cloning, updating, or
 switching a single branch:

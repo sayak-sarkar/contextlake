@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`--repos` was silently inert whenever the project cache was warm, and `mirror status`
+  reported a filtered count as the group total.** The cache holds the *filtered* project list,
+  and every command that reads it answered from it regardless of which filter produced it. So
+  `mirror clone --dry-run --repos <no-match>` planned the repositories the *previous* `--repos`
+  matched, `clone --repos <one-name>` over an unfiltered cache planned the whole group, and
+  `mirror status` reported a 40-repo group as 2 with no mention that a filter had shaped the
+  number. A `.filter` sidecar guard already existed but only fired on the `fetch` path.
+
+  Reads now honour the scope of the invocation. A cache built with no filter is a superset, so
+  `--repos` is applied straight off it with no refetch; a cache built with a *different* filter
+  can neither confirm nor deny what this run asked for, so it is re-enumerated instead of
+  answered from. `status`, which never enumerates, names the scope the cache does cover rather
+  than presenting it as the group, and names the scope it is reporting whenever one is in force.
 - **`ask`'s owners answer claimed a git-history ranking it had never run.** `who_knows` returns an
   empty owner list early, before a single git command is issued, when the repo has no local clone
   path on record. The answer was labelled `, ranked from git history.` regardless, so "nobody owns

@@ -405,3 +405,47 @@ def test_an_unfiltered_fetch_over_an_unfiltered_cache_stays_quiet(
     fetch_gitlab_projects("g", cfg)
 
     assert "widens" not in gls_logs.text
+
+
+def test_a_cache_scoped_to_another_filter_never_answers_this_runs_repos(
+    tmp_path, base_config, fake_subprocess, gls_logs
+):
+    """`clone --dry-run --repos <no-match>` planned the repositories the PREVIOUS
+    `--repos` matched. The cache holds the filtered project list and every reader
+    answered from it regardless of which filter produced it, so a narrowing flag
+    was inert whenever the cache was warm."""
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path), cache_json="p.json", cache_file="p.txt")
+
+    _serve_projects(fake_subprocess, ("api", "web", "billing"))
+    scoped = cfg.copy()
+    scoped["repo_filter"] = "api"
+    assert set(fetch_gitlab_projects("g", scoped)) == {"api"}
+
+    # A different filter: the cached subset can neither confirm nor deny what it
+    # matches, so it must not be answered from.
+    other = cfg.copy()
+    other["repo_filter"] = "zzz-no-such-repo"
+    assert load_gitlab_projects(other, "g", allow_fetch=False) == {}
+
+    # ...and where a fetch is allowed, it re-enumerates rather than reusing it.
+    _serve_projects(fake_subprocess, ("api", "web", "billing"))
+    assert load_gitlab_projects(other, "g") == {}
+    assert "covers only --repos 'api'" in gls_logs.text
+
+
+def test_repos_narrows_a_warm_unfiltered_cache_without_refetching(
+    tmp_path, base_config, fake_subprocess
+):
+    """The other half of the same defect: with an unfiltered cache warm,
+    `--repos` was ignored entirely, so `clone --repos <one-name>` planned the
+    whole group. The cache is a superset there, so the filter applies straight
+    off it -- no network."""
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path), cache_json="p.json", cache_file="p.txt")
+    _serve_projects(fake_subprocess, ("api", "web", "billing"))
+    assert len(fetch_gitlab_projects("g", cfg)) == 3
+
+    scoped = cfg.copy()
+    scoped["repo_filter"] = "api"
+    assert set(load_gitlab_projects(scoped, "g", allow_fetch=False)) == {"api"}

@@ -629,6 +629,47 @@ def _record_cache_filter(cache_json, patterns):
         pass  # advisory only: never fail a good fetch over the breadcrumb
 
 
+def cache_filter_conflict(config) -> str | None:
+    """The ``--repos`` scope a warm cache was built with, when that scope cannot
+    answer THIS invocation. None when the cache is usable as-is.
+
+    ``--repos`` is a per-invocation choice (see :func:`_warn_if_widening_scope`),
+    but the cache holds the *filtered* project list, so the two can disagree --
+    and every command that reads a warm cache used to answer from it regardless.
+    That made ``--repos`` silently inert on a warm cache: ``clone --repos
+    <no-match>`` planned the previous filter's repositories, and ``status``
+    reported a filtered count as the group total.
+
+    Three cases, decided by whether the cached set is a superset of what this run
+    asked for:
+
+    * same scope -- the cache is exactly this run's set.
+    * cache unfiltered -- a superset of any narrower run, so the filter is simply
+      applied at read time (:func:`_apply_repo_filter`).
+    * cache filtered *differently* -- neither superset nor subset, so it can
+      neither confirm nor deny membership for this run. That is what this
+      function reports, and the caller re-enumerates or says it cannot answer.
+    """
+    _, cache_json = get_cache_paths(config)
+    recorded = _read_cache_filter(cache_json)
+    if not recorded:
+        return None
+    return None if recorded == ",".join(repo_filter_patterns(config)) else recorded
+
+
+def _apply_repo_filter(projects, config):
+    """Narrow a cached project map to this run's ``--repos`` patterns.
+
+    Idempotent, so it is safe to run over a cache the same filter already
+    narrowed: re-matching the same patterns keeps the same set.
+    """
+    patterns = repo_filter_patterns(config)
+    if not patterns:
+        return projects
+    return {k: v for k, v in projects.items()
+            if match_repo_filter(v.get("full_path", k), k, patterns)}
+
+
 def _warn_if_widening_scope(cache_json, patterns, new_count):
     """Say so when an unfiltered fetch replaces a deliberately scoped cache.
 
@@ -669,10 +710,16 @@ def load_gitlab_projects(config, gitlab_group, allow_fetch=True):
     the day, so silently enumerating the whole forge (30-50s, and able to fail
     on the network) and writing the cache was a surprise from a command whose
     job is to describe state, not change it.
+
+    This run's ``--repos`` is honoured against whatever the cache holds: a cache
+    the same filter (or no filter) produced is narrowed here, and a cache some
+    *other* filter produced cannot answer at all and is re-enumerated instead of
+    answered from. See :func:`cache_filter_conflict`.
     """
     _, cache_json = get_cache_paths(config)
+    stale_scope = cache_filter_conflict(config)
 
-    if os.path.exists(cache_json):
+    if stale_scope is None and os.path.exists(cache_json):
         try:
             with open(cache_json) as f:
                 data = json.load(f)
@@ -686,7 +733,7 @@ def load_gitlab_projects(config, gitlab_group, allow_fetch=True):
             for key, value in data.items():
                 full = value.get("full_path", key)
                 normalized[to_local_path(key, gitlab_group)] = {**value, "full_path": full}
-            return _remember_repo_names(normalized)
+            return _remember_repo_names(_apply_repo_filter(normalized, config))
         if isinstance(data, list) and data:
             # Legacy/raw list of project objects -> normalize to the dict shape.
             normalized = {}
@@ -701,11 +748,15 @@ def load_gitlab_projects(config, gitlab_group, allow_fetch=True):
                         "default_branch": p.get("default_branch", "main"),
                     }
             if normalized:
-                return _remember_repo_names(normalized)
+                return _remember_repo_names(_apply_repo_filter(normalized, config))
 
     if not allow_fetch:
         return {}
-    log("Cache not found or invalid, fetching fresh data...")
+    if stale_scope:
+        log(f"The cached project list covers only --repos {stale_scope!r}, which is not "
+            "the scope of this run -- re-enumerating rather than answering from it")
+    else:
+        log("Cache not found or invalid, fetching fresh data...")
     return fetch_gitlab_projects(gitlab_group, config)
 
 
@@ -1405,7 +1456,12 @@ def clone_missing_repos(work_dir, config, gitlab_group):
     ]
 
     active_count = len([p for p in projects.values() if not p["archived"]])
-    log(f"Active GitLab projects: {active_count}")
+    # Name the scope in the line that reports the count, for the same reason
+    # `status` does: a filtered number presented as the group total is the
+    # defect, not the filtering.
+    patterns = repo_filter_patterns(config)
+    scope = f" matching --repos {','.join(patterns)}" if patterns else ""
+    log(f"Active GitLab projects{scope}: {active_count}")
     log(f"Already cloned locally: {len(local_repos)}")
     log(f"To clone: {len(to_clone)}")
     if not to_clone:
@@ -1686,11 +1742,26 @@ def show_status(work_dir, config, gitlab_group):
     """Show a read-only summary of local vs GitLab state."""
     log(style.bold("Synchronization status"))
 
+    # Say what these counts cover BEFORE printing them. `status` is the command
+    # the docs send you to before a sync, so a scoped count read as the group
+    # total is wrong exactly where it is trusted most.
+    patterns = repo_filter_patterns(config)
+    if patterns:
+        log(style.dim(f"  Scoped to --repos {','.join(patterns)}: counts below cover the "
+                      "matching repositories, not the whole group"))
+
     # Read-only on purpose: never enumerate the forge from `status` (see
     # load_gitlab_projects). Nothing to report is reported, not fixed silently.
     projects = load_gitlab_projects(config, gitlab_group, allow_fetch=False)
     if not projects:
-        log(f"{style.warn()} No projects loaded, run 'fetch' first")
+        # A cache scoped to some other --repos is not "no cache": saying so lets
+        # the user re-fetch at the scope they want instead of re-running a fetch
+        # that looks like it should already have worked.
+        if (scope := cache_filter_conflict(config)):
+            log(f"{style.warn()} The cached project list covers only --repos {scope!r}, "
+                "not this run's scope -- re-run 'contextlake mirror fetch' to refresh it")
+        else:
+            log(f"{style.warn()} No projects loaded, run 'fetch' first")
         return
 
     local_repos = set(get_local_repos(work_dir))
