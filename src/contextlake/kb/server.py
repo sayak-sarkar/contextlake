@@ -256,7 +256,9 @@ class PathOut(BaseModel):
     nodes: list[NodeOut]     # src .. dst in order; empty unless `found`
     found: bool              # a path exists within max_hops
     hops: int                # edges traversed (0 when src == dst, or when not found)
-    # Which of the two misses this is. None whenever `found`.
+    # Why this is not a whole path: which miss occurred when `found` is false, or
+    # which part of a real route could not be materialised. None only when
+    # `nodes` is the complete route, so an empty `gap` is a claim in its own right.
     gap: str | None = None
 
 
@@ -1048,8 +1050,21 @@ def build_server(
             return PathOut(nodes=[], found=False, hops=0,
                            gap=f"both nodes are indexed, but no path of {max_hops} hop(s) "
                                "or fewer connects them")
+        # The walk follows edge endpoints, and an edge can name a node the graph
+        # no longer holds -- that is the "dangling" condition `graph_health`
+        # counts, so it is a real state, not a hypothetical one. Dropping such a
+        # node quietly leaves two nodes that were never adjacent sitting next to
+        # each other in the list, under a `found` that says the traversal
+        # completed. Report the route's true length and say what is missing from
+        # it rather than shortening the path to fit what could be materialised.
         nodes = [_node_out(n) for nid in path_ids if (n := store.get_node(nid))]
-        return PathOut(nodes=nodes, found=True, hops=len(nodes) - 1)
+        absent_on_path = len(path_ids) - len(nodes)
+        return PathOut(
+            nodes=nodes, found=True, hops=len(path_ids) - 1,
+            gap=(None if not absent_on_path else
+                 f"{absent_on_path} node(s) on this path are named by an edge but "
+                 "are not in the graph, so `nodes` is shorter than `hops`: the "
+                 "adjacencies it shows are not all real ones"))
 
     if embedder is not None and vector_store is not None:
         @bounded_tool

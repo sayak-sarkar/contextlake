@@ -1303,3 +1303,29 @@ def test_graph_health_says_when_there_is_nothing_to_be_healthy_about(tmp_path):
         assert real["indexed"] is True
     finally:
         s.close()
+
+
+def test_shortest_path_never_claims_an_adjacency_it_invented(tmp_path):
+    """The walk follows edge endpoints, and an edge can name a node the graph no
+    longer holds -- the "dangling" condition `graph_health` counts, so a real
+    state. Materialising the path dropped such a node silently, leaving two nodes
+    that were never adjacent side by side in the list under a `found` saying the
+    traversal completed."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    prov = Provenance(source_file="f", source_line=1, verified_at=date(2026, 8, 5))
+    # a --calls--> gone --calls--> b, with no node row for `gone`
+    s.upsert_nodes("r", [Node(id="a", repo="r", kind="function", name="a"),
+                         Node(id="b", repo="r", kind="function", name="b")])
+    s.upsert_edges("r", [Edge(src="a", dst="gone", relation="calls",
+                              confidence=Confidence.EXTRACTED, provenance=prov),
+                         Edge(src="gone", dst="b", relation="calls",
+                              confidence=Confidence.EXTRACTED, provenance=prov)])
+    try:
+        out = _unwrap(asyncio.run(_call(build_server(s), "shortest_path", {
+            "src_id": "a", "dst_id": "b"})).structured_content)
+        assert out["found"] is True            # a route does exist
+        assert out["hops"] == 2, "the route's real length, not the part that materialised"
+        assert [n["id"] for n in out["nodes"]] == ["a", "b"]
+        assert out["gap"] and "not in the graph" in out["gap"]
+    finally:
+        s.close()

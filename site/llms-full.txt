@@ -5114,7 +5114,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shape could not express a miss, so a typo'd node id and a genuine "these two are unconnected"
   were the same empty list -- and the docstring's "empty if none" described only the second. It now
   returns `nodes`, `found`, `hops` and a `gap` naming which of the two misses occurred. Callers
-  reading the old top-level list need to read `nodes` instead.
+  reading the old top-level list need to read `nodes` instead. A route running through a node an
+  edge names but the graph no longer holds also used to drop that node quietly, leaving two nodes
+  that were never adjacent side by side; the length reported is now the route's real one and `gap`
+  says what is missing from the list.
 - **Five repository-scoped MCP tools now report `found`.** `who_knows`, `get_repo_links`,
   `repo_dependencies`, `repo_flow` and `repo_event_flow` echoed the caller's own string back with
   an empty payload, so a mistyped repository id was indistinguishable from a known repository with
