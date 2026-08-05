@@ -14,8 +14,8 @@ something:
 * the opt-in switch for the local HTTP servers' access log.
 
 Deliberately stdlib-only and free of any ``contextlake`` import: this is
-core-tier (see ``cli.py``/``core.py``), it must stay importable on Python 3.9
-without the ``[kb]`` extra, and adding a client library for four gauges would
+core-tier (see ``cli.py``/``core.py``), it must stay importable without the
+``[kb]`` extra, and adding a client library for four gauges would
 cost far more than writing the four lines of text format by hand.
 """
 

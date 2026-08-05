@@ -49,8 +49,8 @@ dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4", "hypothesis>=6.0", "pytest
 # Tools for cutting a release (build the dist, validate + upload to PyPI).
 # See docs/releasing.md.
 release = ["build>=1.0", "twine>=5.0"]
-# Optional knowledge-layer subsystem (contextlake.kb). Note: `mcp` requires
-# Python >= 3.10, so this extra's floor is 3.10 while the core tool stays 3.9+.
+# Optional knowledge-layer subsystem (contextlake.kb). The whole tool now has a
+# single floor of Python 3.10, so this extra no longer raises it above the core's.
 kb = [
     # >=2.0: audited and patched for the breaking rename/reshuffle in this major
     # (streamablehttp_client -> streamable_http_client in BOTH mcp_client.py and

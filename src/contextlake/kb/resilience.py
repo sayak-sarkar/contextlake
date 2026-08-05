@@ -81,8 +81,8 @@ _UNHEALTHY_STATUS = frozenset({408, 429})
 
 # Timeout spellings across the paths this module guards: urllib/sockets, the MCP
 # client's `asyncio.wait_for`, and the `glab` subprocess. Listed as a tuple
-# because on Python 3.9 these are still distinct classes (3.10+ aliases several
-# of them onto the builtin TimeoutError).
+# because they are not all one class: 3.10 aliases several onto the builtin
+# TimeoutError, but subprocess.TimeoutExpired stays distinct at every version.
 _TIMEOUT_TYPES = (
     socket.timeout, TimeoutError, asyncio.TimeoutError, subprocess.TimeoutExpired,
 )

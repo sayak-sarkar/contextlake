@@ -36,7 +36,7 @@ git clone https://github.com/sayak-sarkar/contextlake.git
 cd contextlake
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,kb]"   # the CLI + pytest/ruff + the knowledge layer the kb tests need
-# core-only (Python 3.9, no kb deps): pip install -e ".[dev]" and run pytest --ignore=tests/kb
+# core-only (no kb deps): pip install -e ".[dev]" and run pytest --ignore=tests/kb
 ```
 
 You'll also want `git` and an authenticated [`glab`](https://gitlab.com/gitlab-org/cli)
@@ -90,7 +90,8 @@ checkout, where that file was still named `contextlake.py`, `python -m pytest` f
 working directory first on `sys.path` and the launcher shadowed the installed package.
 Updating fixes it, and CI runs `python -m pytest --collect-only` to keep it fixed.
 
-CI runs exactly `ruff check` + `pytest` across Python 3.9–3.13, so if those two
+CI runs exactly `ruff check` + `pytest` across Python 3.10-3.13, one matrix shared by
+the core and knowledge-layer jobs, so if those two
 pass locally you're in good shape.
 
 ## Pre-commit hooks
