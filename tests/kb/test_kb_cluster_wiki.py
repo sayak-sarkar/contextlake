@@ -233,6 +233,26 @@ def test_cmd_wiki_namespace_writes_and_skips(tmp_path, monkeypatch):
     assert page.stat().st_mtime == mtime
 
 
+def test_cmd_wiki_namespace_revalidates_a_page_the_gate_never_saw(tmp_path, monkeypatch):
+    """The cluster path skips on an unchanged member fingerprint, and the gate
+    only ever ran on a freshly generated draft -- so a page written before the
+    gate shipped was frozen in place exactly as the per-repo page was."""
+    from contextlake.kb.commands import cmd_wiki
+    store_dir = _setup_cluster_store(tmp_path, monkeypatch)
+    assert cmd_wiki(_ns_args(tmp_path, namespace="acme/pay")) == 0
+    page = store_dir / "wiki" / "_clusters" / "acme__pay.md"
+    fingerprint = [ln for ln in page.read_text().splitlines(keepends=True)
+                   if "cluster-commits:" in ln]
+    # >= _MIN_SENTENCE_WORDS long, or the gate correctly ignores it as a heading
+    # or list label rather than as prose that loops
+    looped = ("The payments namespace routes every settlement request through its own "
+              "dedicated gateway service.\n")
+    page.write_text("# acme/pay (cluster)\n" + "".join(fingerprint) + looped * 12)
+
+    assert cmd_wiki(_ns_args(tmp_path, namespace="acme/pay")) == 0
+    assert looped not in page.read_text()
+
+
 def test_cmd_wiki_namespaces_depth_generates_per_namespace(tmp_path, monkeypatch):
     from contextlake.kb.commands import cmd_wiki
     store_dir = _setup_cluster_store(tmp_path, monkeypatch)

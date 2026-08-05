@@ -1247,6 +1247,106 @@ def test_cmd_wiki_backfills_partition_for_skipped_fresh_pages(tmp_path, monkeypa
         store.close()
 
 
+# One >= _MIN_SENTENCE_WORDS sentence repeated past _MAX_REPEATS: the exact
+# degenerate shape structural_gate exists to catch, and the shape the shipped
+# default provider's council scored 0.967 on -- the highest of that run.
+_LOOPED = "CatalogService reads the catalog index and writes the resulting entries out to disk.\n"
+
+
+def _make_page_defective(page_file):
+    """Replace a generated page's body with a degenerate loop under its own
+    heading, keeping the freshness header/footer so the run still sees the page
+    as commit-fresh. The heading is what the @wiki partition names a section
+    after, so "did this page reach the partition?" is directly observable."""
+    prev = page_file.read_text(encoding="utf-8")
+    keep = [ln for ln in prev.splitlines(keepends=True)
+            if "at commit `" in ln or "subsystem" in ln.lower()]
+    page_file.write_text("# r\n" + "".join(keep) + "\n## Looped\n" + _LOOPED * 12,
+                         encoding="utf-8")
+
+
+def test_cmd_wiki_revalidates_a_page_written_before_the_structural_guard(
+        tmp_path, monkeypatch):
+    """A page whose commit has not moved never reached the structural gate: the
+    freshness check returns "skipped" before a draft is ever generated, so a
+    page written before the gate shipped (or by a provider whose output the gate
+    would now reject) stayed on disk, and stayed searchable, until somebody
+    happened to pass --force."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    page_file = store_dir / "wiki" / "r.md"
+    _make_page_defective(page_file)
+
+    calls = {"n": 0}
+
+    class _CountingLlm(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            calls["n"] += 1
+            return super().generate(prompt, system=system)
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _CountingLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert calls["n"] > 0                                  # not silently skipped
+    assert _LOOPED not in page_file.read_text(encoding="utf-8")
+
+
+def test_cmd_wiki_does_not_backfill_a_page_the_guard_would_reject(tmp_path, monkeypatch):
+    """The other half: the partition backfill re-stores and re-embeds a
+    commit-fresh page without ever validating it, so a defective page that had
+    never been embedded became newly searchable via the @wiki partition on a run
+    that made no LLM call at all. The replacement draft is scored below the
+    accept threshold here, so the ONLY way the defective page's section can
+    reach the partition is the unguarded backfill."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    _make_page_defective(store_dir / "wiki" / "r.md")
+
+    # the pre-partition era: nothing of this page is stored yet, so the next run
+    # is exactly the backfill path
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.clear_repo("@wiki:r")
+    store.close()
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.2))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    shard = read_shard(store_dir, "@wiki:r")
+    names = [] if shard is None else [n.name for n in shard.nodes]
+    assert "r wiki: Looped" not in names
+
+
+def test_cmd_wiki_still_skips_and_backfills_a_sound_unchanged_page(tmp_path, monkeypatch):
+    """The guard must not turn every freshness skip into a regeneration: a sound
+    page on an unchanged commit still costs no LLM call, and still backfills."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = _setup_repo(tmp_path)
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _FakeLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    store.clear_repo("@wiki:r")
+    store.close()
+
+    calls = {"n": 0}
+
+    class _CountingLlm(_FakeLlm):
+        def generate(self, prompt, *, system=None):
+            calls["n"] += 1
+            return super().generate(prompt, system=system)
+
+    monkeypatch.setattr(llm_pkg, "build_llm", lambda cfg: _CountingLlm(score=0.95))
+    assert cmd_wiki(Namespace(config=str(tmp_path / "kb.toml"))) == 0
+    assert calls["n"] == 0
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        assert store.get_node("@wiki:r:0") is not None
+    finally:
+        store.close()
+
+
 def test_cmd_wiki_rejects_low_score(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     store_dir = _setup_repo(tmp_path)

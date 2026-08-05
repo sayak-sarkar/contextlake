@@ -449,9 +449,17 @@ def cmd_wiki(args) -> int:
                     prev = page_file.read_text(encoding="utf-8", errors="replace")
                     m = re.search(r"cluster-commits: ([0-9a-f]+)", prev)
                     if m and m.group(1) == cluster_fingerprint(brief):
-                        skipped += 1
-                        progress.advance(ns)
-                        continue
+                        # Same rule as the per-repo page (see _run_page): a page
+                        # this path skips was never put through the gate, because
+                        # the gate only ever ran on a freshly generated draft.
+                        defect = structural_gate(prev, CLUSTER_PROMPT_INSTRUCTIONS)
+                        if defect is None:
+                            skipped += 1
+                            progress.advance(ns)
+                            continue
+                        log(f"  {ns}: member commits unchanged, but the page on disk fails "
+                            f"the structural gate ({defect['reason']}); regenerating it",
+                            inline=True)
                 try:
                     page = generate_cluster_page(llm, brief)
                     # Structurally broken output is rejected here without paying for
@@ -540,7 +548,23 @@ def cmd_wiki(args) -> int:
                     # records what it names, so compare that against what this
                     # run would name.
                     want = subsystem_names(subsystem_modules)
-                    if recorded_subsystems(prev) == want:
+                    if recorded_subsystems(prev) != want:
+                        log(f"  {label}: commit unchanged, but the page does not name the "
+                            "subsystem pages this repo now has; regenerating it", inline=True)
+                    elif (defect := structural_gate(prev, PROMPT_INSTRUCTIONS)) is not None:
+                        # The third freshness question, and the only one asked of
+                        # the page itself. A draft is gated when it is generated,
+                        # so a page written before the gate shipped (or by a
+                        # provider whose output it would now reject) was never
+                        # gated at all -- and this path returns before any draft
+                        # exists, so it never would be. It stayed on disk, and the
+                        # backfill below kept it searchable, until somebody
+                        # happened to pass --force. The gate is model-free and
+                        # linear in the page, so asking is nearly free.
+                        log(f"  {label}: commit unchanged, but the page on disk fails the "
+                            f"structural gate ({defect['reason']}); regenerating it",
+                            inline=True)
+                    else:
                         # Backfill: a page written before the @wiki partition
                         # existed -- or before that partition carried symbol
                         # links -- gets its sections (re)stored, linked and
@@ -550,14 +574,15 @@ def cmd_wiki(args) -> int:
                         # every one of them would otherwise skip this write and
                         # stay edge-free until an unrelated commit moved or the
                         # user paid a full --force regeneration of the fleet.
+                        # Guarded by the gate above: the backfill is the one
+                        # thing on this path that makes a page newly searchable,
+                        # so it must not do that for a page the gate rejects.
                         if _partition_needs_backfill(store, wiki_key):
                             _store_wiki_partition(store, store_dir, wiki_key, prev,
                                                   rel_filename, head, embedder, vs,
                                                   cfg.embeddings.batch_size,
                                                   source_repo=repo_id)
                         return "skipped"
-                    log(f"  {label}: commit unchanged, but the page does not name the "
-                        "subsystem pages this repo now has — regenerating it", inline=True)
             # `store` unlocks two repo-root-only, never-path_prefix-scoped
             # live-checkout reads inside repo_brief (readme_excerpt, and
             # setup_signals' recursive legacy-build-tooling walk + top-level
