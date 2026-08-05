@@ -252,6 +252,12 @@ class OwnerOut(BaseModel):
 class OwnersOut(BaseModel):
     scope: str         # repo (optionally repo:sub-path) the ranking is for
     owners: list[OwnerOut]
+    # Why the list is empty, whenever it is. "No git history was read at all"
+    # and "the history was read and attributed nobody" are different answers,
+    # and an empty list alone cannot tell them apart -- so a caller that
+    # narrates the result would have to guess, and the narration would be a
+    # provenance claim it never earned. None whenever `owners` is non-empty.
+    ranking_gap: str | None = None
 
 
 class WikiOut(BaseModel):
@@ -501,9 +507,17 @@ def build_server(
         r = store.get_repo(repo)
         scope = sanitize_label(repo + (f":{path}" if path else ""))
         if not r or not r.path:
-            return OwnersOut(scope=scope, owners=[])
+            # Nothing ran: no local clone is on record, so no git command was
+            # ever issued. Returning a bare empty list here let the caller
+            # narrate it as a completed ranking (see `ask`'s owners route),
+            # which asserted a provenance this branch never obtained.
+            return OwnersOut(scope=scope, owners=[], ranking_gap=(
+                "no local clone is on record for this repo, so its git history "
+                "was never read"))
         owners = compute_owners(r.path, path, limit=max(1, min(limit, 50)))
-        return OwnersOut(scope=scope, owners=[
+        return OwnersOut(scope=scope, ranking_gap=(
+            None if owners else
+            "its git history was read but attributed no commits to anyone"), owners=[
             OwnerOut(name=sanitize_label(o.name), commits=o.commits, lines=o.lines,
                      last_active=o.last_active, share=round(o.share, 4))
             for o in owners])
@@ -1077,6 +1091,15 @@ def build_server(
             if rid is None:
                 return _out(f"Couldn't tell which repo to find owners for — {why}.")
             res = who_knows(rid, limit=k)
+            if not res.owners:
+                # Derived from whether the ranking actually happened, never
+                # asserted: `who_knows` returns early -- before a single git
+                # command runs -- for a repo with no clone on record, and this
+                # line used to append ", ranked from git history." to that
+                # empty result all the same. Nothing was ranked; say which of
+                # the two ways that came about.
+                return _out(f"No owners could be ranked for {target!r}" + (why or "")
+                            + f" — {res.ranking_gap}.", owners=res, answered=False)
             return _out(f"Likely owners / SMEs for {target!r}" + (why or "")
                         + ", ranked from git history.", owners=res)
 

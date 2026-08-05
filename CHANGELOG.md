@@ -5,6 +5,17 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **`ask`'s owners answer claimed a git-history ranking it had never run.** `who_knows` returns an
+  empty owner list early, before a single git command is issued, when the repo has no local clone
+  path on record. The answer was labelled `, ranked from git history.` regardless, so "nobody owns
+  this" and "no history was ever read" reached the caller as the same sentence with the same
+  provenance claim attached. The line is now derived from whether the ranking actually happened, and
+  an empty result says which of the two produced it. `who_knows` carries the reason itself, in a new
+  `ranking_gap` field, so the MCP tool is as honest as the router that wraps it.
+
 ## [5.1.1] - 2026-08-04
 
 Two defects found by manual CLI testing, both of which a developer machine hides.

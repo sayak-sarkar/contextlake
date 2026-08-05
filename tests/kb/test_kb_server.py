@@ -1004,3 +1004,46 @@ def test_find_dependents_honours_repo_scope_and_reports_an_unknown_package(tmp_p
         assert missing["note"] and "no-such-pkg" in missing["note"]
     finally:
         s.close()
+
+
+def test_ask_owners_never_claims_a_ranking_that_did_not_run(tmp_path):
+    """`who_knows` returns an empty list BEFORE issuing a single git command when
+    the repo has no local clone on record. The owners route appended ", ranked
+    from git history." to that result unconditionally, so an answer that read no
+    history at all was labelled as though it had read and ranked one -- a
+    provenance claim asserted rather than derived."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    try:
+        s.upsert_repo(Repo(id="team/api", path=""))
+        srv = build_server(s)
+        out = asyncio.run(_call(srv, "ask", {
+            "question": "who owns `team/api`?"})).structured_content
+        assert out["route"] == "owners"
+        assert out["owners"]["owners"] == []
+        assert "ranked from git history" not in out["note"]
+        assert "no local clone" in out["note"]
+        assert out["answered"] is False
+    finally:
+        s.close()
+
+
+def test_ask_owners_still_credits_git_history_when_the_ranking_ran(tmp_path, monkeypatch):
+    """The honest branch must not swallow the real answer: a repo whose history
+    was read and attributed keeps the git-history provenance line."""
+    from contextlake.kb import ownership
+
+    monkeypatch.setattr(ownership, "compute_owners", lambda *a, **k: [
+        ownership.Owner(name="Ada", email="ada@example.com", commits=3, lines=40,
+                        last_active="2026-01-02", share=1.0, score=1.0)])
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    try:
+        s.upsert_repo(Repo(id="team/api", path=str(tmp_path / "clone")))
+        srv = build_server(s)
+        out = asyncio.run(_call(srv, "ask", {
+            "question": "who owns `team/api`?"})).structured_content
+        assert out["answered"] is True
+        assert [o["name"] for o in out["owners"]["owners"]] == ["Ada"]
+        assert "ranked from git history" in out["note"]
+        assert out["owners"]["ranking_gap"] is None
+    finally:
+        s.close()
