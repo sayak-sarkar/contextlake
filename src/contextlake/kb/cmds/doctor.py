@@ -8,16 +8,30 @@ import shutil
 import sqlite3
 from pathlib import Path
 
-from ... import style
+from ... import observability, style
+from ...logging_setup import console_redacting
 from ..config import load_kb_config
 from ..state import check_schema
 from ..store.sqlite_store import SqliteStore
 
 
+def _say(text: str = "") -> None:
+    """Print one report line, scrubbed when --redact asked for it.
+
+    doctor writes its report with print rather than through the logger because
+    the console formatter appends a right-edge clock to every single-line record,
+    which suits a progress stream and ruins an aligned report. The cost was that
+    doctor sat outside redaction altogether: `--redact doctor` printed the
+    absolute store path and every config path in full, on the one command whose
+    entire output is what a person pastes into a bug report.
+    """
+    print(observability.redact(text) if console_redacting() else text)
+
+
 def _check(label: str, ok, detail: str = "") -> bool:
     # tri-state: True -> ✓, False -> ✗, None -> ⚠ (present-but-degraded / optional-unavailable)
     mark = style.yellow("⚠") if ok is None else (style.green("✓") if ok else style.red("✗"))
-    print(f"  {mark} {label}" + (f" {style.dim('— ' + detail)}" if detail else ""))
+    _say(f"  {mark} {label}" + (f" {style.dim('— ' + detail)}" if detail else ""))
     return bool(ok)
 
 
@@ -38,7 +52,7 @@ def _builtin_model_present(cache_dir, model_id: str) -> bool:
 
 
 def cmd_doctor(args) -> int:
-    print("contextlake knowledge layer — doctor")
+    _say("contextlake knowledge layer — doctor")
     ok = True
     cfg = None
 
@@ -64,7 +78,7 @@ def cmd_doctor(args) -> int:
                 f"{len(cfg.sources)} source(s), {len(cfg.rules)} rule(s)",
             )
             for path in cfg.loaded_from:
-                print(f"      {style.dim(path)}")
+                _say(f"      {style.dim(path)}")
         else:
             # A green tick here used to be printed whether or not a config existed,
             # so "I have no config at all" and "my config loaded fine" looked
@@ -74,8 +88,8 @@ def cmd_doctor(args) -> int:
             # already lists what it searched; match it.
             _check("config loads", None, "no config found, using built-in defaults")
             for path in cfg.searched:
-                print(f"      {style.dim('[absent] ' + path)}")
-            print(f"      {style.dim('run ' + style.bold('contextlake init') + ' to create one')}")
+                _say(f"      {style.dim('[absent] ' + path)}")
+            _say(f"      {style.dim('run ' + style.bold('contextlake init') + ' to create one')}")
         # Lazy: source_cmd -> config_edit -> tomlkit, kept off every other kb
         # command's import path (see config_edit's module docstring).
         from ..source_cmd import verify_source
@@ -229,7 +243,7 @@ def cmd_doctor(args) -> int:
     except Exception as e:  # noqa: BLE001 - doctor reports, never crashes
         ok &= _check("config + store", False, str(e))
 
-    print(style.bold(style.green("OK")) if ok else style.bold(style.red("Problems found")))
+    _say(style.bold(style.green("OK")) if ok else style.bold(style.red("Problems found")))
 
     # --fix is strictly additive: the report above and the verdict line are
     # untouched, so a plain `doctor` (the diagnostic everything else points at)
@@ -240,8 +254,8 @@ def cmd_doctor(args) -> int:
 
     fixed = False
     if cfg is None:
-        print()
-        print(style.red("cannot plan fixes: the configuration above did not load"))
+        _say()
+        _say(style.red("cannot plan fixes: the configuration above did not load"))
     else:
         # Lazy, like source_cmd above: plain doctor never pays for the
         # remediation module's imports.

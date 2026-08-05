@@ -157,3 +157,38 @@ def test_doctor_distinguishes_llm_off_in_config_from_runtime_absent(
     assert "not enabled in config" in absent
     assert "llama-cpp-python) is not installed" in absent
     assert "--fix llm-local" in absent
+
+
+def test_redact_scrubs_doctors_report_and_leaves_the_default_alone(tmp_path, capsys):
+    """doctor writes its aligned report with print, not through the logger, so it
+    sat outside redaction entirely: `--redact doctor` printed the absolute store
+    path and every config path in full -- on the one command whose whole output is
+    what a person pastes into a bug report."""
+    from argparse import Namespace
+
+    from contextlake import observability
+    from contextlake.kb.cmds.doctor import cmd_doctor
+    from contextlake.logging_setup import setup_logging
+
+    store = tmp_path / "private-store"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store}"\n', encoding="utf-8")
+    args = Namespace(config=str(cfg), fix=False)
+
+    observability.reset_redactions()
+    try:
+        # default: the console keeps the real paths, which is what makes them
+        # actionable for the person reading their own terminal
+        setup_logging(redact=None)
+        cmd_doctor(args)
+        assert str(store) in capsys.readouterr().out
+
+        setup_logging(redact=True)
+        cmd_doctor(args)
+        out = capsys.readouterr().out
+        assert str(store) not in out
+        assert str(cfg) not in out
+        assert "<store>" in out and "<config>" in out
+    finally:
+        observability.reset_redactions()
+        setup_logging()

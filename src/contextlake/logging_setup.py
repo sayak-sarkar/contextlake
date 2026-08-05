@@ -205,7 +205,8 @@ def setup_logging(verbose=False, quiet=False, log_file=None, *,
     else:
         console_level = logging.INFO
 
-    console_redact = bool(redact)
+    global _console_redact
+    console_redact = _console_redact = bool(redact)
     file_redact = True if redact is None else bool(redact)
 
     def formatter(handler, redacting):
@@ -234,6 +235,27 @@ def setup_logging(verbose=False, quiet=False, log_file=None, *,
     # Logger threshold must be the most permissive of its handlers.
     logger.setLevel(min(console_level, file_level if log_file else console_level))
     return logger
+
+
+# Whether the console is scrubbing, as decided by the last setup_logging call.
+# Exposed for the one command that legitimately writes to stdout itself.
+_console_redact = False
+
+
+def console_redacting() -> bool:
+    """Is console output being scrubbed right now?
+
+    ``doctor`` renders an aligned report with ``print`` rather than through the
+    logger, on purpose: the console formatter appends a right-edge clock to every
+    single-line record, which is right for a progress stream and wrong for a
+    report you read as a block. That choice also put doctor outside redaction
+    entirely, so ``--redact doctor`` printed the store path in full -- on the one
+    command whose whole output is what you paste into a bug report.
+
+    Rather than give doctor a second opinion about the flag, it asks the module
+    that already decided.
+    """
+    return _console_redact
 
 
 def use_stderr():
