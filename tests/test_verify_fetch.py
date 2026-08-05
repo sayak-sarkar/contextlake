@@ -449,3 +449,25 @@ def test_repos_narrows_a_warm_unfiltered_cache_without_refetching(
     scoped = cfg.copy()
     scoped["repo_filter"] = "api"
     assert set(load_gitlab_projects(scoped, "g", allow_fetch=False)) == {"api"}
+
+
+def test_a_failed_enumeration_names_the_forge_it_actually_called(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """A github config that 404'd reported that it "could not enumerate GitLab
+    projects", so the banner, the URL and the failure gave three different
+    answers to which forge this run was talking to."""
+    cfg = base_config.copy()
+    cfg.update(cache_dir=str(tmp_path), cache_json="p.json", cache_file="p.txt",
+               platform="github")
+    monkeypatch.setattr(core, "_fetch_projects_page_github",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("HTTP Error 404")))
+    monkeypatch.setitem(core._PLATFORM_FETCHERS, "github", core._fetch_projects_page_github)
+
+    with pytest.raises(FetchError) as exc:
+        fetch_gitlab_projects("some-org", cfg)
+
+    assert "GitHub" in str(exc.value)
+    assert "GitLab" not in str(exc.value)
+    assert "GitHub group" in gls_logs.text or "GitHub projects" in gls_logs.text
+    assert "GitLab" not in gls_logs.text

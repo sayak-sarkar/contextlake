@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`init` omitted `platform` whenever it equalled the default, and a config above it then
+  supplied a different one.** `init --local --platform gitlab` wrote no `platform` key at all,
+  so a global `~/.contextlake.ini` saying `platform = github` filled the gap and `mirror clone`
+  enumerated the GitHub API and 404'd. `init` now writes the platform always. Omitting a key does
+  not mean "use the default" when config layers: it means whatever file sits above this one gets
+  to answer, and a generated config should state what the workspace is rather than depend on its
+  surroundings.
+- **A failed enumeration named a forge the run never called.** The same 404 above reported that it
+  "could not enumerate GitLab projects", while the banner said `Github group` and the URL was
+  `api.github.com`: three different answers to which forge this was. All of them now derive from
+  one resolved name, and the missing-`glab` advice is raised only by a run that actually reached
+  for `glab`.
 - **`--repos` was silently inert whenever the project cache was warm, and `mirror status`
   reported a filtered count as the group total.** The cache holds the *filtered* project list,
   and every command that reads it answered from it regardless of which filter produced it. So

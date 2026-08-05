@@ -1872,8 +1872,8 @@ def _run(argv, metrics):
 
     log(f"Working directory: {work_dir}")
     try:
-        from .core import platform_name
-        log(f"{platform_name(config).capitalize()} group: {gitlab_group}")
+        from .core import platform_label
+        log(f"{platform_label(config)} group: {gitlab_group}")
     except Exception:  # noqa: BLE001 - an unknown platform is reported by fetch itself
         log(f"Group: {gitlab_group}")
     cache_file, _ = get_cache_paths(config)

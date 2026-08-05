@@ -139,10 +139,35 @@ def test_init_explicit_config_wins_over_local_flag(tmp_path, monkeypatch):
     assert not decoy.exists()
 
 
-def test_init_gitlab_omits_platform_key(tmp_path, monkeypatch):
-    # gitlab is the default, so the key is left out (cleaner config)
+def test_init_writes_the_platform_even_when_it_is_the_default(tmp_path, monkeypatch):
+    """The key used to be omitted whenever it equalled the default, on the
+    reasoning that the default would supply it. Config LAYERS, so what actually
+    supplied it was whatever file sat above this one: `init --local --platform
+    gitlab` under a global `platform = github` produced a local config that said
+    nothing about the platform, and `mirror clone` went to api.github.com."""
     _run(tmp_path, monkeypatch, platform="gitlab", group="acme")
-    assert "platform =" not in (tmp_path / ".contextlake.ini").read_text()
+    assert "platform = gitlab" in (tmp_path / ".contextlake.ini").read_text()
+
+
+def test_a_generated_local_config_is_not_overridden_by_a_global_one(tmp_path, monkeypatch):
+    """End to end, through the real precedence chain: the generated file has to
+    win over a global config that names a different forge."""
+    from contextlake import config as config_mod
+    from contextlake.core import platform_name
+
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".contextlake.ini").write_text(
+        "[contextlake]\nplatform = github\ngitlab_group = other\n")
+    project = tmp_path / "project"
+    project.mkdir()
+
+    monkeypatch.setattr(config_mod, "CONFIG_FILE", str(home / ".contextlake.ini"))
+    monkeypatch.chdir(project)
+    assert init_cmd.cmd_init(
+        _args(platform="gitlab", group="acme", local=True, kb=False)) == 0
+
+    assert platform_name(config_mod.load_config()) == "gitlab"
 
 
 def test_init_embeddings_flag_enables_semantic(tmp_path, monkeypatch):

@@ -77,9 +77,17 @@ def _mirror_ini(work_dir: str, platform: str, group: str) -> str:
         "",
         "[contextlake]",
         f"work_dir = {work_dir}",
+        # Always written, even when it equals the built-in default. Omitting it
+        # does not mean "use the default": mirror config layers a global
+        # ~/.contextlake.ini (and every ancestor .contextlake.ini) under this
+        # one, so a key this file leaves out is a key some other file supplies.
+        # `init --local --platform gitlab` under a global `platform = github`
+        # produced exactly that -- the local file said nothing, the global file
+        # answered, and `mirror clone` enumerated GitHub and 404'd. A generated
+        # config states what this workspace is, so it is complete rather than
+        # dependent on what happens to sit above it.
+        f"platform = {platform}",
     ]
-    if platform != "gitlab":
-        lines.append(f"platform = {platform}")
     # `gitlab_group` is the accepted key for every platform (its `group` alias too);
     # keep the familiar key so existing docs/tools line up.
     lines.append(f"gitlab_group = {group}")

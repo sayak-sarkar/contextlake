@@ -253,6 +253,13 @@ PLATFORM_DEFAULTS = {
     "gitea": {"api_base": "https://gitea.com", "token_env": "GITEA_TOKEN",
               "clone_user": "oauth2", "per_page": 50},
 }
+# How each forge spells its own name. One source of truth, because the banner,
+# the enumerator and the failure message used to be able to disagree with each
+# other in a single run: a config resolving to github printed "Github group",
+# called api.github.com, and then reported that it "could not enumerate GitLab
+# projects" -- three different answers to "which forge is this?".
+PLATFORM_LABELS = {"gitlab": "GitLab", "github": "GitHub",
+                   "bitbucket": "Bitbucket", "gitea": "Gitea"}
 # Hosted flavors that speak an existing platform's API verbatim.
 _PLATFORM_ALIASES = {"codeberg": "gitea", "forgejo": "gitea"}
 # Alias -> its canonical hosted endpoint (used only when no api_base is set).
@@ -268,6 +275,17 @@ def platform_name(config) -> str:
             f"unknown platform {raw!r} -- expected one of "
             f"{sorted(set(PLATFORM_DEFAULTS) | set(_PLATFORM_ALIASES))}")
     return name
+
+
+def platform_label(config) -> str:
+    """How the configured forge spells its own name ("GitLab", "GitHub", ...),
+    for anything a person reads. Falls back to the raw key for an unknown
+    platform, since reporting *that* is the caller's job, not this helper's."""
+    try:
+        name = platform_name(config)
+    except FetchError:
+        return (config.get("platform") or "gitlab").strip().lower()
+    return PLATFORM_LABELS.get(name, name)
 
 
 def _platform_token(config):
@@ -476,7 +494,11 @@ def fetch_gitlab_projects(gitlab_group, config):
     """
     cache_file, cache_json = get_cache_paths(config)
     platform = platform_name(config)
-    log(f"Fetching {platform} projects for: {style.cyan(gitlab_group)}")
+    # Resolved once and used by every line this run prints, including the
+    # failures below: the forge a message names must always be the forge that
+    # was actually called.
+    label = platform_label(config)
+    log(f"Fetching {label} projects for: {style.cyan(gitlab_group)}")
 
     per_page = PLATFORM_DEFAULTS[platform]["per_page"]
     timeout = int(config.get("network_timeout", 30))
@@ -496,7 +518,7 @@ def fetch_gitlab_projects(gitlab_group, config):
         token = _platform_token(config)
         base = _platform_api_base(config)
         auth = "token auth" if token else "no token: public repos only, rate-limited"
-        log(f"Enumerating via the {platform} REST API at {base} ({auth})")
+        log(f"Enumerating via the {label} REST API at {base} ({auth})")
         fetch_page = partial(_PLATFORM_FETCHERS[platform],
                              base, gitlab_group, token, per_page, timeout)
 
@@ -508,18 +530,23 @@ def fetch_gitlab_projects(gitlab_group, config):
             # more retries (≈1+2+4+8+16s of backoff) ride out a brief VPN/proxy
             # reconnect. A sustained outage still fails fast enough to degrade.
             projects = retry_with_backoff(fetch_page, page, max_retries=6)
-        except FileNotFoundError as e:
+        except Exception as e:  # noqa: BLE001 - a hard failure must surface, not truncate
             # Raise instead of writing what we have: a partial (or empty) result must
             # never replace a good cache under a green checkmark.
-            log("ERROR: 'glab' not found and no GITLAB_TOKEN set. Set GITLAB_TOKEN "
-                "(a read_api token), or install the GitLab CLI and run 'glab auth login'.")
-            raise FetchError(
-                "could not enumerate GitLab projects: 'glab' not found and no "
-                "GITLAB_TOKEN set (existing caches left untouched)") from e
-        except Exception as e:  # noqa: BLE001 - a hard failure must surface, not truncate
+            #
+            # The missing-glab advice belongs only to the run that actually
+            # reached for glab. Both branches name `label`, so a failure can no
+            # longer report a forge this run never called -- a github config
+            # that 404'd used to say it "could not enumerate GitLab projects".
+            if isinstance(e, FileNotFoundError) and fetch_page.func is _fetch_projects_page_glab:
+                log("ERROR: 'glab' not found and no GITLAB_TOKEN set. Set GITLAB_TOKEN "
+                    "(a read_api token), or install the GitLab CLI and run 'glab auth login'.")
+                raise FetchError(
+                    f"could not enumerate {label} projects: 'glab' not found and no "
+                    "GITLAB_TOKEN set (existing caches left untouched)") from e
             log(f"Error fetching projects (page {page}): {e}")
             raise FetchError(
-                f"could not enumerate GitLab projects (failed on page {page}: {e}); "
+                f"could not enumerate {label} projects (failed on page {page}: {e}); "
                 "existing caches left untouched") from e
         if not projects:
             break
