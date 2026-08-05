@@ -37,8 +37,9 @@ below the mirror is optional and stays off by default.
 - **Dashboard** — a local, offline-first UI: fleet overview, per-repo anatomy, the
   architecture graph, blast radius, health, search, a natural-language Chat tab, and a
   static `--site` export (used for the project's own public read-only trial demo).
-- **Serve over MCP** — an `ask()` router plus ~18 underlying tools (find_definition,
-  find_callers, blast_radius, who_knows, get_wiki, …), stdio/streamable-HTTP/SSE
+- **Serve over MCP** — an `ask()` router plus 21 underlying tools, 19 of them always present
+  (find_definition, find_callers, blast_radius, who_knows, get_wiki, …) and 2 semantic ones
+  that register once embeddings exist, stdio/streamable-HTTP/SSE
   transports, and one-command editor steering (`kb steer`) for Claude Code, Windsurf,
   and Kiro.
 - **CLI namespacing (breaking, v3.0.0)** — commands are grouped under `mirror` and `kb`

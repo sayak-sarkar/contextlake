@@ -5,10 +5,13 @@ A `bootstrap` (or a standalone `index` / `embed` / `wiki`, and the mirror-tier `
 
 ## The live progress bar
 
-One shared renderer is used by every long-running command, so it looks the same everywhere: `[████████░░░░]
-42/678 (6%) · 12:30 elapsed · ~2:58:14 left · 3.4/min` (bar, done/total, percent, elapsed time, estimated
-time remaining, and rate in items/min). The ETA is a moving-average estimate over recent items (that's
-what the `~` marks), and it's count-based, each item counts equally rather than being weighted by size.
+One shared renderer is used by every long-running command, so it looks the same everywhere:
+`[█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min` (bar, done/total, percent,
+elapsed time, estimated time remaining, and rate in items/min). The ETA is the **cumulative mean** so far, elapsed time divided
+by items done, projected over what's left (that's what the `~` marks), and it's count-based, each item
+counts equally rather than being weighted by size. A trailing window was tried and rejected: with a
+worker pool the gaps between completions are spiky enough that a short window swung the estimate between
+seconds and half an hour, where the cumulative figure smooths itself and settles as the run goes on.
 When a run's total isn't known up front, the bar drops the percent/ETA and shows `done · elapsed · rate`
 instead, rather than guessing. Across every long-running command (including `connect`, `ingest`, and
 `enrich`, which don't use the shared bar), the clock only shows up on the bar itself (where there is one)
@@ -112,9 +115,11 @@ the systemd timer in `examples/`, a cron wrapper, CI -- `--log-format json` prin
 line and nothing else:
 
 ```json
-{"ts": "2026-08-04T05:45:19Z", "level": "INFO", "msg": "Cloned", "run_id": "bcd5bd3d69cb", "command": "mirror clone", "repo": "team/api", "status": "ok", "duration_ms": 812}
+{"ts": "2026-08-04T05:45:19Z", "level": "INFO", "msg": "[1/12] ✓ team/api: Cloned", "run_id": "bcd5bd3d69cb", "command": "mirror clone", "repo": "team/api", "status": "ok", "duration_ms": 812}
 ```
 
+- **`msg`** is the same composed line a person would have seen, counter and glyph included, not a bare
+  verb. Query the structured fields beside it (`status`, `repo`, `error_type`) rather than parsing it.
 - **`run_id`** is generated once per invocation and stamped on every line, so an interleaved journal can
   be split back into runs, and one `bootstrap`'s index / connect / embed / wiki stages read as one story.
   Set `CONTEXTLAKE_RUN_ID` to pin your own (a systemd invocation id, a CI job id) and have contextlake's

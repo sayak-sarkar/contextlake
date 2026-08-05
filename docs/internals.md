@@ -242,8 +242,10 @@ pid, command, host and start time. A second process on the same host is refused 
 allowed to interleave SQLite writes; a lock left by a dead process is reclaimed automatically;
 `CONTEXTLAKE_ALLOW_CONCURRENT=1` overrides it and is rarely correct.
 
-Today `kb index`, `kb embed` and `kb wiki` take that lock. `connect`, `ingest`, `enrich` and the
-dashboard's mutating routes write without it.
+Today `kb index`, `kb embed`, `kb wiki` and the dashboard's mutating routes take that lock; the
+dashboard holds it for the one mutation only, never for the server's lifetime, and answers `409` with
+the current holder's details if something else has it. `connect`, `ingest` and `enrich` write without
+it.
 
 SQLite runs in WAL mode with **one connection per thread**, not one per store. That is forced by
 serving: the MCP SDK dispatches every synchronous tool call through a worker thread pool with no

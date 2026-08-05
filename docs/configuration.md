@@ -68,11 +68,11 @@ one in the current directory if none exists yet in the chain); once a project ha
 commands land in it by default without needing `--local` again. An explicit `--config PATH` always takes
 precedence over both the local and global tiers.
 
-`init --local` also scopes the *values* it writes, not just the config file's location: `work_dir`
-defaults to the current directory (override interactively, or with `--work-dir`), and the
-knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to that workspace instead
+`init --local` also scopes one of the *values* it writes, not just the config file's location: the
+knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to the workspace instead
 of the global `~/.contextlake/kb` (override with `--store-dir`), so two separate `--local` projects
-never end up sharing one store.
+never end up sharing one store. `work_dir` is not part of that: **every** `contextlake init` defaults
+it to the current directory, `--local` or not (override interactively, or with `--work-dir`).
 
 ## Workspace trust
 
