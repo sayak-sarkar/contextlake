@@ -201,6 +201,71 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     return 0 if failed == 0 else 1
 
 
+def _match_repo_id(store, needle: str):
+    """The indexed repo ``needle`` names, or ``None``.
+
+    Exact id first, then a unique match on the id's last segment, so the bare
+    ``widgets`` a reader would type resolves when only one repo ends that way and
+    stays ambiguous (``None``) when several do.
+    """
+    exact = store.get_repo(needle)
+    if exact is not None:
+        return exact
+    tail = needle.strip("/").rsplit("/", 1)[-1].lower()
+    if not tail:
+        return None
+    hits = [r for r in store.list_repos() if r.id.rsplit("/", 1)[-1].lower() == tail]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _resolve_source_by_id(store, source: str) -> tuple[str, Path] | None:
+    """``--source`` naming an indexed repo id rather than a path: resolve it to
+    that repo's recorded checkout, or explain why it cannot be resolved.
+
+    The dead end this closes was reported from a real fleet. ``kb lint`` reports a
+    repository by its **logical** id, which is derived from the origin remote and
+    has no relation to where the clone sits on disk, and every obvious way to act
+    on that id failed:
+
+        kb index --source ./repositories/example.com/team/widgets  -> No such file
+        kb index --source ./repositories/team/widgets              -> No such file
+        kb index --source example.com/team/widgets                 -> No such file
+
+    The last of those is the id exactly as printed. The user had an identifier and
+    no way to turn it into an action, which is a worse failure than a wrong answer:
+    nothing in the output pointed anywhere.
+
+    Returns ``(repo_id, path)`` when the id resolves to a directory, otherwise
+    ``None`` after logging what was established. Every branch says something the
+    reader can act on -- the recorded path when it is gone, near-miss ids when the
+    name is wrong -- rather than repeating the id back.
+    """
+    repo = _match_repo_id(store, source)
+    if repo is None:
+        known = [r.id for r in store.list_repos()]
+        near = [rid for rid in known if source.lower() in rid.lower()][:5]
+        log(f"{source!r} is neither a path on disk nor an indexed repository id.")
+        if near:
+            log(f"  Did you mean: {', '.join(near)}")
+        elif known:
+            more = f" (+{len(known) - 5} more)" if len(known) > 5 else ""
+            log(f"  Indexed ids include: {', '.join(sorted(known)[:5])}{more}")
+        else:
+            log("  Nothing is indexed in this store yet.")
+        return None
+    if not repo.path:
+        log(f"{repo.id} is indexed but has no checkout path recorded, so there is "
+            "nothing to re-index. Point --source at its clone, or index the "
+            "workspace that holds it.")
+        return None
+    path = Path(repo.path)
+    if not path.is_dir():
+        log(f"{repo.id} was indexed from {repo.path}, which is no longer a directory. "
+            "Re-clone it there, or index it from wherever it lives now.")
+        return None
+    return repo.id, path
+
+
 def _store_and_index(store, store_dir, repo_id, repo_path, head, shard) -> int:
     store.upsert_repo(Repo(id=repo_id, path=str(repo_path)))
     write_shard(store_dir, shard)
@@ -251,6 +316,18 @@ def cmd_index(args) -> int:
                 f"({Path(source).resolve()}). Pass --source PATH or --workspace DIR "
                 f"to index elsewhere.")
         src = Path(source)
+        # `--source` names a place OR an identity. A path that is not on disk is
+        # the only case where it can be the latter, so the lookup costs nothing on
+        # the ordinary path and is tried before the graph-shard branch, which would
+        # otherwise report a missing file for a perfectly valid repo id.
+        id_repo_id = None
+        if not src.exists():
+            resolved = _resolve_source_by_id(store, source)
+            if resolved is None:
+                return 1
+            id_repo_id, src = resolved
+            log(f"{source!r} is an indexed repository id; re-indexing its recorded "
+                f"checkout at {src}.")
 
         if src.is_dir():
             from ..parse import index_repo_dir  # lazy: only needs tree-sitter when indexing code
@@ -267,7 +344,14 @@ def cmd_index(args) -> int:
                         "`contextlake kb index --workspace .` instead, which indexes each "
                         "nested repo separately under its own identity."
                     ))
-            repo_id = getattr(args, "repo", None) or src.resolve().name  # "." -> cwd name
+            # An id resolved from --source outranks the directory name (the whole
+            # point of resolving one was to re-index THAT repo's graph, and a
+            # canonical id derived from the origin remote rarely equals its
+            # directory name, so falling back would write a second, duplicate row).
+            # An explicit --repo still outranks both: it is the flag whose only job
+            # is to say what to file this under.
+            repo_id = (getattr(args, "repo", None) or id_repo_id
+                       or src.resolve().name)  # "." -> cwd name
             head = _git_head(src)
             # Same incremental gate --workspace applies, for the same reasons and
             # in the same order: HEAD unmoved AND the graph built by this parser

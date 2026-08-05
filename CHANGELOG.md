@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it. `graph_health` and the dashboard health API carry the same new `empty`/`unreadable` fields, and
   `stale` in all three is now genuine staleness only.
 
+### Added
+- **`kb index --source` accepts an indexed repository id, not just a path.** `kb lint` reports a
+  repository by its logical id, which is derived from the `origin` remote and has no relation to where
+  the clone sits on disk, so the id it printed could not be acted on: every path spelling of it
+  answered "No such file or directory", and the reader was left holding an identifier with nothing to
+  do with it. `--source` now resolves an id (or a unique tail of one, so `widgets` works for
+  `example.com/team/widgets`) to that repository's recorded checkout and re-indexes it under the id it
+  was already filed as. When the id is unknown the error names near-miss ids from the store; when it
+  is known but its checkout is gone, the error names the path it was indexed from.
+
 ### Fixed
 - **`kb query --retriever semantic|hybrid` applies the same relevance floor the MCP tools do.**
   `semantic_search` and `hybrid_search` have refused a query with no anchor in the index since 6.0.0,

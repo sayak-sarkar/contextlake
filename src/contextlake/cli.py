@@ -973,7 +973,9 @@ Examples:
                 """)
     p.add_argument("path", nargs="?", default=_S,
                    help="a repo directory or graph-shard JSON to index (default: cwd)")
-    p.add_argument("--source", default=_S, help="a repo directory or a graph shard JSON")
+    p.add_argument("--source", default=_S,
+                   help="a repo directory, a graph shard JSON, or an indexed repo id "
+                        "(the id lint and the dashboard print)")
     p.add_argument("--workspace", default=_S,
                    help="index every git repo under this directory")
     p.add_argument("--repos", default=_S, metavar="PATTERN",

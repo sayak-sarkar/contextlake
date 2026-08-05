@@ -16,6 +16,21 @@ N]` to keep re-indexing in a loop (the same `--watch` / `--interval` flags also 
 `embed`). Every indexed snapshot is kept, so `query "<text>" --repo R --as-of <commit>` does
 **time-travel**, it searches repo `R` as it was at a previously-indexed commit.
 
+## Re-indexing one repository by its id
+
+A repository's **id** is derived from its `origin` remote (so it survives being moved or re-cloned) and has
+no relation to where the clone sits on disk. That is the id `kb lint` and the dashboard report, so
+`--source` accepts it directly:
+
+```bash
+contextlake kb index --source example.com/team/widgets   # the id, exactly as reported
+contextlake kb index --source widgets                    # the tail, when only one repo ends that way
+```
+
+The repository is re-indexed under the id it was already filed as, never a second time under its directory
+name. If the id is unknown, the error names near-miss ids from the store; if it is known but its recorded
+checkout is gone, the error names the path it was indexed from.
+
 ## Parallelism and noise-pruning
 
 Repositories are parsed across **worker processes** (CPU-bound work) while the SQLite store is written

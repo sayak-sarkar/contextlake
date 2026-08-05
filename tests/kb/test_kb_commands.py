@@ -211,11 +211,16 @@ def test_index_without_source_warns_when_cwd_bundles_nested_repos(tmp_path, monk
 
 
 def test_index_missing_source_errors_cleanly(tmp_path, capsys):
+    """A --source that is on no disk and in no store: one clear line, no traceback.
+    It reads as an id lookup because that is the only thing left to try once the
+    path is not there, and the message says so rather than reporting a missing
+    file for what may well have been a valid repository id."""
     cfg = _kb_config(tmp_path)
     code = _run(["kb", "index", "--config", str(cfg), "--source", str(tmp_path / "nope.json")])
     out = capsys.readouterr().out
     assert code == 1
-    assert "Traceback" not in out and "Cannot read" in out
+    assert "Traceback" not in out
+    assert "neither a path on disk nor an indexed repository id" in out
 
 
 def test_index_invalid_shard_errors_cleanly(tmp_path, capsys):
@@ -883,3 +888,94 @@ def test_query_semantic_json_refusal_is_an_empty_list(tmp_path, capsys, monkeypa
     out = capsys.readouterr()
     assert json.loads(out.out) == []
     assert "SamlAssertionValidator" in out.err
+
+
+def _repo_with_remote(path: Path, remote: str) -> None:
+    import subprocess
+
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "a.py").write_text("def f():\n    pass\n")
+    for args in (["init", "-q"], ["config", "user.email", "a@b.c"],
+                 ["config", "user.name", "a"], ["add", "-A"],
+                 ["commit", "-q", "-m", "init"], ["remote", "add", "origin", remote]):
+        subprocess.run(["git", "-C", str(path), *args], check=True, capture_output=True)
+
+
+def test_index_source_accepts_an_indexed_repo_id(tmp_path, capsys):
+    """`kb lint` reports a repository by its logical id, whose on-disk path is
+    something else entirely, and every obvious way to act on that id failed with
+    "No such file or directory". Feeding the id straight back to --source now
+    re-indexes that repository, under the id it was already filed as.
+    """
+    ws = tmp_path / "ws"
+    _repo_with_remote(ws / "checkout-dir", "https://example.com/team/widgets.git")
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    ids = {r.id for r in store.list_repos()}
+    store.close()
+    assert ids == {"example.com/team/widgets"}   # id and directory name differ
+
+    capsys.readouterr()
+    assert _run(["kb", "index", "--config", str(cfg), "--force",
+                 "--source", "example.com/team/widgets"]) == 0
+    out = capsys.readouterr().out
+    assert "is an indexed repository id" in out
+    assert "checkout-dir" in out                 # it says where that id actually lives
+
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    try:
+        # Re-indexed in place, not filed a second time under the directory name.
+        assert {r.id for r in store.list_repos()} == {"example.com/team/widgets"}
+    finally:
+        store.close()
+
+
+def test_index_source_accepts_a_unique_repo_id_tail(tmp_path, capsys):
+    """The bare name a reader would type resolves when only one repo ends that
+    way, so the id does not have to be pasted in full."""
+    ws = tmp_path / "ws"
+    _repo_with_remote(ws / "d1", "https://example.com/team/widgets.git")
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+
+    capsys.readouterr()
+    assert _run(["kb", "index", "--config", str(cfg), "--force",
+                 "--source", "widgets"]) == 0
+    assert "example.com/team/widgets" in capsys.readouterr().out
+
+
+def test_index_source_unknown_id_says_what_the_store_knows(tmp_path, capsys):
+    """The failure mode being fixed is a dead end, so the error has to point
+    somewhere: either at the near-miss, or at the ids that do exist."""
+    ws = tmp_path / "ws"
+    _repo_with_remote(ws / "d1", "https://example.com/team/widgets.git")
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+
+    capsys.readouterr()
+    assert _run(["kb", "index", "--config", str(cfg),
+                 "--source", "./repositories/example.com/team/widget"]) == 1
+    out = capsys.readouterr().out
+    assert "neither a path on disk nor an indexed repository id" in out
+    assert "Indexed ids include: example.com/team/widgets" in out
+
+
+def test_index_source_known_id_with_a_vanished_checkout_says_where_it_was(tmp_path,
+                                                                         capsys):
+    """Resolving the id is only half an answer: if its recorded checkout is gone,
+    say the path, because that is the fact the reader is missing."""
+    import shutil
+
+    ws = tmp_path / "ws"
+    _repo_with_remote(ws / "d1", "https://example.com/team/widgets.git")
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+    shutil.rmtree(ws / "d1")
+
+    capsys.readouterr()
+    assert _run(["kb", "index", "--config", str(cfg),
+                 "--source", "example.com/team/widgets"]) == 1
+    out = capsys.readouterr().out
+    assert "no longer a directory" in out and "d1" in out
