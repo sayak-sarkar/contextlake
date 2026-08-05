@@ -120,6 +120,12 @@ class NodeOut(BaseModel):
     lang: str | None = None
     signature: str | None = None     # parameter signature (definitions)
     doc: str | None = None           # captured docstring (definitions)
+    # Retrieval similarity, 0..1 cosine, only on hits that came from a vector
+    # search. The retrieval tools computed this and threw it away, so a caller
+    # got k nodes ranked "by similarity" with no similarity to read: the ranking
+    # was real and the claim was unfalsifiable at the call site. None everywhere
+    # a score is not a meaningful property of the hit (graph walks, exact lookups).
+    score: float | None = None
 
 
 class EdgeOut(BaseModel):
@@ -333,7 +339,7 @@ def _budget(items: list, limit: int) -> tuple[list, int, bool]:
     return items[:limit], total, total > limit
 
 
-def _node_out(n: Node) -> NodeOut:
+def _node_out(n: Node, *, score: float | None = None) -> NodeOut:
     s = sanitize_label
     attrs = getattr(n, "attrs", None) or {}
     return NodeOut(
@@ -342,6 +348,7 @@ def _node_out(n: Node) -> NodeOut:
         line_start=n.line_start, line_end=n.line_end, lang=s(n.lang) or None,
         signature=s(attrs["signature"]) if attrs.get("signature") else None,
         doc=s(attrs["doc"]) if attrs.get("doc") else None,
+        score=round(score, 4) if score is not None else None,
     )
 
 
@@ -392,6 +399,30 @@ def build_server(
     from .. import __version__
 
     mcp = MCPServer(name, instructions=_INSTRUCTIONS, version=__version__)
+
+    def _term_anchors(query: str) -> tuple[list[str], bool]:
+        """``(terms the index has never seen, whether any term IS indexed)``.
+
+        The relevance floor, shared rather than reimplemented, because it started
+        life as a branch inside ``ask`` and that left it not applying to the two
+        tools with the same problem: a nearest-neighbour search has no notion of
+        "nothing matched", so ``semantic_search`` and ``hybrid_search`` returned k
+        confident, cited, structurally-valid hits for a query with no possible
+        answer, exactly as ``ask`` had.
+
+        Lexical rather than a cosine threshold, and the measurement behind that
+        choice is recorded at the SEARCH branch in ``ask``.
+        """
+        from .router import content_terms
+
+        terms = content_terms(query)
+        unmatched = [t for t in terms if not store.search(t, limit=1)]
+        return unmatched, len(terms) > len(unmatched)
+
+    def _below_floor(query: str) -> bool:
+        """True when not one content term in ``query`` is indexed anywhere."""
+        unmatched, anchored = _term_anchors(query)
+        return bool(unmatched) and not anchored
 
     @mcp.tool()
     def graph_stats() -> StatsOut:
@@ -816,33 +847,44 @@ def build_server(
         @mcp.tool()
         def semantic_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
             """Semantic (embedding) search over indexed nodes — for natural-language
-            queries where exact names are unknown. Results are ranked by similarity.
+            queries where exact names are unknown. Results are ranked by similarity,
+            and each hit carries its `score` (0..1 cosine) so you can judge the
+            ranking rather than take it on trust. Empty when nothing in the query is
+            indexed at all: a nearest-neighbour index has no concept of "no match"
+            and would otherwise return its k nearest regardless.
             Hits of kind 'wiki'/'document' are ADVISORY prose (LLM-generated or
             ingested), not extracted code facts — verify against the cited file."""
             if not query.strip():
                 return []  # matches search_code's empty-query handling, not a crash
+            if _below_floor(query):
+                return []
             vec = embedder.embed([query])[0]
             out: list[NodeOut] = []
-            for node_id, _score in vector_store.search(vec, k=k, repo=repo):
+            for node_id, score in vector_store.search(vec, k=k, repo=repo):
                 n = store.get_node(node_id)
                 if n:
-                    out.append(_node_out(n))
+                    out.append(_node_out(n, score=score))
             return out
 
         @mcp.tool()
         def hybrid_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
             """Hybrid retrieval: seed with embeddings, then rank by Personalized
             PageRank over the graph. Surfaces structurally-related nodes (callers,
-            dependents) that a pure semantic match would miss."""
+            dependents) that a pure semantic match would miss.
+
+            Each hit carries its `score` (the PageRank mass it was ranked by, not a
+            cosine). Empty when nothing in the query is indexed at all."""
             from .embeddings.hybrid import hybrid_search as _hybrid
 
             if not query.strip():
                 return []  # matches search_code's empty-query handling, not a crash
+            if _below_floor(query):
+                return []
             out: list[NodeOut] = []
-            for node_id, _score in _hybrid(store, vector_store, embedder, query, k=k, repo=repo):
+            for node_id, score in _hybrid(store, vector_store, embedder, query, k=k, repo=repo):
                 n = store.get_node(node_id)
                 if n:
-                    out.append(_node_out(n))
+                    out.append(_node_out(n, score=score))
             return out
 
     @mcp.tool()
@@ -865,7 +907,6 @@ def build_server(
             OWNERS,
             SUBCLASSES,
             classify,
-            content_terms,
         )
 
         route, target = classify(question)
@@ -1039,9 +1080,10 @@ def build_server(
         # multi-word questions were refused. Widening the probe properly means
         # indexing docstrings in FTS -- a schema change whose behaviour would then
         # differ between reindexed and not-yet-reindexed stores, which is worse.
-        terms = content_terms(question)
-        unmatched = [t for t in terms if not store.search(t, limit=1)]
-        anchored = len(terms) > len(unmatched)   # at least one term IS in the index
+        # The predicate is shared with semantic_search and hybrid_search rather than
+        # living here: written as a branch inside ask, it left the two tools with
+        # the identical defect untouched.
+        unmatched, anchored = _term_anchors(question)
 
         if question.strip() and embedder is not None and vector_store is not None:
             vec = embedder.embed([question])[0]
@@ -1049,7 +1091,7 @@ def build_server(
             for nid, _s in vector_store.search(vec, k=k, repo=repo):
                 n = store.get_node(nid)
                 if n:
-                    out.append(_node_out(n))
+                    out.append(_node_out(n, score=_s))
             found = ("Semantic search over the graph (names + signatures + docstrings); "
                      "'wiki'/'document' hits are ADVISORY.")
         else:

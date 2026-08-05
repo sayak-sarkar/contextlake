@@ -49,9 +49,65 @@ def test_semantic_search_ranks_and_maps_to_nodes(tmp_path):
     store, vs = _store_with_vectors(tmp_path)
     try:
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
-        res = asyncio.run(_call(server, "semantic_search", {"query": "the order workflow", "k": 1}))
+        # "CatalogService" anchors the query in the index; "order" is what steers
+        # the fake embedder onto node a's axis. The query used to be "the order
+        # workflow", which names nothing this store holds -- so it now trips the
+        # relevance floor, which is the point of the floor rather than a conflict
+        # with it.
+        res = asyncio.run(_call(server, "semantic_search",
+                                {"query": "the order workflow in CatalogService", "k": 1}))
         items = _unwrap(res.structured_content)
         assert [n["id"] for n in items] == ["a"]  # nearest to the query vector
+        assert items[0]["score"] is not None      # the ranking is readable, not just claimed
+    finally:
+        vs.close()
+        store.close()
+
+
+def test_semantic_search_returns_nothing_when_no_query_term_is_indexed(tmp_path):
+    """A vector index has no concept of "no match": it returns its k nearest
+    however far away they are, so a query with no possible answer came back with
+    k confident, cited, structurally-valid hits. This is the same defect the
+    `ask` route had, in a tool `ask` does not go through -- which is why the
+    floor is a shared predicate and not a branch inside `ask`.
+
+    The queries are deliberately plausible rather than gibberish. A floor that
+    only catches keyboard mashing is worthless: the queries that produce
+    confident wrong answers in practice are well-formed, ordinary-looking names
+    for things the store simply does not contain.
+    """
+    store, vs = _store_with_vectors(tmp_path)
+    plausible_but_absent = [
+        "PaymentGatewayAdapter",              # reads exactly like an indexed class
+        "where is the retry scheduler configured",
+        "SamlAssertionValidator",
+    ]
+    try:
+        server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
+        for tool in ("semantic_search", "hybrid_search"):
+            for query in plausible_but_absent:
+                res = asyncio.run(_call(server, tool, {"query": query, "k": 3}))
+                assert _unwrap(res.structured_content) == [], f"{tool}: {query}"
+    finally:
+        vs.close()
+        store.close()
+
+
+def test_semantic_search_reports_the_similarity_it_ranks_by(tmp_path):
+    """The handler computed a score and dropped it, so a caller got k nodes
+    ranked "by similarity" with no similarity to read: the ranking was real and
+    the claim unfalsifiable at the call site."""
+    store, vs = _store_with_vectors(tmp_path)
+    try:
+        server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
+        res = asyncio.run(_call(server, "semantic_search",
+                                {"query": "CatalogService", "k": 2}))
+        items = _unwrap(res.structured_content)
+        assert items, "the query names an indexed symbol, so it must return hits"
+        assert all(n["score"] is not None for n in items)
+        # ranked best-first, and the score has to agree with that order
+        assert [n["score"] for n in items] == sorted(
+            (n["score"] for n in items), reverse=True)
     finally:
         vs.close()
         store.close()
