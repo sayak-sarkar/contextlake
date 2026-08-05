@@ -210,6 +210,12 @@ class RepoEdgesOut(BaseModel):
     edges: list[RepoEdgeOut]
     total: int
     truncated: bool
+    # Whether the repo asked about is indexed at all. Without it a mistyped repo
+    # id and a known repo with no cross-repo edges were the same answer, and the
+    # empty one reads as an architectural fact. See RepoLinksOut/OwnersOut for the
+    # same field on the rest of this family; get_wiki/get_readme/get_repo_brief
+    # already carried it.
+    found: bool = True
 
 
 class BlastHit(BaseModel):
@@ -252,6 +258,7 @@ class OwnerOut(BaseModel):
 
 class OwnersOut(BaseModel):
     scope: str         # repo (optionally repo:sub-path) the ranking is for
+    found: bool = True  # False => no repo with that id is indexed (see RepoEdgesOut)
     owners: list[OwnerOut]
     # Why the list is empty, whenever it is. "No git history was read at all"
     # and "the history was read and attributed nobody" are different answers,
@@ -324,6 +331,7 @@ class LinkOut(BaseModel):
 
 class RepoLinksOut(BaseModel):
     repo: str
+    found: bool = True  # False => no repo with that id is indexed (see RepoEdgesOut)
     total: int
     links: dict[str, list[LinkOut]]  # relation (tracked_by/documented_by/…) -> links
 
@@ -529,11 +537,18 @@ def build_server(
         Ranked from the repo's git commit history by a recency-weighted blend of
         commit volume and lines changed, so recent active contributors outrank a
         long-departed prolific author. Names are as committed in the local mirror.
+        ``found=False`` when no repo with that id is indexed at all.
         """
         from .ownership import compute_owners
         r = store.get_repo(repo)
         scope = sanitize_label(repo + (f":{path}" if path else ""))
-        if not r or not r.path:
+        if not r:
+            # An unknown repo id, which the "no local clone" wording below would
+            # have misreported as an indexed repo that simply has no checkout.
+            return OwnersOut(scope=scope, found=False, owners=[], ranking_gap=(
+                "no repository with this id is indexed, so there was nothing to "
+                "read a history from"))
+        if not r.path:
             # Nothing ran: no local clone is on record, so no git command was
             # ever issued. Returning a bare empty list here let the caller
             # narrate it as a completed ranking (see `ask`'s owners route),
@@ -693,12 +708,15 @@ def build_server(
         ``dependent --depends_on--> publisher``, weight = shared package count.
         direction: out (what `repo` depends on) | in (who depends on `repo`) | both.
         INFERRED, manifest-derived — a likely undercount; verify against the cited repo.
+        ``found=False`` when no repo with that id is indexed, so a mistyped id is
+        not read as "this repo depends on nothing".
         """
         from .arch.resolve import repo_dependency_edges
         rows = _repo_side(repo_dependency_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
-        return RepoEdgesOut(total=total, truncated=truncated, edges=[
+        return RepoEdgesOut(total=total, truncated=truncated,
+                            found=store.get_repo(repo) is not None, edges=[
             RepoEdgeOut(src=sanitize_label(e["src"]), dst=sanitize_label(e["dst"]),
                         relation=e["relation"], confidence=e["confidence"],
                         weight=e["weight"]) for e in kept])
@@ -713,12 +731,14 @@ def build_server(
         shared endpoint count. direction: out (endpoints `repo` calls) | in (callers
         of `repo`'s endpoints) | both. INFERRED, regex+path-matched — an undercount
         that omits async/event coupling; verify against the cited repo.
+        ``found=False`` when no repo with that id is indexed.
         """
         from .arch.resolve import repo_http_flow_edges
         rows = _repo_side(repo_http_flow_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
-        return RepoEdgesOut(total=total, truncated=truncated, edges=[
+        return RepoEdgesOut(total=total, truncated=truncated,
+                            found=store.get_repo(repo) is not None, edges=[
             RepoEdgeOut(src=sanitize_label(e["src"]), dst=sanitize_label(e["dst"]),
                         relation=e["relation"], confidence=e["confidence"],
                         weight=e["weight"], context=e.get("context")) for e in kept])
@@ -733,12 +753,14 @@ def build_server(
         shared topic count. direction: out (topics `repo` publishes that others consume)
         | in (publishers `repo` consumes from) | both. INFERRED, regex-detected literal
         topics — an undercount that omits config-variable topics; verify against the repo.
+        ``found=False`` when no repo with that id is indexed.
         """
         from .arch.resolve import repo_event_flow_edges
         rows = _repo_side(repo_event_flow_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
-        return RepoEdgesOut(total=total, truncated=truncated, edges=[
+        return RepoEdgesOut(total=total, truncated=truncated,
+                            found=store.get_repo(repo) is not None, edges=[
             RepoEdgeOut(src=sanitize_label(e["src"]), dst=sanitize_label(e["dst"]),
                         relation=e["relation"], confidence=e["confidence"],
                         weight=e["weight"], context=e.get("context")) for e in kept])
@@ -938,6 +960,8 @@ def build_server(
         GitLab / Slack — grouped by relation (tracked_by / documented_by /
         designed_in / has_merge_request / has_issue / touched_by / discussed_in /
         referenced_in). Populated by `connect`; served offline after.
+        ``found=False`` when no repo with that id is indexed, so a mistyped id is
+        not read as "this repo has no external links".
         """
         from .ids import make_id
         grouped: dict[str, list[LinkOut]] = {}
@@ -957,7 +981,8 @@ def build_server(
                 status=sanitize_label(attrs["status"]) if attrs.get("status") else None,
                 confidence=conf))
         total = sum(len(v) for v in grouped.values())
-        return RepoLinksOut(repo=sanitize_label(repo), total=total, links=grouped)
+        return RepoLinksOut(repo=sanitize_label(repo), total=total, links=grouped,
+                            found=store.get_repo(repo) is not None)
 
     @bounded_tool
     def graph_health() -> GraphHealthOut:

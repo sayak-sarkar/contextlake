@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   question appears anywhere in the index, and every hit carries the number it was ranked by, so a
   caller can judge the ranking instead of trusting it.
 
+- **Five repository-scoped MCP tools now report `found`.** `who_knows`, `get_repo_links`,
+  `repo_dependencies`, `repo_flow` and `repo_event_flow` echoed the caller's own string back with
+  an empty payload, so a mistyped repository id was indistinguishable from a known repository with
+  no data: five confident "nothing here" answers instead of one "no such repository". `get_wiki`,
+  `get_readme` and `get_repo_brief` already carried the field; the rest of the family now matches.
+  `who_knows` also stops reporting an unindexed repository as one with no local clone, which
+  asserts it is indexed.
+
 ### Fixed
 - **`get_wiki` reported a cluster page as fresh without checking.** `stale` was hardcoded to false
   on that path, so an agent filtering on the field treated a page nothing had verified as verified,

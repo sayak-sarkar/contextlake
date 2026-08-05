@@ -145,6 +145,9 @@ def test_get_neighbors_budgets_and_reports_truncation(tmp_path):
 
 def _seed_cross_repo(s):
     # repoB depends_on a package repoA publishes; repoB also calls an endpoint repoA exposes
+    # (both repos get a repos row, as real indexing writes one -- see cmds/index.py)
+    s.upsert_repo(Repo(id="repoA", path="/a"))
+    s.upsert_repo(Repo(id="repoB", path="/b"))
     s.upsert_nodes("repoA", [
         Node(id="A:man", repo="repoA", kind="file", name="pkg.json"),
         Node(id="pkg:lib", repo="(packages)", kind="package", name="lib"),
@@ -1188,5 +1191,58 @@ def test_cluster_wiki_staleness_is_derived_not_asserted(tmp_path):
         unstamped = asyncio.run(_call(build_server(s), "get_wiki", {
             "repo": "acme/pay"})).structured_content
         assert unstamped["found"] is True and unstamped["stale"] is True
+    finally:
+        s.close()
+
+
+def test_repo_scoped_tools_say_when_the_repo_does_not_exist(tmp_path):
+    """`get_wiki`, `get_readme` and `get_repo_brief` all carry `found`; these five
+    echoed the caller's own string back with an empty payload, so a mistyped repo
+    id was indistinguishable from a known repo with no data -- five confident
+    "nothing here" answers instead of one "no such repo"."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    _seed_cross_repo(s)                    # indexes repoA and repoB
+    s.upsert_repo(Repo(id="team/api", path=""))
+    srv = build_server(s)
+    try:
+        for tool, args in (("who_knows", {"repo": "no/such/repo"}),
+                           ("get_repo_links", {"repo": "no/such/repo"}),
+                           ("repo_dependencies", {"repo": "no/such/repo"}),
+                           ("repo_flow", {"repo": "no/such/repo"}),
+                           ("repo_event_flow", {"repo": "no/such/repo"})):
+            out = _unwrap(asyncio.run(_call(srv, tool, args)).structured_content)
+            assert out["found"] is False, f"{tool} claimed an unknown repo exists"
+
+        # a known repo with genuinely no data is a different answer
+        for tool, args in (("get_repo_links", {"repo": "team/api"}),
+                           ("repo_dependencies", {"repo": "team/api"}),
+                           ("repo_flow", {"repo": "team/api"}),
+                           ("repo_event_flow", {"repo": "team/api"})):
+            out = _unwrap(asyncio.run(_call(srv, tool, args)).structured_content)
+            assert out["found"] is True, f"{tool} lost a repo it has indexed"
+        known = _unwrap(asyncio.run(
+            _call(srv, "repo_dependencies", {"repo": "repoB"})).structured_content)
+        assert known["found"] is True and known["total"] == 1
+    finally:
+        s.close()
+
+
+def test_who_knows_separates_an_unknown_repo_from_one_with_no_clone(tmp_path):
+    """The two empty cases had one wording between them: an unindexed repo was
+    reported as "no local clone is on record for this repo", which asserts the
+    repo is indexed. They are different facts and now read differently."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    try:
+        s.upsert_repo(Repo(id="team/api", path=""))
+        srv = build_server(s)
+        unknown = _unwrap(asyncio.run(
+            _call(srv, "who_knows", {"repo": "no/such/repo"})).structured_content)
+        assert unknown["found"] is False
+        assert "no repository with this id is indexed" in unknown["ranking_gap"]
+
+        no_clone = _unwrap(asyncio.run(
+            _call(srv, "who_knows", {"repo": "team/api"})).structured_content)
+        assert no_clone["found"] is True
+        assert "no local clone" in no_clone["ranking_gap"]
     finally:
         s.close()
