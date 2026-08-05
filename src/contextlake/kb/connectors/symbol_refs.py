@@ -73,7 +73,8 @@ def keys_from_blame(repo_path: str, symbols: list[Node], pattern: str, *,
         try:
             res = subprocess.run(
                 ["git", "blame", "--line-porcelain", "--", file],
-                cwd=repo_path, capture_output=True, text=True, timeout=timeout,
+                cwd=repo_path, capture_output=True, text=True, errors="replace",
+                timeout=timeout,
             )
         except (OSError, subprocess.SubprocessError):
             continue

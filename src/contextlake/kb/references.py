@@ -30,7 +30,7 @@ def extract_issue_keys(repo_path: str, pattern: str, commit_limit: int = 500) ->
         try:
             out = subprocess.run(
                 ["git", "-C", str(repo_path), *args],
-                capture_output=True, text=True, timeout=20,
+                capture_output=True, text=True, errors="replace", timeout=20,
             )
         except (OSError, subprocess.SubprocessError):
             continue

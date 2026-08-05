@@ -52,7 +52,8 @@ def normalize_remote_url(url: str) -> str:
 def run_git(path: str, *args: str) -> str:
     try:
         out = subprocess.run(["git", "-C", path, *args], capture_output=True,
-                             text=True, timeout=_GIT_TIMEOUT, check=False)
+                             text=True, errors="replace", timeout=_GIT_TIMEOUT,
+                             check=False)
     except (OSError, subprocess.SubprocessError):
         return ""
     return out.stdout.strip() if out.returncode == 0 else ""

@@ -5,6 +5,25 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A commit git cannot decode as UTF-8 no longer kills the command.** Every place contextlake read a
+  child process's output decoded it strictly, so one byte git could not map raised
+  `UnicodeDecodeError` out of `subprocess.run` itself, before any of the surrounding error handling
+  could run. `kb connect` over a 20-repository fleet died on
+  `'utf-8' codec can't decode byte 0x96 in position 99486` and stored nothing. Git output is bytes:
+  commit subjects, author names and file paths carry whatever encoding their author's machine used,
+  and 0x96 is the cp1252 en-dash that older Windows tooling writes constantly. All 26 captured
+  subprocess calls now decode with `errors="replace"`, and a guard test fails the build if a new one
+  does not.
+- **One bad repository no longer aborts `kb connect` for the whole fleet.** Only the connector calls
+  were guarded; reading a repo's branches and commit subjects, blaming its files, and writing its
+  partition were not, so a single unreadable repository stopped the run before the other nineteen
+  were reached. Each repository is now contained: it is named, skipped, and the rest are enriched.
+  A run with any skipped repository exits non-zero, matching what `kb index` already does for a repo
+  that failed to parse.
+
 ## [6.0.0] - 2026-08-05
 
 This is a major release. Three things need action or awareness before you upgrade, and the first is

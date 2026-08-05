@@ -256,6 +256,22 @@ Failures the *server* rejected rather than failed on, an unknown tool, a bad tok
 themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
 source if the server is merely slow.
 
+## When one repository is unreadable
+
+A repository that fails outright costs that repository, not the run. `connect` names it, skips it, and
+carries on with the rest:
+
+```
+  api-gateway: 'utf-8' codec can't decode byte 0x96 in position 99486: invalid start byte
+⚠ Connect complete: 143 external link(s) stored
+⚠ 1 of 20 repo(s) failed and were skipped; the rest were enriched. Re-run to retry
+  them, or narrow with `contextlake kb connect <repo-id>`.
+```
+
+The exit code is non-zero when any repository was skipped, the same verdict `kb index` gives a
+workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
+for, so the run should not read as clean.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)

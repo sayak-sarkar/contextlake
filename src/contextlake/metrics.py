@@ -86,7 +86,8 @@ def _git_facts(path: str, run, timeout: int = 15):
 
 def _run(cmd, timeout=15):
     try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return subprocess.run(cmd, capture_output=True, text=True,
+                              errors="replace", timeout=timeout)
     except (OSError, subprocess.SubprocessError) as e:  # treat as a repo with no facts
         return subprocess.CompletedProcess(cmd, 1, "", str(e))
 

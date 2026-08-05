@@ -102,7 +102,8 @@ class CliLlm(LlmClient):
             env.pop(var, None)
         try:
             res = subprocess.run(argv, input=stdin_input, capture_output=True,
-                                 text=True, timeout=self.timeout, env=env)
+                                 text=True, errors="replace", timeout=self.timeout,
+                                 env=env)
         except FileNotFoundError as e:
             # Misconfiguration, not a transient failure — fail fast, actionably.
             raise RuntimeError(

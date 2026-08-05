@@ -44,7 +44,7 @@ class GitLabConnector:
             # source whose every call was being refused therefore reported success.
             res = breaker_for("glab-api").call(
                 subprocess.run, ["glab", "api", endpoint], capture_output=True,
-                text=True, timeout=self.timeout, check=True)
+                text=True, errors="replace", timeout=self.timeout, check=True)
         except Exception as e:  # noqa: BLE001 - OSError/SubprocessError/CircuitOpenError
             note_unavailable("gitlab (glab api)", e)
             return []

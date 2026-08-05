@@ -19,7 +19,7 @@ def has_uncommitted_changes(full_path):
     try:
         result = subprocess.run(
             ['git', 'status', '--porcelain'],
-            capture_output=True, text=True, cwd=full_path, timeout=30,
+            capture_output=True, text=True, errors='replace', cwd=full_path, timeout=30,
         )
     except (OSError, SubprocessError):
         return True   # can't tell -> treat as unsafe to modify
@@ -37,7 +37,7 @@ def get_current_branch(full_path):
     try:
         result = subprocess.run(
             ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-            capture_output=True, text=True, cwd=full_path, timeout=30,
+            capture_output=True, text=True, errors='replace', cwd=full_path, timeout=30,
         )
     except (OSError, SubprocessError):
         return None
@@ -85,7 +85,7 @@ def _stash_top(full_path):
     try:
         result = subprocess.run(
             ['git', 'rev-parse', '--quiet', '--verify', 'refs/stash'],
-            capture_output=True, text=True, cwd=full_path, timeout=30,
+            capture_output=True, text=True, errors='replace', cwd=full_path, timeout=30,
         )
     except (OSError, SubprocessError):
         return None
@@ -113,7 +113,7 @@ def stash_changes(full_path, config):
     try:
         result = subprocess.run(
             ['git', 'stash', 'push', '-m', 'contextlake_auto_stash'],
-            capture_output=True, text=True, cwd=full_path, timeout=30,
+            capture_output=True, text=True, errors='replace', cwd=full_path, timeout=30,
         )
     except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
         return False, str(e)[:100], None
@@ -143,7 +143,7 @@ def restore_stash(full_path, stash_sha):
     try:
         result = subprocess.run(
             ['git', 'stash', 'pop'],
-            capture_output=True, text=True, cwd=full_path, timeout=30,
+            capture_output=True, text=True, errors='replace', cwd=full_path, timeout=30,
         )
     except Exception as e:  # noqa: BLE001 - reported per-repo, never aborts the run
         return False, str(e)[:100]

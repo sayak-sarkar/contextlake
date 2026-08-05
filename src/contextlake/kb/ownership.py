@@ -69,7 +69,8 @@ def compute_owners(repo_path, subpath: str | None = None, *,
     if subpath:
         cmd += ["--", subpath]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              errors="replace", timeout=timeout)
     except (OSError, subprocess.SubprocessError):
         return []
     if proc.returncode != 0:

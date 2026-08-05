@@ -89,3 +89,17 @@ def test_keys_from_blame_ignores_non_embeddable_and_lineless_symbols(tmp_path):
         _node("wrong_kind", kind="module", file="mod.py", line_start=1),
     ]
     assert keys_from_blame(str(repo), symbols, _PATTERN) == {}
+
+
+def test_keys_from_blame_survives_non_utf8_commit_subject(tmp_path, commit_raw_bytes):
+    """`git blame --line-porcelain` replays the commit subject in its `summary`
+    line, so a cp1252 byte in the message reaches the decoder here too. Strict
+    decoding turned that into a UnicodeDecodeError, which is a ValueError and so
+    slipped past this module's OSError/SubprocessError guard entirely."""
+    repo = _init_repo(tmp_path)
+    (repo / "mod.py").write_text("def a():\n    pass\n")
+    _git(repo, "add", "mod.py")
+    commit_raw_bytes(repo, message=b"PROJ-8: widen the retry window \x96 was too tight\n")
+
+    assert keys_from_blame(str(repo), [_node("sa", file="mod.py", line_start=1)],
+                           _PATTERN) == {"sa": "PROJ-8"}

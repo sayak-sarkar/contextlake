@@ -196,12 +196,17 @@ def cmd_connect(args) -> int:
 
             total_edges = 0
             attempts = src_failed = 0
-            for repo_id, path in targets:
+            repo_failed = 0
+
+            def _one_repo(repo_id: str, path: str) -> int:
+                """Enrich one repo; returns the number of edges stored for it."""
+                nonlocal attempts, src_failed
+
                 keys = extract_issue_keys(path, branch_key) if branch_key else []
                 links = scrape_links(path, link_patterns) if link_patterns else []
                 symbol_keys = _symbol_keys_for(store_dir, repo_id, path, branch_key)
                 if not keys and not links and not symbol_keys and not has_gitlab:
-                    continue  # GitLab sources fetch by repo, so don't skip when one exists
+                    return 0  # GitLab sources fetch by repo, so don't skip when one exists
                 part = connect_partition(repo_id)
                 # Connector nodes are embedded by the enrichers themselves (see
                 # orchestrate._embed_connector_nodes), so the stale-vector sweep has
@@ -227,9 +232,28 @@ def cmd_connect(args) -> int:
                 store.clear_repo(part)
                 store.upsert_nodes(part, list(merged_nodes.values()))
                 store.upsert_edges(part, list(merged_edges.values()))
-                total_edges += len(merged_edges)
                 if merged_edges:
                     log(f"  {repo_id}: {len(merged_edges)} link(s)", inline=True)
+                return len(merged_edges)
+
+            for repo_id, path in targets:
+                # One repository must not take the fleet down with it. The
+                # per-source guard inside `_one_repo` only covers the enricher
+                # calls; everything around them -- reading the repo's branches and
+                # commit subjects, blaming its files, writing its partition -- ran
+                # unguarded, so a single unreadable repository aborted the whole
+                # run before the other nineteen were reached. That is exactly how
+                # one commit carrying a non-UTF-8 byte killed a 20-repo fleet.
+                #
+                # A repo that throws mid-body has already had its vectors swept
+                # (see the clear_repo note above) and keeps its previous graph
+                # edges until the next run -- incomplete either way, and the exit
+                # code below says so rather than leaving it silent.
+                try:
+                    total_edges += _one_repo(repo_id, path)
+                except Exception as e:  # noqa: BLE001 - reported per repo, never aborts the run
+                    repo_failed += 1
+                    log(f"  {style.fail(repo_id)}: {e}", inline=True)
 
             # `clear_repo` swept each repo's connector EDGES, which live in its
             # @connect partition; the nodes they pointed at live in `(external)`
@@ -242,8 +266,13 @@ def cmd_connect(args) -> int:
             store.prune_orphan_nodes(EXTERNAL_REPO)
             degraded = degraded_calls() - degraded_before
             log(style.summary_line(
-                "ok" if not degraded else "warn",
+                "ok" if not (degraded or repo_failed) else "warn",
                 f"Connect complete: {total_edges} external link(s) stored"))
+            if repo_failed:
+                log(style.warn(
+                    f"{repo_failed} of {len(targets)} repo(s) failed and were skipped; "
+                    "the rest were enriched. Re-run to retry them, or narrow with "
+                    "`contextlake kb connect <repo-id>`."))
             if degraded:
                 log(style.warn(
                     f"{degraded} source call(s) returned nothing because the source was "
@@ -259,7 +288,11 @@ def cmd_connect(args) -> int:
             # over a repo with no open work.
             if degraded and not total_edges:
                 return 1
-            return 0
+            # A skipped repository is missing knowledge, so the run is not clean --
+            # same verdict `kb index` gives a workspace where one repo failed to
+            # parse, and for the same reason: the graph an agent will cite from is
+            # not the one this command was asked to build.
+            return 1 if repo_failed else 0
 
         try:
             if getattr(args, "watch", False):

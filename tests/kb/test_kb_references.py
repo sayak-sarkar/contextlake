@@ -56,3 +56,19 @@ def test_scrape_links_finds_configured_urls(tmp_path):
 def test_scrape_links_no_patterns(tmp_path):
     (tmp_path / "README.md").write_text("https://x.atlassian.net/y")
     assert scrape_links(str(tmp_path), []) == []
+
+
+def test_extract_issue_keys_survives_non_utf8_commit_subject(tmp_path, commit_raw_bytes):
+    """A commit subject holding a raw cp1252 byte must not abort the scan.
+
+    Real reproduction: `kb connect` over a 20-repository fleet died with
+    "'utf-8' codec can't decode byte 0x96". 0x96 is the cp1252 en-dash, and
+    `kb connect` calls straight into this function for every repo, so one such
+    commit anywhere in one repository took the other nineteen down with it.
+    """
+    _git(tmp_path, "init", "-q")
+    (tmp_path / "f.txt").write_text("x")
+    _git(tmp_path, "add", "-A")
+    commit_raw_bytes(tmp_path, message=b"ABC-77 widen the retry window \x96 was too tight\n")
+
+    assert extract_issue_keys(str(tmp_path), r"[A-Z]+-\d+") == ["ABC-77"]

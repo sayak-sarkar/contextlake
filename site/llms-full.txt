@@ -2089,6 +2089,22 @@ Failures the *server* rejected rather than failed on, an unknown tool, a bad tok
 themselves and never trip the skip: no amount of waiting fixes a wrong request. Raise `timeout` on the
 source if the server is merely slow.
 
+## When one repository is unreadable
+
+A repository that fails outright costs that repository, not the run. `connect` names it, skips it, and
+carries on with the rest:
+
+```
+  api-gateway: 'utf-8' codec can't decode byte 0x96 in position 99486: invalid start byte
+⚠ Connect complete: 143 external link(s) stored
+⚠ 1 of 20 repo(s) failed and were skipped; the rest were enriched. Re-run to retry
+  them, or narrow with `contextlake kb connect <repo-id>`.
+```
+
+The exit code is non-zero when any repository was skipped, the same verdict `kb index` gives a
+workspace where one repo failed to parse: the graph an agent will cite from is not the one you asked
+for, so the run should not read as clean.
+
 ## See also
 
 - [Index the code graph](index-code-graph.md)
@@ -5096,6 +5112,25 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Fixed
+- **A commit git cannot decode as UTF-8 no longer kills the command.** Every place contextlake read a
+  child process's output decoded it strictly, so one byte git could not map raised
+  `UnicodeDecodeError` out of `subprocess.run` itself, before any of the surrounding error handling
+  could run. `kb connect` over a 20-repository fleet died on
+  `'utf-8' codec can't decode byte 0x96 in position 99486` and stored nothing. Git output is bytes:
+  commit subjects, author names and file paths carry whatever encoding their author's machine used,
+  and 0x96 is the cp1252 en-dash that older Windows tooling writes constantly. All 26 captured
+  subprocess calls now decode with `errors="replace"`, and a guard test fails the build if a new one
+  does not.
+- **One bad repository no longer aborts `kb connect` for the whole fleet.** Only the connector calls
+  were guarded; reading a repo's branches and commit subjects, blaming its files, and writing its
+  partition were not, so a single unreadable repository stopped the run before the other nineteen
+  were reached. Each repository is now contained: it is named, skipped, and the rest are enriched.
+  A run with any skipped repository exits non-zero, matching what `kb index` already does for a repo
+  that failed to parse.
 
 ## [6.0.0] - 2026-08-05
 

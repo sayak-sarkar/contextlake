@@ -72,3 +72,18 @@ def test_cmd_owners_usage_error_without_target():
     with pytest.raises(SystemExit) as e:
         main(["kb", "owners"])
     assert e.value.code == 2
+
+
+def test_non_utf8_author_name_does_not_abort(repo, commit_raw_bytes):
+    """`git log --format=%an` replays the author ident's bytes as stored, so a
+    contributor whose tooling wrote cp1252 puts an undecodable byte in the middle
+    of the log. Strict decoding raised out of `subprocess.run` itself, before any
+    of this module's error handling could run."""
+    (repo / "a.py").write_text("x\n")
+    _git(repo, "add", "a.py")
+    commit_raw_bytes(repo, message=b"add a\n",
+                     author=b"Ren\x96e Doe <renee@example.com>")
+
+    owners = compute_owners(repo)
+    assert [o.email for o in owners] == ["renee@example.com"]
+    assert owners[0].name.startswith("Ren")

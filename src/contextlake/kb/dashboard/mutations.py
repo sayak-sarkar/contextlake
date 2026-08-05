@@ -77,7 +77,7 @@ def sync_repo(store, store_dir, repo_id: str) -> dict:
     if not path.is_dir():
         return {"ok": False, "error": f"repo path missing on disk: {path}"}
     pull = subprocess.run(["git", "-C", str(path), "pull", "--ff-only"],
-                         capture_output=True, text=True, timeout=120)
+                         capture_output=True, text=True, errors="replace", timeout=120)
     if pull.returncode != 0:
         msg = (pull.stderr or pull.stdout or "git pull failed").strip()[:300]
         return {"ok": False, "error": msg}
@@ -107,7 +107,7 @@ def add_repo(store, store_dir, workspace, url: str) -> dict:
         return {"ok": False, "error": f"destination already exists: {dest}"}
     workspace.mkdir(parents=True, exist_ok=True)
     clone = subprocess.run(["git", "clone", "--", url, str(dest)],
-                          capture_output=True, text=True, timeout=300)
+                          capture_output=True, text=True, errors="replace", timeout=300)
     if clone.returncode != 0:
         return {"ok": False, "error": (clone.stderr or "git clone failed").strip()[:300]}
     from ..cmds._common import _git_head

@@ -145,10 +145,12 @@ class _FakeCompleted:
 def test_cli_generate_feeds_stdin_and_returns_stdout(monkeypatch):
     seen = {}
 
-    def fake_run(argv, input=None, capture_output=None, text=None, timeout=None, env=None):
+    def fake_run(argv, input=None, capture_output=None, text=None, errors=None,
+                 timeout=None, env=None):
         seen["argv"] = argv
         seen["input"] = input
         seen["timeout"] = timeout
+        seen["errors"] = errors
         return _FakeCompleted(returncode=0, stdout="the answer\n")
 
     monkeypatch.setattr(cli_mod.subprocess, "run", fake_run)

@@ -328,7 +328,8 @@ def _run(argv: list[str]) -> tuple[int, str]:
     """Run a repair command, capturing output so a failure can be explained
     rather than dumped. Never ``shell=True``, never ``check=True``."""
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True)  # noqa: S603
+        proc = subprocess.run(argv, capture_output=True, text=True,
+                              errors="replace")  # noqa: S603
     except FileNotFoundError:
         return 127, f"{argv[0]}: not found"
     except OSError as e:  # noqa: BLE001 - reported, never a traceback

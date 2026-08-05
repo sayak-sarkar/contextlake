@@ -356,7 +356,7 @@ def _fetch_projects_page_glab(group_enc, per_page, page):
     # exception the retry_with_backoff wrapper can rescue, rather than hanging fetch.
     result = subprocess.run(
         ["glab", "api", _projects_endpoint(group_enc, per_page, page)],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True, text=True, errors="replace", timeout=60,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "glab api failed")
@@ -900,8 +900,8 @@ def _clone_once(clone_cmd, timeout, env=None, dest=None):
     """
     if dest and os.path.exists(dest):
         shutil.rmtree(dest, ignore_errors=True)
-    result = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=timeout,
-                            env=env)
+    result = subprocess.run(clone_cmd, capture_output=True, text=True, errors="replace",
+                            timeout=timeout, env=env)
     if result.returncode != 0:
         raise RuntimeError((result.stderr or "clone failed").strip()[:200])
     return result
@@ -963,7 +963,8 @@ def _rev_parse(full_path, ref="HEAD", timeout=30):
     ``update_repository`` misread the update state (e.g. report 'nochange' when
     the fetch actually advanced HEAD)."""
     res = subprocess.run(
-        ["git", "rev-parse", ref], capture_output=True, text=True, cwd=full_path, timeout=timeout
+        ["git", "rev-parse", ref], capture_output=True, text=True, errors="replace",
+        cwd=full_path, timeout=timeout,
     )
     if res.returncode != 0:
         raise RuntimeError((res.stderr or "git rev-parse failed").strip())
@@ -998,8 +999,8 @@ def _run_git(args, cwd, timeout, env=None):
     inherits this process's environment, which is what a public repo or an
     ambient credential helper needs.
     """
-    res = subprocess.run(args, capture_output=True, text=True, cwd=cwd, timeout=timeout,
-                         env=env)
+    res = subprocess.run(args, capture_output=True, text=True, errors="replace", cwd=cwd,
+                         timeout=timeout, env=env)
     if res.returncode != 0:
         raise RuntimeError((res.stderr or res.stdout or "git command failed").strip())
     return res
@@ -1152,7 +1153,8 @@ def _update_synced(local_path, full_path, config):
         # multi-line "divergent branches" hint into the output.
         merge = subprocess.run(
             ["git", "merge", "--ff-only", "--quiet", "FETCH_HEAD"],
-            capture_output=True, text=True, cwd=full_path, timeout=pull_timeout,
+            capture_output=True, text=True, errors="replace", cwd=full_path,
+            timeout=pull_timeout,
         )
         if merge.returncode != 0:
             detail = (merge.stderr or merge.stdout or "").strip()
@@ -1222,7 +1224,8 @@ def _collect_branch_info(full_path, branch_timeout):
         ["git", "for-each-ref", "--sort=-committerdate",
          "--format=%(refname:short)|%(committerdate:iso8601)|%(objectname)",
          "refs/remotes/origin/"],
-        capture_output=True, text=True, cwd=full_path, timeout=branch_timeout,
+        capture_output=True, text=True, errors="replace", cwd=full_path,
+        timeout=branch_timeout,
     )
     # A git failure here must not masquerade as "No branches found" (a skip);
     # raise so the caller reports a real error instead of silently mis-selecting.
@@ -1242,7 +1245,8 @@ def _collect_branch_info(full_path, branch_timeout):
         branch = parts[0].replace("origin/", "")
         count_res = subprocess.run(
             ["git", "rev-list", "--count", f"origin/{branch}"],
-            capture_output=True, text=True, cwd=full_path, timeout=branch_timeout,
+            capture_output=True, text=True, errors="replace", cwd=full_path,
+            timeout=branch_timeout,
         )
         count = int(count_res.stdout.strip()) if count_res.stdout.strip().isdigit() else 0
         branch_info.append({"name": branch, "count": count, "ts": _parse_iso(parts[1])})
@@ -1284,7 +1288,8 @@ def _reselect_branch_after_deletion(full_path, local_path, deleted_branch, confi
 
     checkout = subprocess.run(
         ["git", "checkout", "--quiet", new_branch],
-        capture_output=True, text=True, cwd=full_path, timeout=branch_timeout,
+        capture_output=True, text=True, errors="replace", cwd=full_path,
+        timeout=branch_timeout,
     )
     if checkout.returncode != 0:
         return ("skip", local_path,
@@ -1362,7 +1367,8 @@ def switch_repository_branch(local_path, projects, work_dir, config):
 
         checkout = subprocess.run(
             ["git", "checkout", "--quiet", most_active],
-            capture_output=True, text=True, cwd=full_path, timeout=branch_timeout,
+            capture_output=True, text=True, errors="replace", cwd=full_path,
+            timeout=branch_timeout,
         )
         if checkout.returncode != 0:
             return ("error", local_path, _first_line(checkout.stderr) or "checkout failed")

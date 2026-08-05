@@ -238,3 +238,46 @@ def make_local_repo(root, rel_path, branch="main", dirty=False):
     if dirty:
         (repo / "dirty.txt").write_text("uncommitted")
     return repo
+
+
+@pytest.fixture
+def commit_raw_bytes():
+    """Commit whose object bytes are written verbatim, undecodable bytes and all.
+
+    ``git commit`` will not produce one: given a message or an author ident that
+    is not valid UTF-8 it transcodes before writing the object, so a fixture built
+    the ordinary way proves nothing about strict decoding. Real repositories are
+    full of these anyway, because history written by older Windows tooling carries
+    cp1252 bytes (0x96 is its en-dash) with no ``encoding`` header to declare them,
+    and git replays those bytes exactly as stored.
+
+    Writing the object through ``hash-object`` is the only way to get that shape in
+    a test, and it is faithful: what lands in the object database is byte for byte
+    what such a repository holds.
+    """
+    import subprocess
+
+    def _commit(repo, *, message: bytes,
+                author: bytes = b"T Ester <t@example.com>",
+                when: str = "1785000000 +0000") -> str:
+        def g(*args, **kw):
+            return subprocess.run(["git", "-C", str(repo), *args],
+                                  check=True, capture_output=True, **kw)
+
+        tree = g("write-tree").stdout.strip().decode()
+        parent = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "-q", "--verify", "HEAD"],
+            capture_output=True).stdout.strip().decode()
+        header = f"tree {tree}\n".encode()
+        if parent:
+            header += f"parent {parent}\n".encode()
+        obj = (header
+               + b"author " + author + b" " + when.encode() + b"\n"
+               + b"committer " + author + b" " + when.encode() + b"\n\n"
+               + message)
+        sha = g("hash-object", "-t", "commit", "-w", "--stdin",
+                input=obj).stdout.strip().decode()
+        g("update-ref", "HEAD", sha)
+        return sha
+
+    return _commit

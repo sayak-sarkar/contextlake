@@ -404,3 +404,56 @@ def test_connect_does_not_report_success_when_every_call_was_written_off(
     text = "\n".join(r.getMessage() for r in gls_logs.records)
     assert "401" in text, "the reason the calls failed must reach the user"
     assert not re.search(r"✓ Connect complete", text), "no green tick over a failed run"
+
+
+def test_connect_one_bad_repo_does_not_abort_the_others(tmp_path, monkeypatch, gls_logs):
+    """One unreadable repository must cost that repository, not the run.
+
+    Reproduced on a real 20-repository fleet: a commit carrying a cp1252 byte
+    made `extract_issue_keys` raise `UnicodeDecodeError` on repo 1, and because
+    nothing between the loop and the enrichers caught it, the other 19 were never
+    reached. The decode itself is fixed separately; this pins the containment, so
+    the next unexpected per-repo failure costs one repo instead of the fleet.
+    """
+    import subprocess
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_CONFIG.format(store=store_dir.as_posix()))
+
+    workspace = tmp_path / "ws"
+    for name in ("alpha", "beta"):
+        r = workspace / name
+        r.mkdir(parents=True)
+        subprocess.run(["git", "-C", str(r), "init", "-q"], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(r), "config", "user.email", "t@example.com"],
+                       check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(r), "config", "user.name", "T"],
+                       check=True, capture_output=True)
+        (r / "f.txt").write_text("x")
+        subprocess.run(["git", "-C", str(r), "add", "-A"], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(r), "commit", "-q", "-m", "PROJ-1 init"],
+                       check=True, capture_output=True)
+
+    def flaky(path, pattern, **kw):
+        if path.endswith("alpha"):
+            raise UnicodeDecodeError("utf-8", b"\x96", 0, 1, "invalid start byte")
+        return ["PROJ-1"]
+
+    monkeypatch.setattr(orch, "build_atlassian", lambda src: _Stub())
+    monkeypatch.setattr(refs, "extract_issue_keys", flaky)
+    monkeypatch.setattr(refs, "scrape_links", lambda path, patterns, **k: [])
+
+    args = Namespace(config=str(cfg), workspace=str(workspace), source=None, repo=None)
+    # Non-zero, because a skipped repository leaves the graph incomplete...
+    assert cmd_connect(args) == 1
+    # ...but "beta" was still enriched, which is the whole point.
+    assert "1 of 2 repo(s) failed" in gls_logs.text
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    try:
+        check_schema(store)
+        assert store.nodes_by_name("PROJ-1")
+    finally:
+        store.close()
