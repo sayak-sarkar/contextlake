@@ -384,6 +384,8 @@ class GraphHealthOut(BaseModel):
     # and described as "stale, re-run index", which was true of neither.
     empty: int = 0
     empty_repos: list[str] = Field(default_factory=list)
+    shard: int = 0
+    shard_repos: list[str] = Field(default_factory=list)
     unreadable: int = 0
     unreadable_repos: list[str] = Field(default_factory=list)
 
@@ -1023,9 +1025,10 @@ def build_server(
         reports zero of everything, which is also what a perfectly healthy fleet
         reports. ``indexed=false`` says the zeros mean "nothing to check".
 
-        ``empty`` (the repository has no commits) and ``unreadable`` (its path is
-        gone, or git will not answer for it) are reported apart from ``stale``:
-        re-indexing clears a stale repository and cannot clear either of those.
+        ``empty`` (no commits), ``shard`` (imported from a graph shard, so it never
+        had a checkout) and ``unreadable`` (its path is gone, or git will not
+        answer for it) are reported apart from ``stale``: re-indexing clears a
+        stale repository and cannot clear any of those.
         """
         from .commands import lint_result
         sp = getattr(store, "path", None)
@@ -1035,8 +1038,9 @@ def build_server(
             # knowable, and zeroing that alongside the checks turned "nothing was
             # checked" into "there is nothing here", which is a different answer.
             "repos": len(store.list_repos()), "checked": 0, "stale": 0, "dangling": 0,
-            "parser_stale": 0, "empty": 0, "unreadable": 0, "stale_repos": [],
-            "empty_repos": [], "unreadable_repos": [], "parser_stale_repos": [],
+            "parser_stale": 0, "empty": 0, "unreadable": 0, "shard": 0,
+            "stale_repos": [], "empty_repos": [], "shard_repos": [],
+            "unreadable_repos": [], "parser_stale_repos": [],
             "dangling_sample": []}
         return GraphHealthOut(
             # lint_result's own `repos` is len(store.list_repos()), so this is the
@@ -1044,9 +1048,10 @@ def build_server(
             indexed=res["repos"] > 0,
             repos=res["repos"], checked=res["checked"], stale=res["stale"],
             dangling=res["dangling"], parser_stale=res["parser_stale"],
-            empty=res["empty"], unreadable=res["unreadable"],
+            empty=res["empty"], unreadable=res["unreadable"], shard=res["shard"],
             stale_repos=[sanitize_label(x) for x in res["stale_repos"]],
             empty_repos=[sanitize_label(x) for x in res["empty_repos"]],
+            shard_repos=[sanitize_label(x) for x in res["shard_repos"]],
             unreadable_repos=[sanitize_label(d["repo"]) for d in res["unreadable_repos"]],
             parser_stale_repos=[sanitize_label(x) for x in res["parser_stale_repos"]],
             dangling_sample=[DanglingOut(

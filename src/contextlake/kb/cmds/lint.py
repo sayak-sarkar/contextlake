@@ -34,9 +34,11 @@ def lint_result(store, store_dir) -> dict:
     test permanently: it was reported stale on every run, told to re-run index,
     and re-running index could never clear it because there is nothing to index.
     That is worse than saying nothing. It is a fact about the repository, not a
-    fault in the store, so it does not count against a clean lint either.
-    ``unreadable`` (the path is gone, or git will not answer for it) stays a
-    fault: those repositories really are uncitable.
+    fault in the store, so it does not count against a clean lint either. Same
+    for ``shard`` -- a repo imported from a graph-shard JSON, which never had a
+    checkout and so has no history to be behind. ``unreadable`` (the path is gone,
+    or git will not answer for a checkout that should be there) stays a fault:
+    those repositories really are uncitable.
     """
     from ..parse import PARSER_VERSION  # lazy: tree-sitter, and only for this check
     from ..store.shards import read_shard
@@ -44,6 +46,7 @@ def lint_result(store, store_dir) -> dict:
     repos = store.list_repos()
     stale_repos: list[str] = []
     empty_repos: list[str] = []
+    shard_repos: list[str] = []
     unreadable_repos: list[dict] = []
     parser_stale_repos: list[str] = []
     dangling: list[dict] = []
@@ -63,6 +66,8 @@ def lint_result(store, store_dir) -> dict:
             state = "ok" if head else _git_commit_state(Path(r.path) if r.path else None)
             if state == "empty":
                 empty_repos.append(r.id)
+            elif state == "shard":
+                shard_repos.append(r.id)
             elif state in ("missing", "unreadable"):
                 unreadable_repos.append({"repo": r.id, "reason": state,
                                          "path": r.path or ""})
@@ -86,8 +91,10 @@ def lint_result(store, store_dir) -> dict:
             "stale": len(stale_repos), "dangling": len(dangling),
             "parser_stale": len(parser_stale_repos),
             "empty": len(empty_repos), "unreadable": len(unreadable_repos),
+            "shard": len(shard_repos),
             "stale_repos": stale_repos,
             "empty_repos": empty_repos,
+            "shard_repos": shard_repos,
             "unreadable_repos": unreadable_repos,
             "parser_stale_repos": parser_stale_repos,
             "dangling_sample": dangling[:20]}
@@ -121,8 +128,9 @@ def cmd_lint(args) -> int:
             if as_json:
                 print(json.dumps({"repos": 0, "checked": 0, "stale": 0, "dangling": 0,
                                   "parser_stale": 0, "empty": 0, "unreadable": 0,
+                                  "shard": 0,
                                   "stale_repos": [], "empty_repos": [],
-                                  "unreadable_repos": [],
+                                  "shard_repos": [], "unreadable_repos": [],
                                   "parser_stale_repos": [], "dangling_sample": []},
                                  indent=2))
                 return 0
@@ -138,6 +146,9 @@ def cmd_lint(args) -> int:
         for rid in res["empty_repos"]:
             log(f"  empty: {rid} (the repository has no commits, so there is nothing "
                 f"to index -- this will not clear by re-indexing)")
+        for rid in res["shard_repos"]:
+            log(f"  shard-imported: {rid} (indexed from a graph shard, not a "
+                f"checkout, so there is no history to compare it against)")
         for d in res["unreadable_repos"]:
             why = ("its path no longer exists" if d["reason"] == "missing"
                    else "git cannot read a repository there")
@@ -156,10 +167,11 @@ def cmd_lint(args) -> int:
         parser_note = (f", {res['parser_stale']} built by an older parser"
                        if res["parser_stale"] else "")
         empty_note = f", {res['empty']} empty" if res["empty"] else ""
+        shard_note = f", {res['shard']} shard-imported" if res["shard"] else ""
         unreadable_note = f", {res['unreadable']} unreadable" if res["unreadable"] else ""
         log(f"{glyph} Lint: {res['repos']} repos, {res['checked']} edges checked — "
             f"{res['dangling']} dangling, {res['stale']} stale"
-            f"{unreadable_note}{empty_note}{parser_note}")
+            f"{unreadable_note}{empty_note}{shard_note}{parser_note}")
         return 0 if clean else 1
     finally:
         store.close()

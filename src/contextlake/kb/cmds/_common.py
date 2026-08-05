@@ -199,7 +199,7 @@ def _git_head(path: Path) -> str | None:
 
 
 def _git_commit_state(path: Path | None) -> str:
-    """Why :func:`_git_head` could not name a commit: ``"missing"``,
+    """Why :func:`_git_head` could not name a commit: ``"missing"``, ``"shard"``,
     ``"unreadable"``, ``"empty"``, or ``"ok"`` when it can.
 
     ``_git_head`` collapses four genuinely different situations into one ``None``,
@@ -220,6 +220,12 @@ def _git_commit_state(path: Path | None) -> str:
         return "unreadable"
     if not path.exists():
         return "missing"
+    if path.is_file():
+        # `kb index --source graph.json` records the shard FILE as the repo's
+        # path. There was never a checkout, so "git cannot read a repository
+        # there, re-clone it" would be the same species of impossible instruction
+        # this function exists to stop printing.
+        return "shard"
     if not is_own_gitdir(str(path)):
         return "unreadable"
     try:

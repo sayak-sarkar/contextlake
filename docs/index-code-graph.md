@@ -71,6 +71,8 @@ either of them:
 
 - **empty** -- the repository has no commits at all, so there is no HEAD and nothing to index. Reported,
   and not counted against the exit code: there is nothing for a reader to do about it.
+- **shard-imported** -- indexed from a graph-shard JSON rather than a checkout, so it has no history to
+  be behind. Also advisory, for the same reason.
 - **unreadable** -- the recorded path no longer exists, or git will not answer for a repository there.
   Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.
 

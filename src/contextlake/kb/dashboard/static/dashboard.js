@@ -1366,9 +1366,16 @@
   function viewHealth() {
     asyncPanel("health-body", CL.data.health, function (hd) {
       var body = h("div", { class: "cl-panel__body" });
-      var clean = !hd.stale && !hd.dangling;
+      // `unreadable` counts alongside stale, never inside it: both are faults,
+      // but only one of them is fixed by re-indexing, so the panel below has to
+      // give them different advice. Without its own tile, a repo whose checkout
+      // vanished used to show under "Stale repos" and, once lint stopped
+      // miscounting it there, would have shown nowhere at all.
+      var unreadable = hd.unreadable || 0;
+      var clean = !hd.stale && !hd.dangling && !unreadable;
       body.appendChild(h("div", { class: "cl-statgrid" },
-        statTile(hd.checked, "Checked"), statTile(hd.stale, "Stale repos"), statTile(hd.dangling, "Dangling edges")));
+        statTile(hd.checked, "Checked"), statTile(hd.stale, "Stale repos"),
+        statTile(unreadable, "Unreadable"), statTile(hd.dangling, "Dangling edges")));
       if (clean) { body.appendChild(stateBlock({ kind: "ok", title: "Clear water", msg: "No stale repos, no dangling edges." })); return body; }
       if (hd.stale_repos && hd.stale_repos.length) {
         var sc = h("div", { class: "cl-card" }, h("strong", null, "Stale repos"));
@@ -1379,6 +1386,16 @@
             h("code", null, "contextlake kb index")));
         });
         body.appendChild(sc);
+      }
+      if (hd.unreadable_repos && hd.unreadable_repos.length) {
+        var uc = h("div", { class: "cl-card" }, h("strong", null, "Unreadable repos"));
+        hd.unreadable_repos.forEach(function (r) {
+          uc.appendChild(h("div", { class: "cl-row" },
+            h("button", { class: "cl-btn", type: "button", onclick: function () { go("#/repo/" + r); } }, r),
+            h("span", { class: "cl-healthchip cl-healthchip--dangling" }, "no checkout"),
+            h("span", { class: "cl-muted" }, "re-clone it, or drop it from the store")));
+        });
+        body.appendChild(uc);
       }
       if (hd.dangling_sample && hd.dangling_sample.length) {
         body.appendChild(table(["Repo", "Source", "Relation", "Missing target"],

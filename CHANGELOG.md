@@ -20,11 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were reported stale on every run with "HEAD moved or never finished, re-run index", and re-indexing
   never cleared them, because they have no commits: there is no HEAD to move, so the staleness test
   matched permanently and the instruction it printed could not work. A repository with no commits is
-  now reported as `empty`, and one whose path is gone (or that git will not answer for) as
-  `unreadable`, each with wording that says what it is. `empty` does not count against a clean lint,
-  since nothing a reader can do clears it; `unreadable` still does, because nothing can be cited from
-  it. `graph_health` and the dashboard health API carry the same new `empty`/`unreadable` fields, and
-  `stale` in all three is now genuine staleness only.
+  now reported as `empty`, one imported from a graph-shard JSON as `shard`, and one whose path is gone
+  (or that git will not answer for) as `unreadable`, each with wording that says what it is. `empty`
+  and `shard` do not count against a clean lint, since nothing a reader can do clears them;
+  `unreadable` still does, because nothing can be cited from it. `graph_health` and the dashboard
+  health API carry the same new fields, `stale` in all three is now genuine staleness only, and the
+  dashboard's health panel gained an `Unreadable` tile and list so that fault is still visible there.
 
 ### Added
 - **`kb index --source` accepts an indexed repository id, not just a path.** `kb lint` reports a

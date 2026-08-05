@@ -724,9 +724,11 @@ def health(store, store_dir) -> dict:
         "dangling": res["dangling"],
         "parser_stale": res["parser_stale"],
         "empty": res["empty"],
+        "shard": res["shard"],
         "unreadable": res["unreadable"],
         "stale_repos": [sanitize_label(x) for x in res["stale_repos"]],
         "empty_repos": [sanitize_label(x) for x in res["empty_repos"]],
+        "shard_repos": [sanitize_label(x) for x in res["shard_repos"]],
         "unreadable_repos": [sanitize_label(d["repo"]) for d in res["unreadable_repos"]],
         "parser_stale_repos": [sanitize_label(x) for x in res["parser_stale_repos"]],
         "dangling_sample": [{

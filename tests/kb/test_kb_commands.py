@@ -616,37 +616,46 @@ def test_owners_json_empty_argument_is_still_valid_json(tmp_path, capsys):
 
 
 def test_lint_json_emits_a_clean_parseable_object(tmp_path, capsys):
-    """A fixture repo indexed from a graph-shard JSON (not a real git checkout)
-    has no HEAD to compare against, and git cannot read a repository at the path
-    it recorded, so lint reports it unreadable -- pinning that deterministic
-    outcome here doubles as documenting the exit-code contract: --json mirrors the
-    human path (exit 1 on an unclean graph, not just on a malformed request), so a
-    CI script checking $? sees the same signal a human running `contextlake lint`
-    would."""
+    """A fixture repo indexed from a graph-shard JSON never had a checkout, so
+    there is no history for it to be behind: lint reports it as shard-imported and
+    exits 0. The exit-code contract --json shares with the human path (exit 1 on an
+    unclean graph, not just on a malformed request) is pinned by deleting a real
+    repo's checkout in the same store, so a CI script checking $? sees the same
+    signal a human running `contextlake lint` would."""
     import json
+    import shutil
 
     cfg = _kb_config(tmp_path)
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     capsys.readouterr()
 
-    assert _run(["kb", "lint", "--config", str(cfg), "--json"]) == 1
+    assert _run(["kb", "lint", "--config", str(cfg), "--json"]) == 0
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
     assert set(payload) == {"repos", "checked", "stale", "dangling",
-                            "parser_stale", "empty", "unreadable", "stale_repos",
-                            "empty_repos", "unreadable_repos", "parser_stale_repos",
+                            "parser_stale", "empty", "unreadable", "shard",
+                            "stale_repos", "empty_repos", "shard_repos",
+                            "unreadable_repos", "parser_stale_repos",
                             "dangling_sample"}
-    # Not "stale": there is no history here that moved on, so telling the reader
-    # to re-run index would be advice that cannot work.
+    # Neither stale nor unreadable: telling the reader to re-run index, or to
+    # re-clone something that was never cloned, is advice that cannot work.
     assert payload["stale"] == 0 and payload["empty"] == 0
-    assert payload["unreadable"] == 1
-    # ...and parser-stale as well: the fixture is a hand-written shard carrying no
-    # parser_version, so no parser this build knows produced it. The two counts
-    # answer different questions and a repo can genuinely be both (this is what
-    # `doctor` reports for it too).
+    assert payload["unreadable"] == 0 and payload["shard"] == 1
+    # ...but parser-stale it is: the fixture is a hand-written shard carrying no
+    # parser_version, so no parser this build knows produced it. That count is
+    # reported and deliberately kept out of the exit code.
     assert payload["parser_stale"] == 1
-    assert payload["parser_stale_repos"] == [
-        d["repo"] for d in payload["unreadable_repos"]]
+    assert payload["parser_stale_repos"] == payload["shard_repos"]
+
+    # Now make the store genuinely unclean, and --json must say so in its exit code.
+    ws = tmp_path / "ws"
+    _bare_git_repo(ws / "vanishing")
+    (ws / "vanishing" / "a.py").write_text("def f():\n    pass\n")
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+    shutil.rmtree(ws / "vanishing")
+    capsys.readouterr()
+    assert _run(["kb", "lint", "--config", str(cfg), "--json"]) == 1
+    assert json.loads(capsys.readouterr().out)["unreadable"] == 1
 
 
 def test_impact_json_empty_argument_is_still_valid_json(tmp_path, capsys):
