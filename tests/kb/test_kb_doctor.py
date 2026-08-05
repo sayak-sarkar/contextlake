@@ -192,3 +192,67 @@ def test_redact_scrubs_doctors_report_and_leaves_the_default_alone(tmp_path, cap
     finally:
         observability.reset_redactions()
         setup_logging()
+
+
+def test_doctor_writes_its_report_to_the_log_file(tmp_path, capsys):
+    """Measured at zero lines: doctor renders its report itself rather than
+    through the logger (the console formatter's right-edge clock would wreck the
+    alignment), and nothing carried it into --log-file -- on the one command
+    whose entire output is what a person attaches to a bug report."""
+    from argparse import Namespace
+
+    from contextlake import observability
+    from contextlake.kb.cmds.doctor import cmd_doctor
+    from contextlake.logging_setup import setup_logging
+
+    store = tmp_path / "store"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store}"\n', encoding="utf-8")
+    log_file = tmp_path / "run.log"
+
+    observability.reset_redactions()
+    try:
+        # redact=False so console and file say the same thing and the parity
+        # assertion below is about layout, not about scrubbing.
+        setup_logging(log_file=str(log_file), redact=False)
+        cmd_doctor(Namespace(config=str(cfg), fix=False))
+        console = capsys.readouterr().out
+        recorded = log_file.read_text(encoding="utf-8")
+    finally:
+        observability.reset_redactions()
+        setup_logging()
+
+    assert "doctor" in recorded
+    assert "SQLite FTS5 available" in recorded
+    assert "git on PATH" in recorded
+    # The console report is unchanged: no clock, no reflow, every line still there.
+    for line in (ln for ln in console.splitlines() if ln.strip()):
+        assert line in recorded, line
+
+
+def test_doctor_report_in_the_log_file_is_redacted(tmp_path, capsys):
+    """The audit file is the artifact that gets attached to a bug report, so it
+    scrubs by default even while the console keeps the real paths."""
+    from argparse import Namespace
+
+    from contextlake import observability
+    from contextlake.kb.cmds.doctor import cmd_doctor
+    from contextlake.logging_setup import setup_logging
+
+    store = tmp_path / "private-store"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store}"\n', encoding="utf-8")
+    log_file = tmp_path / "run.log"
+
+    observability.reset_redactions()
+    try:
+        setup_logging(log_file=str(log_file))
+        cmd_doctor(Namespace(config=str(cfg), fix=False))
+        assert str(store) in capsys.readouterr().out
+        recorded = log_file.read_text(encoding="utf-8")
+    finally:
+        observability.reset_redactions()
+        setup_logging()
+
+    assert str(store) not in recorded
+    assert "<store>" in recorded

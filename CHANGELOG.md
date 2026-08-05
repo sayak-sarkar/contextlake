@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`doctor` wrote nothing to `--log-file`.** Measured at zero lines. doctor renders its aligned
+  report itself rather than through the logger, because the console formatter appends a right-edge
+  clock that suits a progress stream and ruins a report read as a block, and nothing carried that
+  output into the audit file. The console rendering is unchanged, and every line now also reaches
+  `--log-file`, formatted and scrubbed there like any other. `doctor --fix` output goes the same
+  way, which also closes a second gap: it was printing paths and commands with no redaction at all
+  while plain `doctor` was scrubbing them.
 - **`kb wiki` published a confident page for a repository with nothing behind it.** A one-file
   repo that indexed to 0 symbols still produced a 119-line page, scored 0.987 by the council,
   presenting the forge's boilerplate README as the project's own setup and architecture. A page

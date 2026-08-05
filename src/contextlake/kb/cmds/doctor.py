@@ -8,24 +8,25 @@ import shutil
 import sqlite3
 from pathlib import Path
 
-from ... import observability, style
-from ...logging_setup import console_redacting
+from ... import style
+from ...logging_setup import report_line
 from ..config import load_kb_config
 from ..state import check_schema
 from ..store.sqlite_store import SqliteStore
 
 
 def _say(text: str = "") -> None:
-    """Print one report line, scrubbed when --redact asked for it.
+    """Emit one report line: to the console, and to ``--log-file``.
 
-    doctor writes its report with print rather than through the logger because
-    the console formatter appends a right-edge clock to every single-line record,
-    which suits a progress stream and ruins an aligned report. The cost was that
-    doctor sat outside redaction altogether: `--redact doctor` printed the
-    absolute store path and every config path in full, on the one command whose
-    entire output is what a person pastes into a bug report.
+    doctor renders its report itself rather than through the logger because the
+    console formatter appends a right-edge clock to every single-line record,
+    which suits a progress stream and ruins an aligned report. Both costs of
+    that choice are paid by :func:`report_line`: redaction (``--redact doctor``
+    printed the absolute store path in full) and the audit file (doctor wrote
+    zero lines to ``--log-file``), on the one command whose entire output is
+    what a person pastes into a bug report.
     """
-    print(observability.redact(text) if console_redacting() else text)
+    report_line(text)
 
 
 def _check(label: str, ok, detail: str = "") -> bool:

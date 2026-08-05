@@ -322,3 +322,25 @@ def test_no_package_manager_is_reported_not_guessed(tmp_path, monkeypatch):
 
     assert plan == []
     assert any("no supported system package manager" in n for n in notes)
+
+
+def test_fix_output_reaches_the_log_file_too(tmp_path, capsys):
+    """`doctor --fix` prints the command it is about to run, and that record
+    belongs in --log-file with the rest of the report: it is the half of doctor's
+    output that says what was changed on the machine."""
+    from contextlake.logging_setup import setup_logging
+
+    log_file = tmp_path / "run.log"
+    try:
+        setup_logging(log_file=str(log_file), redact=False)
+        doctor_fix.apply_plan(
+            [doctor_fix.Remedy("git", "git", ["sudo", "dnf", "install", "-y", "git"],
+                               privileged=True)],
+            dry_run=True, interactive=False)
+        capsys.readouterr()
+    finally:
+        setup_logging()
+
+    recorded = log_file.read_text(encoding="utf-8")
+    assert "sudo dnf install -y git" in recorded
+    assert "dry run: not executed" in recorded

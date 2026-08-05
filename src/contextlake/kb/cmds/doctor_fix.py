@@ -27,6 +27,7 @@ import sys
 from dataclasses import dataclass, field
 
 from ... import style
+from ...logging_setup import report_line
 
 # llama-cpp-python publishes NO wheels to PyPI at all -- every release is an
 # sdist -- because llama.cpp is compiled per hardware backend and one PyPI
@@ -343,23 +344,23 @@ def _print_wrapped(text: str, indent: str = "    ") -> None:
 
     width = max(40, style.terminal_width() - len(indent))
     for line in textwrap.wrap(text, width=width) or [""]:
-        print(indent + style.dim(line))
+        report_line(indent + style.dim(line))
 
 
 def _report_failure(output: str) -> None:
     classified = _classify_failure(output)
     if classified:
         cause, fix = classified
-        print(f"    {style.red('failed')}")
+        report_line(f"    {style.red('failed')}")
         _print_wrapped(cause, indent="      ")
         # The next-step text carries its own commands on their own lines, so it
         # is printed verbatim rather than re-wrapped.
-        print(f"      {style.dim('next:')} {fix}")
+        report_line(f"      {style.dim('next:')} {fix}")
         return
     tail = [ln for ln in output.strip().splitlines() if ln.strip()][-8:]
-    print(f"    {style.red('failed')} the install command did not succeed:")
+    report_line(f"    {style.red('failed')} the install command did not succeed:")
     for line in tail:
-        print(f"      {style.dim(line)}")
+        report_line(f"      {style.dim(line)}")
 
 
 def apply_plan(plan: list[Remedy], *, dry_run: bool, interactive: bool) -> bool:
@@ -371,22 +372,22 @@ def apply_plan(plan: list[Remedy], *, dry_run: bool, interactive: bool) -> bool:
     ok = True
     for r in plan:
         tier = "system package" if r.privileged else "python package"
-        print(f"  {style.cyan(r.key)} {style.dim('— ' + r.summary)} [{tier}]")
+        report_line(f"  {style.cyan(r.key)} {style.dim('— ' + r.summary)} [{tier}]")
         for note in r.notes:
             _print_wrapped(note)
         # The command is always printed before anything can run it, both tiers.
-        print(f"    $ {' '.join(r.argv)}")
+        report_line(f"    $ {' '.join(r.argv)}")
 
         if dry_run:
-            print(f"    {style.dim('dry run: not executed')}")
+            report_line(f"    {style.dim('dry run: not executed')}")
             continue
 
         if r.privileged:
             if not interactive:
-                print(f"    {style.yellow('not run')} "
+                report_line(f"    {style.yellow('not run')} "
                       + style.dim("— needs administrator rights, and this is not an "
                                   "interactive terminal"))
-                print("    " + style.dim("run the command above yourself, then re-run "
+                report_line("    " + style.dim("run the command above yourself, then re-run "
                                          "contextlake doctor"))
                 continue
             try:
@@ -394,12 +395,12 @@ def apply_plan(plan: list[Remedy], *, dry_run: bool, interactive: bool) -> bool:
             except EOFError:
                 reply = ""
             if reply not in ("y", "yes"):
-                print(f"    {style.dim('skipped')}")
+                report_line(f"    {style.dim('skipped')}")
                 continue
 
         code, output = _run(r.argv)
         if code == 0:
-            print(f"    {style.green('done')}")
+            report_line(f"    {style.green('done')}")
         else:
             ok = False
             _report_failure(output)
@@ -409,18 +410,18 @@ def apply_plan(plan: list[Remedy], *, dry_run: bool, interactive: bool) -> bool:
 def run_fix(cfg, requested: str, *, dry_run: bool, skip_interactive: bool) -> bool:
     """The whole ``--fix`` pass. Returns True when nothing failed."""
     if requested not in ("auto", *CAPABILITIES):
-        print(style.red(f"unknown capability for --fix: {requested}"))
-        print(f"  known capabilities: {', '.join(CAPABILITIES)} "
+        report_line(style.red(f"unknown capability for --fix: {requested}"))
+        report_line(f"  known capabilities: {', '.join(CAPABILITIES)} "
               f"(or --fix with no value for what your config calls for)")
         return False
 
     plan, notes = build_plan(cfg, requested)
-    print()
-    print(style.bold("fix" + (" (dry run)" if dry_run else "")))
+    report_line()
+    report_line(style.bold("fix" + (" (dry run)" if dry_run else "")))
     for note in notes:
-        print(f"  {style.yellow('⚠')} {note}")
+        report_line(f"  {style.yellow('⚠')} {note}")
     if not plan:
-        print(f"  {style.dim('nothing to install: your configuration is already satisfied')}")
+        report_line(f"  {style.dim('nothing to install: your configuration is already satisfied')}")
         return True
 
     interactive = _interactive() and not skip_interactive

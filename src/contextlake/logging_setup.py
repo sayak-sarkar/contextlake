@@ -258,6 +258,33 @@ def console_redacting() -> bool:
     return _console_redact
 
 
+def report_line(text: str = "") -> None:
+    """Emit one line of a command's own rendered report: to the console as the
+    command composed it, and to the audit file alongside every other log line.
+
+    ``doctor`` renders an aligned block with ``print`` rather than through
+    :func:`log`, for the reason above. The cost was that its entire output
+    missed ``--log-file``: measured at zero lines, on the one command whose
+    output is what you attach to a bug report.
+
+    So the two halves are split rather than merged. The console half stays the
+    caller's own rendering, with the console's redaction decision applied here
+    so no caller has to remember it. The file half goes straight to the file
+    handler, which formats and redacts it exactly like every other line in that
+    file. Handing the line to the *logger* instead would print it twice, and
+    would let ``--quiet`` silence the whole output of a command whose only job
+    is to produce it.
+    """
+    print(observability.redact(text) if _console_redact else text)
+    # No get_logger() here: that would configure a console handler on a path
+    # that has already done its own printing. With no setup_logging call there
+    # is no file handler to write to, and nothing is owed.
+    for handler in logging.getLogger(LOGGER_NAME).handlers:
+        if isinstance(handler, RotatingFileHandler):
+            handler.handle(logging.getLogger(LOGGER_NAME).makeRecord(
+                LOGGER_NAME, logging.INFO, "(report)", 0, text, None, None))
+
+
 def use_stderr():
     """Route console logging to stderr instead of stdout.
 
