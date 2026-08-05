@@ -119,15 +119,33 @@ happened. There is no pagination; raise `--limit` instead.
 **Ambiguity is reported, not guessed at.** This holds at two levels.
 
 Within one repository, a name matching several definitions no longer silently takes the first. The
-seed is named with its `file:line`, the alternatives are listed with the `--node` id that selects
-each, every hit cites the call site the edge came from, and a footer counts how much of the answer
-rests on name-only resolution:
+seed is named with its `file:line` and how many definitions competed for it, each alternative that
+was passed over is listed with its node id, every hit cites the call site the edge was read from,
+and a footer counts how much of the answer rests on name-only matching:
 
 ```text
-  seed: function site/cmdk.js:113 (5 matched 'close'; used the first)
-        or: method src/store/base.py:27  --node <id>
-  h1  site/cmdk.js  (file)  via calls at site/cmdk.js:121  [inferred]
+Impact of changing close (contextlake_site_cmdk_js_close_113): 1 affected node(s) within 1 hop(s)
+  seed: function site/cmdk.js:113 (3 matched 'close'; used the first)
+        or: method src/contextlake/kb/store/base.py:27  --node contextlake_src_contextlake_kb_store_base_py_store_close_27
+        or: method src/contextlake/kb/store/sqlite_store.py:179  --node contextlake_src_contextlake_kb_store_sqlite_store_py_sqlitestore_close_179
+  h1  contextlake:site/cmdk.js  (file, site/cmdk.js)  via calls at site/cmdk.js:121  [ambiguous, 1 of 3 same-name definitions]
+  1 of 1 hit(s) came from a reference matched by NAME across several same-named definitions; each caller may target a different one. Open the cited call site to confirm.
 ```
+
+**To ask about one of the alternatives instead, pass its node id as the argument**, not as a flag:
+
+```bash
+contextlake kb impact contextlake_src_contextlake_kb_store_base_py_store_close_27
+```
+
+`impact` tries an exact node id before it tries anything else, so an id resolves to that one
+definition and nothing else. (The `--node ` prefix those lines are printed with is `kb graph`'s
+flag name; `kb impact` has no `--node` flag and will tell you so if you pass one.)
+
+The footer is the part worth reading twice. `AMBIGUOUS` as a label read exactly the same on a
+hand-verified answer where all eleven hits were real and on one carrying 282 false positives, so
+the count is there to say what the label costs *in this result*: `3 of 3` means treat the whole
+list as leads, `1 of 40` means the opposite.
 
 A symbol defined in several **repos** makes `impact` say so,
 name how many repos define it, list the candidates, and exit `1`, so you can narrow it yourself:

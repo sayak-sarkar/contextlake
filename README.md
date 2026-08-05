@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml"><img src="https://github.com/sayak-sarkar/contextlake/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/contextlake/"><img src="https://img.shields.io/pypi/v/contextlake?color=137A8B" alt="PyPI"></a>
-  <img src="https://img.shields.io/badge/python-3.10%2B%20(3.9%2B%20core)-blue" alt="Python 3.10+ for the knowledge layer, 3.9+ for the mirror core">
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/offline-first-2BB3A3" alt="Offline-first">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT">
 </p>
@@ -61,7 +61,8 @@ pip install contextlake             # mirror-only core (no pip dependencies at a
 ```
 
 Everything in the quickstart below needs the `[kb]` extra (Python 3.10+); the plain
-install is just the mirroring CLI and runs on Python 3.9+.
+install is just the mirroring CLI. Both need Python 3.10 or newer: one floor for the whole
+tool, since the split floor the mirror core used to allow only ever surprised people.
 
 Prefer an isolated, zero-setup install? [`uv`](https://docs.astral.sh/uv/) fetches the right
 Python and an isolated environment for you:
@@ -183,7 +184,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for the bundled demo fleet; `--site DIR` for a static offline export) |
-| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`/`sse`) |
+| `kb serve` | Expose the graph over MCP (`--transport stdio`/`http`/`sse`; `--tool-concurrency N` bounds concurrent tool calls, default `2`, raising it makes the server slower) |
 | `kb steer` | Write editor steering, `AGENTS.md`, `.mcp.json`, `.vscode/mcp.json`, `.windsurfrules`, skills |
 | `kb lint` · `doctor` · `kb eval` | Graph health · environment check · retrieval-quality scoring |
 

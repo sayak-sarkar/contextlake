@@ -234,14 +234,38 @@ progress still shows.
 
 ## What it exited with
 
-Four codes, and only four.
+Four codes across the CLI, plus one that only `kb serve` can produce.
 
 | Code | Means | Typical causes |
 | --- | --- | --- |
 | `0` | Nothing failed | A clean run; also a run where work was deliberately skipped, a `--dry-run`, `--help`, `version`, and a search that matched nothing |
 | `1` | Something failed | Any repo failed in `mirror fetch` / `clone` / `update` / `branches` / `verify` / `sync`; a failed `bootstrap` stage; a `kb` command whose target could not be resolved (unknown repo, ambiguous symbol, no snapshot at that commit); a bad `--config` path; `doctor` when the report found a problem |
 | `2` | You and the CLI disagree about the command | An unknown command, an unrecognized flag, a flag whose value is missing, a `kb query` / `impact` / `owners` with no target, an unknown `--platform` or shell, or no group configured on a command that needs one |
-| `130` | `Ctrl-C` | Interrupted at any point, including during `init` |
+| `130` | `Ctrl-C` on a command that was still working | Interrupted at any point, including during `init`. Not the long-running servers, see below |
+
+**The long-running commands are the exception, and deliberately so.** `kb serve`,
+`kb dashboard --serve`, `kb graph --serve` and `kb graph --site --serve` are meant to be ended by
+you, and each says `Ctrl-C to stop` on the line announcing where it listens (`kb serve --transport
+stdio` is the one with no address to announce). Stopping them that way is the documented ending
+rather than an interruption: each catches the interrupt, prints its own stop
+line (`Stopping MCP server`, `Stopping dashboard server`, `Stopping graph server`,
+`Stopping graph site server`) and exits `0`. The `--watch` loops on `kb index`, `kb embed` and
+`kb connect` end the same way, finishing normally rather than aborting. `130` is for a command
+that was interrupted mid-job.
+
+`kb serve` adds one code the rest of the CLI never uses:
+
+| Code | When | Why |
+| --- | --- | --- |
+| `0` | `Ctrl-C`, on any transport; `SIGTERM` on `stdio` | The requested stop, completed |
+| `143` | `SIGTERM` on `--transport http` / `sse` | `128 + 15`, "terminated by SIGTERM" |
+
+`143` is what a supervisor expects from a process it asked to stop, not a fault: uvicorn drains
+connections and shuts down first, then re-raises the signal it captured so the exit status
+reports the termination honestly. `stdio` reaches `0` on `SIGTERM` because it installs its own
+handler and routes both signals into the same shutdown `Ctrl-C` takes; before that it had none, so
+a supervisor's `SIGTERM` killed it outright and its cleanup never ran. See
+[Serve it to your editor](serve.md#stopping-it).
 
 Three things worth knowing about `1`:
 

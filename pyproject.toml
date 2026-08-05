@@ -24,7 +24,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development",
     "Topic :: Software Development :: Version Control :: Git",
 ]
@@ -125,7 +124,7 @@ markers = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 src = ["src", "tests"]
 # site/ is the website build tooling (page generator + one-off SVG/icon asset
 # scripts), not part of the shipped package; CI lints only `src tests`.

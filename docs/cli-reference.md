@@ -125,7 +125,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
 | `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
-| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`) |
+| `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
 | `kb hook` | Install, remove or inspect the `post-commit` hook that re-indexes a repo on commit |
 
@@ -134,8 +134,10 @@ Covered in depth under [Mirror repositories](usage.md).
 
 ## Exit codes
 
-Four: `0` nothing failed, `1` something did, `2` the invocation was wrong, `130` interrupted. The
-conditions behind each are on
+Four: `0` nothing failed, `1` something did, `2` the invocation was wrong, `130` interrupted
+mid-job. The long-running servers are not in that last one: `Ctrl-C` is how you are told to stop
+them, so they exit `0`, and `kb serve --transport http`/`sse` exits `143` on `SIGTERM` after
+uvicorn's graceful shutdown. The conditions behind each are on
 [Reading the console output](console-output.md#what-it-exited-with).
 
 ## See also

@@ -1,6 +1,6 @@
 # Contributing to contextlake
 
-First off — thanks for taking the time. `contextlake` is a small, focused tool,
+First off, thanks for taking the time. `contextlake` is a small, focused tool,
 and small focused tools live or die by their sharp edges staying sharp. Bug
 reports, fixes, and well-scoped features are all welcome.
 
@@ -17,8 +17,8 @@ reports, fixes, and well-scoped features are all welcome.
   directory for the *entire* suite specifically because of a real incident: a
   code path that had always been a no-op (declining shell-completion setup)
   gained a real write (a decision marker, so a later automatic check never
-  re-asks), and every pre-existing test that exercised it — never having
-  needed to isolate `HOME` before — silently started writing to the real
+  re-asks), and every pre-existing test that exercised it, never having
+  needed to isolate `HOME` before, silently started writing to the real
   machine's `~/.contextlake/`. **When a branch that used to do nothing gains a
   filesystem or env-dependent side effect, re-check every test that already
   exercises it, not just the new tests you're adding for it.**
@@ -129,7 +129,7 @@ src/contextlake/
 ```
 
 (The optional `[kb]` extra's knowledge-layer package, `src/contextlake/kb/`, has its own much
-larger internal layout — see [docs/internals.md](docs/internals.md), not covered here.)
+larger internal layout, see [docs/internals.md](docs/internals.md), not covered here.)
 
 The CLI stays thin: it parses, resolves config, and calls into `core`. Business
 logic belongs in `core` (and is unit-testable without a real repo). Anything that
@@ -137,12 +137,12 @@ could clobber a developer's local work goes through `safety`.
 
 When adding a command or option:
 
-1. Wire the flag in `cli.build_parser()` (tri-state booleans default to `None` —
+1. Wire the flag in `cli.build_parser()` (tri-state booleans default to `None`;
    see the comment there for why that matters).
 2. Implement the behaviour in `core` as a small, testable function.
 3. Add tests using the `fake_subprocess` fixture (see `tests/conftest.py`).
 4. A brand-new top-level command also needs one entry in `cli._COMMAND_CATEGORIES`
-   (which category it belongs to for `contextlake --help`'s grouped listing) —
+   (which category it belongs to for `contextlake --help`'s grouped listing).
    `test_every_registered_command_is_categorized_exactly_once` fails loudly if
    you forget, so this is hard to miss, not a silent gap.
 
@@ -170,7 +170,7 @@ feat(branches): add recency-aware branch strategy
 test(clone): cover corrupted-directory cleanup
 ```
 
-Keep commits **atomic** — one logical change each. A commit that "fixes the bug
+Keep commits **atomic**, one logical change each. A commit that "fixes the bug
 and also reformats four files" is two commits wearing a trenchcoat.
 
 ## Submitting a change
@@ -182,7 +182,7 @@ and also reformats four files" is two commits wearing a trenchcoat.
 
 ## Releasing
 
-Maintainers: see [docs/releasing.md](docs/releasing.md) for the full runbook —
+Maintainers: see [docs/releasing.md](docs/releasing.md) for the full runbook:
 version bump, changelog, tag, build, and publishing to PyPI (including the
 first-token and corporate-proxy gotchas). Install the tooling with
 `pip install -e ".[release]"`.

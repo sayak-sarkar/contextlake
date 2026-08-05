@@ -6,7 +6,7 @@ in a few minutes. Everything beyond the mirror is optional and off by default.
 
 ## 1. Prerequisites
 
-- **Python 3.10+** (the knowledge layer needs 3.10; the core sync works on 3.9+)
+- **Python 3.10+**, one floor for the whole tool, mirror and knowledge layer alike
 - **`git`**, plus your platform's token: **`GITLAB_TOKEN`** (a PAT with `read_api` +
   `read_repository`), or `GITHUB_TOKEN` / `BITBUCKET_TOKEN` / `GITEA_TOKEN` with
   `platform = github|bitbucket|gitea` in the config. On GitLab, an authenticated

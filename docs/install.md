@@ -11,7 +11,7 @@ real result.
 
 - **Python 3.10 or newer** for the knowledge layer. The `[kb]` extra depends on the `mcp`
   SDK, which requires 3.10, so that is the floor for anything beyond mirroring
-  (`pyproject.toml`, the `kb` extra). The mirror core declares `requires-python = ">=3.9"`
+  (`pyproject.toml`, the `kb` extra). The whole tool declares `requires-python = ">=3.10"`
   and runs there happily.
 - **`git`** on your PATH.
 - **A platform token, only for fleet mirroring**: `GITLAB_TOKEN` (a PAT with `read_api` and
@@ -232,6 +232,26 @@ insist on it.
 
 `contextlake kb index --force` still exists and still rebuilds everything unconditionally.
 Use it when you want a full rebuild, not because an upgrade requires one.
+
+### Parser version `3` rebuilds every existing store
+
+`PARSER_VERSION` is now `3`, which means **every store built before that release reports stale**,
+under `doctor` and in `kb lint`'s advisory line, and the next `contextlake kb index` rebuilds all
+of it. Nothing is broken and nothing needs a flag; it is simply an index run that costs what your
+first one did, once, rather than the near-instant no-op an unchanged workspace usually gets. Budget
+for it before you run it inside a hook or a CI job on a large mirror.
+
+The bump earns that. Version `3` is language-aware name resolution
+(`_LANG_FAMILY` in `src/contextlake/kb/parse.py`): a `calls` or `inherits` reference no longer
+resolves to a same-named definition in an unrelated language, and an `AMBIGUOUS` edge now records
+how many candidates it was one of. That is what makes `kb impact` able to say a JavaScript
+`close()` is not the Python `close()` you meant, and to count how much of an answer rests on
+name-only matching (see [Ask the graph](ask-the-graph.md#see-what-breaks-kb-impact)).
+
+The catch is that the fix lives in the parser, so it reaches an already-built store only when the
+shards are rebuilt. A version bump is exactly the mechanism that makes that happen without asking
+you to know it was needed: a graph carried forward untouched would keep answering with the old
+resolution, and every surface would keep calling it healthy.
 
 ## Uninstall
 

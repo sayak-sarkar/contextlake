@@ -20,7 +20,7 @@ The mirror core declares exactly one pip dependency (`pyproject.toml`), which is
 keeps `pip install contextlake` viable on a locked-down machine. The knowledge layer is imported
 lazily from the CLI, so the core runs with the extra absent and says so if you reach for a `kb`
 verb without it. `[kb]` needs Python 3.10 or newer because the `mcp` SDK does; the core declares
-`requires-python = ">=3.9"`.
+`requires-python = ">=3.10"`, one floor shared by both tiers.
 
 ## Configuration
 

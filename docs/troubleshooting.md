@@ -12,7 +12,8 @@ Working on contextlake itself rather than using it? The contributor-side problem
 ## The knowledge layer will not install
 
 `[kb]` needs Python 3.10 or newer, because the `mcp` SDK does. The mirror side of contextlake
-supports 3.9, so an install can resolve and then fail at import if you are on 3.9. Check with
+needs 3.10 or newer as well, so pip refuses the install outright rather than
+leaving you a half-working one. Check with
 `python3 --version`.
 
 The extra also pulls a tree-sitter grammar per supported language, several with native
