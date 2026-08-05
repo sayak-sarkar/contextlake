@@ -1814,6 +1814,20 @@ def _run(argv, metrics):
         except KeyboardInterrupt:
             log("Operation cancelled by user")
             sys.exit(130)
+        except Exception as e:  # noqa: BLE001 - top-level guard reports and exits
+            # The same guard the mirror side has carried for a while, which the
+            # kb side never got: anything but ConfigError escaped as a raw
+            # traceback, at any verbosity. Measured on a full disk, where a
+            # write failure during `kb index` reached the user as
+            # `sqlite3.OperationalError: disk I/O error` and thirty lines of
+            # stack, with no -v passed and nothing saying what to do about it.
+            # Under --verbose the exception is re-raised rather than swallowed,
+            # so a crash report can still carry the traceback. Python exits 1 on
+            # an unhandled exception, so the exit status is unchanged either way.
+            log(f"Error: {e}", error_type=type(e).__name__, error=str(e))
+            if args.verbose:
+                raise
+            sys.exit(1)
 
     # Load configuration (honouring an explicit --config path if given), then
     # overlay any CLI overrides on top.

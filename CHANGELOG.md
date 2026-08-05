@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Every `kb` failure that was not a config error escaped as a raw traceback, at any verbosity.**
+  The mirror side of the CLI has long had a top-level guard that reports the error on one line and
+  re-raises only under `--verbose`; the kb side caught `ConfigError` and `KeyboardInterrupt` and
+  nothing else. Measured on a full disk, where a write failure during `kb index` reached the user
+  as `sqlite3.OperationalError: disk I/O error` and a stack, with no `-v` passed. The two sides now
+  behave the same.
 - **`doctor` wrote nothing to `--log-file`.** Measured at zero lines. doctor renders its aligned
   report itself rather than through the logger, because the console formatter appends a right-edge
   clock that suits a progress stream and ruins a report read as a block, and nothing carried that

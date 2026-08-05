@@ -22,3 +22,39 @@ def test_missing_config_path_exits_clean_not_traceback(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "not found" in out
     assert "Traceback" not in out
+
+
+def _raising_dispatch(monkeypatch):
+    """Point kb dispatch at the failure a full disk actually produces."""
+    import sqlite3
+
+    from contextlake.kb import commands as kb_commands
+
+    def _boom(command, args):
+        raise sqlite3.OperationalError("disk I/O error")
+
+    monkeypatch.setattr(kb_commands, "dispatch", _boom)
+    return sqlite3.OperationalError
+
+
+def test_a_store_write_failure_is_a_message_not_a_traceback(tmp_path, capsys, monkeypatch):
+    """The kb side of the CLI caught only ConfigError, so every other failure
+    left as a raw traceback at any verbosity, while the mirror side had carried
+    a top-level guard for a while. Measured on a full disk: a write failure
+    during `kb index` reached the user as `sqlite3.OperationalError: disk I/O
+    error` and a stack, with no -v passed."""
+    _raising_dispatch(monkeypatch)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["kb", "index", "--workspace", str(tmp_path)])
+    assert exc.value.code == 1
+    out = capsys.readouterr().out
+    assert "Error: disk I/O error" in out
+    assert "Traceback" not in out
+
+
+def test_verbose_still_gets_the_traceback(tmp_path, monkeypatch):
+    """The one-line summary must not cost a crash report its stack: -v re-raises,
+    exactly as the mirror side's guard does."""
+    error = _raising_dispatch(monkeypatch)
+    with pytest.raises(error):
+        cli.main(["-v", "kb", "index", "--workspace", str(tmp_path)])
