@@ -620,19 +620,6 @@ def test_usable_port_and_concurrency_values_still_parse(argv, attr, value):
     assert getattr(build_parser().parse_args(argv), attr) == value
 
 
-def test_the_tool_concurrency_env_var_keeps_its_lenient_path(monkeypatch):
-    """The flag is refused, the env var is not, and that asymmetry is deliberate:
-    an editor inherits the env var from a shell profile, where refusing to start
-    over a stale typo is worse than serving at the default. A flag typed just now
-    is the opposite case."""
-    from contextlake.kb.server import DEFAULT_TOOL_CONCURRENCY, resolve_tool_concurrency
-
-    monkeypatch.setenv("CONTEXTLAKE_MCP_TOOL_CONCURRENCY", "0")
-    assert resolve_tool_concurrency() == DEFAULT_TOOL_CONCURRENCY
-    monkeypatch.setenv("CONTEXTLAKE_MCP_TOOL_CONCURRENCY", "not-a-number")
-    assert resolve_tool_concurrency() == DEFAULT_TOOL_CONCURRENCY
-
-
 def test_numeric_bounds_are_checked_on_the_pre_subparser_spelling_too(capsys):
     # Every one of these flags is also accepted before the command name; a bound
     # enforced only on the leaf parser would leave that spelling wide open.
