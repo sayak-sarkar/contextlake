@@ -793,6 +793,30 @@ def build_server(
                            via_line=h.via_line, name_candidates=h.name_candidates)
                   for h in hits])
 
+    def _cluster_is_stale(page: str, namespace: str) -> bool:
+        """Whether a cluster page describes members that have since moved on.
+
+        Derived, not asserted. This used to be hardcoded to False, so an agent
+        filtering on ``stale`` treated a page nothing had checked as verified
+        fresh -- and a cluster page whose members were long gone read as current.
+        The page already carries the freshness stamp the generator skips on: the
+        fingerprint of its members' (repo, head) pairs. Recompute it from the
+        store and compare, which is exactly what the repo path does with a single
+        commit. Fails closed for the same reason it does: a page with no stamp is
+        one nothing can be compared against, which is not the same as fresh.
+        """
+        from .wiki.cluster import cluster_fingerprint, members
+
+        stamped = re.search(r"cluster-commits: ([0-9a-f]+)", page)
+        if not stamped:
+            return True
+        heads = {}
+        for rid in members(store, namespace):
+            r = store.get_repo(rid)
+            if r is not None and r.head_commit:
+                heads[rid] = r.head_commit
+        return stamped.group(1) != cluster_fingerprint({"heads": heads})
+
     @bounded_tool
     def get_wiki(repo: str) -> WikiOut:
         """The generated LLM-wiki page for a repo, or a namespace's cluster page.
@@ -804,8 +828,10 @@ def build_server(
         cited sources/graph; it never outranks EXTRACTED facts. ``stale`` is true
         when a repo wiki was generated from a different commit than the repo's
         current indexed head (or either is unknown), so an agent never cites prose
-        that describes code which has since changed. Cluster pages carry their own
-        member-commit fingerprint and are not single-commit stale-checked.
+        that describes code which has since changed. A cluster page is checked the
+        same way against its own member-commit fingerprint rather than one commit,
+        so ``wiki_commit``/``current_commit`` stay null on that kind while
+        ``stale`` still means what it says.
         """
         sp = getattr(store, "path", None)
         wiki_dir = Path(sp).parent / "wiki" if sp else None
@@ -816,7 +842,8 @@ def build_server(
             cluster_file = wiki_dir / "_clusters" / (slug + ".md") if wiki_dir else None
             if cluster_file and cluster_file.exists():
                 craw = cluster_file.read_text(encoding="utf-8", errors="replace")
-                return WikiOut(repo=sanitize_label(repo), found=True, stale=False,
+                return WikiOut(repo=sanitize_label(repo), found=True,
+                               stale=_cluster_is_stale(craw, repo),
                                wiki_commit=None, current_commit=None, kind="cluster",
                                markdown=sanitize_label(craw, max_len=200_000))
             return WikiOut(repo=sanitize_label(repo), found=False, stale=True,

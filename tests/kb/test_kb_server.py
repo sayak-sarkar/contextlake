@@ -1151,3 +1151,42 @@ def test_a_negative_hops_is_refused_rather_than_answered_emptily(server):
 
     zero = asyncio.run(_call(server, "blast_radius", {"node_id": "b", "hops": 0}))
     assert not zero.is_error and zero.structured_content["total"] == 0
+
+
+def test_cluster_wiki_staleness_is_derived_not_asserted(tmp_path):
+    """`stale` was hardcoded to False for a cluster page: nothing was checked, and
+    the reassuring value was returned anyway, so an agent filtering on the field
+    treated an unverifiable page as verified fresh. A cluster page carries the
+    freshness stamp its generator skips on -- the fingerprint of its members'
+    (repo, head) pairs -- so it can be recomputed and compared."""
+    from contextlake.kb.wiki.cluster import cluster_fingerprint
+
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    try:
+        s.upsert_repo(Repo(id="acme/pay/api", path="/a", head_commit="h1"))
+        s.upsert_repo(Repo(id="acme/pay/web", path="/b", head_commit="h2"))
+        fresh = cluster_fingerprint({"heads": {"acme/pay/api": "h1", "acme/pay/web": "h2"}})
+        clusters = tmp_path / "wiki" / "_clusters"
+        clusters.mkdir(parents=True)
+        page = clusters / "acme__pay.md"
+        page.write_text(f"# acme/pay (cluster)\n\nThey talk over HTTP.\n\n---\n"
+                        f"*cluster-commits: {fresh}.*\n", encoding="utf-8")
+
+        out = asyncio.run(_call(build_server(s), "get_wiki", {
+            "repo": "acme/pay"})).structured_content
+        assert out["found"] is True and out["kind"] == "cluster"
+        assert out["stale"] is False, "members unmoved: the page really is fresh"
+
+        # a member's head moves on -> the page describes code that has changed
+        s.upsert_repo(Repo(id="acme/pay/web", path="/b", head_commit="h9"))
+        moved = asyncio.run(_call(build_server(s), "get_wiki", {
+            "repo": "acme/pay"})).structured_content
+        assert moved["stale"] is True
+
+        # no stamp at all -> nothing to compare against, so fail closed
+        page.write_text("# acme/pay (cluster)\n\nNo provenance footer.\n", encoding="utf-8")
+        unstamped = asyncio.run(_call(build_server(s), "get_wiki", {
+            "repo": "acme/pay"})).structured_content
+        assert unstamped["found"] is True and unstamped["stale"] is True
+    finally:
+        s.close()

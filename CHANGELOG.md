@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller can judge the ranking instead of trusting it.
 
 ### Fixed
+- **`get_wiki` reported a cluster page as fresh without checking.** `stale` was hardcoded to false
+  on that path, so an agent filtering on the field treated a page nothing had verified as verified,
+  and a cluster page whose members were long gone read as current. The page already carries the
+  freshness stamp its generator skips on -- the fingerprint of its members' commits -- so it is now
+  recomputed and compared, exactly as a repository page's commit is, and a page with no stamp fails
+  closed rather than open.
 - **`blast_radius` answered for symbols it had never heard of.** An unresolvable name was used as
   the seed anyway, so the tool returned a well-formed, non-error, bounded impact analysis of a
   symbol that does not exist: "nothing depends on this, safe to change" and "no such symbol is
