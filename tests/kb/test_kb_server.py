@@ -1047,3 +1047,32 @@ def test_ask_owners_still_credits_git_history_when_the_ranking_ran(tmp_path, mon
         assert out["owners"]["ranking_gap"] is None
     finally:
         s.close()
+
+
+def test_ask_impact_honours_the_k_it_advertises(tmp_path):
+    """`ask` advertises `k` and every other route honours it. The impact route
+    dropped it and let `blast_radius` apply its own default of 100, so a
+    small-context agent asking for one result could receive a hundred."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    try:
+        s.upsert_nodes("r", [Node(id="hot", repo="r", kind="function", name="charge_order")]
+                       + [Node(id=f"c{i}", repo="r", kind="function", name=f"c{i}")
+                          for i in range(30)])
+        prov = Provenance(source_file="f", source_line=1, verified_at=date(2026, 8, 5))
+        s.upsert_edges("r", [Edge(src=f"c{i}", dst="hot", relation="calls",
+                                  confidence=Confidence.EXTRACTED, provenance=prov)
+                             for i in range(30)])
+        srv = build_server(s)
+        out = asyncio.run(_call(srv, "ask", {
+            "question": "what breaks if I change charge_order", "k": 3})).structured_content
+        assert out["route"] == "impact"
+        assert len(out["blast"]["hits"]) == 3
+        assert out["blast"]["truncated"] is True and out["truncated"] is True
+        # and the note must not report the capped count as if it were the total
+        assert "the first 3 node(s)" in out["note"]
+
+        wide = asyncio.run(_call(srv, "ask", {
+            "question": "what breaks if I change charge_order", "k": 30})).structured_content
+        assert len(wide["blast"]["hits"]) == 30 and wide["blast"]["truncated"] is False
+    finally:
+        s.close()

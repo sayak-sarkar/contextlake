@@ -1080,8 +1080,16 @@ def build_server(
             nid, why = _resolve_id(target)
             if nid is None:
                 return _out(f"Couldn't resolve a symbol for blast radius — {why}.")
-            res = blast_radius(nid, hops=3)
-            return _out(f"Blast radius of {target!r}: {res.total} node(s) within 3 hops"
+            # `k` is advertised on `ask` and honoured by callers, subclasses and
+            # dependents; this route dropped it and let blast_radius apply its own
+            # default of 100, so an agent asking for one result could be handed a
+            # hundred. Capping means truncation is now ordinary rather than rare,
+            # so the count says when it is a slice instead of stating a total the
+            # cap decided.
+            res = blast_radius(nid, hops=3, limit=k)
+            reach = (f"the first {res.total} node(s)" if res.truncated
+                     else f"{res.total} node(s)")
+            return _out(f"Blast radius of {target!r}: {reach} within 3 hops"
                         + (why or "") + ". Reverse reach over calls+depends_on+inherits; "
                         "INFERRED/AMBIGUOUS hits may under- or over-count — verify.",
                         blast=res, truncated=res.truncated)

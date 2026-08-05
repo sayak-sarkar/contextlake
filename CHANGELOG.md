@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller can judge the ranking instead of trusting it.
 
 ### Fixed
+- **`ask` ignored the `k` it advertises on its impact route.** Every other route honoured it; the
+  impact route dropped it and let `blast_radius` fall back to its own default of 100, so an agent
+  asking for one result could be handed a hundred. It is threaded through now, and because a small
+  `k` makes truncation ordinary rather than rare, the answer says when the count it reports is the
+  first slice rather than the whole reach.
 - **`ask`'s dependents answer ignored the repository you asked about.** `find_dependents` had no
   repository parameter at all, so `ask` accepted `repo` in its schema and then answered across the
   whole fleet: a scope leak, not merely a missing filter. The route also never resolved its target
