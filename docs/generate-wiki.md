@@ -37,7 +37,7 @@ only, so a missing key for the review provider shows up as a run where every pag
 `N reviewer(s) returned nothing parseable` rather than as a doctor warning.
 
 How many symbols get sampled into that grounding set scales with the repo's own size:
-`max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Below about 24,000 graph
+`max(15, min(80, node_count // 1500))`, instead of a flat count of 15. Up to 22,500 graph
 nodes the floor still keeps it at 15 (no change from before); past that it grows with repo size,
 reaching its cap of 80 at around 120,000 nodes, so a large repo's ranked lists (top symbols, hubs,
 dispatchers) carry proportionally more grounding depth, bounded so the prompt stays a fixed cost.

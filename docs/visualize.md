@@ -20,14 +20,25 @@ search, and a minimap; it opens straight from `file://`:
 </p>
 
 Seed with one of `--node` / `--name` (+`--kind`) / `--search` / `--repo` / `--overview`. Bound the result
-with `--hops` (default 2), `--max-nodes` (500, a bound on the **whole file**: one-hop external
+with `--max-nodes` (500, or 5000 on `--overview`, which is a fleet inventory and defaults to loading
+every repo so any of them is findable; it is a bound on the **whole file**: one-hop external
 nodes are counted against it too, and links take a bounded share of whatever the repo's own nodes
-leave unused), `--max-edges` (400 for `--repo` views -- a dense repo can
+leave unused), `--max-edges` (no cap by default, which is what the `html` and `dot` renderers want,
+and 400 for the Mermaid-rendered formats `mermaid` / `classdiagram` / `statediagram` / `erdiagram` /
+`deploymentdiagram` -- a dense repo can
 pack well over 500 edges into 500 nodes, which used to exceed Mermaid's own render limit and fail outright;
-capping edges independently means it always renders, possibly truncated, never errors), `--max-fanout` (a per-node cap that
+capping edges there means it always renders, possibly truncated, never errors), and `--max-fanout` (a per-node cap that
 stops hub nodes from exploding: 50 on a seeded view, uncapped on a `--repo` view unless you
-pass it, since capping containment fan-out by default would hide a file's own symbols), `--relation`, and `--direction {in,out,both}`, whatever
-is dropped is **logged**, never silently truncated. For a `--repo` view over `--max-nodes`, which nodes
+pass it, since capping containment fan-out by default would hide a file's own symbols), whatever
+is dropped is **logged**, never silently truncated.
+
+`--hops` (default 2), `--relation` and `--direction {in,out,both}` shape the **walk**, so they apply
+to the seeded modes (`--node` / `--name` / `--search`) only. `--overview` and `--repo` do not walk
+outward from a seed, so passing those three with either of them has no effect. What each mode does
+take: a seeded view, all of them; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
+`--overview`, `--max-nodes` alone.
+
+For a `--repo` view over `--max-nodes`, which nodes
 survive the cut is now ranked by degree (highest-connected nodes kept first, ties broken by node id)
 rather than an arbitrary node-id order, so a truncated diagram keeps the most connected part of the repo
 instead of whatever happened to sort first. On the dashboard, a repo too large to show in one diagram gets

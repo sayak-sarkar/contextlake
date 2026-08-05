@@ -119,8 +119,9 @@ happened. There is no pagination; raise `--limit` instead.
 **Ambiguity is reported, not guessed at.** This holds at two levels.
 
 Within one repository, a name matching several definitions no longer silently takes the first. The
-seed is named with its `file:line` and how many definitions competed for it, each alternative that
-was passed over is listed with its node id, every hit cites the call site the edge was read from,
+seed is named with its `file:line` and how many definitions competed for it, the first five
+alternatives that were passed over are listed with their node ids (with a count of any beyond that),
+every hit cites the call site the edge was read from,
 and a footer counts how much of the answer rests on name-only matching:
 
 ```text
@@ -249,8 +250,9 @@ Three behaviours that bite scripts:
 - **An empty result is exit `0`**, in all three. Test the payload, not the exit code, to detect
   "found nothing". Exit `2` means you gave no search term; exit `1` means the target could not be
   resolved.
-- **`--limit 0` and `--hops 0` are treated as unset** and fall back to the defaults above. Neither
-  means "no limit".
+- **`--limit 0` and `--hops 0` are refused**, with the argument error and exit `2`: `--limit` takes
+  1 to 1,000,000 and `--hops` takes 1 to 1,000. Zero used to be read as "unset" and quietly became
+  the default, which is exactly why it is now an error. Neither ever meant "no limit".
 - **The `--as-of` argument check is the one error that ignores `--json`**: `--as-of` without
   `--repo` prints a plain line to stderr and exits `2` with no JSON error object.
 

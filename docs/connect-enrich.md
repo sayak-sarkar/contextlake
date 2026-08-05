@@ -41,7 +41,9 @@ and work alongside hand-editing if you mix approaches.
 The commands:
 
 - **`contextlake kb source add [--name NAME]`**: guided prompt to add a new connector. Asks for the connector
-  type (Atlassian / Figma / GitLab), provides sane defaults, and writes the entry to `kb.toml`. Pass
+  type, offering every type this build ships, the four connectors (`atlassian`, `figma`, `gitlab`,
+  `slack`) plus the built-in ingest sources (`files`, `web`, `api`, `graphql`, `mcp`) and any
+  installed plugin, provides sane defaults, and writes the entry to `kb.toml`. Pass
   `--type`, `--name`, and other flags to bypass the prompt (`--help` shows all). `--set KEY=VALUE`
   (repeatable) writes any connector option `kb.toml` accepts, `token_env` included (see below): `--set
   token_env=MY_TOKEN` is the flag form of that same pattern. **`--from-stdin KEY`** reads that one option's
@@ -49,7 +51,8 @@ The commands:
   "$TOKEN" | contextlake kb source add jira --type atlassian --from-stdin token`.
 
 - **`contextlake kb source list`**: show all configured connectors (the effective merged config from
-  `~/.contextlake/kb.toml`, `.contextlake/kb.toml` if present, and the built-in defaults), with
+  `~/.contextlake/kb.toml`, the nearest ancestor directory's `.contextlake.kb.toml` if one exists, and
+  the built-in defaults), with
   reachability status.
 - **`contextlake kb source test SOURCE`**: verify that a specific connector works. Reaches its API, reads
   credentials from the configured env var, lists available items. Shows you exactly what each source will

@@ -71,7 +71,9 @@ safety-check flags (`--max-retries`, `--backoff-initial` / `--backoff-max`, `--a
 their `--no-` counterparts). They are automation levers rather than things to guess at from a bare
 `--help`, and every one has a `.contextlake.ini` equivalent as its primary home (see
 [Branch safety](usage.md#branch-safety)), so they are kept out of the default listing. Run
-`contextlake <command> --help-advanced` to see them.
+`contextlake mirror <command> --help-advanced` to see them. The flag exists on those 8 commands and
+on `bootstrap`, which takes the same flag group, and nowhere else: nothing under `kb` has a hidden
+tier to reveal, and there is no top-level `contextlake --help-advanced` either.
 
 ## The command surface
 
