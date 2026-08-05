@@ -17,6 +17,7 @@ from ._common import (
     _git_head,
     _guard_store,
     _open_store,
+    _repo_id_suggestions,
     _watch_loop,
     kb_config,
 )
@@ -206,7 +207,10 @@ def _match_repo_id(store, needle: str):
 
     Exact id first, then a unique match on the id's last segment, so the bare
     ``widgets`` a reader would type resolves when only one repo ends that way and
-    stays ambiguous (``None``) when several do.
+    stays ambiguous (``None``) when several do. Deliberately stricter than
+    :func:`_repo_id_suggestions`, which is a did-you-mean list and happily returns
+    fuzzy near-misses: this one decides what to re-index, and guessing there would
+    rebuild the wrong repository's graph.
     """
     exact = store.get_repo(needle)
     if exact is not None:
@@ -242,8 +246,12 @@ def _resolve_source_by_id(store, source: str) -> tuple[str, Path] | None:
     """
     repo = _match_repo_id(store, source)
     if repo is None:
+        # The same did-you-mean list every other command gives an unknown repo id,
+        # rather than a second spelling of it: it already covers typos (difflib)
+        # and a namespace-tail spelling, and two commands answering "unknown repo"
+        # differently is the sort of inconsistency this whole item is about.
+        near = _repo_id_suggestions(store, source, n=5)
         known = [r.id for r in store.list_repos()]
-        near = [rid for rid in known if source.lower() in rid.lower()][:5]
         log(f"{source!r} is neither a path on disk nor an indexed repository id.")
         if near:
             log(f"  Did you mean: {', '.join(near)}")

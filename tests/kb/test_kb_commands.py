@@ -978,7 +978,14 @@ def test_index_source_unknown_id_says_what_the_store_knows(tmp_path, capsys):
                  "--source", "./repositories/example.com/team/widget"]) == 1
     out = capsys.readouterr().out
     assert "neither a path on disk nor an indexed repository id" in out
-    assert "Indexed ids include: example.com/team/widgets" in out
+    # The same did-you-mean list every other command gives an unknown repo id.
+    assert "Did you mean: example.com/team/widgets" in out
+
+    # Nothing close at all: fall back to naming ids that do exist, so the message
+    # still points somewhere rather than repeating the bad name back.
+    capsys.readouterr()
+    assert _run(["kb", "index", "--config", str(cfg), "--source", "zzqq"]) == 1
+    assert "Indexed ids include: example.com/team/widgets" in capsys.readouterr().out
 
 
 def test_index_source_known_id_with_a_vanished_checkout_says_where_it_was(tmp_path,
