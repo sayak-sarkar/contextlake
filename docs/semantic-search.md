@@ -64,6 +64,24 @@ graph-propagation ranking:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-query.png" alt="contextlake kb query payment --retriever hybrid output: ten cited hits spanning acme/catalog-api (Python PaymentClient, charge, refund) and acme/payments-api (C# PaymentProcessor, Charge, Refund, CardGateway), each with repo, file:line, kind, and name." width="820">
 </p>
 
+### When the query has no anchor
+
+A vector index has no concept of "no match": it returns its k nearest however far away they are, and every
+one of them is a real node with a real file and line, so an answer about nothing you asked reads as cited
+and checkable. `--retriever semantic|hybrid` therefore refuses a query when **not one** of its content
+terms appears anywhere in the index, and names the terms it could not find:
+
+```
+No matches for 'SamlAssertionValidator': nothing indexed matches 'SamlAssertionValidator'.
+  No results are shown rather than the nearest k, which would all be real nodes and none of
+  them about this query. Index the repo that should answer it, or retry with a term the graph knows.
+```
+
+One indexed term anywhere in the query is enough to let the hits through, so ordinary multi-word questions
+are unaffected. The exit code stays 0: "nothing in here is about that" is a valid answer. The
+`semantic_search` and `hybrid_search` MCP tools apply the same rule over the same store, and return an
+empty list rather than prose.
+
 ## Measuring retrieval quality
 
 `contextlake kb eval` keeps retrieval falsifiable. Point it at a **golden-query JSON file**, each entry pairs

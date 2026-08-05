@@ -529,28 +529,27 @@ def build_server(
         return fn
 
     def _term_anchors(query: str) -> tuple[list[str], bool]:
-        """``(terms the index has never seen, whether any term IS indexed)``.
+        """This server's binding of the shared relevance floor (see
+        :mod:`contextlake.kb.relevance`).
 
-        The relevance floor, shared rather than reimplemented, because it started
-        life as a branch inside ``ask`` and that left it not applying to the two
-        tools with the same problem: a nearest-neighbour search has no notion of
-        "nothing matched", so ``semantic_search`` and ``hybrid_search`` returned k
-        confident, cited, structurally-valid hits for a query with no possible
-        answer, exactly as ``ask`` had.
-
-        Lexical rather than a cosine threshold, and the measurement behind that
-        choice is recorded at the SEARCH branch in ``ask``.
+        The predicate started life as a branch inside ``ask``, which left it not
+        applying to the two tools with the same problem: a nearest-neighbour search
+        has no notion of "nothing matched", so ``semantic_search`` and
+        ``hybrid_search`` returned k confident, cited, structurally-valid hits for a
+        query with no possible answer, exactly as ``ask`` had. It then lived here as
+        a closure, which left ``kb query --retriever semantic`` -- same store, same
+        retriever, different surface -- with the identical defect. It is a module now
+        so there is one answer per knowledge base rather than one per transport.
         """
-        from .router import content_terms
+        from .relevance import term_anchors
 
-        terms = content_terms(query)
-        unmatched = [t for t in terms if not store.search(t, limit=1)]
-        return unmatched, len(terms) > len(unmatched)
+        return term_anchors(store, query)
 
     def _below_floor(query: str) -> bool:
         """True when not one content term in ``query`` is indexed anywhere."""
-        unmatched, anchored = _term_anchors(query)
-        return bool(unmatched) and not anchored
+        from .relevance import below_floor
+
+        return below_floor(store, query)
 
     @bounded_tool
     def graph_stats() -> StatsOut:

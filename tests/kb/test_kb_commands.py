@@ -109,7 +109,9 @@ def test_query_retriever_semantic_respects_kind_filter(tmp_path, capsys, monkeyp
         lambda args, store, text, limit: ["demo_app_catalogservice", "demo_app_charge"])
 
     capsys.readouterr()
-    assert _run(["kb", "query", "anything", "--config", str(cfg),
+    # "CatalogService" is indexed, so the query clears the relevance floor and the
+    # stubbed retriever's ids get through -- this test is about --kind, not the floor.
+    assert _run(["kb", "query", "CatalogService", "--config", str(cfg),
                 "--retriever", "semantic", "--kind", "function"]) == 0
     out = capsys.readouterr().out
     assert "charge" in out and "CatalogService" not in out
@@ -822,3 +824,62 @@ def test_serve_ctrl_c_closes_the_store_then_hard_exits(tmp_path, gls_logs, monke
     assert rc == 0  # the function's own return value is unaffected by the mock
     assert order == ["store.close", "os._exit(0)"]
     assert "Stopping MCP server" in gls_logs.text
+
+
+def test_query_semantic_applies_the_same_relevance_floor_as_mcp(tmp_path, capsys,
+                                                                monkeypatch):
+    """One knowledge base must not answer the same question two ways.
+
+    `semantic_search`/`hybrid_search` over MCP refuse a query with no anchor in
+    the index: a nearest-neighbour search returns its k nearest however far away
+    they are, and every one is a real node with a real file and line, so the
+    answer reads as cited while being about nothing that was asked. `kb query
+    --retriever semantic` called the retriever factories directly and skipped
+    that check, so the CLI happily printed the k unrelated hits the MCP tool had
+    just refused, from the same store.
+
+    The retriever is stubbed to return real indexed ids, which is exactly what a
+    real vector index does for an unanchored query -- it has no way to return
+    nothing.
+    """
+    from contextlake.kb.cmds import query as query_mod
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    monkeypatch.setattr(
+        query_mod, "_semantic_results",
+        lambda args, store, text, limit: ["demo_app_catalogservice", "demo_app_charge"])
+
+    capsys.readouterr()
+    rc = _run(["kb", "query", "SamlAssertionValidator", "--config", str(cfg),
+               "--retriever", "semantic"])
+    out = capsys.readouterr()
+    text = out.out + out.err
+    # "nothing in here is about that" is a valid answer, so the exit code is 0...
+    assert rc == 0
+    # ...but nothing unrelated is presented as if it were one.
+    assert "CatalogService" not in text and "charge" not in text
+    # The refusal names the term, so it is checkable and retryable, not a dead end.
+    assert "'SamlAssertionValidator'" in text
+
+
+def test_query_semantic_json_refusal_is_an_empty_list(tmp_path, capsys, monkeypatch):
+    """--json keeps its shape through the refusal: a bare array of hits, empty.
+    The reason goes to stderr, where --json already sends every log line, so a
+    script piping stdout into a parser is unaffected."""
+    import json
+
+    from contextlake.kb.cmds import query as query_mod
+
+    cfg = _kb_config(tmp_path)
+    assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
+    monkeypatch.setattr(
+        query_mod, "_semantic_results",
+        lambda args, store, text, limit: ["demo_app_catalogservice"])
+
+    capsys.readouterr()
+    assert _run(["kb", "query", "SamlAssertionValidator", "--config", str(cfg),
+                 "--retriever", "semantic", "--json"]) == 0
+    out = capsys.readouterr()
+    assert json.loads(out.out) == []
+    assert "SamlAssertionValidator" in out.err

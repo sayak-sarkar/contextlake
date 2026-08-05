@@ -62,6 +62,37 @@ _QUERY_USAGE = ('contextlake kb query "<text>" [--kind K] [--repo R] [--limit N]
                "[--as-of C] [--retriever fts|semantic|hybrid]")
 
 
+def _refuse_below_floor(store, text: str, *, as_json: bool) -> bool:
+    """Apply the shared relevance floor to a semantic/hybrid CLI query.
+
+    The MCP tools have refused an unanchored query since 6.0.0 -- a
+    nearest-neighbour index returns its k nearest however far away they are, and
+    every one of them is a real node with a real file and line, so the answer reads
+    as cited while being about nothing that was asked. `kb query` called the same
+    retriever factories directly and skipped the floor, so the same store answered
+    the same question two different ways depending on which surface asked.
+
+    The CLI does not merely go quiet the way a tool result does: it names the terms
+    the index has never seen, which is what makes the refusal checkable and
+    retryable rather than a dead end. The exit code stays 0 -- "nothing in here is
+    about that" is a valid answer to a valid question, and a script that greps the
+    output should not have to special-case it.
+    """
+    from ..relevance import term_anchors
+
+    unmatched, anchored = term_anchors(store, text)
+    if not unmatched or anchored:
+        return False
+    if as_json:
+        print(json.dumps([], indent=2))
+    terms = ", ".join(repr(t) for t in unmatched)
+    log(f"No matches for {text!r}: nothing indexed matches {terms}.")
+    log("  No results are shown rather than the nearest k, which would all be "
+        "real nodes and none of them about this query. Index the repo that "
+        "should answer it, or retry with a term the graph knows.")
+    return True
+
+
 def _semantic_results(args, store, text, limit):
     """Node ids from the semantic/hybrid retriever, or ``None`` to fall back to fts
     (embedder/vector store unavailable, or the retriever itself failed) -- reuses
@@ -111,6 +142,11 @@ def cmd_query(args) -> int:
         retr_kind = (getattr(args, "retriever", None) or "fts").lower()
         results = None
         if retr_kind in ("semantic", "hybrid"):
+            # Before the retriever, not inside it: the factories are the ones
+            # `kb eval --retriever` scores, and a floor applied there would silently
+            # move the numbers that whole measurement campaign is built on.
+            if _refuse_below_floor(store, text, as_json=as_json):
+                return 0
             ids = _semantic_results(args, store, text, limit)
             if ids is not None:
                 kind = getattr(args, "kind", None)

@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `stale` in all three is now genuine staleness only.
 
 ### Fixed
+- **`kb query --retriever semantic|hybrid` applies the same relevance floor the MCP tools do.**
+  `semantic_search` and `hybrid_search` have refused a query with no anchor in the index since 6.0.0,
+  but the CLI called the retriever factories directly and skipped the check, so the same store
+  answered the same question two ways: an empty list over MCP, and k confident unrelated hits on the
+  terminal. The predicate now lives in one module both surfaces use. The CLI does not merely go
+  quiet: it names the terms the index has never seen, so the refusal is checkable and retryable. The
+  exit code stays 0, and `--json` still prints a bare (empty) array with the reason on stderr.
 - **A commit git cannot decode as UTF-8 no longer kills the command.** Every place contextlake read a
   child process's output decoded it strictly, so one byte git could not map raised
   `UnicodeDecodeError` out of `subprocess.run` itself, before any of the surrounding error handling
