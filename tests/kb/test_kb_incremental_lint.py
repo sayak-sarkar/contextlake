@@ -306,3 +306,54 @@ def test_a_directory_with_no_git_anywhere_stays_silent(tmp_path, logs):
     (plain / "a.py").write_text("def g():\n    return 2\n")
     assert _git_head(plain) is None
     assert not [m for m in logs if "DIFFERENT" in m], logs
+
+
+# --- redaction reaches the knowledge layer --------------------------------
+# <workspace> and <group> were derived from the mirror sync INI, which no kb
+# command reads, so --redact, --no-redact and the default all produced the same
+# unredacted log for every knowledge command -- the half of the product the flag
+# is most needed for. <store> looked registered (in _open_store) but `doctor`
+# builds its own SqliteStore and never goes through it.
+
+def test_load_kb_config_registers_the_store_path(tmp_path, monkeypatch):
+    from contextlake import observability
+    from contextlake.kb.config import load_kb_config
+
+    observability.reset_redactions()
+    try:
+        store = tmp_path / "somewhere" / "private-store"
+        cfg_file = tmp_path / "kb.toml"
+        cfg_file.write_text(f'[kb]\nstore_dir = "{store}"\n', encoding="utf-8")
+        load_kb_config(str(cfg_file))
+        assert observability.redact(f"store reachable - {store}") == \
+            "store reachable - <store>"
+    finally:
+        observability.reset_redactions()
+
+
+def test_a_first_index_redacts_repo_ids_before_it_names_them(tmp_path, logs):
+    """The repo ids were registered from the STORE, which is empty on a first
+    index -- exactly the run that prints every id for the first time, and so
+    exactly the run whose log leaked them. They come from the walk now."""
+    from contextlake import observability
+
+    observability.reset_redactions()
+    try:
+        ws = tmp_path / "ws"
+        _git_repo(ws / "acme-private" / "svc-alpha")
+        store_dir = tmp_path / "store"
+        store = SqliteStore(store_dir / "index.sqlite")
+        check_schema(store)
+        try:
+            # the store is empty, so anything registered during this call cannot
+            # have come from it -- which is the whole point of the fix
+            assert store.list_repos() == []
+            _index_workspace(store, store_dir, ws)
+            repo_id = store.list_repos()[0].id
+            scrubbed = observability.redact(f"indexed {repo_id}")
+            assert repo_id not in scrubbed, scrubbed
+            assert "repo-" in scrubbed, scrubbed
+        finally:
+            store.close()
+    finally:
+        observability.reset_redactions()

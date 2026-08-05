@@ -1736,9 +1736,23 @@ def _run(argv, metrics):
         metrics.configure(expand_path(args.metrics_file), _qualified(args.command))
     # $HOME is knowable before any config is read and is the single most common
     # thing a pasted log leaks (the username, and often the employer's directory
-    # layout). The workspace/group rules are added once the config is loaded
-    # below; a kb command's store is added when it opens one.
-    observability.add_redactions(paths=[(os.path.expanduser("~"), "~")])
+    # layout). The group/forge-host rules are added once the mirror config is
+    # loaded below; a kb command's store is added when its config resolves.
+    #
+    # --workspace/--source/--out are registered here rather than on the mirror
+    # config path, because that path is the reason redaction was inert for the
+    # whole knowledge layer: <workspace> was derived from the sync INI, which no
+    # kb command reads, so `kb index --redact --workspace DIR` logged the
+    # absolute directory in full under every one of --redact, --no-redact and
+    # the default. These are the same directories under a different spelling,
+    # and they are known the moment the arguments are parsed.
+    _paths = [(os.path.expanduser("~"), "~")]
+    for flag, placeholder in (("workspace", "<workspace>"), ("source", "<source>"),
+                              ("out", "<out>")):
+        value = getattr(args, flag, None)
+        if value and value is not _S:
+            _paths.append((expand_path(str(value)), placeholder))
+    observability.add_redactions(paths=_paths)
 
     # Zero-step completion setup for anyone who skipped `init` entirely (a pip/
     # uv/pipx install has no post-install hook to hang this on -- see

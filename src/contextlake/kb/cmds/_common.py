@@ -60,9 +60,18 @@ def _open_store(args) -> tuple[SqliteStore, Path]:
     # its node/edge gauges at the end of the run, and what `--redact` needs to
     # keep the store's location out of a shared log.
     observability.note_store_path(db_path)
-    observability.add_redactions(paths=[(store_dir, "<store>")])
     store = SqliteStore(db_path)
     check_schema(store)
+    # The mirror path registers its repo ids (core.add_repo_names) so a bare
+    # "namespace/name" is hashed wherever it stands alone, with no workspace root
+    # in front of it to key off. A kb command's output is nothing but those ids --
+    # per-repo index lines, query hits, lint rows -- and it registered none of
+    # them, which is why a redacted kb log still named every repository. The store
+    # is the kb side's equivalent of the fleet list.
+    try:
+        observability.add_repo_names(r.id for r in store.list_repos())
+    except Exception:  # noqa: BLE001 - redaction is best-effort; never fail a command over it
+        pass
     return store, store_dir
 
 

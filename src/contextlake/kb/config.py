@@ -234,7 +234,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
 
     kb = merged.get("kb", {})
     _warn_unknown_config(kb, merged)
-    return KbConfig(
+    cfg = KbConfig(
         store_dir=kb.get("store_dir", default_store_dir()),
         languages=kb.get("languages", list(DEFAULT_LANGUAGES)),
         skip_generated=kb.get("skip_generated", True),
@@ -247,6 +247,18 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         loaded_from=loaded_from,
         searched=searched,
     )
+    # Registered here, where the store's location becomes known, rather than where
+    # a store is opened. `_open_store` looked like the choke point and is not:
+    # `doctor` constructs its own SqliteStore, so `--redact doctor` printed the
+    # absolute store path in full. Every kb command resolves its config through
+    # this function, including the ones that never open a store, so this is the
+    # only place that fires for all of them. add_redactions is additive and
+    # order-independent by design, so registering the same rule twice is free.
+    from .. import observability
+    observability.add_redactions(
+        paths=[(cfg.store_path, "<store>")]
+        + [(p, "<config>") for p in loaded_from])
+    return cfg
 
 
 # The keys that live under [kb]; the other KbConfig fields come from their own

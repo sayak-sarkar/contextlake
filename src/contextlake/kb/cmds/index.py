@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from ... import style
+from ... import observability, style
 from ...logging_setup import log
 from .._util import _or_default
 from ..model import Repo
@@ -68,6 +68,11 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         return 1
     mode = "full" if force else "incremental"
     failed = skipped = 0
+    # Registered from the WALK, not from the store. _open_store registers whatever
+    # the store already knows, which is empty on a first index -- exactly the run
+    # that prints every repo id for the first time, and so exactly the run whose
+    # log leaked them. The walk knows the ids before a single line is emitted.
+    observability.add_repo_names(rid for rid, _ in repos)
 
     # Incremental filter first (cheap serial DB reads): repos whose HEAD moved, plus
     # repos whose graph was built by a parser this build no longer agrees with. The
