@@ -12,6 +12,21 @@ from contextlake.kb.server import build_server
 from contextlake.kb.store.sqlite_store import SqliteStore
 
 
+class _PathlessStore:
+    """A store with no ``path``, the one shape `graph_health` cannot lint. Only an
+    embedder calling ``build_server`` directly reaches it -- ``_open_store``
+    always constructs a SqliteStore with a path -- so it is built here rather than
+    through the CLI."""
+
+    path = None
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
 def _seed(store):
     store.upsert_nodes("team/api", [
         Node(id="a", repo="team/api", kind="function", name="CatalogService", file="svc.py"),
@@ -1327,5 +1342,21 @@ def test_shortest_path_never_claims_an_adjacency_it_invented(tmp_path):
         assert out["hops"] == 2, "the route's real length, not the part that materialised"
         assert [n["id"] for n in out["nodes"]] == ["a", "b"]
         assert out["gap"] and "not in the graph" in out["gap"]
+    finally:
+        s.close()
+
+
+def test_graph_health_counts_repos_even_when_it_cannot_check_them(tmp_path):
+    """A store with no filesystem path can read no local HEAD and open no shard,
+    so nothing is checkable -- but how many repos it holds is still knowable, and
+    zeroing that with the rest turned "nothing was checked" into "there is nothing
+    here". `checked=0` is what says the checks did not run."""
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    try:
+        s.upsert_repo(Repo(id="team/api", path=str(tmp_path)))
+        pathless = build_server(_PathlessStore(s))
+        out = _unwrap(asyncio.run(_call(pathless, "graph_health", {})).structured_content)
+        assert out["repos"] == 1 and out["indexed"] is True
+        assert out["checked"] == 0 and out["stale"] == 0
     finally:
         s.close()

@@ -1018,10 +1018,17 @@ def build_server(
         from .commands import lint_result
         sp = getattr(store, "path", None)
         res = lint_result(store, Path(sp).parent) if sp else {
-            "repos": 0, "checked": 0, "stale": 0, "dangling": 0, "parser_stale": 0,
-            "stale_repos": [], "parser_stale_repos": [], "dangling_sample": []}
+            # A pathless store has no local HEAD to read and no shard to open, so
+            # nothing can be checked -- but how many repos it holds is still
+            # knowable, and zeroing that alongside the checks turned "nothing was
+            # checked" into "there is nothing here", which is a different answer.
+            "repos": len(store.list_repos()), "checked": 0, "stale": 0, "dangling": 0,
+            "parser_stale": 0, "stale_repos": [], "parser_stale_repos": [],
+            "dangling_sample": []}
         return GraphHealthOut(
-            indexed=store.stats().repos > 0,
+            # lint_result's own `repos` is len(store.list_repos()), so this is the
+            # store's repo count and costs nothing extra.
+            indexed=res["repos"] > 0,
             repos=res["repos"], checked=res["checked"], stale=res["stale"],
             dangling=res["dangling"], parser_stale=res["parser_stale"],
             stale_repos=[sanitize_label(x) for x in res["stale_repos"]],

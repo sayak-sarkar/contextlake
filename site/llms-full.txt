@@ -5109,7 +5109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zero parser-stale, which is the exact output of a perfectly healthy fleet. The counts were not
   wrong, they were unqualified. Startup now warns and names the command to fix it, the same way an
   unconfigured embeddings tier already does, and `indexed=false` says the zeros mean "nothing to
-  check" rather than "nothing to fix".
+  check" rather than "nothing to fix". A store with no filesystem path, which can read no local
+  HEAD and open no shard, also reported zero repositories rather than zero checks; it now counts
+  the repositories it holds and leaves `checked` at zero, which is the part that says the checks
+  did not run.
 - **`shortest_path` returns an envelope instead of a bare list.** It was the only tool whose output
   shape could not express a miss, so a typo'd node id and a genuine "these two are unconnected"
   were the same empty list -- and the docstring's "empty if none" described only the second. It now
