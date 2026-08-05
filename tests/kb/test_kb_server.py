@@ -483,6 +483,81 @@ def test_ask_reports_a_definition_miss_as_a_miss(tmp_path):
         store.close()
 
 
+def _server_with_perfect_embedder(tmp_path):
+    """A store whose vector search ALWAYS returns every node at cosine 1.0.
+
+    The point of the relevance floor is that a nearest-neighbour search has no
+    notion of "nothing matched" -- it ranks a top k however far away they are.
+    A fake embedder that matches everything perfectly is that property taken to
+    its limit, so a test that still expects no nodes back is testing the floor
+    and nothing else.
+    """
+    from contextlake.kb.embeddings.store import VectorStore
+
+    class _FakeEmbedder:
+        name = "fake"
+
+        def embed(self, texts):
+            return [[1.0, 0.0] for _ in texts]
+
+    store = SqliteStore(tmp_path / "kb.sqlite")
+    _seed(store)
+    vs = VectorStore(tmp_path / "embeddings.sqlite")
+    vs.upsert([("a", "team/api", [1.0, 0.0]), ("b", "team/api", [1.0, 0.0])])
+    return build_server(store, embedder=_FakeEmbedder(), vector_store=vs), store, vs
+
+
+def test_ask_returns_no_nodes_when_no_query_term_is_indexed(tmp_path):
+    """A question made only of terms the graph has never seen must come back
+    empty, not with the nearest k.
+
+    The seeded store holds CatalogService and charge. Nothing in it is about
+    SAML, so ranking a top k over it produces citations that all resolve and
+    none of which are about the question -- the exact failure this product
+    exists to prevent.
+    """
+    srv, store, vs = _server_with_perfect_embedder(tmp_path)
+    try:
+        out = asyncio.run(_call(srv, "ask", {
+            "question": "Which repository implements the SAML SSO flow?"})).structured_content
+        assert out["answered"] is False
+        assert out["nodes"] == []
+        assert "SAML" in out["note"]
+    finally:
+        vs.close()
+        store.close()
+
+
+def test_ask_still_answers_when_a_query_term_is_indexed(tmp_path):
+    """The floor must not swallow real questions: one indexed term is enough to
+    let the hits through, so the guard cannot degrade into a blanket refusal."""
+    srv, store, vs = _server_with_perfect_embedder(tmp_path)
+    try:
+        out = asyncio.run(_call(srv, "ask", {
+            "question": "CatalogService charge"})).structured_content
+        assert out["answered"] is True
+        assert out["nodes"] != []
+    finally:
+        vs.close()
+        store.close()
+
+
+def test_ask_names_the_terms_that_matched_nothing(tmp_path):
+    """Partially anchored: hits are real but cannot be about the missing terms,
+    and the answer has to say which ones those are."""
+    srv, store, vs = _server_with_perfect_embedder(tmp_path)
+    try:
+        out = asyncio.run(_call(srv, "ask", {
+            "question": "CatalogService kerberos delegation"})).structured_content
+        assert out["answered"] is False
+        assert out["nodes"] != []                  # the anchored term still retrieves
+        assert "kerberos" in out["note"].lower()
+        assert "delegation" in out["note"].lower()
+    finally:
+        vs.close()
+        store.close()
+
+
 def test_ask_handles_unresolvable_symbol(server):
     # a callers question about a symbol that isn't indexed must not raise
     res = asyncio.run(_call(server, "ask", {"question": "who calls NotARealSymbol"}))

@@ -16,6 +16,7 @@ from contextlake.kb.router import (
     SEARCH,
     SUBCLASSES,
     classify,
+    content_terms,
     extract_target,
 )
 
@@ -108,3 +109,22 @@ def test_a_dotted_path_still_survives_sentence_splitting():
     # would cut "Store.close" in half
     assert extract_target("where is Store.close defined") == "Store.close"
     assert classify("Who calls Store.close? Be brief.")[1] == "Store.close"
+
+
+def test_content_terms_keeps_the_words_worth_probing():
+    assert content_terms("Which repository implements the SAML SSO flow?") == [
+        "SAML", "SSO", "flow"]
+    assert content_terms("Summarise the payments service.") == ["payments"]
+
+
+def test_content_terms_keeps_domain_words_that_stop_would_have_dropped():
+    """_STOP drops impact / blast / radius / package because they are route
+    keywords. Reusing it here left "blast radius impact analysis" with a single
+    probe term, and refused a question the store could answer."""
+    assert content_terms("blast radius impact analysis") == [
+        "blast", "radius", "impact", "analysis"]
+
+
+def test_content_terms_deduplicates_case_insensitively_and_keeps_order():
+    assert content_terms("charge_order and Charge_Order") == ["charge_order"]
+    assert content_terms("beta alpha beta") == ["beta", "alpha"]

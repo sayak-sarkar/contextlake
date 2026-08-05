@@ -806,6 +806,7 @@ def build_server(
             OWNERS,
             SUBCLASSES,
             classify,
+            content_terms,
         )
 
         route, target = classify(question)
@@ -936,6 +937,29 @@ def build_server(
         # SEARCH: the classified route for an open question, and the fallback after a
         # definition/explain miss. `route` keeps its classified value either way -- see
         # `established` above for why it is no longer rewritten to SEARCH here.
+        #
+        # The relevance floor. A nearest-neighbour search has no notion of "nothing
+        # matched": it returns the top k however far away they are, which is how a
+        # question about a technology that appears nowhere in the fleet came back with
+        # eight real, resolvable, unrelated citations. A cosine floor was measured and
+        # rejected (see below); the floor is lexical instead: probe the name index for
+        # each of the question's content terms and refuse to present an answer built
+        # only on terms the graph has never seen.
+        #
+        # Measured (this repo indexed and embedded, 4752 vectors, potion-base-8M): over
+        # 22 questions whose answer IS in the store and 10 whose answer is not, no
+        # cosine statistic separated them -- best-hit similarity, best-vs-median-of-top-50,
+        # and a z-score against the full background distribution all had the two classes
+        # overlapping (present-min 0.356 sat BELOW absent-max 0.554 on raw cosine). Term
+        # presence separated cleanly: 0 of 22 present questions were refused, and the
+        # absent ones either refused outright or had their unmatched terms named. The
+        # lexical probe is also embedder-independent, which a tuned constant is not:
+        # this ships four embedding providers and a constant fitted to one is silently
+        # wrong for the other three.
+        terms = content_terms(question)
+        unmatched = [t for t in terms if not store.search(t, limit=1)]
+        anchored = len(terms) > len(unmatched)   # at least one term IS in the index
+
         if question.strip() and embedder is not None and vector_store is not None:
             vec = embedder.embed([question])[0]
             out: list[NodeOut] = []
@@ -949,12 +973,26 @@ def build_server(
             out = search_code(question, repo=repo, limit=k)
             found = "Full-text search over node names (no embeddings configured)."
 
-        if established:
-            tail = (" The nodes below are leads from a fallback " + found[0].lower()
-                    + found[1:] + " They are NOT an answer to the question as asked."
+        # The unmatched terms are named on every path that reaches here, so the same
+        # question gets the same disclosure whether it arrived as an open search or as
+        # a definition/explain miss.
+        missing = (f" No indexed symbol matches {', '.join(repr(t) for t in unmatched)}."
+                   if unmatched else "")
+        lead = ((established or "") + missing).strip()
+
+        # Below the floor: not one term in the question is indexed. Return no nodes
+        # rather than the nearest k -- which is exactly what the lexical tools already
+        # do, and what makes them right where this path was wrong.
+        if unmatched and not anchored:
+            return _out(lead + " No nodes are returned: a nearest-neighbour search "
+                        "would still rank a top k, and none of it would be about the "
+                        "question.", answered=False, nodes=[])
+        if lead:
+            tail = (" " + found + " The hits below matched the question's other terms;"
+                    " they are leads, NOT an answer to the question as asked."
                     if out else " A fallback search over the whole question found "
                     "nothing either.")
-            return _out(established + tail, answered=False, nodes=out)
+            return _out(lead + tail, answered=False, nodes=out)
         if not out:
             return _out("Nothing in the knowledge base matched this question. "
                         + found, answered=False, nodes=[])

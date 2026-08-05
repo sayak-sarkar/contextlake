@@ -145,3 +145,49 @@ def classify(question: str) -> tuple[str, str | None]:
         if pattern.search(q):
             return route, extract_target(_asking_sentence(q, pattern))
     return SEARCH, extract_target(q)
+
+
+# Generic English scaffolding, plus the route verbs and the meta-nouns a person
+# uses to describe the KIND of thing they want ("the payments *service*", "which
+# *repository*"). Deliberately NOT _STOP, which also drops domain words like
+# impact / blast / radius / package because they are route keywords -- those are
+# exactly the words that anchor a question like "blast radius impact analysis",
+# and dropping them there left no term to probe at all.
+_GENERIC = frozenset("""
+a an the is are was were be been being am do does did doing have has had having
+to of in on at for with and or not it its this that these those there here
+what which who whom whose when where why how can could would should may might
+will shall must me my we our you your they their he she him her his hers
+about into over under from by as if then than so such all any both each few
+more most other some only own same too very just also i no nor but
+give list show tell find get make use used using name explain describe
+summarise summarize summary overview walk through work works working
+defined define definition declared declaration call calls called caller callers
+depend depends dependent dependents own owns owner owners know knows wrote
+maintain maintains maintainer extend extends implement implements
+repository repo repos service services component components system
+file files line lines code function class method module package symbol
+main every please thanks
+""".split())
+
+_TERM = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def content_terms(question: str) -> list[str]:
+    """The words in ``question`` worth probing the index for, first occurrence
+    first, case preserved.
+
+    Used to answer "does this knowledge base contain anything the question is
+    about?" -- a question made entirely of terms the graph has never heard of
+    cannot be answered from the graph, however confidently a nearest-neighbour
+    search ranks its top k.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for tok in _TERM.findall(question):
+        low = tok.lower()
+        if len(tok) < 3 or low in _GENERIC or low in seen:
+            continue
+        seen.add(low)
+        out.append(tok)
+    return out
