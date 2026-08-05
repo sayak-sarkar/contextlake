@@ -240,3 +240,24 @@ def test_clone_summary_line_warns_on_partial_failure(
     assert "1 failed" in summary
     assert "⚠" in summary
     assert "✓" not in summary
+
+
+def test_a_filter_on_an_empty_workspace_is_not_a_pattern_complaint(
+    tmp_path, base_config, monkeypatch, gls_logs
+):
+    """The primary happy path of --repos: nothing is cloned yet, so nothing
+    local can match, and that is not evidence of a bad pattern. The
+    matched-nothing warning is for a filter that found nothing in a tree that
+    HAD something."""
+    monkeypatch.setattr(core, "load_gitlab_projects", lambda c, g, **kw: {
+        "api": {"archived": False, "http": "h", "ssh": "s", "default_branch": "main"}})
+    planned = []
+    monkeypatch.setattr(core, "clone_repository",
+                        lambda lp, gp, h, s, wd, cfg: (planned.append(lp), ("ok", lp, "cloned"))[1])
+
+    cfg = base_config.copy()
+    cfg["repo_filter"] = "api"
+    core.clone_missing_repos(str(tmp_path), cfg, "g")
+
+    assert planned == ["api"], "the repo still has to be planned"
+    assert "No local repositories matched" not in gls_logs.text

@@ -824,7 +824,11 @@ def filtered_local_repos(work_dir, config):
     # A typo in the pattern must not read as a clean run over nothing, which is
     # the shape honouring the filter newly makes reachable here. `fetch` already
     # says this for the same situation against the project list.
-    if not matched:
+    #
+    # Only when there was something to match, though. An empty work directory is
+    # the ordinary state of `clone --repos <name>` on a first run, and warning
+    # there tells the user to check a pattern that is doing exactly its job.
+    if repos and not matched:
         # Names the directory rather than a command: `mirror status` is one of
         # this helper's callers, and sending a reader from status to status is
         # the sort of self-referential advice that reads as a bug.
