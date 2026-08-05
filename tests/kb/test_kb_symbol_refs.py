@@ -99,6 +99,8 @@ def test_keys_from_blame_survives_non_utf8_commit_subject(tmp_path, commit_raw_b
     repo = _init_repo(tmp_path)
     (repo / "mod.py").write_text("def a():\n    pass\n")
     _git(repo, "add", "mod.py")
+    # commit_raw_bytes, never `git commit -F` -- see the fixture's docstring: git
+    # transcodes, so the ordinary spelling proves nothing.
     commit_raw_bytes(repo, message=b"PROJ-8: widen the retry window \x96 was too tight\n")
 
     assert keys_from_blame(str(repo), [_node("sa", file="mod.py", line_start=1)],

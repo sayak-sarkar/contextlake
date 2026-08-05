@@ -69,6 +69,9 @@ def test_extract_issue_keys_survives_non_utf8_commit_subject(tmp_path, commit_ra
     _git(tmp_path, "init", "-q")
     (tmp_path / "f.txt").write_text("x")
     _git(tmp_path, "add", "-A")
+    # commit_raw_bytes, never `git commit -F`: git transcodes an undecodable
+    # message to UTF-8 before writing the object, so the ordinary spelling of this
+    # test passes against the unfixed code. See the fixture's docstring.
     commit_raw_bytes(tmp_path, message=b"ABC-77 widen the retry window \x96 was too tight\n")
 
     assert extract_issue_keys(str(tmp_path), r"[A-Z]+-\d+") == ["ABC-77"]

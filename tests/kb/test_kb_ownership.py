@@ -81,6 +81,8 @@ def test_non_utf8_author_name_does_not_abort(repo, commit_raw_bytes):
     of this module's error handling could run."""
     (repo / "a.py").write_text("x\n")
     _git(repo, "add", "a.py")
+    # commit_raw_bytes, never GIT_AUTHOR_NAME -- see the fixture's docstring: git
+    # transcodes the ident too, so the ordinary spelling proves nothing.
     commit_raw_bytes(repo, message=b"add a\n",
                      author=b"Ren\x96e Doe <renee@example.com>")
 

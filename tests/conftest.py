@@ -244,16 +244,30 @@ def make_local_repo(root, rel_path, branch="main", dirty=False):
 def commit_raw_bytes():
     """Commit whose object bytes are written verbatim, undecodable bytes and all.
 
-    ``git commit`` will not produce one: given a message or an author ident that
-    is not valid UTF-8 it transcodes before writing the object, so a fixture built
-    the ordinary way proves nothing about strict decoding. Real repositories are
-    full of these anyway, because history written by older Windows tooling carries
-    cp1252 bytes (0x96 is its en-dash) with no ``encoding`` header to declare them,
-    and git replays those bytes exactly as stored.
+    DO NOT SIMPLIFY THIS TO ``git commit -F <file>`` OR ``GIT_AUTHOR_NAME=...``.
+    It looks like an elaborate way to spell an ordinary commit and it is not. Doing
+    so silently disarms all three of its callers -- they keep passing, against code
+    with the bug back in it:
 
-    Writing the object through ``hash-object`` is the only way to get that shape in
-    a test, and it is faithful: what lands in the object database is byte for byte
-    what such a repository holds.
+    * ``tests/kb/test_kb_references.py``   (``git log --format=%s``)
+    * ``tests/kb/test_kb_symbol_refs.py``  (``git blame --line-porcelain``)
+    * ``tests/kb/test_kb_ownership.py``    (``git log --format=%an``)
+
+    The reason is that ``git commit`` **transcodes**. Handed a message or an author
+    ident that is not valid UTF-8, it converts to UTF-8 before writing the object,
+    so the byte you carefully placed never reaches the decoder under test. Measured,
+    not assumed: committing a raw ``0x96`` the ordinary way stores ``c2 96`` (the
+    UTF-8 encoding of U+0096), which decodes cleanly and proves nothing. Verify with
+    ``git cat-file -p HEAD | xxd`` if you doubt it -- and note that the very first
+    version of these three tests passed against the *unfixed* code for exactly this
+    reason.
+
+    ``hash-object`` is the only route that bypasses the transcode, and it is
+    faithful rather than contrived: what lands in the object database is byte for
+    byte what a real repository holds. Those are not rare. History written by older
+    Windows tooling carries cp1252 bytes (0x96 is its en-dash) with no ``encoding``
+    header to declare them, and git replays them exactly as stored -- which is how
+    one commit killed an indexing run across a 20-repository fleet.
     """
     import subprocess
 
