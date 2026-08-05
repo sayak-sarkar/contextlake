@@ -579,7 +579,7 @@ def build_server(
                      limit: int = 50) -> NodesOut:
         """Find the definitions that call a node — 'who calls X?' (incoming calls edges).
 
-        Pass the symbol as `node_id` **or** `name` — either a node id or a bare symbol
+        Pass the symbol as `node_id` **or** `name`: either a node id or a bare symbol
         name (e.g. ``CatalogService``), resolved to its first matching definition.
         EXTRACTED-first, capped at `limit`; `truncated`/`total` flag hot symbols with
         more callers than returned.
@@ -705,7 +705,7 @@ def build_server(
                      limit: int = 100) -> BlastRadiusOut:
         """What could break if you change this node — bounded transitive REVERSE reach.
 
-        Pass the symbol as `node_id` **or** `name` — either a node id or a bare symbol
+        Pass the symbol as `node_id` **or** `name`: either a node id or a bare symbol
         name (e.g. ``CatalogService``),
         resolved to its first matching definition. Walks INCOMING edges (who calls /
         depends on / subclasses the node) breadth-first up to `hops`, capped at
