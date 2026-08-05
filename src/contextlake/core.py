@@ -825,8 +825,11 @@ def filtered_local_repos(work_dir, config):
     # the shape honouring the filter newly makes reachable here. `fetch` already
     # says this for the same situation against the project list.
     if not matched:
+        # Names the directory rather than a command: `mirror status` is one of
+        # this helper's callers, and sending a reader from status to status is
+        # the sort of self-referential advice that reads as a bug.
         log(style.warn(f"No local repositories matched --repos {patterns}; "
-                       "check the pattern against `contextlake mirror status`"))
+                       f"check the pattern against the repositories under {work_dir}"))
     return matched
 
 
@@ -1465,7 +1468,12 @@ def clone_missing_repos(work_dir, config, gitlab_group):
     if not projects:
         return StageResult()
 
-    local_repos = set(get_local_repos(work_dir))
+    # Filtered for the same reason status is: `projects` above is already scoped,
+    # so an unfiltered local list makes "Already cloned locally" a count from a
+    # different population than the two lines around it. Membership is
+    # unaffected -- every path in `projects` matches the filter, so it matches
+    # here too -- only the reported number changes.
+    local_repos = set(filtered_local_repos(work_dir, config))
     max_workers = _int(config, "max_workers", "8")
     adaptive = _is_truthy(config, "adaptive_workers", "true")
     min_workers = _int(config, "min_workers", "2")
@@ -1769,14 +1777,6 @@ def show_status(work_dir, config, gitlab_group):
     """Show a read-only summary of local vs GitLab state."""
     log(style.bold("Synchronization status"))
 
-    # Say what these counts cover BEFORE printing them. `status` is the command
-    # the docs send you to before a sync, so a scoped count read as the group
-    # total is wrong exactly where it is trusted most.
-    patterns = repo_filter_patterns(config)
-    if patterns:
-        log(style.dim(f"  Scoped to --repos {','.join(patterns)}: counts below cover the "
-                      "matching repositories, not the whole group"))
-
     # Read-only on purpose: never enumerate the forge from `status` (see
     # load_gitlab_projects). Nothing to report is reported, not fixed silently.
     projects = load_gitlab_projects(config, gitlab_group, allow_fetch=False)
@@ -1791,7 +1791,19 @@ def show_status(work_dir, config, gitlab_group):
             log(f"{style.warn()} No projects loaded, run 'fetch' first")
         return
 
-    local_repos = set(get_local_repos(work_dir))
+    # Say what these counts cover, and say it where counts actually follow: a
+    # scoped number read as the group total is wrong exactly where it is trusted
+    # most, and this is the command the docs send you to before a sync.
+    patterns = repo_filter_patterns(config)
+    if patterns:
+        log(style.dim(f"  Scoped to --repos {','.join(patterns)}: counts below cover the "
+                      "matching repositories, not the whole group"))
+
+    # BOTH sides of the comparison, as `verify` already does. status compares the
+    # project list against the work directory, so narrowing one side and not the
+    # other invents a difference that is not there: a fully-synced workspace
+    # reported every non-matching clone as an Extra repository.
+    local_repos = set(filtered_local_repos(work_dir, config))
     active_projects = {k: v for k, v in projects.items() if not v["archived"]}
 
     synchronized = [p for p in active_projects if p in local_repos]

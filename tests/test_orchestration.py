@@ -382,3 +382,24 @@ def test_status_names_the_scope_when_it_is_reporting_one(tmp_path, base_config, 
     text = gls_logs.text
     assert "Scoped to --repos api,web" in text
     assert re.search(r"GitLab projects \(active\)\s+2\b", text)
+
+
+def test_status_narrows_both_sides_of_the_comparison(tmp_path, base_config, gls_logs):
+    """`status` compares the project list against the local tree, so a filter
+    that narrows one side and not the other invents a difference: a fully-synced
+    workspace reported every non-matching clone as an Extra repository. `verify`
+    already narrows both; `status` did not."""
+    cfg = base_config.copy()
+    cfg.update(_write_scoped_cache(tmp_path, ("api", "web", "billing"), ""))
+    cfg["repo_filter"] = "api"
+    for name in ("api", "web", "billing"):
+        make_local_repo(tmp_path, name)
+
+    core.show_status(str(tmp_path), cfg, "g")
+
+    text = gls_logs.text
+    assert re.search(r"GitLab projects \(active\)\s+1\b", text)
+    assert re.search(r"Local repositories\s+1\b", text)
+    assert re.search(r"Synchronized\s+1\b", text)
+    assert re.search(r"Extra\s+0\b", text)
+    assert "Extra repositories" not in text

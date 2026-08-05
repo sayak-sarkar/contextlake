@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can neither confirm nor deny what this run asked for, so it is re-enumerated instead of
   answered from. `status`, which never enumerates, names the scope the cache does cover rather
   than presenting it as the group, and names the scope it is reporting whenever one is in force.
+  `status` narrows both sides of its comparison, as `verify` already did: narrowing the project
+  list and not the local tree would report every non-matching clone in a fully-synced workspace
+  as an extra repository. `clone`'s "already cloned locally" count follows the same scope.
 - **`ask`'s owners answer claimed a git-history ranking it had never run.** `who_knows` returns an
   empty owner list early, before a single git command is issued, when the repo has no local clone
   path on record. The answer was labelled `, ranked from git history.` regardless, so "nobody owns
