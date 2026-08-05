@@ -694,6 +694,49 @@ def test_find_callers_and_blast_radius_resolve_a_bare_name(tmp_path):
     s.close()
 
 
+def test_find_callers_and_blast_radius_disclose_a_name_collision(tmp_path):
+    """Two definitions share a name; the tools seed one and return its result.
+
+    Measured on a real store: both definitions of one name returned the SAME
+    six-caller list, so the answer was the union and precision was 0.33 and 0.67
+    depending on which one the caller meant. `ask` over the identical resolution
+    said "N matched, used the first"; find_callers and blast_radius called
+    directly over MCP returned a bare list with no note at all, and the MCP tool
+    surface is what agents actually consume.
+    """
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    prov = Provenance(source_file="a.py", source_line=1, verified_at=date(2026, 6, 21))
+    nodes = [
+        Node(id="a::classify", repo="r", kind="function", name="classify", file="a.py"),
+        Node(id="b::classify", repo="r", kind="function", name="classify", file="b.py"),
+        Node(id="caller", repo="r", kind="function", name="scan_one", file="a.py"),
+    ]
+    edges = [Edge(src="caller", dst="a::classify", relation="calls",
+                  confidence=Confidence.EXTRACTED, provenance=prov)]
+    s.upsert_repo(Repo(id="r", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h1", nodes=nodes, edges=edges))
+    reindex_shard(s, tmp_path, "r")
+    srv = build_server(s)
+    try:
+        callers = asyncio.run(
+            _call(srv, "find_callers", {"node_id": "classify"})).structured_content
+        assert callers["note"] and "2 matched" in callers["note"]
+        assert "used the first" in callers["note"]
+
+        blast = asyncio.run(
+            _call(srv, "blast_radius", {"node_id": "classify"})).structured_content
+        assert blast["note"] and "2 matched" in blast["note"]
+
+        # an unambiguous node id must stay quiet: a note on every call is noise,
+        # and noise is how a real disclosure gets ignored
+        exact = asyncio.run(
+            _call(srv, "find_callers", {"node_id": "a::classify"})).structured_content
+        assert exact["note"] is None
+    finally:
+        s.close()
+
+
 def test_get_wiki_serves_cluster_page_by_namespace(tmp_path):
     s = SqliteStore(tmp_path / "kb.sqlite")
     _seed(s)

@@ -141,6 +141,9 @@ class NodesOut(BaseModel):
     nodes: list[NodeOut]
     total: int
     truncated: bool
+    # Set when a bare symbol name matched several definitions and one had to be
+    # seeded: the result is that one definition's, not the union of all of them.
+    note: str | None = None
 
 
 class RepoEdgeOut(BaseModel):
@@ -183,6 +186,9 @@ class BlastRadiusOut(BaseModel):
     hits: list[BlastHit]
     total: int
     truncated: bool
+    # Same disclosure as NodesOut.note: which definition `seed` actually resolved to
+    # when the caller passed a bare name that several definitions share.
+    note: str | None = None
 
 
 class OwnerOut(BaseModel):
@@ -441,17 +447,31 @@ def build_server(
         """Find definition(s) with an exact name — 'where is X defined?'."""
         return [_node_out(n) for n in store.nodes_by_name(name, kind=kind, repo=repo)]
 
-    def _as_node_id(node_id_or_name: str) -> str | None:
-        """Accept a node id OR a bare symbol name. Agents (and humans) naturally pass
-        a name like ``CatalogService``; resolve it to the first matching node id so
-        callers/impact work without a separate find_definition round-trip. An exact
-        node id is returned as-is; an unknown string yields None."""
+    def _as_node_id(node_id_or_name: str) -> tuple[str | None, str | None]:
+        """Accept a node id OR a bare symbol name, plus the disclosure it needs.
+
+        Agents (and humans) naturally pass a name like ``CatalogService``; resolve
+        it to the first matching node id so callers/impact work without a separate
+        find_definition round-trip. An exact node id is returned as-is; an unknown
+        string yields None.
+
+        The second element is the "N matched, used the first" caveat, from the same
+        ``chosen_one_of`` every other surface uses. It exists because the count was
+        being computed and thrown away here: a bare name with five same-named
+        definitions seeded one of them, and find_callers/blast_radius returned the
+        result with nothing to say so, while the `ask` envelope over the very same
+        resolution disclosed it. Two surfaces, one store, one question, and only one
+        of them mentioned that the answer was about a symbol the caller did not pick.
+        """
         if not node_id_or_name:
-            return None
+            return None, None
         if store.get_node(node_id_or_name):
-            return node_id_or_name
+            return node_id_or_name, None
         matches = store.nodes_by_name(node_id_or_name)
-        return matches[0].id if matches else None
+        if not matches:
+            return None, None
+        from .impact import chosen_one_of
+        return matches[0].id, chosen_one_of(node_id_or_name, len(matches)) or None
 
     @mcp.tool()
     def find_callers(node_id: str, limit: int = 50) -> NodesOut:
@@ -461,7 +481,7 @@ def build_server(
         resolved to its first matching definition. EXTRACTED-first, capped at `limit`;
         `truncated`/`total` flag hot symbols with more callers than returned.
         """
-        nid = _as_node_id(node_id)
+        nid, why = _as_node_id(node_id)
         if nid is None:
             return NodesOut(nodes=[], total=0, truncated=False)
         edges = sorted(store.neighbors(nid, relation="calls", direction="in"),
@@ -476,7 +496,8 @@ def build_server(
             if n:
                 out.append(_node_out(n))
         kept, total, truncated = _budget(out, limit)
-        return NodesOut(nodes=kept, total=total, truncated=truncated)
+        return NodesOut(nodes=kept, total=total, truncated=truncated,
+                        note=(f"Callers of {node_id!r}{why}." if why else None))
 
     @mcp.tool()
     def find_dependents(package: str, limit: int = 50) -> NodesOut:
@@ -574,10 +595,12 @@ def build_server(
         the cap was hit).
         """
         from .impact import blast_radius as _blast
-        nid = _as_node_id(node_id) or node_id
+        resolved, why = _as_node_id(node_id)
+        nid = resolved or node_id
         hits, truncated = _blast(store, nid, hops=hops, relations=relations, limit=limit)
         return BlastRadiusOut(
             seed=nid, hops=hops, total=len(hits), truncated=truncated,
+            note=(f"Blast radius of {node_id!r}{why}." if why else None),
             hits=[BlastHit(id=sanitize_label(h.id), repo=sanitize_label(h.repo),
                            kind=sanitize_label(h.kind), name=sanitize_label(h.name),
                            hop=h.hop, via=sanitize_label(h.via), confidence=h.confidence,
