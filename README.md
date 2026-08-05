@@ -57,7 +57,7 @@ finish in **[QUICKSTART](https://github.com/sayak-sarkar/contextlake/blob/main/Q
 
 ```bash
 pip install "contextlake[kb]"       # the full tool: mirror + graph, search, wiki, MCP server
-pip install contextlake             # mirror-only core (no pip dependencies at all)
+pip install contextlake             # mirror-only core (one dependency: argcomplete)
 ```
 
 Everything in the quickstart below needs the `[kb]` extra (Python 3.10+); the plain

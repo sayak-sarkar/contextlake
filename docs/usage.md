@@ -11,6 +11,14 @@ sync see [Bootstrap and keep it fresh](keep-fresh.md); for the knowledge layer s
 > documented in the [Knowledge layer](knowledge-layer.md) overview and the
 > [command reference](cli-reference.md). This page covers the mirror and sync commands.
 
+**Four platforms, one vocabulary.** `mirror` runs against GitLab (the default), GitHub, Bitbucket and
+Gitea, including its Codeberg and Forgejo flavors. Pick one with `platform` in the config file or
+`contextlake init --platform github`, and name the group / org / workspace / owner with the generic
+`group` key ([Configuration](configuration.md)). The word *GitLab* outlives that choice in several
+places: this page's wording, the `--group` help text, the cached project files
+(`gitlab_projects.txt` / `.json`) and the `GitLab projects (active)` line in `mirror status`. Read
+all of those as "the remote you configured", whichever one it is.
+
 ## Command reference
 
 Every command carries its own scoped help, `contextlake <command> --help` shows
@@ -54,7 +62,7 @@ available as its own command:
 
 ### `mirror status`: check current synchronization status
 
-Shows the current state of your workspace compared to GitLab.
+Shows the current state of your workspace compared to the remote, from the fetch cache.
 
 ```bash
 contextlake mirror status
@@ -63,23 +71,28 @@ contextlake mirror status
 **Example output:**
 
 ```text
-GitLab projects (cached): 128      # repos you can see on GitLab
-Local repositories:       128      # repos cloned in your workspace
-Synchronized:             127      # present in both and matching
-Missing:                  1        # on GitLab but not cloned yet
-Extra:                    1        # cloned locally but not on GitLab
+  • GitLab projects (active)  128
+  • Local repositories        128
+  ✓ Synchronized              127
+  ⚠ Missing                     1
+  ⚠ Extra                       1
 ```
 
-- **Missing** = a repo exists on GitLab but isn't in your workspace, `clone` (or
+- **GitLab projects (active)** = projects you can see on the remote, archived ones excluded. The
+  count comes from the fetch cache, so it is as fresh as your last `fetch`.
+- **Local repositories** = repos cloned in your workspace.
+- **Synchronized** = present in both, and matching.
+- **Missing** = a repo exists on the remote but isn't in your workspace, `clone` (or
   `sync`) will fetch it.
-- **Extra** = a repo is in your workspace but not on GitLab, usually one that was
+- **Extra** = a repo is in your workspace but not on the remote, usually one that was
   renamed, archived, or removed there; `contextlake` leaves it alone for you to review.
 
 A fully synced workspace shows `0` for both.
 
-### `mirror fetch`: fetch all GitLab projects
+### `mirror fetch`: fetch every project you can see
 
-Retrieves all repositories from the specified GitLab group and caches them locally.
+Retrieves all repositories from the configured group / org / workspace / owner and caches them
+locally.
 
 ```bash
 contextlake mirror fetch
@@ -87,7 +100,7 @@ contextlake mirror fetch
 
 This command:
 
-- Uses the GitLab API with pagination to fetch all projects
+- Uses the configured platform's REST API with pagination to fetch all projects
 - Includes subgroups automatically
 - Skips archived repositories
 - Caches results in `gitlab_projects.txt` and `gitlab_projects.json`, under a
@@ -95,7 +108,7 @@ This command:
 
 ### `mirror clone`: clone missing repositories
 
-Clones any repositories that exist in GitLab but are missing locally.
+Clones any repositories that exist on the remote but are missing locally.
 
 ```bash
 contextlake mirror clone
@@ -103,18 +116,19 @@ contextlake mirror clone
 
 This command:
 
-- Compares cached GitLab projects with local repositories
-- Creates directory structure matching GitLab's group/subgroup hierarchy
+- Compares the cached project list with local repositories
+- Creates a directory structure mirroring the remote's group/subgroup hierarchy
 - Uses HTTPS cloning for better authentication
 - Clones up to 8 repositories concurrently
 - Handles timeouts gracefully (300s per repository)
 
-How each repo is cloned (`clone_method = auto`, the default): with `GITLAB_TOKEN`
-set, contextlake clones with plain `git`, passing the token as an auth header
+How each repo is cloned (`clone_method = auto`, the default): with the platform's token env var set
+(`GITLAB_TOKEN`, `GITHUB_TOKEN`, `BITBUCKET_TOKEN` or `GITEA_TOKEN`, or whatever `token_env` names),
+contextlake clones with plain `git`, passing the token as an auth header
 through the child environment, never on the command line and never in the URL, so
 it can't leak into `ps` output or `.git/config`. Without a token it uses `glab repo
-clone` (glab's own auth) when glab is installed, else plain `git clone` over HTTPS.
-Set `clone_method = git` or `glab` to force one path.
+clone` (glab's own auth) when glab is installed, which is a GitLab-only path, else plain
+`git clone` over HTTPS. Set `clone_method = git` or `glab` to force one path.
 
 ### `mirror update`: update existing repositories
 
@@ -126,9 +140,10 @@ contextlake mirror update
 
 This command:
 
-- Fetches all remote branches
-- Updates the current branch with latest changes from origin
-- Handles detached HEAD states appropriately
+- Fetches the current branch from `origin`
+- Fast-forwards it to `origin`, never merging or rebasing
+- Skips a repo on a detached HEAD, there is no branch to fast-forward
+- Skips a branch that has diverged from its upstream, and says so, for you to reconcile by hand
 - Reports repositories that are already up to date
 
 ### `mirror branches`: switch to most active branches
@@ -155,7 +170,7 @@ repos without branches, and detached-HEAD states are skipped.
 
 ### `mirror verify`: verify repository structure
 
-Checks that the local workspace structure matches GitLab exactly.
+Checks that the local workspace structure matches the remote exactly.
 
 ```bash
 contextlake mirror verify
@@ -163,10 +178,10 @@ contextlake mirror verify
 
 This command:
 
-- Compares local repositories with GitLab project list
+- Compares local repositories with the cached project list
 - Identifies nested `.git` directory structures (indicates incorrect cloning)
-- Lists extra local repositories (not in GitLab)
-- Lists missing repositories (in GitLab but not local)
+- Lists extra local repositories (not on the remote)
+- Lists missing repositories (on the remote but not local)
 - Reports synchronization status
 
 ### `mirror sync`: full synchronization
@@ -179,7 +194,7 @@ contextlake mirror sync
 
 This command executes:
 
-1. `fetch` - Get latest GitLab project list
+1. `fetch` - Get the latest project list
 2. `clone` - Clone missing repositories
 3. `update` - Update existing repositories
 4. `branches` - Switch to active branches
@@ -189,7 +204,8 @@ This command executes:
 ### `mirror audit`: repo health & age report
 
 Scans every local clone and reports which repos are effectively empty and how old/active
-they are. Runs automatically at the end of `sync`/`bootstrap`, or on demand:
+they are. Runs automatically at the end of `sync`, and in `bootstrap` immediately after the mirror
+step (stage 2 of 8, before the knowledge layer is built), or on demand:
 
 ```bash
 contextlake mirror audit                       # summary to console + report to <cache_dir>/repo_audit.json
@@ -213,7 +229,14 @@ contextlake's config-file precedence and the full settings reference now have th
 
 The tool protects your local work without getting in your way. The guiding rule:
 **a clean repo is always safe to act on, the branch name alone never causes a skip.**
-The only thing that blocks an `update` is a *dirty working tree*.
+The only *setting* that blocks an `update` is the one that catches a *dirty working tree*.
+
+Two states stop an `update` on a clean tree as well, and neither is configurable, because both are
+about there being no fast-forward to perform rather than about protecting your work: a repo on a
+**detached HEAD** (no branch to update) and a branch that has **diverged from its upstream** (a
+mirror fast-forwards, it never merges or rebases). Both are reported per repo as skips with the
+reason, so a green run is not a promise that every clean repo moved. See
+[Reading the console output](console-output.md).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/branch-safety.png" alt="Branch-safety decision: a dirty working tree is skipped (or stashed if auto_stash); branches stays off a non-safe branch when protect_working_branches is set; otherwise contextlake acts, update pulls and branches switches." width="720">
@@ -242,7 +265,8 @@ The only thing that blocks an `update` is a *dirty working tree*.
 
 The two "no effect" rows are the ones people get wrong, and they follow from the guiding rule above:
 `update` pulls the branch you are already on, so being on a feature branch is not a reason to hold
-back. Only a dirty tree is.
+back. Of the settings in this table, only the dirty-tree guard holds `update` back; the two
+structural skips above (detached HEAD, diverged branch) are not settings at all.
 
 ### What each looks like
 

@@ -41,9 +41,14 @@ The stages run in this order, and each can be skipped except the two marked othe
 | 7 | Generate the wiki | `--no-wiki` |
 | 8 | Write editor steering (`.mcp.json`, `AGENTS.md`, and so on) | not skippable |
 
-A failing stage warns, records the failure, and lets the rest of the run continue. **Indexing is the
-exception**: the graph is what every later stage reads, so if `index` fails the run stops there and
-exits `1` rather than building vectors and prose on top of nothing.
+A failing knowledge-layer stage (3 to 8) warns, records the failure, and lets the rest of the run
+continue. **Indexing is the exception**: the graph is what every later stage reads, so if `index`
+fails the run stops there and exits `1` rather than building vectors and prose on top of nothing. An
+unreachable remote in stage 1 is also recorded and continued past, so the knowledge layer still gets
+built from the clones already on disk.
+
+Stage 2 is the one gap in that promise: the audit stage is not wrapped in the same guard, so an error
+there, which in practice means failing to write the report file, ends the run before indexing starts.
 
 Both config files are read from their default locations (`~/.contextlake.ini` and
 `~/.contextlake/kb.toml`, or the nearest ancestor directory's `.contextlake.ini` /
