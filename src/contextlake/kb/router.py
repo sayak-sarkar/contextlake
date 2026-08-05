@@ -97,7 +97,12 @@ def extract_target(question: str) -> str | None:
     m = _QUOTED.search(question)
     if m:
         return m.group(1).strip()
-    candidates = [t for t in _IDENT.findall(question) if _looks_like_symbol(t)]
+    # Strip trailing punctuation that _IDENT swallowed: it accepts '.', '-' and '/'
+    # so a dotted path survives, which also makes a sentence-final word plus its
+    # full stop ("line.") a valid-looking symbol. Strip first, then judge, so the
+    # stripped word is ranked as the prose it is rather than as a dotted path.
+    candidates = [s for t in _IDENT.findall(question)
+                  if (s := t.rstrip("./-_")) and _looks_like_symbol(s)]
     if not candidates:
         return None
     # Prefer clearly-code tokens (dotted/underscored/camel/hyphen) over bare words;
@@ -107,11 +112,36 @@ def extract_target(question: str) -> str | None:
     return (strong or candidates)[-1]
 
 
+# A sentence break: a terminator followed by whitespace, or the end of the string.
+# Deliberately requires the whitespace so a dotted identifier ("Foo.bar", "api.v2")
+# is never split in half.
+_SENTENCE_SPLIT = re.compile(r"(?<=[.?!])\s+")
+
+
+def _asking_sentence(question: str, pattern: re.Pattern) -> str:
+    """The sentence that triggered the route, or the whole question.
+
+    ``extract_target`` takes the last symbol-like token, which is right for a
+    single-clause question and wrong the moment an ordinary second sentence
+    follows: "Who calls classify? List every caller." put the route's real
+    subject in sentence one and the last token in sentence two, so the product
+    answered a question nobody asked. The route was decided by a pattern that
+    matched in one specific sentence; the subject is in that sentence.
+    """
+    parts = [s for s in _SENTENCE_SPLIT.split(question.strip()) if s.strip()]
+    if len(parts) < 2:
+        return question
+    for part in parts:
+        if pattern.search(part) and extract_target(part):
+            return part
+    return question
+
+
 def classify(question: str) -> tuple[str, str | None]:
     """Map a question to ``(route, target)``. Unmatched questions fall back to
     SEARCH (semantic/FTS), which is always safe."""
     q = question.strip()
     for route, pattern in _RULES:
         if pattern.search(q):
-            return route, extract_target(q)
+            return route, extract_target(_asking_sentence(q, pattern))
     return SEARCH, extract_target(q)
