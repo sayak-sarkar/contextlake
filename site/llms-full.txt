@@ -587,8 +587,9 @@ described.
 - **Some structure is skipped rather than guessed at.** Framework routes, realtime channels,
   templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
   SQL foreign keys miss about three in ten.
-- **A fixed cost per agent session.** The 22 tool schemas load once whether or not a tool is called,
-  which can be net-negative if the agent calls it for questions it does not help with.
+- **A fixed cost per agent session.** The tool schemas (20, or 22 once embeddings exist) load once
+  whether or not a tool is called, which can be net-negative if the agent calls it for questions it
+  does not help with.
 
 ## See also
 
@@ -3997,11 +3998,12 @@ description of the two mechanisms, not a measurement of either:
 | **Who owns / knows repo X?** | Ranked from git history in one call | `git log`, which is cheap and already local |
 | **Explain / brief a repo** | One brief assembled from the graph and the wiki | The README plus however many files it takes |
 
-Two of those rows are capability differences rather than savings: **transitive reach** and **concept
+Rows 3 and 4 are capability differences rather than savings: **transitive reach** and **concept
 matching** are not things a grep-and-read loop does more expensively, they are things it does not do
-at all, at any budget. The middle rows are where a token saving is plausible, and the size of it
-depends entirely on how common the name is and how disciplined the agent's search would otherwise
-have been.
+at all, at any budget. The definition and caller rows are where a token saving is plausible, and its
+size depends entirely on how common the name is and how disciplined the agent's search would
+otherwise have been. The ownership row is where contextlake saves least, because `git log` was
+already cheap.
 
 The other structural difference is that brute-force search costs *time* as well as tokens on a large
 fleet: a fleet-wide grep for a common term returns more hits than an agent can read, before it opens
@@ -4009,12 +4011,13 @@ a single file. contextlake answers the same question from its index in one bound
 
 ## The one fixed cost
 
-Any session pays for the tool schemas once, whether or not it calls a tool: **22 of them** (19
-always, 2 more when embeddings exist, plus the `ask` router, all listed in [Serve](serve.md)). That
-cost is real, and it can leave you net-negative if the agent reaches for the server on questions it
-does not help with. There is no published token figure for it here for the reason at the top of the
-page; the recipe in [Measure it on your own repositories](#measure-it-on-your-own-repositories)
-counts it in the same pass as everything else.
+Any session pays for the tool schemas once, whether or not it calls a tool: **20 of them on a
+graph-only store** (19 unconditional plus the `ask` router) and **22 once embeddings exist**, all
+listed in [Serve](serve.md). That cost is real, and it can leave you net-negative if the agent
+reaches for the server on questions it does not help with. There is no published token figure for it
+here for the reason at the top of the page; the recipe in
+[Measure it on your own repositories](#measure-it-on-your-own-repositories) counts it in the same
+pass as everything else.
 
 ## By use case, honestly
 

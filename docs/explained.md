@@ -317,8 +317,9 @@ described.
 - **Some structure is skipped rather than guessed at.** Framework routes, realtime channels,
   templates and stylesheets are named as not-extracted rather than half-extracted, and inferred
   SQL foreign keys miss about three in ten.
-- **A fixed cost per agent session.** The 22 tool schemas load once whether or not a tool is called,
-  which can be net-negative if the agent calls it for questions it does not help with.
+- **A fixed cost per agent session.** The tool schemas (20, or 22 once embeddings exist) load once
+  whether or not a tool is called, which can be net-negative if the agent calls it for questions it
+  does not help with.
 
 ## See also
 
