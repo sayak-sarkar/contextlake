@@ -145,7 +145,17 @@ def cmd_query(args) -> int:
             # Before the retriever, not inside it: the factories are the ones
             # `kb eval --retriever` scores, and a floor applied there would silently
             # move the numbers that whole measurement campaign is built on.
-            if _refuse_below_floor(store, text, as_json=as_json):
+            #
+            # Gated on embeddings being enabled, which is exactly the condition
+            # under which the MCP server registers `semantic_search`/`hybrid_search`
+            # at all -- so the gate makes the two surfaces agree more precisely,
+            # not less. Without embeddings this falls through to fts, which has a
+            # real notion of "no match" and needs no floor; refusing there would
+            # print a reason ("rather than the nearest k") naming a search that was
+            # never going to run, in a change whose whole point is saying true
+            # things. The answer is empty on both paths either way.
+            if (kb_config(args).embeddings.enabled
+                    and _refuse_below_floor(store, text, as_json=as_json)):
                 return 0
             ids = _semantic_results(args, store, text, limit)
             if ids is not None:

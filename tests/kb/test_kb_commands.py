@@ -21,6 +21,16 @@ def _kb_config(tmp_path) -> Path:
     return cfg
 
 
+def _embeddings_enabled_config(tmp_path) -> Path:
+    """A config with embeddings on. The relevance floor is gated on that, because
+    it is also what decides whether the MCP server exposes semantic search at all
+    -- so the two surfaces agree exactly where both actually do vector search."""
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n\n[embeddings]\nenabled = true\n')
+    return cfg
+
+
 def _bare_git_repo(path: Path) -> None:
     """A real (structurally valid), remote-less, commit-less git repo -- unlike
     a bare ``mkdir(".git")``, this is a state ``git`` itself recognizes as this
@@ -858,7 +868,7 @@ def test_query_semantic_applies_the_same_relevance_floor_as_mcp(tmp_path, capsys
     """
     from contextlake.kb.cmds import query as query_mod
 
-    cfg = _kb_config(tmp_path)
+    cfg = _embeddings_enabled_config(tmp_path)
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     monkeypatch.setattr(
         query_mod, "_semantic_results",
@@ -885,7 +895,7 @@ def test_query_semantic_json_refusal_is_an_empty_list(tmp_path, capsys, monkeypa
 
     from contextlake.kb.cmds import query as query_mod
 
-    cfg = _kb_config(tmp_path)
+    cfg = _embeddings_enabled_config(tmp_path)
     assert _run(["kb", "index", "--config", str(cfg), "--source", str(FIXTURE)]) == 0
     monkeypatch.setattr(
         query_mod, "_semantic_results",

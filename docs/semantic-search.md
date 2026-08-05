@@ -80,7 +80,8 @@ No matches for 'SamlAssertionValidator': nothing indexed matches 'SamlAssertionV
 One indexed term anywhere in the query is enough to let the hits through, so ordinary multi-word questions
 are unaffected. The exit code stays 0: "nothing in here is about that" is a valid answer. The
 `semantic_search` and `hybrid_search` MCP tools apply the same rule over the same store, and return an
-empty list rather than prose.
+empty list rather than prose. With `[embeddings]` off the query degrades to keyword search instead, which
+has its own notion of "no match" and needs no floor.
 
 ## Measuring retrieval quality
 
