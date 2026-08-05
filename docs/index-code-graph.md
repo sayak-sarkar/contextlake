@@ -121,16 +121,18 @@ high-value defs and FK references and is a **deliberate undercount**. Render it 
 **Measured, not just asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
 orders/customers/inventory corpus with a checked ground truth of every FK a human reading the DDL would
 call real (`expected_edges.json`, 13 edges); `tests/kb/test_sql_fixture_corpus.py` scores the parser's
-emitted `references` edges against it on every CI run. Current numbers on that corpus: **precision 0.90
-(9 true positives / 1 false positive), recall 0.69 (9 / 13 ground-truth edges found)**, a small,
-hand-built corpus, not a claim about the whole fleet, but real and reproducible. Two documented gap
-classes account for the four missed edges, both by design, not bugs: a
-**self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is dropped because the
-extractor excludes `target == name`, and an FK **attached via a separate `ALTER TABLE ... ADD CONSTRAINT`**
-statement is never captured because the scope tracker only scans `REFERENCES` inside a `CREATE TABLE`'s
-own text span. The one measured false positive comes from a **commented-out `REFERENCES` line**: the
-regex has no comment-awareness, so dead DDL history left in a script can resolve into a real-looking edge
-if its target table still exists. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
+emitted `references` edges against it on every CI run, and asserts this page still quotes what it
+measures. Current numbers on that corpus: **precision 1.00 (9 true positives / 0 false positives),
+recall 0.69 (9 / 13 ground-truth edges found)**, a small, hand-built corpus, not a claim about the whole
+fleet, but real and reproducible. Two documented gap classes account for the four missed edges, both by
+design, not bugs: a **self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is
+dropped because the extractor excludes `target == name`, and an FK **attached via a separate
+`ALTER TABLE ... ADD CONSTRAINT`** statement is never captured because the scope tracker only scans
+`REFERENCES` inside a `CREATE TABLE`'s own text span. Precision was 0.90 on this corpus until the
+extractor learned to blank out `--` and `/* */` comments before matching: its one false positive was a
+commented-out `REFERENCES` line, dead DDL history that resolved into a real-looking edge because the
+table it named still existed elsewhere in the repo. That case is now pinned as a negative in the corpus
+test. These are the numbers to distrust a graph `INFERRED` SQL edge by, and
 the floors in the corpus test are meant to be ratcheted up as the extractor improves, not treated as a
 target already met.
 

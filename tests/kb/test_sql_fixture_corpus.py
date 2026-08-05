@@ -17,7 +17,10 @@ separate ``ALTER TABLE`` statement).
 The thresholds below are the honestly *measured* current numbers, not a
 target. If a future change to sql.py's regex moves them, that is a real
 signal -- ratchet the floor up (never lower it to make this pass) and update
-docs/code-graph.md's published numbers to match.
+docs/index-code-graph.md's published numbers to match. That last step used to
+be a comment aimed at a filename that no longer existed, so the page kept
+quoting a precision the parser had already beaten;
+``test_published_numbers_match_the_docs`` now checks it instead of asking.
 
 Precision was 0.90 on this corpus until sql.py started masking comments before
 matching, which removed its one false positive; it is 1.00 now, recall
@@ -33,6 +36,7 @@ from contextlake.kb.model import Confidence
 from contextlake.kb.parse import index_repo_dir
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sql"
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _load_ground_truth() -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
@@ -80,15 +84,42 @@ def test_sql_fixture_corpus_precision_recall_floor():
 
     # The two documented gap classes, by name -- if either starts resolving,
     # that's real parser progress and expected_edges.json's "detectable"
-    # flag (plus docs/code-graph.md's published numbers) should be updated.
+    # flag (plus docs/index-code-graph.md's published numbers) should be updated.
     assert ("customers", "customers") in false_negatives
     assert ("inventory_categories", "inventory_categories") in false_negatives
     assert ("shipments", "orders") in false_negatives
     assert ("shipments", "warehouses") in false_negatives
 
 
+def test_published_numbers_match_the_docs():
+    """The page that publishes these figures must quote what this corpus measures.
+
+    The numbers below are derived from the same run as the floors above, then
+    looked for verbatim in the doc, so the doc cannot quietly keep an older
+    figure (which is exactly what happened while the pointer in this module's
+    header named a file that had been renamed away).
+    """
+    doc = REPO_ROOT / "docs" / "index-code-graph.md"
+    assert doc.exists(), (
+        f"{doc.relative_to(REPO_ROOT)} is where these numbers are published. If the "
+        "page moved, update this test and the module docstring together, or the "
+        "published figures go stale unnoticed again.")
+
+    ground_truth, _detectable = _load_ground_truth()
+    emitted = _emitted_reference_pairs(index_repo_dir(str(FIXTURE_DIR), "fixtures/sql"))
+    true_positives = emitted & ground_truth
+    precision = len(true_positives) / len(emitted) if emitted else 0.0
+    recall = len(true_positives) / len(ground_truth) if ground_truth else 0.0
+
+    text = doc.read_text(encoding="utf-8")
+    for phrase in (f"precision {precision:.2f}", f"recall {recall:.2f}"):
+        assert phrase in text, (
+            f"{doc.relative_to(REPO_ROOT)} does not publish {phrase!r}. The corpus "
+            "moved; update the page to match the measurement.")
+
+
 def test_sql_fixture_corpus_emitted_edges_are_all_inferred_confidence():
-    """docs/code-graph.md's claim ("every SQL edge is INFERRED") is itself
+    """docs/index-code-graph.md's claim ("every SQL edge is INFERRED") is itself
     checked here, not just asserted in prose -- every name in this corpus is
     unique, so nothing should resolve as AMBIGUOUS."""
     shard = index_repo_dir(str(FIXTURE_DIR), "fixtures/sql")
