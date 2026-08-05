@@ -5103,7 +5103,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   question appears anywhere in the index, and every hit carries the number it was ranked by, so a
   caller can judge the ranking instead of trusting it.
 
+- **`kb serve` says when the store it is serving has never been indexed, and `graph_health` reports
+  `indexed`.** An empty store started, printed its banner and served every tool, with no line
+  anywhere saying the graph was empty; `graph_health` then answered zero stale, zero dangling and
+  zero parser-stale, which is the exact output of a perfectly healthy fleet. The counts were not
+  wrong, they were unqualified. Startup now warns and names the command to fix it, the same way an
+  unconfigured embeddings tier already does, and `indexed=false` says the zeros mean "nothing to
+  check" rather than "nothing to fix".
+- **`shortest_path` returns an envelope instead of a bare list.** It was the only tool whose output
+  shape could not express a miss, so a typo'd node id and a genuine "these two are unconnected"
+  were the same empty list -- and the docstring's "empty if none" described only the second. It now
+  returns `nodes`, `found`, `hops` and a `gap` naming which of the two misses occurred. Callers
+  reading the old top-level list need to read `nodes` instead.
+- **Five repository-scoped MCP tools now report `found`.** `who_knows`, `get_repo_links`,
+  `repo_dependencies`, `repo_flow` and `repo_event_flow` echoed the caller's own string back with
+  an empty payload, so a mistyped repository id was indistinguishable from a known repository with
+  no data: five confident "nothing here" answers instead of one "no such repository". `get_wiki`,
+  `get_readme` and `get_repo_brief` already carried the field; the rest of the family now matches.
+  `who_knows` also stops reporting an unindexed repository as one with no local clone, which
+  asserts it is indexed.
+
 ### Fixed
+- **`get_wiki` reported a cluster page as fresh without checking.** `stale` was hardcoded to false
+  on that path, so an agent filtering on the field treated a page nothing had verified as verified,
+  and a cluster page whose members were long gone read as current. The page already carries the
+  freshness stamp its generator skips on -- the fingerprint of its members' commits -- so it is now
+  recomputed and compared, exactly as a repository page's commit is, and a page with no stamp fails
+  closed rather than open.
+- **`blast_radius` answered for symbols it had never heard of.** An unresolvable name was used as
+  the seed anyway, so the tool returned a well-formed, non-error, bounded impact analysis of a
+  symbol that does not exist: "nothing depends on this, safe to change" and "no such symbol is
+  indexed" were the same answer to a question about whether a change is safe. Both `blast_radius`
+  and `find_callers` now say which one it is, in the same words `find_dependents` already used. A
+  negative `hops`, which walked nowhere and reported a reassuring empty reach, is refused; `hops: 0`
+  is a real request and still answers.
+- **An invalid `direction` was answered by three MCP tools and refused by a fourth.**
+  `repo_dependencies`, `repo_flow` and `repo_event_flow` matched no branch for a value outside
+  `in`/`out`/`both` and returned an empty edge list, so a typo read as "this repository has no
+  dependencies / no HTTP flow / no event flow" -- a positive architectural claim produced by an
+  argument the tool had in fact rejected. `get_neighbors` raised for the same input. All four now
+  declare the three legal values in their input schema and refuse anything else, naming them.
+- **`ask` ignored the `k` it advertises on its impact route.** Every other route honoured it; the
+  impact route dropped it and let `blast_radius` fall back to its own default of 100, so an agent
+  asking for one result could be handed a hundred. It is threaded through now, and because a small
+  `k` makes truncation ordinary rather than rare, the answer says when the count it reports is the
+  first slice rather than the whole reach.
 - **`ask`'s dependents answer ignored the repository you asked about.** `find_dependents` had no
   repository parameter at all, so `ask` accepted `repo` in its schema and then answered across the
   whole fleet: a scope leak, not merely a missing filter. The route also never resolved its target
