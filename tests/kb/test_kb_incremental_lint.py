@@ -271,3 +271,38 @@ def test_single_repo_index_skips_an_unchanged_head_like_the_workspace_path(tmp_p
     logs.clear()
     assert cmd_index(_args()) == 0
     assert any("Indexed app" in m for m in logs)
+
+
+def test_a_non_git_directory_does_not_inherit_an_ancestor_repos_head(tmp_path, logs):
+    """`git -C <dir> rev-parse HEAD` walks UP, so a plain directory sitting
+    inside another working tree was recorded as a repository at THAT tree's
+    commit -- exit 0, no warning, and every staleness check thereafter comparing
+    against an unrelated project's history.
+
+    The detection already existed in repo_identity, worded well, and was simply
+    never wired into the path that writes the row.
+    """
+    from contextlake.kb.cmds._common import _git_head
+
+    outer_head = _git_repo(tmp_path / "outer")
+    assert _git_head(tmp_path / "outer") == outer_head        # the real repo is unaffected
+
+    inner = tmp_path / "outer" / "plain"                      # no .git of its own
+    inner.mkdir()
+    (inner / "a.py").write_text("def g():\n    return 2\n")
+
+    assert _git_head(inner) is None, "must not report the ancestor repository's commit"
+    assert any("DIFFERENT" in m and "ancestor" in m for m in logs), logs
+
+
+def test_a_directory_with_no_git_anywhere_stays_silent(tmp_path, logs):
+    """Only the misattribution case is worth a warning. A directory with no
+    repository above it at all is an ordinary thing to index, and warning about
+    it every time would train the reader to skip the message that matters."""
+    from contextlake.kb.cmds._common import _git_head
+
+    plain = tmp_path / "nogit"
+    plain.mkdir()
+    (plain / "a.py").write_text("def g():\n    return 2\n")
+    assert _git_head(plain) is None
+    assert not [m for m in logs if "DIFFERENT" in m], logs

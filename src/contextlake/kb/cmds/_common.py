@@ -154,6 +154,31 @@ def _watch_loop(run_once, *, interval: float = 60, iterations=None, sleep=time.s
 
 
 def _git_head(path: Path) -> str | None:
+    """HEAD of the repository rooted AT ``path``, or None when there isn't one.
+
+    ``git -C <dir> rev-parse HEAD`` walks *up* the filesystem to the nearest real
+    repository, so a plain directory that happens to sit anywhere inside another
+    working tree reported THAT tree's commit and was stored under it. Nothing
+    downstream can recover from that: needs_reindex, `kb lint` staleness and
+    graph_health all compare against a commit with no relation to the indexed
+    content, so the directory is called current or stale according to an unrelated
+    project's history.
+
+    The product already detects this exactly, in repo_identity, and already words
+    the warning well -- it was simply never wired in here, so the bad row was
+    written first and only noticed on a later run's id-migration pass.
+    """
+    from ..repo_identity import describe_gitdir_mismatch, is_own_gitdir
+
+    if not is_own_gitdir(str(path)):
+        # Distinguish "no git anywhere near this" (ordinary, silent) from "git
+        # answered, about somebody else" (worth saying out loud).
+        why = describe_gitdir_mismatch(str(path))
+        if "DIFFERENT" in why:
+            log(style.warn(f"{path}: {why}. Indexing it with no commit recorded, "
+                           "so staleness checks will not compare it against an "
+                           "unrelated repository's history."))
+        return None
     try:
         out = subprocess.run(
             ["git", "-C", str(path), "rev-parse", "HEAD"],
