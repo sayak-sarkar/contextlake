@@ -715,6 +715,17 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
         pct = round(100 * brief["grounded_count"] / total, 1)
         coverage = (f" Grounded in {brief['grounded_count']}/{total} "
                     f"file-backed symbols ({pct}%).")
+    elif total == 0:
+        # The disclosure used to be strictly inverted: the ratio was emitted only
+        # when the total was non-zero, so a well-grounded page carried a coverage
+        # figure and a page grounded in NOTHING carried none at all. Measured on a
+        # repository that indexed to zero nodes, which still published a confident
+        # 119-line page presenting the forge's boilerplate README as the project's
+        # architecture. A page with no symbols behind it needs the loudest
+        # disclosure on the site, not the quietest.
+        coverage = (" NOT GROUNDED: this repository indexed to 0 file-backed "
+                    "symbols, so nothing below is derived from its code. Treat "
+                    "every statement as unverified.")
     scope = (f"the `{path_prefix}` module of `{brief['repo']}`" if path_prefix
             else f"`{brief['repo']}`")
     return (

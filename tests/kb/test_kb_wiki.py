@@ -323,6 +323,35 @@ def test_provenance_footer_coverage_falls_back_to_node_count_pre_field():
     assert "Grounded in" not in provenance_footer(empty)
 
 
+def test_a_page_grounded_in_nothing_carries_the_loudest_disclosure():
+    """The disclosure was strictly inverted: the coverage ratio was emitted only
+    when the total was non-zero, so a well-grounded page carried a figure and a
+    page grounded in NOTHING carried none at all.
+
+    Measured on a repository that indexed to zero nodes and still published a
+    confident 119-line page presenting the forge's boilerplate README as the
+    project's architecture. A page with no symbols behind it needs the loudest
+    disclosure on the site, not the quietest.
+    """
+    from contextlake.kb.wiki.generate import provenance_footer
+
+    nothing = {"repo": "r", "head": "abc123", "files": [],
+               "coverage_total": 0, "grounded_count": 0}
+    footer = provenance_footer(nothing)
+    assert "NOT GROUNDED" in footer
+    assert "0 file-backed symbols" in footer
+    assert "unverified" in footer
+
+    # a real ratio still reads as before, and must not gain the alarm
+    grounded = {"repo": "r", "head": "abc123", "files": ["a.py"],
+                "coverage_total": 180, "grounded_count": 15}
+    assert "NOT GROUNDED" not in provenance_footer(grounded)
+
+    # unknown coverage (neither field present) stays silent: absent is not zero
+    unknown = {"repo": "r", "head": "abc123", "files": ["a.py"]}
+    assert "NOT GROUNDED" not in provenance_footer(unknown)
+
+
 def test_grounding_cap_scales_with_repo_size():
     from contextlake.kb.wiki.generate import _grounding_cap
     assert _grounding_cap(500) == 15      # below floor
