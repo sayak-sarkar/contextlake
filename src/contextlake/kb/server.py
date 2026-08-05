@@ -26,6 +26,7 @@ import secrets
 import threading
 from collections import deque
 from pathlib import Path
+from typing import Literal
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
@@ -381,6 +382,32 @@ def _budget(items: list, limit: int) -> tuple[list, int, bool]:
     return items[:limit], total, total > limit
 
 
+# The one direction vocabulary, shared by the four tools that take the parameter
+# and matching the store's own (`sqlite_store.neighbors`). `Direction` puts it in
+# each tool's advertised input schema, so the SDK refuses an out-of-vocabulary
+# value before a handler runs.
+Direction = Literal["in", "out", "both"]
+_DIRECTIONS = ("in", "out", "both")
+
+
+def _repo_side(rows: list[dict], repo: str, direction: str) -> list[dict]:
+    """Repo->repo edges touching ``repo`` on the side ``direction`` names.
+
+    Raises on a direction outside the vocabulary, exactly as the store's
+    ``neighbors`` does for the same parameter. The three architecture tools used
+    to build this filter inline, where a value in neither set simply matched no
+    branch: a typo'd direction came back as "this repo has no dependencies / no
+    HTTP flow / no event flow", which is a positive architectural claim produced
+    by an argument the tool had in fact rejected. Same parameter, same three
+    legal values, so the same refusal.
+    """
+    if direction not in _DIRECTIONS:
+        raise ValueError(f"invalid direction: {direction!r}")
+    return [e for e in rows
+            if (direction in ("out", "both") and e["src"] == repo)
+            or (direction in ("in", "both") and e["dst"] == repo)]
+
+
 def _node_out(n: Node, *, score: float | None = None) -> NodeOut:
     s = sanitize_label
     attrs = getattr(n, "attrs", None) or {}
@@ -530,7 +557,8 @@ def build_server(
 
     @bounded_tool
     def get_neighbors(
-        node_id: str, relation: str | None = None, direction: str = "both", limit: int = 50
+        node_id: str, relation: str | None = None, direction: Direction = "both",
+        limit: int = 50
     ) -> NeighborsOut:
         """List edges incident to a node (EXTRACTED-first), capped at `limit`.
 
@@ -652,7 +680,8 @@ def build_server(
         return NodesOut(nodes=kept, total=total, truncated=truncated)
 
     @bounded_tool
-    def repo_dependencies(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
+    def repo_dependencies(repo: str, direction: Direction = "both",
+                          limit: int = 50) -> RepoEdgesOut:
         """Repo→repo package dependencies for `repo` (the cross-repo architecture map).
 
         From the package two-hop (publishes ⨝ depends_on): edges are
@@ -661,9 +690,7 @@ def build_server(
         INFERRED, manifest-derived — a likely undercount; verify against the cited repo.
         """
         from .arch.resolve import repo_dependency_edges
-        rows = [e for e in repo_dependency_edges(store)
-                if (direction in ("out", "both") and e["src"] == repo)
-                or (direction in ("in", "both") and e["dst"] == repo)]
+        rows = _repo_side(repo_dependency_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
         return RepoEdgesOut(total=total, truncated=truncated, edges=[
@@ -672,7 +699,8 @@ def build_server(
                         weight=e["weight"]) for e in kept])
 
     @bounded_tool
-    def repo_flow(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
+    def repo_flow(repo: str, direction: Direction = "both",
+                  limit: int = 50) -> RepoEdgesOut:
         """Repo→repo HTTP request flow for `repo` (who calls whom over HTTP).
 
         From the endpoint two-hop (exposes ⨝ calls_http): edges are
@@ -682,9 +710,7 @@ def build_server(
         that omits async/event coupling; verify against the cited repo.
         """
         from .arch.resolve import repo_http_flow_edges
-        rows = [e for e in repo_http_flow_edges(store)
-                if (direction in ("out", "both") and e["src"] == repo)
-                or (direction in ("in", "both") and e["dst"] == repo)]
+        rows = _repo_side(repo_http_flow_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
         return RepoEdgesOut(total=total, truncated=truncated, edges=[
@@ -693,7 +719,8 @@ def build_server(
                         weight=e["weight"], context=e.get("context")) for e in kept])
 
     @bounded_tool
-    def repo_event_flow(repo: str, direction: str = "both", limit: int = 50) -> RepoEdgesOut:
+    def repo_event_flow(repo: str, direction: Direction = "both",
+                        limit: int = 50) -> RepoEdgesOut:
         """Repo→repo EVENT flow for `repo` (who publishes events that whom consumes).
 
         From the topic two-hop (publishes_event ⨝ consumes_event): edges are
@@ -703,9 +730,7 @@ def build_server(
         topics — an undercount that omits config-variable topics; verify against the repo.
         """
         from .arch.resolve import repo_event_flow_edges
-        rows = [e for e in repo_event_flow_edges(store)
-                if (direction in ("out", "both") and e["src"] == repo)
-                or (direction in ("in", "both") and e["dst"] == repo)]
+        rows = _repo_side(repo_event_flow_edges(store), repo, direction)
         rows.sort(key=lambda e: -e["weight"])
         kept, total, truncated = _budget(rows, limit)
         return RepoEdgesOut(total=total, truncated=truncated, edges=[

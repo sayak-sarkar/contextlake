@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller can judge the ranking instead of trusting it.
 
 ### Fixed
+- **An invalid `direction` was answered by three MCP tools and refused by a fourth.**
+  `repo_dependencies`, `repo_flow` and `repo_event_flow` matched no branch for a value outside
+  `in`/`out`/`both` and returned an empty edge list, so a typo read as "this repository has no
+  dependencies / no HTTP flow / no event flow" -- a positive architectural claim produced by an
+  argument the tool had in fact rejected. `get_neighbors` raised for the same input. All four now
+  declare the three legal values in their input schema and refuse anything else, naming them.
 - **`ask` ignored the `k` it advertises on its impact route.** Every other route honoured it; the
   impact route dropped it and let `blast_radius` fall back to its own default of 100, so an agent
   asking for one result could be handed a hundred. It is threaded through now, and because a small

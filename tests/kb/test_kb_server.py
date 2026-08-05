@@ -1076,3 +1076,38 @@ def test_ask_impact_honours_the_k_it_advertises(tmp_path):
         assert len(wide["blast"]["hits"]) == 30 and wide["blast"]["truncated"] is False
     finally:
         s.close()
+
+
+@pytest.mark.parametrize("tool,args", [
+    ("get_neighbors", {"node_id": "a"}),
+    ("repo_dependencies", {"repo": "team/api"}),
+    ("repo_flow", {"repo": "team/api"}),
+    ("repo_event_flow", {"repo": "team/api"}),
+])
+def test_an_invalid_direction_is_refused_by_every_tool_that_takes_one(server, tool, args):
+    """`get_neighbors` raised for a direction outside the vocabulary while the three
+    architecture tools matched no branch and returned an empty edge list -- so a
+    typo'd direction read as "this repo has no dependencies / no HTTP flow / no
+    event flow", a positive architectural claim produced by a rejected argument.
+    All four now carry the vocabulary in their advertised schema and refuse."""
+    bad = asyncio.run(_call(server, tool, {**args, "direction": "sideways"}))
+    assert bad.is_error, f"{tool} answered an invalid direction instead of refusing it"
+    assert "'in', 'out' or 'both'" in bad.content[0].text
+
+    tools = {t.name: t for t in asyncio.run(_list_tools(server)).tools}
+    assert tools[tool].input_schema["properties"]["direction"]["enum"] == ["in", "out", "both"]
+
+    # the legal values still answer
+    for good in ("in", "out", "both"):
+        ok = asyncio.run(_call(server, tool, {**args, "direction": good}))
+        assert not ok.is_error, f"{tool} rejected direction={good!r}"
+
+
+def test_repo_side_refuses_an_out_of_vocabulary_direction_directly():
+    """The schema enum catches this over the wire; the shared filter refuses it
+    too, so an in-process caller of the closure cannot get a silent empty list
+    where the store's own `neighbors` would have raised."""
+    rows = [{"src": "a", "dst": "b"}]
+    assert server_mod._repo_side(rows, "a", "out") == rows
+    with pytest.raises(ValueError, match="invalid direction: 'sideways'"):
+        server_mod._repo_side(rows, "a", "sideways")
