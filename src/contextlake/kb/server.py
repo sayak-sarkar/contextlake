@@ -517,20 +517,33 @@ def build_server(
                         note=(f"Callers of {node_id!r}{why}." if why else None))
 
     @mcp.tool()
-    def find_dependents(package: str, limit: int = 50) -> NodesOut:
+    def find_dependents(package: str, limit: int = 50,
+                        repo: str | None = None) -> NodesOut:
         """Find files/repos that depend on a package — cross-repo 'who uses X?'.
 
-        Capped at `limit`; `truncated`/`total` flag widely-used packages.
+        `repo` scopes the answer to dependents inside one repository (the package
+        node itself is shared across repos, so it is the dependents that get
+        filtered). Capped at `limit`; `truncated`/`total` flag widely-used packages.
+
+        An unknown package returns `note` saying so, rather than an empty list that
+        reads as "nothing depends on it".
         """
+        pkgs = store.nodes_by_name(package, kind="package")
+        if not pkgs:
+            # "no such package is indexed" and "this package has no dependents" are
+            # different facts, and the second is the more reassuring one to get
+            # wrong. An empty list alone cannot tell them apart.
+            return NodesOut(nodes=[], total=0, truncated=False,
+                            note=f"No indexed package named {package!r}.")
         seen: set[str] = set()
         out: list[NodeOut] = []
-        for pkg in store.nodes_by_name(package, kind="package"):
+        for pkg in pkgs:
             for e in store.neighbors(pkg.id, relation="depends_on", direction="in"):
                 if e.src in seen:
                     continue
                 seen.add(e.src)
                 n = store.get_node(e.src)
-                if n:
+                if n and (repo is None or n.repo == repo):
                     out.append(_node_out(n))
         kept, total, truncated = _budget(out, limit)
         return NodesOut(nodes=kept, total=total, truncated=truncated)
@@ -917,8 +930,19 @@ def build_server(
                         + (why or "") + ".", nodes=res.nodes, truncated=res.truncated)
 
         if route == DEPENDENTS:
-            res = find_dependents(target, limit=k) if target else NodesOut(
-                nodes=[], total=0, truncated=False)
+            # The only branch here that used to skip resolution entirely, so an
+            # unindexed package came back as an empty list under a note asserting
+            # manifest provenance -- telling an agent "nothing depends on it" when
+            # the truth was "no such package is indexed", and citing manifests that
+            # were never read. With no target at all it printed the word None.
+            # Its three sibling branches already had the right shape.
+            if not target:
+                return _out("Couldn't tell which package to find dependents of "
+                            "-- no package named in the question.", answered=False)
+            res = find_dependents(target, limit=k, repo=repo)
+            if res.note:
+                return _out(f"Couldn't resolve a package to find dependents of -- "
+                            f"{res.note[0].lower()}{res.note[1:-1]}.", answered=False)
             return _out(f"Repos/files depending on package {target!r} — INFERRED from "
                         "manifests, verify against the cited file.",
                         nodes=res.nodes, truncated=res.truncated)

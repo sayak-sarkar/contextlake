@@ -920,3 +920,87 @@ def test_sse_app_builds_a_real_asgi_app_with_the_expected_routes(tmp_path):
         assert "/messages" in paths
     finally:
         s.close()
+
+
+def test_ask_dependents_reports_an_unknown_package_as_unknown(tmp_path):
+    """The one branch in `ask` that skipped resolution: an unindexed package came
+    back as an empty list under a note asserting manifest provenance, which tells
+    an agent "nothing depends on it" when the truth is "no such package is
+    indexed" -- a different and much more actionable fact -- while citing
+    manifests that were never read. With no target at all it printed the word
+    None into the note.
+    """
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    prov = Provenance(source_file="p.json", source_line=1, verified_at=date(2026, 6, 21))
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    nodes = [
+        Node(id="pkg:known", repo="r", kind="package", name="known-pkg"),
+        Node(id="f:a", repo="r", kind="file", name="a.py", file="a.py"),
+    ]
+    edges = [Edge(src="f:a", dst="pkg:known", relation="depends_on",
+                  confidence=Confidence.INFERRED, provenance=prov)]
+    s.upsert_repo(Repo(id="r", path=str(tmp_path), head_commit="h1"))
+    write_shard(tmp_path, GraphShard(repo="r", head_commit="h1", nodes=nodes, edges=edges))
+    reindex_shard(s, tmp_path, "r")
+    srv = build_server(s)
+    try:
+        unknown = asyncio.run(_call(srv, "ask", {
+            "question": "what depends on totally-unknown-package"})).structured_content
+        assert unknown["answered"] is False
+        assert unknown["nodes"] == []
+        assert "totally-unknown-package" in unknown["note"]
+        assert "manifest" not in unknown["note"].lower(), \
+            "must not assert provenance for a lookup that never happened"
+
+        # no symbol at all in the question: never the literal word None
+        none_target = asyncio.run(_call(srv, "ask", {
+            "question": "what depends on it"})).structured_content
+        assert none_target["answered"] is False
+        assert "None" not in none_target["note"]
+
+        # the real package still answers, and still carries its provenance label
+        hit = asyncio.run(_call(srv, "ask", {
+            "question": "what depends on known-pkg"})).structured_content
+        assert hit["answered"] is True
+        assert [n["name"] for n in hit["nodes"]] == ["a.py"]
+        assert "INFERRED from manifests" in hit["note"]
+    finally:
+        s.close()
+
+
+def test_find_dependents_honours_repo_scope_and_reports_an_unknown_package(tmp_path):
+    """`ask` advertises a `repo` parameter and scopes five routes by it, but
+    find_dependents had no repo parameter at all, so this one route silently
+    answered fleet-wide."""
+    from contextlake.kb.store.shards import GraphShard, reindex_shard, write_shard
+    prov = Provenance(source_file="p.json", source_line=1, verified_at=date(2026, 6, 21))
+    s = SqliteStore(tmp_path / "kb.sqlite")
+    for repo_id, fid in (("r1", "f:1"), ("r2", "f:2")):
+        nodes = [
+            Node(id="pkg:shared", repo=repo_id, kind="package", name="shared-pkg"),
+            Node(id=fid, repo=repo_id, kind="file", name=f"{repo_id}.py",
+                 file=f"{repo_id}.py"),
+        ]
+        edges = [Edge(src=fid, dst="pkg:shared", relation="depends_on",
+                      confidence=Confidence.INFERRED, provenance=prov)]
+        s.upsert_repo(Repo(id=repo_id, path=str(tmp_path), head_commit="h1"))
+        d = tmp_path / repo_id
+        d.mkdir()
+        write_shard(d, GraphShard(repo=repo_id, head_commit="h1", nodes=nodes, edges=edges))
+        reindex_shard(s, d, repo_id)
+    srv = build_server(s)
+    try:
+        both = asyncio.run(_call(srv, "find_dependents", {
+            "package": "shared-pkg"})).structured_content
+        assert both["total"] == 2
+
+        scoped = asyncio.run(_call(srv, "find_dependents", {
+            "package": "shared-pkg", "repo": "r2"})).structured_content
+        assert [n["name"] for n in scoped["nodes"]] == ["r2.py"]
+
+        missing = asyncio.run(_call(srv, "find_dependents", {
+            "package": "no-such-pkg"})).structured_content
+        assert missing["total"] == 0
+        assert missing["note"] and "no-such-pkg" in missing["note"]
+    finally:
+        s.close()
