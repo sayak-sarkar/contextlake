@@ -1800,7 +1800,13 @@
   // ground-truth filter, trust-bar segments and blast toggles all call
   // CL.router.render() with an unchanged hash, and stealing focus there breaks
   // WCAG 2.4.3 (focus order). Tab switches change the hash, so they do refocus.
+  // `hasRenderedOnce` guards the OTHER end of the same rule: `lastRouteSig`
+  // starts null, so the very first render's sig always differs from it and used
+  // to fire focus() on initial page load too -- stealing focus from the top of
+  // the document (and the skip link) before the user has tabbed anywhere. Only
+  // a render that follows an already-rendered route counts as a "navigation".
   var lastRouteSig = null;
+  var hasRenderedOnce = false;
   function go(hash) { if (location.hash === hash) CL.router.render(); else location.hash = hash; }
   function parseHash() {
     var raw = location.hash.replace(/^#/, "") || "/fleet";
@@ -1822,7 +1828,11 @@
         a.setAttribute("aria-current", a.dataset.lens === lens ? "page" : "false");
       });
       var sig = lens + "|" + r.rest + "|" + JSON.stringify(r.query);
-      if (sig !== lastRouteSig) { lastRouteSig = sig; $("#app").focus({ preventScroll: false }); }
+      if (sig !== lastRouteSig) {
+        lastRouteSig = sig;
+        if (hasRenderedOnce) $("#app").focus({ preventScroll: false });
+        hasRenderedOnce = true;
+      }
       if (lens === "fleet") viewFleet();
       else if (lens === "repo") viewRepo(r.rest || ctx.repoId, r.query.tab);
       else if (lens === "arch") viewArch(r.rest || null);
