@@ -175,6 +175,14 @@ def _module_page_plan(store, repo_id: str, node_count: int) -> tuple[list[dict],
     return modules, True
 
 
+def _safe_name(part: str) -> str:
+    """One path-safe filename component: ``/`` -> ``__``, anything else that is not
+    ``\\w``/``.``/``-`` -> ``_``. Never returns a path separator."""
+    import re as _re
+
+    return _re.sub(r"[^\w.\-]", "_", part.replace("/", "__"))
+
+
 def _module_wiki_filename(repo_id: str, prefix: str) -> str:
     """Filename for a module/subsystem wiki page, sanitized like the whole-repo
     page (``repo_id.replace("/", "__")``) but applied to both ``repo_id`` and
@@ -186,8 +194,19 @@ def _module_wiki_filename(repo_id: str, prefix: str) -> str:
     for cluster pages) -- otherwise a module page's sanitized name can collide
     with an unrelated repo's whole-repo page (e.g. module "src" of repo
     "team/app" and the whole-repo page for a repo literally named
-    "team/app/src" both sanitize to "team__app__src.md")."""
-    return f"{repo_id.replace('/', '__')}__{prefix.replace('/', '__')}.md"
+    "team/app/src" both sanitize to "team__app__src.md").
+
+    The ``/`` -> ``__`` mapping runs first and is what existing page names depend
+    on; every *other* character that a filesystem could read as a path separator is
+    then folded to ``_`` by allowlist. That ordering matters twice over. It keeps
+    legitimate prefixes byte-identical -- letters, digits, ``_``, ``.`` and ``-``
+    all pass through, so ``src/foo`` stays ``…__src__foo.md`` and no existing page
+    orphans -- and it closes the traversal that the ``/``-only replacement left
+    open: ``module`` arrives here straight off a dashboard query string, and on
+    Windows a ``\\``-separated value walked out of the wiki directory (POSIX
+    neutralised it by accident, not by design). The allowlist is ``\\w``-based, so
+    non-ASCII directory names keep working rather than collapsing to underscores."""
+    return f"{_safe_name(repo_id)}__{_safe_name(prefix)}.md"
 
 
 def _module_page_file(wiki_dir, repo_id: str, prefix: str):

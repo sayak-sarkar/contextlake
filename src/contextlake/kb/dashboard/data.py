@@ -262,6 +262,19 @@ def _readme_html(store, repo_id: str) -> str | None:
     return None
 
 
+def _within(base: Path, candidate: Path) -> bool:
+    """True if ``candidate`` resolves to a path inside ``base``.
+
+    Fails closed: an unresolvable path is not inside anything. ``ValueError`` is
+    caught alongside ``OSError`` because ``resolve()`` raises it -- not ``OSError``
+    -- for an embedded NUL byte, which a query string can carry as ``%00``.
+    """
+    try:
+        return candidate.resolve().is_relative_to(base.resolve())
+    except (OSError, ValueError):
+        return False
+
+
 def _wiki_out(store, store_dir: Path, repo_id: str, *, module: str | None = None) -> dict:
     """The generated wiki page rendered to sanitized HTML, with the staleness flag
     (reuses ``get_wiki`` logic + ``visualize._md_to_html`` / ``repo_slug``).
@@ -280,9 +293,19 @@ def _wiki_out(store, store_dir: Path, repo_id: str, *, module: str | None = None
     if module:
         from ..cmds.wiki import _module_wiki_filename
 
-        wiki_file = store_dir / "wiki" / "_modules" / _module_wiki_filename(repo_id, module)
+        wiki_dir = store_dir / "wiki" / "_modules"
+        wiki_file = wiki_dir / _module_wiki_filename(repo_id, module)
     else:
-        wiki_file = store_dir / "wiki" / (repo_slug(repo_id) + ".md")
+        wiki_dir = store_dir / "wiki"
+        wiki_file = wiki_dir / (repo_slug(repo_id) + ".md")
+    # Both `repo_id` and `module` arrive from the request (URL path and `?module=`),
+    # and both are turned into a filename by a replace-list rather than a parser.
+    # This is the check that closes the class instead of one spelling of it: whatever
+    # the name-building does, the file actually read must sit inside the wiki
+    # directory. A refusal reads as "no such page" -- the same shape a missing page
+    # returns -- because a traversal attempt is not a server error to traceback on.
+    if not _within(wiki_dir, wiki_file):
+        return {"found": False, "stale": True, "html": None}
     if not wiki_file.exists():
         return {"found": False, "stale": True, "html": None}
     raw = wiki_file.read_text(encoding="utf-8", errors="replace")
