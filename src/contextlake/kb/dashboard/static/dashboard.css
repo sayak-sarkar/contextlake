@@ -338,7 +338,7 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
   vertical-align: top; }
 .cl-repotable tbody tr { cursor: pointer; }
 .cl-repotable tbody tr:hover, .cl-repotable tbody tr:focus-visible {
-  background: var(--cl-surface-2); outline: none; }
+  background: var(--cl-surface-2); }
 .cl-repotable__name { font-weight: 600; word-break: break-word; }
 .cl-repotable th.cl-num, .cl-repotable td.cl-num { text-align: right;
   font-variant-numeric: tabular-nums; font-family: var(--cl-font-mono); }
