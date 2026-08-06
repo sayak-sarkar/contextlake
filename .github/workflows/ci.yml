@@ -4,6 +4,17 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual re-run, mirroring security.yml which already had it. This is the
+  # load-bearing gate -- release.yml's first job refuses to publish unless
+  # ci.yml has a green conclusion for the exact tagged commit -- so having no
+  # way to trigger it by hand made the whole release path unrecoverable
+  # whenever a push event went missing. That is not hypothetical: during a
+  # GitHub Actions incident on 2026-08-06, webhook delivery was throttled to
+  # ~15% and five consecutive pushes to main triggered nothing at all. A
+  # re-push cannot help (the commit is already there, so there is no new
+  # event), and putting an empty commit on top would move main past the commit
+  # being released, which is precisely the one that needs the run.
+  workflow_dispatch:
 
 jobs:
   core:
