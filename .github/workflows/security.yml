@@ -31,15 +31,25 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: "Install (widest dependency surface: dev + every kb extra)"
-        # `llm-local` (llama-cpp-python) is deliberately excluded: it compiles
-        # from source via CMake and can go red for toolchain reasons that have
-        # nothing to do with a real vulnerability, which would make this job
-        # flaky rather than useful. It's still covered by Dependabot version
-        # tracking; add it here if/when it's worth the extra build time.
+      - name: "Install (widest dependency surface: dev + release + every kb extra)"
+        # `llm-local` (llama-cpp-python) is deliberately excluded HERE: it
+        # compiles from source via CMake and can go red for toolchain reasons
+        # that have nothing to do with a real vulnerability, which would make
+        # this job flaky rather than useful. That reasoning still holds -- but
+        # the compensating control this comment used to name ("it's still
+        # covered by Dependabot version tracking") does NOT: the one real CVE in
+        # the tree is a *transitive* dependency of that extra, and Dependabot
+        # reads pyproject.toml's declared deps with no lockfile, so it never sees
+        # a grandchild. The `pip-audit-resolved` job below covers the extra
+        # without building it. Do not "fix" this by adding llm-local here.
+        #
+        # `release` (twine -> keyring -> SecretStorage -> cryptography) IS now
+        # included: it compiles nothing, so the flakiness argument never applied
+        # to it, and while it was absent a CVE in that subtree was invisible for
+        # the same structural reason.
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,kb,kb-vec,kb-local,kb-fastembed]"
+          pip install -e ".[dev,release,kb,kb-vec,kb-local,kb-fastembed]"
       - name: pip-audit
         # No `inputs:` given -- deps live in pyproject.toml extras, not a
         # requirements.txt. Confirmed (reading pypa/gh-action-pip-audit's
@@ -51,6 +61,88 @@ jobs:
         # installed packages. So this does audit the kb dependency surface
         # installed above, not an empty action-local venv.
         uses: pypa/gh-action-pip-audit@v1.1.0
+
+  pip-audit-resolved:
+    name: pip-audit (resolved set, includes llm-local)
+    runs-on: ubuntu-latest
+    # Audits the dependency set contextlake actually SHIPS, including the
+    # `llm-local` extra that the environment-audit job above cannot install
+    # without a CMake toolchain.
+    #
+    # Why this job exists at all: `llm-local` is what `Dockerfile`'s build-full
+    # stage installs (so it is in `ghcr.io/...:latest`) and what `binaries.yml`
+    # builds into the release executables (PYAPP_PROJECT_FEATURES). It was
+    # audited by nothing: excluded from the job above by design, and invisible to
+    # Dependabot, which resolves declared dependencies from pyproject.toml with no
+    # lockfile and so never sees a transitive grandchild. Both controls reported
+    # clean and both were correct about the narrower thing they were pointed at.
+    #
+    # It resolves rather than installs: `pip install --dry-run --report` performs
+    # the full dependency resolution and writes the resulting set as JSON without
+    # downloading or building anything, so the flakiness that justified excluding
+    # the extra above does not apply. `--only-binary llama-cpp-python` plus the
+    # project's own wheel index keeps that package from resolving to an sdist,
+    # which is what would drag a compiler back in.
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+      - name: Resolve the shipped dependency set (no build, no install)
+        run: |
+          pip install --dry-run --ignore-installed --quiet --report resolved.json \
+            --only-binary llama-cpp-python \
+            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
+            '.[kb,kb-vec,kb-local,kb-fastembed,llm-local,release]'
+          jq -r '.install[] | "\(.metadata.name)==\(.metadata.version)"' resolved.json \
+            | grep -viE '^contextlake==' | sort > resolved.txt
+          echo "resolved $(wc -l < resolved.txt) packages"
+          cat resolved.txt
+      - name: "Canary: the audit must actually cover the extras this job exists for"
+        # Without this, the failure mode is silent and green: if resolution ever
+        # produces an empty or partial set (a changed pip flag, a dead index, a
+        # renamed extra), pip-audit happily reports "no known vulnerabilities" for
+        # a set of nothing -- which is precisely the blind-scanner defect this job
+        # was added to remove. So assert coverage before trusting the result.
+        #
+        # The markers are the extras' own declared packages, NOT the advisory this
+        # job first surfaced: canarying on a finding would conflate "can we see
+        # this subtree" with "does this subtree currently have a CVE", and would
+        # turn the job red the day the finding is legitimately resolved.
+        run: |
+          for pkg in llama_cpp_python twine numpy huggingface_hub; do
+            grep -qiE "^${pkg//_/[-_]}==" resolved.txt \
+              || { echo "::error::$pkg missing from the resolved set -- this audit is not covering what it claims to. Refusing to report clean."; exit 1; }
+          done
+          echo "canary ok: llm-local, release and kb extras are all represented"
+      - name: pip-audit (resolved set)
+        # KNOWN-UNRESOLVED, DISPOSITION PENDING (recorded 2026-08-07):
+        #   PYSEC-2026-2447 / GHSA-w8v5-vhqr-4h9v / CVE-2025-69872 -- diskcache
+        #   5.6.3, reached transitively via llm-local -> llama-cpp-python. No fixed
+        #   upstream version exists, so there is nothing to bump to and this job
+        #   cannot be made green by upgrading.
+        #
+        # This entry is NOT an acceptance decision, and no reachability argument is
+        # recorded here on purpose -- choosing the disposition (vendor a patch,
+        # replace the dependency, drop the extra, or accept it with a documented
+        # rationale) is the maintainer's call, and the options and their costs are
+        # written up in the security review that added this job. The id is listed
+        # here only so that this job's red/green signal means "a NEW advisory
+        # appeared", which is the coverage property being added. Removing the entry
+        # makes the job red again, which is the correct behaviour while the
+        # disposition is still open.
+        #
+        # When the disposition is made: record it in SECURITY.md and either drop
+        # this flag or keep it with a link to that entry.
+        run: |
+          echo "Ignoring (known-unresolved, disposition pending): PYSEC-2026-2447 (diskcache)"
+          pip-audit --no-deps -r resolved.txt --progress-spinner off \
+            --ignore-vuln PYSEC-2026-2447 \
+            --ignore-vuln GHSA-w8v5-vhqr-4h9v
 
   security-lint:
     name: ruff --select S (flake8-bandit, reporting baseline)
