@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ...logging_setup import log
-from ..security import sanitize_label
+from ..security import json_for_script, sanitize_label
 from ..state import check_schema
 from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
@@ -219,13 +219,15 @@ def _emit(out: Path, store, store_dir: Path, snapshot: dict, repos) -> None:
 
     # Emit the snapshot as a classic-script GLOBAL assignment (file://-safe — fetch()
     # is blocked under file://). The SPA prefers ``window.__CONTEXTLAKE__`` when present
-    # and falls back to live ``fetch`` otherwise. ``</`` is escaped so the payload can
-    # never break out of the <script> element. Kept as a SEPARATE ``data.js`` (not
+    # and falls back to live ``fetch`` otherwise. The payload goes through the shared
+    # ``json_for_script`` so it can never break out of the <script> element — the same
+    # helper the graph page uses, rather than a second spelling of the same defence
+    # that only this file's author knows about. Kept as a SEPARATE ``data.js`` (not
     # inlined into index.html) so the SPA shell stays a tiny, fixed artifact and the live
     # server (which serves no data.js) stays a clean live-fetch path. Anonymized exports
     # drop README/wiki prose + link URLs at the source (kbdata.repo_detail), so data.js
     # carries no ``https://`` anchors either — the offline-boundary test scans it too.
-    payload = json.dumps(snapshot).replace("</", "<\\/")
+    payload = json_for_script(snapshot)
     (out / "data.js").write_text("window.__CONTEXTLAKE__ = " + payload + ";\n",
                                  encoding="utf-8")
 

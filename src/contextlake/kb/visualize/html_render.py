@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-import json
+import html
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..security import json_for_script
 from .diagrams import _cytoscape_elements
 from .payload import overview_subgraph, repo_node_sizes, repo_subgraph, to_payload
 from .styling import (
@@ -66,6 +68,26 @@ def _app_js() -> str:
     return js.replace("</script", "<\\/script")
 
 
+_PLACEHOLDER_RE = re.compile(r"__[A-Z][A-Z0-9_]*__")
+
+
+def _subst(template: str, mapping: dict[str, str]) -> str:
+    """Fill ``__NAME__`` placeholders in ONE pass, so inserted text is never rescanned.
+
+    A chain of ``str.replace`` calls re-scans everything the earlier calls inserted,
+    so untrusted data that merely *spells* a later placeholder gets expanded after
+    the fact: a symbol named ``__GLYPH__`` pulls the glyph markup -- which contains
+    quotes -- into the middle of the JSON island and terminates the string literal it
+    landed in. No amount of character escaping reaches that, because the injected
+    characters are the *template's* own, added after the payload was escaped.
+
+    A single left-to-right pass cannot do it: replacement text is output, never input
+    again. An unknown ``__NAME__`` is left verbatim rather than blanked, so a literal
+    token in someone's source still renders as itself.
+    """
+    return _PLACEHOLDER_RE.sub(lambda m: mapping.get(m.group(0), m.group(0)), template)
+
+
 LAYOUTS = ("cose", "concentric", "breadthfirst", "circle", "grid", "dagre")
 # "dagre" is an opt-in *preview* of a different look: a layered dagre layout whose
 # nodes are drawn as real HTML cards (cytoscape-dom-node) instead of canvas circles.
@@ -101,12 +123,12 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
         style_block = f"<style>{_app_css()}</style>"
         app_js_block = f"  {_app_js()}</script>"
     from collections import Counter
-    elements = json.dumps(_cytoscape_elements(payload))
-    colors = json.dumps(KIND_COLORS)
+    elements = json_for_script(_cytoscape_elements(payload))
+    colors = json_for_script(KIND_COLORS)
     icon_map = _kind_icons()
     lang_icon_map = _lang_icons()
-    icons = json.dumps(icon_map)
-    lang_icons = json.dumps(lang_icon_map)
+    icons = json_for_script(icon_map)
+    lang_icons = json_for_script(lang_icon_map)
     kind_counts = Counter(n.get("kind", "") for n in payload["nodes"])
 
     def _kind_swatch(k: str, c: str) -> str:
@@ -118,9 +140,15 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
             return f'<span class="gl" style="background:{c}"><img src="{icon}" alt=""></span>'
         return f'<i style="background:{c}"></i>'   # open-vocab kind with no glyph
 
+    # `k` and `r` below are escaped for the HTML attribute and text contexts they
+    # land in. `k` is a static KIND_COLORS key today and `r` is open-vocab relation
+    # text straight off the graph -- both are escaped anyway, because "safe because
+    # of where today's value happens to come from" is exactly the assumption this fix
+    # exists to remove. Escaping is transparent to the page's own JS: the filter
+    # reads these back with getAttribute(), which returns the decoded value.
     legend = "".join(
-        f'<button type="button" class="lg" data-kind="{k}">'
-        f'{_kind_swatch(k, c)}<span class="lbl">{k}</span>'
+        f'<button type="button" class="lg" data-kind="{html.escape(k, quote=True)}">'
+        f'{_kind_swatch(k, c)}<span class="lbl">{html.escape(k)}</span>'
         f'<span class="cnt">{kind_counts[k]}</span></button>'
         for k, c in KIND_COLORS.items() if kind_counts.get(k, 0) > 0)
     # edge legend = relations actually present (known hues first, then open-vocab)
@@ -129,9 +157,10 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     known = [r for r in RELATION_COLORS if r in present]
     rel_order = known + sorted(present - set(RELATION_COLORS))
     edge_legend = "".join(
-        f'<button type="button" class="lg rel" data-rel="{r}">'
+        f'<button type="button" class="lg rel" data-rel="{html.escape(r, quote=True)}">'
         f'<i style="background:{RELATION_COLORS.get(r, DEFAULT_EDGE_COLOR)}"></i>'
-        f'<span class="lbl">{r}</span><span class="cnt">{rel_counts[r]}</span></button>'
+        f'<span class="lbl">{html.escape(r)}</span>'
+        f'<span class="cnt">{rel_counts[r]}</span></button>'
         for r in rel_order)
     # Legend key (collapsible): line-style = edge confidence; lettermark = repo
     # language. Both filtered to what is actually present so the key never lies.
@@ -159,29 +188,33 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
                    f'{keys_inner}</details>') if keys_inner else ""
     options = "".join(f'<option value="{n}">{_LAYOUT_LABELS.get(n, n)}</option>'
                       for n in LAYOUTS)
-    meta = json.dumps(payload.get("meta", {}))
-    return (_HTML_TEMPLATE
-            .replace("__STYLE_BLOCK__", style_block)
-            .replace("__APP_JS_BLOCK__", app_js_block)
-            .replace("__TITLE__", title)
-            .replace("__SITE__", "true" if site else "false")
-            .replace("__LIB_TAG__", lib_tag)
-            .replace("__ELEMENTS__", elements)
-            .replace("__COLORS__", colors)
-            .replace("__ICONS__", icons)
-            .replace("__LANG_ICONS__", lang_icons)
-            .replace("__DEFAULT_COLOR__", DEFAULT_COLOR)
-            .replace("__REL_COLORS__", json.dumps(RELATION_COLORS))
-            .replace("__DEFAULT_EDGE_COLOR__", DEFAULT_EDGE_COLOR)
-            .replace("__CONF_META__", json.dumps(CONF_META))
-            .replace("__LEGEND__", legend)
-            .replace("__EDGE_LEGEND__", edge_legend)
-            .replace("__LEGEND_KEYS__", legend_keys)
-            .replace("__LAYOUT_OPTIONS__", options)
-            .replace("__GLYPH__", _GLYPH_SVG)
-            .replace("__META__", meta)
-            .replace("__LAYOUT__", layout if layout in LAYOUTS else "cose")
-            .replace("__LIVE__", "true" if live else "false"))
+    meta = json_for_script(payload.get("meta", {}))
+    # `title` reaches <title> as text and carries a repo id on the build_site /
+    # dashboard paths (`kb index` can derive an id from a bare directory name), so it
+    # is untrusted like everything else here.
+    return _subst(_HTML_TEMPLATE, {
+        "__STYLE_BLOCK__": style_block,
+        "__APP_JS_BLOCK__": app_js_block,
+        "__TITLE__": html.escape(title),
+        "__SITE__": "true" if site else "false",
+        "__LIB_TAG__": lib_tag,
+        "__ELEMENTS__": elements,
+        "__COLORS__": colors,
+        "__ICONS__": icons,
+        "__LANG_ICONS__": lang_icons,
+        "__DEFAULT_COLOR__": DEFAULT_COLOR,
+        "__REL_COLORS__": json_for_script(RELATION_COLORS),
+        "__DEFAULT_EDGE_COLOR__": DEFAULT_EDGE_COLOR,
+        "__CONF_META__": json_for_script(CONF_META),
+        "__LEGEND__": legend,
+        "__EDGE_LEGEND__": edge_legend,
+        "__LEGEND_KEYS__": legend_keys,
+        "__LAYOUT_OPTIONS__": options,
+        "__GLYPH__": _GLYPH_SVG,
+        "__META__": meta,
+        "__LAYOUT__": layout if layout in LAYOUTS else "cose",
+        "__LIVE__": "true" if live else "false",
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -389,17 +422,19 @@ def _wiki_page(repo: str, md: str, store: Store) -> str:
     r = store.get_repo(repo)
     current = r.head_commit if r else None
     stale = wiki_commit is None or current is None or wiki_commit != current
-    repo_esc = (repo.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                .replace('"', "&quot;").replace("'", "&#39;"))
+    repo_esc = html.escape(repo, quote=True)
+    # `wiki_commit` is regex-scraped out of the wiki Markdown, which is LLM-derived
+    # from repo content -- so the badge is untrusted text, not a known-hex commit id.
     badge = ("stale · regenerate" if stale
-             else "fresh · " + (wiki_commit or "")[:8])
-    return (_WIKI_TEMPLATE
-            .replace("__GLYPH__", _GLYPH_SVG)
-            .replace("__REPO__", repo_esc)
-            .replace("__SLUG__", repo_slug(repo))
-            .replace("__STALECLASS__", "stale" if stale else "fresh")
-            .replace("__STALE__", badge)
-            .replace("__BODY__", _md_to_html(md)))
+             else "fresh · " + html.escape((wiki_commit or "")[:8]))
+    return _subst(_WIKI_TEMPLATE, {
+        "__GLYPH__": _GLYPH_SVG,
+        "__REPO__": repo_esc,
+        "__SLUG__": html.escape(repo_slug(repo), quote=True),
+        "__STALECLASS__": "stale" if stale else "fresh",
+        "__STALE__": badge,
+        "__BODY__": _md_to_html(md),
+    })
 
 
 def _site_index(repos: list[str], sizes: dict, pages: dict, wiki: dict | None = None) -> str:
@@ -409,19 +444,26 @@ def _site_index(repos: list[str], sizes: dict, pages: dict, wiki: dict | None = 
     for r in repos:
         groups[r.split("/")[0]].append(r)
     sections = []
+    # A repo id reaches this page three ways: as link text, inside an href, and as a
+    # heading. `kb index` can derive an id from a bare directory name, so it is
+    # untrusted text rather than a constrained namespace token.
     for ns in sorted(groups):
         items = "".join(
-            f'<li><a href="{pages[r]}">{r.rsplit("/", 1)[-1]}</a>'
-            + (f'<a class="wk" href="{wiki[r]}">wiki</a>' if r in wiki else "")
-            + f'<span class="p">{r}</span><span class="c">{sizes.get(r, 0)}</span></li>'
+            f'<li><a href="{html.escape(pages[r], quote=True)}">'
+            f'{html.escape(r.rsplit("/", 1)[-1])}</a>'
+            + (f'<a class="wk" href="{html.escape(wiki[r], quote=True)}">wiki</a>'
+               if r in wiki else "")
+            + f'<span class="p">{html.escape(r)}</span>'
+            + f'<span class="c">{sizes.get(r, 0)}</span></li>'
             for r in sorted(groups[ns]))
         sections.append(
-            f'<section><h2>{ns}<span class="c">{len(groups[ns])}</span></h2>'
+            f'<section><h2>{html.escape(ns)}<span class="c">{len(groups[ns])}</span></h2>'
             f"<ul>{items}</ul></section>")
-    return (_INDEX_TEMPLATE
-            .replace("__GLYPH__", _GLYPH_SVG)
-            .replace("__N__", str(len(repos)))
-            .replace("__BODY__", "\n".join(sections)))
+    return _subst(_INDEX_TEMPLATE, {
+        "__GLYPH__": _GLYPH_SVG,
+        "__N__": str(len(repos)),
+        "__BODY__": "\n".join(sections),
+    })
 
 
 def _match_repo(repo_id: str, patterns: list[str]) -> bool:
