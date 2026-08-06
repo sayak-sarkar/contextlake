@@ -517,6 +517,48 @@ def test_index_workspace_summary_points_at_the_log_on_partial_failure(
     assert "Re-run to retry" in text
 
 
+def test_index_workspace_summary_reports_this_workspace_not_the_whole_store(
+    tmp_path, capsys
+):
+    """Pins F7: the "Workspace indexed" line printed store.stats() -- store-wide
+    counts -- under a label that names one workspace. A store that already holds
+    an unrelated repo from an *earlier, different* --workspace run must not have
+    that repo's nodes/count bleed into this run's summary: the number after
+    "Workspace indexed" must match the number of repos this run found under
+    *this* workspace, not however many repos the store holds in total.
+    """
+    store_dir = tmp_path / "kb"
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(f'[kb]\nstore_dir = "{store_dir}"\n')
+
+    # Seed the store via a first `kb index` against a *different* workspace, as
+    # if from an earlier, unrelated run against another directory entirely.
+    other_ws = tmp_path / "elsewhere"
+    _bare_git_repo(other_ws / "other")
+    (other_ws / "other" / "z.py").write_text(
+        "def a():\n    pass\ndef b():\n    pass\ndef c():\n    pass\n"
+    )
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(other_ws)]) == 0
+    capsys.readouterr()
+
+    # The store now holds 2 repos' worth of data once this run adds its own.
+    ws = tmp_path / "ws"
+    _bare_git_repo(ws / "r1")
+    (ws / "r1" / "a.py").write_text("def f():\n    pass\n")
+    assert _run(["kb", "index", "--config", str(cfg), "--workspace", str(ws)]) == 0
+    text = capsys.readouterr().out
+
+    store = SqliteStore(store_dir / "index.sqlite")
+    assert store.stats().repos == 2   # store-wide: both runs' repos are in there
+    store.close()
+
+    summary = next(line for line in text.splitlines() if "Workspace indexed" in line)
+    # This run's workspace held exactly 1 repo -- the summary must say so, not
+    # leak the store-wide total of 2 (the original defect: `store.stats().repos`).
+    assert "1 repos" in summary
+    assert "2 repos" not in summary
+
+
 def test_owners_unknown_repo_suggests_close_id(tmp_path, capsys):
     cfg = _kb_config(tmp_path)
     # indexing the fixture creates repo id 'demo/app'

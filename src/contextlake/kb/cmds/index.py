@@ -192,10 +192,21 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
             progress = style.Progress(total=total, label="index")
             _run_serial(todo)
     progress.done()
-    st = store.stats()
+    # Scoped to *this* workspace's own repo list (the same `repos` the "Found N
+    # repositories under ..." line above counted), not store.stats() -- that is
+    # store-wide and would let an unrelated repo from a *different* --workspace
+    # run (or a stale/duplicate id) inflate a line labelled "Workspace indexed".
+    # repo_counts() matches the literal repo_id partition (same scoping
+    # clear_repo/delete_repo use), so these numbers are exactly "what's in the
+    # store for the repos this run just discovered under this workspace".
+    ws_nodes = ws_edges = 0
+    for repo_id, _ in repos:
+        n, e = store.repo_counts(repo_id)
+        ws_nodes += n
+        ws_edges += e
     glyph = style.ok() if failed == 0 else style.warn()
-    log(f"{glyph} Workspace indexed: {st.repos} repos, {st.nodes} nodes, "
-        f"{st.edges} edges ({skipped} unchanged, {failed} failed)")
+    log(f"{glyph} Workspace indexed: {len(repos)} repos, {ws_nodes} nodes, "
+        f"{ws_edges} edges ({skipped} unchanged, {failed} failed)")
     if failed:
         log("  See the log above for which repos failed. Re-run to retry -- "
             "indexing is incremental, so only the unindexed/changed repos run again.")
