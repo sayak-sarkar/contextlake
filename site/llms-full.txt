@@ -5170,6 +5170,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`kb forget <repo>` removes one repository from the store.** contextlake could already tell you a
+  stored repo was wrong -- the id-migration pass says "git can't find a repository here at all ...
+  re-clone or remove it", and `lint` reports unreadable repos -- while offering no way to act on it:
+  nineteen `kb` subcommands and not one could remove a repo, so the only supported repair for a
+  mis-indexed store was deleting the whole store and re-indexing every repo in it. It clears all three
+  tiers (graph, vectors, wiki pages) and, deliberately, the `@connect:`/`@enrich:` partitions too --
+  those hold connector output under a separate id, and leaving them behind means orphaned rows still
+  answering queries for a repo that no longer resolves. `--dry-run` prints the counts and removes
+  nothing.
+
+  Motivating case: running bare `kb index` in a directory that *contains* git repos rather than being
+  one bundles everything underneath into a single pseudo-repo named after the directory. contextlake
+  warns first and the warning prints the right command, but on one real store that pseudo-repo ended
+  up holding 63% of all nodes, duplicating every mirrored repo under a second identity, with `embed`
+  then spending 91% of its vectors on it.
+
 ### Fixed
 - **An MCP tool error is no longer returned as data.** `_parse_result` ignored the `isError` flag on
   a tool result, so a failed call came back as its own error *text*. A caller that iterated the

@@ -8,6 +8,7 @@ from .doctor import cmd_doctor
 from .embed import cmd_embed
 from .enrich import cmd_enrich
 from .eval import cmd_eval
+from .forget import cmd_forget
 from .graph import cmd_graph
 from .hook import cmd_hook
 from .impact import cmd_impact
@@ -30,6 +31,7 @@ def dispatch(command: str, args) -> int:
         return cmd_source(args)
     return {
         "index": cmd_index, "connect": cmd_connect, "embed": cmd_embed,
+        "forget": cmd_forget,
         "lint": cmd_lint, "wiki": cmd_wiki, "steer": cmd_steer, "query": cmd_query,
         "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
         "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,

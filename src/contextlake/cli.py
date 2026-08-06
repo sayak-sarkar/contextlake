@@ -87,7 +87,7 @@ _COMMAND_CATEGORIES = (
     (_MIRROR_NS, "Mirror a fleet", ("fetch", "clone", "update", "branches", "verify",
                                     "status", "sync", "audit")),
     (_KB_NS, "Build the knowledge graph", ("index", "source", "connect", "embed",
-                                           "ingest", "enrich", "wiki", "lint", "eval")),
+                                           "ingest", "enrich", "wiki", "lint", "forget", "eval")),
     (_KB_NS, "Explore & search", ("query", "graph", "owners", "impact", "dashboard")),
     (_KB_NS, "Serve to editors", ("serve", "steer", "hook")),
 )
@@ -410,7 +410,8 @@ class _RootArgumentParser(argparse.ArgumentParser):
 
 # Verbs handled by the optional knowledge layer (the [kb] extra).
 _KB_COMMANDS = frozenset({
-    "index", "connect", "embed", "lint", "wiki", "steer", "serve", "query",
+    "index", "connect", "embed", "lint", "forget", "wiki", "steer", "serve",
+    "query",
     "graph", "doctor", "eval", "owners", "impact", "ingest", "enrich", "dashboard", "hook",
     "source",
 })
@@ -1048,6 +1049,11 @@ fail (exit 1).
     p = command("lint", "graph-health checks: stale repos and dangling edges")
     p.add_argument("--json", action="store_true", default=_S,
                    help="machine-readable JSON on stdout instead of formatted text")
+
+    p = command("forget", "remove one repository from the store (graph, vectors, wiki)")
+    p.add_argument("repo", metavar="repo", help="the repo id to remove (see `kb lint`)")
+    p.add_argument("--dry-run", dest="dry_run", action="store_true", default=_S,
+                   help="print what would be removed, remove nothing")
 
     p = command("wiki", "generate provenance-stamped wiki pages, gated by a review council")
     p.add_argument("args", nargs="*", metavar="repo",

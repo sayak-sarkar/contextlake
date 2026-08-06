@@ -117,6 +117,10 @@ class VectorStore:
         self.conn.execute("DELETE FROM embeddings WHERE repo_id=?", (repo_id,))
         self.conn.commit()
 
+    def count_repo(self, repo_id: str) -> int:
+        return self.conn.execute(
+            "SELECT COUNT(*) FROM embeddings WHERE repo_id=?", (repo_id,)).fetchone()[0]
+
     def count(self) -> int:
         return self.conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
 
@@ -231,6 +235,12 @@ class SqliteVecStore:
             return
         self.conn.execute("DELETE FROM vec_items WHERE repo_id=?", (repo_id,))
         self.conn.commit()
+
+    def count_repo(self, repo_id: str) -> int:
+        if not self._has_table:
+            return 0
+        return self.conn.execute(
+            "SELECT COUNT(*) FROM vec_items WHERE repo_id=?", (repo_id,)).fetchone()[0]
 
     def count(self) -> int:
         if not self._has_table:

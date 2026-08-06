@@ -415,6 +415,19 @@ class SqliteStore(Store):
         self.conn.execute("DELETE FROM edges WHERE repo_id=?", (repo_id,))
         self.conn.commit()
 
+    def repo_counts(self, repo_id: str) -> tuple[int, int]:
+        """``(nodes, edges)`` stored under exactly ``repo_id``.
+
+        The literal partition only, matching ``clear_repo``/``delete_repo``, so a
+        caller that reports these numbers and then deletes reports what it deleted.
+        Connector partitions are counted by asking for them by name.
+        """
+        n = self.conn.execute(
+            "SELECT COUNT(*) c FROM nodes WHERE repo_id=?", (repo_id,)).fetchone()["c"]
+        e = self.conn.execute(
+            "SELECT COUNT(*) c FROM edges WHERE repo_id=?", (repo_id,)).fetchone()["c"]
+        return n, e
+
     def delete_repo(self, repo_id: str) -> None:
         self.clear_repo(repo_id)
         self.conn.execute("DELETE FROM repos WHERE repo_id=?", (repo_id,))

@@ -22,7 +22,7 @@ from contextlake.cli import (
 MOVED = sorted(_NAMESPACE_OF)
 TOP_LEVEL = ("version", "init", "completion", "bootstrap", "doctor")
 # `source` is the one moved command with a required positional.
-REQUIRED_ARGS = {"source": ["list"]}
+REQUIRED_ARGS = {"source": ["list"], "forget": ["some/repo"]}
 
 
 def _resolve(argv):
