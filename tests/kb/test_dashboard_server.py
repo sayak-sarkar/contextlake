@@ -344,6 +344,29 @@ def test_send_swallows_client_disconnect_errors(tmp_path):
         s.close()
 
 
+def test_rail_links_keep_an_accessible_name_when_their_visible_label_is_hidden():
+    # C2 (WCAG 4.1.2 Name/Role/Value, 2.4.4 Link Purpose): .cl-rail__label is
+    # display:none whenever the rail is collapsed, the viewport narrows below
+    # 1280px, or the page is zoomed to 200% (dashboard.css). The icon is
+    # aria-hidden, so with the label also gone from the render tree, an
+    # aria-label on the <a> itself is the only remaining name source. It must
+    # mirror the visible text exactly, not paraphrase it -- a paraphrase fixes
+    # 4.1.2 by introducing a fresh 2.5.3 Label in Name failure.
+    from importlib.resources import files
+
+    html = (files("contextlake.kb.dashboard") / "static" / "dashboard.html").read_text(
+        encoding="utf-8")
+    items = re.findall(r'<a class="cl-rail__item"[^>]*data-lens="[^"]*"[^>]*>.*?</a>', html)
+    assert len(items) == 10  # Fleet, Repo, Architecture, Blast radius, Path,
+    # Health, Search, Chat, MCP, Settings -- fails loudly if a lens is added
+    # without carrying this fix forward, rather than silently passing on zero.
+    for item in items:
+        aria = re.search(r'aria-label="([^"]*)"', item)
+        label = re.search(r'class="cl-rail__label">([^<]*)</span>', item)
+        assert aria and label, item
+        assert aria.group(1) == label.group(1), item
+
+
 def test_shell_and_graph_routes(served):
     shell = _get(served + "/").lower()
     assert b"<html" in shell and b'id="app"' in shell
