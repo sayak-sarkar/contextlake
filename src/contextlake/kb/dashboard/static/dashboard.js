@@ -528,6 +528,12 @@
     return (r.node_count || 0) + " nodes · " + (r.default_branch || "—") +
       (r.head_commit ? " · " + String(r.head_commit).slice(0, 8) : "");
   }
+  // Visible text for the health chip -- the chip used to be colour (well, a
+  // single ::before dot) only, with a hover-only `title` tooltip as its sole
+  // text channel (not reachable by touch or keyboard, not reliably exposed by
+  // every screen reader). Mirrors the pattern the confidence chips already use
+  // (glyph + visible label, never colour alone) -- WCAG 1.4.1.
+  function healthLabel(health) { return health === "stale" ? "Stale" : "Fresh"; }
   function repoCard(r) {
     var health = r.indexed_at ? "fresh" : "stale";
     var nm = splitRepo(r.id);
@@ -539,7 +545,7 @@
         kindIcon("repo"),
         h("span", { class: "cl-repocard__name" }, nm.base),
         h("span", { class: "cl-healthchip cl-healthchip--" + health,
-          title: "Index freshness: " + health })),
+          title: "Index freshness: " + health }, healthLabel(health))),
       nm.parent ? h("div", { class: "cl-repocard__path", title: r.id }, nm.parent) : null,
       h("div", { class: "cl-repocard__meta" },
         lettermarks(r.langs),
@@ -560,7 +566,7 @@
       h("span", { class: "cl-reporow__meta" }, (r.node_count || 0) + " nodes"),
       h("span", { class: "cl-reporow__meta" }, r.default_branch || "—"),
       lettermarks(r.langs),
-      h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }));
+      h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }, healthLabel(health)));
   }
   function repoTable(repos) {
     var tb = h("tbody");
@@ -575,7 +581,7 @@
         h("td", null, lettermarks(r.langs)),
         h("td", { class: "cl-num" }, String(r.node_count || 0)),
         h("td", null, r.default_branch || "—"),
-        h("td", null, h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }))));
+        h("td", null, h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }, healthLabel(health)))));
     });
     return h("table", { class: "cl-repotable" },
       h("thead", null, h("tr", null,

@@ -7,7 +7,12 @@
   /* brand / semantic (mirrors visualize._BRAND + CONF_META) */
   --cl-deepwater: #0E2A33;
   --cl-lake: #137A8B;
-  --cl-current: #2BB3A3;
+  /* Darkened from the original #2BB3A3 -- that shade's own fill vs. the health
+     chip's dot-on-row-background context measured 2.40:1 (WCAG 1.4.11 needs
+     3:1 for a graphical state indicator). This value keeps 3:1+ against both
+     the light AND dark theme's card/row backgrounds -- it isn't re-defined
+     per theme, so one value has to satisfy both. */
+  --cl-current: #209385;
   --cl-mist: #EAF4F4;
   --cl-sun: #E7B53C;
   --cl-coral: #e76f51;
@@ -229,13 +234,31 @@ h1, h2, h3 { font-family: var(--cl-font-display); font-weight: 600; }
   text-transform: uppercase; letter-spacing: .06em; }
 
 /* ---- Trust bar ---------------------------------------------------------- */
+/* Segments fill the track's height via the default flex `align-items: stretch`,
+   so each segment's OWN border-box height -- its real hit box, not just its
+   painted colour -- is what needs to clear WCAG 2.5.8's 24px minimum. That
+   border-box height is the track's content-box height (track height minus its
+   own 1px+1px border), so the track is set to 28px, not 24px: 28 - 2 = 26px of
+   real hit box, 2px of margin over the minimum for cross-browser rounding.
+   Verified rendered (not just measured): elementFromPoint at the segment's top
+   edge, centre, and bottom edge all resolve to the segment itself -- a
+   `min-height` on an ancestor with `overflow: hidden` would report the same
+   getBoundingClientRect() height while silently clipping the actual hit area,
+   which is exactly the failure mode this checks for.
+   The bar keeps close to its original 16px LOOK via vertical padding on the
+   segment clipped out of the paint with background-clip: content-box (26px
+   hit box - 2*4px padding = 18px visible, vs. the original 16px). */
 .cl-trustbar { display: flex; flex-direction: column; gap: var(--sp-2); }
-.cl-trustbar__track { display: flex; height: 16px; border-radius: 999px; overflow: hidden;
+.cl-trustbar__track { display: flex; height: 28px; border-radius: 999px; overflow: hidden;
   border: 1px solid var(--cl-line); }
-.cl-trustbar__seg { border: 0; cursor: pointer; padding: 0; }
-.cl-trustbar__seg--extracted { background: var(--cl-conf-extracted); }
-.cl-trustbar__seg--inferred { background: var(--cl-conf-inferred); }
-.cl-trustbar__seg--ambiguous { background: var(--cl-conf-ambiguous); }
+.cl-trustbar__seg { border: 0; cursor: pointer; padding: 4px 0; background-clip: content-box; }
+/* background-COLOR, deliberately not the `background` shorthand: the shorthand
+   resets every sub-property it doesn't mention (including background-clip)
+   back to its initial value, which would silently undo the content-box clip
+   above regardless of rule order. */
+.cl-trustbar__seg--extracted { background-color: var(--cl-conf-extracted); }
+.cl-trustbar__seg--inferred { background-color: var(--cl-conf-inferred); }
+.cl-trustbar__seg--ambiguous { background-color: var(--cl-conf-ambiguous); }
 .cl-trustbar__seg[aria-pressed="false"] { opacity: .3; }
 .cl-trustbar__keys { display: flex; gap: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-200); }
 
