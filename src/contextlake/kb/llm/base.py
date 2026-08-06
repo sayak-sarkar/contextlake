@@ -19,6 +19,21 @@ class LlmClient(ABC):
     def generate(self, prompt: str, *, system: str | None = None) -> str:
         """Return the model's completion for ``prompt``."""
 
+    def preflight(self) -> None:  # noqa: B027 - optional hook, deliberately concrete
+        """Raise if this client cannot possibly generate, without generating.
+
+        For checking a *local prerequisite* -- an unimportable extra, a missing
+        model file -- so a caller can refuse before announcing work. It must stay
+        cheap and offline: a no-op is the right answer for any client whose only
+        failure mode is the network, because a reachability probe here would just
+        double the cost of the first real call.
+
+        The default is a no-op, so only a client with a real prerequisite overrides
+        it. `kb wiki` used to print "Generating wiki for 1 repo(s) with builtin
+        (council of 3)" and a note about reviewer quality, and only then discover
+        the backend was never installed.
+        """
+
 
 def default_api_key_env(provider: str) -> str:
     """The env var holding the API key when the config left ``api_key_env`` unset.

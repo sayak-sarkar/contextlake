@@ -20,6 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   about Jira or Confluence. The token then genuinely saw no sites. contextlake now requests
   read-only product scopes plus `offline_access` (without which every run re-opens the browser),
   overridable per source with `scopes`.
+- **A local model that runs out of time says so, and says which knob to turn.** urllib raises a read
+  timeout whose entire message is `timed out`, and callers print that, so a wiki run against a
+  CPU-only Ollama reported three words per page: not the provider, not the model, not the budget it
+  waited for, and not that the budget is adjustable. It now names all of them, points at `timeout`
+  under `[llm]`, and says that a local model with no GPU running a council of 3 per page will exceed
+  300s. `timeout` is also a declared config field now rather than reaching the client through
+  `extra="allow"`, where it worked but was invisible to the config docs.
+- **`kb wiki` checks its backends before announcing work.** With the `llm-local` extra absent,
+  `--llm builtin` printed a reviewer-quality advisory and `Generating wiki for 1 repo(s) with builtin
+  (council of 3)`, and only then failed per repo: it advised on a council that could not convene and
+  claimed work that never started. Both the generation and review clients are now checked first via
+  an optional `preflight` hook, which for the built-in model is an import check that neither
+  downloads the GGUF nor loads weights.
 - **Atlassian site discovery tells its failure modes apart.** A tool error, a renamed tool, a changed
   response shape and a genuinely empty site list all produced the same empty mapping and the same
   "no sites accessible to this token" line, which named the one cause that was not true. Discovery

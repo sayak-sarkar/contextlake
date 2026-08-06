@@ -17,6 +17,24 @@ from pathlib import Path
 
 from .base import LlmClient
 
+# One copy, raised from both `preflight` (before any work is announced) and
+# `_ensure_model` (the lazy path, for callers that never preflight). llama-cpp-python
+# publishes no wheels on PyPI at all -- llama.cpp is built per hardware backend, so
+# upstream ships one index per accelerator -- which is why the extra index is a
+# requirement here and not an "if that fails" fallback.
+_MISSING_EXTRA = (
+    "The built-in LLM needs the 'llm-local' extra (llama-cpp-python).\n"
+    "Install it with:\n"
+    "  contextlake doctor --fix llm-local\n"
+    "or by hand:\n"
+    "  pip install 'contextlake[llm-local]' --only-binary llama-cpp-python "
+    "--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu\n"
+    "The index is required, not a fallback: llama-cpp-python publishes no "
+    "wheels to PyPI, so without it pip compiles from source and needs cmake "
+    "plus a C++ compiler.\n"
+    "Or use a hosted model instead: --llm ollama | openai."
+)
+
 DEFAULT_CACHE_DIR = "~/.contextlake/models"
 DEFAULT_REPO = "Qwen/Qwen2.5-0.5B-Instruct-GGUF"  # Apache-2.0
 DEFAULT_FILE = "qwen2.5-0.5b-instruct-q4_k_m.gguf"
@@ -51,23 +69,26 @@ class BuiltinLlm(LlmClient):
             # wheels on PyPI at all (llama.cpp is built per hardware backend, so
             # upstream ships one index per accelerator), so the extra index is not
             # an "if that fails" fallback: without it pip always compiles C++.
-            raise ImportError(
-                "The built-in LLM needs the 'llm-local' extra (llama-cpp-python).\n"
-                "Install it with:\n"
-                "  contextlake doctor --fix llm-local\n"
-                "or by hand:\n"
-                "  pip install 'contextlake[llm-local]' --only-binary llama-cpp-python "
-                "--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu\n"
-                "The index is required, not a fallback: llama-cpp-python publishes no "
-                "wheels to PyPI, so without it pip compiles from source and needs cmake "
-                "plus a C++ compiler.\n"
-                "Or use a hosted model instead: --llm ollama | openai."
-            ) from e
+            raise ImportError(_MISSING_EXTRA) from e
         self._llm = Llama.from_pretrained(
             repo_id=self.repo_id, filename=self.filename,
             n_ctx=self.n_ctx, verbose=False,
         )
         return self._llm
+
+    def preflight(self) -> None:
+        """Fail now if llama-cpp-python is absent, rather than mid-run.
+
+        Import-only on purpose: it does not touch ``Llama.from_pretrained``, so it
+        neither downloads the GGUF nor loads weights. The whole point is to be
+        cheap enough to run before a caller announces work.
+        """
+        from .._util import hush_hf_hub
+        hush_hf_hub()
+        try:
+            import llama_cpp  # noqa: F401
+        except ImportError as e:
+            raise RuntimeError(_MISSING_EXTRA) from e
 
     def generate(self, prompt: str, *, system: str | None = None) -> str:
         llm = self._ensure_model()

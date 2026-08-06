@@ -122,6 +122,12 @@ class LlmCfg(BaseModel):
     # construction-time default would silently keep the wrong provider's env var.
     api_key_env: str | None = None
     max_tokens: int = 4096  # anthropic/openai response cap; wiki pages are short
+    # Seconds to wait for one generation. Declared rather than left to
+    # `extra="allow"`, which is how it previously reached the client: it worked, but
+    # it was invisible to the config docs and to validation, so nobody raising a
+    # local-model budget could discover it. 300s is generous for a hosted model and
+    # tight for a CPU-only local one -- see OllamaLlm's timeout message.
+    timeout: float = 300.0
     command: str | None = None  # provider="cli": the agent CLI to invoke
     args: list[str] | None = None  # provider="cli": override the per-CLI preset args
     # Council reviewer override. Unset (the default) means the council reviews with

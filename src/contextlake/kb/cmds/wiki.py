@@ -389,6 +389,24 @@ def cmd_wiki(args) -> int:
         # review_provider names a different backend -- letting a cheap local
         # generator be gated by a stronger judge (or the inverse).
         review_llm = build_review_llm(cfg.llm, llm)
+        # Before announcing anything. A backend whose prerequisite is missing used to
+        # get a "Generating wiki for N repo(s)..." banner and a note about reviewer
+        # quality first, then fail per repo -- claiming work that never started and
+        # advising on a council that could not convene.
+        for role, client in (("generation", llm), ("review", review_llm)):
+            # getattr, not a direct call: `preflight` is an optional hook on the base
+            # class, and a client only has to be generate()-shaped. Requiring the
+            # method would break every duck-typed implementation -- which is exactly
+            # what a direct call did to this command's own test doubles.
+            check = getattr(client, "preflight", None)
+            if not callable(check):
+                continue
+            try:
+                check()
+            except Exception as e:  # noqa: BLE001 - the message is the whole point
+                log(f"Cannot generate: the {role} backend "
+                    f"({getattr(client, 'name', '?')}) is not usable.\n{e}")
+                return 1
         if review_llm.name == "builtin":
             # The builtin 0.5B is a weak reviewer (near-constant ~0.95 scores, mostly
             # rubber-stamping) -- still functional, but a real backend gates meaningfully.
