@@ -5177,9 +5177,15 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [6.2.0] - 2026-08-07
+
+**Contains security fixes.** Two issues were reachable from ordinary content in a
+repository you index, so upgrading is recommended for anyone running `kb dashboard`,
+`kb graph`, or the Windows binary. See the first two entries under Fixed, including one
+manual step: regenerating graph HTML you saved or published.
 
 ### Added
+
 - **`kb forget <repo>` removes one repository from the store.** contextlake could already tell you a
   stored repo was wrong -- the id-migration pass says "git can't find a repository here at all ...
   re-clone or remove it", and `lint` reports unreadable repos -- while offering no way to act on it:
@@ -5195,8 +5201,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warns first and the warning prints the right command, but on one real store that pseudo-repo ended
   up holding 63% of all nodes, duplicating every mirrored repo under a second identity, with `embed`
   then spending 91% of its vectors on it.
+- **`--repos-exact` for an exact repo id/path match.** `--repos` has always matched a plain
+  pattern as a substring of a repo's id or local path (documented, but easy to be surprised
+  by): on a real fleet, `--repos atlas` selected the intended repo plus an unrelated one whose
+  name merely contained "atlas". `--repos-exact` drops that substring leg while keeping glob
+  patterns (`frontend/*`) working exactly as before, for anyone who wants `--repos` to mean
+  "this repo, not also anything that happens to contain its name." The default is unchanged --
+  `--repos` alone still matches on substring, so nobody's existing script silently starts
+  matching less.
 
 ### Fixed
+
+- **SECURITY: generated graph pages could execute HTML/JavaScript taken from an indexed
+  repository (stored cross-site scripting).** The graph payload was embedded in the page's
+  inline `<script>` with no escaping, so a `</script>` sequence anywhere in indexed content
+  closed the element early and the browser parsed the rest of the payload as markup. The
+  reachable inputs are ordinary repository data -- a symbol name, a file name, commit
+  context, or a connector/web-page title -- so anyone able to land a string in a repository
+  you index could choose what ran in your browser when you opened the page. It mattered most
+  on `kb dashboard --serve`, which serves those pages on the same origin as the script
+  carrying the per-process mutation/LLM token: injected code there could read the token and
+  drive the mutation and chat endpoints. `kb graph`'s standalone HTML file, `kb graph --c4`,
+  `kb graph --serve`, and the `build_site` page set were all affected, since all four render
+  through the same function.
+
+  Every payload entering a script context now goes through one shared escape
+  (`kb.security.json_for_script`), which the static `--site` export already applied to its
+  own snapshot and now shares rather than duplicating. Repository text is additionally
+  escaped where it reaches an HTML attribute or element text: the kind and relationship
+  legends, the page title, the wiki staleness badge, and the site index's repo links and
+  headings. Hostile values are rendered verbatim as inert text, so graphs look exactly as
+  before -- output for ordinary content is byte-for-byte unchanged.
+
+  Page templates are also filled in a single pass now. Previously each placeholder was
+  substituted in turn over the whole document, so repository text that merely *spelled* a
+  later placeholder (for example a symbol named `__GLYPH__`) had template markup inserted
+  into the middle of the data after escaping had run -- corrupting the page in a way no
+  amount of character escaping could prevent.
+
+  **What to do:** upgrade -- no configuration change is needed. Then **regenerate any graph
+  HTML you saved, shared or published**: files written by an earlier version are static
+  artifacts that still carry the unescaped payload, and upgrading cannot retroactively fix a
+  file already on disk. That means anything produced by `kb graph -o …`, `kb graph --c4` or
+  `kb dashboard --site`. It matters most for a file you sent to someone else or put on a web
+  server, and least for one you generated from code you wrote yourself. Pages served live by
+  `kb dashboard --serve` and `kb graph --serve` are rendered per request, so they are fixed by
+  the upgrade alone.
+- **SECURITY: the dashboard's wiki route could be steered to read Markdown files outside
+  the store on Windows (path traversal).** The `?module=` value and the repo id in the URL
+  are both turned into a wiki filename, and only `/` was being replaced -- so a
+  `\`-separated value walked out of the wiki directory and the file's contents came back
+  rendered. It affected Windows hosts, including the shipped `contextlake-windows-x86_64.exe`;
+  POSIX happened to be unaffected because `\` is an ordinary filename character there. Reading
+  was limited to files whose name ends `.md`, and required access to the dashboard, which binds
+  to loopback by default.
+
+  Wiki filenames are now built with a character allowlist that folds every path separator,
+  and -- independently of that -- the read path verifies the resolved file really sits inside
+  the store's wiki directory before opening it, so the containment holds even if a future
+  change to the naming rules reintroduces a separator. A blocked request reads as "no such
+  page" rather than an error. Legitimate module page names are unchanged, including
+  non-ASCII directory names, so no already-generated page is orphaned.
 - **An MCP tool error is no longer returned as data.** `_parse_result` ignored the `isError` flag on
   a tool result, so a failed call came back as its own error *text*. A caller that iterated the
   result then found a string, yielded nothing, and reported an empty answer. Live symptom: an
@@ -5228,6 +5293,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now tolerates the wrapped response shapes its sibling parsers already handled, raises on a payload
   that is not a site list, and reports the three outcomes separately. An empty list still means no
   sites.
+- **Docs: the working `llm-local` install command is now unmissable wherever `--llm builtin` is
+  offered.** `pip install "contextlake[kb-full,llm-local]"` fails on a machine with no C/C++
+  compiler, building `llama-cpp-python` from source: upstream ships no PyPI wheels, so a plain
+  install always compiles. The working form already existed at `docs/install.md` (`contextlake
+  doctor --fix llm-local`, which attaches the prebuilt CPU wheel index), and the runtime failure
+  in the built-in LLM client already named it too, but neither was reachable from the places a
+  user actually goes to turn on the wiki's local model: `docs/keep-fresh.md`'s `bootstrap --llm
+  builtin` example, `docs/generate-wiki.md`'s `kb wiki --llm builtin` example, and
+  `docs/dashboard.md`'s copy-paste Wiki-tab command all showed or named `builtin` with no pointer
+  to the extra step it needs, and the command-reference tables in `README.md` and
+  `docs/cli-reference.md` listed `--llm builtin` alongside `ollama`/`openai`/`anthropic`/`cli` with
+  no hint that one of those five needs anything extra at all. Each now names `contextlake doctor
+  --fix llm-local` (or links to the existing `docs/install.md` section that does) right next to the
+  `--llm builtin` example it sits beside, and calls out that `--llm ollama` needs no compiler at
+  all as the no-install alternative. `docs/install.md`, `docs/model-providers.md`,
+  `docs/troubleshooting.md` and `QUICKSTART.md`'s bootstrap walkthrough already covered this
+  correctly and needed no change beyond one added clause in QUICKSTART.md naming ollama's
+  no-compiler property explicitly.
+- **`kb index`'s "Workspace indexed" summary reports the workspace, not the whole store.** It printed
+  `store.stats()` -- a store-wide count over every repo the store has ever indexed, from any
+  `--workspace` -- under a line labelled with this run's workspace. On a real fleet the line read
+  "Workspace indexed: 21 repos" two lines after "Found 19 repositories under repositories", and the
+  store itself held 39 distinct repo ids: three disagreeing denominators for what should have been
+  one number. The summary now sums `repo_counts()` over exactly the repo list this run discovered
+  under the named workspace -- the same list the "Found N repositories" line above it counts -- so
+  the two lines can never disagree, and an unrelated repo indexed by an earlier run under a different
+  workspace can no longer inflate this one's numbers.
+- **HuggingFace Hub download progress bars no longer leak into `kb connect`/`kb embed`.**
+  `hush_hf_hub()` was already called before every local-model download, but its env vars and
+  logger-level settings gate HF Hub's own logging and deprecation warnings -- never the
+  separate `tqdm` progress-bar switch, so three bars still rendered per fetch, two of them
+  showing no file name or percentage (only a byte count stuck at `0.00B`). Progress bars are
+  now hushed there too, unless `--verbose` was passed -- a verbose run still sees them, e.g.
+  to confirm a large model is actually moving.
 
 ## [6.1.0] - 2026-08-06
 
