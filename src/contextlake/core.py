@@ -542,15 +542,36 @@ def repo_filter_patterns(config) -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip()]
 
 
-def match_repo_filter(full_path: str, local_path: str, patterns: list[str]) -> bool:
-    """A repo matches if any pattern is a glob hit or a plain substring of its
-    group-qualified path or its local (group-stripped) path. Case-insensitive.
-    ``team/*``, ``billing``, and ``acme/catalog-api`` all work."""
+def repo_filter_is_exact(config) -> bool:
+    """Whether ``--repos-exact`` / ``repo_filter_exact`` was passed.
+
+    Kept as its own accessor, mirroring :func:`repo_filter_patterns`, so every
+    :func:`match_repo_filter` call site reads both off the same ``config`` it
+    already has in hand rather than threading a second argument by hand.
+    """
+    return bool(config.get("repo_filter_exact"))
+
+
+def match_repo_filter(full_path: str, local_path: str, patterns: list[str],
+                      *, exact: bool = False) -> bool:
+    """A repo matches if any pattern is a glob hit or -- unless ``exact`` -- a plain
+    substring of its group-qualified path or its local (group-stripped) path.
+    Case-insensitive. ``team/*``, ``billing``, and ``acme/catalog-api`` all work.
+
+    ``exact=True`` (``--repos-exact``) drops the substring leg, so a plain pattern
+    with no glob characters must equal the *whole* id/path rather than merely occur
+    somewhere in it -- ``fnmatch`` already anchors to the full string, so a bare
+    name like ``atlas`` only matches a repo whose id/path is exactly ``atlas``, not
+    one that merely contains it (e.g. ``platform-atlas``). Default unchanged for
+    every existing caller that never passes ``exact``.
+    """
     from fnmatch import fnmatch
     fp, lp = (full_path or "").lower(), (local_path or "").lower()
     for p in patterns:
         pl = p.lower()
-        if pl in fp or pl in lp or fnmatch(fp, pl) or fnmatch(lp, pl):
+        if fnmatch(fp, pl) or fnmatch(lp, pl):
+            return True
+        if not exact and (pl in fp or pl in lp):
             return True
     return False
 
@@ -662,9 +683,10 @@ def fetch_gitlab_projects(gitlab_group, config):
     # on just that set. Ideal for a demo or a try-before-fleet run.
     patterns = repo_filter_patterns(config)
     if patterns:
+        exact = repo_filter_is_exact(config)
         before = len(all_projects)
         all_projects = {k: v for k, v in all_projects.items()
-                        if match_repo_filter(v.get("full_path", k), k, patterns)}
+                        if match_repo_filter(v.get("full_path", k), k, patterns, exact=exact)}
         log(style.dim(f"Repo filter {patterns} -> {len(all_projects)} of {before} projects"))
 
     _warn_if_widening_scope(cache_json, patterns, len(all_projects))
@@ -780,8 +802,9 @@ def _apply_repo_filter(projects, config):
     patterns = repo_filter_patterns(config)
     if not patterns:
         return projects
+    exact = repo_filter_is_exact(config)
     return {k: v for k, v in projects.items()
-            if match_repo_filter(v.get("full_path", k), k, patterns)}
+            if match_repo_filter(v.get("full_path", k), k, patterns, exact=exact)}
 
 
 def _warn_if_widening_scope(cache_json, patterns, new_count):
@@ -907,7 +930,8 @@ def filtered_local_repos(work_dir, config):
     patterns = repo_filter_patterns(config)
     if not patterns:
         return repos
-    matched = [p for p in repos if match_repo_filter(p, p, patterns)]
+    exact = repo_filter_is_exact(config)
+    matched = [p for p in repos if match_repo_filter(p, p, patterns, exact=exact)]
     # A typo in the pattern must not read as a clean run over nothing, which is
     # the shape honouring the filter newly makes reachable here. `fetch` already
     # says this for the same situation against the project list.
@@ -1844,8 +1868,9 @@ def verify_structure(work_dir, config, gitlab_group):
     # every unmatched project as `missing` and make a scoped verify look broken.
     patterns = repo_filter_patterns(config)
     if patterns:
+        exact = repo_filter_is_exact(config)
         projects = {k: v for k, v in projects.items()
-                    if match_repo_filter(v.get("full_path", k), k, patterns)}
+                    if match_repo_filter(v.get("full_path", k), k, patterns, exact=exact)}
     # Scoped to the group being verified, for the reason `switch_repository_branches`
     # is: a workspace holding several groups had every other group's clone reported
     # as an Extra repository, which is an anomaly report about repositories this run

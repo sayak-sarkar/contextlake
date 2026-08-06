@@ -7,7 +7,7 @@ import urllib.error
 
 import pytest
 
-from conftest import FakeCompleted
+from conftest import FakeCompleted, make_local_repo
 from contextlake import core
 from contextlake.core import (
     FetchError,
@@ -340,6 +340,56 @@ def test_match_repo_filter_glob_and_substring():
     assert match_repo_filter("acme/frontend/app", "frontend/app", pats)   # substring
     assert not match_repo_filter("acme/auth/svc", "auth/svc", pats)
     assert match_repo_filter("ACME/Billing/Core", "Billing/Core", pats)   # case-insensitive
+
+
+def test_match_repo_filter_exact_drops_the_substring_leg():
+    """Pins F10: --repos atlas selected an unrelated repo whose name merely
+    contains 'atlas' (e.g. 'platform-atlas'), which is defensible for the
+    default but surprising for an argument named --repos. exact=True
+    (--repos-exact) must reject that unrelated repo while still matching a
+    genuine glob pattern -- fnmatch already anchors to the whole string, so
+    dropping only the substring leg is what makes exact matching possible
+    without touching the default at all.
+    """
+    from contextlake.core import match_repo_filter, repo_filter_patterns
+
+    pats = repo_filter_patterns({"repo_filter": "atlas"})
+    # Default (unchanged): a bare substring still matches the unrelated repo.
+    assert match_repo_filter("group/platform-atlas", "platform-atlas", pats)
+    # exact=True: the unrelated repo no longer matches, only the real one does.
+    assert not match_repo_filter("group/platform-atlas", "platform-atlas", pats, exact=True)
+    assert match_repo_filter("group/atlas", "atlas", pats, exact=True)
+    # A glob pattern is still a glob under exact=True -- only the bare
+    # substring leg is dropped, not fnmatch's own anchoring.
+    glob_pats = repo_filter_patterns({"repo_filter": "team/*"})
+    assert match_repo_filter("acme/team/api", "team/api", glob_pats, exact=True)
+    assert not match_repo_filter("acme/other/api", "other/api", glob_pats, exact=True)
+
+
+def test_repo_filter_is_exact_reads_the_config_flag():
+    from contextlake.core import repo_filter_is_exact
+
+    assert repo_filter_is_exact({}) is False
+    assert repo_filter_is_exact({"repo_filter_exact": False}) is False
+    assert repo_filter_is_exact({"repo_filter_exact": True}) is True
+
+
+def test_filtered_local_repos_repos_exact_excludes_the_substring_match(tmp_path):
+    """The exact real-world shape from the demo: two local clones, 'atlas' and
+    an unrelated 'platform-atlas' that merely contains the pattern. Default
+    --repos still matches both (unchanged); --repos-exact matches only 'atlas'.
+    """
+    from contextlake.core import filtered_local_repos
+
+    make_local_repo(tmp_path, "atlas")
+    make_local_repo(tmp_path, "platform-atlas")
+
+    default = sorted(filtered_local_repos(tmp_path, {"repo_filter": "atlas"}))
+    assert default == ["atlas", "platform-atlas"]
+
+    exact = sorted(filtered_local_repos(
+        tmp_path, {"repo_filter": "atlas", "repo_filter_exact": True}))
+    assert exact == ["atlas"]
 
 
 def test_fetch_repo_filter_narrows_the_cache(tmp_path, base_config, fake_subprocess):

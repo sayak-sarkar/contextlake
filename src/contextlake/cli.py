@@ -586,7 +586,14 @@ def _add_mirror(p, hidden=False):
     add("--group", help="GitLab group (overrides config file)")
     add("--repos", metavar="PATTERN",
         help="mirror/index only repos matching this comma-separated glob/substring "
-             "filter (e.g. 'team/api,billing,frontend/*') — great for a demo subset")
+             "filter (e.g. 'team/api,billing,frontend/*') — great for a demo subset; "
+             "a plain name also matches any repo whose id/path merely contains it "
+             "-- add --repos-exact if that is not what you want")
+    add("--repos-exact", action="store_true", dest="repos_exact",
+        help="make --repos match a repo's full id or local path exactly (globs "
+             "like 'frontend/*' still work) instead of the default substring match "
+             "-- use this when a plain name like 'atlas' also matched an unrelated "
+             "repo whose name merely contains it")
     add("-n", "--dry-run", action="store_true", dest="dry_run",
         help="show what would happen without cloning, updating, or switching branches")
     add("--exit-zero-on-partial", action="store_true", dest="exit_zero_on_partial",
@@ -1849,6 +1856,8 @@ def _run(argv, metrics):
     # clone/update/branches/verify/status key off it; bootstrap also filters indexing).
     if getattr(args, "repos", None):
         config["repo_filter"] = args.repos
+    if getattr(args, "repos_exact", None):
+        config["repo_filter_exact"] = True
 
     work_dir = expand_path(args.work_dir) if args.work_dir else config.get(
         "work_dir", DEFAULT_CONFIG["work_dir"]
