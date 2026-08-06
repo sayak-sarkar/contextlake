@@ -23,7 +23,10 @@ contextlake bootstrap --llm builtin
 ```
 
 `--llm builtin` powers the wiki stage with a zero-setup CPU model, so this single command builds the
-whole knowledge layer (graph, vectors, and wiki) for every repo. Use `--llm ollama`, `openai`,
+whole knowledge layer (graph, vectors, and wiki) for every repo. On a `pip` install, `builtin` needs
+one extra step first, `contextlake doctor --fix llm-local` (see [Install and
+upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); skip that step entirely with
+`--llm ollama`, which needs no compiler at all. Use `--llm ollama`, `openai`,
 `anthropic`, `cli` or `auto` for better prose; the pre-command form
 `contextlake --llm builtin bootstrap` also works. Without any `--llm`, and with `[llm]` disabled in
 `kb.toml`, the wiki stage no-ops and everything else still runs.

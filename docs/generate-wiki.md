@@ -10,6 +10,10 @@ machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ol
 `anthropic` | `cli`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables the tier
 inline and scopes generation to the named repo(s).
 
+On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
+(see [Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); `--llm ollama`
+needs no compiler at all.
+
 Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
 symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
 and which conventional entry-point/config files it has, e.g. `package.json`, `Dockerfile`, `manage.py`)

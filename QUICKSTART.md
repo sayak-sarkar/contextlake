@@ -112,7 +112,7 @@ upgrade](docs/install.md#the-built-in-wiki-llm-needs-one-extra-flag), and for wh
 [Installing the built-in
 LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 
-Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
+Prefer `--llm ollama` (no compiler needed at all) or `--llm openai` for higher-quality prose; without any `--llm`
 (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:
 
 - already have the repos cloned? add `--no-sync`
