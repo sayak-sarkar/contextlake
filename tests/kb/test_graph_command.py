@@ -1108,6 +1108,59 @@ def test_graph_and_site_servers_pin_the_host_header(store):
             srv.shutdown()
 
 
+@pytest.mark.slow
+def test_local_servers_send_security_response_headers(store):
+    """Every local server states a CSP, and it is stated in the shared base.
+
+    The CSP is not what stops injection into a generated page (escaping does
+    that); it is what stops an injected script exfiltrating -- so the assertions
+    that matter are ``default-src 'none'`` and ``connect-src 'self'``. Asserted
+    against a real response from every server rather than against the constant,
+    because the defect being fixed was a header nobody sent, not a header with the
+    wrong value.
+    """
+    _hub(store, leaves=2)
+    store.upsert_repo(Repo(id="team/repoA", path="/a"))
+    store.upsert_nodes("team/repoA", [_node("a1", repo="team/repoA")])
+    for build in (lambda p: viz.build_graph_server(store, _payload(store), host="127.0.0.1",
+                                                   port=p),
+                  lambda p: viz.build_site_server(store, host="127.0.0.1", port=p)):
+        port = _free_port()
+        srv = build(port)
+        t = threading.Thread(target=srv.serve_forever, daemon=True)
+        t.start()
+        try:
+            base = f"http://127.0.0.1:{port}"
+            _get(base + "/")            # wait for the server to come up
+            for route in ("/", "/neighbors?id=H"):
+                with urllib.request.urlopen(base + route, timeout=5) as r:
+                    csp = r.headers["Content-Security-Policy"]
+                    assert csp, f"no CSP on {route}"
+                    # the clauses that blunt token exfiltration
+                    assert "default-src 'none'" in csp
+                    assert "connect-src 'self'" in csp
+                    assert "form-action 'none'" in csp
+                    assert "base-uri 'none'" in csp
+                    # the page legitimately needs these, so the policy must not
+                    # be so tight that it breaks the product
+                    assert "data:" in csp          # node glyphs are data-URI PNGs
+                    assert "frame-src 'self'" in csp   # dashboard iframes the page
+                    assert r.headers["X-Content-Type-Options"] == "nosniff"
+                    assert r.headers["Referrer-Policy"] == "no-referrer"
+        finally:
+            srv.shutdown()
+
+
+def test_csp_allows_the_cdn_that_cdn_mode_actually_loads():
+    """``kb graph --serve --cdn`` renders a served page whose script tags point at
+    jsDelivr, so a policy that omitted that origin would return a blank graph."""
+    from contextlake.kb.http_base import LocalHttpHandler
+    from contextlake.kb.visualize.html_render import _CDN_URL
+
+    origin = "/".join(_CDN_URL.split("/")[:3])
+    assert origin in LocalHttpHandler.csp
+
+
 def _free_port():
     s = socket.socket()
     s.bind(("127.0.0.1", 0))

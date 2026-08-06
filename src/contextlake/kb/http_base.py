@@ -15,9 +15,10 @@ servers had no Host check at all.
 Fixing each server separately would have left the drift free to recur, so the
 policy lives here once and each server inherits it:
 
-* :class:`LocalHttpHandler` -- Host pinning, response helpers, and a guard that
-  turns a handler exception into a status code instead of a traceback dumped
-  down the socket by ``BaseHTTPRequestHandler``;
+* :class:`LocalHttpHandler` -- Host pinning, the security response headers
+  (:data:`_CSP`, ``nosniff``, ``no-referrer``) that every reply carries, response
+  helpers, and a guard that turns a handler exception into a status code instead
+  of a traceback dumped down the socket by ``BaseHTTPRequestHandler``;
 * :func:`qs_int` -- query-param integers that clamp instead of raising, so a
   hostile ``?hops=99999`` costs nothing;
 * :func:`allowed_host_headers` -- the accepted ``Host`` values for a bind;
@@ -144,6 +145,44 @@ def qs_int(q: dict, name: str, default: int, *, lo: int, hi: int) -> int:
     return max(lo, min(hi, value))
 
 
+# The origin `to_html(cdn=True)` loads cytoscape from. `kb graph --serve --cdn`
+# renders a *served* page in that mode, so the CDN has to be nameable in
+# `script-src` or that mode returns a blank graph. Widening script-src is the
+# cheap half of the policy anyway: 'unsafe-inline' is already unavoidable while
+# assets are inlined, so script-src was never the load-bearing clause here.
+_CDN_ORIGIN = "https://cdn.jsdelivr.net"
+
+# One Content-Security-Policy for every page these servers return.
+#
+# What it is actually for: it does not stop HTML/JS injection into a generated
+# page (escaping does that -- see kb.security.json_for_script), it stops the
+# *second* step. An injected script's goal on this origin is to read the
+# per-process token out of /dashboard.js and then talk to somewhere else, so
+# `default-src 'none'` plus `connect-src 'self'` is the clause that matters:
+# no fetch/XHR/WebSocket/beacon to any other host, no form posts, no plugins.
+# Defence in depth, deliberately -- not the fix.
+#
+# The pages are otherwise self-contained (assets inlined by default, or served
+# as siblings), so everything else can stay tight:
+#   * 'unsafe-inline' for script/style is unavoidable while assets are inlined;
+#   * img-src needs data: for the node glyphs, which are data-URI PNGs;
+#   * frame-src/frame-ancestors 'self' because the dashboard renders the graph
+#     pages in a same-origin iframe -- with default-src 'none' and neither of
+#     these, the architecture panel would come up empty;
+#   * no font-src entry is needed: the stylesheets declare no @font-face.
+_CSP = "; ".join((
+    "default-src 'none'",
+    f"script-src 'self' 'unsafe-inline' {_CDN_ORIGIN}",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "frame-src 'self'",
+    "frame-ancestors 'self'",
+    "base-uri 'none'",
+    "form-action 'none'",
+))
+
+
 class LocalHttpHandler(BaseHTTPRequestHandler):
     """Base for contextlake's loopback HTTP handlers.
 
@@ -151,9 +190,16 @@ class LocalHttpHandler(BaseHTTPRequestHandler):
     call :meth:`reject_bad_host` first in every ``do_*`` method. The default is
     the empty set so a handler that forgets fails closed -- an over-strict
     server is a bug report, a server that forgot its Host check is a breach.
+
+    :attr:`csp` is the Content-Security-Policy every response carries. It is a
+    class attribute so a subclass can tighten or widen it deliberately, but it
+    is set here, once, for the same reason the Host check is: the drift this
+    module exists to prevent is exactly "one server got the header and the next
+    one did not".
     """
 
     allowed_hosts: frozenset[str] = frozenset()
+    csp: str = _CSP
 
     def log_message(self, fmt="", *args):
         """The access log: silent unless ``--access-log`` asked for it.
@@ -187,6 +233,13 @@ class LocalHttpHandler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
+        # Every response, not just the HTML ones: `nosniff` is only meaningful on
+        # the JSON and asset replies, and a policy applied per-content-type is a
+        # policy someone will forget to extend. This is the single response path
+        # for all three servers, so stating it here covers every route.
+        self.send_header("Content-Security-Policy", self.csp)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         try:
             self.wfile.write(body)

@@ -501,6 +501,23 @@ def served_with_wiki_mutations(tmp_path, monkeypatch):
         s.close()
 
 
+def test_dashboard_sends_security_response_headers(served):
+    """The dashboard is the origin that matters most: it serves the graph pages and
+    the script carrying the per-process mutation/LLM token. Headers come from the
+    shared base (kb/http_base.py), so this asserts the base is actually reached on
+    both an HTML route and a JSON one -- including that ``connect-src 'self'``, the
+    clause that blunts token exfiltration, is present."""
+    for route in ("/", "/api/overview", "/dashboard.js"):
+        with urllib.request.urlopen(served + route, timeout=5) as r:
+            csp = r.headers["Content-Security-Policy"]
+            assert csp, f"no CSP on {route}"
+            assert "default-src 'none'" in csp
+            assert "connect-src 'self'" in csp
+            assert "frame-src 'self'" in csp
+            assert r.headers["X-Content-Type-Options"] == "nosniff"
+            assert r.headers["Referrer-Policy"] == "no-referrer"
+
+
 def _get_status(url):
     try:
         with urllib.request.urlopen(url, timeout=5) as r:
