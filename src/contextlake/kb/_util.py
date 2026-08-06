@@ -36,8 +36,15 @@ def hush_hf_hub() -> None:
     at the terminal, like outbound data transfer: a ``local_dir_use_symlinks``
     deprecation, and an anonymous-rate-limit line ("You are sending unauthenticated
     requests to the HF Hub…"). For a local-first tool that is a misleading first
-    impression, so we silence them (the actual "Downloading … / Download complete"
-    progress still shows).
+    impression, so we silence them.
+
+    The download's own ``tqdm`` progress bars are a separate switch
+    (``disable_progress_bars``, not the verbosity/logging settings above -- those
+    only gate HF's own logger and warnings, never tqdm) and are hushed too unless
+    ``--verbose`` was passed: three of them render per fetch, two of which show no
+    file name or percentage (only a byte count that starts and ends at ``0.00B``),
+    so at default verbosity they are noise with no actionable content. A verbose
+    run still wants to see them, e.g. to confirm a large model is actually moving.
     """
     import logging
     import os
@@ -50,6 +57,15 @@ def hush_hf_hub() -> None:
     for name in ("huggingface_hub", "huggingface_hub.file_download",
                  "huggingface_hub.utils._http", "huggingface_hub.utils._auth"):
         logging.getLogger(name).setLevel(logging.ERROR)
+
+    from ..logging_setup import console_verbose
+    if not console_verbose():
+        try:
+            from huggingface_hub.utils import disable_progress_bars
+        except ImportError:
+            pass  # not installed yet -- the caller's own ImportError handling covers this
+        else:
+            disable_progress_bars()
 
 
 def ollama_reachable(base_url: str, timeout: float = 1.5) -> bool:

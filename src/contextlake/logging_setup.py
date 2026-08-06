@@ -205,8 +205,9 @@ def setup_logging(verbose=False, quiet=False, log_file=None, *,
     else:
         console_level = logging.INFO
 
-    global _console_redact
+    global _console_redact, _console_verbose
     console_redact = _console_redact = bool(redact)
+    _console_verbose = bool(verbose)
     file_redact = True if redact is None else bool(redact)
 
     def formatter(handler, redacting):
@@ -241,6 +242,15 @@ def setup_logging(verbose=False, quiet=False, log_file=None, *,
 # Exposed for the one command that legitimately writes to stdout itself.
 _console_redact = False
 
+# Whether --verbose was passed to the last setup_logging call. Exposed for
+# callers deep in a provider (HF Hub download progress, say) that need to know
+# whether the user asked for verbose output, without threading `args` all the
+# way down. Deliberately the CLI's own flag, not `logger.isEnabledFor(DEBUG)`:
+# the logger's effective level is the *most permissive* of its handlers, so
+# with a --log-file (always captured at DEBUG) that check would read "verbose"
+# even on a plain, non-verbose console.
+_console_verbose = False
+
 
 def console_redacting() -> bool:
     """Is console output being scrubbed right now?
@@ -256,6 +266,15 @@ def console_redacting() -> bool:
     that already decided.
     """
     return _console_redact
+
+
+def console_verbose() -> bool:
+    """Was --verbose passed for this run?
+
+    See ``_console_verbose`` for why this reads the CLI's own flag rather than
+    the logger's effective level.
+    """
+    return _console_verbose
 
 
 def report_line(text: str = "") -> None:
