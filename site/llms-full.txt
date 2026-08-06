@@ -190,7 +190,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
+| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `kb owners` (alias `kb who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
@@ -1059,7 +1059,7 @@ upgrade](docs/install.md#the-built-in-wiki-llm-needs-one-extra-flag), and for wh
 [Installing the built-in
 LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
 
-Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
+Prefer `--llm ollama` (no compiler needed at all) or `--llm openai` for higher-quality prose; without any `--llm`
 (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:
 
 - already have the repos cloned? add `--no-sync`
@@ -2280,6 +2280,10 @@ machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ol
 `anthropic` | `cli`), for example `contextlake kb wiki acme/catalog-api --llm builtin`, which enables the tier
 inline and scopes generation to the named repo(s).
 
+On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
+(see [Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); `--llm ollama`
+needs no compiler at all.
+
 Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
 symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
 and which conventional entry-point/config files it has, e.g. `package.json`, `Dockerfile`, `manage.py`)
@@ -2699,7 +2703,10 @@ contextlake bootstrap --llm builtin
 ```
 
 `--llm builtin` powers the wiki stage with a zero-setup CPU model, so this single command builds the
-whole knowledge layer (graph, vectors, and wiki) for every repo. Use `--llm ollama`, `openai`,
+whole knowledge layer (graph, vectors, and wiki) for every repo. On a `pip` install, `builtin` needs
+one extra step first, `contextlake doctor --fix llm-local` (see [Install and
+upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); skip that step entirely with
+`--llm ollama`, which needs no compiler at all. Use `--llm ollama`, `openai`,
 `anthropic`, `cli` or `auto` for better prose; the pre-command form
 `contextlake --llm builtin bootstrap` also works. Without any `--llm`, and with `[llm]` disabled in
 `kb.toml`, the wiki stage no-ops and everything else still runs.
@@ -3439,7 +3446,9 @@ contextlake kb wiki acme/catalog-api --llm builtin
 ```
 
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
-API key (install the `llm-local` extra first); `ollama` / `openai` use those backends.
+API key; on a `pip` install it needs `contextlake doctor --fix llm-local` first (see
+[Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)). `ollama`
+needs no compiler at all; `openai` uses that backend instead.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
 symbols and (when available) its own README and conventional setup/config files, with a
@@ -4712,7 +4721,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline |
+| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
