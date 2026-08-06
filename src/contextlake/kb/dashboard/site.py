@@ -188,6 +188,10 @@ def _snapshot(store, store_dir: Path, *, repos=None, anonymize: bool = False,
                for rid in detail_ids}
     # One bucketed edge scan for all repos, not one full scan per repo (O(repos x edges)).
     relationships = kbdata.repo_relationships_bulk(store, detail_ids)
+    # The whole-store equivalent (not capped to detail_ids -- the Overview graph
+    # this backs shows every repo, not just the detail slice), for the Overview
+    # scope's text/table equivalent of the graph (WCAG 1.1.1).
+    fleet_relationships = kbdata.fleet_relationships(store)
     symbols = _symbol_index(store, patterns)
     impact = _impact_index(store, symbols, anonymize=anonymize)
     for s in symbols:
@@ -201,6 +205,7 @@ def _snapshot(store, store_dir: Path, *, repos=None, anonymize: bool = False,
         "repos": details,
         "clusters": kbdata.cluster_index(store, store_dir, repo_ids, anonymize=anonymize),
         "relationships": relationships,
+        "fleet_relationships": fleet_relationships,
         "health": kbdata.health(store, store_dir),
         "symbols": symbols,
         "impact": impact,

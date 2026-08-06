@@ -130,6 +130,19 @@
       }
       return fetchJSON("/api/repo/" + encPath(id) + "/rel");
     },
+    // Fleet-wide equivalent of rel() above -- backs the Architecture "Overview"
+    // scope's text/table equivalent of the whole-fleet graph (WCAG 1.1.1). A
+    // static export built before this existed has no `fleet_relationships`
+    // key; that's not an error, it's an older snapshot, so this rejects the
+    // same way rel() does for an unknown id and the caller degrades gracefully
+    // rather than showing an error state.
+    fleetRel: function () {
+      if (MODE === "static") {
+        return SNAP.fleet_relationships ? Promise.resolve(SNAP.fleet_relationships)
+          : Promise.reject(new Error("fleet relationships not in snapshot"));
+      }
+      return fetchJSON("/api/relationships");
+    },
     health: function () {
       return MODE === "static" ? Promise.resolve(SNAP.health) : fetchJSON("/api/health");
     },
@@ -1074,19 +1087,27 @@
     var tablesWrap = h("div", { id: "arch-tables" });
     body.appendChild(tablesWrap);
     var target = id || ctx.repoId;
-    if (!target) {
-      tablesWrap.appendChild(stateBlock({ kind: "empty", title: "Pick a repo to see its relationship tables", msg: "The accessible equal of the graph above.", action: h("button", { class: "cl-btn cl-btn--primary", type: "button", onclick: function () { go("#/fleet"); } }, "Open fleet") }));
-      return;
-    }
     tablesWrap.appendChild(skeleton(2));
-    // dataFlow is a separate, live-only fetch (different row shape -- file->table,
-    // not a repo-pair edge -- see CL.data.dataFlow's comment); a static-mode/offline
-    // rejection degrades that ONE tab to "unavailable", not the whole tables section.
-    Promise.all([CL.data.rel(target), CL.data.dataFlow(target).catch(function () { return null; })]).then(function (results) {
+    // At fleet scope (no repo picked) there's no data_flow tab -- that relation
+    // is intra-repo only (see CL.data.dataFlow's comment) with no fleet-wide
+    // equivalent to show. dataFlow itself is a separate, live-only fetch
+    // (different row shape -- file->table, not a repo-pair edge); a
+    // static-mode/offline rejection degrades that ONE tab to "unavailable",
+    // not the whole tables section.
+    var relPromise = target ? CL.data.rel(target) : CL.data.fleetRel();
+    var dataFlowPromise = target ? CL.data.dataFlow(target).catch(function () { return null; }) : Promise.resolve(null);
+    Promise.all([relPromise, dataFlowPromise]).then(function (results) {
       var rel = results[0], dataFlow = results[1];
       var dataFlowRows = dataFlow ? dataFlow.rows : null;
       clear(tablesWrap);
-      var sub = ["dependencies", "http_flow", "event_flow", "data_flow"];
+      // Fleet-wide relationships are the text/table equivalent of the whole-fleet
+      // Overview graph (WCAG 1.1.1) -- same three repo-pair categories as a single
+      // repo's tables, just unfiltered by repo. No data_flow tab at this scope.
+      if (!target && rel.truncated) {
+        tablesWrap.appendChild(h("div", { class: "cl-truncbanner" },
+          "Showing the first 500 of each relationship type -- narrow to a single repo to see the rest."));
+      }
+      var sub = target ? ["dependencies", "http_flow", "event_flow", "data_flow"] : ["dependencies", "http_flow", "event_flow"];
       var names = { dependencies: "Dependencies", http_flow: "HTTP flow", event_flow: "Event flow", data_flow: "Data flow" };
       var cur = "dependencies";
       var strip = h("div", { class: "cl-tabs", role: "tablist" });
@@ -1136,7 +1157,20 @@
       tablesWrap.appendChild(strip); tablesWrap.appendChild(pane); paint(cur);
     }).catch(function () {
       clear(tablesWrap);
-      tablesWrap.appendChild(stateBlock({ kind: "error", title: "Couldn't load relationships" }));
+      if (target) {
+        tablesWrap.appendChild(stateBlock({ kind: "error", title: "Couldn't load relationships" }));
+      } else {
+        // Most likely an older static export built before fleet-wide relationships
+        // existed (SNAP has no `fleet_relationships` key) -- that's a missing
+        // feature in an old snapshot, not a load error, so this degrades to the
+        // original invitation rather than an alarming error state. Picking a repo
+        // still gives full parity via the per-repo tables above.
+        tablesWrap.appendChild(stateBlock({
+          kind: "empty", title: "Fleet-wide relationships aren't available in this snapshot",
+          msg: "Pick a repo to see its own relationship tables instead.",
+          action: h("button", { class: "cl-btn cl-btn--primary", type: "button", onclick: function () { go("#/fleet"); } }, "Open fleet")
+        }));
+      }
     });
   }
   function graphSrc(scope, id) {

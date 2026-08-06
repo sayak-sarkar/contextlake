@@ -287,6 +287,32 @@ def test_repo_relationships_bulk_matches_per_repo(store_dir):
             assert sorted(map(repr, bulk[rid][key])) == sorted(map(repr, per[key]))
 
 
+def test_fleet_relationships_is_the_unfiltered_union_of_repo_relationships(store_dir):
+    # fleet_relationships backs the Architecture "Overview" scope's text/table
+    # equivalent of the whole-fleet graph (WCAG 1.1.1) -- it must carry every edge
+    # repo_relationships would show if you visited each repo individually, just
+    # not filtered down to one repo's touches.
+    s, _ = store_dir
+    repo_ids = [r["id"] for r in kbdata.fleet_overview(s)["repos"]]
+    fleet = kbdata.fleet_relationships(s)
+    assert set(fleet) == {"dependencies", "http_flow", "event_flow", "truncated"}
+    assert fleet["truncated"] is False
+    for key in ("dependencies", "http_flow", "event_flow"):
+        expected = set()
+        for rid in repo_ids:
+            per = kbdata.repo_relationships(s, rid)
+            expected.update(map(repr, per[key]))
+        assert set(map(repr, fleet[key])) == expected
+    # the cross-repo dependency is actually present fleet-wide, not just a subset
+    assert any(e["src"] == "team/app" and e["dst"] == "team/lib" for e in fleet["dependencies"])
+
+
+def test_fleet_relationships_truncates_per_category(store_dir):
+    s, _ = store_dir
+    fleet = kbdata.fleet_relationships(s, limit=0)
+    assert fleet["dependencies"] == [] and fleet["truncated"] is True
+
+
 def test_data_flow_lists_intra_repo_reads_and_writes(store_dir):
     # A dedicated store, not the shared store_dir fixture: adding a table/view node to
     # team/app there would break test_diagram_erdiagram_is_an_honest_empty_view_when_no_tables's

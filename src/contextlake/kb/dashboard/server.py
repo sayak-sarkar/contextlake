@@ -264,6 +264,8 @@ def build_dashboard_server(store, store_dir, *, host: str = "127.0.0.1", port: i
                 return 200, _json_bytes({"groups": ov["groups"]})
             if path == "/api/health":
                 return 200, _json_bytes(kbdata.health(req, sd))
+            if path == "/api/relationships":
+                return 200, _json_bytes(kbdata.fleet_relationships(req))
             if path == "/api/impact":
                 nid = (q.get("node") or q.get("id") or [None])[0]
                 if not nid:

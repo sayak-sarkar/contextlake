@@ -8,6 +8,10 @@ Every function here reuses the exact logic behind an existing MCP tool (see
   ``who_knows`` (``ownership.compute_owners``) + ``get_repo_links``.
 * :func:`repo_relationships` — ``repo_dependencies`` / ``repo_flow`` /
   ``repo_event_flow`` (``arch.resolve``).
+* :func:`fleet_relationships` — the same three edge scans as
+  :func:`repo_relationships`, unfiltered by repo, for the fleet-wide
+  "Overview" architecture scope's text/table equivalent of the graph
+  (WCAG 1.1.1).
 * :func:`data_flow` — raw ``reads``/``writes`` edges (``kb/flow/data.py``), intra-repo
   only; see its docstring for why this isn't a fourth ``repo_relationships`` key.
 * :func:`impact` — ``blast_radius`` (``impact.blast_radius``).
@@ -434,6 +438,47 @@ def repo_relationships(store, repo_id: str) -> dict:
         "dependencies": _norm(repo_dependency_edges(store)),
         "http_flow": _norm(repo_http_flow_edges(store)),
         "event_flow": _norm(repo_event_flow_edges(store)),
+    }
+
+
+def fleet_relationships(store, *, limit: int = 500) -> dict:
+    """Fleet-wide dependency / HTTP-flow / event-flow edges, across every repo --
+    the text/table equivalent of the whole-fleet "Overview" architecture graph
+    (WCAG 1.1.1). The dashboard already has a full text equivalent for a single
+    repo's graph (:func:`repo_relationships`); at fleet scope it previously had
+    none -- a screen-reader user could reconstruct the picture repo-by-repo but
+    never got the sighted user's one-screen overview.
+
+    Same three edge scans as :func:`repo_relationships`, just not filtered down
+    to one repo's edges. Capped like :func:`data_flow` -- a real fleet (the
+    product's own ~480-repo target) could otherwise return an unbounded row
+    count into a page that has to render it as an HTML table.
+    """
+    from ..arch.resolve import (
+        repo_dependency_edges,
+        repo_event_flow_edges,
+        repo_http_flow_edges,
+    )
+
+    def _norm(edges):
+        rows = [{
+            "src": sanitize_label(e["src"]),
+            "dst": sanitize_label(e["dst"]),
+            "relation": e["relation"],
+            "confidence": e["confidence"],
+            "weight": e.get("weight"),
+            "context": e.get("context"),
+        } for e in edges]
+        return rows[:limit], len(rows) > limit
+
+    dependencies, dep_trunc = _norm(repo_dependency_edges(store))
+    http_flow, http_trunc = _norm(repo_http_flow_edges(store))
+    event_flow, event_trunc = _norm(repo_event_flow_edges(store))
+    return {
+        "dependencies": dependencies,
+        "http_flow": http_flow,
+        "event_flow": event_flow,
+        "truncated": dep_trunc or http_trunc or event_trunc,
     }
 
 

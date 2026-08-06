@@ -89,6 +89,15 @@ def test_repo_detail_and_rel_endpoints(served):
     assert set(rel) == {"dependencies", "http_flow", "event_flow"}
 
 
+def test_fleet_relationships_endpoint(served):
+    # Row shape is unit-tested in test_dashboard_data.py; this only proves the
+    # route is wired to kb.dashboard.data.fleet_relationships (WCAG 1.1.1's
+    # fleet-wide "Overview" table equivalent).
+    body = json.loads(_get(served + "/api/relationships"))
+    assert set(body) == {"dependencies", "http_flow", "event_flow", "truncated"}
+    assert body["truncated"] is False
+
+
 def test_repo_data_flow_endpoint(served):
     # row-shape detail (file/line/table/relation) is unit-tested in test_dashboard_data.py;
     # this only proves the route is wired to kb.dashboard.data.data_flow.
