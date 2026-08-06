@@ -90,6 +90,13 @@ global config already points at (spending against that key), and the second can 
 at a host of the file author's choosing. Those are data-egress questions rather than code
 execution; use `CONTEXTLAKE_NO_LOCAL_CONFIG=1` if you need the discovered tier gone entirely.
 
+`[[sources]] url` really is limited to a *host*: ingest fetchers open `http`/`https` only and
+refuse any other scheme with a warning. That is enforced, not assumed — `urllib` also speaks
+`file:`, `ftp:` and `data:`, so without the restriction a discovered config could have named
+`file:///…` and read a local file into the graph, which would be disclosure rather than egress.
+Requests to private or link-local addresses are *not* currently blocked, so a discovered config
+can still reach an address only your machine can route to.
+
 ## Supported versions
 
 This is a young project; security fixes land on `main` and ship in the next

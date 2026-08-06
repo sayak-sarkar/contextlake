@@ -13,7 +13,7 @@ import os
 import urllib.request
 
 from .api import _dig
-from .base import Document
+from .base import Document, url_is_fetchable
 
 
 class GraphQLSource:
@@ -59,6 +59,9 @@ class GraphQLSource:
 
     def iter_documents(self):
         if not self.url or not self.query:
+            return
+        # Before the try: a refusal raised inside it would be swallowed silently.
+        if not url_is_fetchable(self.url, source="graphql source"):
             return
         try:
             payload = self._fetch()

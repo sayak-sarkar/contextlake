@@ -60,6 +60,13 @@ _ARGV_PROVIDER = "cli"
 # left alone: `url` is an HTTP endpoint (an exfiltration/SSRF question, a
 # different class of problem than this one), and `env` cannot spawn anything
 # once `command` is gone.
+#
+# "`url` is an HTTP endpoint" is now enforced rather than assumed: the ingest
+# fetchers allowlist http/https (`sources/base.py:url_is_fetchable`). It was not,
+# and `file:///…` in a discovered config read local files into the graph -- so the
+# sentence above described an intent the code did not implement. Left ungated here
+# on purpose: gating `url` would break ordinary directory-scoped web sources, and
+# the scheme allowlist closes the disclosure half at the fetch boundary instead.
 EXECUTABLE_SOURCE_KEYS = frozenset({"command", "args", "mcp_command"})
 
 

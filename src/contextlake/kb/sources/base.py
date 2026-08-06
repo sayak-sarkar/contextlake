@@ -18,9 +18,46 @@ Writing a plugin (third-party package)::
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
+
+from ...logging_setup import log
+
+# Schemes an ingest fetcher will open. `urllib.request.urlopen` also speaks
+# `file:`, `ftp:` and `data:`, and a source URL is *config*, not a constant -- an
+# auto-discovered `.contextlake.kb.toml` can set `[[sources]] url` without the
+# user ever naming the file, because contextlake clones repositories into the
+# workspace itself. `file:///home/<user>/.ssh/id_rsa` therefore turned an ingest
+# run into a local-file read whose contents land in the graph, the wiki and every
+# MCP client. `kb/trust.py` gates the keys that reach a subprocess argv for exactly
+# this reason and deliberately leaves `url` alone as "an HTTP endpoint"; this is
+# what makes that description true.
+#
+# An allowlist, not a `file:`-denylist: the point is that a fetcher opens network
+# URLs, so anything that is not one is refused by default rather than enumerated.
+_ALLOWED_URL_SCHEMES = frozenset({"http", "https"})
+
+
+def url_is_fetchable(url: str, *, source: str) -> bool:
+    """True if ``url`` is an ``http(s)`` URL an ingest source may open.
+
+    Logs a WARNING naming the source and scheme when it refuses. It returns a
+    bool rather than raising because all three fetchers wrap their request in a
+    broad ``except Exception: continue`` so one bad URL cannot abort a run -- a
+    raise would be swallowed there and the refusal would be silent, which is the
+    failure mode this project treats as worse than the bug. Callers must check
+    *before* entering that block.
+    """
+    scheme = url.split(":", 1)[0].lower() if ":" in url else ""
+    if scheme in _ALLOWED_URL_SCHEMES:
+        return True
+    log(f"{source}: refusing to fetch {scheme or 'scheme-less'!r} URL -- only "
+        f"http/https are fetched, so a config-supplied URL cannot be used to read "
+        f"local files or other non-network resources. Skipping this URL.",
+        level=logging.WARNING)
+    return False
 
 
 @dataclass

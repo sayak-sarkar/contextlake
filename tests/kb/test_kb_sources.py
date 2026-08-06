@@ -466,3 +466,78 @@ def test_cmd_ingest_skips_disabled_sources(tmp_path, capsys, monkeypatch):
         assert store.get_node("@ingest:docs:guide.md") is None
     finally:
         store.close()
+
+
+# --- ingest fetchers open network URLs only --------------------------------
+#
+# `[[sources]] url` can arrive from a config found by walking up from the cwd
+# (kb/trust.py explains why that file is not trusted), and contextlake clones
+# repositories into the workspace itself. `urllib` speaks `file:` as happily as
+# `https:`, so without a scheme allowlist an ingest run read local files into the
+# graph -- where they surface in the wiki, the dashboard and every MCP client.
+#
+# These drive a real canary file rather than asserting the helper was called: the
+# question is whether the *fetcher* opens it, and a mocked urlopen cannot answer
+# that.
+
+_CANARY = "SECRET-CANARY-LINE"
+
+
+def test_web_source_refuses_file_urls(tmp_path, caplog):
+    import contextlake.kb.sources.web as web
+
+    secret = tmp_path / "secret.txt"
+    secret.write_text(f"<body>{_CANARY}</body>\n", encoding="utf-8")
+
+    with caplog.at_level("WARNING"):
+        docs = list(web.WebSource(url=secret.as_uri()).iter_documents())
+
+    assert docs == []
+    assert _CANARY not in str([d.text for d in docs])
+    # and it says so -- a silent skip would look identical to an empty page
+    assert "refusing to fetch" in caplog.text
+
+
+def test_web_source_refuses_other_non_network_schemes(tmp_path):
+    import contextlake.kb.sources.web as web
+
+    for url in ("file:///etc/passwd", "ftp://host/x", "data:text/html,<p>x",
+                "FILE:///etc/passwd", "/etc/passwd"):
+        assert list(web.WebSource(url=url).iter_documents()) == []
+
+
+def test_web_source_still_fetches_http_and_https(monkeypatch):
+    """The allowlist must not break the case the source exists for."""
+    import contextlake.kb.sources.web as web
+
+    class _Headers:
+        def get_content_charset(self):
+            return "utf-8"
+
+    class _Resp:
+        headers = _Headers()
+
+        def read(self):
+            return b"<title>P</title><body><p>Hi</p></body>"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(web.urllib.request, "urlopen", lambda *a, **k: _Resp())
+    for url in ("http://example.net/x", "https://example.net/x"):
+        docs = list(web.WebSource(url=url).iter_documents())
+        assert len(docs) == 1, url
+
+
+def test_api_and_graphql_sources_refuse_file_urls(tmp_path):
+    from contextlake.kb.sources.api import ApiSource
+    from contextlake.kb.sources.graphql import GraphQLSource
+
+    secret = tmp_path / "secret.json"
+    secret.write_text(f'[{{"id": "1", "text": "{_CANARY}"}}]', encoding="utf-8")
+
+    assert list(ApiSource(url=secret.as_uri()).iter_documents()) == []
+    assert list(GraphQLSource(url=secret.as_uri(), query="{ x }").iter_documents()) == []

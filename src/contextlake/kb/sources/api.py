@@ -11,7 +11,7 @@ import json
 import os
 import urllib.request
 
-from .base import Document
+from .base import Document, url_is_fetchable
 
 
 def _dig(obj, path: str):
@@ -60,6 +60,9 @@ class ApiSource:
 
     def iter_documents(self):
         if not self.url:
+            return
+        # Before the try: a refusal raised inside it would be swallowed silently.
+        if not url_is_fetchable(self.url, source="api source"):
             return
         try:
             data = self._fetch()

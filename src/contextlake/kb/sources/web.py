@@ -11,7 +11,7 @@ import re
 import urllib.request
 from html.parser import HTMLParser
 
-from .base import Document
+from .base import Document, url_is_fetchable
 
 # Note: do NOT drop <head> wholesale — <title> lives there; script/style/etc. inside
 # it are dropped individually below.
@@ -78,6 +78,11 @@ class WebSource:
 
     def iter_documents(self):
         for u in self.urls:
+            # Checked outside the try: the `except Exception` below exists so one
+            # unreachable URL cannot abort the source, and a refusal raised inside
+            # it would be silently swallowed.
+            if not url_is_fetchable(u, source="web source"):
+                continue
             try:
                 req = urllib.request.Request(u, headers={"User-Agent": "contextlake-ingest"})
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
