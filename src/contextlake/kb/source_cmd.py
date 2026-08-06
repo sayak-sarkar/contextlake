@@ -265,13 +265,27 @@ def cmd_source_disable(args) -> int:
 
 def _verify_atlassian(src, timeout: float | None = None) -> tuple[bool, str]:
     from .connectors.orchestrate import build_atlassian
+    from .mcp_client import McpToolError
 
     conn = build_atlassian(src)
     if timeout is not None:
         conn.timeout = timeout
-    sites = conn.discover_sites()
+    # Three outcomes, deliberately three messages. Collapsing them into one
+    # "no sites accessible" line sent readers hunting for a permissions problem
+    # when the real cause was a request that asked for no product scopes.
+    try:
+        sites = conn.discover_sites()
+    except McpToolError as e:
+        return False, f"MCP reachable, but the server rejected the call -- {e.detail}"
+    except ValueError as e:
+        return False, (f"MCP reachable, but its answer was not a site list -- {e}. "
+                       "This usually means the tool changed shape; please report it.")
     if not sites:
-        return False, "MCP reachable, but no Atlassian sites accessible to this token"
+        return False, ("MCP reachable and authorized, but this token can see no "
+                       "Atlassian sites. The token is scoped to "
+                       f"{conn.scopes!r} -- if that lacks the product scopes "
+                       "(read:jira-work, read:page:confluence), re-authorize after "
+                       "clearing the cached grant, or set `scopes` on the source.")
     return True, f"{len(sites)} site(s) reachable"
 
 

@@ -22,12 +22,40 @@ from mcp.client.streamable_http import streamable_http_client
 from .resilience import breaker_for, endpoint_key
 
 
-def _parse_result(res: Any) -> Any:
-    """Extract a tool result as structured data, falling back to JSON/plain text."""
+class McpToolError(RuntimeError):
+    """An MCP server answered a tool call with an error result.
+
+    Distinct from a transport failure: the handshake worked, the tool ran, and the
+    server reported that it failed. Carries the server's own text so a caller can
+    say why rather than reporting an empty result.
+    """
+
+    def __init__(self, tool: str, detail: str):
+        self.tool = tool
+        self.detail = detail
+        super().__init__(f"MCP tool {tool!r} failed: {detail or 'no detail given'}")
+
+
+def _result_text(res: Any) -> str:
+    return "".join(getattr(c, "text", "") for c in (getattr(res, "content", None) or []))
+
+
+def _parse_result(res: Any, tool: str = "") -> Any:
+    """Extract a tool result as structured data, falling back to JSON/plain text.
+
+    An error result raises :class:`McpToolError` rather than returning. MCP carries
+    a failed tool call as ``isError`` with the reason in ``content``, so returning
+    it made the error text indistinguishable from data -- and callers that iterate
+    the result then found a *string*, silently yielded nothing, and reported an
+    empty answer. That is how an unscoped Atlassian token read as "0 sites
+    reachable" instead of "the server said no".
+    """
+    if getattr(res, "isError", False):
+        raise McpToolError(tool, _result_text(res).strip())
     if res.structured_content:
         data = res.structured_content
         return data.get("result", data) if isinstance(data, dict) else data
-    text = "".join(getattr(c, "text", "") for c in (res.content or []))
+    text = _result_text(res)
     try:
         return json.loads(text)
     except (json.JSONDecodeError, ValueError):
@@ -38,7 +66,7 @@ async def _call_in_session(session, tool, arguments, timeout) -> Any:
     """Shared session body: handshake, invoke the tool, and parse the result."""
     await asyncio.wait_for(session.initialize(), timeout)
     res = await asyncio.wait_for(session.call_tool(tool, arguments or {}), timeout)
-    return _parse_result(res)
+    return _parse_result(res, tool)
 
 
 async def _acall(command, args, tool, arguments, timeout, env, url=None):

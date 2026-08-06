@@ -81,9 +81,17 @@ def _build_enrichers(sources, store, *, embedder=None, vector_store=None):
             except Exception as e:  # noqa: BLE001 - a dead source must not abort the run
                 log(f"  source {s.name!r}: site discovery failed — {e}")
                 continue
-            log(f"  source {s.name!r} (atlassian): {len(sites)} site(s) reachable")
             if not sites:
+                # Reached and authorized, yet no site is visible. Say what to check,
+                # and say that the source is being dropped -- a bare "0 site(s)"
+                # followed by silence reads as a report, not as a skipped source.
+                log(f"  source {s.name!r} (atlassian): authorized, but no sites are "
+                    f"visible to this token (scopes: {conn.scopes!r})")
+                log("    skipping it. If those scopes lack read:jira-work or "
+                    "read:page:confluence, clear the cached grant and re-authorize, "
+                    "or set `scopes` on the source.")
                 continue
+            log(f"  source {s.name!r} (atlassian): {len(sites)} site(s) reachable")
             enrichers.append(
                 lambda repo_id, keys, links, symbol_keys, c=conn, st=sites:
                 enrich_repo(c, st, repo_id, issue_keys=keys, links=links,

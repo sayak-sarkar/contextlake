@@ -58,6 +58,9 @@ def build_atlassian(src) -> AtlassianConnector:
         mcp_url=src.mcp or DEFAULT_MCP_URL,
         auth_dir=extra.get("auth_dir"),
         timeout=_num(extra, "timeout", 120, float),
+        # `scopes` overrides the read-only default, for a site that needs narrower
+        # or wider OAuth scope than contextlake asks for.
+        scopes=extra.get("scopes"),
     )
 
 

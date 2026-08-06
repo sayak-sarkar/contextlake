@@ -8,6 +8,7 @@ module-level helpers map them into provenance-stamped graph nodes/edges.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 
@@ -18,35 +19,72 @@ from ..model import EXTERNAL_REPO, Confidence, Edge, Node
 from .common import claims, edge_from, host_of, link_edge, repo_node
 
 __all__ = [
-    "AtlassianConnector", "DEFAULT_MCP_URL", "associate", "associate_symbols", "claims",
-    "classify_link", "external_node", "host_of", "issue_summary", "link_edge",
-    "parse_search_issues", "repo_node",
+    "AtlassianConnector", "DEFAULT_MCP_URL", "DEFAULT_SCOPES", "associate",
+    "associate_symbols", "claims", "classify_link", "external_node", "host_of",
+    "issue_summary", "link_edge", "parse_search_issues", "parse_sites", "repo_node",
 ]
 
 DEFAULT_MCP_URL = "https://mcp.atlassian.com/v1/mcp/authv2"
 
+# Read-only product scopes, requested explicitly.
+#
+# `mcp-remote` resolves its OAuth scope as: an explicit scope, else the server's
+# advertised `scopes_supported`, else its own default. Atlassian's SSE endpoint
+# advertises none, so leaving this to the default asked for `openid email profile`
+# -- enough to identify the person, and nothing about Jira or Confluence. The token
+# then legitimately saw zero sites, and the connector reported "0 site(s)
+# reachable", which reads as a permissions problem on the user's account rather
+# than a request that never asked for anything.
+#
+# `offline_access` is not optional: without a refresh token every run re-opens the
+# browser for authorization, which is unusable unattended.
+DEFAULT_SCOPES = (
+    "read:jira-work read:page:confluence read:space:confluence "
+    "read:confluence-user search:confluence offline_access"
+)
+
 
 class AtlassianConnector:
     def __init__(self, name: str, *, mcp_url: str = DEFAULT_MCP_URL,
-                 auth_dir: str | None = None, timeout: float = 120):
+                 auth_dir: str | None = None, timeout: float = 120,
+                 scopes: str | None = None):
         self.name = name
         self.mcp_url = mcp_url
         self.auth_dir = auth_dir
         self.timeout = timeout
+        self.scopes = (scopes or DEFAULT_SCOPES).strip()
 
     def _spawn(self) -> tuple[str, list[str], dict | None]:
         env = None
         if self.auth_dir:
             env = dict(os.environ)
             env["MCP_REMOTE_CONFIG_DIR"] = os.path.expanduser(self.auth_dir)
-        return "npx", ["-y", "mcp-remote@latest", self.mcp_url], env
+        args = ["-y", "mcp-remote@latest", self.mcp_url]
+        if self.scopes:
+            args += ["--static-oauth-client-metadata",
+                     json.dumps({"scope": self.scopes})]
+        # Deliberately NOT --silent, though the bridge is noisy (it narrates
+        # transport negotiation, lockfiles and every JSON-RPC frame onto our
+        # console). Its `--silent` gates the same `log()` that prints
+        #     "Please authorize this client by visiting: <url>"
+        # so silencing the noise also silences the one line a first-time user
+        # cannot proceed without. Auto-opening a browser is the only fallback and
+        # is unreliable under WSL and over SSH. Noise beats an unauthorizable run.
+        return "npx", args, env
 
     def discover_sites(self) -> dict[str, str]:
-        """Map accessible Atlassian site URLs to their cloudIds (live)."""
+        """Map accessible Atlassian site URLs to their cloudIds (live).
+
+        Raises :class:`~..mcp_client.McpToolError` if the server reports the call
+        failed, and :class:`ValueError` if the payload is not a site list. Both used
+        to come back as an empty mapping, so a tool error, a renamed tool, a changed
+        response shape and a genuinely empty site list were one indistinguishable
+        "0 site(s) reachable" -- pointing at the only cause that was not true.
+        """
         cmd, args, env = self._spawn()
         res = call_tool(cmd, args, "getAccessibleAtlassianResources", {},
                         timeout=self.timeout, env=env)
-        return {s["url"]: s["id"] for s in res if isinstance(s, dict) and s.get("url")}
+        return parse_sites(res)
 
     def search(self, query: str) -> list:
         """Rovo search across Jira + Confluence for a query (live)."""
@@ -84,6 +122,38 @@ class AtlassianConnector:
 
 
 # --- pure parsing of fetched payloads (no network) -------------------------
+
+def parse_sites(result) -> dict[str, str]:
+    """``{site_url: cloud_id}`` out of a getAccessibleAtlassianResources result.
+
+    Tolerant of the envelope the way :func:`parse_search_issues` already is: the
+    list may arrive bare or wrapped under ``resources``/``values``/``result``. What
+    it will NOT do is treat an unrecognised payload as "no sites" -- that silent
+    conflation is the whole defect. An empty *list* means no sites; anything that is
+    not a list of site-shaped dicts raises, naming what arrived instead.
+    """
+    payload = result
+    if isinstance(payload, dict):
+        for key in ("resources", "values", "result", "sites", "data"):
+            if isinstance(payload.get(key), list):
+                payload = payload[key]
+                break
+        else:
+            # A single site object, rather than a list of them.
+            payload = [payload] if payload.get("url") else None
+    if not isinstance(payload, list):
+        got = type(result).__name__
+        detail = f": {result[:200]!r}" if isinstance(result, str) else ""
+        raise ValueError(
+            f"expected a list of Atlassian sites, got {got}{detail}")
+    sites = {s["url"]: s.get("id", "") for s in payload
+             if isinstance(s, dict) and s.get("url")}
+    if payload and not sites:
+        raise ValueError(
+            f"{len(payload)} item(s) returned but none carried a site url; "
+            f"first item: {payload[0]!r:.200}")
+    return sites
+
 
 def parse_search_issues(result) -> list:
     """Issue nodes out of a searchJiraIssuesUsingJql result (Rovo or REST shape)."""

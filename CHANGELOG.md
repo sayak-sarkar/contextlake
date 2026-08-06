@@ -5,6 +5,28 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **An MCP tool error is no longer returned as data.** `_parse_result` ignored the `isError` flag on
+  a tool result, so a failed call came back as its own error *text*. A caller that iterated the
+  result then found a string, yielded nothing, and reported an empty answer. Live symptom: an
+  Atlassian source reporting `0 site(s) reachable`, which reads as a permissions problem on the
+  account. An error result now raises, carrying the server's own text and the tool name.
+- **The Atlassian source asks for the product OAuth scopes it needs.** It spawned the `mcp-remote`
+  bridge with no scope argument. The bridge resolves scope as an explicit value, else the server's
+  advertised `scopes_supported`, else its own default, and the hosted Atlassian endpoint advertises
+  none, so the request asked for `openid email profile`: enough to identify the person and nothing
+  about Jira or Confluence. The token then genuinely saw no sites. contextlake now requests
+  read-only product scopes plus `offline_access` (without which every run re-opens the browser),
+  overridable per source with `scopes`.
+- **Atlassian site discovery tells its failure modes apart.** A tool error, a renamed tool, a changed
+  response shape and a genuinely empty site list all produced the same empty mapping and the same
+  "no sites accessible to this token" line, which named the one cause that was not true. Discovery
+  now tolerates the wrapped response shapes its sibling parsers already handled, raises on a payload
+  that is not a site list, and reports the three outcomes separately. An empty list still means no
+  sites.
+
 ## [6.1.0] - 2026-08-06
 
 ### Added
