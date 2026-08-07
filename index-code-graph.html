@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Index the code graph · contextlake docs">
 <meta name="twitter:description" content="Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Index the code graph", "description": "Turn your mirrored repos into a queryable code graph: incremental indexing, and the full node and edge model across 14 languages, Terraform, SQL, and web topology.", "url": "https://sayak.in/contextlake/index-code-graph", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Index the code graph", "item": "https://sayak.in/contextlake/index-code-graph"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=010b8e2">
-<link rel="stylesheet" href="tokens.css?v=010b8e2">
-<link rel="stylesheet" href="docs.css?v=010b8e2">
-<link rel="stylesheet" href="cmdk.css?v=010b8e2">
+<link rel="stylesheet" href="fonts.css?v=0aab383">
+<link rel="stylesheet" href="tokens.css?v=0aab383">
+<link rel="stylesheet" href="docs.css?v=0aab383">
+<link rel="stylesheet" href="cmdk.css?v=0aab383">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -55,6 +55,56 @@
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>
 
+<h2 id="which-command-for-which-directory">Which command for which directory<a class="anchor" href="#which-command-for-which-directory" title="Link to this section">#</a></h2>
+<p><code>kb index &lt;dir&gt;</code> indexes that directory as <strong>one</strong> repository. <code>kb index --workspace &lt;dir&gt;</code> walks it
+and indexes <strong>each</strong> git repository under it separately, under its own identity. Getting those two
+the wrong way round is the most expensive mistake available here, so a directory that is not itself a
+git repository but holds some is <strong>refused</strong>, with the command that fits what was found:</p>
+<div class="highlight"><pre><span></span><code>$ contextlake kb index ~/work
+✗ /home/you/work isn&#39;t itself a git repo, but contains 20 git working tree(s) at depths 1-2
+  (alpha, beta, billing-core, frontend, gateway, …); no indexable file lies outside them.
+  That is a workspace mirroring several repositories. Indexing it this way files all of them
+  under ONE id, so every symbol they hold is in the graph twice and the copies cannot be told apart.
+  → Run this instead, which indexes each repository separately under its own identity:
+        contextlake kb index --workspace ~/work
+  → Or pass --bundle to index this directory as one repository anyway. …
+</code></pre></div>
+<p>It refuses rather than quietly switching to <code>--workspace</code> for you, because switching can lose data:
+<code>--workspace</code> indexes the nested repositories and nothing outside them, so on a tree of your own
+loose sources that happens to carry a dependency with its own <code>.git</code> it would index the dependency
+and drop your files. So the shape is measured first, from how much indexable content lies outside
+the nested repositories, and only then does it decide:</p>
+<table>
+<thead>
+<tr>
+<th>What the directory looks like</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Several repositories, effectively nothing of your own outside them</td>
+<td>refused; run <code>--workspace &lt;dir&gt;</code></td>
+</tr>
+<tr>
+<td>One repository, nothing at all outside it</td>
+<td>refused; the directory is one level too high, and the command names the repository</td>
+</tr>
+<tr>
+<td>Real content of yours outside the repositories (your sources plus a vendored dependency)</td>
+<td>indexed as one repository, with a line saying so</td>
+</tr>
+<tr>
+<td>A git repository (<code>.git</code> present), whatever it contains</td>
+<td>indexed, no diagnosis at all</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>--bundle</code> opts back in.</strong> It indexes the directory as one repository regardless of shape, and it
+is read before anything is measured, so it always works. Reach for it when you genuinely want one
+bundled repository -- and note the cost you are accepting: the nested repositories' files are filed
+under the directory's name, so if you later index them properly they are in the graph twice. <code>kb
+forget &lt;repo-id&gt;</code> removes a bundle you did not mean to create.</p>
 <h2 id="incremental-and-time-travel">Incremental and time-travel<a class="anchor" href="#incremental-and-time-travel" title="Link to this section">#</a></h2>
 <p><code>index --workspace</code> is <strong>incremental</strong>, it re-indexes only repos whose git HEAD moved since their last
 index, so a scheduled (cron) run stays cheap; pass <code>--force</code> to rebuild everything, or <code>--watch [--interval
@@ -305,6 +355,7 @@ getting a silent best-guess.</p>
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
+<li><a href="#which-command-for-which-directory">Which command for which directory</a></li>
 <li><a href="#incremental-and-time-travel">Incremental and time-travel</a></li>
 <li><a href="#re-indexing-one-repository-by-its-id">Re-indexing one repository by its id</a></li>
 <li><a href="#parallelism-and-noise-pruning">Parallelism and noise-pruning</a></li>
@@ -349,6 +400,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=010b8e2"></script>
+<script defer src="cmdk.js?v=0aab383"></script>
 </body>
 </html>

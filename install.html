@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Install and upgrade · contextlake docs">
 <meta name="twitter:description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Install and upgrade", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/install", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Install and upgrade", "item": "https://sayak.in/contextlake/install"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Install and upgrade", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/install", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Install and upgrade", "item": "https://sayak.in/contextlake/install"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=010b8e2">
-<link rel="stylesheet" href="tokens.css?v=010b8e2">
-<link rel="stylesheet" href="docs.css?v=010b8e2">
-<link rel="stylesheet" href="cmdk.css?v=010b8e2">
+<link rel="stylesheet" href="fonts.css?v=0aab383">
+<link rel="stylesheet" href="tokens.css?v=0aab383">
+<link rel="stylesheet" href="docs.css?v=0aab383">
+<link rel="stylesheet" href="cmdk.css?v=0aab383">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -160,6 +160,11 @@ docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </sp
 <p>The <code>-v</code> mount is what makes the run worth doing. Everything contextlake persists, the
 knowledge store included, is written under it as <code>.contextlake/</code>, so it is still on the host
 after the container exits. Drop the <code>-v</code> and the run is ephemeral.</p>
+<p>That bare <code>kb index</code> indexes the mount as one repository, which is right when you mount a
+repository. Mount a directory that <em>holds</em> repositories and it is refused, telling you to run
+<code>kb index --workspace .</code> instead -- <code>.</code> being the mount, since that is the container's working
+directory. See <a href="index-code-graph#which-command-for-which-directory">Which command for which
+directory</a>.</p>
 <p>The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your host
 account is not uid 1000 the write fails with a permission error. Pass your own ids:</p>
 <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-u<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="s2">:</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
@@ -292,8 +297,9 @@ HEAD commit moved, so nothing about the repositories themselves signals it. <cod
 the parser version recorded in each shard against the running one and names the repos that
 are out of date (<code>src/contextlake/kb/cmds/doctor.py</code>, the "shards up to date with the current
 parser" check).</p>
-<p>Re-index those with a plain index run:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index
+<p>Re-index those with a plain index run -- whichever of the two forms you built the store with:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w">                     </span><span class="c1"># one repository</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w">   </span><span class="c1"># a directory of repositories</span>
 </code></pre></div>
 <p>Since 5.1.0 that is enough. <code>kb index</code> re-indexes a repository whose recorded parser version
 differs from the running one even though its HEAD has not moved, and says so in the log
@@ -452,6 +458,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=010b8e2"></script>
+<script defer src="cmdk.js?v=0aab383"></script>
 </body>
 </html>

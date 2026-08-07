@@ -184,7 +184,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `mirror branches` | Switch each repo to its most active branch |
 | `mirror verify` · `mirror audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
 | `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + steer (`--no-enrich` to skip) |
-| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
+| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
 | `kb source` | **Manage connectors**: `add`/`list`/`remove`/`test`/`enable`/`disable` knowledge sources; edits `kb.toml` for you, comments preserved |
 | `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
@@ -710,6 +710,12 @@ The `-v` mount is what makes the run worth doing. Everything contextlake persist
 knowledge store included, is written under it as `.contextlake/`, so it is still on the host
 after the container exits. Drop the `-v` and the run is ephemeral.
 
+That bare `kb index` indexes the mount as one repository, which is right when you mount a
+repository. Mount a directory that *holds* repositories and it is refused, telling you to run
+`kb index --workspace .` instead -- `.` being the mount, since that is the container's working
+directory. See [Which command for which
+directory](index-code-graph.md#which-command-for-which-directory).
+
 The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your host
 account is not uid 1000 the write fails with a permission error. Pass your own ids:
 
@@ -839,10 +845,11 @@ the parser version recorded in each shard against the running one and names the 
 are out of date (`src/contextlake/kb/cmds/doctor.py`, the "shards up to date with the current
 parser" check).
 
-Re-index those with a plain index run:
+Re-index those with a plain index run -- whichever of the two forms you built the store with:
 
 ```bash
-contextlake kb index
+contextlake kb index                     # one repository
+contextlake kb index --workspace ~/work   # a directory of repositories
 ```
 
 Since 5.1.0 that is enough. `kb index` re-indexes a repository whose recorded parser version
@@ -1617,6 +1624,43 @@ Indexing turns your mirrored repos into a queryable knowledge graph. `contextlak
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>
+
+## Which command for which directory
+
+`kb index <dir>` indexes that directory as **one** repository. `kb index --workspace <dir>` walks it
+and indexes **each** git repository under it separately, under its own identity. Getting those two
+the wrong way round is the most expensive mistake available here, so a directory that is not itself a
+git repository but holds some is **refused**, with the command that fits what was found:
+
+```
+$ contextlake kb index ~/work
+✗ /home/you/work isn't itself a git repo, but contains 20 git working tree(s) at depths 1-2
+  (alpha, beta, billing-core, frontend, gateway, …); no indexable file lies outside them.
+  That is a workspace mirroring several repositories. Indexing it this way files all of them
+  under ONE id, so every symbol they hold is in the graph twice and the copies cannot be told apart.
+  → Run this instead, which indexes each repository separately under its own identity:
+        contextlake kb index --workspace ~/work
+  → Or pass --bundle to index this directory as one repository anyway. …
+```
+
+It refuses rather than quietly switching to `--workspace` for you, because switching can lose data:
+`--workspace` indexes the nested repositories and nothing outside them, so on a tree of your own
+loose sources that happens to carry a dependency with its own `.git` it would index the dependency
+and drop your files. So the shape is measured first, from how much indexable content lies outside
+the nested repositories, and only then does it decide:
+
+| What the directory looks like | What happens |
+| --- | --- |
+| Several repositories, effectively nothing of your own outside them | refused; run `--workspace <dir>` |
+| One repository, nothing at all outside it | refused; the directory is one level too high, and the command names the repository |
+| Real content of yours outside the repositories (your sources plus a vendored dependency) | indexed as one repository, with a line saying so |
+| A git repository (`.git` present), whatever it contains | indexed, no diagnosis at all |
+
+**`--bundle` opts back in.** It indexes the directory as one repository regardless of shape, and it
+is read before anything is measured, so it always works. Reach for it when you genuinely want one
+bundled repository -- and note the cost you are accepting: the nested repositories' files are filed
+under the directory's name, so if you later index them properly they are in the graph twice. `kb
+forget <repo-id>` removes a bundle you did not mean to create.
 
 ## Incremental and time-travel
 
@@ -4716,7 +4760,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | Command | What it does |
 | --- | --- |
 | `kb source` | add / list / remove / test / enable / disable knowledge-source connectors |
-| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
+| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
 | `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
@@ -5176,6 +5220,66 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [6.4.0] - 2026-08-07
+
+**`kb index` now refuses to bundle a directory of repositories instead of doing it silently.**
+This is a deliberate behaviour change on a path that previously succeeded, and it is the fix for
+the most damaging quiet failure the tool had: pointing `kb index` at a folder *containing* git
+repositories bundled them all into one pseudo-repository, duplicating every symbol under a second
+identity. On one real store that reached 63% of all nodes. `--bundle` opts back in.
+
+### Added
+
+- **`kb index --bundle`**, to index a directory that holds git repositories as one repository
+  anyway. It is the opt-in half of the refusal below, and it is read before the directory's shape
+  is measured at all, so it always works.
+
+### Changed
+
+- **`kb index <dir>` now refuses a directory that holds git repositories, instead of warning and
+  indexing it anyway.** The warning was correct and it printed the right command, and it was still
+  not enough: a warning is one keystroke from being scrolled past. On one real store it was scrolled
+  past, and the result was a pseudo-repository holding a duplicate copy of every mirrored
+  repository -- 63% of all nodes in the store, and every symbol in the graph present twice under two
+  identities that could not be told apart. `kb embed` then wrote 91% of its vectors into the
+  duplicate.
+
+  It refuses rather than quietly switching to `--workspace` for you, because switching can lose
+  data. `--workspace` indexes each nested repository and nothing outside one, so on a tree of your
+  own loose sources that happens to carry a dependency with its own `.git` it would index the
+  dependency and silently drop your sources -- strictly worse than the bundling it replaced, which
+  at least captured them. So the shape is measured first, from how much indexable content lies
+  outside the nested repositories, and the refusal prints what was found (how many working trees, at
+  what depths, how much content outside them), which shape that indicates, the one command that fits
+  it with the real path in it, and why `--bundle` exists. It exits non-zero.
+
+  Three shapes, three answers. Several repositories with effectively nothing of your own outside
+  them is a workspace mirror, and the command is `--workspace <dir>`. One repository with nothing at
+  all outside it means the directory is one level too high, and the command names that repository.
+  Real content of yours outside the repositories is a project carrying a dependency, and that is
+  bundled as before, now with a line saying so rather than in silence. A directory that is itself a
+  git repository never reaches the diagnosis at all, however many checkouts it contains, so the
+  ordinary `kb index .` is untouched.
+
+### Fixed
+
+- **`kb index`'s bundling advice now names the directory you actually gave it.** The remedy it
+  prints when a directory holds git repositories was the hardcoded string `contextlake kb index
+  --workspace .`, but the directory being indexed comes from the positional path or `--source`
+  and only falls back to `.` when neither was given. So `kb index /srv/fleet` was told to run
+  `--workspace .` -- the shell's current directory, not the one just named. Followed verbatim it
+  indexes the wrong tree.
+
+  In a real run it cost coverage a subtler way than that. The operator saw that `.` was wrong,
+  reasonably inferred the fleet lived one level down, and ran `--workspace ./repositories`; the
+  repository sitting above that subdirectory was then never indexed under its own identity at
+  all, only inside the bundle. Advice that cannot be followed literally is not a cosmetic defect,
+  because the reader has to guess, and a plausible guess was wrong.
+
+  The message now echoes the path as it was typed -- shell-quoted only when the path would not
+  survive a shell -- so it stays `.` for a bare `kb index` run, where the short form is both
+  correct and the command the reader will recognise as their own.
 
 ## [6.3.0] - 2026-08-07
 
