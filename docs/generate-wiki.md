@@ -6,9 +6,11 @@ per repo, with a provenance footer citing the commit and sources it was built fr
 ```mermaid
 flowchart TD
   G[("the graph")] -->|"top symbols, dependencies, files,<br/>README excerpt, recorded decisions"| DR["draft the page"]
-  DR --> C["the verification council,<br/>one review per lens"]
+  DR --> SG{"structurally sound?<br/>no model call"}
+  SG -->|no| X(["nothing is written,<br/>the reason is reported"])
+  SG -->|yes| C["the verification council,<br/>one review per lens"]
   C --> S{"mean score above accept_score?"}
-  S -->|no| X(["nothing is written"])
+  S -->|no| X
   S -->|yes| W[("the page, with a<br/>provenance footer")]
   W --> P[("the @wiki partition,<br/>embedded and searchable")]
 ```
@@ -96,6 +98,28 @@ one of the named sections.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).
+
+## Why a page was rejected
+
+A rejection always names the rule that fired, because a page that simply fails to appear leaves you
+staring at a missing file. Two of the reasons come from a **structural gate** that runs before the
+council and makes no model call at all:
+
+| Reason | What the draft did |
+| --- | --- |
+| `prompt leakage` | Reproduced one of its own instructions verbatim, so the page describes how it was asked to write rather than the repository. |
+| `degenerate repetition` | Repeated one span over and over, which is what a model that has run out of grounded material tends to emit. |
+
+Both are mechanically visible, so they are decided without asking a reviewer. That is deliberate: a
+weak model acting as its own council rubber-stamps exactly these defects, which
+[contextlake, explained](explained.md#generated-prose-and-how-it-is-kept-honest) records with the
+measurement behind it. Rejecting them early also saves the council's round trips on a page that
+could not have passed.
+
+Anything else is a council verdict: the mean score across the lenses came in under `accept_score`,
+and the reported issues are the reviewers' own. In every case the page is **skipped, not rewritten**,
+so a rejection costs you that page rather than another round of model calls. Re-run with a stronger
+backend, or a stronger reviewer, and it is attempted again from scratch.
 
 ## Per-subsystem pages for large, federated repos
 

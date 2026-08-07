@@ -212,8 +212,9 @@ is how well the model turns them into prose (and the verification council reject
 a smaller model mostly means *more rejections* and blander accepted pages).
 
 The constraint that decides this for most people is **hardware, not model quality**. Generating one wiki
-page is not one model call: it is the page, plus a review from each council lens, plus a rewrite when the
-council rejects it. So the question is not whether a 1.5B-3B model writes better prose than the built-in
+page is not one model call: it is the page, plus one review from each council lens. A rejected page is
+reported and skipped, not rewritten, so a rejection costs you the page rather than another round of calls.
+So the question is not whether a 1.5B-3B model writes better prose than the built-in
 0.5B (it does) but whether your host can finish that many calls: if a single call takes minutes, which is
 the ordinary case for a 1.5B-3B model on a CPU with no GPU, the run reaches the default 300-second
 `timeout` below before a page is done. The built-in 0.5B stays under it, and pays for that with thin,

@@ -43,6 +43,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer existed. The build now removes a page whose source has gone, and the deploy removes it
   from the published branch.
 
+- **Docs: a wiki page's cost no longer counts a rewrite that does not happen.** "How much does the
+  model matter?" described one page as the draft, plus a review per council lens, plus a rewrite on
+  rejection. There is no rewrite: a rejected page is reported and skipped. The sentence carries the
+  argument about whether a slow local model can finish a run, so the per-page cost was overstated.
+
+- **Docs: the gate that rejects a page before the council is now documented.** A draft that
+  reproduces its own instructions, or repeats one span, is refused by a structural check that runs
+  ahead of the council and makes no model call. A reader could hit `rejected: prompt leakage` with
+  nothing in the documentation explaining it. "Generate the wiki" now names both reasons, says why
+  they are decided without a reviewer, and states that a rejected page is skipped rather than
+  rewritten.
+
 - **The copy button no longer lands on a diagram.** It attached to every code block in the prose,
   and a rendered diagram is one, so it offered to copy a picture.
 
