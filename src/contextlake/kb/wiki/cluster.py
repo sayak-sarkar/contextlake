@@ -125,9 +125,16 @@ def cluster_page_name(namespace: str) -> str:
 
 
 def cluster_fingerprint(brief: dict) -> str:
-    """Stable short hash of the member (repo, head) pairs, for freshness skip."""
+    """Stable short hash of the member (repo, head) pairs, for freshness skip.
+
+    ``usedforsecurity=False`` because this is a cache key, not a signature: it answers
+    "have the member commits moved" and nothing trusts it. Without the flag a
+    FIPS-enabled host refuses SHA-1 outright and raises, so `kb wiki --namespaces`
+    crashes there on a hash whose weakness is irrelevant to what it is used for.
+    """
     pairs = sorted((r, h) for r, h in (brief.get("heads") or {}).items())
-    return hashlib.sha1(repr(pairs).encode("utf-8")).hexdigest()[:12]
+    return hashlib.sha1(repr(pairs).encode("utf-8"),
+                        usedforsecurity=False).hexdigest()[:12]
 
 
 def _busiest_coupling(internal_edges: list[dict], *, top_n: int = 5) -> list[dict]:

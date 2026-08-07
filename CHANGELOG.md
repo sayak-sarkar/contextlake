@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`kb wiki --namespaces` crashed on a FIPS-enabled host.** The cluster freshness check hashed its
+  member commits with SHA-1, and a FIPS build of OpenSSL refuses SHA-1 outright rather than
+  returning a weak digest, so the command raised before writing a page. The call now passes
+  `usedforsecurity=False`, which is accurate: the value is a cache key answering "have the member
+  commits moved", nothing trusts it, and its collision resistance is irrelevant to that question.
+
 - **The published site served its images from an external host, and they failed behind a proxy.**
   The markdown references them by absolute GitHub URL, which it must keep, since that is what makes
   an image appear when the file is read on github.com or on PyPI. The built page inherited it, so
