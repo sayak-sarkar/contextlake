@@ -66,6 +66,22 @@ def embed_repo(store_dir, vector_store, embedder, repo_id, *,
     nodes = [n for n in shard.nodes if n.kind in allowed]
     if limit is not None:
         nodes = nodes[:limit]
+    if not nodes and shard.nodes:
+        # Nothing here is ours to embed, so nothing here is ours to delete. The
+        # clear below is a replace-in-place for what this call is about to write,
+        # and running it on a shard whose kinds we never embed destroys vectors
+        # some other writer owns. `connect`, `enrich` and `ingest` each embed
+        # their own nodes at write time, and none of those kinds (`document`,
+        # `design`, `file`, `repo`) is in EMBEDDABLE_KINDS, so a single pass over
+        # such a partition emptied it and reported "0 written" as if that were
+        # the correct answer.
+        #
+        # The guard is `shard.nodes` rather than an id or prefix test on purpose:
+        # it asks "did this shard have content we skipped", which is the actual
+        # question, and does not couple this function to the naming of partitions.
+        # An empty shard still falls through and clears, which is right: a repo
+        # that lost all its nodes should lose its vectors.
+        return 0
     vector_store.clear_repo(repo_id)
     total = 0
     for batch in chunks(nodes, max(1, batch_size)):

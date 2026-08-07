@@ -5226,20 +5226,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **`kb embed` now embeds connector, enrichment and ingested content, which it never had.**
-  `connect`/`enrich`/`ingest` write into their own `@connect:<repo>`, `@enrich:<repo>` and
-  `@ingest:<name>` partitions, and those have no `repos` row and no path on disk. `embed` chose its
-  work through a helper written for `connect`/`enrich` -- which correctly skips anything without a
-  working tree to scrape, because there is nothing to scrape -- so every partition was excluded
-  twice over, and none of that content was ever searchable semantically.
-
-  This was easy to miss because the *search* side was already right: a query scoped to a repo
-  expands to that repo's connector partitions, so the scoping worked perfectly and matched nothing,
-  because no vectors had been written there. `embed` now enumerates partitions that hold content
-  rather than repositories that have a clone, and skips the `(shared)`/`(packages)` sentinels, which
-  own nodes but are cross-repo aggregates rather than anyone's content. `connect` and `enrich` are
-  deliberately unchanged. Run `kb embed` once after upgrading to pick up the content that was
-  previously skipped; the incremental skip keeps subsequent runs cheap.
+- **`kb embed` no longer deletes vectors it was never going to write.** It clears a repository's
+  vectors before writing the new ones, which is right when it is replacing its own work and wrong
+  when the shard holds kinds it does not embed. `connect`, `enrich` and `ingest` each embed their
+  own nodes as they write them, and none of those kinds (`document`, `design`, `file`, `repo`) is
+  one `embed` handles, so a single pass over one of those partitions emptied it and reported
+  "0 written" as though that were the answer. A shard whose content it skips entirely is now left
+  alone. A repository that genuinely lost all its nodes still loses its vectors, which is the case
+  the clear exists for.
 
 - **An ingested document is named by its own title, not by its filename.** A page headed
   `# Payments runbook` was stored, listed and cited as `runbook.md`. The identifier stays the path,
