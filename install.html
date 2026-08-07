@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=5baef1c">
-<link rel="stylesheet" href="tokens.css?v=5baef1c">
-<link rel="stylesheet" href="docs.css?v=5baef1c">
-<link rel="stylesheet" href="cmdk.css?v=5baef1c">
+<link rel="stylesheet" href="fonts.css?v=8a8f72c">
+<link rel="stylesheet" href="tokens.css?v=8a8f72c">
+<link rel="stylesheet" href="docs.css?v=8a8f72c">
+<link rel="stylesheet" href="cmdk.css?v=8a8f72c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -442,11 +442,12 @@ separate cache elsewhere in your home directory.</p>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
 <script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
 var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
-document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
 var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>
+
 <script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
 var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
 var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
@@ -458,6 +459,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=5baef1c"></script>
+<script defer src="cmdk.js?v=8a8f72c"></script>
 </body>
 </html>

@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Knowledge layer · contextlake docs">
 <meta name="twitter:description" content="Turn the mirror into a queryable graph with search, a wiki, and connectors.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Knowledge layer", "description": "Turn the mirror into a queryable graph with search, a wiki, and connectors.", "url": "https://sayak.in/contextlake/knowledge-layer", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Knowledge layer", "item": "https://sayak.in/contextlake/knowledge-layer"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Knowledge layer", "description": "Turn the mirror into a queryable graph with search, a wiki, and connectors.", "url": "https://sayak.in/contextlake/knowledge-layer", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Knowledge layer", "item": "https://sayak.in/contextlake/knowledge-layer"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=5baef1c">
-<link rel="stylesheet" href="tokens.css?v=5baef1c">
-<link rel="stylesheet" href="docs.css?v=5baef1c">
-<link rel="stylesheet" href="cmdk.css?v=5baef1c">
+<link rel="stylesheet" href="fonts.css?v=8a8f72c">
+<link rel="stylesheet" href="tokens.css?v=8a8f72c">
+<link rel="stylesheet" href="docs.css?v=8a8f72c">
+<link rel="stylesheet" href="cmdk.css?v=8a8f72c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -54,6 +54,21 @@ calls <code>Y</code>?", or "which repos depend on package <code>Z</code>?" inste
 it indexes <em>any</em> repositories and connects to <em>any</em> configured knowledge sources; no deployment-specific
 data lives in the package (your sites, keys, and rules go in a private config file).</p>
 <p>This page orients you; each stage below has its own focused page.</p>
+<pre class="mermaid">flowchart LR
+  IDX["kb index"] --> CON["kb connect"] --> EMB["kb embed"] --> WIK["kb wiki"] --> SRV(["kb serve"])
+  IDX -.->|"parses source"| G[("the graph")]
+  CON -.->|"links tickets,<br/>designs, threads"| G
+  EMB -.->|"builds vectors"| V[("vectors")]
+  WIK -.->|"writes cited prose"| W[("wiki pages")]
+  SRV --> AG(["your AI tools,<br/>answering with citations"])</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+<p>Each stage adds to the same store, and you can stop after any of them. Run the whole chain with one
+command using <a href="keep-fresh"><code>bootstrap</code></a>, or work through it stage by stage below.</p>
 <h2 id="install-the-extra">Install the extra<a class="anchor" href="#install-the-extra" title="Link to this section">#</a></h2>
 <p>The knowledge layer needs the <code>[kb]</code> extra (Python 3.10 or newer), or <code>[kb-full]</code> if you
 also want local semantic search with no Ollama and no API key. See
@@ -65,7 +80,7 @@ contextlake<span class="w"> </span>doctor<span class="w">                   </sp
 counts, the built-in CPU embedder, and the ANN index) and exits non-zero if anything is wrong, so it
 doubles as a CI health gate:</p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-doctor.png" alt="contextlake doctor output: green ticks for SQLite FTS5, git and glab on PATH, config loads, a reachable store with 4 repos / 29 nodes / 28 edges, the built-in embedder, and the sqlite-vec ANN index, ending in OK." width="820">
+  <img src="img/cli/cli-doctor.png" alt="contextlake doctor output: green ticks for SQLite FTS5, git and glab on PATH, config loads, a reachable store with 4 repos / 29 nodes / 28 edges, the built-in embedder, and the sqlite-vec ANN index, ending in OK." width="820">
 </p>
 
 <p>The fastest way to build all of it is one command, <code>contextlake bootstrap</code> (see
@@ -113,11 +128,54 @@ stage by stage.</p>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
 <script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
 var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
-document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
 var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>
+<script src="mermaid.min.js"></script>
+<script>(function(){
+  if(!window.mermaid) return;
+  // Read the real tokens from tokens.css and docs.css so a diagram follows the
+  // theme toggle and a palette change for free. Every name below is one that
+  // actually exists: an absent custom property returns "" and would silently
+  // fall back, which is how a diagram ends up off-brand and nobody notices.
+  var read = function(){
+    var cs = getComputedStyle(document.documentElement);
+    var v = function(n, d){ return (cs.getPropertyValue(n) || d).trim(); };
+    return {
+      background:         v("--surface", "#ffffff"),
+      primaryColor:       v("--dg-step", "#dceaef"),
+      primaryBorderColor: v("--dg-step-line", "#137A8B"),
+      primaryTextColor:   v("--ink", "#0E2A33"),
+      secondaryColor:     v("--dg-store", "#f3ead5"),
+      tertiaryColor:      v("--dg-ext", "#e9f1f2"),
+      lineColor:          v("--muted", "#41606a"),
+      textColor:          v("--ink", "#0E2A33"),
+      fontFamily:         v("--ff", "system-ui, sans-serif"),
+      fontSize:           "14px"
+    };
+  };
+  mermaid.initialize({ startOnLoad: true, securityLevel: "strict",
+                       maxEdges: 2000, theme: "base", themeVariables: read() });
+  // Re-draw on a theme change. mermaid replaces the <pre>'s content with SVG,
+  // so the source has to be kept to redraw from; without this the diagrams stay
+  // in the old palette until a reload.
+  document.querySelectorAll("pre.mermaid").forEach(function(el){
+    el.dataset.src = el.textContent;
+  });
+  var redraw = function(){
+    document.querySelectorAll("pre.mermaid").forEach(function(el){
+      el.removeAttribute("data-processed");
+      el.textContent = el.dataset.src || el.textContent;
+    });
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict",
+                         maxEdges: 2000, theme: "base", themeVariables: read() });
+    mermaid.run({ querySelector: "pre.mermaid" });
+  };
+  new MutationObserver(redraw).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+})();</script>
 <script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
 var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
 var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
@@ -129,6 +187,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=5baef1c"></script>
+<script defer src="cmdk.js?v=8a8f72c"></script>
 </body>
 </html>

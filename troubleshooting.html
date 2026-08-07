@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Troubleshooting · contextlake docs">
 <meta name="twitter:description" content="Install and mirror problems that have actually been hit, each with the fix and the reason behind it.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Troubleshooting", "description": "Install and mirror problems that have actually been hit, each with the fix and the reason behind it.", "url": "https://sayak.in/contextlake/troubleshooting", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Troubleshooting", "item": "https://sayak.in/contextlake/troubleshooting"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Troubleshooting", "description": "Install and mirror problems that have actually been hit, each with the fix and the reason behind it.", "url": "https://sayak.in/contextlake/troubleshooting", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Troubleshooting", "item": "https://sayak.in/contextlake/troubleshooting"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=5baef1c">
-<link rel="stylesheet" href="tokens.css?v=5baef1c">
-<link rel="stylesheet" href="docs.css?v=5baef1c">
-<link rel="stylesheet" href="cmdk.css?v=5baef1c">
+<link rel="stylesheet" href="fonts.css?v=8a8f72c">
+<link rel="stylesheet" href="tokens.css?v=8a8f72c">
+<link rel="stylesheet" href="docs.css?v=8a8f72c">
+<link rel="stylesheet" href="cmdk.css?v=8a8f72c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -55,6 +55,21 @@ is worth more to this page than a guess.</p>
 <p>Working on contextlake itself rather than using it? The contributor-side problems
 (a distro-owned PyJWT, <code>pre-commit</code> diffs, slow local test runs) live in
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
+<p><strong>Start here.</strong> <code>contextlake doctor</code> checks the whole environment in one pass and names what
+is wrong, so it is almost always faster than reading down this page:</p>
+<pre class="mermaid">flowchart TD
+  D(["contextlake doctor"]) --> Q{"what did it report?"}
+  Q -->|"an import or extra is missing"| I["the knowledge layer<br/>will not install"]
+  Q -->|"a compiler error"| C["llm-local tries<br/>to compile C++"]
+  Q -->|"externally managed<br/>environment"| E["pip refuses to<br/>install into the system"]
+  Q -->|"it printed a sudo<br/>command"| S["doctor --fix declined<br/>to run it for you"]
+  Q -->|"all green, but a<br/>repo is wrong"| M["the mirror"]
+  Q -->|"nothing above"| O(["open an issue"])</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is something you run or do</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a section on this page</i>
+</div>
+
 <h2 id="the-knowledge-layer-will-not-install">The knowledge layer will not install<a class="anchor" href="#the-knowledge-layer-will-not-install" title="Link to this section">#</a></h2>
 <p><code>[kb]</code> needs Python 3.10 or newer, because the <code>mcp</code> SDK does. The mirror side of contextlake
 needs 3.10 or newer as well, so pip refuses the install outright rather than
@@ -172,11 +187,54 @@ missing, which is most of what anyone would ask you for anyway.</p>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
 <script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
 var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
-document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
 var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>
+<script src="mermaid.min.js"></script>
+<script>(function(){
+  if(!window.mermaid) return;
+  // Read the real tokens from tokens.css and docs.css so a diagram follows the
+  // theme toggle and a palette change for free. Every name below is one that
+  // actually exists: an absent custom property returns "" and would silently
+  // fall back, which is how a diagram ends up off-brand and nobody notices.
+  var read = function(){
+    var cs = getComputedStyle(document.documentElement);
+    var v = function(n, d){ return (cs.getPropertyValue(n) || d).trim(); };
+    return {
+      background:         v("--surface", "#ffffff"),
+      primaryColor:       v("--dg-step", "#dceaef"),
+      primaryBorderColor: v("--dg-step-line", "#137A8B"),
+      primaryTextColor:   v("--ink", "#0E2A33"),
+      secondaryColor:     v("--dg-store", "#f3ead5"),
+      tertiaryColor:      v("--dg-ext", "#e9f1f2"),
+      lineColor:          v("--muted", "#41606a"),
+      textColor:          v("--ink", "#0E2A33"),
+      fontFamily:         v("--ff", "system-ui, sans-serif"),
+      fontSize:           "14px"
+    };
+  };
+  mermaid.initialize({ startOnLoad: true, securityLevel: "strict",
+                       maxEdges: 2000, theme: "base", themeVariables: read() });
+  // Re-draw on a theme change. mermaid replaces the <pre>'s content with SVG,
+  // so the source has to be kept to redraw from; without this the diagrams stay
+  // in the old palette until a reload.
+  document.querySelectorAll("pre.mermaid").forEach(function(el){
+    el.dataset.src = el.textContent;
+  });
+  var redraw = function(){
+    document.querySelectorAll("pre.mermaid").forEach(function(el){
+      el.removeAttribute("data-processed");
+      el.textContent = el.dataset.src || el.textContent;
+    });
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict",
+                         maxEdges: 2000, theme: "base", themeVariables: read() });
+    mermaid.run({ querySelector: "pre.mermaid" });
+  };
+  new MutationObserver(redraw).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+})();</script>
 <script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
 var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
 var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
@@ -188,6 +246,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=5baef1c"></script>
+<script defer src="cmdk.js?v=8a8f72c"></script>
 </body>
 </html>

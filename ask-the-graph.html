@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=5baef1c">
-<link rel="stylesheet" href="tokens.css?v=5baef1c">
-<link rel="stylesheet" href="docs.css?v=5baef1c">
-<link rel="stylesheet" href="cmdk.css?v=5baef1c">
+<link rel="stylesheet" href="fonts.css?v=8a8f72c">
+<link rel="stylesheet" href="tokens.css?v=8a8f72c">
+<link rel="stylesheet" href="docs.css?v=8a8f72c">
+<link rel="stylesheet" href="cmdk.css?v=8a8f72c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -54,6 +54,22 @@ citation you can open, all three take <code>--json</code>, and none of them need
 <p>The same three answers reach an agent over MCP as <code>search_code</code> / <code>semantic_search</code> /
 <code>hybrid_search</code>, <code>blast_radius</code>, and <code>who_knows</code>; see
 <a href="serve">Serve it to your editor</a>. This page is the terminal-side equivalent.</p>
+<pre class="mermaid">flowchart LR
+  G[("the graph")] --> Q["kb query"]
+  G --> I["kb impact"]
+  H[("git history")] --> O["kb owners"]
+  Q --> QA(["where is it?"])
+  I --> IA(["what breaks if I change it?"])
+  O --> OA(["who do I ask about it?"])</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+<p>The split on the left is the one worth noticing: <code>query</code> and <code>impact</code> read the store, <code>owners</code> reads
+git history, which is why it answers in a directory that was never indexed. Give it a repo id rather
+than a path and it does open the store, only to find the clone.</p>
 <h2 id="prerequisites">Prerequisites<a class="anchor" href="#prerequisites" title="Link to this section">#</a></h2>
 <ul>
 <li>A store with an indexed repo in it: <a href="index-code-graph">Index the code graph</a>, or
@@ -178,7 +194,7 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>impact<span class="
 contextlake<span class="w"> </span>kb<span class="w"> </span>blast-radius<span class="w"> </span>charge<span class="w"> </span>--json<span class="w">          </span><span class="c1"># the same command</span>
 </code></pre></div>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
+  <img src="img/cli/cli-impact.png" alt="contextlake kb impact charge output: changing charge in acme/catalog-api affects place_order at hop 1 via a calls edge, tagged inferred, showing hop distance, relation, and confidence for each affected node." width="820">
 </p>
 
 <table>
@@ -274,7 +290,7 @@ contextlake<span class="w"> </span>kb<span class="w"> </span>owners<span class="
 contextlake<span class="w"> </span>kb<span class="w"> </span>who-knows<span class="w"> </span>acme/payments-api<span class="w"> </span>--json<span class="w">        </span><span class="c1"># the same command</span>
 </code></pre></div>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-owners.png" alt="contextlake kb owners acme/catalog-api output: a recency-weighted SME ranking from git history: Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
+  <img src="img/cli/cli-owners.png" alt="contextlake kb owners acme/catalog-api output: a recency-weighted SME ranking from git history: Ada Lovelace (2 commits, 29 lines, 94%) above Grace Hopper (1 commit, 6%)." width="820">
 </p>
 
 <table>
@@ -416,11 +432,54 @@ followed by up to three numbered lines ending in a percentage.</p>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
 <script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
 var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
-document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
 var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>
+<script src="mermaid.min.js"></script>
+<script>(function(){
+  if(!window.mermaid) return;
+  // Read the real tokens from tokens.css and docs.css so a diagram follows the
+  // theme toggle and a palette change for free. Every name below is one that
+  // actually exists: an absent custom property returns "" and would silently
+  // fall back, which is how a diagram ends up off-brand and nobody notices.
+  var read = function(){
+    var cs = getComputedStyle(document.documentElement);
+    var v = function(n, d){ return (cs.getPropertyValue(n) || d).trim(); };
+    return {
+      background:         v("--surface", "#ffffff"),
+      primaryColor:       v("--dg-step", "#dceaef"),
+      primaryBorderColor: v("--dg-step-line", "#137A8B"),
+      primaryTextColor:   v("--ink", "#0E2A33"),
+      secondaryColor:     v("--dg-store", "#f3ead5"),
+      tertiaryColor:      v("--dg-ext", "#e9f1f2"),
+      lineColor:          v("--muted", "#41606a"),
+      textColor:          v("--ink", "#0E2A33"),
+      fontFamily:         v("--ff", "system-ui, sans-serif"),
+      fontSize:           "14px"
+    };
+  };
+  mermaid.initialize({ startOnLoad: true, securityLevel: "strict",
+                       maxEdges: 2000, theme: "base", themeVariables: read() });
+  // Re-draw on a theme change. mermaid replaces the <pre>'s content with SVG,
+  // so the source has to be kept to redraw from; without this the diagrams stay
+  // in the old palette until a reload.
+  document.querySelectorAll("pre.mermaid").forEach(function(el){
+    el.dataset.src = el.textContent;
+  });
+  var redraw = function(){
+    document.querySelectorAll("pre.mermaid").forEach(function(el){
+      el.removeAttribute("data-processed");
+      el.textContent = el.dataset.src || el.textContent;
+    });
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict",
+                         maxEdges: 2000, theme: "base", themeVariables: read() });
+    mermaid.run({ querySelector: "pre.mermaid" });
+  };
+  new MutationObserver(redraw).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+})();</script>
 <script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
 var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
 var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
@@ -432,6 +491,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=5baef1c"></script>
+<script defer src="cmdk.js?v=8a8f72c"></script>
 </body>
 </html>

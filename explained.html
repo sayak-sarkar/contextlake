@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=5baef1c">
-<link rel="stylesheet" href="tokens.css?v=5baef1c">
-<link rel="stylesheet" href="docs.css?v=5baef1c">
-<link rel="stylesheet" href="cmdk.css?v=5baef1c">
+<link rel="stylesheet" href="fonts.css?v=8a8f72c">
+<link rel="stylesheet" href="tokens.css?v=8a8f72c">
+<link rel="stylesheet" href="docs.css?v=8a8f72c">
+<link rel="stylesheet" href="cmdk.css?v=8a8f72c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -53,6 +53,19 @@ and why each part is built the way it is. Read the first section and stop, and y
 a whole answer; each section after it goes one level deeper.</p>
 <p>This is the page for deciding whether to adopt contextlake and for understanding the reasoning
 behind it. For getting it running, start at <a href="install">Install and upgrade</a> instead.</p>
+<p>The shape of the whole thing, before any of the detail:</p>
+<pre class="mermaid">flowchart LR
+  Q(["your question,<br/>asked in your editor"]) --> T["an MCP tool call"]
+  T --> S[("the graph, built from<br/>a parse of your source")]
+  S --> R["rows carrying file, line,<br/>confidence and provenance"]
+  R --> A(["an answer you can<br/>open and check"])</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+<p>Every diagram on this page uses that same vocabulary.</p>
 <h2 id="the-problem-in-one-example">The problem, in one example<a class="anchor" href="#the-problem-in-one-example" title="Link to this section">#</a></h2>
 <p>Ask a coding assistant <em>"where is the retry logic in this project?"</em> and it answers, confidently.
 It may even be right. But it is pattern-matching against the millions of projects it saw in
@@ -108,6 +121,18 @@ that file states the intent plainly: the anti-hallucination contract is structur
 </tr>
 </tbody>
 </table>
+<p>Each layer depends only on the one below it, never sideways and never upward:</p>
+<pre class="mermaid">flowchart TD
+  AG(["your editor and your agents"]) --> SRV["Serve: the MCP server,<br/>the dashboard, the visualizer"]
+  SRV -->|"depends on"| KN["Knowledge: the graph, the connectors,<br/>the vectors, the wiki"]
+  KN -->|"depends on"| MIR["Mirror: clone the fleet, keep each<br/>on its most active branch"]
+  MIR --> REPOS[("your repositories,<br/>current on your disk")]</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
 <p>Only the first layer is required. <code>pip install contextlake</code> pulls exactly one dependency
 (<code>argcomplete</code>, declared in <code>pyproject.toml</code>), which is a deliberate constraint rather than an
 accident: keeping several hundred repositories cloned and current should not require a
@@ -140,6 +165,21 @@ monolithic graph would hit at scale".</p>
 fleet, and the authoritative form stays readable with ordinary tools. Every shard is also
 snapshotted per indexed commit under <code>history/</code>, which is what makes <code>kb query --as-of &lt;commit&gt;</code>
 work at all.</p>
+<p>One arrow in that picture is the source of truth and the rest is derived:</p>
+<pre class="mermaid">flowchart LR
+  SRC(["one repository"]) --> IDX["kb index"]
+  IDX --> SH[("one JSON shard for it,<br/>the source of truth")]
+  SH -->|"denormalized into"| SQ[("index.sqlite, droppable and<br/>rebuilt from the shards")]
+  SH -->|"kb embed"| EM[("the vectors, rebuilt<br/>from the same shards")]
+  SH -->|"archived per commit"| HIS[("a snapshot per indexed commit,<br/>what --as-of reads")]</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+<p>Delete the index or the vectors and an index run puts them back. Delete the shards and you are
+re-parsing the fleet.</p>
 <p>That same module also retracts a claim it used to make, which is worth reading if you were thinking
 of hashing shards: snapshots overwrite identically only for the same commit, <em>the same parser
 version, on the same machine</em>, because file nodes are emitted in <code>os.walk</code> order and that is
@@ -248,6 +288,21 @@ defaults (<code>src/contextlake/kb/model.py</code>).</p>
 class" is <code>EXTRACTED</code>, and "this function calls that one" is <code>INFERRED</code>, because the call is matched
 by name and a name can lie. A call that matches several definitions is <code>AMBIGUOUS</code> rather than
 resolved to a favourite, and one that matches more than a cap is dropped rather than degraded.</p>
+<p>Where each of the three verdicts comes from. All three carry the same required provenance, a
+<code>source_file</code> plus a <code>source_line</code> plus a <code>verified_at</code>; what differs is how much the edge is
+worth:</p>
+<pre class="mermaid">flowchart TD
+  SRC(["your source"]) --> P["the parser reads it"]
+  P -->|"containment, straight off<br/>the syntax tree"| E1[("an edge stored EXTRACTED")]
+  P --> N["a call, matched by name"]
+  N -->|"exactly one definition"| E2[("stored INFERRED")]
+  N -->|"several definitions"| E3[("stored AMBIGUOUS, with<br/>how many candidates")]</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
 <p>The alternative is a graph that records only the relationship. It is smaller, faster to build, and
 it makes every fact sound equally certain, which is precisely the failure this tool exists to fix.
 With confidence recorded, an assistant can state a containment as fact, hedge on a name-matched
@@ -287,6 +342,21 @@ the second.</p>
 <li><strong>Coverage honesty.</strong> Each page states how much of the repository it reflects, and very large
    repositories get a page per subsystem rather than one page claiming to cover everything.</li>
 </ol>
+<p>In run order rather than in the order above, because the deterministic gate is deliberately in
+front of the council:</p>
+<pre class="mermaid">flowchart LR
+  G["a brief assembled from the graph,<br/>file and line references attached"] --> D["the model drafts a page"]
+  D --> GATE["a deterministic gate: leaked<br/>instruction text, repeated sentences"]
+  GATE -->|"fails"| REJ(["reported as rejected,<br/>not published"])
+  GATE -->|"passes"| CO["a review council scores<br/>the draft against the graph"]
+  CO -->|"below the accept threshold"| REJ
+  CO -->|"at or above it"| PUB[("a page that states how much<br/>of the repository it reflects")]</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
 <p>The gate's thresholds are measured, not picked. Pages a human judged sound share no run of even
 six normalized words with the instruction text, while the leaking page shared a run of 61, so the
 instruction-leak rule fires at 12. The highest legitimate sentence repeat across the same corpus is
@@ -394,11 +464,54 @@ described.</p>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
 <script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
 var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
-document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
 var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>
+<script src="mermaid.min.js"></script>
+<script>(function(){
+  if(!window.mermaid) return;
+  // Read the real tokens from tokens.css and docs.css so a diagram follows the
+  // theme toggle and a palette change for free. Every name below is one that
+  // actually exists: an absent custom property returns "" and would silently
+  // fall back, which is how a diagram ends up off-brand and nobody notices.
+  var read = function(){
+    var cs = getComputedStyle(document.documentElement);
+    var v = function(n, d){ return (cs.getPropertyValue(n) || d).trim(); };
+    return {
+      background:         v("--surface", "#ffffff"),
+      primaryColor:       v("--dg-step", "#dceaef"),
+      primaryBorderColor: v("--dg-step-line", "#137A8B"),
+      primaryTextColor:   v("--ink", "#0E2A33"),
+      secondaryColor:     v("--dg-store", "#f3ead5"),
+      tertiaryColor:      v("--dg-ext", "#e9f1f2"),
+      lineColor:          v("--muted", "#41606a"),
+      textColor:          v("--ink", "#0E2A33"),
+      fontFamily:         v("--ff", "system-ui, sans-serif"),
+      fontSize:           "14px"
+    };
+  };
+  mermaid.initialize({ startOnLoad: true, securityLevel: "strict",
+                       maxEdges: 2000, theme: "base", themeVariables: read() });
+  // Re-draw on a theme change. mermaid replaces the <pre>'s content with SVG,
+  // so the source has to be kept to redraw from; without this the diagrams stay
+  // in the old palette until a reload.
+  document.querySelectorAll("pre.mermaid").forEach(function(el){
+    el.dataset.src = el.textContent;
+  });
+  var redraw = function(){
+    document.querySelectorAll("pre.mermaid").forEach(function(el){
+      el.removeAttribute("data-processed");
+      el.textContent = el.dataset.src || el.textContent;
+    });
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict",
+                         maxEdges: 2000, theme: "base", themeVariables: read() });
+    mermaid.run({ querySelector: "pre.mermaid" });
+  };
+  new MutationObserver(redraw).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+})();</script>
 <script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
 var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
 var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
@@ -410,6 +523,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=5baef1c"></script>
+<script defer src="cmdk.js?v=8a8f72c"></script>
 </body>
 </html>

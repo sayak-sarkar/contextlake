@@ -269,3 +269,71 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
   .doc-pebble{width:88px}
 }
 @media (prefers-reduced-motion: reduce){ .side-toggle .chev{transition:none} }
+
+/* ---- diagram colour key ---------------------------------------------------
+   One meaning per colour, identical on every diagram in the set. A reader who
+   learns the key once reads every picture. These are the only colours a diagram
+   may use, and they are derived from the brand tokens rather than picked fresh,
+   so a palette change moves the diagrams with it.
+
+     --dg-act    a start or an end point        (brand teal, the strongest)
+     --dg-step   something that runs            (lake, cool)
+     --dg-store  something that persists        (shore, warm, so state reads
+                                                 differently from behaviour)
+     --dg-ext    something outside contextlake  (deliberately low contrast: it
+                                                 is context, not the subject)
+   Colour is never the only signal: a shape or a label always carries the same
+   distinction, per WCAG 1.4.1. */
+:root{
+  --dg-act:#2BB3A3; --dg-act-ink:#052a26;
+  --dg-step:#dceaef; --dg-step-line:#137A8B;
+  --dg-store:#f3ead5; --dg-store-line:#8a6d16;
+  --dg-ext:#e9f1f2;  --dg-ext-line:#6c878f;
+}
+:root[data-theme="dark"]{
+  --dg-act:#2BB3A3; --dg-act-ink:#052a26;
+  --dg-step:#173c4c; --dg-step-line:#54c9bb;
+  --dg-store:#3a3018; --dg-store-line:#d9b551;
+  --dg-ext:#152a3f;  --dg-ext-line:#8FA1A5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --dg-step:#173c4c; --dg-step-line:#54c9bb;
+    --dg-store:#3a3018; --dg-store-line:#d9b551;
+    --dg-ext:#152a3f;  --dg-ext-line:#8FA1A5;
+  }
+}
+/* The diagram block itself. Wide diagrams scroll inside their own box so the
+   page body never scrolls sideways. No copy button: COPY_JS skips .mermaid. */
+.prose pre.mermaid{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--rs);
+  padding:1.1rem; margin:1.5rem 0; overflow-x:auto; text-align:center;
+  color:transparent;  /* hide the source text until mermaid replaces it */
+}
+.prose pre.mermaid svg{max-width:100%; height:auto}
+.prose .dg-key{
+  display:flex; flex-wrap:wrap; gap:.5rem 1.15rem; justify-content:center;
+  margin:.5rem 0 1.5rem; font-size:.82rem; color:var(--muted);
+}
+.prose .dg-key i{display:inline-flex; align-items:center; gap:.4rem; font-style:normal}
+.prose .dg-key b{
+  width:11px; height:11px; border-radius:2px; display:inline-block;
+  border:1px solid var(--line-2);
+}
+
+/* Diagram roles are carried by SHAPE, not by colour, and the reason is technical as
+   well as accessible. Mermaid renders a `classDef` as an inline `style` attribute
+   carrying `!important`, and an inline `!important` cannot be overridden by any
+   stylesheet, so a colour written into the markdown is unbeatable and can never follow
+   the theme. Colour therefore comes from `themeVariables` (read from these tokens at
+   render time, and re-read on a theme change), and the markdown never names one.
+
+   It is also the better answer for WCAG 1.4.1: a rectangle, a cylinder and a rounded
+   box stay distinguishable without any colour at all. */
+/* The swatches differ only in SHAPE, because that is the only distinction the
+   diagrams actually make. Giving them three colours would promise a colour code
+   that no diagram uses. */
+.prose .dg-key b{background:var(--dg-step); border-color:var(--dg-step-line)}
+.prose .dg-key b.dg-sh-step{border-radius:2px}
+.prose .dg-key b.dg-sh-store{border-radius:5px/2.5px}
+.prose .dg-key b.dg-sh-act{border-radius:999px}

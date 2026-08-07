@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=5baef1c">
-<link rel="stylesheet" href="tokens.css?v=5baef1c">
-<link rel="stylesheet" href="docs.css?v=5baef1c">
-<link rel="stylesheet" href="cmdk.css?v=5baef1c">
+<link rel="stylesheet" href="fonts.css?v=8a8f72c">
+<link rel="stylesheet" href="tokens.css?v=8a8f72c">
+<link rel="stylesheet" href="docs.css?v=8a8f72c">
+<link rel="stylesheet" href="cmdk.css?v=8a8f72c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -51,6 +51,22 @@
 <p>Beyond code, contextlake links each repo to its external context (issues, docs, and designs) and can pull
 grounded facts from those sources into the knowledge layer. <code>connect</code> links repos to items; <code>enrich</code>
 queries connected sources with codebase-derived terms and stores what comes back.</p>
+<pre class="mermaid">flowchart LR
+  C(["tracker, designs, merge<br/>requests, chat"]) --> CON["kb connect"]
+  I(["files, web, api, graphql,<br/>another MCP server"]) --> ING["kb ingest"]
+  Q(["the searchable ones: Atlassian,<br/>or an MCP search tool"]) --> ENR["kb enrich"]
+  G[("the code graph")] -.->|"repo name and top symbols<br/>become the search terms"| ENR
+  CON --> P[("isolated partitions")]
+  ING --> P
+  ENR --> P
+  P -.->|"linked to the repos and<br/>symbols they name"| G</pre>
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+<p>Each stage writes its own partition, so re-indexing a repo's code never disturbs its external links.</p>
 <h2 id="connectors">Connectors<a class="anchor" href="#connectors" title="Link to this section">#</a></h2>
 <p><code>connect</code> enriches the graph with external context. Four connectors ship, sharing one seam:</p>
 <ul>
@@ -294,11 +310,54 @@ for, so the run should not read as clean.</p>
 <script>(function(){var r=document.documentElement,b=document.getElementById("theme-toggle");if(!b)return;b.hidden=false;function cur(){var e=r.getAttribute("data-theme");return e||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");}function lbl(t){b.setAttribute("aria-label",t==="dark"?"Switch to light theme":"Switch to dark theme");}lbl(cur());function set(n){r.setAttribute("data-theme",n);try{localStorage.setItem("cl-theme",n);}catch(e){}lbl(n);}b.addEventListener("click",function(){var n=cur()==="dark"?"light":"dark";var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;if(document.startViewTransition&&!reduce){document.startViewTransition(function(){set(n);});}else{set(n);}});})();</script>
 <script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
 var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
-document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
 var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
 pre.appendChild(b);});})();</script>
+<script src="mermaid.min.js"></script>
+<script>(function(){
+  if(!window.mermaid) return;
+  // Read the real tokens from tokens.css and docs.css so a diagram follows the
+  // theme toggle and a palette change for free. Every name below is one that
+  // actually exists: an absent custom property returns "" and would silently
+  // fall back, which is how a diagram ends up off-brand and nobody notices.
+  var read = function(){
+    var cs = getComputedStyle(document.documentElement);
+    var v = function(n, d){ return (cs.getPropertyValue(n) || d).trim(); };
+    return {
+      background:         v("--surface", "#ffffff"),
+      primaryColor:       v("--dg-step", "#dceaef"),
+      primaryBorderColor: v("--dg-step-line", "#137A8B"),
+      primaryTextColor:   v("--ink", "#0E2A33"),
+      secondaryColor:     v("--dg-store", "#f3ead5"),
+      tertiaryColor:      v("--dg-ext", "#e9f1f2"),
+      lineColor:          v("--muted", "#41606a"),
+      textColor:          v("--ink", "#0E2A33"),
+      fontFamily:         v("--ff", "system-ui, sans-serif"),
+      fontSize:           "14px"
+    };
+  };
+  mermaid.initialize({ startOnLoad: true, securityLevel: "strict",
+                       maxEdges: 2000, theme: "base", themeVariables: read() });
+  // Re-draw on a theme change. mermaid replaces the <pre>'s content with SVG,
+  // so the source has to be kept to redraw from; without this the diagrams stay
+  // in the old palette until a reload.
+  document.querySelectorAll("pre.mermaid").forEach(function(el){
+    el.dataset.src = el.textContent;
+  });
+  var redraw = function(){
+    document.querySelectorAll("pre.mermaid").forEach(function(el){
+      el.removeAttribute("data-processed");
+      el.textContent = el.dataset.src || el.textContent;
+    });
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict",
+                         maxEdges: 2000, theme: "base", themeVariables: read() });
+    mermaid.run({ querySelector: "pre.mermaid" });
+  };
+  new MutationObserver(redraw).observe(document.documentElement,
+    { attributes: true, attributeFilter: ["data-theme"] });
+})();</script>
 <script>(function(){document.querySelectorAll(".prose .tabs").forEach(function(g){
 var tabs=g.querySelectorAll(":scope > .tab");if(tabs.length<2)return;
 var strip=document.createElement("div");strip.className="tab-strip";strip.setAttribute("role","tablist");
@@ -310,6 +369,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=5baef1c"></script>
+<script defer src="cmdk.js?v=8a8f72c"></script>
 </body>
 </html>
