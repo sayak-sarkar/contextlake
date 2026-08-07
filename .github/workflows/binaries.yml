@@ -56,9 +56,15 @@ jobs:
     name: build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
 
-      - uses: dtolnay/rust-toolchain@stable
+      # The comment says "stable @ <date>", not a version, because there is no version to
+      # name: `stable` is a BRANCH the author force-updates, so the SHA is simply where it
+      # pointed on that date. And the pin fixes the *selector action*, not the compiler --
+      # the toolchain it installs is still whatever upstream Rust calls stable on the day
+      # this job runs. Pinning it makes the step that runs on our runner immutable, which
+      # is the whole point; it is not a claim that the build is now reproducible.
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c  # stable @ 2026-08-08
 
       - name: Build the launcher (embeds contextlake[kb-full] metadata; installs at first run)
         shell: bash
@@ -102,7 +108,7 @@ jobs:
           chmod +x "out/${{ matrix.asset_name }}" || true
           file "out/${{ matrix.asset_name }}" || true
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: ${{ matrix.asset_name }}
           path: out/${{ matrix.asset_name }}
@@ -114,8 +120,8 @@ jobs:
     permissions:
       contents: write   # upload release assets (create the release if binaries.yml wins the race)
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           path: out
           merge-multiple: true

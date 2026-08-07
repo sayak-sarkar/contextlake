@@ -5682,6 +5682,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Every GitHub Actions step is pinned to a commit, not a tag.** All 34 `uses:` across the five
+  workflows referenced a moving pointer: `@v5` means "whatever that owner points it at today", and
+  these jobs hold a checkout of the source, a container-registry login, and the OIDC token that
+  publishes to PyPI under this project's name. Each is now a 40-character SHA with the version in a
+  trailing comment, which Dependabot rewrites along with the SHA, so the pins do not go stale.
+
+  Two could not be pinned by simply naming a version, and each says so where it sits.
+  `pypa/gh-action-pypi-publish` was on the `release/v1` **branch**, which upstream recommends so
+  their fixes arrive unbidden; it is pinned anyway because it is the step holding the publish
+  token, and its head was checked to be exactly `v1.14.2` at pin time rather than assumed.
+  `dtolnay/rust-toolchain@stable` is also a branch, and its comment gives a date instead of a
+  version, because the pin fixes the action that selects a toolchain and not the compiler it goes
+  on to install.
+
 - **The security lint now blocks, because its backlog is gone.** `ruff --select S`
   (flake8-bandit) ran as its own reporting-only job with `continue-on-error: true` over 4893
   untriaged findings. A job that cannot fail says nothing, and one carrying that much noise was
