@@ -2516,9 +2516,11 @@ per repo, with a provenance footer citing the commit and sources it was built fr
 ```mermaid
 flowchart TD
   G[("the graph")] -->|"top symbols, dependencies, files,<br/>README excerpt, recorded decisions"| DR["draft the page"]
-  DR --> C["the verification council,<br/>one review per lens"]
+  DR --> SG{"structurally sound?<br/>no model call"}
+  SG -->|no| X(["nothing is written,<br/>the reason is reported"])
+  SG -->|yes| C["the verification council,<br/>one review per lens"]
   C --> S{"mean score above accept_score?"}
-  S -->|no| X(["nothing is written"])
+  S -->|no| X
   S -->|yes| W[("the page, with a<br/>provenance footer")]
   W --> P[("the @wiki partition,<br/>embedded and searchable")]
 ```
@@ -2606,6 +2608,28 @@ one of the named sections.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).
+
+## Why a page was rejected
+
+A rejection always names the rule that fired, because a page that simply fails to appear leaves you
+staring at a missing file. Two of the reasons come from a **structural gate** that runs before the
+council and makes no model call at all:
+
+| Reason | What the draft did |
+| --- | --- |
+| `prompt leakage` | Reproduced one of its own instructions verbatim, so the page describes how it was asked to write rather than the repository. |
+| `degenerate repetition` | Repeated one span over and over, which is what a model that has run out of grounded material tends to emit. |
+
+Both are mechanically visible, so they are decided without asking a reviewer. That is deliberate: a
+weak model acting as its own council rubber-stamps exactly these defects, which
+[contextlake, explained](explained.md#generated-prose-and-how-it-is-kept-honest) records with the
+measurement behind it. Rejecting them early also saves the council's round trips on a page that
+could not have passed.
+
+Anything else is a council verdict: the mean score across the lenses came in under `accept_score`,
+and the reported issues are the reviewers' own. In every case the page is **skipped, not rewritten**,
+so a rejection costs you that page rather than another round of model calls. Re-run with a stronger
+backend, or a stronger reviewer, and it is attempted again from scratch.
 
 ## Per-subsystem pages for large, federated repos
 
@@ -2913,8 +2937,9 @@ is how well the model turns them into prose (and the verification council reject
 a smaller model mostly means *more rejections* and blander accepted pages).
 
 The constraint that decides this for most people is **hardware, not model quality**. Generating one wiki
-page is not one model call: it is the page, plus a review from each council lens, plus a rewrite when the
-council rejects it. So the question is not whether a 1.5B-3B model writes better prose than the built-in
+page is not one model call: it is the page, plus one review from each council lens. A rejected page is
+reported and skipped, not rewritten, so a rejection costs you the page rather than another round of calls.
+So the question is not whether a 1.5B-3B model writes better prose than the built-in
 0.5B (it does) but whether your host can finish that many calls: if a single call takes minutes, which is
 the ordinary case for a 1.5B-3B model on a CPU with no GPU, the run reaches the default 300-second
 `timeout` below before a page is done. The built-in 0.5B stays under it, and pays for that with thin,
@@ -5662,6 +5687,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   absent from the sitemap, and impossible to correct, since the source they were built from no
   longer existed. The build now removes a page whose source has gone, and the deploy removes it
   from the published branch.
+
+- **Docs: a wiki page's cost no longer counts a rewrite that does not happen.** "How much does the
+  model matter?" described one page as the draft, plus a review per council lens, plus a rewrite on
+  rejection. There is no rewrite: a rejected page is reported and skipped. The sentence carries the
+  argument about whether a slow local model can finish a run, so the per-page cost was overstated.
+
+- **Docs: the gate that rejects a page before the council is now documented.** A draft that
+  reproduces its own instructions, or repeats one span, is refused by a structural check that runs
+  ahead of the council and makes no model call. A reader could hit `rejected: prompt leakage` with
+  nothing in the documentation explaining it. "Generate the wiki" now names both reasons, says why
+  they are decided without a reviewer, and states that a rejected page is skipped rather than
+  rewritten.
 
 - **The copy button no longer lands on a diagram.** It attached to every code block in the prose,
   and a rendered diagram is one, so it offered to copy a picture.

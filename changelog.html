@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=aee8258">
-<link rel="stylesheet" href="tokens.css?v=aee8258">
-<link rel="stylesheet" href="docs.css?v=aee8258">
-<link rel="stylesheet" href="cmdk.css?v=aee8258">
+<link rel="stylesheet" href="fonts.css?v=4a12c5a">
+<link rel="stylesheet" href="tokens.css?v=4a12c5a">
+<link rel="stylesheet" href="docs.css?v=4a12c5a">
+<link rel="stylesheet" href="cmdk.css?v=4a12c5a">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -87,6 +87,20 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target
   absent from the sitemap, and impossible to correct, since the source they were built from no
   longer existed. The build now removes a page whose source has gone, and the deploy removes it
   from the published branch.</p>
+</li>
+<li>
+<p><strong>Docs: a wiki page's cost no longer counts a rewrite that does not happen.</strong> "How much does the
+  model matter?" described one page as the draft, plus a review per council lens, plus a rewrite on
+  rejection. There is no rewrite: a rejected page is reported and skipped. The sentence carries the
+  argument about whether a slow local model can finish a run, so the per-page cost was overstated.</p>
+</li>
+<li>
+<p><strong>Docs: the gate that rejects a page before the council is now documented.</strong> A draft that
+  reproduces its own instructions, or repeats one span, is refused by a structural check that runs
+  ahead of the council and makes no model call. A reader could hit <code>rejected: prompt leakage</code> with
+  nothing in the documentation explaining it. "Generate the wiki" now names both reasons, says why
+  they are decided without a reviewer, and states that a rejected page is skipped rather than
+  rewritten.</p>
 </li>
 <li>
 <p><strong>The copy button no longer lands on a diagram.</strong> It attached to every code block in the prose,
@@ -4869,6 +4883,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=aee8258"></script>
+<script defer src="cmdk.js?v=4a12c5a"></script>
 </body>
 </html>

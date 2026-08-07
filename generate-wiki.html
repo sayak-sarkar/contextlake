@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=aee8258">
-<link rel="stylesheet" href="tokens.css?v=aee8258">
-<link rel="stylesheet" href="docs.css?v=aee8258">
-<link rel="stylesheet" href="cmdk.css?v=aee8258">
+<link rel="stylesheet" href="fonts.css?v=4a12c5a">
+<link rel="stylesheet" href="tokens.css?v=4a12c5a">
+<link rel="stylesheet" href="docs.css?v=4a12c5a">
+<link rel="stylesheet" href="cmdk.css?v=4a12c5a">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -52,9 +52,11 @@
 per repo, with a provenance footer citing the commit and sources it was built from.</p>
 <pre class="mermaid">flowchart TD
   G[("the graph")] -->|"top symbols, dependencies, files,<br/>README excerpt, recorded decisions"| DR["draft the page"]
-  DR --> C["the verification council,<br/>one review per lens"]
+  DR --> SG{"structurally sound?<br/>no model call"}
+  SG -->|no| X(["nothing is written,<br/>the reason is reported"])
+  SG -->|yes| C["the verification council,<br/>one review per lens"]
   C --> S{"mean score above accept_score?"}
-  S -->|no| X(["nothing is written"])
+  S -->|no| X
   S -->|yes| W[("the page, with a<br/>provenance footer")]
   W --> P[("the @wiki partition,<br/>embedded and searchable")]</pre>
 <div class="dg-key">
@@ -129,6 +131,37 @@ repo with no such signal simply gets fewer sections, never an empty heading. "Ex
 one of the named sections.</p>
 <p>For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see <a href="model-providers">Model providers</a>.</p>
+<h2 id="why-a-page-was-rejected">Why a page was rejected<a class="anchor" href="#why-a-page-was-rejected" title="Link to this section">#</a></h2>
+<p>A rejection always names the rule that fired, because a page that simply fails to appear leaves you
+staring at a missing file. Two of the reasons come from a <strong>structural gate</strong> that runs before the
+council and makes no model call at all:</p>
+<table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>What the draft did</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prompt leakage</code></td>
+<td>Reproduced one of its own instructions verbatim, so the page describes how it was asked to write rather than the repository.</td>
+</tr>
+<tr>
+<td><code>degenerate repetition</code></td>
+<td>Repeated one span over and over, which is what a model that has run out of grounded material tends to emit.</td>
+</tr>
+</tbody>
+</table>
+<p>Both are mechanically visible, so they are decided without asking a reviewer. That is deliberate: a
+weak model acting as its own council rubber-stamps exactly these defects, which
+<a href="explained#generated-prose-and-how-it-is-kept-honest">contextlake, explained</a> records with the
+measurement behind it. Rejecting them early also saves the council's round trips on a page that
+could not have passed.</p>
+<p>Anything else is a council verdict: the mean score across the lenses came in under <code>accept_score</code>,
+and the reported issues are the reviewers' own. In every case the page is <strong>skipped, not rewritten</strong>,
+so a rejection costs you that page rather than another round of model calls. Re-run with a stronger
+backend, or a stronger reviewer, and it is attempted again from scratch.</p>
 <h2 id="per-subsystem-pages-for-large-federated-repos">Per-subsystem pages for large, federated repos<a class="anchor" href="#per-subsystem-pages-for-large-federated-repos" title="Link to this section">#</a></h2>
 <p>A repo with at least 5,000 graph nodes, where no single top-level module owns more than 60% of
 them, is treated as genuinely federated, one big source directory doesn't count, but a repo split
@@ -206,6 +239,7 @@ No <code>enrich</code>/<code>connect</code> step needed, these are picked up aut
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#running-it">Running it</a></li>
+<li><a href="#why-a-page-was-rejected">Why a page was rejected</a></li>
 <li><a href="#per-subsystem-pages-for-large-federated-repos">Per-subsystem pages for large, federated repos</a></li>
 <li><a href="#searchable-prose">Searchable prose</a></li>
 <li><a href="#cluster-namespace-wiki">Cluster (namespace) wiki</a></li>
@@ -283,6 +317,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=aee8258"></script>
+<script defer src="cmdk.js?v=4a12c5a"></script>
 </body>
 </html>

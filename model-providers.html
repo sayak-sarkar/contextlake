@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=aee8258">
-<link rel="stylesheet" href="tokens.css?v=aee8258">
-<link rel="stylesheet" href="docs.css?v=aee8258">
-<link rel="stylesheet" href="cmdk.css?v=aee8258">
+<link rel="stylesheet" href="fonts.css?v=4a12c5a">
+<link rel="stylesheet" href="tokens.css?v=4a12c5a">
+<link rel="stylesheet" href="docs.css?v=4a12c5a">
+<link rel="stylesheet" href="cmdk.css?v=4a12c5a">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -283,8 +283,9 @@ curl<span class="w"> </span>http://172.24.224.1:11434/api/tags<span class="w">  
 is how well the model turns them into prose (and the verification council rejects weak pages regardless, so
 a smaller model mostly means <em>more rejections</em> and blander accepted pages).</p>
 <p>The constraint that decides this for most people is <strong>hardware, not model quality</strong>. Generating one wiki
-page is not one model call: it is the page, plus a review from each council lens, plus a rewrite when the
-council rejects it. So the question is not whether a 1.5B-3B model writes better prose than the built-in
+page is not one model call: it is the page, plus one review from each council lens. A rejected page is
+reported and skipped, not rewritten, so a rejection costs you the page rather than another round of calls.
+So the question is not whether a 1.5B-3B model writes better prose than the built-in
 0.5B (it does) but whether your host can finish that many calls: if a single call takes minutes, which is
 the ordinary case for a 1.5B-3B model on a CPU with no GPU, the run reaches the default 300-second
 <code>timeout</code> below before a page is done. The built-in 0.5B stays under it, and pays for that with thin,
@@ -404,6 +405,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=aee8258"></script>
+<script defer src="cmdk.js?v=4a12c5a"></script>
 </body>
 </html>
