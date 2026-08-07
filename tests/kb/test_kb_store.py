@@ -239,3 +239,32 @@ def test_reopen_existing_db(tmp_path):
     s2 = SqliteStore(p)
     assert s2.get_node("x") is not None
     s2.close()
+
+
+def test_list_partitions_finds_what_list_repos_cannot(store):
+    """The property this method exists for: a partition owns nodes and has no
+    `repos` row, so `list_repos` cannot see it.
+
+    `connect`, `enrich`, `ingest` and `wiki` all write into `@`-prefixed
+    partitions, and none of them registers a repository. Anything that enumerates
+    work through `list_repos` is therefore blind to every one of them, which is
+    what `forget` needed solving to sweep their orphaned nodes.
+    """
+    store.upsert_repo(Repo(id="team/app", path="/w/team/app"))
+    for rid in ("team/app", "@connect:team/app", "@ingest:handbook"):
+        store.upsert_nodes(rid, [Node(id=f"{rid}:n1", repo=rid, kind="function",
+                                      name="f", file="a.py")])
+
+    assert [r.id for r in store.list_repos()] == ["team/app"]
+    assert set(store.list_partitions()) == {
+        "team/app", "@connect:team/app", "@ingest:handbook"}
+
+
+def test_list_partitions_reports_a_partition_with_no_nodes_left_as_absent(store):
+    """It answers "who owns nodes", not "who ever did", so a cleared partition
+    drops out. `forget` relies on that: it sweeps what is still there."""
+    store.upsert_nodes("@ingest:gone", [Node(id="x", repo="@ingest:gone",
+                                             kind="document", name="d")])
+    assert "@ingest:gone" in store.list_partitions()
+    store.clear_repo("@ingest:gone")
+    assert "@ingest:gone" not in store.list_partitions()
