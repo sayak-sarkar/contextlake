@@ -116,7 +116,7 @@ def host_pinning_hint(host: str, port: int) -> str | None:
     answers 403 with nothing on screen to explain it. Said once at startup rather
     than discovered per-request.
     """
-    if host not in ("0.0.0.0", "::", ""):
+    if host not in ("0.0.0.0", "::", ""):  # noqa: S104 - this is the wildcard-bind check
         return None
     return (f"Bound to {host} -- requests are only answered when their Host header is "
             f"'{host}:{port}' or 'localhost:{port}' (DNS-rebinding defence). Browse "

@@ -253,7 +253,7 @@ class SqliteVecStore:
         q = _pack(query)
         if repo:
             ids = _repo_scope(repo)
-            sql = ("SELECT node_id, distance FROM vec_items "
+            sql = ("SELECT node_id, distance FROM vec_items "  # noqa: S608 - placeholders only
                    f"WHERE embedding MATCH ? AND repo_id IN ({','.join('?' * len(ids))}) "
                    "ORDER BY distance LIMIT ?")
             params: tuple = (q, *ids, k)

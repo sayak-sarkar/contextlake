@@ -257,7 +257,7 @@ def retry_with_backoff(func, *args, max_retries=3, backoff_initial=1, backoff_ma
                 break
             if attempt < max_retries - 1:
                 backoff = min(backoff_initial * (2 ** attempt), backoff_max)
-                time.sleep(backoff * random.uniform(0.5, 1.5))
+                time.sleep(backoff * random.uniform(0.5, 1.5))  # noqa: S311 - backoff jitter
     raise last_error
 
 
@@ -431,9 +431,9 @@ def _fetch_projects_page_http(base_url, group_enc, token, per_page, timeout, pag
     Raises on HTTP/network error so the caller's retry/backoff can engage.
     """
     url = f"{base_url}/api/v4/{_projects_endpoint(group_enc, per_page, page)}"
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 - URL from trusted config
         url, headers={"PRIVATE-TOKEN": token, "User-Agent": "contextlake"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - URL from trusted config
         return json.loads(resp.read().decode())
 
 
@@ -452,8 +452,8 @@ def _fetch_projects_page_glab(group_enc, per_page, page):
 
 def _get_json(url, headers, timeout):
     """GET a JSON document. Raises on HTTP/network error so retry can engage."""
-    req = urllib.request.Request(url, headers={"User-Agent": "contextlake", **headers})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    req = urllib.request.Request(url, headers={"User-Agent": "contextlake", **headers})  # noqa: S310 - URL from trusted config
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - URL from trusted config
         return json.loads(resp.read().decode())
 
 

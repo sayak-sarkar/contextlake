@@ -1709,7 +1709,7 @@ def _run(argv, metrics):
         import argcomplete
 
         argcomplete.autocomplete(parser)
-    except Exception:  # noqa: BLE001 - completion is a nicety, never a hard dependency
+    except Exception:  # noqa: BLE001,S110 - completion is a nicety, never a hard dependency
         # Deliberately broader than ImportError. argcomplete 3.7.1 shipped PEP 604
         # annotations evaluated at class-definition time while its metadata still
         # advertised Python 3.8+, so on an older interpreter `import argcomplete`

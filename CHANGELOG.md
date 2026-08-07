@@ -35,6 +35,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot fix here, and 4 MB of minified library source would bury a real finding in noise from that
   library's own generated patterns.
 
+### Changed
+
+- **The security lint now blocks, because its backlog is gone.** `ruff --select S`
+  (flake8-bandit) ran as its own reporting-only job with `continue-on-error: true` over 4893
+  untriaged findings. A job that cannot fail says nothing, and one carrying that much noise was
+  never going to be read.
+
+  Every finding was read. 4672 were `S101` ("assert used") in `tests/`, which is pytest's whole
+  idiom, and the rest of `tests/` is fixtures doing on purpose what the rules warn about, so the
+  ruleset is switched off there: nothing in `tests/` ships. Two rules are off in the package as
+  well, `S603` and `S607`, because they fire on every subprocess this tool exists to run and on
+  resolving `git` and `glab` from `PATH`, which is the only portable choice. **The remaining 34
+  sites were each read and now carry their own reason.** All 34 turned out to be safe, and two of
+  them are the code that warns you about binding to a wildcard address, which is what the rule
+  flagging them is for. Every one of the 12 "possible SQL injection" findings interpolates a `?`
+  placeholder count or a fixed clause fragment, never a value.
+
+  `S` now sits in the ordinary lint select, so it runs in CI on every push and pull request, in
+  the release build gate, and in a contributor's own `ruff check`. A new finding fails the build.
+  The separate job is gone rather than kept alongside, since it would only re-report what the
+  main gate already refuses.
+
 ### Fixed
 
 - **A DOM helper turned a caller's mistake into a rendered error carrying the caller's data.**

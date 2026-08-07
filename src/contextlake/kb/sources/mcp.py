@@ -73,7 +73,7 @@ class McpSource:
                 uri = str(getattr(r, "uri", ""))
                 try:
                     result = await session.read_resource(getattr(r, "uri", uri))
-                except Exception:  # noqa: BLE001 - one unreadable resource must not abort
+                except Exception:  # noqa: BLE001,S112 - one unreadable resource must not abort
                     continue
                 text = _texts(result)
                 if not text:

@@ -60,7 +60,7 @@ def html_to_text(html: str) -> tuple[str, str]:
     r = _Reader()
     try:
         r.feed(html)
-    except Exception:  # noqa: BLE001 - malformed markup must not raise
+    except Exception:  # noqa: BLE001,S110 - malformed markup must not raise
         pass
     return r.title.strip(), r.text().strip()
 
@@ -84,11 +84,11 @@ class WebSource:
             if not url_is_fetchable(u, source="web source"):
                 continue
             try:
-                req = urllib.request.Request(u, headers={"User-Agent": "contextlake-ingest"})
+                req = urllib.request.Request(u, headers={"User-Agent": "contextlake-ingest"})  # noqa: S310 - URL from trusted config
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
                     charset = resp.headers.get_content_charset() or "utf-8"
                     html = resp.read().decode(charset, errors="replace")
-            except Exception:  # noqa: BLE001 - one bad URL must not abort the source
+            except Exception:  # noqa: BLE001,S112 - one bad URL must not abort the source
                 continue
             title, text = html_to_text(html)
             if not text:

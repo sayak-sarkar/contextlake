@@ -42,7 +42,7 @@ from .store.base import Store
 # "streamable-http" in cmds/serve.py).
 HTTP_TRANSPORTS = frozenset({"streamable-http", "sse"})
 
-TOKEN_ENV = "CONTEXTLAKE_MCP_TOKEN"
+TOKEN_ENV = "CONTEXTLAKE_MCP_TOKEN"  # noqa: S105 - a name, not a secret
 
 # How many tool bodies may run at once.
 #

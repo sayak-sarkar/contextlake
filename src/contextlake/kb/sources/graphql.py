@@ -52,7 +52,7 @@ class GraphQLSource:
             if token:
                 headers["Authorization"] = f"Bearer {token}"
         body = json.dumps({"query": self.query, "variables": self.variables}).encode("utf-8")
-        req = urllib.request.Request(self.url, data=body, headers=headers, method="POST")
+        req = urllib.request.Request(self.url, data=body, headers=headers, method="POST")  # noqa: S310 - URL from trusted config
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
             charset = resp.headers.get_content_charset() or "utf-8"
             return json.loads(resp.read().decode(charset, errors="replace"))

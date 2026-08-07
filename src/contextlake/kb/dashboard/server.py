@@ -50,7 +50,7 @@ from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
 from . import mutations as kbmut
 
-TOKEN_HEADER = "X-Contextlake-Token"
+TOKEN_HEADER = "X-Contextlake-Token"  # noqa: S105 - a name, not a secret
 
 
 def _static(name: str) -> str:

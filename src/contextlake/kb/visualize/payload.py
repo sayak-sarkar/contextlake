@@ -337,7 +337,7 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
         GROUP BY n.node_id, n.kind
         ORDER BY d DESC, n.node_id ASC
         LIMIT ?
-    """
+    """  # noqa: S608 - placeholders only; values bound
     rows = store.conn.execute(
         ranked.format(kind=""), (*deg_params, *params, max_nodes + 1)).fetchall()
     node_truncated = len(rows) > max_nodes
@@ -352,7 +352,7 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
         if floors_cache is None:
             budget = max_nodes // _KIND_FLOOR_SHARE if max_nodes > 0 else 0
             available = dict(store.conn.execute(
-                f"SELECT kind, COUNT(*) FROM nodes n WHERE {where} GROUP BY kind",
+                f"SELECT kind, COUNT(*) FROM nodes n WHERE {where} GROUP BY kind",  # noqa: S608 - placeholders only; values bound
                 tuple(params)).fetchall()) if budget else {}
             # A single-kind view has nothing to starve, and a floor there would
             # only ever re-derive the ranking the query already produced.
@@ -484,7 +484,7 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
         meta["truncated"] = truncated
         if node_truncated:  # cheap exact total only when we actually capped on nodes
             meta["total"] = store.conn.execute(
-                f"SELECT COUNT(*) FROM nodes WHERE {where}", tuple(params)).fetchone()[0]
+                f"SELECT COUNT(*) FROM nodes WHERE {where}", tuple(params)).fetchone()[0]  # noqa: S608 - placeholders only; values bound
     return nodes, edges
 
 
@@ -516,7 +516,7 @@ def repo_modules(store: Store, repo_id: str, *, within: str | None = None,
         depth = clean.count("/") + 1
         where += " AND file LIKE ? ESCAPE '\\'"
         params.append(clean.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "/%")
-    rows = store.conn.execute(f"SELECT file FROM nodes WHERE {where}", tuple(params)).fetchall()
+    rows = store.conn.execute(f"SELECT file FROM nodes WHERE {where}", tuple(params)).fetchall()  # noqa: S608 - placeholders only; values bound
     counts: dict[str, int] = {}
     for (file,) in rows:
         parts = file.split("/")

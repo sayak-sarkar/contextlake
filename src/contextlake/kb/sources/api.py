@@ -53,7 +53,7 @@ class ApiSource:
             token = os.environ.get(self.token_env)
             if token:
                 headers["Authorization"] = f"Bearer {token}"
-        req = urllib.request.Request(self.url, headers=headers)
+        req = urllib.request.Request(self.url, headers=headers)  # noqa: S310 - URL from trusted config
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
             charset = resp.headers.get_content_charset() or "utf-8"
             return json.loads(resp.read().decode(charset, errors="replace"))

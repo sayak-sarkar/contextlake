@@ -115,7 +115,7 @@ def post_json(url: str, payload: dict, timeout: float, headers: dict | None = No
     """
     body = json.dumps(payload).encode()
     head = {"Content-Type": "application/json", **(headers or {})}
-    req = urllib.request.Request(url, data=body, headers=head)
+    req = urllib.request.Request(url, data=body, headers=head)  # noqa: S310 - URL from trusted config
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - configured URL
         return json.loads(resp.read().decode())
 

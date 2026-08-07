@@ -70,7 +70,7 @@ def symbol_nodes_for_repo(store, repo_id: str) -> list[Node]:
         SELECT node_id, kind, name FROM nodes
         WHERE repo_id = ? AND kind IN ({kind_placeholders})
         ORDER BY node_id
-        """,
+        """,  # noqa: S608 - placeholders only; values bound
         (repo_id, *EMBEDDABLE_KINDS),
     ).fetchall()
     return [Node(id=row[0], repo=repo_id, kind=row[1], name=row[2]) for row in rows]

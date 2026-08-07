@@ -70,7 +70,7 @@ def _open_store(args) -> tuple[SqliteStore, Path]:
     # is the kb side's equivalent of the fleet list.
     try:
         observability.add_repo_names(r.id for r in store.list_repos())
-    except Exception:  # noqa: BLE001 - redaction is best-effort; never fail a command over it
+    except Exception:  # noqa: BLE001,S110 - redaction is best-effort; never fail a command over it
         pass
     return store, store_dir
 

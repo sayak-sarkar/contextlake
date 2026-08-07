@@ -257,7 +257,7 @@ class SqliteStore(Store):
         for i in range(0, len(ids), 900):  # stay under SQLite's bound-variable limit
             chunk = ids[i:i + 900]
             cur.execute(
-                f"DELETE FROM node_fts WHERE node_id IN ({','.join('?' * len(chunk))})",
+                f"DELETE FROM node_fts WHERE node_id IN ({','.join('?' * len(chunk))})",  # noqa: S608 - placeholders only; values bound
                 chunk,
             )
         cur.executemany(
@@ -344,7 +344,7 @@ class SqliteStore(Store):
             chunk = ids[i:i + 500]
             marks = ",".join("?" * len(chunk))
             for row in self.conn.execute(
-                f"SELECT node_id, repo_id FROM nodes WHERE node_id IN ({marks})", chunk
+                f"SELECT node_id, repo_id FROM nodes WHERE node_id IN ({marks})", chunk  # noqa: S608 - placeholders only; values bound
             ):
                 out[row["node_id"]] = row["repo_id"]
         return out
@@ -397,7 +397,7 @@ class SqliteStore(Store):
             clauses.append("dst = ?")
         if not clauses:
             raise ValueError(f"invalid direction: {direction!r}")
-        sql = "SELECT * FROM edges WHERE (" + " OR ".join(clauses) + ")"
+        sql = "SELECT * FROM edges WHERE (" + " OR ".join(clauses) + ")"  # noqa: S608 - placeholders only; values bound
         params: list[object] = [node_id] * len(clauses)
         if relation:
             sql += " AND relation = ?"
@@ -463,9 +463,9 @@ class SqliteStore(Store):
         # nodes, so deleting the rows first would leave the search index holding
         # ids that no longer resolve.
         self.conn.execute(
-            f"DELETE FROM node_fts WHERE node_id IN ({orphans})", (repo_id,))
+            f"DELETE FROM node_fts WHERE node_id IN ({orphans})", (repo_id,))  # noqa: S608 - placeholders only; values bound
         cur = self.conn.execute(
-            f"DELETE FROM nodes WHERE node_id IN ({orphans})", (repo_id,))
+            f"DELETE FROM nodes WHERE node_id IN ({orphans})", (repo_id,))  # noqa: S608 - placeholders only; values bound
         self.conn.commit()
         return cur.rowcount or 0
 

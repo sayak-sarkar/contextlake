@@ -131,7 +131,14 @@ src = ["src", "tests"]
 extend-exclude = ["site"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B"]
+# `S` is flake8-bandit. It used to run as a separate reporting-only pass in
+# security.yml over an untriaged backlog, which meant it could never fail and so never
+# said anything. The backlog is now triaged to zero: the rules that fire on every call
+# this tool must make are ignored below with the reason, and every remaining site was
+# read and carries its own `# noqa: S...` with why it is safe. Selecting it here makes
+# the normal lint gate -- CI on every push and PR, plus the release build -- refuse a
+# NEW finding, which is the property the reporting pass never had.
+select = ["E", "F", "W", "I", "UP", "B", "S"]
 
 [tool.ruff.lint.per-file-ignores]
 # kb/visualize/ inlines large base64 assets (the brand glyph, the empty-state image)
@@ -140,3 +147,19 @@ select = ["E", "F", "W", "I", "UP", "B"]
 # design and can't be wrapped. Split from a single visualize.py 2026-07-27, see
 # plan-kb-module-split.md.
 "src/contextlake/kb/visualize/*.py" = ["E501"]
+
+# The whole `S` ruleset, in tests only. Nothing here ships, and the findings are what a
+# test suite is made of: 4672 of them are S101 ("assert used"), which is pytest's entire
+# idiom, and the rest are fixtures doing on purpose what the rules warn about -- fake
+# tokens, temp paths, binding a local port, feeding malformed XML to a parser. This is a
+# scope statement, not a dismissal: a security bug in a test does not reach a user.
+"tests/**" = ["S"]
+
+# Two rules, in the shipped package only, that fire on every call this tool exists to
+# make. contextlake drives `git` and `glab` as subprocesses, so S603 flags all of them,
+# and it resolves them from PATH rather than by absolute path, which is what S607 flags
+# and is the only portable choice -- an absolute path would break macOS, Windows and
+# nix, where none of these live in the same place. A new instance of either carries no
+# signal, so gating on them would only teach people to add blanket noqa comments.
+# Everything else in `S` stays on, per-site, with a written reason.
+"src/contextlake/**" = ["S603", "S607"]

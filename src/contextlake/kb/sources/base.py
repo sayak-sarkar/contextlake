@@ -105,9 +105,9 @@ def discover_sources() -> dict[str, type]:
         for ep in group:
             try:
                 found[ep.name] = ep.load()
-            except Exception:  # noqa: BLE001 - a bad plugin must not break discovery
+            except Exception:  # noqa: BLE001,S112 - a bad plugin must not break discovery
                 continue
-    except Exception:  # noqa: BLE001 - importlib.metadata quirks are non-fatal
+    except Exception:  # noqa: BLE001,S110 - importlib.metadata quirks are non-fatal
         pass
     return found
 

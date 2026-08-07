@@ -170,7 +170,7 @@ class _ConsoleHandler(logging.StreamHandler):
             super().emit(record)
             try:
                 self.flush()
-            except Exception:  # noqa: BLE001 - flush failures are never fatal here
+            except Exception:  # noqa: BLE001,S110 - flush failures are never fatal here
                 pass
 
 

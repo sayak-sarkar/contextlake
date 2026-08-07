@@ -88,7 +88,7 @@ def match_frame_names_to_symbols(
         SELECT node_id FROM nodes
         WHERE repo_id = ? AND kind IN ({kind_placeholders}) AND LOWER(name) IN ({name_placeholders})
         ORDER BY node_id
-        """,
+        """,  # noqa: S608 - placeholders only; values bound
         (repo_id, *EMBEDDABLE_KINDS, *wanted),
     ).fetchall()
     return [(row[0], Confidence.AMBIGUOUS) for row in rows]

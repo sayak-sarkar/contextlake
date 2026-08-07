@@ -187,7 +187,7 @@ def _write_fish_completion() -> str:
 
     path = os.path.expanduser("~/.config/fish/completions/contextlake.fish")
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(shellcode(["contextlake"], shell="fish"), encoding="utf-8")
+    Path(path).write_text(shellcode(["contextlake"], shell="fish"), encoding="utf-8")  # noqa: S604 - our own kwarg naming a shell
     return path
 
 

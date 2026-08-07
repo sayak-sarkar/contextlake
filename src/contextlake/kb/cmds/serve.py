@@ -153,7 +153,7 @@ def cmd_serve(args) -> int:
                 # ({host:port, localhost:port}), which is narrower than the MCP
                 # transport's ({127.0.0.1, localhost, [::1], <bound host>} on any
                 # port). Reusing the text would misreport what is accepted here.
-                if host in ("0.0.0.0", "::", ""):
+                if host in ("0.0.0.0", "::", ""):  # noqa: S104 - this is the wildcard-bind check
                     log(style.warn(
                         f"A wildcard bind ({host}) does not accept this machine's own "
                         "address in a Host header, so a remote client naming it gets "
