@@ -14,7 +14,7 @@ from argparse import Namespace
 
 import pytest
 
-from contextlake.kb.cmds.index import _depth_phrase, _nested_repo_dirs
+from contextlake.kb.cmds.index import _depth_phrase, _nested_repo_dirs, _typed_path
 
 _ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
         "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
@@ -59,9 +59,18 @@ def _fleet(tmp_path):
     return ws
 
 
+def _bundling_message(logs):
+    """The one line the bundling check emits -- not the zero-config notice, which
+    also mentions `--workspace` (in "Pass --source PATH or --workspace DIR")."""
+    hits = [m for m in logs if "isn't itself a git repo" in m]
+    assert hits, f"no bundling message in {logs!r}"
+    return hits[0]
+
+
 def _args(store_dir, source, **kw):
     return Namespace(config=None, store_dir=str(store_dir), workspace=None,
-                     source=str(source), repo=None, force=False, **kw)
+                     source=None if source is None else str(source),
+                     repo=None, force=False, **kw)
 
 
 # --- F11: the scan is one level deep ---------------------------------------
@@ -122,3 +131,44 @@ def test_index_reports_the_true_nested_count_and_its_depths(tmp_path, logs):
     warned = [m for m in logs if "isn't itself a git repo" in m]
     assert warned, "a directory holding repos must say so"
     assert "3 git working tree(s) at depths 1-2" in warned[0]
+
+
+# --- F12: the remedy must name the directory that was actually indexed -------
+
+def test_typed_path_echoes_what_was_typed_and_quotes_only_when_needed():
+    assert _typed_path(".") == "."
+    assert _typed_path("./repositories") == "./repositories"
+    assert _typed_path("/srv/fleet") == "/srv/fleet"
+    assert _typed_path("/srv/my fleet") == "'/srv/my fleet'"
+
+
+def test_advice_names_the_directory_given_not_the_current_one(tmp_path, logs):
+    """`kb index <dir>` was told to run `--workspace .`, which points at the
+    shell's cwd rather than at <dir>. Followed verbatim it indexes the wrong
+    tree."""
+    from contextlake.kb.commands import cmd_index
+
+    ws = _fleet(tmp_path)
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+
+    cmd_index(_args(store_dir, ws))
+    advice = _bundling_message(logs)
+    assert f"--workspace {ws}`" in advice
+    assert "--workspace .`" not in advice
+
+
+def test_advice_still_says_dot_when_the_directory_is_the_current_one(
+        tmp_path, monkeypatch, logs):
+    """The short form is correct *and* recognisable when it is what the user
+    typed (or what the zero-config default filled in), so it is not replaced by
+    a long absolute path."""
+    from contextlake.kb.commands import cmd_index
+
+    ws = _fleet(tmp_path)
+    store_dir = tmp_path / "kb"
+    store_dir.mkdir()
+    monkeypatch.chdir(ws)
+
+    cmd_index(_args(store_dir, None))
+    assert "--workspace .`" in _bundling_message(logs)

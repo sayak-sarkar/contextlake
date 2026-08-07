@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -241,6 +242,28 @@ def _depth_phrase(depths: set[int]) -> str:
     return f"at depth {lo}" if lo == hi else f"at depths {lo}-{hi}"
 
 
+def _typed_path(source: str) -> str:
+    """``source`` spelled the way it can be pasted back into a shell.
+
+    The bundling advice used to hardcode ``--workspace .``. ``source`` is
+    ``args.source``/``args.path`` and only falls back to ``"."`` when neither was
+    given, so ``kb index /srv/fleet`` was told to run ``--workspace .`` -- the
+    current directory, not the directory just named. Following that verbatim
+    indexes the wrong tree, and in a real run it cost coverage a subtler way: the
+    operator read `.` as wrong, inferred the fleet lived one level down, ran
+    ``--workspace ./repositories``, and the repository sitting above that
+    subdirectory was never indexed under its own identity at all.
+
+    Echoes what was typed rather than the resolved absolute path. When the user
+    did type ``.`` (or typed nothing, which becomes ``.``) the short form is both
+    correct and the one they will recognise as their own command; printing
+    ``/home/…/very/long/path`` there would be noise. Quoting is
+    :func:`shlex.quote`'s, which leaves an ordinary path untouched and only
+    intervenes for one that would not survive a shell.
+    """
+    return shlex.quote(source)
+
+
 def _match_repo_id(store, needle: str):
     """The indexed repo ``needle`` names, or ``None``.
 
@@ -391,8 +414,9 @@ def cmd_index(args) -> int:
                         f"{', …' if len(names) > 5 else ''}). Indexing it this way "
                         "bundles everything underneath into ONE repo -- if this is a "
                         "workspace mirroring several repos, use "
-                        "`contextlake kb index --workspace .` instead, which indexes each "
-                        "nested repo separately under its own identity."
+                        f"`contextlake kb index --workspace {_typed_path(source)}` "
+                        "instead, which indexes each nested repo separately under its "
+                        "own identity."
                     ))
             # An id resolved from --source outranks the directory name (the whole
             # point of resolving one was to re-index THAT repo's graph, and a
