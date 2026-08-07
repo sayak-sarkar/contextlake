@@ -4761,6 +4761,7 @@ Covered in depth under [Mirror repositories](usage.md).
 | --- | --- |
 | `kb source` | add / list / remove / test / enable / disable knowledge-source connectors |
 | `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
+| `kb forget` | Remove one repository from the store, in every tier it occupies: graph nodes and edges, semantic vectors, wiki pages, and its `@connect:` / `@enrich:` connector partitions. The repair for a mis-index (`--dry-run` reports what would go, and removes nothing) |
 | `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
@@ -5221,17 +5222,66 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [6.5.0] - 2026-08-07
+
+### Changed
+
+- **An ingested document is named by its own title, not by its filename.** A page headed
+  `# Payments runbook` was stored, listed and cited as `runbook.md`. The identifier stays the path,
+  since that is what a re-ingest matches on, but the name a reader sees now comes from the document.
+  Only a level-one heading near the top counts, after any front matter: a deeper heading is a
+  section rather than the subject, and a file with no heading keeps its path.
+
+- **The default `max_file_bytes` is now 5 MB everywhere, which lowers it for indexing.** The parser
+  used 5 MiB (5,242,880) and the config used 5 MB (5,000,000), so whether a file in that
+  242,880-byte window was parsed or skipped depended on which code path reached it. The documented
+  figure is 5 MB, so that value wins and both now read from one constant.
+
+  This changes what gets indexed. `kb index` previously used the parser's 5 MiB, so a source file
+  between 5,000,000 and 5,242,880 bytes was parsed and is now skipped, and its symbols leave the
+  graph on the next index. The window is narrow and a source file that size is usually generated,
+  but the change is real and it is not a bug fix.
 
 ### Fixed
+
+- **`kb embed` no longer deletes vectors it was never going to write.** It clears a repository's
+  vectors before writing the new ones, which is right when it is replacing its own work and wrong
+  when the shard holds kinds it does not embed. `connect`, `enrich` and `ingest` each embed their
+  own nodes as they write them, and none of those kinds (`document`, `design`, `file`, `repo`) is
+  one `embed` handles, so a single pass over one of those partitions emptied it and reported
+  "0 written" as though that were the answer. A shard whose content it skips entirely is now left
+  alone. A repository that genuinely lost all its nodes still loses its vectors, which is the case
+  the clear exists for.
+
+- **A negative `limit` on an MCP tool no longer returns a confidently wrong answer.** Nothing in the
+  tool schemas constrained `limit` to a positive number, so a negative one reached the query layer,
+  where two different things went wrong and neither was visible to the caller. Python's slicing took
+  `items[:-3]` and dropped three items off the *end* while still reporting the result as truncated,
+  and SQLite reads a negative `LIMIT` as no limit at all, so `search_code` returned every matching
+  node with no signal that anything had been capped. `limit` is now clamped at each of the four
+  sites, so asking for a negative number returns nothing and says so.
+
+- **`kb forget` now sweeps up the shared nodes it leaves stranded.** A package identity, an HTTP
+  route or an event topic belongs to no single repository, so it is stored once under a sentinel
+  (`(packages)`, `(shared)`) with per-repository attribution carried on its edges. Nothing removed
+  those. Measured on a real store, forgetting the only repository in it left 734 such nodes behind,
+  still listed and still searchable, describing packages and routes that now belong to nothing.
+
+  They are swept by reachability rather than by ownership, which matters: deleting them per
+  repository would take the packages the *surviving* repositories still import, and that is exactly
+  the bug the stable sentinel was introduced to prevent. A shared node goes only once no edge
+  anywhere still references it.
 
 - **`kb forget` now reclaims the repository's files, not only its database rows.** It removed the
   nodes, edges, vectors and wiki pages and left `graph/<id>.json` and `history/<id>/` on disk, so a
   store measured in hundreds of megabytes gave back none of it -- on one store a single retained
   shard was 173 MB against a few MB of rows. The files are the large half of a repository, and
   reclaiming them is the whole point of the case this command was written for: forgetting a
-  pseudo-repository created by a mis-index. The command now reports the space it reclaimed, and
-  `--dry-run` reports it without deleting anything.
+  pseudo-repository created by a mis-index. It also compacts the index afterwards: deleting rows
+  frees SQLite pages but not file space, so on one real store the index sat at 197 MB of which 188
+  MB was free list, and the largest file in the store did not move. End to end, forgetting one
+  repository from a real store now takes it from 529 MB to 4.5 MB in about two seconds. The command
+  reports the space it reclaimed, and `--dry-run` reports without deleting or compacting anything.
 
 ## [6.4.0] - 2026-08-07
 

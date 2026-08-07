@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=2d6d218">
-<link rel="stylesheet" href="tokens.css?v=2d6d218">
-<link rel="stylesheet" href="docs.css?v=2d6d218">
-<link rel="stylesheet" href="cmdk.css?v=2d6d218">
+<link rel="stylesheet" href="fonts.css?v=5baef1c">
+<link rel="stylesheet" href="tokens.css?v=5baef1c">
+<link rel="stylesheet" href="docs.css?v=5baef1c">
+<link rel="stylesheet" href="cmdk.css?v=5baef1c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -241,6 +241,10 @@ spellings exist as aliases rather than as separate commands: <code>kb who-knows<
 <td>Build the code/dependency graph (<code>--workspace</code>, incremental, <code>--watch</code>; a directory holding git repos is refused with the right command, <code>--bundle</code> to index it as one repo anyway)</td>
 </tr>
 <tr>
+<td><code>kb forget</code></td>
+<td>Remove one repository from the store, in every tier it occupies: graph nodes and edges, semantic vectors, wiki pages, and its <code>@connect:</code> / <code>@enrich:</code> connector partitions. The repair for a mis-index (<code>--dry-run</code> reports what would go, and removes nothing)</td>
+</tr>
+<tr>
 <td><code>kb connect</code></td>
 <td>Link repos to Atlassian / Figma / GitLab items (<code>--watch</code> to keep refreshing)</td>
 </tr>
@@ -362,6 +366,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=2d6d218"></script>
+<script defer src="cmdk.js?v=5baef1c"></script>
 </body>
 </html>
