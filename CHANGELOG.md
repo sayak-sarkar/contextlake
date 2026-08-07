@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deliberately unchanged. Run `kb embed` once after upgrading to pick up the content that was
   previously skipped; the incremental skip keeps subsequent runs cheap.
 
+- **A negative `limit` on an MCP tool no longer returns a confidently wrong answer.** Nothing in the
+  tool schemas constrained `limit` to a positive number, so a negative one reached the query layer,
+  where two different things went wrong and neither was visible to the caller. Python's slicing took
+  `items[:-3]` and dropped three items off the *end* while still reporting the result as truncated,
+  and SQLite reads a negative `LIMIT` as no limit at all, so `search_code` returned every matching
+  node with no signal that anything had been capped. `limit` is now clamped at each of the four
+  sites, so asking for a negative number returns nothing and says so.
+
+- **`max_file_bytes` had two different defaults.** The parser used 5 MiB (5,242,880) and the config
+  used 5 MB (5,000,000), so whether a file in that 242,880-byte window was parsed or skipped
+  depended on which code path reached it. The documented figure is 5 MB, so that value wins and both
+  now read from one constant.
+
 - **`kb forget` now sweeps up the shared nodes it leaves stranded.** A package identity, an HTTP
   route or an event topic belongs to no single repository, so it is stored once under a sentinel
   (`(packages)`, `(shared)`) with per-repository attribution carried on its edges. Nothing removed

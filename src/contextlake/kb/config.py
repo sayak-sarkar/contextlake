@@ -41,6 +41,15 @@ DEFAULT_STORE_DIR = "~/.contextlake/kb"
 GLOBAL_CONFIG = "~/.contextlake/kb.toml"
 LOCAL_CONFIG = ".contextlake.kb.toml"
 DEFAULT_LANGUAGES = ["csharp", "typescript", "python"]
+# The single source of truth for the indexer's oversize-file cutoff. Decimal
+# 5,000,000 (5 MB), not 5 * 1024**2 (5 MiB, 5,242,880 bytes): docs/index-code-graph.md
+# and docs/style-guide-formatting.md both document this knob as "5 MB", and this is
+# the user-facing [kb] config value, so it wins over parse.py's binary-unit constant
+# of the same name -- kb/parse.py imports this constant rather than defining its own,
+# so a file between 5,000,000 and 5,242,880 bytes can no longer be skipped or parsed
+# depending on which entry point (CLI config vs. a direct index_repo_dir call) it
+# came through.
+DEFAULT_MAX_FILE_BYTES = 5_000_000
 
 
 def default_store_dir() -> str:
@@ -148,7 +157,7 @@ class KbConfig(BaseModel):
     # files larger than max_file_bytes (data blobs / vendored bundles). Both are
     # logged, never silent. Set skip_generated=false / raise max_file_bytes to index them.
     skip_generated: bool = True
-    max_file_bytes: int = 5_000_000
+    max_file_bytes: int = DEFAULT_MAX_FILE_BYTES
     # Parallel workers for the per-repo parse (CPU-bound). None -> auto (cpu-1,
     # capped at 8). Set 1 to force serial.
     index_workers: int | None = None
@@ -244,7 +253,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
         store_dir=kb.get("store_dir", default_store_dir()),
         languages=kb.get("languages", list(DEFAULT_LANGUAGES)),
         skip_generated=kb.get("skip_generated", True),
-        max_file_bytes=kb.get("max_file_bytes", 5_000_000),
+        max_file_bytes=kb.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES),
         index_workers=kb.get("index_workers", None),
         embeddings=EmbeddingsCfg(**merged.get("embeddings", {})),
         llm=LlmCfg(**merged.get("llm", {})),

@@ -417,7 +417,22 @@ _CONF_RANK = {"EXTRACTED": 0, "INFERRED": 1, "AMBIGUOUS": 2}
 
 
 def _budget(items: list, limit: int) -> tuple[list, int, bool]:
+    """Slice ``items`` to at most ``limit``, reporting the true total and whether
+    anything was cut.
+
+    ``limit`` reaches here straight from an MCP tool argument with no schema-level
+    lower bound, so a negative value used to slice from the END of the list
+    (Python slice semantics) while `total > limit` still read True -- a confident,
+    wrong answer, not an error. Clamped rather than raised: `blast_radius` raises
+    on a negative `hops` because a negative traversal depth is not a smaller
+    question, it is not a question, but `who_knows` already clamps this exact
+    `limit` parameter (`max(1, min(limit, 50))`) because "return nothing" is a
+    coherent, answerable request for a result cap. Floor is 0, not 1 like
+    `who_knows`: unlike a ranking that needs at least one row to compute, an
+    already-materialised list slices to `[]` at 0 with no special-casing needed.
+    """
     total = len(items)
+    limit = max(limit, 0)
     return items[:limit], total, total > limit
 
 
@@ -622,6 +637,13 @@ def build_server(
         query: str, kind: str | None = None, repo: str | None = None, limit: int = 20
     ) -> list[NodeOut]:
         """Search the graph for nodes by name/symbol, with optional kind and repo filters."""
+        # Same defect as _budget/list_repos, reached a third way: sqlite_store.search
+        # puts `limit` straight into a `LIMIT ?` with no +1/truncated bookkeeping at
+        # all, so a negative value (SQLite treats a negative LIMIT as unbounded,
+        # verified directly) does not cap the result at all -- every matching node
+        # comes back, silently, with no truncation signal to say so. Clamped for the
+        # same reason and to the same floor as `_budget`.
+        limit = max(limit, 0)
         return [_node_out(n) for n in store.search(query, kind=kind, repo=repo, limit=limit)]
 
     @bounded_tool
@@ -966,6 +988,14 @@ def build_server(
         Each entry carries the branch, indexed head, and last-index time; with
         ``include_stats`` (default) also the indexed node count. Capped at ``limit``.
         """
+        # Same defect as _budget, reached a different way: SQLite treats a negative
+        # LIMIT as "no limit" (verified against sqlite3 directly), so a negative
+        # `limit` here would fetch every repo, then `rows[:limit]` would slice off
+        # the last `|limit|` of them (Python's negative-index slicing) instead of
+        # capping the page, while `truncated` came out True regardless. Clamped for
+        # the same reason and to the same floor as `_budget`: zero is a legitimate
+        # "give me nothing", so it is the floor, not one.
+        limit = max(limit, 0)
         counts = {}
         if include_stats:
             counts = dict(store.conn.execute(

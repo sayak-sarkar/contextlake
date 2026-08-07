@@ -40,6 +40,30 @@ def test_defaults_when_no_files(tmp_path, monkeypatch):
     assert c.sources == [] and c.rules == []
 
 
+def test_max_file_bytes_default_agrees_across_every_source(tmp_path, monkeypatch):
+    """Regression: kb/parse.py's DEFAULT_MAX_FILE_BYTES and KbConfig's
+    max_file_bytes default used to be two independent hardcoded literals --
+    5 * 1024 * 1024 (5,242,880, "5 MiB") in parse.py versus 5_000_000 ("5 MB") in
+    config.py, repeated a third time as the `kb.get("max_file_bytes", 5_000_000)`
+    fallback in load_kb_config(). A file sized between the two disagreeing values
+    was silently skipped or parsed depending on which entry point it came
+    through. docs/index-code-graph.md and docs/style-guide-formatting.md both
+    document the knob as "5 MB" (decimal), so 5_000_000 is the value that must
+    win everywhere; pre-fix, the first assertion below fails with
+    `assert 5242880 == 5000000`.
+    """
+    from contextlake.kb import parse as kbparse
+
+    assert kbparse.DEFAULT_MAX_FILE_BYTES == 5_000_000
+    assert kbcfg.DEFAULT_MAX_FILE_BYTES == 5_000_000
+    assert kbparse.DEFAULT_MAX_FILE_BYTES == kbcfg.DEFAULT_MAX_FILE_BYTES
+    assert KbConfig().max_file_bytes == kbparse.DEFAULT_MAX_FILE_BYTES
+
+    _isolate(monkeypatch, tmp_path)
+    c = load_kb_config()  # exercises the kb.get("max_file_bytes", ...) fallback
+    assert c.max_file_bytes == kbparse.DEFAULT_MAX_FILE_BYTES
+
+
 def test_loaded_from_is_empty_when_no_config_exists(tmp_path, monkeypatch):
     """"Loaded nothing" and "loaded an empty file" must not look alike.
 

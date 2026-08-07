@@ -25,6 +25,7 @@ import tree_sitter as ts
 
 from ..logging_setup import log
 from .adr import is_adr_path, parse_adr
+from .config import DEFAULT_MAX_FILE_BYTES  # noqa: F401 -- re-exported, see below
 from .flow.data import extract_data_refs
 from .flow.events import extract_event_flow
 from .flow.http import extract_http_flow
@@ -36,6 +37,13 @@ from .manifest import is_manifest, parse_manifest
 from .model import SHARED_REPO, Confidence, Edge, Node, Provenance
 from .sql import parse_sql
 from .store.shards import GraphShard
+
+# DEFAULT_MAX_FILE_BYTES (imported above) stays importable FROM kb.parse, not just
+# kb.config, because kb/cmds/index.py already imports it from here (lazily, to
+# avoid an eager tree-sitter import). It used to be its own literal here
+# (5 * 1024 * 1024 = 5,242,880 bytes, "5 MiB") disagreeing with KbConfig's
+# separately hardcoded 5,000,000 ("5 MB"). docs/index-code-graph.md documents the
+# knob as "5 MB" (decimal), so kb/config.py's value is the one that survived.
 
 # Directories never worth walking.
 _SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "node_modules", "dist", "build",
@@ -121,10 +129,10 @@ HCL_EXTS = {".tf"}
 # SQL DDL uses a regex extractor (kb/sql.py), matched separately from LANG_BY_EXT.
 SQL_EXTS = {".sql"}
 
-# A code file larger than this is skipped (and logged). Hand-written source is
-# essentially never this big — anything that large is a data blob or vendored
+# A code file larger than DEFAULT_MAX_FILE_BYTES (imported above from kb/config.py,
+# the single source of truth) is skipped and logged. Hand-written source is
+# essentially never this big -- anything that large is a data blob or vendored
 # bundle. Raise [kb] max_file_bytes to index them anyway.
-DEFAULT_MAX_FILE_BYTES = 5 * 1024 * 1024
 
 # Generated/derived code (machine-emitted from real sources): graph noise and a
 # real time sink in legacy repos. Skipped by default; the source it is generated

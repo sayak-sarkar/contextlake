@@ -134,6 +134,23 @@ def test_search_code(server):
     assert any(n["name"] == "CatalogService" for n in items)
 
 
+def test_search_code_negative_limit_is_clamped_not_unbounded(tmp_path):
+    """A third reachable path to the `_budget` defect class: sqlite_store.search
+    puts `limit` straight into a raw `LIMIT ?` with no +1/truncated bookkeeping,
+    so pre-fix a negative `limit` (SQLite treats a negative LIMIT as unbounded,
+    verified directly against sqlite3) returned every matching node instead of
+    capping the result -- an unbounded flood delivered as a normal, confident
+    response, with no truncation signal to say so (this tool has none). Fixed:
+    the negative limit clamps to 0 before it reaches `store.search`, so this must
+    come back with zero hits, not all 20."""
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("r", [Node(id=f"n{i}", repo="r", kind="function", name=f"catalog{i}")
+                        for i in range(20)])
+    res = asyncio.run(_call(build_server(s), "search_code", {"query": "catalog", "limit": -1}))
+    assert _unwrap(res.structured_content) == []
+    s.close()
+
+
 def test_get_neighbors_with_provenance(server):
     res = asyncio.run(_call(server, "get_neighbors", {"node_id": "a", "direction": "out"}))
     out = _unwrap(res.structured_content)
@@ -157,6 +174,42 @@ def test_get_neighbors_budgets_and_reports_truncation(tmp_path):
     out = _unwrap(res.structured_content)
     assert len(out["edges"]) == 3 and out["total"] == 10 and out["truncated"] is True
     s.close()
+
+
+def test_get_neighbors_negative_limit_is_clamped_not_reversed(tmp_path):
+    """A negative `limit` is reachable from an MCP caller: none of the tool
+    schemas declare `limit` with a lower bound, so nothing upstream of `_budget`
+    stops it. Before the fix, `items[:limit]` with `limit=-3` sliced from the END
+    of the 10-edge list (Python slice semantics), returning 7 edges while
+    `total > limit` still read True -- a plausible, wrong answer, not an error.
+    Fixed: a negative limit clamps to 0, so this must come back with zero edges,
+    the honest total, and truncated still True."""
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("r", [Node(id="h", repo="r", kind="function", name="hub")]
+                   + [Node(id=f"c{i}", repo="r", kind="function", name=f"c{i}") for i in range(10)])
+    s.upsert_edges("r", [Edge(src="h", dst=f"c{i}", relation="calls",
+                              confidence=Confidence.EXTRACTED,
+                              provenance=Provenance(source_file="f", verified_at=date(2026, 6, 21)))
+                         for i in range(10)])
+    res = asyncio.run(_call(build_server(s), "get_neighbors",
+                            {"node_id": "h", "direction": "out", "limit": -3}))
+    out = _unwrap(res.structured_content)
+    assert out["edges"] == [] and out["total"] == 10 and out["truncated"] is True
+    s.close()
+
+
+def test_budget_negative_limit_is_clamped_not_reversed():
+    """Direct unit coverage for the same defect as the MCP-level test above, on
+    `_budget` itself. Pre-fix, `_budget(items, -3)` returns `(['a', 'b'], 5,
+    True)`: `items[:-3]` keeps everything but the last 3 (Python slice
+    semantics), the opposite of "at most -3 items", while `total > limit`
+    (5 > -3) still reports truncated. This asserts `['a', 'b'] == []` and fails
+    pre-fix. `limit=0` is pinned alongside it to prove the floor is 0 (a
+    legitimate "give me nothing"), not 1, and was already correct before the fix."""
+    items = ["a", "b", "c", "d", "e"]
+    assert server_mod._budget(items, -3) == ([], 5, True)
+    assert server_mod._budget(items, 0) == ([], 5, True)
+    assert server_mod._budget(items, 2) == (["a", "b"], 5, True)
 
 
 def _seed_cross_repo(s):
@@ -314,6 +367,23 @@ def test_list_repos_with_stats(tmp_path):
     s.close()
 
 
+def test_list_repos_negative_limit_is_clamped_not_reversed(tmp_path):
+    """Same defect as `_budget`'s, reached a different way: SQLite treats a
+    negative `LIMIT` as "no limit" (verified directly against sqlite3), so
+    pre-fix `limit=-2` against 5 seeded repos fetched all 5 rows unbounded, then
+    `rows[:limit]` (`rows[:-2]`) dropped the LAST 2 instead of capping the page,
+    returning 3 repos -- while `truncated` still read True. Fixed: the negative
+    `limit` is clamped to 0 before it reaches SQL, so this must come back with
+    zero repos, the honest total, and truncated still True."""
+    s = SqliteStore(tmp_path / "k.sqlite")
+    for i in range(5):
+        s.upsert_repo(Repo(id=f"team/{i}", path=f"/{i}"))
+    srv = build_server(s)
+    out = _unwrap(asyncio.run(_call(srv, "list_repos", {"limit": -2})).structured_content)
+    assert out["repos"] == [] and out["total"] == 5 and out["truncated"] is True
+    s.close()
+
+
 def test_output_is_sanitized(tmp_path):
     s = SqliteStore(tmp_path / "k.sqlite")
     s.upsert_nodes("r", [Node(id="x", repo="r", kind="function", name="ev\x1bil\x00name")])
@@ -340,6 +410,28 @@ def test_blast_radius_reverse_reach(tmp_path):
     out1 = _unwrap(asyncio.run(
         _call(build_server(s), "blast_radius", {"node_id": "c", "hops": 1})).structured_content)
     assert [h["id"] for h in out1["hits"]] == ["b"]
+    s.close()
+
+
+def test_blast_radius_negative_limit_is_already_safe(tmp_path):
+    """Not a fix -- a pinned finding. Unlike `_budget`/`list_repos`/`search_code`,
+    `impact._blast`'s cap (`if len(hits) >= limit: truncated = True; break`) is
+    already negative-limit-safe by construction: `len(hits) >= limit` is True the
+    moment the first candidate is checked for ANY limit <= 0 (0 >= -3 is True just
+    as 0 >= 0 is), so a negative `limit` behaves exactly like `limit=0` -- zero
+    hits, truncated=True -- with no separate clamp needed. Verified empirically
+    here rather than asserted, since `impact.py` is out of this task's touchable
+    file set; this test exists so a future edit to that cap's comparison direction
+    (e.g. `>` instead of `>=`) gets caught."""
+    s = SqliteStore(tmp_path / "k.sqlite")
+    s.upsert_nodes("r", [Node(id=x, repo="r", kind="function", name=x) for x in ("a", "b")])
+    prov = Provenance(source_file="f", source_line=1, verified_at=date(2026, 6, 25))
+    s.upsert_edges("r", [
+        Edge(src="a", dst="b", relation="calls", confidence=Confidence.INFERRED, provenance=prov)])
+    out = _unwrap(asyncio.run(
+        _call(build_server(s), "blast_radius", {"node_id": "b", "limit": -3})
+    ).structured_content)
+    assert out["hits"] == [] and out["truncated"] is True
     s.close()
 
 
