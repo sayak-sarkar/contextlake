@@ -78,10 +78,95 @@ jobs:
           python -m build
           twine check dist/*
 
+      - name: "SBOM: the BUILT WHEEL's dependency closure, from a venv holding nothing else"
+        # The trap this step is written to avoid: running an SBOM generator over *this* job's
+        # environment. That environment holds ruff, pytest, twine and build, none of which
+        # ship, and publishing it as "contextlake's SBOM" would be an artifact that says
+        # something untrue. So the subject is a throwaway venv containing the wheel that was
+        # just built plus the `kb-full` extras a user is told to install, and nothing else.
+        #
+        # cyclonedx-bom is installed in the OUTER environment and pointed at that venv's
+        # interpreter, never installed into it -- an SBOM that lists its own generator is
+        # describing the wrong thing.
+        #
+        # Scope, stated because the file cannot state it for itself: `kb-full` is
+        # kb + kb-local + kb-vec. It does NOT include `kb-fastembed`, and it does NOT include
+        # `llm-local`, which compiles from source off a separate wheel index; the ghcr images
+        # and the release binaries do carry llm-local, and `pip-audit-resolved` in
+        # security.yml is what covers that set.
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p sbom
+          pip install cyclonedx-bom
+          python -m venv /tmp/shipped
+          /tmp/shipped/bin/python -m pip install --quiet --upgrade pip
+          /tmp/shipped/bin/python -m pip install --quiet "$(ls dist/*.whl)[kb-full]"
+          cyclonedx-py environment /tmp/shipped/bin/python \
+            --pyproject pyproject.toml --mc-type library \
+            --of JSON -o "sbom/contextlake-${version}.cdx.json"
+          # The root component's version comes out null: cyclonedx-py reads it from
+          # pyproject, and this project declares `dynamic = ["version"]`, so there is nothing
+          # there to read. There is no flag for it (--sv is the *spec* version). The tag is
+          # authoritative here because the step above already refused to proceed unless the
+          # tag matches the packaged version.
+          python - "sbom/contextlake-${version}.cdx.json" "$version" <<'PY'
+          import json, sys
+          path, version = sys.argv[1], sys.argv[2]
+          with open(path) as fh:
+              bom = json.load(fh)
+          comp = bom["metadata"]["component"]
+          comp["version"] = version
+          comp["purl"] = f"pkg:pypi/contextlake@{version}"
+          with open(path, "w") as fh:
+              json.dump(bom, fh, indent=2)
+          PY
+
+      - name: "Canary: the SBOM must describe what ships, and nothing else"
+        # Same reasoning as the pip-audit-resolved canary: the failure mode of a generated
+        # document is silent and plausible. Assert the shape before publishing it, so this
+        # cannot quietly become an SBOM of the build machine.
+        run: |
+          python - "sbom/contextlake-${GITHUB_REF_NAME#v}.cdx.json" "${GITHUB_REF_NAME#v}" <<'PY'
+          import json, sys
+          path, version = sys.argv[1], sys.argv[2]
+          with open(path) as fh:
+              bom = json.load(fh)
+          root = bom["metadata"]["component"]
+          names = {c["name"].lower() for c in bom.get("components", [])}
+          problems = []
+          if root.get("name") != "contextlake" or root.get("version") != version:
+              problems.append(f"root component is {root.get('name')}@{root.get('version')}, "
+                              f"expected contextlake@{version}")
+          # Anything here means the generator described the build environment, not the wheel.
+          leaked = names & {"ruff", "pytest", "pytest-cov", "twine", "build", "hypothesis",
+                            "pre-commit", "cyclonedx-bom", "cyclonedx-python-lib"}
+          if leaked:
+              problems.append(f"build-only packages present: {sorted(leaked)}")
+          # A plausible-looking but nearly empty SBOM is the other silent failure.
+          if len(names) < 30:
+              problems.append(f"only {len(names)} components; the kb-full closure is far larger")
+          for want in ("mcp", "pydantic", "tree-sitter"):
+              if want not in names:
+                  problems.append(f"{want} missing, so this is not the shipped closure")
+          if problems:
+              for p in problems:
+                  print(f"::error::SBOM canary: {p}")
+              sys.exit(1)
+          print(f"canary ok: contextlake@{version}, {len(names)} components, no build tooling")
+          PY
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: dist
           path: dist/
+
+      # A SEPARATE artifact, deliberately: the `dist` artifact is what the publish job hands
+      # to PyPI, and a stray .json in that directory is not a distribution. It rejoins the
+      # release in the github-release job.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: sbom
+          path: sbom/
 
   publish:
     name: publish to PyPI
@@ -218,6 +303,10 @@ jobs:
         with:
           name: dist
           path: dist/
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: sbom
+          path: sbom/
 
       - name: Create GitHub Release from the CHANGELOG
         env:
@@ -230,8 +319,8 @@ jobs:
           [ -s notes.md ] || echo "Release $GITHUB_REF_NAME" > notes.md
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --title "contextlake $version" --notes-file notes.md
-            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+            gh release upload "$GITHUB_REF_NAME" dist/* sbom/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/* \
+            gh release create "$GITHUB_REF_NAME" dist/* sbom/* \
               --title "contextlake $version" --notes-file notes.md --verify-tag
           fi

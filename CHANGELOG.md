@@ -37,6 +37,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Each release now publishes a CycloneDX SBOM, and each standalone binary carries a build
+  provenance attestation.** The container images already had both; the wheel, the sdist and the
+  three launchers had neither, which is the half of the supply chain most people actually install.
+
+  The SBOM describes the **built wheel's** dependency closure, generated from a throwaway virtual
+  environment holding that wheel with the `kb-full` extras and nothing else. That distinction is
+  the whole point: running a generator over the release job's own environment would have produced
+  a document listing ruff, pytest and twine and called it contextlake's SBOM. A canary asserts the
+  result before it is published, so this cannot silently drift back into describing the build
+  machine. The scope is stated rather than implied: `kb-full` is `kb` + `kb-local` + `kb-vec`, and
+  excludes `kb-fastembed` and `llm-local`.
+
+  The binaries are attested in the job that uploads them, so the signed digest is the digest of
+  the bytes you download. `gh attestation verify <file> --repo sayak-sarkar/contextlake` checks
+  one, with no key material. **The install docs say plainly what that does not cover:** the
+  launcher fetches its Python payload from PyPI on your machine at first run, after any signature,
+  so signing cannot reach that half. Anyone who wants the payload covered should install from PyPI,
+  where the wheel and sdist carry PEP 740 attestations.
+
 - **Every GitHub Actions step is pinned to a commit, not a tag.** All 34 `uses:` across the five
   workflows referenced a moving pointer: `@v5` means "whatever that owner points it at today", and
   these jobs hold a checkout of the source, a container-registry login, and the OIDC token that

@@ -867,6 +867,26 @@ On Linux and macOS, `chmod +x` the file and run it with `./`. On Windows, run th
 directly. If your platform is not in that table, for example macOS on Intel or Linux on
 arm64, use `pipx` or `uv` instead; there is no binary for it.
 
+#### Checking a download is the one we published
+
+Each launcher is signed at release time with a build provenance attestation, so you can check
+a download came from this repository's release workflow and not from somewhere else:
+
+```bash
+gh attestation verify contextlake-linux-x86_64 --repo sayak-sarkar/contextlake
+```
+
+That needs the `gh` CLI and no key material: the signature is verified against a public
+transparency log.
+
+**What it proves, and what it does not.** It proves the file you have is byte-for-byte the
+file this repository's workflow built and uploaded. It says nothing about the Python payload,
+because the launcher downloads contextlake and its dependencies from PyPI on *your* machine at
+first run, which happens after any signature here. If you want the payload checked too, install
+with `pipx` or `uv` instead: the wheel and sdist on PyPI carry their own
+[PEP 740](https://peps.python.org/pep-0740/) attestations, which pip verifies, and each release
+also publishes a CycloneDX SBOM listing that dependency closure.
+
 ### From source
 
 ```bash
@@ -5681,6 +5701,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   library's own generated patterns.
 
 ### Changed
+
+- **Each release now publishes a CycloneDX SBOM, and each standalone binary carries a build
+  provenance attestation.** The container images already had both; the wheel, the sdist and the
+  three launchers had neither, which is the half of the supply chain most people actually install.
+
+  The SBOM describes the **built wheel's** dependency closure, generated from a throwaway virtual
+  environment holding that wheel with the `kb-full` extras and nothing else. That distinction is
+  the whole point: running a generator over the release job's own environment would have produced
+  a document listing ruff, pytest and twine and called it contextlake's SBOM. A canary asserts the
+  result before it is published, so this cannot silently drift back into describing the build
+  machine. The scope is stated rather than implied: `kb-full` is `kb` + `kb-local` + `kb-vec`, and
+  excludes `kb-fastembed` and `llm-local`.
+
+  The binaries are attested in the job that uploads them, so the signed digest is the digest of
+  the bytes you download. `gh attestation verify <file> --repo sayak-sarkar/contextlake` checks
+  one, with no key material. **The install docs say plainly what that does not cover:** the
+  launcher fetches its Python payload from PyPI on your machine at first run, after any signature,
+  so signing cannot reach that half. Anyone who wants the payload covered should install from PyPI,
+  where the wheel and sdist carry PEP 740 attestations.
 
 - **Every GitHub Actions step is pinned to a commit, not a tag.** All 34 `uses:` across the five
   workflows referenced a moving pointer: `@v5` means "whatever that owner points it at today", and

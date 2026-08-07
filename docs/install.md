@@ -168,6 +168,26 @@ On Linux and macOS, `chmod +x` the file and run it with `./`. On Windows, run th
 directly. If your platform is not in that table, for example macOS on Intel or Linux on
 arm64, use `pipx` or `uv` instead; there is no binary for it.
 
+#### Checking a download is the one we published
+
+Each launcher is signed at release time with a build provenance attestation, so you can check
+a download came from this repository's release workflow and not from somewhere else:
+
+```bash
+gh attestation verify contextlake-linux-x86_64 --repo sayak-sarkar/contextlake
+```
+
+That needs the `gh` CLI and no key material: the signature is verified against a public
+transparency log.
+
+**What it proves, and what it does not.** It proves the file you have is byte-for-byte the
+file this repository's workflow built and uploaded. It says nothing about the Python payload,
+because the launcher downloads contextlake and its dependencies from PyPI on *your* machine at
+first run, which happens after any signature here. If you want the payload checked too, install
+with `pipx` or `uv` instead: the wheel and sdist on PyPI carry their own
+[PEP 740](https://peps.python.org/pep-0740/) attestations, which pip verifies, and each release
+also publishes a CycloneDX SBOM listing that dependency closure.
+
 ### From source
 
 ```bash
