@@ -5,6 +5,18 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`kb forget` now reclaims the repository's files, not only its database rows.** It removed the
+  nodes, edges, vectors and wiki pages and left `graph/<id>.json` and `history/<id>/` on disk, so a
+  store measured in hundreds of megabytes gave back none of it -- on one store a single retained
+  shard was 173 MB against a few MB of rows. The files are the large half of a repository, and
+  reclaiming them is the whole point of the case this command was written for: forgetting a
+  pseudo-repository created by a mis-index. The command now reports the space it reclaimed, and
+  `--dry-run` reports it without deleting anything.
+
 ## [6.4.0] - 2026-08-07
 
 **`kb index` now refuses to bundle a directory of repositories instead of doing it silently.**

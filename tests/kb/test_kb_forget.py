@@ -129,3 +129,64 @@ def test_wiki_pages_matches_the_repos_own_pages_only(tmp_path):
 
 def test_wiki_pages_on_a_store_with_no_wiki_dir_is_empty(tmp_path):
     assert _wiki_pages(tmp_path / "nope", "team/app") == []
+
+
+# --- the on-disk tier ------------------------------------------------------
+#
+# These were the gap. The suite above seeds rows only, so `forget` deleting rows
+# while leaving `graph/<id>.json` and `history/<id>/` behind passed every test --
+# and on a real store that was 173 MB retained by a command that had just reported
+# the repo removed. The shard is the *large* half of a repo, and reclaiming it is
+# the whole reason someone forgets a mis-indexed pseudo-repo.
+
+def _seed_files(store_dir, repo_id: str, *, size: int = 4096) -> None:
+    """Write the files an indexed repo owns: a shard per partition + history."""
+    for part in _partitions(repo_id):
+        p = store_dir / "graph" / f"{part}.json"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("x" * size)
+    h = store_dir / "history" / repo_id
+    h.mkdir(parents=True, exist_ok=True)
+    (h / "deadbeef.json").write_text("x" * size)
+
+
+def test_forget_reclaims_the_shard_and_history_files(store_dir):
+    _seed(store_dir / "index.sqlite", "team/app")
+    _seed_files(store_dir, "team/app")
+    # A neighbour whose files must survive.
+    _seed(store_dir / "index.sqlite", "team/other")
+    _seed_files(store_dir, "team/other")
+
+    assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
+
+    for part in _partitions("team/app"):
+        assert not (store_dir / "graph" / f"{part}.json").exists(), f"{part} shard survived"
+    assert not (store_dir / "history" / "team/app").exists(), "history survived"
+    # Untouched neighbour: deleting by prefix would have taken these too.
+    assert (store_dir / "graph" / "team/other.json").exists()
+    assert (store_dir / "history" / "team/other" / "deadbeef.json").exists()
+
+
+def test_dry_run_leaves_the_files_alone(store_dir):
+    _seed(store_dir / "index.sqlite", "team/app")
+    _seed_files(store_dir, "team/app")
+    assert cmd_forget(_args(store_dir.parent, "team/app", dry_run=True)) == 0
+    assert (store_dir / "graph" / "team/app.json").exists()
+    assert (store_dir / "history" / "team/app" / "deadbeef.json").exists()
+
+
+def test_forget_reports_the_space_it_reclaimed(store_dir, caplog):
+    _seed(store_dir / "index.sqlite", "team/app")
+    _seed_files(store_dir, "team/app", size=200_000)
+    with caplog.at_level("INFO"):
+        assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
+    # 4 files x 200 KB: reported in KB/MB, not as a raw byte count nobody reads.
+    assert "on disk" in caplog.text
+    assert "MB" in caplog.text or "KB" in caplog.text
+
+
+def test_forget_works_on_a_store_that_has_no_files_yet(store_dir):
+    """Rows without files: an interrupted index, or a store built by an older
+    version. Must not raise on the missing graph/ and history/ directories."""
+    _seed(store_dir / "index.sqlite", "team/app")
+    assert cmd_forget(_args(store_dir.parent, "team/app")) == 0

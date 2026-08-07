@@ -14,9 +14,15 @@ prints the right command, but a warning is one keystroke from being ignored. On 
 real store that pseudo-repo held 63% of all nodes, duplicating every mirrored repo
 under a second identity, and ``embed`` then spent 91% of its vectors on it.
 
-A repo lives in three tiers and all three have to go, or the leftovers are worse
+A repo lives in four tiers and all four have to go, or the leftovers are worse
 than the original: orphaned vectors still answer semantic queries under a repo id
 that no longer resolves, and an orphaned wiki page still reads as current.
+
+The fourth tier is the files. Rows are the small half -- the parsed graph sits in
+``graph/<id>.json`` and every commit ever indexed in ``history/<id>/``, and on a real
+store that shard was 173 MB against a few MB of rows. Removing rows alone reclaimed
+nothing, which misses the point of the case above: the user forgetting a bloated
+pseudo-repo wants the space back, and was told the repo had been removed.
 """
 
 from __future__ import annotations
@@ -72,6 +78,53 @@ def _partitions(repo_id: str) -> list[str]:
     return [repo_id, connect_partition(repo_id), enrich_partition(repo_id)]
 
 
+def _disk_artifacts(store_dir, parts: list[str], repo_id: str) -> list:
+    """The repo's on-disk files: each partition's shard, plus its history snapshots.
+
+    The database rows are only half of a repo. Its parsed graph also sits in
+    ``graph/<id>.json``, and every commit ever indexed sits in ``history/<id>/``, and
+    those are the *large* half -- on one real store a single shard was 173 MB while the
+    rows it mirrored were a few MB of SQLite pages. Removing the rows alone reclaimed
+    nothing, which defeats the case this command was written for: a store bloated by a
+    mis-index, where reclaiming the space is the entire point.
+
+    ``shard_path`` rejects an id that would escape ``graph/``; the history directory is
+    derived from that validated path rather than joined again, so both go through one
+    check instead of two that could disagree.
+    """
+    from ..store.shards import shard_path
+
+    found = []
+    for part in parts:
+        try:
+            p = shard_path(store_dir, part)
+        except ValueError:
+            continue  # a path-escaping id owns no file we are willing to touch
+        if p.is_file():
+            found.append(p)
+    hist = store_dir / "history" / repo_id
+    if hist.is_dir():
+        found.append(hist)
+    return found
+
+
+def _bytes_of(path) -> int:
+    if path.is_file():
+        return path.stat().st_size
+    return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
+
+
+def _human(n: int) -> str:
+    """Bytes as a short human string. Local on purpose: the only other size
+    formatter in the tree is the dashboard's, in JavaScript."""
+    v = float(n)
+    for unit in ("B", "KB", "MB", "GB"):
+        if v < 1024 or unit == "GB":
+            return f"{v:.0f} {unit}" if unit == "B" else f"{v:.1f} {unit}"
+        v /= 1024
+    return f"{v:.1f} GB"
+
+
 def cmd_forget(args) -> int:
     repo_id = args.repo
     dry_run = bool(getattr(args, "dry_run", False))
@@ -99,11 +152,15 @@ def cmd_forget(args) -> int:
                                          backend=cfg.embeddings.vector_backend)
                 vectors = sum(vec.count_repo(p) for p in parts)
 
+        disk = _disk_artifacts(store_dir, parts, repo_id)
+        reclaim = sum(_bytes_of(p) for p in disk)
+
         log(f"{repo_id}")
         log(f"  nodes    {nodes}")
         log(f"  edges    {edges}")
         log(f"  vectors  {vectors}")
         log(f"  wiki     {len(pages)} page(s)")
+        log(f"  on disk  {len(disk)} file(s)/dir(s), {_human(reclaim)}")
         # strict: both lists come from `parts`, so a length mismatch would mean the
         # counts no longer line up with the partitions they describe.
         extra = [p for p, (n, e) in zip(parts[1:], counts[1:], strict=True) if n or e]
@@ -125,11 +182,25 @@ def cmd_forget(args) -> int:
             vec.close()
         for page in pages:
             page.unlink(missing_ok=True)
+        # Shards last: the rows are gone by now, so a failure here leaves an orphaned
+        # file rather than a store whose rows disagree with the files backing them.
+        import shutil
+
+        from ..store.shards import _cache_evict
+
+        for p in disk:
+            if p.is_dir():
+                shutil.rmtree(p, ignore_errors=True)
+            else:
+                p.unlink(missing_ok=True)
+                # This process may hold the shard in its read cache; a later read in
+                # the same run must not resurrect what was just deleted.
+                _cache_evict(str(p))
     finally:
         store.close()
 
     log(f"{style.ok()} Forgot {repo_id}: {nodes} node(s), {edges} edge(s), "
-        f"{vectors} vector(s), {len(pages)} wiki page(s).")
+        f"{vectors} vector(s), {len(pages)} wiki page(s), {_human(reclaim)} on disk.")
     log("  If that was a mistake, re-index it -- `kb index --workspace DIR` "
         "indexes each nested repo under its own identity.")
     return 0
