@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Generate the wiki · contextlake docs">
 <meta name="twitter:description" content="Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generate-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate the wiki", "item": "https://sayak.in/contextlake/generate-wiki"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Generate the wiki", "description": "Turn the graph into grounded, council-verified prose per repo: searchable, enrichment-aware, with a provenance footer.", "url": "https://sayak.in/contextlake/generate-wiki", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Generate the wiki", "item": "https://sayak.in/contextlake/generate-wiki"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=c82b7b1">
-<link rel="stylesheet" href="tokens.css?v=c82b7b1">
-<link rel="stylesheet" href="docs.css?v=c82b7b1">
-<link rel="stylesheet" href="cmdk.css?v=c82b7b1">
+<link rel="stylesheet" href="fonts.css?v=05acbf7">
+<link rel="stylesheet" href="tokens.css?v=05acbf7">
+<link rel="stylesheet" href="docs.css?v=05acbf7">
+<link rel="stylesheet" href="cmdk.css?v=05acbf7">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -55,6 +55,9 @@ per repo, with a provenance footer citing the commit and sources it was built fr
 machine), or skip the toml entirely and pass <code>--llm &lt;provider&gt;</code> (<code>builtin</code> | <code>ollama</code> | <code>openai</code> |
 <code>anthropic</code> | <code>cli</code>), for example <code>contextlake kb wiki acme/catalog-api --llm builtin</code>, which enables the tier
 inline and scopes generation to the named repo(s).</p>
+<p>On a <code>pip</code> install, <code>--llm builtin</code> needs one extra step first, <code>contextlake doctor --fix llm-local</code>
+(see <a href="install#the-built-in-wiki-llm-needs-one-extra-flag">Install and upgrade</a>); <code>--llm ollama</code>
+needs no compiler at all.</p>
 <p>Run <code>contextlake kb wiki</code>: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
 symbols, dependencies, files, and, when the repo's own checkout is available, an excerpt of its README
 and which conventional entry-point/config files it has, e.g. <code>package.json</code>, <code>Dockerfile</code>, <code>manage.py</code>)
@@ -221,6 +224,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=c82b7b1"></script>
+<script defer src="cmdk.js?v=05acbf7"></script>
 </body>
 </html>

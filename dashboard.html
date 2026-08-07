@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Dashboard · contextlake docs">
 <meta name="twitter:description" content="A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-04"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Dashboard", "item": "https://sayak.in/contextlake/dashboard"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Dashboard", "description": "A guided tour of the local, offline-first dashboard: the fleet overview, per-repo anatomy, the architecture graph, blast radius, and generating a wiki.", "url": "https://sayak.in/contextlake/dashboard", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Dashboard", "item": "https://sayak.in/contextlake/dashboard"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=c82b7b1">
-<link rel="stylesheet" href="tokens.css?v=c82b7b1">
-<link rel="stylesheet" href="docs.css?v=c82b7b1">
-<link rel="stylesheet" href="cmdk.css?v=c82b7b1">
+<link rel="stylesheet" href="fonts.css?v=05acbf7">
+<link rel="stylesheet" href="tokens.css?v=05acbf7">
+<link rel="stylesheet" href="docs.css?v=05acbf7">
+<link rel="stylesheet" href="cmdk.css?v=05acbf7">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -212,7 +212,9 @@ than showing an empty diagram.</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>wiki<span class="w"> </span>acme/catalog-api<span class="w"> </span>--llm<span class="w"> </span><span class="nb">builtin</span>
 </code></pre></div>
 <p><code>--llm</code> enables the LLM tier inline, <code>builtin</code> runs a small CPU model with no Ollama or
-API key (install the <code>llm-local</code> extra first); <code>ollama</code> / <code>openai</code> use those backends.
+API key; on a <code>pip</code> install it needs <code>contextlake doctor --fix llm-local</code> first (see
+<a href="install#the-built-in-wiki-llm-needs-one-extra-flag">Install and upgrade</a>). <code>ollama</code>
+needs no compiler at all; <code>openai</code> uses that backend instead.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
 symbols and (when available) its own README and conventional setup/config files, with a
@@ -364,6 +366,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=c82b7b1"></script>
+<script defer src="cmdk.js?v=05acbf7"></script>
 </body>
 </html>

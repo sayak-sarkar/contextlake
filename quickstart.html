@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Quickstart · contextlake docs">
 <meta name="twitter:description" content="Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Quickstart", "description": "Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.", "url": "https://sayak.in/contextlake/quickstart", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Quickstart", "item": "https://sayak.in/contextlake/quickstart"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Quickstart", "description": "Install, bootstrap, and wire your editor, the whole Mirror -> Knowledge -> Serve path in a few minutes.", "url": "https://sayak.in/contextlake/quickstart", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Quickstart", "item": "https://sayak.in/contextlake/quickstart"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=c82b7b1">
-<link rel="stylesheet" href="tokens.css?v=c82b7b1">
-<link rel="stylesheet" href="docs.css?v=c82b7b1">
-<link rel="stylesheet" href="cmdk.css?v=c82b7b1">
+<link rel="stylesheet" href="fonts.css?v=05acbf7">
+<link rel="stylesheet" href="tokens.css?v=05acbf7">
+<link rel="stylesheet" href="docs.css?v=05acbf7">
+<link rel="stylesheet" href="cmdk.css?v=05acbf7">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -130,7 +130,7 @@ all; for the command by hand see <a href="install#the-built-in-wiki-llm-needs-on
 upgrade</a>, and for why, see
 <a href="model-providers#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in
 LLM</a>.</p>
-<p>Prefer <code>--llm ollama</code> or <code>--llm openai</code> for higher-quality prose; without any <code>--llm</code>
+<p>Prefer <code>--llm ollama</code> (no compiler needed at all) or <code>--llm openai</code> for higher-quality prose; without any <code>--llm</code>
 (and without <code>[llm]</code> enabled in <code>kb.toml</code>) the wiki stage is skipped. Useful toggles:</p>
 <ul>
 <li>already have the repos cloned? add <code>--no-sync</code></li>
@@ -193,6 +193,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=c82b7b1"></script>
+<script defer src="cmdk.js?v=05acbf7"></script>
 </body>
 </html>
