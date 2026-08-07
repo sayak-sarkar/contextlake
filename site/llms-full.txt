@@ -5222,7 +5222,25 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [6.5.0] - 2026-08-07
+
+### Changed
+
+- **An ingested document is named by its own title, not by its filename.** A page headed
+  `# Payments runbook` was stored, listed and cited as `runbook.md`. The identifier stays the path,
+  since that is what a re-ingest matches on, but the name a reader sees now comes from the document.
+  Only a level-one heading near the top counts, after any front matter: a deeper heading is a
+  section rather than the subject, and a file with no heading keeps its path.
+
+- **The default `max_file_bytes` is now 5 MB everywhere, which lowers it for indexing.** The parser
+  used 5 MiB (5,242,880) and the config used 5 MB (5,000,000), so whether a file in that
+  242,880-byte window was parsed or skipped depended on which code path reached it. The documented
+  figure is 5 MB, so that value wins and both now read from one constant.
+
+  This changes what gets indexed. `kb index` previously used the parser's 5 MiB, so a source file
+  between 5,000,000 and 5,242,880 bytes was parsed and is now skipped, and its symbols leave the
+  graph on the next index. The window is narrow and a source file that size is usually generated,
+  but the change is real and it is not a bug fix.
 
 ### Fixed
 
@@ -5235,12 +5253,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alone. A repository that genuinely lost all its nodes still loses its vectors, which is the case
   the clear exists for.
 
-- **An ingested document is named by its own title, not by its filename.** A page headed
-  `# Payments runbook` was stored, listed and cited as `runbook.md`. The identifier stays the path,
-  since that is what a re-ingest matches on, but the name a reader sees now comes from the document.
-  Only a level-one heading near the top counts, after any front matter: a deeper heading is a
-  section rather than the subject, and a file with no heading keeps its path.
-
 - **A negative `limit` on an MCP tool no longer returns a confidently wrong answer.** Nothing in the
   tool schemas constrained `limit` to a positive number, so a negative one reached the query layer,
   where two different things went wrong and neither was visible to the caller. Python's slicing took
@@ -5248,11 +5260,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and SQLite reads a negative `LIMIT` as no limit at all, so `search_code` returned every matching
   node with no signal that anything had been capped. `limit` is now clamped at each of the four
   sites, so asking for a negative number returns nothing and says so.
-
-- **`max_file_bytes` had two different defaults.** The parser used 5 MiB (5,242,880) and the config
-  used 5 MB (5,000,000), so whether a file in that 242,880-byte window was parsed or skipped
-  depended on which code path reached it. The documented figure is 5 MB, so that value wins and both
-  now read from one constant.
 
 - **`kb forget` now sweeps up the shared nodes it leaves stranded.** A package identity, an HTTP
   route or an event topic belongs to no single repository, so it is stored once under a sentinel
