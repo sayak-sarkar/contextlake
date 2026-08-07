@@ -168,14 +168,26 @@ jobs:
         run: ruff check src tests --select S
 
   codeql:
-    name: CodeQL (python)
+    # JavaScript is not optional cover here. The stored-XSS fixed in 6.2.0 lived in the
+    # generated graph page, which is JavaScript, and a Python-only scan could not have
+    # seen it however long it ran. The dashboard, the graph viewer and the command
+    # palette are all first-party JavaScript this repository ships.
+    name: CodeQL (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
+    strategy:
+      fail-fast: false        # one language's failure must not hide the other's findings
+      matrix:
+        language: [python, javascript-typescript]
     steps:
       - uses: actions/checkout@v5
       - uses: github/codeql-action/init@v4
         with:
-          languages: python
+          languages: ${{ matrix.language }}
+          # Excludes the vendored bundles and the generated copies of our own files.
+          config-file: ./.github/codeql/codeql-config.yml
       - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

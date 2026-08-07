@@ -1,0 +1,24 @@
+name: contextlake CodeQL
+
+# Every path below is a file that is actually COMMITTED to this repository and would
+# otherwise be analysed. Build output (`site/demo/`, `site/mermaid.min.js`) and the
+# scratch sandbox (`playground/`) are deliberately absent: they are gitignored, so a
+# CI checkout never contains them and an entry for them would only look like coverage.
+#
+# The four bundles are third-party code we vendor rather than fetch at runtime (the
+# dashboard and the graph viewer must work with no network). We cannot fix a finding
+# inside them, and roughly 4 MB of minified library source buries a real finding in
+# noise from that library's own generated patterns. `cytoscape-dom-node.js` is in the
+# list despite its unminified name: it is an esbuild bundle of the upstream package,
+# equally not ours to change.
+#
+# Our OWN JavaScript is scanned and must stay scanned. That is the point of adding
+# the language: `dashboard/static/dashboard.js`, `static/app.js` and `site/cmdk.js`
+# are first-party, and the stored-XSS fixed in 6.2.0 lived in exactly this surface.
+paths-ignore:
+  - src/contextlake/kb/dashboard/static/mermaid.min.js
+  - src/contextlake/kb/static/cytoscape.min.js
+  - src/contextlake/kb/static/cytoscape-dagre.min.js
+  - src/contextlake/kb/static/cytoscape-dom-node.js
+  # Malformed on purpose -- it is a parser fuzz input, not a program.
+  - tests/kb/fixtures/fuzz/http_js_unbalanced_quotes.js

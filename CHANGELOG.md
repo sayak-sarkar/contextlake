@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `!important` and no stylesheet can override one, so a colour written into a page could never
   follow the light or dark theme.
 
+- **CodeQL now scans the JavaScript as well as the Python.** The stored-XSS fixed in 6.2.0 lived in
+  the generated graph page, and a Python-only scan could not have found it however long it ran. The
+  dashboard, the graph viewer and the command palette are all first-party JavaScript this project
+  ships, and none of it was being analysed. The two languages run as a matrix so neither hides the
+  other's findings. A config file excludes the four vendored bundles: they are third-party code we
+  cannot fix here, and 4 MB of minified library source would bury a real finding in noise from that
+  library's own generated patterns.
+
 ### Fixed
 
 - **`kb wiki --namespaces` crashed on a FIPS-enabled host.** The cluster freshness check hashed its
