@@ -61,7 +61,12 @@
   function append(parent, c) {
     if (c == null || c === false) return;
     if (Array.isArray(c)) { c.forEach(function (x) { append(parent, x); }); return; }
-    parent.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+    // Append a real DOM node as one; anything else becomes text. Duck-typed on nodeType
+    // rather than `instanceof Node` so a node from another realm still counts. The old
+    // `typeof c === "object"` handed a plain object straight to appendChild, which throws a
+    // DOMException whose message embeds the value -- and that message is rendered back into
+    // the error state block, which is the exception-to-render round trip CodeQL traces here.
+    parent.appendChild(c && c.nodeType ? c : document.createTextNode(String(c)));
   }
   function $(sel, root) { return (root || document).querySelector(sel); }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }

@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A DOM helper turned a caller's mistake into a rendered error carrying the caller's data.**
+  The dashboard's `append` sent anything of `typeof "object"` straight to `appendChild`. A plain
+  object is not a node, so that throws, and the browser's exception message embeds the value it
+  refused. The dashboard then renders the message into its error block, so a bad argument came
+  back out as page content. It now appends only real nodes, duck-typed on `nodeType` so a node
+  from another realm still counts, and anything else becomes text.
+
 - **`kb wiki --namespaces` crashed on a FIPS-enabled host.** The cluster freshness check hashed its
   member commits with SHA-1, and a FIPS build of OpenSSL refuses SHA-1 outright rather than
   returning a weak digest, so the command raised before writing a page. The call now passes
