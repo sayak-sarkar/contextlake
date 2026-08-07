@@ -119,54 +119,6 @@ def _connect_targets(args, store) -> list[tuple[str, str]]:
     return targets
 
 
-def _content_targets(args, store) -> list[str]:
-    """Partition ids holding content to embed -- ids only, never paths.
-
-    ``_connect_targets`` is named for ``connect``/``enrich``, which scrape a working
-    tree, so its ``if r.path`` filter is right for them: no clone, nothing to scrape.
-    ``embed`` was bolted onto the same helper and inherited that filter, which is wrong
-    for it -- it discards the path (``for repo_id, _ in ...``) and works purely from the
-    shard. So every partition was excluded twice over: no ``repos`` row, and no path.
-
-    The effect was that connector, enrichment and ingested content was scoped for
-    search but never embedded. ``embeddings.store._repo_scope`` expands a ``repo=``
-    filter to ``@connect:<repo>``/``@enrich:<repo>`` at query time, which is correct and
-    shipped -- and could never match anything, because nothing wrote vectors there.
-
-    Returning ``list[str]`` rather than ``(id, path)`` pairs is deliberate: a partition
-    has no path, and a ``(id, None)`` tuple would invite exactly the ``AttributeError``
-    at a call site that this split exists to prevent.
-
-    Sentinels (``(shared)``, ``(packages)``, ...) are excluded. They own nodes, so
-    ``list_partitions`` truthfully reports them, but they are cross-repo aggregates
-    rather than content anyone asked to index.
-    """
-    from ..model import is_sentinel_repo
-
-    explicit = _connect_targets(args, store)
-    if getattr(args, "workspace", None) or getattr(args, "source", None):
-        # An explicit tree or source names exactly what to work on; do not widen it
-        # to unrelated partitions that happen to sit in the same store.
-        return [rid for rid, _ in explicit]
-
-    # Union, not replacement. Every indexed repo keeps a `repos` row, so listing repos
-    # reproduces the old work set exactly -- including a repo whose node rows are absent
-    # (embed reads shards, not rows, so those must still be offered). `list_partitions`
-    # then adds what has no row at all. Taking only the latter would have narrowed the
-    # work set instead of widening it, which is the wrong direction for a fix like this.
-    seen = [r.id for r in store.list_repos()]
-    known = set(seen)
-    ids = [r for r in seen + [p for p in store.list_partitions() if p not in known]
-           if not is_sentinel_repo(r)]
-    wanted = {a for a in (getattr(args, "args", None) or []) if a}
-    if wanted:
-        # `embed myrepo` means the repo AND the partitions hanging off it, since those
-        # hold that repo's connector/ingested content -- not a different repo's.
-        ids = [r for r in ids
-               if r in wanted or any(r.endswith(f":{w}") for w in wanted)]
-    return ids
-
-
 def _repo_id_suggestions(store, target: str, n: int = 3) -> list[str]:
     """Stored repo ids closest to an unknown ``target``.
 
