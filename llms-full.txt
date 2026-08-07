@@ -407,7 +407,7 @@ flowchart LR
   IDX --> SH[("one JSON shard for it,<br/>the source of truth")]
   SH -->|"denormalized into"| SQ[("index.sqlite, droppable and<br/>rebuilt from the shards")]
   SH -->|"kb embed"| EM[("the vectors, rebuilt<br/>from the same shards")]
-  SH -->|"archived per commit"| HIS[("a snapshot per indexed commit,<br/>what --as-of reads")]
+  SH -->|"archived per commit"| HIS[("a snapshot per indexed commit,<br/>what kb query --as-of reads")]
 ```
 
 <div class="dg-key">
@@ -704,7 +704,27 @@ upgrade or remove it later. This is the single source for install commands: othe
 link here rather than repeating them, so there is one place to fix when a command changes.
 
 Pick a channel, run one command, then jump to [Quickstart](../QUICKSTART.md) for your first
-real result.
+real result. Which channel is yours comes down to two or three questions:
+
+```mermaid
+flowchart TD
+  S(["which install route is mine?"]) --> P{"is there a Python 3.10<br/>or newer on the machine?"}
+  P -->|"no"| B["the standalone binary,<br/>or the Docker image"]
+  P -->|"yes"| W{"installing it, or trying<br/>it once?"}
+  W -->|"trying it once"| U["uvx, no install at all"]
+  W -->|"installing it"| C{"working on contextlake<br/>itself?"}
+  C -->|"no"| PX["pipx, its own environment<br/>and still on your PATH"]
+  C -->|"yes"| SRC["a source checkout<br/>installed editable"]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a channel below</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+`pip` works everywhere `pipx` does and is the answer when you want contextlake inside an
+environment you already manage.
 
 ## Prerequisites
 
@@ -1571,6 +1591,26 @@ contextlake reads persistent settings from a config file, with CLI arguments ove
 contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-layer extras are in the
 [Knowledge layer](knowledge-layer.md) overview.)
 
+Finding the file is a walk up the directory tree, not a lookup in one fixed place. A worked example,
+run three directories below the config that ends up applying:
+
+```mermaid
+flowchart TD
+  CWD(["you run contextlake in<br/>~/work/billing/core/src"]) --> W["no .contextlake.ini here,<br/>so step up a directory"]
+  W --> HIT[("~/work/billing/core/.contextlake.ini,<br/>the nearest ancestor, and it wins")]
+  HIT --> GL[("~/.contextlake.ini, consulted for<br/>anything the local file leaves out")]
+  GL --> DEF["built-in defaults for the rest"]
+  DEF --> FLAG(["a CLI flag overrides<br/>every layer above"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+The walk stops at the filesystem root, and the *nearest* ancestor wins if projects are nested.
+
 ## Using configuration files
 
 Configuration is loaded in this precedence order:
@@ -1735,6 +1775,7 @@ flowchart TD
   <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
 The shape of the directory is measured before any of it is indexed, and the next section walks each
@@ -2358,6 +2399,7 @@ flowchart LR
   <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
 `--retriever fts` is the third path: keyword-only, so it reads no vectors and needs no floor of its own.
@@ -2485,6 +2527,7 @@ flowchart TD
   <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
 The council can be pointed at a different, usually stronger, backend than the one that drafted the page,
@@ -2678,6 +2721,7 @@ flowchart LR
 <div class="dg-key">
   <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
 `auto`, the default, is the one value that picks for you: it resolves to a local Ollama that already has
@@ -3589,11 +3633,12 @@ flowchart LR
   G[("the code graph")] --> A(["Fleet, Repo, Diagrams,<br/>Architecture, Blast radius, Path"])
   W[("the generated wiki")] --> B(["a repo's page, and its Wiki tab"])
   G --> C(["Chat: a free graph router,<br/>with opt-in LLM prose"])
-  P[("this machine and this process,<br/>not the graph")] --> D(["MCP console, Settings"])
+  P["this machine and this process,<br/>not the graph"] --> D(["MCP console, Settings"])
 ```
 
 <div class="dg-key">
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
 </div>
 
@@ -4261,7 +4306,9 @@ flowchart LR
 </div>
 
 Which seed you pick decides which flags apply at all: only a seeded view walks outward, so `--hops`,
-`--relation` and `--direction` have nothing to do on `--repo` or `--overview`.
+`--relation` and `--direction` have nothing to do on `--repo` or `--overview`. `sequencediagram`
+applies that rule in the other direction: it needs exactly one seed, so it is the one format `--repo`
+and `--overview` cannot produce.
 
 `contextlake kb graph --repo <repo>` renders one repo's internal code graph to a single self-contained HTML
 page: nodes coloured by kind and sized by degree, edges by relation, with an in-page layout switcher,
@@ -4794,7 +4841,7 @@ flowchart TD
   SH -->|"denormalized into"| SQ[("index.sqlite, the cross-repo<br/>index plus the node_fts table")]
   SH -->|"kb embed"| EM[("embeddings.sqlite,<br/>the semantic vectors")]
   SH -->|"archived per commit"| HIS[("history/, one snapshot<br/>per indexed commit")]
-  SQ --> RD(["kb query, kb impact,<br/>the MCP server"])
+  SQ --> RD(["kb query and the MCP server,<br/>keyword or semantic"])
   EM --> RD
 ```
 
@@ -5472,6 +5519,7 @@ flowchart TD
 <div class="dg-key">
   <i><b class="dg-sh-act"></b>a rounded box is something you run or do</i>
   <i><b class="dg-sh-step"></b>a rectangle is a section on this page</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
 ## The knowledge layer will not install
@@ -5576,6 +5624,47 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **Every documentation page that teaches a structure now draws it.** 20 diagrams across 16 pages,
+  where the set previously had none. Each shows the shape of its own subject rather than a generic
+  pipeline: the directory-shape decision `kb index` makes, the three isolated partitions that
+  `connect`, `ingest` and `enrich` each write, the gate a wiki page clears before it is published,
+  the ancestor walk config discovery performs, and the tiers on disk with the shards as the source
+  of truth and everything else derived from them. "contextlake, explained" carries five, since its
+  job is to say why the thing is built the way it is.
+
+  A ` ```mermaid ` fence in any page renders as a diagram, from a vendored copy so the site makes
+  no external request, loaded only on the pages that have one. The same fence renders natively on
+  github.com, so a diagram stays readable in the source tree and in a review.
+
+  Roles are carried by shape, not colour: a rectangle runs, a cylinder persists, a rounded box
+  starts or ends, a diamond decides. That is what WCAG 1.4.1 asks for, and it is also the only
+  thing that works, because mermaid renders a `classDef` as an inline `style` attribute carrying
+  `!important` and no stylesheet can override one, so a colour written into a page could never
+  follow the light or dark theme.
+
+### Fixed
+
+- **The published site served its images from an external host, and they failed behind a proxy.**
+  The markdown references them by absolute GitHub URL, which it must keep, since that is what makes
+  an image appear when the file is read on github.com or on PyPI. The built page inherited it, so
+  the site made one external request per image, and behind a TLS-inspecting corporate proxy every
+  one of them failed. 36 images on a site that otherwise depends on no external host. The built
+  pages now point at the site's own copies.
+
+- **Four retired pages were still being published.** `bootstrap`, `ownership`, `storage` and
+  `comparison` were removed from the documentation, but the generated site directory kept their old
+  HTML and the deploy copied it wholesale every time. They were unreachable from the navigation,
+  absent from the sitemap, and impossible to correct, since the source they were built from no
+  longer existed. The build now removes a page whose source has gone, and the deploy removes it
+  from the published branch.
+
+- **The copy button no longer lands on a diagram.** It attached to every code block in the prose,
+  and a rendered diagram is one, so it offered to copy a picture.
 
 ## [6.5.0] - 2026-08-07
 
