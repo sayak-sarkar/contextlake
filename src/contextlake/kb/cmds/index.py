@@ -213,6 +213,34 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
     return 0 if failed == 0 else 1
 
 
+def _nested_repo_dirs(src: Path) -> list[Path]:
+    """Every git working tree under ``src``, at any depth.
+
+    The bundling check used to ask ``src.glob("*/.git")``, which matches direct
+    children only. A fleet mirrored one level down --
+    ``<workspace>/repositories/<repo>/.git`` -- was therefore invisible, and the
+    warning reported "contains 1" where the truth was 20. The count is the whole
+    point of that message: "1" reads as an edge case worth skipping past, "20" is
+    a stop sign, so undercounting it by 95% muted the warning at exactly the
+    moment it needed to be loudest.
+
+    Shares :func:`~contextlake.kb.parse.iter_repo_dirs` with ``discover_repos``,
+    so this count and the set ``--workspace`` would actually walk cannot drift
+    apart, and applies the same vendored-clone exclusion for the same reason
+    (a pure path test, no git calls, so it stays affordable on a large fleet).
+    """
+    from ..parse import is_vendored_repo, iter_repo_dirs  # lazy: tree-sitter
+
+    return [p for p in iter_repo_dirs(src) if not is_vendored_repo(src, p)]
+
+
+def _depth_phrase(depths: set[int]) -> str:
+    """"at depth 2" / "at depths 1-3" -- how deep the nested repos sit, which is
+    the part that explains why a shallower look would have missed them."""
+    lo, hi = min(depths), max(depths)
+    return f"at depth {lo}" if lo == hi else f"at depths {lo}-{hi}"
+
+
 def _match_repo_id(store, needle: str):
     """The indexed repo ``needle`` names, or ``None``.
 
@@ -352,12 +380,15 @@ def cmd_index(args) -> int:
             from ..parse import index_repo_dir  # lazy: only needs tree-sitter when indexing code
 
             if not (src / ".git").exists():
-                nested = [p.parent.name for p in src.glob("*/.git")]
+                nested = _nested_repo_dirs(src)
                 if nested:
+                    names = sorted(p.name for p in nested)
+                    depths = {len(p.relative_to(src).parts) for p in nested}
                     log(style.warn(
                         f"{src.resolve()} isn't itself a git repo, but contains "
-                        f"{len(nested)} that are ({', '.join(sorted(nested)[:5])}"
-                        f"{', …' if len(nested) > 5 else ''}). Indexing it this way "
+                        f"{len(nested)} git working tree(s) {_depth_phrase(depths)} "
+                        f"({', '.join(names[:5])}"
+                        f"{', …' if len(names) > 5 else ''}). Indexing it this way "
                         "bundles everything underneath into ONE repo -- if this is a "
                         "workspace mirroring several repos, use "
                         "`contextlake kb index --workspace .` instead, which indexes each "

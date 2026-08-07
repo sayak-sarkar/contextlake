@@ -1184,6 +1184,38 @@ def _repo_commit_epoch(path: str) -> int:
     return int(out) if out.isdigit() else -1
 
 
+def iter_repo_dirs(root: str | Path) -> Iterator[Path]:
+    """Yield every git working-tree root at or under ``root``, at any depth.
+
+    The single definition of "there is a repository here", shared by
+    :func:`discover_repos` (which then resolves each one's canonical identity)
+    and by ``kb index``'s bundling check. Sharing it is the point: that check
+    tells a reader to use ``--workspace``, and a count that disagreed with what
+    ``--workspace`` then walked would be the same wrong-denominator defect the
+    message exists to prevent.
+
+    Bounded two ways. A repository is never descended into once found -- a
+    submodule is that repository's business, not a separate workspace member --
+    and ``_SKIP_DIRS`` is pruned everywhere else, which includes ``.git``, so
+    the walk never enters a git directory either.
+    """
+    base = Path(root)
+    for dirpath, dirnames, _filenames in os.walk(base):
+        here = Path(dirpath)
+        if (here / ".git").exists():
+            dirnames[:] = []  # a repo: never descend past it
+            yield here
+            continue
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+
+
+def is_vendored_repo(root: Path, repo_dir: Path) -> bool:
+    """Whether ``repo_dir`` sits under a segment marking a vendored upstream
+    clone (see :data:`_VENDORED_REPO_MARKERS`). A pure path test, no git calls,
+    so every consumer of :func:`iter_repo_dirs` can afford to apply it."""
+    return bool(_VENDORED_REPO_MARKERS & set(repo_dir.relative_to(root).parts))
+
+
 def discover_repos(root: str) -> list[tuple[str, str]]:
     """Find git repositories under ``root``: (repo_id, absolute_path) pairs.
 
@@ -1202,37 +1234,32 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
 
     base = Path(root)
     by_id: dict[str, str] = {}
-    for dirpath, dirnames, _filenames in os.walk(base):
-        here = Path(dirpath)
-        if (here / ".git").exists():
-            rel = here.relative_to(base).as_posix()
-            dirnames[:] = []  # a repo: never descend past it
-            if _VENDORED_REPO_MARKERS & set(here.relative_to(base).parts):
-                log(f"  skip vendored repo {rel}")
-                continue
-            if not is_own_gitdir(str(here)):
-                # Two genuinely different git-level situations collapse to the same
-                # skip decision here (see describe_gitdir_mismatch's docstring for
-                # why they're worth telling apart in the message): a dangling
-                # gitlink git can't resolve at all, or -- the dangerous one -- git
-                # resolving fine but to an ANCESTOR repo, which would silently
-                # misattribute this directory's identity and history if not skipped.
-                log(style.warn(f"  skip {rel}: {describe_gitdir_mismatch(str(here))}"))
-                continue
-            rid = resolve_repo_id(str(here))
-            prior = by_id.get(rid)
-            if prior is not None:
-                # same canonical repo checked out twice -- keep whichever HEAD is
-                # more recently committed, log the one dropped.
-                winner, loser = ((prior, str(here)) if _repo_commit_epoch(prior)
-                                  >= _repo_commit_epoch(str(here)) else (str(here), prior))
-                log(f"  skip duplicate checkout of {rid}: {loser} "
-                    f"(keeping the more recently committed {winner})")
-                by_id[rid] = winner
-                continue
-            by_id[rid] = str(here)
+    for here in iter_repo_dirs(base):
+        rel = here.relative_to(base).as_posix()
+        if is_vendored_repo(base, here):
+            log(f"  skip vendored repo {rel}")
             continue
-        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        if not is_own_gitdir(str(here)):
+            # Two genuinely different git-level situations collapse to the same
+            # skip decision here (see describe_gitdir_mismatch's docstring for
+            # why they're worth telling apart in the message): a dangling
+            # gitlink git can't resolve at all, or -- the dangerous one -- git
+            # resolving fine but to an ANCESTOR repo, which would silently
+            # misattribute this directory's identity and history if not skipped.
+            log(style.warn(f"  skip {rel}: {describe_gitdir_mismatch(str(here))}"))
+            continue
+        rid = resolve_repo_id(str(here))
+        prior = by_id.get(rid)
+        if prior is not None:
+            # same canonical repo checked out twice -- keep whichever HEAD is
+            # more recently committed, log the one dropped.
+            winner, loser = ((prior, str(here)) if _repo_commit_epoch(prior)
+                              >= _repo_commit_epoch(str(here)) else (str(here), prior))
+            log(f"  skip duplicate checkout of {rid}: {loser} "
+                f"(keeping the more recently committed {winner})")
+            by_id[rid] = winner
+            continue
+        by_id[rid] = str(here)
     return [(rid, path) for rid, path in by_id.items()]
 
 
