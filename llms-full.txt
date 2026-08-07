@@ -5177,6 +5177,164 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.0] - 2026-08-07
+
+Accessibility and security hardening. Six WCAG 2.2 AA failures fixed in the dashboard,
+each verified in a real browser rather than from source; the remaining findings from the
+security audit that 6.2.0 began; and `kb index` now sees nested repositories at any depth.
+
+### Added
+
+- **Dashboard: the fleet-wide Architecture "Overview" graph now has a real text/table
+  equivalent (WCAG 1.1.1 Non-text Content).** A single repo's Architecture view already
+  had one -- a genuine tabbed table of Dependencies/HTTP flow/Event flow, not a token
+  gesture -- but picking no repo (the Overview scope, showing every repo and their
+  cross-repo edges at once) rendered only an invitation to go pick one, with no
+  equivalent for the fleet-wide picture itself. A screen-reader user could reconstruct
+  it by visiting each repo's own tab in turn, but never got the sighted user's
+  one-screen overview. The same three edge categories are now available unfiltered by
+  repo -- sourced from the same underlying edge scan the graph itself uses, capped at
+  500 rows per category with a banner if truncated -- reachable the same way the
+  per-repo tables are (a "Skip past graph" link, then a tabbed, `columnheader`/
+  `rowheader`-marked table with a working provenance button per row). A static `--site`
+  export built before this shipped simply has no data for this table and falls back to
+  the original "pick a repo" invitation rather than an error.
+- **The dependency-vulnerability scan now covers the dependencies that actually ship.** The
+  CI audit installed every extra except `llm-local`, because that one compiles from source and
+  made the job flaky. The gap was larger than it looked: `llm-local` is what the published
+  `full`/`latest` container image and the release binaries are built with, and Dependabot could
+  not compensate the way the workflow claimed -- it reads declared dependencies from
+  `pyproject.toml` with no lockfile, so a transitive dependency of that extra was invisible to
+  it too. Both scanners reported clean, and both were right about the narrower thing they were
+  pointed at.
+
+  A second audit job now resolves the full shipped dependency set -- every `kb` extra plus
+  `llm-local` and `release` -- and audits that. It resolves without building anything, so the
+  original flakiness argument does not apply, and it refuses to report a clean result unless the
+  resolved set demonstrably contains the extras it is meant to cover: a resolution that
+  silently returned nothing used to look identical to a clean scan, and now fails loudly
+  instead. The `release` extra was added to the existing job for the same reason, since it
+  compiles nothing.
+
+  Consequence for anyone auditing this project: "is the dependency tree free of known
+  vulnerabilities" is now a question CI can answer for the profiles that ship, rather than only
+  for a subset of them. That check currently surfaces one advisory in a transitive dependency of
+  `llm-local` with no fixed upstream release; it is listed explicitly in the workflow as
+  known-unresolved with its disposition still open, so the job's pass/fail signal reports
+  *newly appearing* advisories.
+- **Security response headers on every local HTTP server.** `kb dashboard --serve`,
+  `kb graph --serve` and the served static site now send a `Content-Security-Policy`,
+  `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer` on every response.
+  The policy is stated once in the shared server base, so all three servers get it and a
+  future server inherits it.
+
+  This is defence in depth, not a fix on its own: the policy's job is to contain a page
+  that has already gone wrong. `default-src 'none'` with `connect-src 'self'` means a
+  script running on the dashboard's origin cannot send anything to another host -- no
+  `fetch`, no beacon, no form post -- which is the step that would turn a page-render into
+  data leaving your machine. `frame-src`/`frame-ancestors` stay `'self'` so the dashboard's
+  architecture panel keeps working, `img-src` allows the `data:` URIs the node glyphs use,
+  and the jsDelivr origin is permitted for scripts because `kb graph --serve --cdn` loads
+  cytoscape from there. Inline scripts and styles are allowed, since the pages inline their
+  own assets by design.
+
+### Fixed
+
+- **Dashboard: keyboard focus no longer jumps into main content on the very first page
+  load (WCAG 2.4.3 Focus Order).** The router moves focus to `#app` on a genuine route
+  change so a keyboard user navigating between lenses (Fleet, Architecture, Chat, ...)
+  lands where the new content starts -- a deliberate, correctly-motivated fix for a real
+  problem. But the guard that decides "is this a route change" compared the new route
+  against a `null` starting value, so the very *first* render (page load, before the
+  user has tabbed anywhere) always satisfied it too, and focus jumped to `#app` before
+  the skip link could ever be used -- inverting the effective tab order so the header
+  and primary navigation, which come first visually, came last in the sequence a
+  forward-tabbing user actually experiences. Reloading the dashboard now leaves focus at
+  the top of the document (`document.activeElement` is `<body>`, matching a fresh page
+  load), while an actual navigation still moves focus into the new panel exactly as
+  before, and an in-view re-render (a filter toggle, a trust-bar click -- same route, no
+  navigation) still does not steal focus. The skip link is no longer dead on arrival.
+- **Dashboard: repo health is no longer colour-only, and its dot now clears the
+  non-text contrast minimum (WCAG 1.4.1 Use of Color, 1.4.11 Non-Text Contrast).** The
+  Fleet page's Cards, List and Table layouts all rendered a repo's health as a small
+  solid dot with no text -- the only other information was a native `title` tooltip
+  (mouse-hover only, not available to touch or keyboard users). Every health chip now
+  also carries a visible short label ("Fresh"/"Stale"), matching the pattern the repo
+  page already used elsewhere ("HEAD moved", "no checkout") and the one the confidence
+  chips use correctly (fill + border-style + glyph + a visible label, never colour
+  alone). The dot's own fill colour was also measured at 2.40:1 against its row
+  background -- under the 3:1 a graphical state indicator needs even for a sighted
+  user who can perceive colour -- and is now a darker, more saturated teal that clears
+  3:1 against both themes' backgrounds (measured rendered: light 3.5-3.8:1, dark
+  3.4-3.5:1), not just estimated from the source values.
+- **Dashboard: the confidence trust-bar's clickable segments now meet the WCAG 2.5.8
+  minimum pointer-target size (24x24 CSS px), including on the narrow/zoomed viewports
+  where the only other way to reach the same filter is hidden.** The segments were
+  14px tall subdivisions of a continuous track with no gap between them -- under the
+  minimum, with no rescuing "equivalent control" or "enough surrounding space"
+  exception available once the header's confidence-filter buttons are hidden below
+  768px (the same breakpoint zooming to 200% on a typical laptop display reaches). The
+  track is now tall enough that each segment's real hit box -- not just its painted
+  colour -- clears 24px, verified by checking that `elementFromPoint` at the very top
+  and bottom of the reported box still resolves to the segment (a naive `min-height` on
+  a clipped ancestor can report the right number while the actual hit area stays
+  small); the bar's visual height is otherwise close to unchanged.
+- **Dashboard: primary navigation links keep their accessible name when the rail is
+  collapsed, the viewport narrows below 1280px, or the page is zoomed to 200% (WCAG 4.1.2
+  Name/Role/Value, 2.4.4 Link Purpose).** Each nav link paired a decorative,
+  `aria-hidden` icon with a visible text label, and nothing else -- correct as long as
+  the label stayed on screen. All three of those states hide the label with
+  `display:none` (a one-click "more screen space" toggle, a normal laptop-width
+  viewport, and a standard accessibility accommodation WCAG 1.4.4 exists to require
+  support for), which left the icon contributing nothing and the label removed from the
+  render tree entirely -- ten unlabelled links in the primary nav, indistinguishable
+  from each other to a screen reader. Each link now also carries an `aria-label`
+  mirroring its own visible text exactly (the same pattern already used correctly by the
+  neighboring "Collapse navigation" button), so an accessible name survives every one of
+  those states. Verified with real Chromium accessibility-tree snapshots at each
+  trigger, not by reading the CSS: all ten links are named at the desktop width, all ten
+  stay named immediately after collapsing the rail (no viewport change at all), at
+  320px, and at 640x450 (a standard way to simulate 200% zoom on a 1280px display).
+- **Dashboard: the Fleet table's rows have a visible keyboard-focus indicator again
+  (WCAG 2.4.7 Focus Visible, 1.4.11 Non-Text Contrast).** The row's `:hover` and
+  `:focus-visible` states shared one rule that also set `outline: none`, so a keyboard
+  user tabbing through the Table layout landed on a row that looked identical to its
+  neighbors -- measured at the time as roughly a 1.05:1 background-colour shift, far
+  under the 3:1 minimum a UI-component focus indicator needs, and with no border or
+  shadow standing in for the removed outline. Every other interactive surface in the
+  dashboard (`.cl-repocard`, `.cl-reporow`, and the global `:focus-visible` rule these
+  rows now fall back to) already keeps the ordinary 2px outline; this was the one
+  selector overriding it to nothing. Removing the override lets the global outline
+  apply, and its colour clears 3:1 against the row background in both themes (measured
+  via `getComputedStyle` on a really-tabbed-to row, not computed from source: ~4.6:1
+  light, ~4.9:1 dark).
+- **`kb index` now sees nested repositories at any depth, not just direct children.** The
+  bundling check asked `src.glob("*/.git")`, which matches one level down, so a fleet mirrored
+  under a subdirectory was invisible to it: on a real workspace it reported "contains 1" where
+  the truth was 20. That count is the whole point of the message -- "1" reads as an edge case
+  worth skipping past, "20" is a stop sign -- so undercounting by 95% muted the warning at
+  exactly the moment it needed to be loudest. The scan now shares `iter_repo_dirs` with
+  `discover_repos`, so the number it reports and the set `--workspace` would actually walk
+  cannot drift apart, and it names how deep the repositories sit.
+- **SECURITY: `[[sources]]` ingest could be pointed at a local file instead of a URL.** The
+  `web`, `api` and `graphql` sources passed their configured `url` straight to `urllib`, which
+  speaks `file:`, `ftp:` and `data:` as readily as `https:`. A `url = "file:///…"` therefore
+  read that file off disk and ingested its contents as a document -- afterwards visible in the
+  graph, the wiki, the dashboard and every connected MCP client.
+
+  This mattered because a source URL is not necessarily one you chose. contextlake discovers
+  `.contextlake.kb.toml` by walking up from the current directory, and it clones repositories
+  into your workspace itself, so a checkout could supply the config that supplies the URL --
+  no action needed beyond working in that directory. The existing workspace-trust gate covers
+  config keys that reach a subprocess and deliberately leaves `url` alone as "an HTTP
+  endpoint"; that is now true rather than assumed.
+
+  Ingest fetchers now open `http` and `https` only, and log a warning naming the refused
+  scheme rather than skipping quietly. Configured `http(s)` sources are unaffected. Requests
+  to private or link-local addresses are still permitted -- `SECURITY.md` now says so
+  explicitly. If you need the discovered-config tier gone entirely,
+  `CONTEXTLAKE_NO_LOCAL_CONFIG=1` still does that.
+
 ## [6.2.0] - 2026-08-07
 
 **Contains security fixes.** Two issues were reachable from ordinary content in a

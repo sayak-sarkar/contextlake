@@ -130,6 +130,19 @@
       }
       return fetchJSON("/api/repo/" + encPath(id) + "/rel");
     },
+    // Fleet-wide equivalent of rel() above -- backs the Architecture "Overview"
+    // scope's text/table equivalent of the whole-fleet graph (WCAG 1.1.1). A
+    // static export built before this existed has no `fleet_relationships`
+    // key; that's not an error, it's an older snapshot, so this rejects the
+    // same way rel() does for an unknown id and the caller degrades gracefully
+    // rather than showing an error state.
+    fleetRel: function () {
+      if (MODE === "static") {
+        return SNAP.fleet_relationships ? Promise.resolve(SNAP.fleet_relationships)
+          : Promise.reject(new Error("fleet relationships not in snapshot"));
+      }
+      return fetchJSON("/api/relationships");
+    },
     health: function () {
       return MODE === "static" ? Promise.resolve(SNAP.health) : fetchJSON("/api/health");
     },
@@ -528,6 +541,12 @@
     return (r.node_count || 0) + " nodes · " + (r.default_branch || "—") +
       (r.head_commit ? " · " + String(r.head_commit).slice(0, 8) : "");
   }
+  // Visible text for the health chip -- the chip used to be colour (well, a
+  // single ::before dot) only, with a hover-only `title` tooltip as its sole
+  // text channel (not reachable by touch or keyboard, not reliably exposed by
+  // every screen reader). Mirrors the pattern the confidence chips already use
+  // (glyph + visible label, never colour alone) -- WCAG 1.4.1.
+  function healthLabel(health) { return health === "stale" ? "Stale" : "Fresh"; }
   function repoCard(r) {
     var health = r.indexed_at ? "fresh" : "stale";
     var nm = splitRepo(r.id);
@@ -539,7 +558,7 @@
         kindIcon("repo"),
         h("span", { class: "cl-repocard__name" }, nm.base),
         h("span", { class: "cl-healthchip cl-healthchip--" + health,
-          title: "Index freshness: " + health })),
+          title: "Index freshness: " + health }, healthLabel(health))),
       nm.parent ? h("div", { class: "cl-repocard__path", title: r.id }, nm.parent) : null,
       h("div", { class: "cl-repocard__meta" },
         lettermarks(r.langs),
@@ -560,7 +579,7 @@
       h("span", { class: "cl-reporow__meta" }, (r.node_count || 0) + " nodes"),
       h("span", { class: "cl-reporow__meta" }, r.default_branch || "—"),
       lettermarks(r.langs),
-      h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }));
+      h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }, healthLabel(health)));
   }
   function repoTable(repos) {
     var tb = h("tbody");
@@ -575,7 +594,7 @@
         h("td", null, lettermarks(r.langs)),
         h("td", { class: "cl-num" }, String(r.node_count || 0)),
         h("td", null, r.default_branch || "—"),
-        h("td", null, h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }))));
+        h("td", null, h("span", { class: "cl-healthchip cl-healthchip--" + health, title: health }, healthLabel(health)))));
     });
     return h("table", { class: "cl-repotable" },
       h("thead", null, h("tr", null,
@@ -1068,19 +1087,27 @@
     var tablesWrap = h("div", { id: "arch-tables" });
     body.appendChild(tablesWrap);
     var target = id || ctx.repoId;
-    if (!target) {
-      tablesWrap.appendChild(stateBlock({ kind: "empty", title: "Pick a repo to see its relationship tables", msg: "The accessible equal of the graph above.", action: h("button", { class: "cl-btn cl-btn--primary", type: "button", onclick: function () { go("#/fleet"); } }, "Open fleet") }));
-      return;
-    }
     tablesWrap.appendChild(skeleton(2));
-    // dataFlow is a separate, live-only fetch (different row shape -- file->table,
-    // not a repo-pair edge -- see CL.data.dataFlow's comment); a static-mode/offline
-    // rejection degrades that ONE tab to "unavailable", not the whole tables section.
-    Promise.all([CL.data.rel(target), CL.data.dataFlow(target).catch(function () { return null; })]).then(function (results) {
+    // At fleet scope (no repo picked) there's no data_flow tab -- that relation
+    // is intra-repo only (see CL.data.dataFlow's comment) with no fleet-wide
+    // equivalent to show. dataFlow itself is a separate, live-only fetch
+    // (different row shape -- file->table, not a repo-pair edge); a
+    // static-mode/offline rejection degrades that ONE tab to "unavailable",
+    // not the whole tables section.
+    var relPromise = target ? CL.data.rel(target) : CL.data.fleetRel();
+    var dataFlowPromise = target ? CL.data.dataFlow(target).catch(function () { return null; }) : Promise.resolve(null);
+    Promise.all([relPromise, dataFlowPromise]).then(function (results) {
       var rel = results[0], dataFlow = results[1];
       var dataFlowRows = dataFlow ? dataFlow.rows : null;
       clear(tablesWrap);
-      var sub = ["dependencies", "http_flow", "event_flow", "data_flow"];
+      // Fleet-wide relationships are the text/table equivalent of the whole-fleet
+      // Overview graph (WCAG 1.1.1) -- same three repo-pair categories as a single
+      // repo's tables, just unfiltered by repo. No data_flow tab at this scope.
+      if (!target && rel.truncated) {
+        tablesWrap.appendChild(h("div", { class: "cl-truncbanner" },
+          "Showing the first 500 of each relationship type -- narrow to a single repo to see the rest."));
+      }
+      var sub = target ? ["dependencies", "http_flow", "event_flow", "data_flow"] : ["dependencies", "http_flow", "event_flow"];
       var names = { dependencies: "Dependencies", http_flow: "HTTP flow", event_flow: "Event flow", data_flow: "Data flow" };
       var cur = "dependencies";
       var strip = h("div", { class: "cl-tabs", role: "tablist" });
@@ -1130,7 +1157,20 @@
       tablesWrap.appendChild(strip); tablesWrap.appendChild(pane); paint(cur);
     }).catch(function () {
       clear(tablesWrap);
-      tablesWrap.appendChild(stateBlock({ kind: "error", title: "Couldn't load relationships" }));
+      if (target) {
+        tablesWrap.appendChild(stateBlock({ kind: "error", title: "Couldn't load relationships" }));
+      } else {
+        // Most likely an older static export built before fleet-wide relationships
+        // existed (SNAP has no `fleet_relationships` key) -- that's a missing
+        // feature in an old snapshot, not a load error, so this degrades to the
+        // original invitation rather than an alarming error state. Picking a repo
+        // still gives full parity via the per-repo tables above.
+        tablesWrap.appendChild(stateBlock({
+          kind: "empty", title: "Fleet-wide relationships aren't available in this snapshot",
+          msg: "Pick a repo to see its own relationship tables instead.",
+          action: h("button", { class: "cl-btn cl-btn--primary", type: "button", onclick: function () { go("#/fleet"); } }, "Open fleet")
+        }));
+      }
     });
   }
   function graphSrc(scope, id) {
@@ -1800,7 +1840,13 @@
   // ground-truth filter, trust-bar segments and blast toggles all call
   // CL.router.render() with an unchanged hash, and stealing focus there breaks
   // WCAG 2.4.3 (focus order). Tab switches change the hash, so they do refocus.
+  // `hasRenderedOnce` guards the OTHER end of the same rule: `lastRouteSig`
+  // starts null, so the very first render's sig always differs from it and used
+  // to fire focus() on initial page load too -- stealing focus from the top of
+  // the document (and the skip link) before the user has tabbed anywhere. Only
+  // a render that follows an already-rendered route counts as a "navigation".
   var lastRouteSig = null;
+  var hasRenderedOnce = false;
   function go(hash) { if (location.hash === hash) CL.router.render(); else location.hash = hash; }
   function parseHash() {
     var raw = location.hash.replace(/^#/, "") || "/fleet";
@@ -1822,7 +1868,11 @@
         a.setAttribute("aria-current", a.dataset.lens === lens ? "page" : "false");
       });
       var sig = lens + "|" + r.rest + "|" + JSON.stringify(r.query);
-      if (sig !== lastRouteSig) { lastRouteSig = sig; $("#app").focus({ preventScroll: false }); }
+      if (sig !== lastRouteSig) {
+        lastRouteSig = sig;
+        if (hasRenderedOnce) $("#app").focus({ preventScroll: false });
+        hasRenderedOnce = true;
+      }
       if (lens === "fleet") viewFleet();
       else if (lens === "repo") viewRepo(r.rest || ctx.repoId, r.query.tab);
       else if (lens === "arch") viewArch(r.rest || null);

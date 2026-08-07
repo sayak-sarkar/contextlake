@@ -1375,6 +1375,101 @@
       "event_flow": []
     }
   },
+  "fleet_relationships": {
+    "dependencies": [
+      {
+        "src": "acme/auth-service",
+        "dst": "acme/shared-lib",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/catalog-api",
+        "dst": "acme/auth-service",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/catalog-api",
+        "dst": "acme/notifications",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/catalog-api",
+        "dst": "acme/payments-api",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/catalog-api",
+        "dst": "acme/shared-lib",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/notifications",
+        "dst": "acme/shared-lib",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/payments-api",
+        "dst": "acme/auth-service",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/payments-api",
+        "dst": "acme/notifications",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/web-ui",
+        "dst": "acme/auth-service",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/web-ui",
+        "dst": "acme/catalog-api",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      },
+      {
+        "src": "acme/web-ui",
+        "dst": "acme/shared-lib",
+        "relation": "depends_on",
+        "confidence": "INFERRED",
+        "weight": 1,
+        "context": null
+      }
+    ],
+    "http_flow": [],
+    "event_flow": [],
+    "truncated": false
+  },
   "health": {
     "repos": 7,
     "checked": 36,
