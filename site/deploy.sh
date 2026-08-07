@@ -36,6 +36,32 @@ cp "$HERE"/*.html "$HERE"/docs.css "$HERE"/tokens.css "$HERE"/cmdk.css "$HERE"/c
 cp "$HERE"/*.png "$HERE"/*.jpg "$HERE"/*.webp "$HERE"/*.svg "$WT"/ 2>/dev/null || true
 cp -r "$HERE"/fonts "$WT"/
 cp -r "$HERE"/demo "$WT"/
+# The docs/img tree, and the vendored mermaid the diagram pages load. Both are
+# subdirectory/extra assets that the flat globs above do not reach, and both fail
+# silently: a missing img/ shows broken pictures, a missing mermaid.min.js shows
+# raw diagram source. Neither is visible in a local build.
+rm -rf "$WT"/img
+cp -r "$HERE"/img "$WT"/
+cp "$HERE"/mermaid.min.js "$WT"/
+
+# Remove pages that no longer exist in the built site. `reset --hard` restores the
+# previous deploy and the copies above only add, so a retired page stayed live
+# forever: bootstrap, ownership, storage and comparison were all still served with
+# no source behind them. Only generated doc pages are considered, and only when the
+# build produced a healthy set, so a broken build cannot empty the site.
+BUILT="$(ls "$HERE"/*.html | wc -l)"
+if [ "$BUILT" -lt 10 ]; then
+  echo "==> refusing to prune: only $BUILT built pages, that looks like a failed build" >&2
+else
+  for f in "$WT"/*.html; do
+    base="$(basename "$f")"
+    case "$base" in index.html|404.html|graph-embed.html) continue ;; esac
+    if [ ! -f "$HERE/$base" ]; then
+      echo "==> removing retired page from gh-pages: $base"
+      git -C "$WT" rm -q --ignore-unmatch "$base" || rm -f "$f"
+    fi
+  done
+fi
 
 # cache-bust the linked assets: GitHub Pages serves static files with a 4h
 # max-age, and we reuse filenames (docs.css, fonts.css, graph-embed.html), so a

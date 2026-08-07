@@ -25,6 +25,28 @@ SHARED_IMG = ["icon-16.png", "icon-32.png", "icon-48.png", "icon-64.png",
 SHARED_BRANDING = ["mark.png", "pebble-doc.png"]
 
 
+def prune_orphan_pages():
+    """Delete built pages whose source is no longer in PAGES.
+
+    `site/` is generated and gitignored, so a page retired from PAGES leaves its old
+    HTML sitting there, and `deploy.sh` copies the directory wholesale. Four pages
+    (`bootstrap`, `ownership`, `storage`, `comparison`) were live on the published site
+    with no source file behind them: unreachable from the nav, absent from the sitemap,
+    and impossible to correct.
+
+    Only files carrying the generated-docs marker are considered, so a hand-authored
+    page cannot be swept up by a typo in PAGES.
+    """
+    keep = {out for out, *_ in PAGES} | {"404.html", "index.html"}
+    for f in sorted(OUT.glob("*.html")):
+        if f.name in keep:
+            continue
+        if 'class="prose"' not in f.read_text(encoding="utf-8", errors="replace"):
+            continue  # not one of ours
+        f.unlink()
+        print(f"  pruned orphan page: {f.name} (no source in PAGES)")
+
+
 def sync_assets():
     import shutil
     for f in SHARED_IMG:
@@ -32,6 +54,13 @@ def sync_assets():
     for f in SHARED_BRANDING:
         shutil.copy(REPO / "docs/branding" / f, OUT / f)
     shutil.copy(REPO / "docs/branding" / "pebble-peek-web.png", OUT / "pebble-peek.png")
+    # The whole docs/img tree, structure preserved: `localise_images` rewrites the
+    # markdown's absolute GitHub URLs to `img/<subpath>`, and a flat copy would let
+    # cli/x.png and dashboard/x.png collide.
+    img_out = OUT / "img"
+    if img_out.exists():
+        shutil.rmtree(img_out)
+    shutil.copytree(REPO / "docs/img", img_out)
     # Reuse the copy the dashboard already vendors rather than adding a second one:
     # one file, one version, and the docs cannot drift from the product.
     shutil.copy(REPO / "src/contextlake/kb/dashboard/static/mermaid.min.js",
@@ -367,6 +396,36 @@ def linkify(out: str) -> str:
     if out == "index.html":
         return "./"
     return out[:-5] if out.endswith(".html") else out
+
+
+_RAW_IMG = re.compile(
+    r'src="https://raw\.githubusercontent\.com/[^/]+/[^/]+/main/docs/img/([^"]+)"')
+# docs/branding/ is synced flat to the site root (see SHARED_BRANDING), and
+# pebble-peek-web.png is renamed on the way, so these map by name rather than subpath.
+_RAW_BRANDING = re.compile(
+    r'src="https://raw\.githubusercontent\.com/[^/]+/[^/]+/main/docs/branding/([^"]+)"')
+_BRANDING_RENAMES = {"pebble-peek-web.png": "pebble-peek.png"}
+
+
+def localise_images(html: str) -> str:
+    """Point every docs/img reference at the site's own copy.
+
+    The markdown carries the absolute raw.githubusercontent URL on purpose: that is
+    what makes an image render when someone reads the `.md` on github.com or on PyPI,
+    where a repo-relative path resolves to nothing. On the SITE, though, the same URL
+    is an external request per image, to a host the reader may not be able to reach.
+    Behind a TLS-inspecting corporate proxy every one of them fails, which is how the
+    published site ended up with broken images while every locally-served copy was
+    fine.
+
+    So the source stays absolute and the built page is rewritten to `img/<subpath>`,
+    with `sync_assets` copying the tree in beside it. The site then depends on no
+    external host for its own pictures, which is also what it already claims about
+    the graph embed.
+    """
+    html = _RAW_IMG.sub(r'src="img/\1"', html)
+    return _RAW_BRANDING.sub(
+        lambda m: 'src="%s"' % _BRANDING_RENAMES.get(m.group(1), m.group(1)), html)
 
 
 def rewrite_links(html: str) -> str:
@@ -953,7 +1012,7 @@ def main():
         out, src = meta[0], meta[1]
         md.reset()
         md_text = convert_github_alerts(de_emdash((REPO / src).read_text(encoding="utf-8")))
-        html = theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text)))
+        html = localise_images(theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text))))
         html = strip_readme_frontmatter(html) if out == "docs.html" else strip_first_h1(html)
         # the rendered page marks outbound links (↗ + new tab); the search index is built from
         # `html` (pre-mark) so the ↗ glyph never leaks into snippets.
@@ -970,6 +1029,7 @@ def main():
     print("  -> 404.html")
     (OUT / "search-index.json").write_text(json.dumps(search, ensure_ascii=False), encoding="utf-8")
     print("  -> search-index.json")
+    prune_orphan_pages()
     gen_sitemap()
     gen_llms()
     gen_llms_full()
