@@ -8,6 +8,25 @@ data lives in the package (your sites, keys, and rules go in a private config fi
 
 This page orients you; each stage below has its own focused page.
 
+```mermaid
+flowchart LR
+  IDX["kb index"] --> CON["kb connect"] --> EMB["kb embed"] --> WIK["kb wiki"] --> SRV(["kb serve"])
+  IDX -.->|"parses source"| G[("the graph")]
+  CON -.->|"links tickets,<br/>designs, threads"| G
+  EMB -.->|"builds vectors"| V[("vectors")]
+  WIK -.->|"writes cited prose"| W[("wiki pages")]
+  SRV --> AG(["your AI tools,<br/>answering with citations"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Each stage adds to the same store, and you can stop after any of them. Run the whole chain with one
+command using [`bootstrap`](keep-fresh.md), or work through it stage by stage below.
+
 ## Install the extra
 
 The knowledge layer needs the `[kb]` extra (Python 3.10 or newer), or `[kb-full]` if you

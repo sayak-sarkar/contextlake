@@ -32,6 +32,10 @@ def sync_assets():
     for f in SHARED_BRANDING:
         shutil.copy(REPO / "docs/branding" / f, OUT / f)
     shutil.copy(REPO / "docs/branding" / "pebble-peek-web.png", OUT / "pebble-peek.png")
+    # Reuse the copy the dashboard already vendors rather than adding a second one:
+    # one file, one version, and the docs cannot drift from the product.
+    shutil.copy(REPO / "src/contextlake/kb/dashboard/static/mermaid.min.js",
+                OUT / "mermaid.min.js")
     print(f"  synced {len(SHARED_IMG) + len(SHARED_BRANDING) + 1} shared assets from docs/")
 
 # out, src, nav title, hero title, layer eyebrow, subtitle, pebble accent, next-steps
@@ -510,7 +514,7 @@ THEME_JS = (
 # copy-to-clipboard on code blocks (progressive enhancement: no Clipboard API -> no button)
 COPY_JS = r"""<script>(function(){if(!navigator.clipboard||!navigator.clipboard.writeText)return;
 var C='<svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
-document.querySelectorAll(".prose pre").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach(function(pre){if(pre.querySelector(".copy-btn"))return;
 var code=pre.querySelector("code")||pre;pre.classList.add("has-copy");
 var b=document.createElement("button");b.type="button";b.className="copy-btn";b.setAttribute("aria-label","Copy to clipboard");b.innerHTML=C;var t=null;
 b.addEventListener("click",function(){navigator.clipboard.writeText(code.innerText.replace(/\n+$/,"")).then(function(){b.classList.add("copied");b.setAttribute("aria-label","Copied");clearTimeout(t);t=setTimeout(function(){b.classList.remove("copied");b.setAttribute("aria-label","Copy to clipboard");},1600);});});
@@ -617,8 +621,72 @@ def docs_jsonld(nav_title: str, subtitle: str, url: str, moddate) -> str:
     return _ld_script({"@context": "https://schema.org", "@graph": [article, breadcrumb]})
 
 
+def _mermaid_fence(source, language, css_class, options, md, **kw) -> str:
+    """Render a ```mermaid fence as <pre class="mermaid"> for the browser to draw.
+
+    The source is emitted verbatim rather than escaped: mermaid parses its own
+    text, and escaping `-->` breaks every edge. That is safe here because every
+    page is built from a `.md` file in this repository, so the fence content is
+    ours. It would NOT be safe for user-supplied markdown.
+
+    github.com renders the same fence natively, so a diagram stays readable in the
+    source tree and in a pull request, which is the reason to author diagrams as
+    fences instead of committing SVGs.
+    """
+    return f'<pre class="mermaid">{source}</pre>'
+
+
+MERMAID_JS = (
+    '<script src="mermaid.min.js"></script>\n'
+    '<script>(function(){\n'
+    '  if(!window.mermaid) return;\n'
+    '  // Read the real tokens from tokens.css and docs.css so a diagram follows the\n'
+    '  // theme toggle and a palette change for free. Every name below is one that\n'
+    '  // actually exists: an absent custom property returns "" and would silently\n'
+    '  // fall back, which is how a diagram ends up off-brand and nobody notices.\n'
+    '  var read = function(){\n'
+    '    var cs = getComputedStyle(document.documentElement);\n'
+    '    var v = function(n, d){ return (cs.getPropertyValue(n) || d).trim(); };\n'
+    '    return {\n'
+    '      background:         v("--surface", "#ffffff"),\n'
+    '      primaryColor:       v("--dg-step", "#dceaef"),\n'
+    '      primaryBorderColor: v("--dg-step-line", "#137A8B"),\n'
+    '      primaryTextColor:   v("--ink", "#0E2A33"),\n'
+    '      secondaryColor:     v("--dg-store", "#f3ead5"),\n'
+    '      tertiaryColor:      v("--dg-ext", "#e9f1f2"),\n'
+    '      lineColor:          v("--muted", "#41606a"),\n'
+    '      textColor:          v("--ink", "#0E2A33"),\n'
+    '      fontFamily:         v("--ff", "system-ui, sans-serif"),\n'
+    '      fontSize:           "14px"\n'
+    '    };\n'
+    '  };\n'
+    '  mermaid.initialize({ startOnLoad: true, securityLevel: "strict",\n'
+    '                       maxEdges: 2000, theme: "base", themeVariables: read() });\n'
+    '  // Re-draw on a theme change. mermaid replaces the <pre>\'s content with SVG,\n'
+    '  // so the source has to be kept to redraw from; without this the diagrams stay\n'
+    '  // in the old palette until a reload.\n'
+    '  document.querySelectorAll("pre.mermaid").forEach(function(el){\n'
+    '    el.dataset.src = el.textContent;\n'
+    '  });\n'
+    '  var redraw = function(){\n'
+    '    document.querySelectorAll("pre.mermaid").forEach(function(el){\n'
+    '      el.removeAttribute("data-processed");\n'
+    '      el.textContent = el.dataset.src || el.textContent;\n'
+    '    });\n'
+    '    mermaid.initialize({ startOnLoad: false, securityLevel: "strict",\n'
+    '                         maxEdges: 2000, theme: "base", themeVariables: read() });\n'
+    '    mermaid.run({ querySelector: "pre.mermaid" });\n'
+    '  };\n'
+    '  new MutationObserver(redraw).observe(document.documentElement,\n'
+    '    { attributes: true, attributeFilter: ["data-theme"] });\n'
+    '})();</script>'
+)
+
+
 def shell(meta, body, toc_html) -> str:
     out, src, nav_title, h_title, eyebrow, subtitle, pebble, hand_links = meta
+    # 3.5 MB of vendored mermaid: only the pages that draw something pay for it.
+    MERMAID = MERMAID_JS if 'class="mermaid"' in body else ""
     links = hand_links  # curated per page (see PAGES); validated at import against _VALID_OUT
     url = f"{BASE}{linkify(out)}"
     jsonld = docs_jsonld(nav_title, subtitle, url, git_date(src))
@@ -684,6 +752,7 @@ def shell(meta, body, toc_html) -> str:
 </div></footer>
 {THEME_JS}
 {COPY_JS}
+{MERMAID}
 {TAB_JS}
 {SIDE_JS}
 <script defer src="cmdk.js"></script>
@@ -871,6 +940,9 @@ def main():
         extensions=["tables", "pymdownx.superfences", "codehilite", "toc", "sane_lists",
                     "md_in_html", "admonition"],
         extension_configs={
+            "pymdownx.superfences": {"custom_fences": [
+                {"name": "mermaid", "class": "mermaid", "format": _mermaid_fence},
+            ]},
             "codehilite": {"guess_lang": False},
             "toc": {"permalink": "#", "permalink_class": "anchor",
                     "permalink_title": "Link to this section", "toc_depth": "2-3"},
