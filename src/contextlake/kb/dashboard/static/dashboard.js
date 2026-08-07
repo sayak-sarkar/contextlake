@@ -61,12 +61,17 @@
   function append(parent, c) {
     if (c == null || c === false) return;
     if (Array.isArray(c)) { c.forEach(function (x) { append(parent, x); }); return; }
-    // Append a real DOM node as one; anything else becomes text. Duck-typed on nodeType
-    // rather than `instanceof Node` so a node from another realm still counts. The old
-    // `typeof c === "object"` handed a plain object straight to appendChild, which throws a
-    // DOMException whose message embeds the value -- and that message is rendered back into
-    // the error state block, which is the exception-to-render round trip CodeQL traces here.
-    parent.appendChild(c && c.nodeType ? c : document.createTextNode(String(c)));
+    // Append a real DOM node as one; anything else becomes text. `instanceof Node` rather
+    // than a `c.nodeType` duck-type on purpose: only the former proves the type, both to a
+    // reader and to static analysis, and nothing here ever receives a node from another
+    // realm -- the dashboard renders into its own document, and the graph is a separate page
+    // with its own script.
+    //
+    // The original `typeof c === "object"` handed a plain object straight to appendChild,
+    // which throws a DOMException whose message embeds the value it refused -- and that
+    // message is rendered back into the error state block, which is the exception-to-render
+    // round trip CodeQL traces through here.
+    parent.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
   }
   function $(sel, root) { return (root || document).querySelector(sel); }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }

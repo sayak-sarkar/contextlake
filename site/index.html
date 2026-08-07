@@ -1166,11 +1166,18 @@
    (self-contained, offline iframe) once near the viewport. No-JS keeps the image; on load failure
    we restore it. The iframe opens in the current theme and follows theme toggles via postMessage. */
 (function(){var img=document.querySelector('.shot[data-embed]');if(!img||!('IntersectionObserver' in window))return;
-  // Both halves of the src are read back out of the DOM, so both are constrained to what
-  // they are allowed to be rather than trusted: the theme to one of two literals, the path
-  // to a same-origin relative one. Neither is attacker-reachable on a static page, but an
-  // iframe src is a scheme sink, and a value narrowed at the point of use cannot become one.
-  var embed=img.getAttribute('data-embed')||'';if(!/^[\w][\w./-]*$/.test(embed))return;
+  // Both halves of the src are read back out of the DOM, so neither is trusted: the theme is
+  // narrowed to one of two literals below, and the path must RESOLVE to a same-origin page.
+  // Resolving through `new URL` rather than pattern-matching the string is what makes the
+  // scheme check real -- it is the same shape as the dashboard's own safeHref(), and a regex
+  // over the raw attribute is not, which is why this replaced one. `file:` is allowed
+  // deliberately so the built site still shows the live embed when opened from disk; its
+  // origin check still holds there (both sides are "null"), and javascript:/data: cannot pass.
+  var raw=img.getAttribute('data-embed')||'',embed=null;
+  try{var u=new URL(raw,location.href);
+      if((u.protocol==='http:'||u.protocol==='https:'||u.protocol==='file:')
+         &&u.origin===location.origin)embed=u.href;}catch(e){}
+  if(!embed)return;
   function theme(){var e=document.documentElement.getAttribute('data-theme');
     if(e==='dark'||e==='light')return e;
     return matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}

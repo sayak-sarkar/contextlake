@@ -82,14 +82,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The dashboard's `append` sent anything of `typeof "object"` straight to `appendChild`. A plain
   object is not a node, so that throws, and the browser's exception message embeds the value it
   refused. The dashboard then renders the message into its error block, so a bad argument came
-  back out as page content. It now appends only real nodes, duck-typed on `nodeType` so a node
-  from another realm still counts, and anything else becomes text.
+  back out as page content. It now appends only what is provably a node, tested with
+  `instanceof Node`, and anything else becomes text.
 
 - **The landing page built an `iframe` `src` out of two values it read back from the DOM.** The
   theme came from `data-theme`, the path from `data-embed`, and both went into `src` as they were
   found. Neither is attacker-reachable on a static page, but an `iframe` `src` is where a `javascript:`
   URL would land, and a value narrowed where it is used cannot become one. The theme is now one of
-  two literals and the path must be same-origin and relative.
+  two literals, and the path has to *resolve* to a same-origin page: it goes through `new URL` and
+  its scheme is checked, which is what makes the check real, rather than being pattern-matched as a
+  string, which is not. Verified in a browser that `javascript:`, `data:` and an off-origin URL are
+  all refused while the embed still loads.
 
 - **`kb wiki --namespaces` crashed on a FIPS-enabled host.** The cluster freshness check hashed its
   member commits with SHA-1, and a FIPS build of OpenSSL refuses SHA-1 outright rather than
