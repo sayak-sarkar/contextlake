@@ -125,6 +125,35 @@ def _human(n: int) -> str:
     return f"{v:.1f} GB"
 
 
+def _prune_sentinels(store) -> int:
+    """Sweep sentinel nodes the removal just left unreferenced. Returns how many.
+
+    The sentinels (``(shared)``, ``(packages)``, ``(external)``, ``(system)``) hold
+    the nodes no single repo owns, so nothing above removes them: an imported
+    package or an HTTP route can be produced or consumed by many repos at once, the
+    store dedupes it to one row, and per-repo attribution lives on its *edges*
+    rather than on the node's own ``repo`` (see ``kb/model.py``). Measured on a real
+    store, forgetting the only repo in it left 734 such nodes behind, still listed,
+    still searchable, describing packages and routes belonging to nothing.
+
+    Deleting them per-repo would be the worse bug, and exactly the one the stable
+    sentinel exists to prevent: it would take the packages the *surviving* repos
+    still import. So the rule is reachability, not ownership. A sentinel node is
+    garbage once no edge anywhere references it, which is precisely what
+    ``prune_orphan_nodes`` already tests, and forgetting a repo deletes that repo's
+    edges, so the nodes only it referenced fall out of the graph by themselves.
+
+    Store-wide, and deliberately so: it can also clear sentinel litter that predates
+    this repo. ``connect`` sweeps ``(external)`` the same way for the same reason.
+    Must run after the rows are gone (nothing is orphaned before that) and before
+    the VACUUM (so the pages it frees are handed back too).
+    """
+    from ..model import is_sentinel_repo
+
+    return sum(store.prune_orphan_nodes(part)
+               for part in store.list_partitions() if is_sentinel_repo(part))
+
+
 def _compact(store, store_dir) -> int:
     """VACUUM the index, returning the bytes handed back to the filesystem.
 
@@ -196,6 +225,7 @@ def cmd_forget(args) -> int:
             # Say so rather than print a number: the index's reclaimable space is its
             # freelist AFTER this delete, which cannot be known without doing it. A
             # confident under-estimate here would read as the whole answer.
+            log("  shared nodes nothing references any more are pruned afterwards")
             log("  the index is compacted afterwards, reclaiming more")
             log(f"{style.ok()} Dry run: nothing removed.")
             return 0
@@ -225,10 +255,15 @@ def cmd_forget(args) -> int:
                 # This process may hold the shard in its read cache; a later read in
                 # the same run must not resurrect what was just deleted.
                 _cache_evict(str(p))
+        pruned = _prune_sentinels(store)
         reclaim += _compact(store, store_dir)
     finally:
         store.close()
 
+    if pruned:
+        # Its own line, never folded into `nodes`: that figure is what this repo
+        # owned, and a shared node never belonged to it.
+        log(f"  pruned {pruned} shared node(s) nothing references any more")
     log(f"{style.ok()} Forgot {repo_id}: {nodes} node(s), {edges} edge(s), "
         f"{vectors} vector(s), {len(pages)} wiki page(s), {_human(reclaim)} reclaimed.")
     log("  If that was a mistake, re-index it -- `kb index --workspace DIR` "

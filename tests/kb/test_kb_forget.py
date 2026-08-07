@@ -236,3 +236,128 @@ def test_dry_run_does_not_compact(store_dir):
             "dry run compacted the index")
     finally:
         c.close()
+
+
+# --- the shared/sentinel tier ----------------------------------------------
+#
+# The gap these pin. `(shared)`, `(packages)`, `(external)` and `(system)` hold the
+# nodes no single repo owns, and `delete_repo`/`clear_repo` match a literal repo id,
+# so nothing above them removes a single sentinel node. Measured on a real store,
+# forgetting the only repo left 734 behind: 536 packages, 198 modules, 7 endpoints,
+# 3 topics, all still listed and still searchable, describing imports and routes
+# belonging to nothing.
+#
+# The fix has to be narrow. Deleting sentinel nodes per-repo is the *worse* bug and
+# exactly the one the stable sentinel was introduced to prevent -- it would take the
+# packages a surviving repo still imports. A sentinel node is garbage only once
+# nothing references it, so the rule is reachability, not ownership.
+
+
+def _seed_sharing(db, repo_id: str, shared: dict[str, str]) -> None:
+    """Seed a repo whose code links to sentinel-owned nodes.
+
+    ``shared`` maps a sentinel node id to the sentinel repo that owns it. The node
+    is written with ``repo=<sentinel>`` while the *edge* to it is written under
+    ``repo_id``: that split is the whole model. The store dedupes the node to one
+    row (``ON CONFLICT(node_id)``), so seeding the same id from two repos leaves one
+    node with two inbound edges, which is the shape that makes forgetting one of
+    them a real question rather than a bookkeeping one.
+    """
+    store = SqliteStore(db)
+    check_schema(store)
+    store.upsert_repo(Repo(id=repo_id, path=f"/tmp/{repo_id}"))
+    own = f"{repo_id}:file"
+    store.upsert_nodes(repo_id, [Node(id=own, repo=repo_id, kind="file",
+                                      name="a.py", file="a.py")])
+    for node_id, owner in shared.items():
+        store.upsert_nodes(repo_id, [Node(id=node_id, repo=owner, kind="package",
+                                          name=node_id)])
+        store.upsert_edges(repo_id, [Edge(src=own, dst=node_id, relation="imports",
+                                          confidence=Confidence.EXTRACTED,
+                                          provenance=_PROV)])
+    # The setup assertion, not a redundant one: `upsert_nodes` takes a repo_id AND
+    # the nodes carry their own `repo`. If the parameter won, these rows would sit
+    # under `repo_id`, `clear_repo` would take them, and every test below would pass
+    # green while testing nothing.
+    for node_id, owner in shared.items():
+        assert store.get_node(node_id).repo == owner
+    store.close()
+
+
+def test_forgetting_the_last_repo_leaves_no_orphaned_shared_nodes(store_dir):
+    """Nothing else references them once the only repo is gone, so a store reporting
+    itself empty must not still hold 536 packages and 198 modules."""
+    db = store_dir / "index.sqlite"
+    _seed_sharing(db, "team/app", {"pkg:npm:left-pad": "(packages)",
+                                   "mod:py:os.path": "(shared)"})
+
+    assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
+
+    store = SqliteStore(db)
+    try:
+        assert store.repo_counts("(packages)") == (0, 0), "orphaned package survived"
+        assert store.repo_counts("(shared)") == (0, 0), "orphaned module survived"
+        assert store.list_partitions() == []
+    finally:
+        store.close()
+
+
+def test_forgetting_one_repo_keeps_shared_nodes_the_other_still_imports(store_dir):
+    """The test that matters. Per-repo attribution for a shared node lives on its
+    edges, never on the node's own `repo`, so a sweep that goes by ownership would
+    delete a package `team/other` still imports -- reintroducing precisely the bug
+    the stable sentinel was introduced to prevent. Both halves are asserted here on
+    purpose: `shared-by-both` catches a sweep that is too wide, `only-app` catches a
+    fix that never sweeps at all."""
+    db = store_dir / "index.sqlite"
+    _seed_sharing(db, "team/app", {"pkg:npm:shared-by-both": "(packages)",
+                                   "pkg:npm:only-app": "(packages)"})
+    _seed_sharing(db, "team/other", {"pkg:npm:shared-by-both": "(packages)"})
+
+    store = SqliteStore(db)
+    assert store.repo_counts("(packages)") == (2, 0)
+    store.close()
+
+    assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
+
+    store = SqliteStore(db)
+    try:
+        assert store.get_node("pkg:npm:shared-by-both") is not None, (
+            "deleted a package the surviving repo still imports")
+        assert store.get_node("pkg:npm:only-app") is None, (
+            "kept a package nothing references any more")
+        # The surviving repo's own edge to it has to be intact too: a node that
+        # survives with no edges is unreachable, which is the same litter.
+        assert len(store.neighbors("pkg:npm:shared-by-both")) == 1
+    finally:
+        store.close()
+
+
+def test_dry_run_prunes_no_shared_nodes(store_dir):
+    """The prune is store-wide, so a dry run that ran it would damage repos the user
+    never named -- the worst failure mode this new path has."""
+    db = store_dir / "index.sqlite"
+    _seed_sharing(db, "team/app", {"pkg:npm:only-app": "(packages)"})
+
+    assert cmd_forget(_args(store_dir.parent, "team/app", dry_run=True)) == 0
+
+    store = SqliteStore(db)
+    try:
+        assert store.get_node("pkg:npm:only-app") is not None, "dry run pruned a node"
+        assert store.repo_counts("(packages)") == (1, 0)
+    finally:
+        store.close()
+
+
+def test_forget_reports_the_shared_nodes_it_pruned(store_dir, caplog):
+    """Reported on its own line, never folded into the node count: that figure is
+    what the repo owned, and a shared node never belonged to it."""
+    db = store_dir / "index.sqlite"
+    _seed_sharing(db, "team/app", {"pkg:npm:left-pad": "(packages)",
+                                   "mod:py:os.path": "(shared)"})
+    with caplog.at_level("INFO"):
+        assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
+    assert "pruned 2 shared node(s)" in caplog.text
+    # The repo itself owned exactly one node, its file; the two shared nodes are
+    # counted apart from it rather than inflating what it is said to have held.
+    assert "1 node(s)" in caplog.text

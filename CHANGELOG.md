@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deliberately unchanged. Run `kb embed` once after upgrading to pick up the content that was
   previously skipped; the incremental skip keeps subsequent runs cheap.
 
+- **`kb forget` now sweeps up the shared nodes it leaves stranded.** A package identity, an HTTP
+  route or an event topic belongs to no single repository, so it is stored once under a sentinel
+  (`(packages)`, `(shared)`) with per-repository attribution carried on its edges. Nothing removed
+  those. Measured on a real store, forgetting the only repository in it left 734 such nodes behind,
+  still listed and still searchable, describing packages and routes that now belong to nothing.
+
+  They are swept by reachability rather than by ownership, which matters: deleting them per
+  repository would take the packages the *surviving* repositories still import, and that is exactly
+  the bug the stable sentinel was introduced to prevent. A shared node goes only once no edge
+  anywhere still references it.
+
 - **`kb forget` now reclaims the repository's files, not only its database rows.** It removed the
   nodes, edges, vectors and wiki pages and left `graph/<id>.json` and `history/<id>/` on disk, so a
   store measured in hundreds of megabytes gave back none of it -- on one store a single retained
