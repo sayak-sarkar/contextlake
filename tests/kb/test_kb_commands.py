@@ -204,20 +204,29 @@ def test_index_without_source_indexes_cwd(tmp_path, monkeypatch):
     store.close()
 
 
-def test_index_without_source_warns_when_cwd_bundles_nested_repos(tmp_path, monkeypatch, capsys):
+def test_index_without_source_refuses_when_cwd_bundles_nested_repos(tmp_path, monkeypatch, capsys):
     """cwd itself isn't a git repo but contains one that is -- found live,
-    indexing a workspace root this way silently bundled a real mirrored repo's
-    files into one made-up repo id instead of the nested repo's own identity,
-    duplicating data once `index --workspace .` was later run properly. Not
-    changed (still a valid, if narrower, use case) -- just warned about."""
+    indexing a workspace root this way bundled a real mirrored repo's files into
+    one made-up repo id instead of the nested repo's own identity, duplicating
+    data once `index --workspace .` was later run properly. It used to warn and
+    carry on, which on one real store left 63% of all nodes in an unremovable
+    pseudo-repository; it now refuses and prints the command that fits the shape
+    it measured. `--bundle` opts back in (see
+    tests/kb/test_kb_index_nested_dirs.py for the shape decision itself)."""
     cfg = _kb_config(tmp_path)
     workspace = tmp_path / "workspace"
     _bare_git_repo(workspace / "nested-repo")
     (workspace / "nested-repo" / "app.py").write_text("def widget():\n    pass\n")
     monkeypatch.chdir(workspace)
-    assert _run(["kb", "index", "--config", str(cfg)]) == 0
+    assert _run(["kb", "index", "--config", str(cfg)]) == 1
     out = capsys.readouterr().out
-    assert "nested-repo" in out and "--workspace ." in out
+    assert "nested-repo" in out and "contextlake kb index ./nested-repo" in out
+    assert "--bundle" in out
+
+    assert _run(["kb", "index", "--config", str(cfg), "--bundle"]) == 0
+    store = SqliteStore(tmp_path / "kb" / "index.sqlite")
+    assert {r.id for r in store.list_repos()} == {"workspace"}
+    store.close()
 
 
 def test_index_missing_source_errors_cleanly(tmp_path, capsys):

@@ -993,6 +993,9 @@ Examples:
                    help="repo id to index --source under (default: the directory name)")
     p.add_argument("--force", action="store_true", default=_S,
                    help="re-index every repo (default: only repos whose HEAD moved)")
+    p.add_argument("--bundle", action="store_true", default=_S,
+                   help="index a directory that holds git repos as ONE repo anyway "
+                        "(without it, that is refused and the right command printed)")
     _add_watch(p, "the index")
 
     p = command("source",

@@ -8,6 +8,43 @@ Indexing turns your mirrored repos into a queryable knowledge graph. `contextlak
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>
 
+## Which command for which directory
+
+`kb index <dir>` indexes that directory as **one** repository. `kb index --workspace <dir>` walks it
+and indexes **each** git repository under it separately, under its own identity. Getting those two
+the wrong way round is the most expensive mistake available here, so a directory that is not itself a
+git repository but holds some is **refused**, with the command that fits what was found:
+
+```
+$ contextlake kb index ~/work
+✗ /home/you/work isn't itself a git repo, but contains 20 git working tree(s) at depths 1-2
+  (alpha, beta, billing-core, frontend, gateway, …); no indexable file lies outside them.
+  That is a workspace mirroring several repositories. Indexing it this way files all of them
+  under ONE id, so every symbol they hold is in the graph twice and the copies cannot be told apart.
+  → Run this instead, which indexes each repository separately under its own identity:
+        contextlake kb index --workspace ~/work
+  → Or pass --bundle to index this directory as one repository anyway. …
+```
+
+It refuses rather than quietly switching to `--workspace` for you, because switching can lose data:
+`--workspace` indexes the nested repositories and nothing outside them, so on a tree of your own
+loose sources that happens to carry a dependency with its own `.git` it would index the dependency
+and drop your files. So the shape is measured first, from how much indexable content lies outside
+the nested repositories, and only then does it decide:
+
+| What the directory looks like | What happens |
+| --- | --- |
+| Several repositories, effectively nothing of your own outside them | refused; run `--workspace <dir>` |
+| One repository, nothing at all outside it | refused; the directory is one level too high, and the command names the repository |
+| Real content of yours outside the repositories (your sources plus a vendored dependency) | indexed as one repository, with a line saying so |
+| A git repository (`.git` present), whatever it contains | indexed, no diagnosis at all |
+
+**`--bundle` opts back in.** It indexes the directory as one repository regardless of shape, and it
+is read before anything is measured, so it always works. Reach for it when you genuinely want one
+bundled repository -- and note the cost you are accepting: the nested repositories' files are filed
+under the directory's name, so if you later index them properly they are in the graph twice. `kb
+forget <repo-id>` removes a bundle you did not mean to create.
+
 ## Incremental and time-travel
 
 `index --workspace` is **incremental**, it re-indexes only repos whose git HEAD moved since their last

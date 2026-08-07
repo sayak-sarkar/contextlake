@@ -242,6 +242,126 @@ def _depth_phrase(depths: set[int]) -> str:
     return f"at depth {lo}" if lo == hi else f"at depths {lo}-{hi}"
 
 
+# How much indexable content outside the nested repositories makes bundling the
+# right answer rather than the wrong one. Two tests, because neither holds alone:
+# an absolute floor, since a handful of files at the top of a mirror is
+# scaffolding (a setup.py, a couple of helper scripts) and not a codebase; and a
+# share of the total, since a fleet holding tens of thousands of files inside its
+# repositories is still a fleet with a hundred loose ones next to them, and a rule
+# tuned only to small trees would send a large one back to bundling.
+#
+# Both are deliberately generous towards bundling. Refusing wrongly leaves a user
+# unable to index anything, which reads as a broken tool; bundling wrongly is the
+# behaviour that shipped for years, is now stated out loud, and is one flag away
+# from being overridden either way.
+_LOOSE_FILES_TRIVIAL = 10
+_LOOSE_FILES_SHARE = 0.05
+
+_WORKSPACE = "workspace"
+_ONE_LEVEL_TOO_HIGH = "one-level-too-high"
+_BUNDLE = "bundle"
+
+
+def _bundle_shape(src: Path, nested: list[Path]) -> tuple[str, int]:
+    """Which of three shapes ``src`` is, and how much content sits outside its
+    nested repositories.
+
+    The discriminator is that second number, because the failure mode being
+    avoided is asymmetric. Prescribing ``--workspace`` indexes each nested
+    repository and *nothing outside one*, so on a tree of the user's own loose
+    sources that happens to carry a dependency with its own ``.git`` it would
+    index the dependency and silently drop the sources -- strictly worse than the
+    bundling it replaced, which at least captures them. Measuring the shape first
+    is what makes "refuse and prescribe" safe where "infer and act" is not.
+
+    Returns ``(shape, loose)``: ``_WORKSPACE`` (index each repository under its
+    own identity), ``_ONE_LEVEL_TOO_HIGH`` (index the single repository directly)
+    or ``_BUNDLE`` (there is real content outside the repositories, so bundling is
+    what the user wants and the caller proceeds).
+    """
+    from ..parse import count_files_outside_repos, count_indexable_files
+
+    loose = count_files_outside_repos(src)
+    if len(nested) == 1:
+        # Strictly zero, and this is the one threshold that must not be relaxed:
+        # the vendored-dependency tree above is exactly this shape with a nonzero
+        # count, and there is no reading of "index that repository instead" that
+        # does not drop the user's files. Anything outside the repository is
+        # evidence of that shape, so anything but nothing bundles.
+        return (_ONE_LEVEL_TOO_HIGH if loose == 0 else _BUNDLE), loose
+    if loose <= _LOOSE_FILES_TRIVIAL:
+        return _WORKSPACE, loose
+    # Only now is the inside-the-repositories count worth taking, and only as far
+    # as the comparison needs: the question is whether the loose files are a small
+    # enough share to be scaffolding, so counting stops at the first repository
+    # that settles it (~19x the loose count at a 5% share) instead of walking a
+    # fleet to produce a total nothing reads.
+    need = int(loose * (1 - _LOOSE_FILES_SHARE) / _LOOSE_FILES_SHARE) + 1
+    inside = 0
+    for repo_dir in nested:
+        inside += count_indexable_files(repo_dir, limit=need - inside)
+        if inside >= need:
+            return _WORKSPACE, loose
+    return _BUNDLE, loose
+
+
+def _found_phrase(src: Path, nested: list[Path], loose: int) -> str:
+    """What the scan found: how many working trees, how deep they sit, and how
+    much indexable content lies outside them. All three numbers, because they are
+    what the verdict below rests on -- a reader who disagrees with the verdict can
+    then see which number to argue with instead of taking it on trust."""
+    names = sorted(p.name for p in nested)
+    depths = {len(p.relative_to(src).parts) for p in nested}
+    return (f"{src.resolve()} isn't itself a git repo, but contains "
+            f"{len(nested)} git working tree(s) {_depth_phrase(depths)} "
+            f"({', '.join(names[:5])}{', …' if len(names) > 5 else ''}); "
+            f"{_outside_phrase(loose)}.")
+
+
+def _outside_phrase(loose: int) -> str:
+    """"no indexable file lies outside them" reads like something a person would
+    write; "0 indexable files" does not, and zero is the case the real incident
+    hit, so it is the sentence most readers will actually see."""
+    if loose == 0:
+        return "no indexable file lies outside them"
+    if loose == 1:
+        return "1 indexable file lies outside them"
+    return f"{loose} indexable files lie outside them"
+
+
+def _refuse_bundling(src: Path, source: str, nested: list[Path],
+                     shape: str, loose: int) -> None:
+    """Say what was found, which shape it is, the one command that fits it with
+    the real path in it, and why the override exists.
+
+    This used to be a warning that indexing then walked straight past, and a
+    warning is one keystroke from being scrolled past. On one real store it was:
+    the workspace was bundled into a pseudo-repository holding a duplicate of
+    every mirrored repository, 63% of all nodes, and at the time no command could
+    remove it.
+    """
+    log(style.fail(_found_phrase(src, nested, loose)))
+    if shape == _WORKSPACE:
+        log("  That is a workspace mirroring several repositories. Indexing it "
+            "this way files all of them under ONE id, so every symbol they hold "
+            "is in the graph twice and the copies cannot be told apart.")
+        cmd = f"contextlake kb index --workspace {_typed_path(source)}"
+        because = "indexes each repository separately under its own identity"
+    else:
+        rel = nested[0].relative_to(src).as_posix()
+        log("  Nothing of your own sits outside that one repository, so this "
+            "directory is simply one level above it. Indexing it this way files "
+            f"{rel} under this directory's name rather than its own.")
+        cmd = f"contextlake kb index {_typed_path(os.path.join(source, rel))}"
+        because = "files it under the identity its origin remote gives it"
+    log(style.bold(f"  → Run this instead, which {because}:"))
+    log(style.bold(f"        {cmd}"))
+    log("  → Or pass --bundle to index this directory as one repository anyway. "
+        "That is the right answer for a tree of your own loose sources that "
+        "happens to carry a dependency with its own .git, which is why this is a "
+        "refusal you can override and not a rule.")
+
+
 def _typed_path(source: str) -> str:
     """``source`` spelled the way it can be pasted back into a shell.
 
@@ -402,21 +522,29 @@ def cmd_index(args) -> int:
         if src.is_dir():
             from ..parse import index_repo_dir  # lazy: only needs tree-sitter when indexing code
 
-            if not (src / ".git").exists():
+            # A directory that is not itself a repository but holds some: bundling
+            # it is occasionally what the user wants and usually a mistake, so
+            # measure which before doing anything. --bundle is read before any of
+            # that, so the escape hatch costs nothing and cannot itself be refused
+            # by a defect in the diagnosis.
+            if not (src / ".git").exists() and not getattr(args, "bundle", False):
                 nested = _nested_repo_dirs(src)
                 if nested:
-                    names = sorted(p.name for p in nested)
-                    depths = {len(p.relative_to(src).parts) for p in nested}
+                    shape, loose = _bundle_shape(src, nested)
+                    if shape != _BUNDLE:
+                        _refuse_bundling(src, source, nested, shape, loose)
+                        return 1
+                    # Bundling IS the answer here, and saying so is still worth a
+                    # line: the reader learns the nested repositories were seen and
+                    # deliberately folded in, rather than wondering later whether
+                    # they were missed.
                     log(style.warn(
-                        f"{src.resolve()} isn't itself a git repo, but contains "
-                        f"{len(nested)} git working tree(s) {_depth_phrase(depths)} "
-                        f"({', '.join(names[:5])}"
-                        f"{', …' if len(names) > 5 else ''}). Indexing it this way "
-                        "bundles everything underneath into ONE repo -- if this is a "
-                        "workspace mirroring several repos, use "
-                        f"`contextlake kb index --workspace {_typed_path(source)}` "
-                        "instead, which indexes each nested repo separately under its "
-                        "own identity."
+                        f"{_found_phrase(src, nested, loose)} Indexing it this way "
+                        "bundles everything underneath into ONE repo, which is what "
+                        "that content outside them calls for. To index each nested "
+                        "repo separately under its own identity instead, use "
+                        f"`contextlake kb index --workspace {_typed_path(source)}`, "
+                        "which indexes only the repos and not the rest."
                     ))
             # An id resolved from --source outranks the directory name (the whole
             # point of resolving one was to re-index THAT repo's graph, and a

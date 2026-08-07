@@ -172,7 +172,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `mirror branches` | Switch each repo to its most active branch |
 | `mirror verify` · `mirror audit` | Check the mirror vs GitLab; report repo health, age & drift (JSON + CSV) |
 | `bootstrap` | **Turnkey**: sync + index + connect + embed + enrich + wiki + steer (`--no-enrich` to skip) |
-| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`) |
+| `kb index` | Build the code/dependency graph (`--workspace`, incremental, `--watch`; a directory holding git repos is refused with the right command, `--bundle` to index it as one repo anyway) |
 | `kb source` | **Manage connectors**: `add`/`list`/`remove`/`test`/`enable`/`disable` knowledge sources; edits `kb.toml` for you, comments preserved |
 | `kb connect` | Link repos to Atlassian / Figma / GitLab items (`--watch` to keep refreshing) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |

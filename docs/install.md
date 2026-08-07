@@ -103,6 +103,12 @@ The `-v` mount is what makes the run worth doing. Everything contextlake persist
 knowledge store included, is written under it as `.contextlake/`, so it is still on the host
 after the container exits. Drop the `-v` and the run is ephemeral.
 
+That bare `kb index` indexes the mount as one repository, which is right when you mount a
+repository. Mount a directory that *holds* repositories and it is refused, telling you to run
+`kb index --workspace .` instead -- `.` being the mount, since that is the container's working
+directory. See [Which command for which
+directory](index-code-graph.md#which-command-for-which-directory).
+
 The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your host
 account is not uid 1000 the write fails with a permission error. Pass your own ids:
 
@@ -232,10 +238,11 @@ the parser version recorded in each shard against the running one and names the 
 are out of date (`src/contextlake/kb/cmds/doctor.py`, the "shards up to date with the current
 parser" check).
 
-Re-index those with a plain index run:
+Re-index those with a plain index run -- whichever of the two forms you built the store with:
 
 ```bash
-contextlake kb index
+contextlake kb index                     # one repository
+contextlake kb index --workspace ~/work   # a directory of repositories
 ```
 
 Since 5.1.0 that is enough. `kb index` re-indexes a repository whose recorded parser version

@@ -960,6 +960,21 @@ def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
     return _MANIFEST if is_manifest(fn) else None
 
 
+def is_indexable_name(fn: str, rel: str) -> bool:
+    """Whether the indexer would pick this file up at all, from its name alone.
+
+    The same :func:`_file_kind` decision :func:`_walk_source_files` makes, minus
+    every gate that needs I/O (the per-repo ignore file, the generated-header
+    probe, the size limit). Name-only is the point: it costs one ``splitext`` per
+    file and never a ``stat`` or a read, so a caller can afford to walk a whole
+    tree with it. ``kb index``'s bundling diagnosis does exactly that, and it
+    needs the right order of magnitude rather than an exact parse count.
+    """
+    ext = os.path.splitext(fn)[1]
+    return _file_kind(fn, ext, rel, allowed_exts=set(LANG_BY_EXT),
+                      index_hcl=True, index_sql=True) is not None
+
+
 def _ignored(rel: str, patterns: list[str]) -> bool:
     return bool(patterns) and match_ignore(rel, patterns)
 
@@ -1214,6 +1229,51 @@ def is_vendored_repo(root: Path, repo_dir: Path) -> bool:
     clone (see :data:`_VENDORED_REPO_MARKERS`). A pure path test, no git calls,
     so every consumer of :func:`iter_repo_dirs` can afford to apply it."""
     return bool(_VENDORED_REPO_MARKERS & set(repo_dir.relative_to(root).parts))
+
+
+def count_indexable_files(root: str | Path, *, limit: int | None = None) -> int:
+    """How many files under ``root`` the indexer would pick up, by name.
+
+    Stops as soon as ``limit`` is reached, because every caller so far wants a
+    comparison rather than a number: answering "is there at least this much
+    content here" on a large tree must not cost a full walk of it.
+    """
+    return _count_files(Path(root), stop_at_repos=False, limit=limit)
+
+
+def count_files_outside_repos(root: str | Path, *, limit: int | None = None) -> int:
+    """The same count, restricted to files that lie outside **every** git working
+    tree at or under ``root`` -- the exact complement of :func:`iter_repo_dirs`.
+
+    This is what tells ``kb index`` apart a workspace mirroring repositories
+    (nothing of the user's own outside them, so each should be indexed under its
+    own identity) from a project that merely carries a dependency with its own
+    ``.git`` (the user's own sources are right there in the open, and indexing
+    only the nested repositories would drop them).
+
+    A working tree bounds the walk whether or not ``discover_repos`` would index
+    it, which is deliberately *not* how :func:`is_vendored_repo` is applied to the
+    repository count next to it: the count means "repositories ``--workspace``
+    would walk", while this means "content that is the user's own". An upstream
+    clone carried inside the tree is neither, so it must not inflate either
+    number.
+    """
+    return _count_files(Path(root), stop_at_repos=True, limit=limit)
+
+
+def _count_files(base: Path, *, stop_at_repos: bool, limit: int | None) -> int:
+    n = 0
+    for dirpath, dirnames, filenames in os.walk(base):
+        if stop_at_repos and (Path(dirpath) / ".git").exists():
+            dirnames[:] = []
+            continue
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        for fn in filenames:
+            if is_indexable_name(fn, os.path.relpath(os.path.join(dirpath, fn), base)):
+                n += 1
+                if limit is not None and n >= limit:
+                    return n
+    return n
 
 
 def discover_repos(root: str) -> list[tuple[str, str]]:
