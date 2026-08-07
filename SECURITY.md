@@ -101,3 +101,21 @@ can still reach an address only your machine can route to.
 
 This is a young project; security fixes land on `main` and ship in the next
 release. Please run a recent version before reporting.
+
+## Published advisories
+
+Every advisory is published on this repository's
+[security advisories page](https://github.com/sayak-sarkar/contextlake/security/advisories),
+which is the canonical record; the CHANGELOG entry for the fixing release links to it.
+
+| Advisory | Severity | Affected | Fixed in |
+| --- | --- | --- | --- |
+| [GHSA-fwx4-9qvg-98qc](https://github.com/sayak-sarkar/contextlake/security/advisories/GHSA-fwx4-9qvg-98qc) — stored XSS in generated graph pages, escalating to dashboard token theft | Critical, CVSS 3.1 9.3 | `>= 2.2.0, < 6.2.0` | **6.2.0** |
+
+If you are on any version below 6.2.0, upgrade. The affected surface is every generated
+graph page, so it is reached by `kb graph`, `kb graph --c4`, `kb graph --serve`, the built
+site, and `kb dashboard --serve` — that last one being where it escalated, since those pages
+share an origin with the script holding the per-process mutation and LLM token.
+
+**Regenerate any graph page or site you saved from an affected version.** Upgrading fixes
+the generator, not the HTML files it already wrote.

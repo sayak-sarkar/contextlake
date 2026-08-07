@@ -463,7 +463,9 @@ manual step: regenerating graph HTML you saved or published.
 ### Fixed
 
 - **SECURITY: generated graph pages could execute HTML/JavaScript taken from an indexed
-  repository (stored cross-site scripting).** The graph payload was embedded in the page's
+  repository (stored cross-site scripting).**
+  [GHSA-fwx4-9qvg-98qc](https://github.com/sayak-sarkar/contextlake/security/advisories/GHSA-fwx4-9qvg-98qc),
+  Critical (CVSS 3.1 9.3), affecting `>= 2.2.0, < 6.2.0`. The graph payload was embedded in the page's
   inline `<script>` with no escaping, so a `</script>` sequence anywhere in indexed content
   closed the element early and the browser parsed the rest of the payload as markup. The
   reachable inputs are ordinary repository data -- a symbol name, a file name, commit
