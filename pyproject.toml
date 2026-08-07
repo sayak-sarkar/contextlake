@@ -44,8 +44,14 @@ Issues = "https://github.com/sayak-sarkar/contextlake/issues"
 Changelog = "https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4", "hypothesis>=6.0", "pytest-timeout>=2.1",
-       "pytest-xdist>=3.0", "pre-commit>=3.0"]
+# ruff carries an upper bound and the others do not, because the lint is a *gate*: a
+# minor ruff release that adds a rule to a selected group turns CI red with nobody having
+# changed a line, and `S` (flake8-bandit) is a large group that grows. The bound makes
+# that arrive as a Dependabot PR to look at instead of a red build on unrelated work.
+# When raising it, run `ruff check src tests` on the new version first -- new findings are
+# expected and each one needs reading, not a blanket noqa.
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.16,<0.17", "hypothesis>=6.0",
+       "pytest-timeout>=2.1", "pytest-xdist>=3.0", "pre-commit>=3.0"]
 # Tools for cutting a release (build the dist, validate + upload to PyPI).
 # See docs/releasing.md.
 release = ["build>=1.0", "twine>=5.0"]

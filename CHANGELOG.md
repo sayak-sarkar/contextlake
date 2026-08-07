@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   version, because the pin fixes the action that selects a toolchain and not the compiler it goes
   on to install.
 
+- **ruff is capped at `<0.17`.** It was `>=0.4` with no ceiling, which was harmless while the
+  lint only reported. Now that it gates, a minor ruff release that adds a rule to a selected group
+  would turn CI red with nobody having changed a line, and `S` is a large group that grows. The cap
+  makes that arrive as a Dependabot pull request to read instead.
+
 - **The security lint now blocks, because its backlog is gone.** `ruff --select S`
   (flake8-bandit) ran as its own reporting-only job with `continue-on-error: true` over 4893
   untriaged findings. A job that cannot fail says nothing, and one carrying that much noise was
