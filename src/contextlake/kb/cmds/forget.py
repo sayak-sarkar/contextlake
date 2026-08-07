@@ -125,6 +125,31 @@ def _human(n: int) -> str:
     return f"{v:.1f} GB"
 
 
+def _compact(store, store_dir) -> int:
+    """VACUUM the index, returning the bytes handed back to the filesystem.
+
+    Deleting rows frees SQLite *pages*, it does not shrink the *file*: the freed pages
+    go on the freelist and the file stays at its high-water mark. Measured on a real
+    store, deleting one repo left a 197 MB index of which 188 MB was freelist -- so a
+    user forgetting a bloated pseudo-repo to reclaim space watched the largest file in
+    the store not move.
+
+    VACUUM is normally something to be careful with, but not at this size and not here:
+    it took 0.1s on that 197 MB index and returned it to 9 MB. `forget` is explicit,
+    rare and destructive, and reclaiming space is the reason it was run.
+
+    Never raise: the repo is already gone by this point, and a store that is merely
+    larger than it needs to be is not a failure worth reporting as one.
+    """
+    db = store_dir / "index.sqlite"
+    try:
+        before = db.stat().st_size
+        store.conn.execute("VACUUM")
+        return max(0, before - db.stat().st_size)
+    except Exception:  # noqa: BLE001 - cosmetic; the removal itself already succeeded
+        return 0
+
+
 def cmd_forget(args) -> int:
     repo_id = args.repo
     dry_run = bool(getattr(args, "dry_run", False))
@@ -168,6 +193,10 @@ def cmd_forget(args) -> int:
             log(f"  including connector partitions: {', '.join(extra)}")
 
         if dry_run:
+            # Say so rather than print a number: the index's reclaimable space is its
+            # freelist AFTER this delete, which cannot be known without doing it. A
+            # confident under-estimate here would read as the whole answer.
+            log("  the index is compacted afterwards, reclaiming more")
             log(f"{style.ok()} Dry run: nothing removed.")
             return 0
 
@@ -196,11 +225,12 @@ def cmd_forget(args) -> int:
                 # This process may hold the shard in its read cache; a later read in
                 # the same run must not resurrect what was just deleted.
                 _cache_evict(str(p))
+        reclaim += _compact(store, store_dir)
     finally:
         store.close()
 
     log(f"{style.ok()} Forgot {repo_id}: {nodes} node(s), {edges} edge(s), "
-        f"{vectors} vector(s), {len(pages)} wiki page(s), {_human(reclaim)} on disk.")
+        f"{vectors} vector(s), {len(pages)} wiki page(s), {_human(reclaim)} reclaimed.")
     log("  If that was a mistake, re-index it -- `kb index --workspace DIR` "
         "indexes each nested repo under its own identity.")
     return 0

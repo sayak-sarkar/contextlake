@@ -5245,8 +5245,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   store measured in hundreds of megabytes gave back none of it -- on one store a single retained
   shard was 173 MB against a few MB of rows. The files are the large half of a repository, and
   reclaiming them is the whole point of the case this command was written for: forgetting a
-  pseudo-repository created by a mis-index. The command now reports the space it reclaimed, and
-  `--dry-run` reports it without deleting anything.
+  pseudo-repository created by a mis-index. It also compacts the index afterwards: deleting rows
+  frees SQLite pages but not file space, so on one real store the index sat at 197 MB of which 188
+  MB was free list, and the largest file in the store did not move. End to end, forgetting one
+  repository from a real store now takes it from 529 MB to 4.5 MB in about two seconds. The command
+  reports the space it reclaimed, and `--dry-run` reports without deleting or compacting anything.
 
 ## [6.4.0] - 2026-08-07
 

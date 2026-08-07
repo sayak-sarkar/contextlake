@@ -190,3 +190,49 @@ def test_forget_works_on_a_store_that_has_no_files_yet(store_dir):
     version. Must not raise on the missing graph/ and history/ directories."""
     _seed(store_dir / "index.sqlite", "team/app")
     assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
+
+
+def test_forget_compacts_the_index_and_leaves_it_usable(store_dir):
+    """Deleting rows frees SQLite pages, not file space: the freed pages go on the
+    freelist and the file stays at its high-water mark. Without the VACUUM, the largest
+    file in the store does not move when a user forgets a repo to reclaim space."""
+    import sqlite3
+
+    db = store_dir / "index.sqlite"
+    _seed(db, "team/app", n=2000)
+    _seed(db, "team/other", n=5)
+
+    assert cmd_forget(_args(store_dir.parent, "team/app")) == 0
+
+    c = sqlite3.connect(db)
+    try:
+        free = c.execute("PRAGMA freelist_count").fetchone()[0]
+        assert free == 0, f"index left {free} free pages; VACUUM did not run"
+        # The neighbour must still be readable -- a VACUUM that corrupted the store
+        # would be far worse than the space it reclaimed.
+        assert c.execute(
+            "SELECT COUNT(*) FROM nodes WHERE repo_id='team/other'").fetchone()[0] == 5
+    finally:
+        c.close()
+
+
+def test_dry_run_does_not_compact(store_dir):
+    import sqlite3
+
+    db = store_dir / "index.sqlite"
+    _seed(db, "team/app", n=500)
+    # Create free pages so a stray VACUUM would be visible.
+    c = sqlite3.connect(db)
+    c.execute("DELETE FROM nodes WHERE repo_id='@connect:team/app'")
+    c.commit()
+    before = c.execute("PRAGMA freelist_count").fetchone()[0]
+    c.close()
+
+    assert cmd_forget(_args(store_dir.parent, "team/app", dry_run=True)) == 0
+
+    c = sqlite3.connect(db)
+    try:
+        assert c.execute("PRAGMA freelist_count").fetchone()[0] == before, (
+            "dry run compacted the index")
+    finally:
+        c.close()
