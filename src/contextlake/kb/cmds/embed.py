@@ -87,7 +87,7 @@ def cmd_embed(args) -> int:
             return 0
         targets = _content_targets(args, store)
         if not targets:
-            log("No indexed repos to embed (run index first, or pass --workspace/--source)")
+            log("Nothing indexed to embed (run index first, or pass --workspace/--source)")
             return 0
         limit = getattr(args, "limit", None)
         vs = build_vector_store(store_dir / "embeddings.sqlite",
@@ -129,7 +129,7 @@ def cmd_embed(args) -> int:
                 # Re-resolve targets each pass so `--watch` picks up newly indexed repos.
                 pass_targets = _content_targets(args, store)
                 if not pass_targets:
-                    log("No indexed repos to embed (run index first, or pass --workspace/--source)")
+                    log("Nothing indexed to embed (run index first, or pass --workspace/--source)")
                     return 0
                 # Pre-flight: the builtin embedder loads its model lazily, so a
                 # missing extra (or an unreachable Ollama/API endpoint) only surfaces
@@ -150,7 +150,9 @@ def cmd_embed(args) -> int:
                     log(style.dim("  No vectors written. Fix the embedder above, then "
                                   "re-run: contextlake kb embed"))
                     return 1
-                log(f"Embedding {len(pass_targets)} repo(s) with {embedder.name} "
+                # "source(s)", not "repo(s)": the work set now includes connector and ingested
+                # partitions, so a fleet of 470 repos would otherwise report 940 "repos".
+                log(f"Embedding {len(pass_targets)} source(s) with {embedder.name} "
                     f"into the {vs.name} vector store")
                 total = failed = skipped = 0
                 progress = style.Progress(len(pass_targets), label="embed")
@@ -187,7 +189,7 @@ def cmd_embed(args) -> int:
                 attempted = len(pass_targets) - skipped
                 if attempted and failed == attempted:
                     log(style.warn(
-                        f"Embed failed for all {attempted} repo(s) — no vectors written"))
+                        f"Embed failed for all {attempted} source(s) — no vectors written"))
                     return 1
                 if failed:
                     log("  See the log above for which repos failed. Re-run to retry.")

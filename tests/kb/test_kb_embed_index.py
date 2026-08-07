@@ -440,3 +440,75 @@ def test_cmd_embed_reports_progress_and_leaves_stdout_unchanged(tmp_path, monkey
     assert "⚠ Embed complete: 1 vector(s) written" in text
     assert "1 failed" in text
     assert "Re-run to retry" in text
+
+
+def test_cmd_embed_covers_partitions_end_to_end(tmp_path, monkeypatch):
+    """The integration the enumerator tests cannot reach: run cmd_embed against a store
+    that actually holds a partition, and check vectors land for both.
+
+    `@ingest:<name>` has no `repos` row and no path, which is exactly what the old work
+    set filtered out -- so before the fix this store embedded 1 node instead of 2.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(parents=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_EMBED_CONFIG.format(store=store_dir.as_posix()))
+
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_repo(Repo(id="r", path=str(tmp_path / "r")))
+    # The partition owns nodes and deliberately gets NO repos row, as ingest writes it.
+    s.upsert_nodes("@ingest:handbook",
+                   [Node(id="d1", repo="@ingest:handbook", kind="function", name="doc")])
+    s.close()
+    write_shard(store_dir, GraphShard(
+        repo="r", head_commit="h",
+        nodes=[Node(id="n1", repo="r", kind="function", name="foo")], edges=[]))
+    write_shard(store_dir, GraphShard(
+        repo="@ingest:handbook",
+        nodes=[Node(id="d1", repo="@ingest:handbook", kind="function", name="doc")], edges=[]))
+
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _FakeEmbedder())
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
+    assert cmd_embed(args) == 0
+
+    vs = build_vector_store(store_dir / "embeddings.sqlite", backend="auto")
+    try:
+        assert vs.count() == 2, "the ingested partition was not embedded"
+    finally:
+        vs.close()
+
+
+def test_cmd_embed_incremental_skips_a_partition_whose_shard_is_unchanged(tmp_path, monkeypatch):
+    """A partition has no HEAD, so without a shard-based staleness key every run would
+    re-embed it from scratch. Second run must skip, not re-embed."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    store_dir = tmp_path / "kbstore"
+    store_dir.mkdir(parents=True)
+    cfg = tmp_path / "kb.toml"
+    cfg.write_text(_EMBED_CONFIG.format(store=store_dir.as_posix()))
+
+    s = SqliteStore(store_dir / "index.sqlite")
+    check_schema(s)
+    s.upsert_nodes("@ingest:handbook",
+                   [Node(id="d1", repo="@ingest:handbook", kind="function", name="doc")])
+    s.close()
+    write_shard(store_dir, GraphShard(
+        repo="@ingest:handbook",
+        nodes=[Node(id="d1", repo="@ingest:handbook", kind="function", name="doc")], edges=[]))
+
+    seen = []
+
+    class _CountingEmbedder(_FakeEmbedder):
+        def embed(self, texts):
+            seen.append(len(texts))
+            return super().embed(texts)
+
+    monkeypatch.setattr(emb_pkg, "build_embedder", lambda c: _CountingEmbedder())
+    args = Namespace(config=str(cfg), workspace=None, source=None, repo=None, limit=None)
+    assert cmd_embed(args) == 0
+    first = len(seen)
+    assert cmd_embed(args) == 0
+    # Only the readiness/dim probes may run again; no third batch of real nodes.
+    assert len(seen) - first <= 2, "unchanged partition was re-embedded"
