@@ -4,6 +4,27 @@ The third layer. Once the [knowledge layer](knowledge-layer.md) is built, `conte
 exposes it as an **MCP server**, so any MCP client (Claude Code, Windsurf, VS Code, Kiro, Cursor,
 Postman, …) can query the graph directly instead of grepping.
 
+```mermaid
+flowchart LR
+  CL(["your MCP client"]) -->|"stdio, http, or sse"| SRV["contextlake kb serve"]
+  SRV --> ASK["ask"]
+  ASK -.->|"classifies, then routes"| TOOLS["find_definition, find_callers,<br/>find_dependents, blast_radius,<br/>who_knows, get_wiki, and the rest"]
+  SRV --> TOOLS
+  TOOLS --> G[("the graph")]
+  SRV -.->|"registered only when<br/>embeddings exist"| SEM["semantic_search,<br/>hybrid_search"]
+  SEM --> V[("the vector store")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+</div>
+
+The transport only decides how your client reaches the server; the tool set behind it is the same
+whichever one you pick. `ask` is a front door onto those tools, not a layer above them, so an agent
+can call either.
+
 **Start with `ask`.** One tool, natural language: `ask("who calls charge_order")` /
 `ask("what breaks if I change CatalogService")` / `ask("what extends BaseController")` /
 `ask("explain the catalog-api")`. It classifies the question, routes it to the right

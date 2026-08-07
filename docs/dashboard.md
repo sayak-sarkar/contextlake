@@ -9,6 +9,24 @@ build step, one command and it opens in your browser. Read-only by default; see
 > New here? Skim [QUICKSTART](../QUICKSTART.md) first. For what the graph/wiki/search
 > tiers actually do, see [knowledge-layer.md](knowledge-layer.md).
 
+```mermaid
+flowchart LR
+  G[("the code graph")] --> A(["Fleet, Repo, Diagrams,<br/>Architecture, Blast radius, Path"])
+  W[("the generated wiki")] --> B(["a repo's page, and its Wiki tab"])
+  G --> C(["Chat: a free graph router,<br/>with opt-in LLM prose"])
+  P["this machine and this process,<br/>not the graph"] --> D(["MCP console, Settings"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Every read-only view here is a window onto a tier that `index`, `connect` or `wiki` already built, so
+nothing on this page runs an extraction pass of its own. MCP console and Settings are the odd pair
+out: they report on this machine and this process, not on your code.
+
 ## 1. Get some data in (or don't)
 
 The dashboard reads your indexed store. If you've already run `contextlake kb index` (or

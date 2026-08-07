@@ -26,6 +26,7 @@ flowchart TD
 <div class="dg-key">
   <i><b class="dg-sh-act"></b>a rounded box is something you run or do</i>
   <i><b class="dg-sh-step"></b>a rectangle is a section on this page</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
 ## The knowledge layer will not install

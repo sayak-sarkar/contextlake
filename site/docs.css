@@ -337,3 +337,9 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
 .prose .dg-key b.dg-sh-step{border-radius:2px}
 .prose .dg-key b.dg-sh-store{border-radius:5px/2.5px}
 .prose .dg-key b.dg-sh-act{border-radius:999px}
+/* A diamond, for a decision. Three separate pages reached for `{"..."}` and then
+   could not name it in their key, because without this rule the class fell through
+   to the base square and would have mislabelled the shape it described. */
+.prose .dg-key b.dg-sh-dec{
+  border-radius:2px; transform:rotate(45deg); width:9px; height:9px;
+}

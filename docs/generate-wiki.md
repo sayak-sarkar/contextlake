@@ -3,6 +3,26 @@
 The wiki (optional, local-first) turns the graph into prose: a grounded, council-verified Markdown page
 per repo, with a provenance footer citing the commit and sources it was built from.
 
+```mermaid
+flowchart TD
+  G[("the graph")] -->|"top symbols, dependencies, files,<br/>README excerpt, recorded decisions"| DR["draft the page"]
+  DR --> C["the verification council,<br/>one review per lens"]
+  C --> S{"mean score above accept_score?"}
+  S -->|no| X(["nothing is written"])
+  S -->|yes| W[("the page, with a<br/>provenance footer")]
+  W --> P[("the @wiki partition,<br/>embedded and searchable")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+The council can be pointed at a different, usually stronger, backend than the one that drafted the page,
+which is what makes publishing from a cheap local generator safe.
+
 ## Running it
 
 Enable `[llm]` in the config (generation runs on a local Ollama model by default, prompts never leave the

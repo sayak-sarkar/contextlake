@@ -10,6 +10,26 @@ retrieval tools:
   across the graph (HippoRAG-style) to surface structurally related nodes, a function's callers, a
   package's dependents, that a pure semantic match would miss.
 
+```mermaid
+flowchart LR
+  N[("indexed definitions<br/>and endpoints")] --> EMB["kb embed"] --> V[("vectors")]
+  Q(["a natural-language query"]) --> A{"any content term<br/>known to the index?"}
+  A -->|no| NONE(["no results, and the terms<br/>it could not find"])
+  A -->|yes| R["semantic or hybrid retrieval"]
+  V --> R
+  G[("the graph")] -.->|"hybrid propagates<br/>relevance across it"| R
+  R --> H(["cited hits: repo, file:line,<br/>kind, name"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+`--retriever fts` is the third path: keyword-only, so it reads no vectors and needs no floor of its own.
+
 **Where the vectors come from.** `provider` defaults to `auto`, which uses a local Ollama when the daemon
 is reachable *and* already has the configured model pulled, and otherwise the built-in CPU embedder (the
 `kb-local` extra). If neither is available it embeds nothing rather than reaching for a network service.

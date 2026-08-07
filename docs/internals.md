@@ -165,6 +165,28 @@ attribution values on nodes *inside* real shards rather than shard files of thei
 Every shard is also snapshotted per indexed commit under `<store_dir>/history/<repo_id>/`, which is
 what `kb query --as-of <commit>` reads.
 
+The tiers, and which of them you can delete without losing anything:
+
+```mermaid
+flowchart TD
+  IX["kb index"] --> SH[("graph/, one JSON shard per<br/>repository, the source of truth")]
+  SH -->|"denormalized into"| SQ[("index.sqlite, the cross-repo<br/>index plus the node_fts table")]
+  SH -->|"kb embed"| EM[("embeddings.sqlite,<br/>the semantic vectors")]
+  SH -->|"archived per commit"| HIS[("history/, one snapshot<br/>per indexed commit")]
+  SQ --> RD(["kb query and the MCP server,<br/>keyword or semantic"])
+  EM --> RD
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+`index.sqlite` and `embeddings.sqlite` are both derived: `embed_repo` reads the shard rather than
+the index (`src/contextlake/kb/embeddings/index.py`), so an index run and an embed run put either
+one back. The shards and their snapshots are the tier a re-parse is the only way to recover.
+
 > [!NOTE]
 > A snapshot overwrites identically only for the same commit, by the same parser version, on the
 > same machine. File nodes are emitted in `os.walk` order, which is filesystem-dependent, so shard

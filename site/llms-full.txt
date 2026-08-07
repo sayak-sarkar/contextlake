@@ -277,6 +277,24 @@ a whole answer; each section after it goes one level deeper.
 This is the page for deciding whether to adopt contextlake and for understanding the reasoning
 behind it. For getting it running, start at [Install and upgrade](install.md) instead.
 
+The shape of the whole thing, before any of the detail:
+
+```mermaid
+flowchart LR
+  Q(["your question,<br/>asked in your editor"]) --> T["an MCP tool call"]
+  T --> S[("the graph, built from<br/>a parse of your source")]
+  S --> R["rows carrying file, line,<br/>confidence and provenance"]
+  R --> A(["an answer you can<br/>open and check"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Every diagram on this page uses that same vocabulary.
+
 ## The problem, in one example
 
 Ask a coding assistant *"where is the retry logic in this project?"* and it answers, confidently.
@@ -323,6 +341,22 @@ that file states the intent plainly: the anti-hallucination contract is structur
 | **Knowledge** | Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki | Terminal answers: [Ask the graph](ask-the-graph.md) |
 | **Serve** | Exposes the graph over MCP, plus a local dashboard and a graph visualizer | Answers inside your editor and your agents |
 
+Each layer depends only on the one below it, never sideways and never upward:
+
+```mermaid
+flowchart TD
+  AG(["your editor and your agents"]) --> SRV["Serve: the MCP server,<br/>the dashboard, the visualizer"]
+  SRV -->|"depends on"| KN["Knowledge: the graph, the connectors,<br/>the vectors, the wiki"]
+  KN -->|"depends on"| MIR["Mirror: clone the fleet, keep each<br/>on its most active branch"]
+  MIR --> REPOS[("your repositories,<br/>current on your disk")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
 Only the first layer is required. `pip install contextlake` pulls exactly one dependency
 (`argcomplete`, declared in `pyproject.toml`), which is a deliberate constraint rather than an
 accident: keeping several hundred repositories cloned and current should not require a
@@ -364,6 +398,26 @@ The consequences you can feel: a corrupted index is an inconvenience rather than
 fleet, and the authoritative form stays readable with ordinary tools. Every shard is also
 snapshotted per indexed commit under `history/`, which is what makes `kb query --as-of <commit>`
 work at all.
+
+One arrow in that picture is the source of truth and the rest is derived:
+
+```mermaid
+flowchart LR
+  SRC(["one repository"]) --> IDX["kb index"]
+  IDX --> SH[("one JSON shard for it,<br/>the source of truth")]
+  SH -->|"denormalized into"| SQ[("index.sqlite, droppable and<br/>rebuilt from the shards")]
+  SH -->|"kb embed"| EM[("the vectors, rebuilt<br/>from the same shards")]
+  SH -->|"archived per commit"| HIS[("a snapshot per indexed commit,<br/>what kb query --as-of reads")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Delete the index or the vectors and an index run puts them back. Delete the shards and you are
+re-parsing the fleet.
 
 That same module also retracts a claim it used to make, which is worth reading if you were thinking
 of hashing shards: snapshots overwrite identically only for the same commit, *the same parser
@@ -479,6 +533,25 @@ class" is `EXTRACTED`, and "this function calls that one" is `INFERRED`, because
 by name and a name can lie. A call that matches several definitions is `AMBIGUOUS` rather than
 resolved to a favourite, and one that matches more than a cap is dropped rather than degraded.
 
+Where each of the three verdicts comes from. All three carry the same required provenance, a
+`source_file` plus a `source_line` plus a `verified_at`; what differs is how much the edge is
+worth:
+
+```mermaid
+flowchart TD
+  SRC(["your source"]) --> P["the parser reads it"]
+  P -->|"containment, straight off<br/>the syntax tree"| E1[("an edge stored EXTRACTED")]
+  P --> N["a call, matched by name"]
+  N -->|"exactly one definition"| E2[("stored INFERRED")]
+  N -->|"several definitions"| E3[("stored AMBIGUOUS, with<br/>how many candidates")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
 The alternative is a graph that records only the relationship. It is smaller, faster to build, and
 it makes every fact sound equally certain, which is precisely the failure this tool exists to fix.
 With confidence recorded, an assistant can state a containment as fact, hedge on a name-matched
@@ -524,6 +597,25 @@ the second.
    verdicts without making them reliable.
 4. **Coverage honesty.** Each page states how much of the repository it reflects, and very large
    repositories get a page per subsystem rather than one page claiming to cover everything.
+
+In run order rather than in the order above, because the deterministic gate is deliberately in
+front of the council:
+
+```mermaid
+flowchart LR
+  G["a brief assembled from the graph,<br/>file and line references attached"] --> D["the model drafts a page"]
+  D --> GATE["a deterministic gate: leaked<br/>instruction text, repeated sentences"]
+  GATE -->|"fails"| REJ(["reported as rejected,<br/>not published"])
+  GATE -->|"passes"| CO["a review council scores<br/>the draft against the graph"]
+  CO -->|"below the accept threshold"| REJ
+  CO -->|"at or above it"| PUB[("a page that states how much<br/>of the repository it reflects")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
 
 The gate's thresholds are measured, not picked. Pages a human judged sound share no run of even
 six normalized words with the instruction text, while the leaking page shared a run of 61, so the
@@ -612,7 +704,27 @@ upgrade or remove it later. This is the single source for install commands: othe
 link here rather than repeating them, so there is one place to fix when a command changes.
 
 Pick a channel, run one command, then jump to [Quickstart](../QUICKSTART.md) for your first
-real result.
+real result. Which channel is yours comes down to two or three questions:
+
+```mermaid
+flowchart TD
+  S(["which install route is mine?"]) --> P{"is there a Python 3.10<br/>or newer on the machine?"}
+  P -->|"no"| B["the standalone binary,<br/>or the Docker image"]
+  P -->|"yes"| W{"installing it, or trying<br/>it once?"}
+  W -->|"trying it once"| U["uvx, no install at all"]
+  W -->|"installing it"| C{"working on contextlake<br/>itself?"}
+  C -->|"no"| PX["pipx, its own environment<br/>and still on your PATH"]
+  C -->|"yes"| SRC["a source checkout<br/>installed editable"]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a channel below</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+`pip` works everywhere `pipx` does and is the answer when you want contextlake inside an
+environment you already manage.
 
 ## Prerequisites
 
@@ -1479,6 +1591,26 @@ contextlake reads persistent settings from a config file, with CLI arguments ove
 contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-layer extras are in the
 [Knowledge layer](knowledge-layer.md) overview.)
 
+Finding the file is a walk up the directory tree, not a lookup in one fixed place. A worked example,
+run three directories below the config that ends up applying:
+
+```mermaid
+flowchart TD
+  CWD(["you run contextlake in<br/>~/work/billing/core/src"]) --> W["no .contextlake.ini here,<br/>so step up a directory"]
+  W --> HIT[("~/work/billing/core/.contextlake.ini,<br/>the nearest ancestor, and it wins")]
+  HIT --> GL[("~/.contextlake.ini, consulted for<br/>anything the local file leaves out")]
+  GL --> DEF["built-in defaults for the rest"]
+  DEF --> FLAG(["a CLI flag overrides<br/>every layer above"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+The walk stops at the filesystem root, and the *nearest* ancestor wins if projects are nested.
+
 ## Using configuration files
 
 Configuration is loaded in this precedence order:
@@ -1624,6 +1756,30 @@ Indexing turns your mirrored repos into a queryable knowledge graph. `contextlak
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>
+
+```mermaid
+flowchart TD
+  D(["a directory you point kb index at"]) --> B{"--bundle passed?"}
+  B -->|yes| ONE["indexed as one repository"]
+  B -->|no| G{"is it itself a git repo?"}
+  G -->|yes| ONE
+  G -->|no| S{"does it hold git repos, with<br/>nothing of yours outside them?"}
+  S -->|no| ONE
+  S -->|yes| R(["refused, naming the command that fits"])
+  R -.->|"kb index --workspace"| EACH["each repo indexed under its own id"]
+  ONE --> GR[("the graph")]
+  EACH --> GR
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+The shape of the directory is measured before any of it is indexed, and the next section walks each
+outcome.
 
 ## Which command for which directory
 
@@ -1917,6 +2073,26 @@ Beyond code, contextlake links each repo to its external context (issues, docs, 
 grounded facts from those sources into the knowledge layer. `connect` links repos to items; `enrich`
 queries connected sources with codebase-derived terms and stores what comes back.
 
+```mermaid
+flowchart LR
+  C(["tracker, designs, merge<br/>requests, chat"]) --> CON["kb connect"]
+  I(["files, web, api, graphql,<br/>another MCP server"]) --> ING["kb ingest"]
+  Q(["the searchable ones: Atlassian,<br/>or an MCP search tool"]) --> ENR["kb enrich"]
+  G[("the code graph")] -.->|"repo name and top symbols<br/>become the search terms"| ENR
+  CON --> P[("isolated partitions")]
+  ING --> P
+  ENR --> P
+  P -.->|"linked to the repos and<br/>symbols they name"| G
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Each stage writes its own partition, so re-indexing a repo's code never disturbs its external links.
+
 ## Connectors
 
 `connect` enriches the graph with external context. Four connectors ship, sharing one seam:
@@ -2208,6 +2384,26 @@ retrieval tools:
   across the graph (HippoRAG-style) to surface structurally related nodes, a function's callers, a
   package's dependents, that a pure semantic match would miss.
 
+```mermaid
+flowchart LR
+  N[("indexed definitions<br/>and endpoints")] --> EMB["kb embed"] --> V[("vectors")]
+  Q(["a natural-language query"]) --> A{"any content term<br/>known to the index?"}
+  A -->|no| NONE(["no results, and the terms<br/>it could not find"])
+  A -->|yes| R["semantic or hybrid retrieval"]
+  V --> R
+  G[("the graph")] -.->|"hybrid propagates<br/>relevance across it"| R
+  R --> H(["cited hits: repo, file:line,<br/>kind, name"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+`--retriever fts` is the third path: keyword-only, so it reads no vectors and needs no floor of its own.
+
 **Where the vectors come from.** `provider` defaults to `auto`, which uses a local Ollama when the daemon
 is reachable *and* already has the configured model pulled, and otherwise the built-in CPU embedder (the
 `kb-local` extra). If neither is available it embeds nothing rather than reaching for a network service.
@@ -2316,6 +2512,26 @@ Source: https://sayak.in/contextlake/generate-wiki
 
 The wiki (optional, local-first) turns the graph into prose: a grounded, council-verified Markdown page
 per repo, with a provenance footer citing the commit and sources it was built from.
+
+```mermaid
+flowchart TD
+  G[("the graph")] -->|"top symbols, dependencies, files,<br/>README excerpt, recorded decisions"| DR["draft the page"]
+  DR --> C["the verification council,<br/>one review per lens"]
+  C --> S{"mean score above accept_score?"}
+  S -->|no| X(["nothing is written"])
+  S -->|yes| W[("the page, with a<br/>provenance footer")]
+  W --> P[("the @wiki partition,<br/>embedded and searchable")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+The council can be pointed at a different, usually stronger, backend than the one that drafted the page,
+which is what makes publishing from a cheap local generator safe.
 
 ## Running it
 
@@ -2487,6 +2703,29 @@ Source: https://sayak.in/contextlake/model-providers
 
 Both the embeddings and wiki tiers are pluggable and take a `provider`, defaulting to **`"auto"`**. Pick
 by what may leave your machine and what hardware you have.
+
+```mermaid
+flowchart LR
+  E["kb embed"] --> P{"which provider?"}
+  W["kb wiki"] --> P
+  P -->|"builtin"| BI["a small model,<br/>in-process on CPU"]
+  P -->|"ollama"| OL["a local Ollama daemon"]
+  P -->|"openai, plus anthropic<br/>for the wiki"| API["a hosted API, key<br/>read from an env var"]
+  P -->|"cli, for the wiki"| C["an agent CLI you<br/>already pay for"]
+  BI --> IN(["nothing leaves your machine"])
+  OL --> IN
+  API --> OUT(["your prompts leave your machine"])
+  C --> OUT
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+`auto`, the default, is the one value that picks for you: it resolves to a local Ollama that already has
+the model pulled, and otherwise to the built-in CPU model.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable AND already has the target model pulled, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
@@ -2728,6 +2967,26 @@ Source: https://sayak.in/contextlake/keep-fresh
 that sets a workspace up is the one that keeps it current. This page covers that command, how to
 schedule it, how to re-index the moment you commit, and how to tell afterwards whether an
 unattended run went well.
+
+```mermaid
+flowchart TD
+  CR(["cron or a systemd timer"]) --> BS["contextlake bootstrap<br/>re-indexes only the repos<br/>whose HEAD moved"]
+  HK(["a commit, via the<br/>post-commit hook"]) --> IX["contextlake kb index,<br/>detached"]
+  BS --> LK["one advisory single-writer lock:<br/>the second run refuses<br/>rather than interleaving"]
+  IX --> LK
+  LK --> ST[("the store")]
+  BS -.->|"--log-file,<br/>--metrics-file"| EV[("the run's own evidence")]
+  EV --> AL(["your alert, on the exit code<br/>or on staleness"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+</div>
+
+Two ways in, one store. The schedule keeps the whole fleet current, the hook keeps the repo you are
+editing current, and the lock is what stops the two of them from writing at once.
 
 ## Prerequisites
 
@@ -3077,6 +3336,26 @@ The same three answers reach an agent over MCP as `search_code` / `semantic_sear
 `hybrid_search`, `blast_radius`, and `who_knows`; see
 [Serve it to your editor](serve.md). This page is the terminal-side equivalent.
 
+```mermaid
+flowchart LR
+  G[("the graph")] --> Q["kb query"]
+  G --> I["kb impact"]
+  H[("git history")] --> O["kb owners"]
+  Q --> QA(["where is it?"])
+  I --> IA(["what breaks if I change it?"])
+  O --> OA(["who do I ask about it?"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+The split on the left is the one worth noticing: `query` and `impact` read the store, `owners` reads
+git history, which is why it answers in a directory that was never indexed. Give it a repo id rather
+than a path and it does open the store, only to find the clone.
+
 ## Prerequisites
 
 - A store with an indexed repo in it: [Index the code graph](index-code-graph.md), or
@@ -3348,6 +3627,24 @@ build step, one command and it opens in your browser. Read-only by default; see
 
 > New here? Skim [QUICKSTART](../QUICKSTART.md) first. For what the graph/wiki/search
 > tiers actually do, see [knowledge-layer.md](knowledge-layer.md).
+
+```mermaid
+flowchart LR
+  G[("the code graph")] --> A(["Fleet, Repo, Diagrams,<br/>Architecture, Blast radius, Path"])
+  W[("the generated wiki")] --> B(["a repo's page, and its Wiki tab"])
+  G --> C(["Chat: a free graph router,<br/>with opt-in LLM prose"])
+  P["this machine and this process,<br/>not the graph"] --> D(["MCP console, Settings"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Every read-only view here is a window onto a tier that `index`, `connect` or `wiki` already built, so
+nothing on this page runs an extraction pass of its own. MCP console and Settings are the odd pair
+out: they report on this machine and this process, not on your code.
 
 ## 1. Get some data in (or don't)
 
@@ -3650,6 +3947,27 @@ Source: https://sayak.in/contextlake/serve
 The third layer. Once the [knowledge layer](knowledge-layer.md) is built, `contextlake kb serve`
 exposes it as an **MCP server**, so any MCP client (Claude Code, Windsurf, VS Code, Kiro, Cursor,
 Postman, …) can query the graph directly instead of grepping.
+
+```mermaid
+flowchart LR
+  CL(["your MCP client"]) -->|"stdio, http, or sse"| SRV["contextlake kb serve"]
+  SRV --> ASK["ask"]
+  ASK -.->|"classifies, then routes"| TOOLS["find_definition, find_callers,<br/>find_dependents, blast_radius,<br/>who_knows, get_wiki, and the rest"]
+  SRV --> TOOLS
+  TOOLS --> G[("the graph")]
+  SRV -.->|"registered only when<br/>embeddings exist"| SEM["semantic_search,<br/>hybrid_search"]
+  SEM --> V[("the vector store")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+</div>
+
+The transport only decides how your client reaches the server; the tool set behind it is the same
+whichever one you pick. `ask` is a front door onto those tools, not a layer above them, so an agent
+can call either.
 
 **Start with `ask`.** One tool, natural language: `ask("who calls charge_order")` /
 `ask("what breaks if I change CatalogService")` / `ask("what extends BaseController")` /
@@ -3967,6 +4285,30 @@ contextlake kb graph --node <id> --hops 3              # expand around an exact 
 contextlake kb graph --search "payment" --open         # seed from a full-text search
 contextlake kb graph --repo acme/catalog-api           # one repo's internal code graph
 ```
+
+```mermaid
+flowchart LR
+  A(["contextlake kb graph"]) --> S1["--node / --name / --search<br/>walks outward: --hops,<br/>--relation, --direction"]
+  A --> S2["--repo, one repo,<br/>no outward walk"]
+  A --> S3["--overview, the fleet,<br/>--max-nodes alone"]
+  S1 --> B["every view is capped, and<br/>whatever is dropped is logged"]
+  S2 --> B
+  S3 --> B
+  B --> F["--format"]
+  F --> H(["html, the self-contained<br/>offline page"])
+  F --> M(["six Mermaid formats,<br/>for a PR or a design doc"])
+  F --> X(["dot, graphml, cypher, json,<br/>for Graphviz, Gephi, Neo4j"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+</div>
+
+Which seed you pick decides which flags apply at all: only a seeded view walks outward, so `--hops`,
+`--relation` and `--direction` have nothing to do on `--repo` or `--overview`. `sequencediagram`
+applies that rule in the other direction: it needs exactly one seed, so it is the one format `--repo`
+and `--overview` cannot produce.
 
 `contextlake kb graph --repo <repo>` renders one repo's internal code graph to a single self-contained HTML
 page: nodes coloured by kind and sized by degree, edges by relation, with an in-page layout switcher,
@@ -4490,6 +4832,28 @@ attribution values on nodes *inside* real shards rather than shard files of thei
 
 Every shard is also snapshotted per indexed commit under `<store_dir>/history/<repo_id>/`, which is
 what `kb query --as-of <commit>` reads.
+
+The tiers, and which of them you can delete without losing anything:
+
+```mermaid
+flowchart TD
+  IX["kb index"] --> SH[("graph/, one JSON shard per<br/>repository, the source of truth")]
+  SH -->|"denormalized into"| SQ[("index.sqlite, the cross-repo<br/>index plus the node_fts table")]
+  SH -->|"kb embed"| EM[("embeddings.sqlite,<br/>the semantic vectors")]
+  SH -->|"archived per commit"| HIS[("history/, one snapshot<br/>per indexed commit")]
+  SQ --> RD(["kb query and the MCP server,<br/>keyword or semantic"])
+  EM --> RD
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+`index.sqlite` and `embeddings.sqlite` are both derived: `embed_repo` reads the shard rather than
+the index (`src/contextlake/kb/embeddings/index.py`), so an index run and an embed run put either
+one back. The shards and their snapshots are the tier a re-parse is the only way to recover.
 
 > [!NOTE]
 > A snapshot overwrites identically only for the same commit, by the same parser version, on the
@@ -5138,6 +5502,26 @@ Working on contextlake itself rather than using it? The contributor-side problem
 (a distro-owned PyJWT, `pre-commit` diffs, slow local test runs) live in
 [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+**Start here.** `contextlake doctor` checks the whole environment in one pass and names what
+is wrong, so it is almost always faster than reading down this page:
+
+```mermaid
+flowchart TD
+  D(["contextlake doctor"]) --> Q{"what did it report?"}
+  Q -->|"an import or extra is missing"| I["the knowledge layer<br/>will not install"]
+  Q -->|"a compiler error"| C["llm-local tries<br/>to compile C++"]
+  Q -->|"externally managed<br/>environment"| E["pip refuses to<br/>install into the system"]
+  Q -->|"it printed a sudo<br/>command"| S["doctor --fix declined<br/>to run it for you"]
+  Q -->|"all green, but a<br/>repo is wrong"| M["the mirror"]
+  Q -->|"nothing above"| O(["open an issue"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is something you run or do</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a section on this page</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
 ## The knowledge layer will not install
 
 `[kb]` needs Python 3.10 or newer, because the `mcp` SDK does. The mirror side of contextlake
@@ -5240,6 +5624,47 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **Every documentation page that teaches a structure now draws it.** 20 diagrams across 16 pages,
+  where the set previously had none. Each shows the shape of its own subject rather than a generic
+  pipeline: the directory-shape decision `kb index` makes, the three isolated partitions that
+  `connect`, `ingest` and `enrich` each write, the gate a wiki page clears before it is published,
+  the ancestor walk config discovery performs, and the tiers on disk with the shards as the source
+  of truth and everything else derived from them. "contextlake, explained" carries five, since its
+  job is to say why the thing is built the way it is.
+
+  A ` ```mermaid ` fence in any page renders as a diagram, from a vendored copy so the site makes
+  no external request, loaded only on the pages that have one. The same fence renders natively on
+  github.com, so a diagram stays readable in the source tree and in a review.
+
+  Roles are carried by shape, not colour: a rectangle runs, a cylinder persists, a rounded box
+  starts or ends, a diamond decides. That is what WCAG 1.4.1 asks for, and it is also the only
+  thing that works, because mermaid renders a `classDef` as an inline `style` attribute carrying
+  `!important` and no stylesheet can override one, so a colour written into a page could never
+  follow the light or dark theme.
+
+### Fixed
+
+- **The published site served its images from an external host, and they failed behind a proxy.**
+  The markdown references them by absolute GitHub URL, which it must keep, since that is what makes
+  an image appear when the file is read on github.com or on PyPI. The built page inherited it, so
+  the site made one external request per image, and behind a TLS-inspecting corporate proxy every
+  one of them failed. 36 images on a site that otherwise depends on no external host. The built
+  pages now point at the site's own copies.
+
+- **Four retired pages were still being published.** `bootstrap`, `ownership`, `storage` and
+  `comparison` were removed from the documentation, but the generated site directory kept their old
+  HTML and the deploy copied it wholesale every time. They were unreachable from the navigation,
+  absent from the sitemap, and impossible to correct, since the source they were built from no
+  longer existed. The build now removes a page whose source has gone, and the deploy removes it
+  from the published branch.
+
+- **The copy button no longer lands on a diagram.** It attached to every code block in the prose,
+  and a rendered diagram is one, so it offered to copy a picture.
 
 ## [6.5.0] - 2026-08-07
 

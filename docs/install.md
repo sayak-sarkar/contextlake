@@ -5,7 +5,27 @@ upgrade or remove it later. This is the single source for install commands: othe
 link here rather than repeating them, so there is one place to fix when a command changes.
 
 Pick a channel, run one command, then jump to [Quickstart](../QUICKSTART.md) for your first
-real result.
+real result. Which channel is yours comes down to two or three questions:
+
+```mermaid
+flowchart TD
+  S(["which install route is mine?"]) --> P{"is there a Python 3.10<br/>or newer on the machine?"}
+  P -->|"no"| B["the standalone binary,<br/>or the Docker image"]
+  P -->|"yes"| W{"installing it, or trying<br/>it once?"}
+  W -->|"trying it once"| U["uvx, no install at all"]
+  W -->|"installing it"| C{"working on contextlake<br/>itself?"}
+  C -->|"no"| PX["pipx, its own environment<br/>and still on your PATH"]
+  C -->|"yes"| SRC["a source checkout<br/>installed editable"]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a channel below</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+`pip` works everywhere `pipx` does and is the answer when you want contextlake inside an
+environment you already manage.
 
 ## Prerequisites
 

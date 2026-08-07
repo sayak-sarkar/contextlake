@@ -7,6 +7,24 @@ a whole answer; each section after it goes one level deeper.
 This is the page for deciding whether to adopt contextlake and for understanding the reasoning
 behind it. For getting it running, start at [Install and upgrade](install.md) instead.
 
+The shape of the whole thing, before any of the detail:
+
+```mermaid
+flowchart LR
+  Q(["your question,<br/>asked in your editor"]) --> T["an MCP tool call"]
+  T --> S[("the graph, built from<br/>a parse of your source")]
+  S --> R["rows carrying file, line,<br/>confidence and provenance"]
+  R --> A(["an answer you can<br/>open and check"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Every diagram on this page uses that same vocabulary.
+
 ## The problem, in one example
 
 Ask a coding assistant *"where is the retry logic in this project?"* and it answers, confidently.
@@ -53,6 +71,22 @@ that file states the intent plainly: the anti-hallucination contract is structur
 | **Knowledge** | Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki | Terminal answers: [Ask the graph](ask-the-graph.md) |
 | **Serve** | Exposes the graph over MCP, plus a local dashboard and a graph visualizer | Answers inside your editor and your agents |
 
+Each layer depends only on the one below it, never sideways and never upward:
+
+```mermaid
+flowchart TD
+  AG(["your editor and your agents"]) --> SRV["Serve: the MCP server,<br/>the dashboard, the visualizer"]
+  SRV -->|"depends on"| KN["Knowledge: the graph, the connectors,<br/>the vectors, the wiki"]
+  KN -->|"depends on"| MIR["Mirror: clone the fleet, keep each<br/>on its most active branch"]
+  MIR --> REPOS[("your repositories,<br/>current on your disk")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
 Only the first layer is required. `pip install contextlake` pulls exactly one dependency
 (`argcomplete`, declared in `pyproject.toml`), which is a deliberate constraint rather than an
 accident: keeping several hundred repositories cloned and current should not require a
@@ -94,6 +128,26 @@ The consequences you can feel: a corrupted index is an inconvenience rather than
 fleet, and the authoritative form stays readable with ordinary tools. Every shard is also
 snapshotted per indexed commit under `history/`, which is what makes `kb query --as-of <commit>`
 work at all.
+
+One arrow in that picture is the source of truth and the rest is derived:
+
+```mermaid
+flowchart LR
+  SRC(["one repository"]) --> IDX["kb index"]
+  IDX --> SH[("one JSON shard for it,<br/>the source of truth")]
+  SH -->|"denormalized into"| SQ[("index.sqlite, droppable and<br/>rebuilt from the shards")]
+  SH -->|"kb embed"| EM[("the vectors, rebuilt<br/>from the same shards")]
+  SH -->|"archived per commit"| HIS[("a snapshot per indexed commit,<br/>what kb query --as-of reads")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Delete the index or the vectors and an index run puts them back. Delete the shards and you are
+re-parsing the fleet.
 
 That same module also retracts a claim it used to make, which is worth reading if you were thinking
 of hashing shards: snapshots overwrite identically only for the same commit, *the same parser
@@ -209,6 +263,25 @@ class" is `EXTRACTED`, and "this function calls that one" is `INFERRED`, because
 by name and a name can lie. A call that matches several definitions is `AMBIGUOUS` rather than
 resolved to a favourite, and one that matches more than a cap is dropped rather than degraded.
 
+Where each of the three verdicts comes from. All three carry the same required provenance, a
+`source_file` plus a `source_line` plus a `verified_at`; what differs is how much the edge is
+worth:
+
+```mermaid
+flowchart TD
+  SRC(["your source"]) --> P["the parser reads it"]
+  P -->|"containment, straight off<br/>the syntax tree"| E1[("an edge stored EXTRACTED")]
+  P --> N["a call, matched by name"]
+  N -->|"exactly one definition"| E2[("stored INFERRED")]
+  N -->|"several definitions"| E3[("stored AMBIGUOUS, with<br/>how many candidates")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
 The alternative is a graph that records only the relationship. It is smaller, faster to build, and
 it makes every fact sound equally certain, which is precisely the failure this tool exists to fix.
 With confidence recorded, an assistant can state a containment as fact, hedge on a name-matched
@@ -254,6 +327,25 @@ the second.
    verdicts without making them reliable.
 4. **Coverage honesty.** Each page states how much of the repository it reflects, and very large
    repositories get a page per subsystem rather than one page claiming to cover everything.
+
+In run order rather than in the order above, because the deterministic gate is deliberately in
+front of the council:
+
+```mermaid
+flowchart LR
+  G["a brief assembled from the graph,<br/>file and line references attached"] --> D["the model drafts a page"]
+  D --> GATE["a deterministic gate: leaked<br/>instruction text, repeated sentences"]
+  GATE -->|"fails"| REJ(["reported as rejected,<br/>not published"])
+  GATE -->|"passes"| CO["a review council scores<br/>the draft against the graph"]
+  CO -->|"below the accept threshold"| REJ
+  CO -->|"at or above it"| PUB[("a page that states how much<br/>of the repository it reflects")]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
 
 The gate's thresholds are measured, not picked. Pages a human judged sound share no run of even
 six normalized words with the instruction text, while the leaking page shared a run of 61, so the

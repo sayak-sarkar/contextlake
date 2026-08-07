@@ -3,6 +3,29 @@
 Both the embeddings and wiki tiers are pluggable and take a `provider`, defaulting to **`"auto"`**. Pick
 by what may leave your machine and what hardware you have.
 
+```mermaid
+flowchart LR
+  E["kb embed"] --> P{"which provider?"}
+  W["kb wiki"] --> P
+  P -->|"builtin"| BI["a small model,<br/>in-process on CPU"]
+  P -->|"ollama"| OL["a local Ollama daemon"]
+  P -->|"openai, plus anthropic<br/>for the wiki"| API["a hosted API, key<br/>read from an env var"]
+  P -->|"cli, for the wiki"| C["an agent CLI you<br/>already pay for"]
+  BI --> IN(["nothing leaves your machine"])
+  OL --> IN
+  API --> OUT(["your prompts leave your machine"])
+  C --> OUT
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+`auto`, the default, is the one value that picks for you: it resolves to a local Ollama that already has
+the model pulled, and otherwise to the built-in CPU model.
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable AND already has the target model pulled, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
 </p>

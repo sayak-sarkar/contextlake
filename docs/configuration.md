@@ -4,6 +4,26 @@ contextlake reads persistent settings from a config file, with CLI arguments ove
 contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-layer extras are in the
 [Knowledge layer](knowledge-layer.md) overview.)
 
+Finding the file is a walk up the directory tree, not a lookup in one fixed place. A worked example,
+run three directories below the config that ends up applying:
+
+```mermaid
+flowchart TD
+  CWD(["you run contextlake in<br/>~/work/billing/core/src"]) --> W["no .contextlake.ini here,<br/>so step up a directory"]
+  W --> HIT[("~/work/billing/core/.contextlake.ini,<br/>the nearest ancestor, and it wins")]
+  HIT --> GL[("~/.contextlake.ini, consulted for<br/>anything the local file leaves out")]
+  GL --> DEF["built-in defaults for the rest"]
+  DEF --> FLAG(["a CLI flag overrides<br/>every layer above"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+The walk stops at the filesystem root, and the *nearest* ancestor wins if projects are nested.
+
 ## Using configuration files
 
 Configuration is loaded in this precedence order:

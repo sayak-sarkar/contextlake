@@ -11,6 +11,30 @@ contextlake kb graph --search "payment" --open         # seed from a full-text s
 contextlake kb graph --repo acme/catalog-api           # one repo's internal code graph
 ```
 
+```mermaid
+flowchart LR
+  A(["contextlake kb graph"]) --> S1["--node / --name / --search<br/>walks outward: --hops,<br/>--relation, --direction"]
+  A --> S2["--repo, one repo,<br/>no outward walk"]
+  A --> S3["--overview, the fleet,<br/>--max-nodes alone"]
+  S1 --> B["every view is capped, and<br/>whatever is dropped is logged"]
+  S2 --> B
+  S3 --> B
+  B --> F["--format"]
+  F --> H(["html, the self-contained<br/>offline page"])
+  F --> M(["six Mermaid formats,<br/>for a PR or a design doc"])
+  F --> X(["dot, graphml, cypher, json,<br/>for Graphviz, Gephi, Neo4j"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+</div>
+
+Which seed you pick decides which flags apply at all: only a seeded view walks outward, so `--hops`,
+`--relation` and `--direction` have nothing to do on `--repo` or `--overview`. `sequencediagram`
+applies that rule in the other direction: it needs exactly one seed, so it is the one format `--repo`
+and `--overview` cannot produce.
+
 `contextlake kb graph --repo <repo>` renders one repo's internal code graph to a single self-contained HTML
 page: nodes coloured by kind and sized by degree, edges by relation, with an in-page layout switcher,
 search, and a minimap; it opens straight from `file://`:

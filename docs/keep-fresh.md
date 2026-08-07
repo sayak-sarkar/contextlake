@@ -5,6 +5,26 @@ that sets a workspace up is the one that keeps it current. This page covers that
 schedule it, how to re-index the moment you commit, and how to tell afterwards whether an
 unattended run went well.
 
+```mermaid
+flowchart TD
+  CR(["cron or a systemd timer"]) --> BS["contextlake bootstrap<br/>re-indexes only the repos<br/>whose HEAD moved"]
+  HK(["a commit, via the<br/>post-commit hook"]) --> IX["contextlake kb index,<br/>detached"]
+  BS --> LK["one advisory single-writer lock:<br/>the second run refuses<br/>rather than interleaving"]
+  IX --> LK
+  LK --> ST[("the store")]
+  BS -.->|"--log-file,<br/>--metrics-file"| EV[("the run's own evidence")]
+  EV --> AL(["your alert, on the exit code<br/>or on staleness"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+</div>
+
+Two ways in, one store. The schedule keeps the whole fleet current, the hook keeps the repo you are
+editing current, and the lock is what stops the two of them from writing at once.
+
 ## Prerequisites
 
 - A configured workspace: `contextlake init`, or the two config files in place. See

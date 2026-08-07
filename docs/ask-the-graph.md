@@ -8,6 +8,26 @@ The same three answers reach an agent over MCP as `search_code` / `semantic_sear
 `hybrid_search`, `blast_radius`, and `who_knows`; see
 [Serve it to your editor](serve.md). This page is the terminal-side equivalent.
 
+```mermaid
+flowchart LR
+  G[("the graph")] --> Q["kb query"]
+  G --> I["kb impact"]
+  H[("git history")] --> O["kb owners"]
+  Q --> QA(["where is it?"])
+  I --> IA(["what breaks if I change it?"])
+  O --> OA(["who do I ask about it?"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+The split on the left is the one worth noticing: `query` and `impact` read the store, `owners` reads
+git history, which is why it answers in a directory that was never indexed. Give it a repo id rather
+than a path and it does open the store, only to find the clone.
+
 ## Prerequisites
 
 - A store with an indexed repo in it: [Index the code graph](index-code-graph.md), or

@@ -5,6 +5,47 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Every documentation page that teaches a structure now draws it.** 20 diagrams across 16 pages,
+  where the set previously had none. Each shows the shape of its own subject rather than a generic
+  pipeline: the directory-shape decision `kb index` makes, the three isolated partitions that
+  `connect`, `ingest` and `enrich` each write, the gate a wiki page clears before it is published,
+  the ancestor walk config discovery performs, and the tiers on disk with the shards as the source
+  of truth and everything else derived from them. "contextlake, explained" carries five, since its
+  job is to say why the thing is built the way it is.
+
+  A ` ```mermaid ` fence in any page renders as a diagram, from a vendored copy so the site makes
+  no external request, loaded only on the pages that have one. The same fence renders natively on
+  github.com, so a diagram stays readable in the source tree and in a review.
+
+  Roles are carried by shape, not colour: a rectangle runs, a cylinder persists, a rounded box
+  starts or ends, a diamond decides. That is what WCAG 1.4.1 asks for, and it is also the only
+  thing that works, because mermaid renders a `classDef` as an inline `style` attribute carrying
+  `!important` and no stylesheet can override one, so a colour written into a page could never
+  follow the light or dark theme.
+
+### Fixed
+
+- **The published site served its images from an external host, and they failed behind a proxy.**
+  The markdown references them by absolute GitHub URL, which it must keep, since that is what makes
+  an image appear when the file is read on github.com or on PyPI. The built page inherited it, so
+  the site made one external request per image, and behind a TLS-inspecting corporate proxy every
+  one of them failed. 36 images on a site that otherwise depends on no external host. The built
+  pages now point at the site's own copies.
+
+- **Four retired pages were still being published.** `bootstrap`, `ownership`, `storage` and
+  `comparison` were removed from the documentation, but the generated site directory kept their old
+  HTML and the deploy copied it wholesale every time. They were unreachable from the navigation,
+  absent from the sitemap, and impossible to correct, since the source they were built from no
+  longer existed. The build now removes a page whose source has gone, and the deploy removes it
+  from the published branch.
+
+- **The copy button no longer lands on a diagram.** It attached to every code block in the prose,
+  and a rendered diagram is one, so it offered to copy a picture.
+
 ## [6.5.0] - 2026-08-07
 
 ### Changed

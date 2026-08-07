@@ -8,6 +8,30 @@ Indexing turns your mirrored repos into a queryable knowledge graph. `contextlak
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/cli-index.png" alt="contextlake kb index --workspace output: per-repo progress bars across four acme repos, each with node and edge counts, ending in a summary of 4 repos, 29 nodes, 28 edges." width="820">
 </p>
 
+```mermaid
+flowchart TD
+  D(["a directory you point kb index at"]) --> B{"--bundle passed?"}
+  B -->|yes| ONE["indexed as one repository"]
+  B -->|no| G{"is it itself a git repo?"}
+  G -->|yes| ONE
+  G -->|no| S{"does it hold git repos, with<br/>nothing of yours outside them?"}
+  S -->|no| ONE
+  S -->|yes| R(["refused, naming the command that fits"])
+  R -.->|"kb index --workspace"| EACH["each repo indexed under its own id"]
+  ONE --> GR[("the graph")]
+  EACH --> GR
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
+</div>
+
+The shape of the directory is measured before any of it is indexed, and the next section walks each
+outcome.
+
 ## Which command for which directory
 
 `kb index <dir>` indexes that directory as **one** repository. `kb index --workspace <dir>` walks it

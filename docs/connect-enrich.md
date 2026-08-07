@@ -4,6 +4,26 @@ Beyond code, contextlake links each repo to its external context (issues, docs, 
 grounded facts from those sources into the knowledge layer. `connect` links repos to items; `enrich`
 queries connected sources with codebase-derived terms and stores what comes back.
 
+```mermaid
+flowchart LR
+  C(["tracker, designs, merge<br/>requests, chat"]) --> CON["kb connect"]
+  I(["files, web, api, graphql,<br/>another MCP server"]) --> ING["kb ingest"]
+  Q(["the searchable ones: Atlassian,<br/>or an MCP search tool"]) --> ENR["kb enrich"]
+  G[("the code graph")] -.->|"repo name and top symbols<br/>become the search terms"| ENR
+  CON --> P[("isolated partitions")]
+  ING --> P
+  ENR --> P
+  P -.->|"linked to the repos and<br/>symbols they name"| G
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
+  <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+Each stage writes its own partition, so re-indexing a repo's code never disturbs its external links.
+
 ## Connectors
 
 `connect` enriches the graph with external context. Four connectors ship, sharing one seam:
