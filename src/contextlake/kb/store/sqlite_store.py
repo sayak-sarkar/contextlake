@@ -428,6 +428,27 @@ class SqliteStore(Store):
             "SELECT COUNT(*) c FROM edges WHERE repo_id=?", (repo_id,)).fetchone()["c"]
         return n, e
 
+    def list_partitions(self) -> list[str]:
+        """Every ``repo_id`` that owns nodes, whether or not it has a ``repos`` row.
+
+        ``list_repos`` cannot answer this. A repo gets a ``repos`` row; the partitions
+        written beside it -- ``@connect:<repo>``, ``@enrich:<repo>``, ``@wiki:<repo>``,
+        and ``@ingest:<name>`` -- never do, because they are not clones and have no path
+        on disk. So anything that enumerates work through ``list_repos`` is blind to
+        every partition, which is how connector and ingested content ended up scoped for
+        search but never written into the vector space in the first place.
+
+        This is discovery, not composition: ``@ingest:<name>`` belongs to no repo, so it
+        cannot be reached by expanding a repo id the way ``_repo_scope`` does.
+
+        Includes the ``(shared)``/``(packages)`` sentinels -- they own nodes, so they are
+        a truthful answer to this question. Callers that want real content filter them
+        with :func:`~contextlake.kb.model.is_sentinel_repo`.
+        """
+        rows = self.conn.execute(
+            "SELECT DISTINCT repo_id FROM nodes ORDER BY repo_id").fetchall()
+        return [r["repo_id"] for r in rows]
+
     def delete_repo(self, repo_id: str) -> None:
         self.clear_repo(repo_id)
         self.conn.execute("DELETE FROM repos WHERE repo_id=?", (repo_id,))

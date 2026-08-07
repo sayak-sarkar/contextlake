@@ -8,7 +8,7 @@ from ... import style
 from ...logging_setup import log
 from .._util import _or_default
 from ._common import (
-    _connect_targets,
+    _content_targets,
     _guard_store,
     _open_store,
     _watch_loop,
@@ -40,6 +40,36 @@ def _embed_unavailable_hint(cfg) -> str:
             "engine failed to load). Run `contextlake doctor` for details.")
 
 
+def _staleness_key(store, store_dir, repo_id: str) -> str | None:
+    """What "unchanged since last embed" means for ``repo_id``.
+
+    A real repo has an indexed HEAD, and that is the key. A partition
+    (``@connect:``/``@enrich:``/``@wiki:``/``@ingest:``) has no ``repos`` row and so no
+    HEAD at all, which would make the incremental skip never fire and every run
+    re-embed every partition from scratch.
+
+    Borrowing the owning repo's HEAD would be worse than that, and wrong in the
+    dangerous direction: connector content changes on its own schedule while the code
+    sits still, so a matching code HEAD would report the partition as current and skip
+    content that had in fact changed. ``@ingest:<name>`` has no owning repo to borrow
+    from in any case.
+
+    The shard file is rewritten whenever a partition's content changes, so its
+    (mtime, size) is the honest key -- the same identity ``read_shard_with_identity``
+    uses to key its own derived caches. Returns None when there is no shard, which
+    leaves the caller re-embedding rather than skipping: the safe direction.
+    """
+    repo = store.get_repo(repo_id)
+    if repo is not None and repo.head_commit:
+        return repo.head_commit
+    from ..store.shards import shard_path
+    try:
+        st = shard_path(store_dir, repo_id).stat()
+    except (OSError, ValueError):
+        return None
+    return f"shard:{st.st_mtime_ns}:{st.st_size}"
+
+
 def cmd_embed(args) -> int:
     from ..embeddings import build_embedder
     from ..embeddings.index import embed_repo
@@ -55,7 +85,7 @@ def cmd_embed(args) -> int:
         if embedder is None:
             log(_embed_unavailable_hint(cfg.embeddings))
             return 0
-        targets = _connect_targets(args, store)
+        targets = _content_targets(args, store)
         if not targets:
             log("No indexed repos to embed (run index first, or pass --workspace/--source)")
             return 0
@@ -97,7 +127,7 @@ def cmd_embed(args) -> int:
 
             def _embed_once() -> int:
                 # Re-resolve targets each pass so `--watch` picks up newly indexed repos.
-                pass_targets = _connect_targets(args, store)
+                pass_targets = _content_targets(args, store)
                 if not pass_targets:
                     log("No indexed repos to embed (run index first, or pass --workspace/--source)")
                     return 0
@@ -124,9 +154,8 @@ def cmd_embed(args) -> int:
                     f"into the {vs.name} vector store")
                 total = failed = skipped = 0
                 progress = style.Progress(len(pass_targets), label="embed")
-                for repo_id, _ in pass_targets:
-                    repo = store.get_repo(repo_id)
-                    head = repo.head_commit if repo else None
+                for repo_id in pass_targets:
+                    head = _staleness_key(store, store_dir, repo_id)
                     if incremental and head and get_embedded_head(vs, repo_id) == head:
                         skipped += 1
                         progress.advance(repo_id)

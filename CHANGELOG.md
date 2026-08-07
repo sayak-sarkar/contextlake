@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`kb embed` now embeds connector, enrichment and ingested content, which it never had.**
+  `connect`/`enrich`/`ingest` write into their own `@connect:<repo>`, `@enrich:<repo>` and
+  `@ingest:<name>` partitions, and those have no `repos` row and no path on disk. `embed` chose its
+  work through a helper written for `connect`/`enrich` -- which correctly skips anything without a
+  working tree to scrape, because there is nothing to scrape -- so every partition was excluded
+  twice over, and none of that content was ever searchable semantically.
+
+  This was easy to miss because the *search* side was already right: a query scoped to a repo
+  expands to that repo's connector partitions, so the scoping worked perfectly and matched nothing,
+  because no vectors had been written there. `embed` now enumerates partitions that hold content
+  rather than repositories that have a clone, and skips the `(shared)`/`(packages)` sentinels, which
+  own nodes but are cross-repo aggregates rather than anyone's content. `connect` and `enrich` are
+  deliberately unchanged. Run `kb embed` once after upgrading to pick up the content that was
+  previously skipped; the incremental skip keeps subsequent runs cheap.
+
 - **`kb forget` now reclaims the repository's files, not only its database rows.** It removed the
   nodes, edges, vectors and wiki pages and left `graph/<id>.json` and `history/<id>/` on disk, so a
   store measured in hundreds of megabytes gave back none of it -- on one store a single retained
