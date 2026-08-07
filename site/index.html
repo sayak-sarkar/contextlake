@@ -1166,12 +1166,19 @@
    (self-contained, offline iframe) once near the viewport. No-JS keeps the image; on load failure
    we restore it. The iframe opens in the current theme and follows theme toggles via postMessage. */
 (function(){var img=document.querySelector('.shot[data-embed]');if(!img||!('IntersectionObserver' in window))return;
-  function theme(){var e=document.documentElement.getAttribute('data-theme');return e||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
+  // Both halves of the src are read back out of the DOM, so both are constrained to what
+  // they are allowed to be rather than trusted: the theme to one of two literals, the path
+  // to a same-origin relative one. Neither is attacker-reachable on a static page, but an
+  // iframe src is a scheme sink, and a value narrowed at the point of use cannot become one.
+  var embed=img.getAttribute('data-embed')||'';if(!/^[\w][\w./-]*$/.test(embed))return;
+  function theme(){var e=document.documentElement.getAttribute('data-theme');
+    if(e==='dark'||e==='light')return e;
+    return matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
   var io=new IntersectionObserver(function(es){if(!es[0].isIntersecting)return;io.disconnect();
     var f=document.createElement('iframe');f.className='shot graph-embed';f.id='graph-frame';
     f.title=img.alt;f.setAttribute('scrolling','no');
     f.onerror=function(){f.replaceWith(img);};
-    f.src=img.getAttribute('data-embed')+'#theme='+theme();
+    f.src=embed+'#theme='+theme();
     img.replaceWith(f);},{rootMargin:'400px 0px'});
   io.observe(img);})();</script>
 <script>/* two-state navbar: add .scrolled once the hero is scrolled up under the header, so the bar
