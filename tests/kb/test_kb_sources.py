@@ -22,8 +22,11 @@ def test_files_source_recurses_skips_binary_and_empty(tmp_path):
     (tmp_path / "pic.png").write_bytes(b"\x89PNG\x00\x00binary")
 
     docs = list(FilesSource(path=str(tmp_path)).iter_documents())
-    assert sorted(d.title for d in docs) == ["a.md", "sub/b.txt"]  # empty + binary dropped
-    a = next(d for d in docs if d.title == "a.md")
+    # a.md is headed "# Title A" so it titles itself; b.txt has no heading and
+    # keeps its path. Ids stay path-based either way.
+    assert sorted(d.title for d in docs) == ["Title A", "sub/b.txt"]  # empty + binary dropped
+    assert sorted(d.id for d in docs) == ["a.md", "sub/b.txt"]
+    a = next(d for d in docs if d.title == "Title A")
     assert "body" in a.text and a.uri.endswith("a.md")
 
 
@@ -327,7 +330,7 @@ def test_cmd_ingest_writes_document_nodes(tmp_path, capsys, monkeypatch):
     try:
         # documents land as nodes under the synthetic @ingest: partition
         n = store.get_node("@ingest:cli:guide.md")
-        assert n is not None and n.kind == "document" and n.name == "guide.md"
+        assert n is not None and n.kind == "document" and n.name == "Guide"
         assert n.repo == "@ingest:cli"
         assert any(h.id == "@ingest:cli:faq.md" for h in store.search("faq"))
     finally:
@@ -541,3 +544,48 @@ def test_api_and_graphql_sources_refuse_file_urls(tmp_path):
 
     assert list(ApiSource(url=secret.as_uri()).iter_documents()) == []
     assert list(GraphQLSource(url=secret.as_uri(), query="{ x }").iter_documents()) == []
+
+
+# --- document titles -------------------------------------------------------
+#
+# The path was used for both the id and the title, so a page headed
+# "# Payments runbook" was stored, listed and cited as "runbook.md". The id has
+# to stay the path (it is the stable identity a re-ingest matches on); only the
+# title, which is the part a reader sees, comes from the document.
+
+def _one(tmp_path, name: str, text: str):
+    (tmp_path / name).write_text(text, encoding="utf-8")
+    return next(iter(FilesSource(path=str(tmp_path)).iter_documents()))
+
+
+def test_a_markdown_heading_becomes_the_title(tmp_path):
+    doc = _one(tmp_path, "runbook.md", "# Payments runbook\n\nCall verify_signature.\n")
+    assert doc.title == "Payments runbook"
+    # The id stays the path: it is what a re-ingest matches on.
+    assert doc.id == "runbook.md"
+
+
+def test_a_file_with_no_heading_keeps_its_path(tmp_path):
+    doc = _one(tmp_path, "notes.txt", "just some prose, no heading at all\n")
+    assert doc.title == "notes.txt"
+
+
+def test_prose_before_a_heading_means_there_is_no_title(tmp_path):
+    """A `#` under a paragraph is a section, not the document's subject."""
+    doc = _one(tmp_path, "d.md", "Intro paragraph.\n\n# Later section\n")
+    assert doc.title == "d.md"
+
+
+def test_a_deeper_heading_is_a_section_not_a_title(tmp_path):
+    doc = _one(tmp_path, "d.md", "## Rotating the key\n\nsteps\n")
+    assert doc.title == "d.md"
+
+
+def test_a_heading_after_front_matter_still_counts(tmp_path):
+    doc = _one(tmp_path, "d.md", "---\ntag: ops\n---\n# Real title\n")
+    assert doc.title == "Real title"
+
+
+def test_an_empty_heading_is_not_a_title(tmp_path):
+    doc = _one(tmp_path, "d.md", "#   \n\nbody\n")
+    assert doc.title == "d.md"
