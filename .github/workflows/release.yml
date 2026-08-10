@@ -85,9 +85,16 @@ jobs:
         # something untrue. So the subject is a throwaway venv containing the wheel that was
         # just built plus the `kb-full` extras a user is told to install, and nothing else.
         #
-        # cyclonedx-bom is installed in the OUTER environment and pointed at that venv's
-        # interpreter, never installed into it -- an SBOM that lists its own generator is
-        # describing the wrong thing.
+        # cyclonedx-bom gets its OWN venv and is never installed into either the subject venv
+        # or this job's environment. Two separate reasons, and both matter:
+        #   - not into the subject venv, because an SBOM that lists its own generator is
+        #     describing the wrong thing;
+        #   - not into this job's environment, because that already holds ruff, pytest, twine
+        #     and build. Adding a package there lets pip re-resolve a shared transitive
+        #     (packageurl-python, license-expression, py-serializable) and quietly change the
+        #     environment the LATER steps run in. The canary below only inspects the JSON, so
+        #     it would not catch that. This also matches how the step was verified locally: a
+        #     dedicated tool venv, not a shared one.
         #
         # Scope, stated because the file cannot state it for itself: `kb-full` is
         # kb + kb-local + kb-vec. It does NOT include `kb-fastembed`, and it does NOT include
@@ -97,11 +104,15 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           mkdir -p sbom
-          pip install cyclonedx-bom
+          # the generator, in its own venv
+          python -m venv /tmp/sbomtool
+          /tmp/sbomtool/bin/python -m pip install --quiet --upgrade pip
+          /tmp/sbomtool/bin/python -m pip install --quiet cyclonedx-bom
+          # the subject: the built wheel plus the extras a user is told to install, alone
           python -m venv /tmp/shipped
           /tmp/shipped/bin/python -m pip install --quiet --upgrade pip
           /tmp/shipped/bin/python -m pip install --quiet "$(ls dist/*.whl)[kb-full]"
-          cyclonedx-py environment /tmp/shipped/bin/python \
+          /tmp/sbomtool/bin/cyclonedx-py environment /tmp/shipped/bin/python \
             --pyproject pyproject.toml --mc-type library \
             --of JSON -o "sbom/contextlake-${version}.cdx.json"
           # The root component's version comes out null: cyclonedx-py reads it from
