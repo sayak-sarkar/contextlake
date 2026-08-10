@@ -966,7 +966,9 @@ def settings(store, store_dir, *, config_path: str | None = None, sample: bool =
             "stored": int(stored_schema) if stored_schema is not None else None,
         },
         "mirror_root": sanitize_label(mirror_root) if mirror_root else None,
-        "languages": list(cfg.languages),
+        # None means "all supported", so report that rather than an empty list,
+        # which would read as "none".
+        "languages": list(cfg.languages) if cfg.languages else "all",
         "embeddings": {"enabled": cfg.embeddings.enabled, "provider": cfg.embeddings.provider,
                       "model": cfg.embeddings.model},
         "llm": {"enabled": cfg.llm.enabled, "provider": cfg.llm.provider, "model": cfg.llm.model},

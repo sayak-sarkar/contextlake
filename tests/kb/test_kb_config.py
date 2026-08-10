@@ -35,7 +35,10 @@ def _isolate(monkeypatch, tmp_path):
 def test_defaults_when_no_files(tmp_path, monkeypatch):
     _isolate(monkeypatch, tmp_path)
     c = load_kb_config()
-    assert c.languages == ["csharp", "typescript", "python"]
+    # None means "every supported language", which is what the indexer has always
+    # actually done. The former default of three languages described a filter that was
+    # never applied; passing it through would have silently dropped eleven languages.
+    assert c.languages is None
     assert c.embeddings.enabled is False
     assert c.sources == [] and c.rules == []
 

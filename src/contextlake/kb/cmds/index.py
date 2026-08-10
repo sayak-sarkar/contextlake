@@ -30,7 +30,8 @@ def _default_index_workers() -> int:
 
 def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
                      skip_generated: bool = True, max_file_bytes: int | None = None,
-                     workers: int | None = None, repo_filter: str | None = None) -> int:
+                     workers: int | None = None, repo_filter: str | None = None,
+                     languages: list[str] | None = None) -> int:
     from ..parse import (  # lazy: tree-sitter
         DEFAULT_MAX_FILE_BYTES,
         PARSER_VERSION,
@@ -129,7 +130,7 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         nonlocal failed
         for repo_id, path, head in items:
             try:
-                shard = index_repo_dir(path, repo_id, head_commit=head,
+                shard = index_repo_dir(path, repo_id, head_commit=head, languages=languages,
                                        skip_generated=skip_generated, max_file_bytes=max_file_bytes)
             except Exception as e:  # noqa: BLE001 - one repo must not abort the workspace
                 failed += 1
@@ -161,7 +162,9 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
         try:
             with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as ex:
                 futs = {
-                    ex.submit(index_repo_dir, path, repo_id, head, None,
+                    # 4th positional IS `languages`; it was hardcoded None here, which
+                    # is half of why the config key did nothing.
+                    ex.submit(index_repo_dir, path, repo_id, head, languages,
                               max_file_bytes=max_file_bytes, skip_generated=skip_generated):
                         (repo_id, path, head)
                     for repo_id, path, head in todo
@@ -474,7 +477,10 @@ def cmd_index(args) -> int:
         store.close()
         return 1
     cfg = kb_config(args)
-    parse_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes)
+    # `languages` was absent here, so `kb.toml`'s setting was validated, displayed in the
+    # dashboard, documented as a filter -- and then never reached the parser.
+    parse_opts = dict(skip_generated=cfg.skip_generated, max_file_bytes=cfg.max_file_bytes,
+                      languages=cfg.languages)
     workers = cfg.index_workers
     try:
         workspace = getattr(args, "workspace", None)

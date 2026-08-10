@@ -403,7 +403,9 @@ def test_settings_endpoint(served):
     body = json.loads(_get(served + "/api/settings"))
     assert body["store_size_bytes"] > 0
     assert body["schema_version"]["running"] == body["schema_version"]["stored"]
-    assert isinstance(body["languages"], list)
+    # Unset means all supported languages. Reported as "all" rather than [] so the
+    # settings view cannot read as "no languages are indexed".
+    assert body["languages"] == "all"
     assert set(body["embeddings"]) == {"enabled", "provider", "model"}
     assert body["sources"] == []
 

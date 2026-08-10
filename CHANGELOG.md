@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`kb.toml`'s `languages` key did nothing.** It was validated as a known key, shown in the dashboard
+  settings view, and documented as a filter -- and it was never passed to the parser, so every install
+  indexed all supported languages whatever the file said. A setting that silently ignores the user.
+
+  It now filters. The subtlety is why this was not a one-line wire-up: the default was
+  `["csharp", "typescript", "python"]`, and passing *that* through would have silently stopped indexing
+  C, C++, Go, Java, JavaScript, Kotlin, PHP, Ruby, Rust, Scala and TSX for everyone who never set the
+  key -- a far worse bug than the dead setting, and a graph that quietly loses most of a polyglot repo.
+
+  So the default is now `None`, meaning every supported language, which is exactly the behaviour every
+  existing install already has. An explicit list finally restricts. `languages = []` also means
+  everything, because "I did not decide" is a much likelier reading than "index no code at all", and
+  the alternative is a silently empty graph. The old three-language constant is gone, with a test
+  guarding against its return.
+
+### Fixed
+
 - **Registering a new kind for the dashboard made its icon worse, not better.** `kindIcon` resolves to
   `KIND_GLYPHS[kind] ? kind : "file"`, so adding a kind to that table is precisely what *disables* the
   generic file fallback. Adding `config_key` and `test` to it earlier in this cycle without adding

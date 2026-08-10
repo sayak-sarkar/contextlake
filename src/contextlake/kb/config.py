@@ -40,7 +40,17 @@ except ModuleNotFoundError:  # Python 3.10
 DEFAULT_STORE_DIR = "~/.contextlake/kb"
 GLOBAL_CONFIG = "~/.contextlake/kb.toml"
 LOCAL_CONFIG = ".contextlake.kb.toml"
-DEFAULT_LANGUAGES = ["csharp", "typescript", "python"]
+# There is deliberately no DEFAULT_LANGUAGES list any more.
+#
+# It used to be ["csharp", "typescript", "python"], and `languages` defaulted to it --
+# but nothing ever passed the value to the parser, so every install indexed all 14
+# supported languages regardless. The list therefore described a filter that did not
+# exist. Wiring the old default through would have silently stopped indexing c, cpp,
+# go, java, javascript, kotlin, php, ruby, rust, scala and tsx for every user who never
+# set the key, which is a far worse outcome than the dead setting.
+#
+# So `languages = None` now means "every language the parser supports", matching the
+# behaviour users have always had, and an explicit list finally filters.
 # The single source of truth for the indexer's oversize-file cutoff. Decimal
 # 5,000,000 (5 MB), not 5 * 1024**2 (5 MiB, 5,242,880 bytes): docs/index-code-graph.md
 # and docs/style-guide-formatting.md both document this knob as "5 MB", and this is
@@ -151,7 +161,8 @@ class LlmCfg(BaseModel):
 
 class KbConfig(BaseModel):
     store_dir: str = DEFAULT_STORE_DIR
-    languages: list[str] = Field(default_factory=lambda: list(DEFAULT_LANGUAGES))
+    # None (the default) means every supported language; a list restricts to it.
+    languages: list[str] | None = None
     # Indexing scope. Skip machine-generated/derived files (designer.cs, *.min.js,
     # @generated headers, …) — graph noise derived from real sources — and code
     # files larger than max_file_bytes (data blobs / vendored bundles). Both are
@@ -251,7 +262,7 @@ def load_kb_config(config_path: str | None = None) -> KbConfig:
     _warn_unknown_config(kb, merged)
     cfg = KbConfig(
         store_dir=kb.get("store_dir", default_store_dir()),
-        languages=kb.get("languages", list(DEFAULT_LANGUAGES)),
+        languages=kb.get("languages") or None,
         skip_generated=kb.get("skip_generated", True),
         max_file_bytes=kb.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES),
         index_workers=kb.get("index_workers", None),
