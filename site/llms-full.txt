@@ -5673,7 +5673,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
 - **XML configuration is indexed.** `.xml` was absent from the extension table, so a repository's
   configuration contributed **zero** nodes and "where is this setting defined" had no answer in the
   graph. Each identified setting is now a `config_key` node carrying its value, its element path as
@@ -5708,25 +5707,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `parse_hcl`, so it is worth naming as a pattern rather than a one-off: any per-match `count` or
   `index` from position zero over the same buffer is the bug.
 
-- **`find_callers` now tells you which line the call is on.** It used to answer with the caller's
-  *definition* line, so "who calls this" gave you a function name and left you to grep its body for
-  the call. Every edge in the graph already carried the call site; the response model dropped it.
-  Each result now carries `call_file` and `call_line` alongside the caller's own `file` and
-  `line_start`, so the answer is quotable as evidence rather than a lead to chase.
-
-  Measured on a large legacy C++ tree: 6 of 6 callers of a sampled symbol reported a call line
-  different from their definition line, every one of them readable in the real file at the line
-  given. On that tree the two lines were 3 to 33 lines apart, which is exactly the gap a reader was
-  being asked to close by hand.
-
-- **`find_callees`, the other half of the call graph.** `find_callers` answers "who depends on
-  this"; this answers "what does this reach", which is the question you have when reading a function
-  you did not write. Same arguments, same budgeting, same call-site provenance. The traversal already
-  existed (`get_neighbors` has accepted `direction="out"` all along), so this exposes reachable data
-  rather than computing anything new.
-
 ### Fixed
-
 - **Config, SQL and ADR nodes were islands, and their files were missing from the graph entirely.**
   The code path builds a `file` node and parents every definition to it. The bespoke extractors
   never did, so their output had no way in: measured on a large legacy C++ tree, **12,991 of 12,991**
@@ -5755,6 +5736,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `xml` is precisely what a future tree-sitter XML grammar would be called, and `_parser("xml")` would
   then have returned the extraction callable instead of a parser. The cache is now `_TS_PARSERS`.
 
+## [6.7.0] - 2026-08-11
+
+### Added
+- **`find_callers` now tells you which line the call is on.** It used to answer with the caller's
+  *definition* line, so "who calls this" gave you a function name and left you to grep its body for
+  the call. Every edge in the graph already carried the call site; the response model dropped it.
+  Each result now carries `call_file` and `call_line` alongside the caller's own `file` and
+  `line_start`, so the answer is quotable as evidence rather than a lead to chase.
+
+  Measured on a large legacy C++ tree: 6 of 6 callers of a sampled symbol reported a call line
+  different from their definition line, every one of them readable in the real file at the line
+  given. On that tree the two lines were 3 to 33 lines apart, which is exactly the gap a reader was
+  being asked to close by hand.
+
+- **`find_callees`, the other half of the call graph.** `find_callers` answers "who depends on
+  this"; this answers "what does this reach", which is the question you have when reading a function
+  you did not write. Same arguments, same budgeting, same call-site provenance. The traversal already
+  existed (`get_neighbors` has accepted `direction="out"` all along), so this exposes reachable data
+  rather than computing anything new.
+
+### Fixed
 - **Edges cited a file with no line.** `EdgeOut` carried `source_file` but not `source_line`,
   although `Provenance` has always held both, so every verb returning edges named a file and left the
   line behind. `get_neighbors` and everything built on it now report both.
