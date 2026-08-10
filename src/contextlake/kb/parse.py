@@ -715,10 +715,10 @@ def _qualified_chain(qi_node: ts.Node) -> tuple[list[str], ts.Node]:
     while node.type == "qualified_identifier":
         scope = node.child_by_field_name("scope")
         name = node.child_by_field_name("name")
-        if scope is not None and scope.type in (
-            "namespace_identifier", "type_identifier", "identifier"
-        ):
-            segments.append(scope.text.decode("utf-8", "replace"))
+        if scope is not None:
+            seg = _scope_segment(scope)
+            if seg:
+                segments.append(seg)
         if name is None:
             return segments, node  # defensive; not expected from valid C++
         if name.type == "qualified_identifier":
@@ -726,6 +726,38 @@ def _qualified_chain(qi_node: ts.Node) -> tuple[list[str], ts.Node]:
             continue
         return segments, name
     return segments, node
+
+
+# Scope-segment node types that are already a plain name.
+_PLAIN_SCOPE_TYPES = frozenset({"namespace_identifier", "type_identifier", "identifier"})
+
+
+def _scope_segment(scope: ts.Node) -> str:
+    """One qualifier segment's name, or "" when the node carries no usable name.
+
+    This used to be an `in (...)` test with **no else**, so any scope type outside the
+    plain three was dropped without a trace. `template_type` is the common one: in
+    `NS::Box<T>::put` the `Box<T>` segment vanished, leaving `NS` as the last
+    qualifier, and the resolver then attached `put` to whatever `NS` matched -- a
+    FABRICATED parent, which is worse than a missing edge because it reads as fact.
+
+    So every unrecognised type now falls through to its own text rather than
+    disappearing. A segment that is merely ugly still resolves or fails loudly; a
+    segment that is absent silently changes which class a method belongs to.
+    """
+    if scope.type in _PLAIN_SCOPE_TYPES:
+        return scope.text.decode("utf-8", "replace")
+    if scope.type == "template_type":
+        # `Box<T>` -> `Box`. The arguments belong to the specialisation, not to the
+        # class's identity, and the class node is named `Box`.
+        base = scope.child_by_field_name("name")
+        if base is not None:
+            return base.text.decode("utf-8", "replace")
+    # Unknown shape: keep the raw text, minus any template argument list so it still
+    # has a chance of matching a class node. Never return "" here -- that is the
+    # silent-drop behaviour this function exists to remove.
+    raw = scope.text.decode("utf-8", "replace").strip()
+    return raw.split("<", 1)[0].strip() or raw
 
 
 def _sorted_captures(captures: dict[str, list[ts.Node]]) -> dict[str, list[ts.Node]]:

@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A qualifier segment could vanish, silently moving a method to a different class.** The scope-name
+  walk tested each segment against three plain name types with **no `else`**, so any other shape was
+  dropped without a trace. `template_type` is the common one: in `NS::Box<T>::put` the `Box<T>`
+  segment disappeared, leaving `NS` as the final qualifier, and the resolver then attached `put` to
+  whatever `NS` matched. A fabricated parent is worse than a missing edge, because it reads as a fact.
+
+  A template segment now contributes its base name (`Box<T>` gives `Box`, which is what the class node
+  is called, since the arguments belong to the specialisation rather than to the class's identity), so
+  `NS::Box<T>::put` qualifies as `NS.Box.put` instead of `NS.put`.
+
+  More importantly, **every unrecognised scope shape now falls through to its own text instead of
+  disappearing**. That matters more than the template case itself: a segment that is merely ugly still
+  resolves or fails visibly, while a segment that is absent quietly changes which class a method
+  belongs to. The next scope type nobody anticipated will not repeat this.
+
 - **Every test in a C++ repo was invisible by name.** A test macro with a body parses as a function
   definition whose name is the *macro*, so `TEST(TimerSuite, HandlesMinutes)` produced one node called
   `TEST` and the case name `Minutes` was discarded. Measured on a large legacy C++ tree before the
