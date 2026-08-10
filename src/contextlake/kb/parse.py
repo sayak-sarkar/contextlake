@@ -791,9 +791,18 @@ def parse_source(
         scope = [n.child_by_field_name("name").text.decode("utf-8", "replace")
                  for n in reversed(enclosing) if n.child_by_field_name("name")]
         full_scope = scope + extra_scope if extra_scope else scope
+        # A test macro with a body parses as a function_definition whose name is the
+        # MACRO, so the case's real name is thrown away and every case in the repo
+        # collapses onto one node. Recover the name from the macro's arguments.
+        macro_case = _test_macro_case(def_ts, name, lang)
+        if macro_case is not None:
+            suite, case = macro_case
+            name = case
+            if suite:
+                full_scope = [*full_scope, suite]
         qualified = ".".join([*full_scope, name])
         line = name_node.start_point[0] + 1
-        kind = _DEF_TYPES[lang][def_ts.type]
+        kind = "test" if macro_case is not None else _DEF_TYPES[lang][def_ts.type]
         # A forward declaration ("class Widget;", the standard way to break header
         # include cycles in C/C++) is a body-less class_specifier/struct_specifier/
         # enum_specifier/union_specifier -- not a definition in the graph-node sense.
@@ -962,6 +971,52 @@ class RefCollector:
                 refs, by_id, relation=relation, target_kinds=target_kinds,
                 same_language=same_language))
         return edges
+
+
+# Test macros that take a body, so tree-sitter reports them as a function_definition
+# named after the macro. Measured on a large legacy C++ tree: TEST_F 1,855, TEST 962,
+# TEST_P 3 -- 2,820 nodes, 6.8% of all function+method nodes, every one of them called
+# `TEST`/`TEST_F` instead of the case it defines. The googletest family plus the two
+# obvious siblings; deliberately a closed list rather than "any ALL_CAPS name", because
+# a constructor also has no return type and a guess there would mangle real symbols.
+# Verified 2026-08-11 that each of these actually parses as a `function_definition`,
+# which is the only shape this code can reach. Catch2's `TEST_CASE("a name")` does NOT:
+# with a string-literal argument the grammar produces `expression_statement` +
+# `compound_statement`, so no definition node exists to rename and Catch2 needs a
+# separate mechanism. It is left out rather than listed and silently unsupported.
+_TEST_MACROS = frozenset({
+    "TEST", "TEST_F", "TEST_P", "TYPED_TEST", "TYPED_TEST_P",
+})
+
+# `MACRO(argument, argument)` -- the declarator's own text, so it needs no assumption
+# about how the grammar shaped the arguments (they are not real parameters, and the
+# grammar's reading of them varies with what the names happen to look like).
+_MACRO_CALL = re.compile(r"^[A-Za-z_]\w*\s*\((.*)\)\s*$", re.DOTALL)
+
+
+def _test_macro_case(def_ts: ts.Node, name: str, lang: str) -> tuple[str, str] | None:
+    """``(suite, case)`` when this "definition" is really a test-macro invocation.
+
+    Returns None for everything else, including a constructor or destructor, which
+    also has no return type. That is why the macro name is matched against a closed
+    set first: absence of a return type alone cannot tell `TEST(A, B)` from `C::C()`.
+    """
+    if lang not in ("c", "cpp") or name not in _TEST_MACROS:
+        return None
+    if def_ts.child_by_field_name("type") is not None:
+        return None                      # a real definition declares a return type
+    dec = def_ts.child_by_field_name("declarator")
+    if dec is None:
+        return None
+    m = _MACRO_CALL.match(dec.text.decode("utf-8", "replace").strip())
+    if not m:
+        return None
+    args = [a.strip().strip('"').strip() for a in m.group(1).split(",")]
+    args = [a for a in args if a]
+    if not args:
+        return None
+    # Two arguments is the googletest shape (suite, case). One is Catch2's TEST_CASE.
+    return (args[0], args[1]) if len(args) >= 2 else ("", args[0])
 
 
 def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
