@@ -11,11 +11,28 @@ from __future__ import annotations
 from .._util import chunks
 from ..store.shards import read_shard
 
-# Version of the node -> text mapping below. Bumping it marks every stored vector
-# stale (the next embed re-runs the fleet once, intentionally), so enriching the
-# text can never leave old name-only vectors silently coexisting with new semantics.
+# Version of everything a stored vector depends on. Bumping it marks every stored
+# vector stale (the next embed re-runs the fleet once, intentionally).
+#
+# TWO things make a stored vector stale, and only the first used to be covered:
+#
+#  1. The node -> text mapping below. Enriching the text must never leave old
+#     name-only vectors silently coexisting with new semantics.
+#  2. **The shape of node ids.** A vector row is keyed by node id, so if the id
+#     scheme changes, every stored key stops matching a real node. The retrieval
+#     tools then drop the unresolvable hits and return a shorter, plausible,
+#     non-empty answer; `doctor` still reports a healthy row count; and the
+#     half-migrated case is worst of all, because the surviving hits are silently
+#     biased toward whichever repos happened to be re-embedded. This version did
+#     not cover ids, which is precisely why that failure was invisible.
+#
+# **So: any change to how node ids are built MUST bump this.** It is the only signal
+# that reaches `kb embed`'s incremental path, and re-embedding is the only repair.
+#
 #   1: kind + name + qualified_name + file (metadata only)
 #   2: + captured signature and docstring (real content -> real semantic search)
+#   (a bump for an id-scheme change carries no text-format meaning; it is still
+#    correct to bump, because the stored KEYS are what went stale)
 EMBED_CONTENT_VERSION = 2
 
 # Docstrings are captured up to 1000 chars; embed a tighter slice so one verbose

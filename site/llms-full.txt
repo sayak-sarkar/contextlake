@@ -5674,6 +5674,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A stale embedding store answered silently, and `ask` vouched for it.** A vector row is keyed by
+  node id, so anything that changes how ids are built leaves every stored key pointing at a node the
+  graph no longer holds. The retrieval paths dropped those hits with a bare `if n:` and returned a
+  shorter, entirely plausible, non-empty answer. `doctor` reported a healthy row count throughout, and
+  the half-migrated case was worst of all: re-index some repositories and the surviving hits are
+  silently biased toward whichever ones were re-embedded.
+
+  `ask` was the sharpest case, because its disclosure reports the *question's* unmatched terms rather
+  than dropped results. So it affirmatively stated that everything you asked about was indexed while
+  quietly discarding most of what the search actually found.
+
+  It now counts the unresolvable hits and says so: "2 vector hit(s) named nodes that are not in the
+  graph and were dropped: the embedding store is stale relative to the index, so this answer is
+  INCOMPLETE. Re-run `kb embed`." A healthy store produces no warning, which is asserted by a control
+  test, because a warning that always fires is the defect rather than the fix.
+
+  `EMBED_CONTENT_VERSION`'s contract is also widened. It existed to catch exactly this class of
+  staleness but keyed only on the node-to-text mapping, and the node id is not part of that text --
+  which is precisely why the failure was invisible. It now documents that **any change to how node ids
+  are built must bump it**, since it is the only signal that reaches `kb embed`'s incremental path and
+  re-embedding is the only repair.
+
+### Fixed
+
 - **`kb.toml`'s `languages` key did nothing.** It was validated as a known key, shown in the dashboard
   settings view, and documented as a filter -- and it was never passed to the parser, so every install
   indexed all supported languages whatever the file said. A setting that silently ignores the user.

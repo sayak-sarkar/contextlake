@@ -1514,12 +1514,26 @@ def build_server(
         if question.strip() and embedder is not None and vector_store is not None:
             vec = embedder.embed([question])[0]
             out: list[NodeOut] = []
+            # Count what the vector store returned but the graph could not resolve. A
+            # vector row is keyed by node id, so a stale store yields hits that name
+            # nodes no longer present -- and dropping them silently returns a shorter,
+            # plausible, non-empty answer. That is worse here than anywhere else,
+            # because the disclosure below reports the QUESTION's unmatched terms and
+            # would otherwise vouch that everything asked about is indexed while
+            # quietly discarding most of what was found.
+            dropped = 0
             for nid, _s in vector_store.search(vec, k=k, repo=repo):
                 n = store.get_node(nid)
                 if n:
                     out.append(_node_out(n, score=_s))
+                else:
+                    dropped += 1
             found = ("Semantic search over the graph (names + signatures + docstrings); "
                      "'wiki'/'document' hits are ADVISORY.")
+            if dropped:
+                found += (f" {dropped} vector hit(s) named nodes that are not in the "
+                          "graph and were dropped: the embedding store is stale relative "
+                          "to the index, so this answer is INCOMPLETE. Re-run `kb embed`.")
         else:
             out = search_code(question, repo=repo, limit=k)
             found = "Full-text search over node names (no embeddings configured)."
