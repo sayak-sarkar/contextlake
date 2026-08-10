@@ -1534,6 +1534,18 @@ def _family(lang: str | None) -> str | None:
     return _LANG_FAMILY.get(lang, lang) if lang else None
 
 
+def _scope_chain_of(node: Node) -> str:
+    """A definition's own scope chain, with the file prefix removed.
+
+    ``qualified_name`` is stored file-prefixed (``path/to/f.cpp::NS.Box``), which is
+    C1 in the gap register and the reason a header and its .cpp can never match on
+    it. Comparing qualifiers here needs the scope part alone, so this strips the
+    prefix rather than working around it at each call site.
+    """
+    q = node.qualified_name or node.name or ""
+    return q.split("::", 1)[1] if "::" in q else q
+
+
 def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
     """Repo-wide second pass: link an out-of-line qualified method to its class.
 
@@ -1542,10 +1554,21 @@ def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
     the class may live in any file (the common header/source split), so this can only
     resolve once every file in the repo has been parsed and ``by_id`` is complete.
     """
-    class_index: dict[str, list[str]] = {}
+    # Two indexes, both built in ONE pass over the nodes:
+    #   qual_index -- the class's own scope chain ("NS.Box") -> ids. An exact hit on the
+    #                 whole qualifier is the unambiguous case and needs no filtering.
+    #   by_bare    -- last segment ("Box") -> [(chain, id)]. The fallback list is short
+    #                 (the classes sharing one bare name), so filtering it per pending
+    #                 method stays linear overall. This is what keeps the pass off the
+    #                 O(pending x classes) path, the same hazard the contains_edge_idx
+    #                 pre-index below exists for.
+    qual_index: dict[str, list[str]] = {}
+    by_bare: dict[str, list[tuple[str, str]]] = {}
     for node in by_id.values():
         if node.kind in ("class", "struct"):
-            class_index.setdefault(node.name, []).append(node.id)
+            chain = _scope_chain_of(node)
+            qual_index.setdefault(chain, []).append(node.id)
+            by_bare.setdefault(node.name, []).append((chain, node.id))
 
     # Index each node's *first* "contains" edge once, up front. A linear scan of
     # `edges` per pending method makes this pass O(pending x edges) -- measured
@@ -1562,9 +1585,22 @@ def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
         pending = node.attrs.pop("_pending_method_of", None)
         if not pending:
             continue
-        candidates = class_index.get(pending[-1])
-        if not candidates or len(candidates) != 1:
-            continue  # unresolved or ambiguous -- leave as "function", file-contained
+        # Match the WHOLE qualifier, not just its last segment. Keying on the last
+        # segment alone let `NS::Box::put` attach to an unrelated `Other::Box`, which
+        # is a fabricated parent rather than a missing edge; and bailing whenever the
+        # bare name was ambiguous threw away ties the qualifier already settles.
+        want = ".".join(pending)
+        candidates = qual_index.get(want) or []
+        if len(candidates) != 1:
+            # The qualifier can be relative to an enclosing scope: inside
+            # `namespace NS`, `void Box::put()` carries pending ["Box"] while the class
+            # node's chain is "NS.Box". A suffix match accepts that and still rejects
+            # `Other.Box`, because that does not end with ".Box" preceded by the rest of
+            # the chain the definition named.
+            candidates = [cid for chain, cid in by_bare.get(pending[-1], ())
+                          if chain == want or chain.endswith("." + want)]
+        if len(candidates) != 1:
+            continue  # unresolved, or genuinely ambiguous -- leave file-contained
         class_id = candidates[0]
         i = contains_edge_idx.get(node.id)
         if i is None:

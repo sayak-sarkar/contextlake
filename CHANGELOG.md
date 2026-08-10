@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An out-of-line method could be attached to a class its qualifier excludes.** Resolution keyed on
+  the qualifier's LAST segment and gave up whenever that bare name matched more than one class. So
+  `NS::Box::put` could land on an unrelated `Other::Box`, and a tie the qualifier already settles was
+  discarded. The first is the worse half: a fabricated parent reads as a fact, while a missing edge
+  reads as a gap.
+
+  Resolution now matches the whole qualifier. An exact hit on the full chain wins; otherwise the
+  chain must be a suffix of the class's own, which accepts a qualifier written relative to an
+  enclosing namespace (`void Box::put()` inside `namespace NS` resolves to `NS::Box`) while still
+  rejecting `Other::Box`. A qualifier naming no known class, or one that stays genuinely ambiguous,
+  attaches nothing: file-contained is the honest answer.
+
+  Measured on a large legacy C++ tree, like for like against the same counting unit: methods per
+  class 5.66 to **5.79**, classes carrying zero methods 310 down to **296**. Indexing cost is
+  unchanged at 1:08 against a 1:07 control, because both lookups are prebuilt in the single pass that
+  already existed rather than scanned per method.
+
+  Nothing in the suite previously forbade a fabricated parent, which is why this survived review: the
+  graph looked richer rather than wrong. There is now an explicit negative test for it.
+
 - **A qualifier segment could vanish, silently moving a method to a different class.** The scope-name
   walk tested each segment against three plain name types with **no `else`**, so any other shape was
   dropped without a trace. `template_type` is the common one: in `NS::Box<T>::put` the `Box<T>`
