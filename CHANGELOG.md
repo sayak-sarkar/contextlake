@@ -62,6 +62,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Config, SQL and ADR nodes were islands, and their files were missing from the graph entirely.**
+  The code path builds a `file` node and parents every definition to it. The bespoke extractors
+  never did, so their output had no way in: measured on a large legacy C++ tree, **12,991 of 12,991**
+  `config_key` nodes and **142 of 207** `table` nodes had zero incident edges, against 0 of 28,274
+  functions. Worse, there were **0 `file` nodes for `.xml` and 0 for `.sql`**, so a file-level view
+  of that repository silently omitted every config file and every schema file it contained.
+
+  A name lookup still found those nodes, which is exactly why this survived: "where is this setting
+  defined" looked answered while nothing could reach the setting by traversal and no diagram of a
+  file could show its contents. Each of these files now gets its `file` node and a `contains` edge to
+  everything extracted from it, in one place in the dispatch so it cannot drift per extractor. A file
+  that yielded nothing still gets no node, so the graph gains no empty shells.
+
+  Not extended to manifests on purpose: their nodes are cross-repo package nodes that several
+  manifests legitimately share, and the relation that belongs between a manifest and a package is
+  `depends_on`, which is already emitted. `contains` would assert the package lives in that file.
+
+  Linking a setting to the code that *reads* it is deliberately not attempted. A `config_key` named
+  `Timeout` and a string literal `"Timeout"` in a source file are a plausible match, not a verified
+  one, and minting that edge is the speculation this graph refuses to do.
+
+- **Two module-level dicts were both named `_PARSERS`.** One caches tree-sitter parsers by language,
+  the other maps a file kind to its extractor; the later definition rebound the name, so `_parser()`
+  was inserting `ts.Parser` objects into the extraction registry. It worked only because no language
+  happened to share a name with a kind. Adding `xml` as a kind made that collision reachable, since
+  `xml` is precisely what a future tree-sitter XML grammar would be called, and `_parser("xml")` would
+  then have returned the extraction callable instead of a parser. The cache is now `_TS_PARSERS`.
+
 - **Edges cited a file with no line.** `EdgeOut` carried `source_file` but not `source_line`,
   although `Provenance` has always held both, so every verb returning edges named a file and left the
   line behind. `get_neighbors` and everything built on it now report both.

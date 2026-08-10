@@ -387,7 +387,14 @@ _QUERIES = {
 _QUERIES["tsx"] = _QUERIES["typescript"]
 
 _LANGS: dict[str, ts.Language] = {}
-_PARSERS: dict[str, ts.Parser] = {}
+# The tree-sitter parser cache, keyed by LANGUAGE. Named distinctly from the
+# extraction-kind registry further down, which is keyed by FILE KIND: both were
+# called _PARSERS, so the later definition rebound the name and `_parser()` was
+# inserting ts.Parser objects into the kind registry. Harmless only while no
+# language shares a name with a kind -- and "xml" is now both a kind and the
+# obvious name for a future tree-sitter XML grammar, at which point `_parser("xml")`
+# would have returned the extraction callable instead of a parser.
+_TS_PARSERS: dict[str, ts.Parser] = {}
 _COMPILED: dict[str, ts.Query] = {}
 
 
@@ -442,9 +449,9 @@ def _language(lang: str) -> ts.Language:
 
 
 def _parser(lang: str) -> ts.Parser:
-    if lang not in _PARSERS:
-        _PARSERS[lang] = ts.Parser(_language(lang))
-    return _PARSERS[lang]
+    if lang not in _TS_PARSERS:
+        _TS_PARSERS[lang] = ts.Parser(_language(lang))
+    return _TS_PARSERS[lang]
 
 
 def _query(lang: str) -> ts.Query:
@@ -1140,6 +1147,44 @@ def _parse_manifest_file(repo_id: str, sf: SourceFile, _refs: RefCollector,
 # Extraction kind -> parser, all sharing one signature so the orchestrator below
 # is a lookup rather than a multi-way branch. A new file kind is a table entry
 # plus a `_file_kind` clause; nothing in index_repo_dir changes.
+# Extraction kinds whose parser returns bare definition nodes and no file node.
+# `_CODE` is absent because `parse_source` builds its own file node and parents every
+# definition to it; `_MANIFEST` is absent because its nodes are cross-repo package
+# nodes that several manifests legitimately share, and the relation that belongs
+# between a manifest and a package is `depends_on`, which the manifest parser already
+# emits -- `contains` would assert the package lives in that file.
+_FILE_CONTAINED_KINDS = frozenset({_XML, _SQL, _ADR})
+
+
+def _with_file_containment(repo_id: str, sf: SourceFile, nodes: list[Node],
+                           edges: list[Edge]) -> tuple[list[Node], list[Edge]]:
+    """Give a bespoke extractor's nodes the file node and containment the code path
+    builds for itself.
+
+    Without this, these extractors' output is unreachable: measured 2026-08-11 on a
+    large legacy C++ tree, 12,991 of 12,991 `config_key` nodes and 142 of 207 `table`
+    nodes had **zero** incident edges, against 0 of 28,274 functions. The files
+    themselves were missing too -- 0 `file` nodes for `.xml` and 0 for `.sql`, so a
+    file-level view of the repository silently omitted every config file it had.
+
+    A name lookup still found those nodes, which is why the gap survived: the answer
+    to "where is this setting defined" looked complete while nothing could reach the
+    setting by traversal, and no diagram of a file could show its contents.
+    """
+    if not nodes:
+        return nodes, edges
+    file_id = make_id(repo_id, sf.rel)
+    file_node = Node(id=file_id, repo=repo_id, kind="file", name=sf.rel, file=sf.rel)
+    verified_at = date.today()
+    contains = [
+        Edge(src=file_id, dst=n.id, relation="contains", confidence=Confidence.EXTRACTED,
+             provenance=Provenance(source_file=sf.rel, source_line=n.line_start,
+                                   verified_at=verified_at))
+        for n in nodes if n.id != file_id
+    ]
+    return [file_node, *nodes], [*edges, *contains]
+
+
 _PARSERS: dict[str, Callable[[str, SourceFile, RefCollector],
                              tuple[list[Node], list[Edge]]]] = {
     _CODE: _parse_code,
@@ -1195,6 +1240,8 @@ def index_repo_dir(
     ):
         try:
             nodes, edges = _PARSERS[sf.kind](repo_id, sf, refs)
+            if sf.kind in _FILE_CONTAINED_KINDS:
+                nodes, edges = _with_file_containment(repo_id, sf, nodes, edges)
         except Exception as e:  # noqa: BLE001 - one bad file must not abort the repo
             log(f"  skip {sf.rel}: parse error: {e}")
             continue

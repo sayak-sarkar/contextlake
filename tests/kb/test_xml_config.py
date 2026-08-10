@@ -164,3 +164,54 @@ def test_xml_is_not_gated_by_the_languages_filter():
     allowed, hcl, sql = _extension_filter(["python"])
     assert _file_kind("app.xml", ".xml", "conf/app.xml",
                       allowed_exts=allowed, index_hcl=hcl, index_sql=sql) == "xml"
+
+
+class TestFileContainment:
+    """Extracted settings must be reachable by traversal, not only by name lookup.
+
+    Measured before this: 12,991 of 12,991 `config_key` nodes and 142 of 207 `table`
+    nodes had zero incident edges, and there were 0 `file` nodes for `.xml` or `.sql`
+    at all -- so a file-level view of the repo omitted every config file it had.
+    """
+
+    def _shard(self, tmp_path, name, body):
+        from contextlake.kb.parse import index_repo_dir
+        (tmp_path / name).write_bytes(body)
+        return index_repo_dir(str(tmp_path), "r")
+
+    def test_a_config_file_gets_a_file_node(self, tmp_path):
+        shard = self._shard(tmp_path, "app.xml", b'<c><add key="K" value="v"/></c>')
+        files = [n for n in shard.nodes if n.kind == "file"]
+        assert [n.name for n in files] == ["app.xml"]
+
+    def test_settings_are_contained_by_their_file(self, tmp_path):
+        shard = self._shard(tmp_path, "app.xml",
+                            b'<c><add key="A" value="1"/><add key="B" value="2"/></c>')
+        file_id = next(n.id for n in shard.nodes if n.kind == "file")
+        contained = {e.dst for e in shard.edges
+                     if e.relation == "contains" and e.src == file_id}
+        cfg = {n.id for n in shard.nodes if n.kind == CONFIG_KIND}
+        assert cfg and cfg <= contained
+
+    def test_no_config_node_is_isolated(self, tmp_path):
+        shard = self._shard(tmp_path, "app.xml",
+                            b'<c><s1><add key="A" value="1"/></s1><Level>D</Level></c>')
+        touched = {e.src for e in shard.edges} | {e.dst for e in shard.edges}
+        isolated = [n.id for n in shard.nodes
+                    if n.kind == CONFIG_KIND and n.id not in touched]
+        assert isolated == []
+
+    def test_sql_definitions_are_contained_too(self, tmp_path):
+        """The same defect, in the extractor it was first measured in."""
+        shard = self._shard(tmp_path, "s.sql", b"CREATE TABLE Orders (id INT);")
+        file_id = next((n.id for n in shard.nodes if n.kind == "file"), None)
+        tables = {n.id for n in shard.nodes if n.kind == "table"}
+        contained = {e.dst for e in shard.edges
+                     if e.relation == "contains" and e.src == file_id}
+        assert tables and tables <= contained
+
+    def test_a_file_with_no_settings_adds_no_file_node(self, tmp_path):
+        """No empty shells: a file that yielded nothing should not appear as a node
+        implying it did."""
+        shard = self._shard(tmp_path, "empty.xml", b"<c></c>")
+        assert [n for n in shard.nodes if n.kind == "file"] == []
