@@ -5672,6 +5672,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.6.0] - 2026-08-10
+
 ### Added
 
 - **Every documentation page that teaches a structure now draws it.** 20 diagrams across 16 pages,

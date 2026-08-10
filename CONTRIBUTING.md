@@ -72,6 +72,14 @@ pytest --cov=contextlake --cov-report=term-missing   # with coverage
 pytest tests/test_clone.py -k retries -q             # a single test
 ```
 
+`ruff check` includes `S` (flake8-bandit), so a security finding fails the lint rather than
+being reported somewhere nobody reads. If one fires on your change, **read it rather than
+silencing it**: the backlog was triaged to zero, and every finding still in the tree carries a
+`# noqa: S… - <why it is safe>` on its own line. Follow that: one site, one written reason. A
+blanket ignore, or adding a rule to `per-file-ignores`, undoes the property the gate exists for.
+Two rules are already off for the package (`S603`/`S607`) because they fire on every subprocess
+this tool exists to run; `pyproject.toml` says why.
+
 The full suite takes a while. While you're iterating, run the fast subset instead:
 
 ```bash
