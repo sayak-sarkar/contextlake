@@ -30,7 +30,8 @@
 
   var KIND_GLYPHS = {
     file: 1, page: 1, module: 1, class: 1, struct: 1, interface: 1, enum: 1,
-    function: 1, method: 1, package: 1, repo: 1, issue: 1, design: 1, endpoint: 1, topic: 1
+    function: 1, method: 1, package: 1, repo: 1, issue: 1, design: 1, endpoint: 1, topic: 1,
+    config_key: 1
   };
   var LANG_LABELS = {
     python: "PY", javascript: "JS", typescript: "TS", tsx: "TS", csharp: "C#",

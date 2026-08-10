@@ -15,6 +15,10 @@ KIND_COLORS = {
     "design": "#9d4edd",
     # flow nodes (from the HTTP / event extractors) — a service surface, not a symbol
     "endpoint": "#f08c3a", "topic": "#b07fd0",
+    # a configured setting (kb/xml_cfg.py) -- deliberately distinct from every
+    # symbol colour: a setting is not code, and reading it as one is the specific
+    # confusion this kind exists to remove.
+    "config_key": "#7f8c8d",
     # C4 namespace boundary compound parent node (contextlake/kb/c4.py c4_payload)
     "namespace": "#3d5a80",
     # C1 external-system box (kb/c4.py C4System) — deliberately muted/neutral:

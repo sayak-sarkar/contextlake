@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **XML configuration is indexed.** `.xml` was absent from the extension table, so a repository's
+  configuration contributed **zero** nodes and "where is this setting defined" had no answer in the
+  graph. Each identified setting is now a `config_key` node carrying its value, its element path as
+  `qualified_name`, and a real file and line.
+
+  Measured on a large legacy C++ tree: 181 `.xml` files that produced nothing now produce **12,991
+  settings**. The element path is what makes them distinguishable, so the same key name under two
+  sections stays two settings rather than colliding.
+
+  Two deliberate choices, both about not lying and not leaking:
+
+  - **A line scanner, not a stdlib XML parser.** `xml.etree` and `xml.dom` expand entities, and
+    contextlake parses whatever a mirror happened to clone, so a hostile file would be an indexer
+    hang. Nothing is expanded here; a `&b;` stays four characters. It also means malformed XML
+    degrades to a partial extraction instead of raising and yielding nothing for the whole file,
+    which matters on hand-edited trees, and it is the only way to get real line numbers at all.
+  - **Credential-shaped values are withheld, and the node still says so.** A value is dropped when
+    the setting's name looks like a secret, when the value contains an embedded `password=`-style
+    assignment, or when it has the shape of a token or key blob. The node remains with
+    `value_redacted`, so "a password is configured here, at this line" is still answerable while the
+    password itself never enters a store that gets written to disk and served over MCP.
+
+  Data-shaped XML does not flood the graph: a lookup file of thousands of identical rows collapses to
+  its distinct element paths, so it contributes a schema and where to find it rather than a copy of
+  the data. Per-file output is capped, and files over `max_file_bytes` were already skipped.
+
+  Indexing that tree costs 42.8s against a 39.4s baseline, so **8.6% for the whole config surface**.
+  The first working version cost 107% instead: line numbers were counted from the start of the file
+  once per match, which is quadratic on a data-shaped file with thousands of leaf elements. Counting
+  forward from the previous match is linear and produces byte-identical output. This is the third
+  time this exact quadratic-scan shape has been found in this package, after `pom.xml` parsing and
+  `parse_hcl`, so it is worth naming as a pattern rather than a one-off: any per-match `count` or
+  `index` from position zero over the same buffer is the bug.
+
 - **`find_callers` now tells you which line the call is on.** It used to answer with the caller's
   *definition* line, so "who calls this" gave you a function name and left you to grep its body for
   the call. Every edge in the graph already carried the call site; the response model dropped it.

@@ -37,6 +37,7 @@ from .manifest import is_manifest, parse_manifest
 from .model import SHARED_REPO, Confidence, Edge, Node, Provenance
 from .sql import parse_sql
 from .store.shards import GraphShard
+from .xml_cfg import parse_xml_config
 
 # DEFAULT_MAX_FILE_BYTES (imported above) stays importable FROM kb.parse, not just
 # kb.config, because kb/cmds/index.py already imports it from here (lazily, to
@@ -128,6 +129,12 @@ HCL_EXTS = {".tf"}
 
 # SQL DDL uses a regex extractor (kb/sql.py), matched separately from LANG_BY_EXT.
 SQL_EXTS = {".sql"}
+
+# XML configuration uses a line scanner (kb/xml_cfg.py), matched separately from
+# LANG_BY_EXT. NOT gated by `languages`, for the reason `_file_kind` gives about
+# manifests and ADRs: a setting is not written in a language anyone filters on, so
+# `--languages python` must not hide a repo's configuration.
+XML_EXTS = {".xml"}
 
 # A code file larger than DEFAULT_MAX_FILE_BYTES (imported above from kb/config.py,
 # the single source of truth) is skipped and logged. Hand-written source is
@@ -883,6 +890,7 @@ def parse_source(
 # out rather than left implicit because the oversize and generated-file checks
 # below key off it.
 _HCL, _SQL, _ADR, _CODE, _MANIFEST = "hcl", "sql", "adr", "code", "manifest"
+_XML = "xml"
 
 
 @dataclass
@@ -953,14 +961,16 @@ def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
                index_hcl: bool, index_sql: bool) -> str | None:
     """Which extractor owns this file, or None if nothing indexes it.
 
-    ``languages`` gates code, HCL and SQL only: a manifest or an ADR is never
-    language-specific, so filtering to ``--languages python`` must not hide the
-    repo's package manifests or decision records.
+    ``languages`` gates code, HCL and SQL only: a manifest, an ADR or an XML
+    config file is never language-specific, so filtering to ``--languages python``
+    must not hide the repo's package manifests, decision records or settings.
     """
     if index_hcl and ext in HCL_EXTS:
         return _HCL
     if index_sql and ext in SQL_EXTS:
         return _SQL
+    if ext in XML_EXTS:
+        return _XML
     if ext == ".md" and is_adr_path(rel):
         return _ADR
     if ext in allowed_exts:
@@ -1112,6 +1122,11 @@ def _parse_sql_file(repo_id: str, sf: SourceFile, refs: RefCollector,
     return nodes, []
 
 
+def _parse_xml_file(repo_id: str, sf: SourceFile, _refs: RefCollector,
+                    ) -> tuple[list[Node], list[Edge]]:
+    return parse_xml_config(repo_id, sf.rel, sf.source), []
+
+
 def _parse_adr_file(repo_id: str, sf: SourceFile, _refs: RefCollector,
                     ) -> tuple[list[Node], list[Edge]]:
     return parse_adr(repo_id, sf.rel, sf.source), []
@@ -1130,6 +1145,7 @@ _PARSERS: dict[str, Callable[[str, SourceFile, RefCollector],
     _CODE: _parse_code,
     _HCL: _parse_hcl_file,
     _SQL: _parse_sql_file,
+    _XML: _parse_xml_file,
     _ADR: _parse_adr_file,
     _MANIFEST: _parse_manifest_file,
 }
