@@ -176,6 +176,20 @@ class NodeOut(BaseModel):
     # the hit (definitions, searches, graph walks).
     call_file: str | None = None
     call_line: int | None = None
+    # The same idea for relations that are not calls, under a name that does not lie.
+    # `find_dependents` traverses `depends_on`, whose provenance is the MANIFEST line
+    # declaring the dependency; the subclasses walk traverses `inherits`, whose
+    # provenance is where the base class is named; `shortest_path` crosses one edge per
+    # hop. Calling any of those a "call_line" would be actively misleading, and this
+    # package's defect history is made of plausible-but-wrong answers, so they get their
+    # own pair rather than borrowing one that reads as something else.
+    #
+    # Two pairs rather than one renamed pair is a deliberate compatibility choice:
+    # `call_file`/`call_line` shipped in 6.7.0 and renaming them is a breaking change to
+    # the tool schema that nothing here needs. Each pair is populated only by the verbs
+    # whose relation its name describes, so no result ever carries both.
+    edge_file: str | None = None
+    edge_line: int | None = None
 
 
 class EdgeOut(BaseModel):
@@ -481,13 +495,17 @@ def _repo_side(rows: list[dict], repo: str, direction: str) -> list[dict]:
 
 
 def _node_out(n: Node, *, score: float | None = None,
-              edge: Edge | None = None) -> NodeOut:
+              edge: Edge | None = None, as_edge_provenance: bool = False) -> NodeOut:
     """Map a stored Node to the wire model.
 
-    `edge` is the edge this node was REACHED BY, when there is one (the callers
-    and callees verbs). Its provenance is what fills `call_file`/`call_line`, so
-    the answer cites the line where the call is written rather than leaving the
-    reader to grep the caller's body for it.
+    `edge` is the edge this node was REACHED BY, when there is one. Its provenance
+    fills `call_file`/`call_line` for the call verbs, so the answer cites the line
+    where the call is written rather than leaving the reader to grep for it.
+
+    `as_edge_provenance=True` puts the same information in `edge_file`/`edge_line`
+    instead, for relations that are not calls: a `depends_on` edge's provenance is the
+    manifest line declaring the dependency, an `inherits` edge's is where the base
+    class is named. Naming either one a "call_line" would be a plausible-looking lie.
     """
     s = sanitize_label
     attrs = getattr(n, "attrs", None) or {}
@@ -498,8 +516,14 @@ def _node_out(n: Node, *, score: float | None = None,
         signature=s(attrs["signature"]) if attrs.get("signature") else None,
         doc=s(attrs["doc"]) if attrs.get("doc") else None,
         score=round(score, 4) if score is not None else None,
-        call_file=s(edge.provenance.source_file) or None if edge else None,
-        call_line=edge.provenance.source_line if edge else None,
+        call_file=(s(edge.provenance.source_file) or None
+                   if edge and not as_edge_provenance else None),
+        call_line=(edge.provenance.source_line
+                   if edge and not as_edge_provenance else None),
+        edge_file=(s(edge.provenance.source_file) or None
+                   if edge and as_edge_provenance else None),
+        edge_line=(edge.provenance.source_line
+                   if edge and as_edge_provenance else None),
     )
 
 
@@ -835,7 +859,7 @@ def build_server(
                 seen.add(e.src)
                 n = store.get_node(e.src)
                 if n and (repo is None or n.repo == repo):
-                    out.append(_node_out(n))
+                    out.append(_node_out(n, edge=e, as_edge_provenance=True))
         kept, total, truncated = _budget(out, limit)
         return NodesOut(nodes=kept, total=total, truncated=truncated)
 
@@ -1203,7 +1227,20 @@ def build_server(
         # each other in the list, under a `found` that says the traversal
         # completed. Report the route's true length and say what is missing from
         # it rather than shortening the path to fit what could be materialised.
-        nodes = [_node_out(n) for nid in path_ids if (n := store.get_node(nid))]
+        # A path is a claim about specific adjacencies, and until now it cited none of
+        # them: a reader had to grep each hop by hand to check the route was real.
+        # `_bfs_path` returns ids only, so recover the edge behind each hop here. Bounded
+        # by `max_hops` (6 by default), so this is a handful of lookups, not a scan --
+        # and it is keyed by node id rather than list position because the list below
+        # drops dangling nodes and would otherwise misalign.
+        hop_edge: dict[str, Edge] = {}
+        for prev_id, next_id in zip(path_ids, path_ids[1:]):
+            for e in store.neighbors(prev_id, direction="both"):
+                if next_id in (e.src, e.dst):
+                    hop_edge[next_id] = e
+                    break
+        nodes = [_node_out(n, edge=hop_edge.get(nid), as_edge_provenance=True)
+                 for nid in path_ids if (n := store.get_node(nid))]
         absent_on_path = len(path_ids) - len(nodes)
         return PathOut(
             nodes=nodes, found=True, hops=len(path_ids) - 1,
@@ -1368,7 +1405,7 @@ def build_server(
                     continue
                 seen.add(e.src)
                 if (n := store.get_node(e.src)):
-                    subs.append(_node_out(n))
+                    subs.append(_node_out(n, edge=e, as_edge_provenance=True))
             return _out(f"Types that extend or implement {target!r}"
                         + (why or "") + f" — {len(subs)} found via inherits edges.",
                         nodes=subs[:k], truncated=len(subs) > k)

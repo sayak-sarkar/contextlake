@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Three more verbs now cite the edge they travelled.** A provenance audit of every answering verb
+  found three that discarded it. The worst was `find_dependents`, whose own response text tells the
+  caller "INFERRED from manifests, verify against the cited file" and then did not cite the file,
+  although the `depends_on` edge's provenance *is* the manifest and its line. The subclasses walk
+  dropped where the inheritance is declared. `shortest_path` asserted a route while citing none of the
+  adjacencies that make it a route, so a reader had to grep every hop by hand to check it was real.
+
+  All three now carry `edge_file` and `edge_line`. For a path, each hop cites the edge that makes it
+  adjacent and the seed node carries nothing, because it was not reached by an edge and inventing
+  provenance for it would be worse than leaving it empty.
+
+  These are a **separate pair** from the `call_file`/`call_line` added in 6.7.0, deliberately. A
+  `depends_on` edge's provenance is a manifest declaration and an `inherits` edge's is a base-class
+  mention; delivering either under a field named `call_line` would be a plausible-looking lie, and
+  this project's defect history is made of those. Each verb populates only the pair whose name
+  describes its relation, so no result carries both. `call_file`/`call_line` are unchanged, so nothing
+  built against 6.7.0 breaks.
+
+  Also recorded in that audit and deliberately NOT changed: `blast_radius` (a hit several hops out has
+  no single edge to cite, so the current output is coarse rather than wrong) and the repo-level flow
+  verbs (their edges are aggregates rolled up from many, and one line is not a property of an
+  aggregate).
+
 - **CUDA files are indexed.** `.cu` and `.cuh` were absent from the extension table, so a CUDA source
   file contributed **zero** nodes. Measured on a large legacy C++ tree: 2 files, 8,793 lines, nothing
   in the graph. They now parse through the C++ grammar, which CUDA is a superset of, and yield 135
