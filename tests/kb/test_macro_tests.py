@@ -26,8 +26,8 @@ def test_case_name_replaces_the_macro_name(macro):
 
 
 def test_suite_becomes_the_qualifier():
-    n = _defs(b"TEST(DateTimeCompare, Minutes) { }")["Minutes"]
-    assert n.qualified_name.endswith("DateTimeCompare.Minutes")
+    n = _defs(b"TEST(TimerSuite, HandlesMinutes) { }")["HandlesMinutes"]
+    assert n.qualified_name.endswith("TimerSuite.HandlesMinutes")
 
 
 def test_two_cases_in_one_suite_stay_distinct():
@@ -62,8 +62,8 @@ class TestThingsThatMustNotBeTouched:
         assert all(n.kind != "test" for n in got.values())
 
     def test_a_template_overload_set_is_unchanged(self):
-        got = _defs(b"template<class T> void RecordForEachChild(T& r) { }")
-        assert got["RecordForEachChild"].kind == "function"
+        got = _defs(b"template<class T> void ForEachChild(T& r) { }")
+        assert got["ForEachChild"].kind == "function"
 
     def test_an_unlisted_all_caps_macro_is_left_alone(self):
         """The macro list is closed on purpose; guessing from ALL_CAPS alone would

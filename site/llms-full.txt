@@ -5675,16 +5675,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Every test in a C++ repo was invisible by name.** A test macro with a body parses as a function
-  definition whose name is the *macro*, so `TEST(DateTimeCompare, Minutes)` produced one node called
+  definition whose name is the *macro*, so `TEST(TimerSuite, HandlesMinutes)` produced one node called
   `TEST` and the case name `Minutes` was discarded. Measured on a large legacy C++ tree before the
   fix: **2,820 nodes, 6.8% of every function and method node**, named `TEST_F` (1,855), `TEST` (962)
-  or `TEST_P` (3). Asking "where is the OrderCreate invalid-offer test" had no answer, and because
+  or `TEST_P` (3). Asking "where is the invalid-input test for that module" had no answer, and because
   `TEST_F` alone spanned 118 files it was also the single largest source of duplicate names in the
   graph.
 
   The case name now becomes the node's name, the suite becomes its qualifier, and the kind is `test`.
-  So `TEST(DateTimeCompare, Minutes)` is a `test` named `Minutes` qualified
-  `DateTimeCompare.Minutes`, and two suites that share a case name stay two distinct nodes.
+  So `TEST(TimerSuite, HandlesMinutes)` is a `test` named `HandlesMinutes`
+  qualified `TimerSuite.HandlesMinutes`, and two suites that share a case name stay two distinct nodes.
 
   Absence of a return type is deliberately **not** the discriminator on its own, because a
   constructor and a destructor have none either: the macro name is matched against a closed set
