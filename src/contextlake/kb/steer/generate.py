@@ -129,7 +129,8 @@ A knowledge server exposes the graph over MCP — prefer it over brute-force sea
 {_serve_cmd(config_path)}
 ```
 
-Tools it provides: `search_code` (find symbols), `find_definition`, `find_callers`,
+Tools it provides: `search_code` (find symbols), `find_definition`, `find_callers`
+and `find_callees` (both cite the line the call is written on),
 `find_dependents`, `shortest_path`, `graph_stats`, and — when embeddings are enabled
 — `semantic_search` / `hybrid_search` for natural-language queries. Curated wiki
 pages (if generated) live under the knowledge store's `wiki/`.

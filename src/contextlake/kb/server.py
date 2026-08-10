@@ -163,6 +163,19 @@ class NodeOut(BaseModel):
     # was real and the claim was unfalsifiable at the call site. None everywhere
     # a score is not a meaningful property of the hit (graph walks, exact lookups).
     score: float | None = None
+    # WHERE THE CALL IS WRITTEN, on the verbs that answer "who calls this"
+    # (`find_callers`, `find_callees`, and `ask`'s callers route, which renders
+    # these same objects). `file`/`line_start` above locate the caller's
+    # DEFINITION -- a different line, often hundreds of lines away, and not the
+    # one a reader can quote as evidence that the call exists.
+    #
+    # The graph always knew this: every edge carries `Provenance.source_line`
+    # and the response model dropped it. That is the identical defect the
+    # `score` comment above records, in a different verb -- computed, then
+    # discarded at the boundary. None wherever a call site is not a property of
+    # the hit (definitions, searches, graph walks).
+    call_file: str | None = None
+    call_line: int | None = None
 
 
 class EdgeOut(BaseModel):
@@ -172,6 +185,11 @@ class EdgeOut(BaseModel):
     confidence: str
     context: str | None = None
     source_file: str
+    # Carried for the same reason as NodeOut.call_line: `source_file` alone names
+    # the file and leaves the reader to grep it. `Provenance` has always held the
+    # line; this mapping was reading one of its two fields, so EVERY verb that
+    # returns edges (`get_neighbors` and its callers) cited a file with no line.
+    source_line: int | None = None
     verified_at: str
 
 
@@ -462,7 +480,15 @@ def _repo_side(rows: list[dict], repo: str, direction: str) -> list[dict]:
             or (direction in ("in", "both") and e["dst"] == repo)]
 
 
-def _node_out(n: Node, *, score: float | None = None) -> NodeOut:
+def _node_out(n: Node, *, score: float | None = None,
+              edge: Edge | None = None) -> NodeOut:
+    """Map a stored Node to the wire model.
+
+    `edge` is the edge this node was REACHED BY, when there is one (the callers
+    and callees verbs). Its provenance is what fills `call_file`/`call_line`, so
+    the answer cites the line where the call is written rather than leaving the
+    reader to grep the caller's body for it.
+    """
     s = sanitize_label
     attrs = getattr(n, "attrs", None) or {}
     return NodeOut(
@@ -472,6 +498,8 @@ def _node_out(n: Node, *, score: float | None = None) -> NodeOut:
         signature=s(attrs["signature"]) if attrs.get("signature") else None,
         doc=s(attrs["doc"]) if attrs.get("doc") else None,
         score=round(score, 4) if score is not None else None,
+        call_file=s(edge.provenance.source_file) or None if edge else None,
+        call_line=edge.provenance.source_line if edge else None,
     )
 
 
@@ -480,8 +508,26 @@ def _edge_out(e: Edge) -> EdgeOut:
     return EdgeOut(
         src=s(e.src), dst=s(e.dst), relation=s(e.relation), confidence=e.confidence.value,
         context=s(e.context) or None, source_file=s(e.provenance.source_file),
+        source_line=e.provenance.source_line,
         verified_at=e.provenance.verified_at.isoformat(),
     )
+
+
+def _sites_note(label: str, symbol: str, why: str | None,
+                out: list[NodeOut]) -> str | None:
+    """The disclosure that keeps a call-site count from reading as a symbol count.
+
+    Now that the callers/callees verbs return one entry per call site, `total` is a
+    number of CALLS. Six functions calling a target five times each is 30 entries,
+    and reporting that as "30 callers" would overstate the fan-in fivefold. State
+    both numbers whenever they differ; stay silent when they do not, so the note
+    does not become boilerplate nobody reads.
+    """
+    sites, distinct = len(out), len({o.id for o in out})
+    spread = (f"{sites} call sites across {distinct} distinct {label.lower()}."
+              if sites != distinct else None)
+    head = f"{label} of {symbol!r}{why}." if why else None
+    return " ".join(p for p in (head, spread) if p) or None
 
 
 def _bfs_path(store: Store, src_id: str, dst_id: str, max_hops: int) -> list[str]:
@@ -690,8 +736,19 @@ def build_server(
 
         Pass the symbol as `node_id` **or** `name`: either a node id or a bare symbol
         name (e.g. ``CatalogService``), resolved to its first matching definition.
-        EXTRACTED-first, capped at `limit`; `truncated`/`total` flag hot symbols with
-        more callers than returned.
+        EXTRACTED-first, capped at `limit`.
+
+        Each entry carries `call_file`/`call_line` — the line the call is written on,
+        which is what you quote as evidence — while `file`/`line_start` on the same
+        object stay the caller's own definition, usually a different line entirely.
+
+        **One entry per recorded call EDGE.** Read that precisely: the parser keeps
+        only the FIRST call per (caller, callee) pair and drops the rest
+        (`parse.py:1488`), so on today's graphs one edge *is* one caller and
+        `call_line` is that caller's earliest call. This verb no longer de-duplicates
+        by caller, so the day the parser retains every site, every site surfaces here
+        unchanged. `note` reports the distinct-caller count whenever it differs from
+        the entry count, so "42 calls from 6 callers" can never read as "42 callers".
         """
         node_id = _one_of(node_id, name)
         if node_id is None:
@@ -706,18 +763,49 @@ def build_server(
                             note=f"No indexed symbol named {node_id!r}.")
         edges = sorted(store.neighbors(nid, relation="calls", direction="in"),
                        key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
-        seen: set[str] = set()
-        out: list[NodeOut] = []
-        for e in edges:
-            if e.src in seen:
-                continue
-            seen.add(e.src)
-            n = store.get_node(e.src)
-            if n:
-                out.append(_node_out(n))
+        # No dedupe on e.src. It kept the first edge per caller and dropped the rest,
+        # which on a graph that recorded every call site would silently discard the
+        # second and third call from the same function -- the ones a reader most wants.
+        # Measured 2026-08-10: today it discards nothing, because the PARSER already
+        # collapses calls to one edge per (caller, callee) pair (`parse.py:1488`, refs
+        # sorted by line so the survivor is the earliest site). So this is a no-op on
+        # current data and the honest fix for the missing sites lives in the parser.
+        # Removing it here anyway, because a dedupe that duplicates a guarantee made
+        # upstream reads as if the response layer were the one enforcing it.
+        out = [_node_out(n, edge=e) for e in edges if (n := store.get_node(e.src))]
         kept, total, truncated = _budget(out, limit)
         return NodesOut(nodes=kept, total=total, truncated=truncated,
-                        note=(f"Callers of {node_id!r}{why}." if why else None))
+                        note=_sites_note("Callers", node_id, why, out))
+
+    @bounded_tool
+    def find_callees(node_id: str | None = None, name: str | None = None,
+                     limit: int = 50) -> NodesOut:
+        """Find what a node calls — 'what does X call?' (outgoing calls edges).
+
+        The mirror of `find_callers`, and the other half of the call graph: reading a
+        function you did not write, this is "what does this reach", where `find_callers`
+        is "who depends on this". Same arguments, same budgeting, same contract — one
+        entry per recorded call edge, each carrying the `call_file`/`call_line` the call
+        is written on (see `find_callers` on why one edge is currently one callee), and
+        `note` reports the distinct-callee count when it differs from the entry count.
+        """
+        node_id = _one_of(node_id, name)
+        if node_id is None:
+            return NodesOut(nodes=[], total=0, truncated=False, note=_NEEDS_SYMBOL)
+        nid, why = _as_node_id(node_id)
+        if nid is None:
+            # The same distinction find_callers draws, in the same words: "no such
+            # symbol is indexed" is not "this symbol calls nothing", and a leaf
+            # function legitimately calls nothing, which makes the empty list here
+            # even easier to misread than on the callers side.
+            return NodesOut(nodes=[], total=0, truncated=False,
+                            note=f"No indexed symbol named {node_id!r}.")
+        edges = sorted(store.neighbors(nid, relation="calls", direction="out"),
+                       key=lambda e: _CONF_RANK.get(e.confidence.value, 9))
+        out = [_node_out(n, edge=e) for e in edges if (n := store.get_node(e.dst))]
+        kept, total, truncated = _budget(out, limit)
+        return NodesOut(nodes=kept, total=total, truncated=truncated,
+                        note=_sites_note("Callees", node_id, why, out))
 
     @bounded_tool
     def find_dependents(package: str, limit: int = 50,

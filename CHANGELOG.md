@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`find_callers` now tells you which line the call is on.** It used to answer with the caller's
+  *definition* line, so "who calls this" gave you a function name and left you to grep its body for
+  the call. Every edge in the graph already carried the call site; the response model dropped it.
+  Each result now carries `call_file` and `call_line` alongside the caller's own `file` and
+  `line_start`, so the answer is quotable as evidence rather than a lead to chase.
+
+  Measured on a large legacy C++ tree: 6 of 6 callers of a sampled symbol reported a call line
+  different from their definition line, every one of them readable in the real file at the line
+  given. On that tree the two lines were 3 to 33 lines apart, which is exactly the gap a reader was
+  being asked to close by hand.
+
+- **`find_callees`, the other half of the call graph.** `find_callers` answers "who depends on
+  this"; this answers "what does this reach", which is the question you have when reading a function
+  you did not write. Same arguments, same budgeting, same call-site provenance. The traversal already
+  existed (`get_neighbors` has accepted `direction="out"` all along), so this exposes reachable data
+  rather than computing anything new.
+
+### Fixed
+
+- **Edges cited a file with no line.** `EdgeOut` carried `source_file` but not `source_line`,
+  although `Provenance` has always held both, so every verb returning edges named a file and left the
+  line behind. `get_neighbors` and everything built on it now report both.
+
+### Changed
+
+- `find_callers` no longer de-duplicates its results by caller. This is a no-op on today's graphs and
+  is called out only so the change is not mistaken for a behaviour change: the parser already keeps
+  just one `calls` edge per (caller, callee) pair, retaining the earliest call site, so there was
+  never a second row for the response layer to drop. Removing the redundant filter means that when
+  the parser does retain every call site, these verbs surface all of them with no further change.
+  `note` now discloses the distinct-caller count whenever it differs from the number of entries, so a
+  count of calls can never be read as a count of callers.
+
 ## [6.6.0] - 2026-08-10
 
 ### Added

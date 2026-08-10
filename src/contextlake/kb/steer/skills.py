@@ -20,7 +20,9 @@ This workspace ships a knowledge graph reachable over MCP (see `.mcp.json` and
 AGENTS.md). Before grepping or guessing:
 
 1. `search_code "<symbol or phrase>"` to locate definitions across all repos.
-2. `find_definition` / `find_callers` / `find_dependents` to understand impact.
+2. `find_definition` / `find_callers` / `find_callees` / `find_dependents` to understand
+   impact. `find_callers` and `find_callees` cite `call_file`:`call_line`, the line the
+   call is written on — quote that, not the caller's definition line.
 3. `semantic_search` / `hybrid_search` for natural-language questions (if embeddings
    are enabled).
 4. Open the cited files and read them — never describe code you have not read.
