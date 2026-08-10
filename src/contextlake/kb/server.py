@@ -1234,7 +1234,10 @@ def build_server(
         # and it is keyed by node id rather than list position because the list below
         # drops dangling nodes and would otherwise misalign.
         hop_edge: dict[str, Edge] = {}
-        for prev_id, next_id in zip(path_ids, path_ids[1:]):
+        # strict=False is the intended semantics, not a concession: the two sequences
+        # differ in length by one by construction (n ids give n-1 hops), so pairing must
+        # stop at the shorter rather than raise.
+        for prev_id, next_id in zip(path_ids, path_ids[1:], strict=False):
             for e in store.neighbors(prev_id, direction="both"):
                 if next_id in (e.src, e.dst):
                     hop_edge[next_id] = e
