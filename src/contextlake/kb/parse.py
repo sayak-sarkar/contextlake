@@ -116,6 +116,18 @@ LANG_BY_EXT = {
     ".h": "cpp",
     ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp", ".c++": "cpp",
     ".hpp": "cpp", ".hh": "cpp", ".hxx": "cpp",
+    # CUDA is a C++ superset, so the cpp grammar reads it: verified on a real kernel
+    # file, it extracts `__global__`/`__device__` functions, classes, methods and
+    # out-of-line definitions, and captures ordinary calls.
+    #
+    # What it does NOT capture, stated because a partial extraction must not be
+    # mistaken for a complete one: the host-side launch `kernel<<<grid, block>>>(...)`
+    # is not C++ syntax, so it lands in a local ERROR region and that launch is missed
+    # as a call edge, while a plain call in the same file resolves normally.
+    # tree-sitter degrades locally rather than failing the file, so the rest still
+    # extracts. Before this, these files produced ZERO nodes and a comparator that
+    # reads them gave a better answer to "who calls this" than we did.
+    ".cu": "cpp", ".cuh": "cpp",
     ".rs": "rust",
     ".rb": "ruby",
     ".php": "php",

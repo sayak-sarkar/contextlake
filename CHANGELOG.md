@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CUDA files are indexed.** `.cu` and `.cuh` were absent from the extension table, so a CUDA source
+  file contributed **zero** nodes. Measured on a large legacy C++ tree: 2 files, 8,793 lines, nothing
+  in the graph. They now parse through the C++ grammar, which CUDA is a superset of, and yield 135
+  nodes and 141 edges from those same two files.
+
+  Stated plainly because a partial extraction must not be mistaken for a complete one: the host-side
+  launch `kernel<<<grid, block>>>(...)` is not C++ syntax and lands in a local ERROR region, so a
+  kernel *launch* is missed as a call while an ordinary call in the same file resolves normally.
+  tree-sitter degrades locally rather than failing the file, so everything else still extracts.
+
+  This one had a measurable cost while it was open: asked "who calls this", a comparator that reads
+  `.cu` returned genuine callers that contextlake could not see.
+
 ### Fixed
 
 - **An out-of-line method could be attached to a class its qualifier excludes.** Resolution keyed on
