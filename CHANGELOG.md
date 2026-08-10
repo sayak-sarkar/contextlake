@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Registering a new kind for the dashboard made its icon worse, not better.** `kindIcon` resolves to
+  `KIND_GLYPHS[kind] ? kind : "file"`, so adding a kind to that table is precisely what *disables* the
+  generic file fallback. Adding `config_key` and `test` to it earlier in this cycle without adding
+  their sprite symbols therefore replaced a working file icon with `<use href="#g-config_key">`
+  pointing at a symbol that does not exist: a blank box.
+
+  Both symbols now exist, and a parity test compares the two files by regex (no browser needed) so a
+  kind can never again be registered in one place and missing from the other. The test was verified to
+  fail when a symbol is removed, rather than merely passing today.
+
 ### Added
 
 - **Three more verbs now cite the edge they travelled.** A provenance audit of every answering verb
