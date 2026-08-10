@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.7.0] - 2026-08-11
+
 ### Added
 
 - **`find_callers` now tells you which line the call is on.** It used to answer with the caller's
