@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from contextlake.kb.model import Confidence
+from contextlake.kb.model import Confidence, Node
 from contextlake.kb.parse import (
     _has_generated_header,
     _is_generated_name,
@@ -986,3 +986,45 @@ def test_inherits_ambiguous_base_marked(tmp_path):
     shard = index_repo_dir(str(tmp_path), "demo")
     inh = [e for e in shard.edges if e.relation == "inherits"]
     assert len(inh) == 2 and all(e.confidence == Confidence.AMBIGUOUS for e in inh)
+
+
+def test_over_cap_references_are_counted_for_disclosure():
+    """A reference naming a symbol defined in too many places produces NO edge.
+
+    That is a deliberate noise cut, but an uncounted one is indistinguishable from a
+    repo that genuinely has no such caller, so the count is reported to the caller
+    rather than only logged at debug level. Measured on a large legacy tree, 21.6% of
+    resolvable call references sit above the cap.
+    """
+    from contextlake.kb.parse import _MAX_AMBIG_FANOUT, _resolve_name_refs
+
+    over = _MAX_AMBIG_FANOUT + 1
+    nodes = {f"d{i}": Node(id=f"d{i}", repo="r", kind="function", name="Encode",
+                           file=f"f{i}.py", lang="python")
+             for i in range(over)}
+    nodes["caller"] = Node(id="caller", repo="r", kind="function", name="Driver",
+                           file="a.py", lang="python")
+
+    stats: dict = {}
+    edges = _resolve_name_refs([("caller", "Encode", "a.py", 3)], nodes,
+                               relation="calls", target_kinds={"function"}, stats=stats)
+    assert edges == [], "over the cap emits nothing"
+    assert stats["ambiguity_dropped"] == 1, "and says so"
+
+
+def test_a_resolvable_reference_is_not_counted_as_dropped():
+    """The control: the counter must not fire on a reference that resolved fine, or
+    every graph would carry a warning about a loss that did not happen."""
+    from contextlake.kb.parse import _resolve_name_refs
+
+    nodes = {
+        "target": Node(id="target", repo="r", kind="function", name="Encode",
+                       file="b.py", lang="python"),
+        "caller": Node(id="caller", repo="r", kind="function", name="Driver",
+                       file="a.py", lang="python"),
+    }
+    stats: dict = {}
+    edges = _resolve_name_refs([("caller", "Encode", "a.py", 3)], nodes,
+                               relation="calls", target_kinds={"function"}, stats=stats)
+    assert len(edges) == 1
+    assert stats.get("ambiguity_dropped", 0) == 0

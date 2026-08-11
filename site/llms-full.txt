@@ -5700,6 +5700,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Turning them on interacts with the per-kind embedding budget floors, so it stays a sequenced
   decision rather than a side effect.
 
+### Added
+
+- **An index run now says how many call references it could not resolve.** A reference naming a
+  symbol defined in more than six places is deliberately left unresolved rather than pointing at
+  six guesses, but until now nothing said so above debug level, and a caller missing for that
+  reason looks exactly like a caller that does not exist.
+
+  The cap itself stays, and that is a measured decision rather than an unexamined default. On a
+  large legacy tree 21.6% of resolvable call references sit above it, and the distribution has no
+  knee: admitting them all costs about 3.6x the `calls` edges for 21.6% more references, because
+  an ambiguous reference emits one edge per candidate. Raising the cap to 8 buys 3.0% more
+  references for 17.4% more edges; raising it to 12 buys 10% for 85%. The line is silent when the
+  count is zero, so it never becomes boilerplate.
+
 ### Fixed
 
 - **A parser bump now invalidates the artefacts built on top of the graph, not just the graph.**

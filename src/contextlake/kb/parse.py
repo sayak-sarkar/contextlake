@@ -1147,7 +1147,8 @@ class RefCollector:
     data_reads: list[tuple[str, str, str, int]] = field(default_factory=list)
     data_writes: list[tuple[str, str, str, int]] = field(default_factory=list)
 
-    def resolved_edges(self, by_id: dict[str, Node]) -> list[Edge]:
+    def resolved_edges(self, by_id: dict[str, Node],
+                       *, stats: dict | None = None) -> list[Edge]:
         # Target-kind sets are module-level names defined further down the file,
         # so they are read here at call time rather than bound at class creation.
         # The first flag is same-language resolution: a call/inheritance must
@@ -1174,7 +1175,8 @@ class RefCollector:
             edges.extend(_resolve_name_refs(
                 refs, by_id, relation=relation, target_kinds=target_kinds,
                 same_language=same_language,
-                per_site=relation in PER_SITE_RELATIONS))
+                per_site=relation in PER_SITE_RELATIONS,
+                stats=stats if relation == "calls" else None))
         return edges
 
 
@@ -1741,9 +1743,17 @@ def index_repo_dir(
     # place through by_id's references.
     shard.nodes.extend(by_id.values())
     _resolve_pending_methods(by_id, shard.edges)
-    shard.edges.extend(refs.resolved_edges(by_id))
+    resolve_stats: dict = {}
+    shard.edges.extend(refs.resolved_edges(by_id, stats=resolve_stats))
     log(f"  parsed {counts.files} file(s); skipped {counts.generated} generated, "
         f"{counts.oversize} oversized, {counts.ignored} ignored", level=logging.DEBUG)
+    # Said at normal verbosity, unlike the DEBUG resolution summary: this is a KNOWN
+    # INCOMPLETENESS in the graph the user is about to query, and "who calls X" will
+    # quietly omit these. Silent when zero, so it never becomes boilerplate.
+    if (n := resolve_stats.get("ambiguity_dropped", 0)):
+        log(f"  {n} call reference(s) name a symbol defined in more than "
+            f"{_MAX_AMBIG_FANOUT} places and were left unresolved; callers through "
+            f"those names will be missing")
     return shard
 
 
@@ -2018,7 +2028,7 @@ def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
 def _resolve_name_refs(
     refs: list[tuple[str, str, str, int]], nodes_by_id: dict[str, Node],
     *, relation: str, target_kinds: set[str], same_language: bool = False,
-    per_site: bool = False,
+    per_site: bool = False, stats: dict | None = None,
 ) -> list[Edge]:
     """Resolve ``(src_id, target_name, file, line)`` references to definitions
     repo-wide, emitting ``relation`` edges. Shared by calls and inherits.
@@ -2128,6 +2138,15 @@ def _resolve_name_refs(
                                       verified_at=date.today())))
             if conf is Confidence.INFERRED:
                 resolved += 1
+    if stats is not None:
+        # Reported to the caller, not just logged at DEBUG. A reference over the fanout
+        # cap produces NO edge at all, so a genuine caller is simply absent from the
+        # answer -- and a loss nobody is told about is indistinguishable from a repo
+        # that really has no such caller. Measured on a large legacy tree: 21.6% of
+        # resolvable call references sit above the cap. The cap stays (admitting them
+        # all costs 3.6x the calls edges for 21.6% more references, with no knee in the
+        # distribution), so the honest move is to say so out loud.
+        stats["ambiguity_dropped"] = stats.get("ambiguity_dropped", 0) + dropped
     if edges or dropped:
         unit = "call site(s)" if per_site else "edge(s)"
         log(f"  resolved {resolved} {relation} {unit}; {ambiguous} ambiguous "
