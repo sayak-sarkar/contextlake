@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Mirror repositories · contextlake docs">
 <meta name="twitter:description" content="Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-05"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Mirror repositories", "description": "Mirror your Git repos locally and keep them fresh: fetch, clone, update, most-active branch, verify, and audit, with branch-safety guardrails.", "url": "https://sayak.in/contextlake/usage", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-12"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Mirror repositories", "item": "https://sayak.in/contextlake/usage"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4a12c5a">
-<link rel="stylesheet" href="tokens.css?v=4a12c5a">
-<link rel="stylesheet" href="docs.css?v=4a12c5a">
-<link rel="stylesheet" href="cmdk.css?v=4a12c5a">
+<link rel="stylesheet" href="fonts.css?v=9133f52">
+<link rel="stylesheet" href="tokens.css?v=9133f52">
+<link rel="stylesheet" href="docs.css?v=9133f52">
+<link rel="stylesheet" href="cmdk.css?v=9133f52">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -72,17 +72,25 @@ just that command's flags with worked examples, and bare <code>contextlake</code
 full command list. Shell tab-completion is registered for you on first run; see
 <a href="cli-reference#shell-completion">Shell completion</a>.</p>
 <p><strong>Mirror a subset with <code>--repos</code>.</strong> Every mirror command (and <code>bootstrap</code> / <code>kb index
---workspace</code>) accepts <code>--repos PATTERN</code>, a comma-separated <strong>glob/substring</strong> filter
-over your repo paths, so you can mirror and index just a handful instead of the whole
-group. Ideal for a demo or a try-before-fleet run:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;team/api,billing,frontend/*&quot;</span><span class="w">   </span><span class="c1"># mirror + index just these</span>
-contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;team/*&quot;</span><span class="w">                             </span><span class="c1"># sync one namespace</span>
+--workspace</code>) accepts <code>--repos PATTERN</code>, a comma-separated <strong>glob</strong> filter over your
+repo paths, so you can mirror and index just a handful instead of the whole group.
+Ideal for a demo or a try-before-fleet run:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;team/api,billing/*,frontend/*&quot;</span><span class="w">  </span><span class="c1"># mirror + index just these</span>
+contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;team/*&quot;</span><span class="w">                       </span><span class="c1"># sync one namespace</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;billing/core,team/api&quot;</span>
 </code></pre></div>
-<p>Each pattern matches if it's a substring of, or a glob against, the repo's
-group-qualified path or its local path (case-insensitive). It scopes the whole
-pipeline: <code>fetch</code> narrows the cached project list, and <code>clone</code> / <code>update</code> / <code>branches</code>
-/ <code>verify</code> / <code>status</code> / <code>bootstrap</code> all follow from that.</p>
+<p>Each pattern is matched against the repo's group-qualified path and its local path,
+case-insensitively. <strong>Patterns are anchored</strong>: <code>--repos api</code> selects a repo named
+exactly <code>api</code>, never <code>payments-api</code> or <code>api-gateway</code>. For a substring match, say so
+with a glob:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;*api*&quot;</span><span class="w">     </span><span class="c1"># everything with &quot;api&quot; anywhere in its path</span>
+</code></pre></div>
+<p>That is the way round it is because a filter that selects <em>more</em> than you asked for is
+the expensive mistake: you discover it after a fleet-wide run you did not want. Earlier
+versions defaulted to substring matching with an opt-in <code>--repos-exact</code>; that flag is
+gone, and so is the surprise.</p>
+<p>The filter scopes the whole pipeline: <code>fetch</code> narrows the cached project list, and
+<code>clone</code> / <code>update</code> / <code>branches</code> / <code>verify</code> / <code>status</code> / <code>bootstrap</code> all follow from that.</p>
 <p>The scope belongs to the invocation, not to the cache. Pass the same <code>--repos</code> to each
 command (or set <code>repo_filter</code> in your config to make it permanent). A command run at a
 <em>different</em> scope re-enumerates rather than answering from a project list some other
@@ -413,6 +421,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=4a12c5a"></script>
+<script defer src="cmdk.js?v=9133f52"></script>
 </body>
 </html>

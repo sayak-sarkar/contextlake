@@ -46,9 +46,9 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4a12c5a">
-<link rel="stylesheet" href="tokens.css?v=4a12c5a">
-<link rel="stylesheet" href="cmdk.css?v=4a12c5a">
+<link rel="stylesheet" href="fonts.css?v=9133f52">
+<link rel="stylesheet" href="tokens.css?v=9133f52">
+<link rel="stylesheet" href="cmdk.css?v=9133f52">
 <style>
   /* Shared brand tokens (--deepwater/--lake/--bg/--ink/--link/etc., light+dark) now
      load from tokens.css -- these :root blocks add only the tokens specific to this
@@ -779,7 +779,7 @@
       </div>
       <img class="see-pebble" src="pebble-peek.png" alt="" aria-hidden="true">
     </div>
-    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=4a12c5a"
+    <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=9133f52"
       alt="The contextlake graph visualizer: a repository's symbols laid out as a node graph with per-type glyphs, a kind legend, a search field, and a minimap in the corner.">
     <p class="shot-cap">The real visualizer, running right here on contextlake's own code. Drag, zoom, and search. Vendored and offline, no network. Export to Mermaid, DOT, or JSON.</p>
   </div>
@@ -1166,12 +1166,26 @@
    (self-contained, offline iframe) once near the viewport. No-JS keeps the image; on load failure
    we restore it. The iframe opens in the current theme and follows theme toggles via postMessage. */
 (function(){var img=document.querySelector('.shot[data-embed]');if(!img||!('IntersectionObserver' in window))return;
-  function theme(){var e=document.documentElement.getAttribute('data-theme');return e||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
+  // Both halves of the src are read back out of the DOM, so neither is trusted: the theme is
+  // narrowed to one of two literals below, and the path must RESOLVE to a same-origin page.
+  // Resolving through `new URL` rather than pattern-matching the string is what makes the
+  // scheme check real -- it is the same shape as the dashboard's own safeHref(), and a regex
+  // over the raw attribute is not, which is why this replaced one. `file:` is allowed
+  // deliberately so the built site still shows the live embed when opened from disk; its
+  // origin check still holds there (both sides are "null"), and javascript:/data: cannot pass.
+  var raw=img.getAttribute('data-embed')||'',embed=null;
+  try{var u=new URL(raw,location.href);
+      if((u.protocol==='http:'||u.protocol==='https:'||u.protocol==='file:')
+         &&u.origin===location.origin)embed=u.href;}catch(e){}
+  if(!embed)return;
+  function theme(){var e=document.documentElement.getAttribute('data-theme');
+    if(e==='dark'||e==='light')return e;
+    return matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
   var io=new IntersectionObserver(function(es){if(!es[0].isIntersecting)return;io.disconnect();
     var f=document.createElement('iframe');f.className='shot graph-embed';f.id='graph-frame';
     f.title=img.alt;f.setAttribute('scrolling','no');
     f.onerror=function(){f.replaceWith(img);};
-    f.src=img.getAttribute('data-embed')+'#theme='+theme();
+    f.src=embed+'#theme='+theme();
     img.replaceWith(f);},{rootMargin:'400px 0px'});
   io.observe(img);})();</script>
 <script>/* two-state navbar: add .scrolled once the hero is scrolled up under the header, so the bar
@@ -1227,6 +1241,6 @@ nav.querySelectorAll(".nav-links a").forEach(function(a){a.addEventListener("cli
 document.addEventListener("click",function(e){if(nav.classList.contains("open")&&!nav.contains(e.target))set(false);});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&nav.classList.contains("open")){set(false);tog.focus();}});
 addEventListener("resize",function(){if(innerWidth>680)set(false);});})();</script>
-<script defer src="cmdk.js?v=4a12c5a"></script>
+<script defer src="cmdk.js?v=9133f52"></script>
 </body>
 </html>

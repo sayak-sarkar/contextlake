@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Install and upgrade · contextlake docs">
 <meta name="twitter:description" content="Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Install and upgrade", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/install", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Install and upgrade", "item": "https://sayak.in/contextlake/install"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Install and upgrade", "description": "Every way to install contextlake, pip, uv, pipx, Docker, or a standalone binary, plus the extras table, upgrading safely, and a clean uninstall.", "url": "https://sayak.in/contextlake/install", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-11"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Install and upgrade", "item": "https://sayak.in/contextlake/install"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4a12c5a">
-<link rel="stylesheet" href="tokens.css?v=4a12c5a">
-<link rel="stylesheet" href="docs.css?v=4a12c5a">
-<link rel="stylesheet" href="cmdk.css?v=4a12c5a">
+<link rel="stylesheet" href="fonts.css?v=9133f52">
+<link rel="stylesheet" href="tokens.css?v=9133f52">
+<link rel="stylesheet" href="docs.css?v=9133f52">
+<link rel="stylesheet" href="cmdk.css?v=9133f52">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -141,30 +141,26 @@ stays viable on a locked-down machine.</p>
 </tr>
 <tr>
 <td><code>[llm-local]</code></td>
-<td>A built-in CPU model for the wiki (llama-cpp)</td>
+<td>A built-in CPU model for the wiki (openvino-genai)</td>
 <td><code>kb wiki --llm builtin</code> with no Ollama and no API key</td>
 </tr>
 </tbody>
 </table>
 <p>Contributors also have <code>[dev]</code> (pytest, ruff, pre-commit) and <code>[release]</code>. See
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
-<h3 id="the-built-in-wiki-llm-needs-one-extra-flag">The built-in wiki LLM needs one extra flag<a class="anchor" href="#the-built-in-wiki-llm-needs-one-extra-flag" title="Link to this section">#</a></h3>
-<p><code>[llm-local]</code> is the one extra a plain <code>pip install</code> cannot finish on its own, because
-<code>llama-cpp-python</code> publishes no wheels to PyPI and pip therefore falls back to compiling
-C++. Let contextlake attach the right wheel index for you:</p>
+<h3 id="the-built-in-wiki-llm-is-one-extra">The built-in wiki LLM is one extra<a class="anchor" href="#the-built-in-wiki-llm-is-one-extra" title="Link to this section">#</a></h3>
+<p><code>[llm-local]</code> is an ordinary extra. Let contextlake install it into the right interpreter:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">     </span><span class="c1"># --dry-run prints the exact command and stops</span>
 </code></pre></div>
-<p>That runs pip in the interpreter contextlake is running in, with the CPU wheel index already
-attached, and prints the command before it runs it. By hand it is:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[llm-local]&quot;</span><span class="w"> </span>--only-binary<span class="w"> </span>llama-cpp-python<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--extra-index-url<span class="w"> </span>https://abetlen.github.io/llama-cpp-python/whl/cpu
+<p>That runs pip in the interpreter contextlake is running in, and prints the command before it
+runs it. By hand it is:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[llm-local]&quot;</span>
 </code></pre></div>
-<p>Only the pip, pipx and uv channels need this. The standalone binary already carries the index
-in its bootstrap configuration, and the full Docker image ships the runtime and the model
-baked in.</p>
-<p>For why a wheel index is needed at all, which index to swap in for CUDA or Metal, and why the
-extra cannot carry the URL itself, see
-<a href="model-providers#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in LLM</a>.</p>
+<p>No compiler, no wheel index and no <code>--only-binary</code> pin. The standalone binary installs it on
+first run, and the full Docker image ships the runtime and the model baked in.</p>
+<p>The model itself (~349 MB, Apache-2.0) downloads on first wiki run, not at install time. For
+which backend to choose and why, see
+<a href="model-providers#installing-the-built-in-llm">Installing the built-in LLM</a>.</p>
 <h3 id="docker">Docker<a class="anchor" href="#docker" title="Link to this section">#</a></h3>
 <p>The published image at <code>ghcr.io/sayak-sarkar/contextlake</code> carries the knowledge layer plus
 the built-in CPU models (the embedder and a small wiki LLM), so it runs with no Ollama, no
@@ -188,7 +184,7 @@ account is not uid 1000 the write fails with a permission error. Pass your own i
 <p>It fails rather than falling back on purpose. Before 5.1.0 the store was written inside the
 container instead, so the run appeared to succeed and the index was gone the moment the
 container exited.</p>
-<p>A <code>:slim</code> tag is also published: no <code>llama-cpp-python</code>, no baked wiki-LLM GGUF, a much
+<p>A <code>:slim</code> tag is also published: no <code>openvino-genai</code>, no baked wiki-LLM model, a much
 smaller pull. Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or <code>cli</code> instead of the built-in LLM.</p>
 <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake:slim<span class="w"> </span>doctor
@@ -225,6 +221,20 @@ index, so there is no compiler to install and nothing for you to pass.</p>
 <p>On Linux and macOS, <code>chmod +x</code> the file and run it with <code>./</code>. On Windows, run the <code>.exe</code>
 directly. If your platform is not in that table, for example macOS on Intel or Linux on
 arm64, use <code>pipx</code> or <code>uv</code> instead; there is no binary for it.</p>
+<h4 id="checking-a-download-is-the-one-we-published">Checking a download is the one we published<a class="anchor" href="#checking-a-download-is-the-one-we-published" title="Link to this section">#</a></h4>
+<p>Each launcher is signed at release time with a build provenance attestation, so you can check
+a download came from this repository's release workflow and not from somewhere else:</p>
+<div class="highlight"><pre><span></span><code>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>contextlake-linux-x86_64<span class="w"> </span>--repo<span class="w"> </span>sayak-sarkar/contextlake
+</code></pre></div>
+<p>That needs the <code>gh</code> CLI and no key material: the signature is verified against a public
+transparency log.</p>
+<p><strong>What it proves, and what it does not.</strong> It proves the file you have is byte-for-byte the
+file this repository's workflow built and uploaded. It says nothing about the Python payload,
+because the launcher downloads contextlake and its dependencies from PyPI on <em>your</em> machine at
+first run, which happens after any signature here. If you want the payload checked too, install
+with <code>pipx</code> or <code>uv</code> instead: the wheel and sdist on PyPI carry their own
+<a href="https://peps.python.org/pep-0740/" target="_blank" rel="noopener">PEP 740<span class="ext-arrow" aria-hidden="true">↗</span></a> attestations, which pip verifies, and each release
+also publishes a CycloneDX SBOM listing that dependency closure.</p>
 <h3 id="from-source">From source<a class="anchor" href="#from-source" title="Link to this section">#</a></h3>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sayak-sarkar/contextlake<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>contextlake
 python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>.<span class="w"> </span>.venv/bin/activate
@@ -256,7 +266,7 @@ failure.</p>
 <h2 id="installing-what-is-missing">Installing what is missing<a class="anchor" href="#installing-what-is-missing" title="Link to this section">#</a></h2>
 <p><code>doctor</code> reports; <code>doctor --fix</code> repairs. With no value it installs only what your <strong>resolved</strong>
 configuration actually calls for, so a <code>[llm]</code> block that is disabled or set to <code>ollama</code> never pulls
-the local llama-cpp runtime. Name a capability to install it regardless of config.</p>
+the local built-in runtime. Name a capability to install it regardless of config.</p>
 <table>
 <thead>
 <tr>
@@ -287,8 +297,7 @@ the local llama-cpp runtime. Name a capability to install it regardless of confi
 <ul>
 <li><strong>Python packages</strong> install into the interpreter contextlake is running in, with
   <code>sys.executable -m pip</code> (never a bare <code>pip</code>, which can belong to another environment). Unprivileged
-  and reversible, so <code>--fix</code> runs them after printing them. For <code>llm-local</code> it attaches the upstream
-  CPU wheel index automatically and says why.</li>
+  and reversible, so <code>--fix</code> runs them after printing them.</li>
 <li><strong>System packages</strong> (currently just <code>git</code>) need administrator rights. The exact command is printed
   in full and offered with a <strong>y/N prompt at a real terminal only</strong>. With <code>--skip-interactive</code>, or
   when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
@@ -431,7 +440,7 @@ separate cache elsewhere in your home directory.</p>
 <li><a href="#prerequisites">Prerequisites</a></li>
 <li><a href="#install">Install</a><ul>
 <li><a href="#the-extras-and-which-one-you-want">The extras, and which one you want</a></li>
-<li><a href="#the-built-in-wiki-llm-needs-one-extra-flag">The built-in wiki LLM needs one extra flag</a></li>
+<li><a href="#the-built-in-wiki-llm-is-one-extra">The built-in wiki LLM is one extra</a></li>
 <li><a href="#docker">Docker</a></li>
 <li><a href="#the-standalone-binary">The standalone binary</a></li>
 <li><a href="#from-source">From source</a></li>
@@ -517,6 +526,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=4a12c5a"></script>
+<script defer src="cmdk.js?v=9133f52"></script>
 </body>
 </html>

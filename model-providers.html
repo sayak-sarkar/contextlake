@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Model providers · contextlake docs">
 <meta name="twitter:description" content="The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Model providers", "description": "The pluggable embeddings and wiki backends: auto, built-in CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.", "url": "https://sayak.in/contextlake/model-providers", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-11"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Model providers", "item": "https://sayak.in/contextlake/model-providers"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=4a12c5a">
-<link rel="stylesheet" href="tokens.css?v=4a12c5a">
-<link rel="stylesheet" href="docs.css?v=4a12c5a">
-<link rel="stylesheet" href="cmdk.css?v=4a12c5a">
+<link rel="stylesheet" href="fonts.css?v=9133f52">
+<link rel="stylesheet" href="tokens.css?v=9133f52">
+<link rel="stylesheet" href="docs.css?v=9133f52">
+<link rel="stylesheet" href="cmdk.css?v=9133f52">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -85,15 +85,15 @@ the model pulled, and otherwise to the built-in CPU model.</p>
 <li><em>Embeddings</em>, <code>engine = "model2vec"</code> (default): static <code>potion-base-8M</code> (~30MB, MIT), numpy inference,
     very fast at scale, <code>pip install "contextlake[kb-local]"</code>. Or <code>engine = "fastembed"</code>: ONNX <code>bge-small</code>
     (~90MB, MIT, higher quality), <code>pip install "contextlake[kb-fastembed]"</code>.</li>
-<li><em>Wiki LLM</em>, a <code>Qwen2.5-0.5B-Instruct</code> GGUF (Apache-2.0) via <code>llama-cpp-python</code>,
-    <code>contextlake doctor --fix llm-local</code> (upstream ships no PyPI wheels, so a plain
-    <code>pip install "contextlake[llm-local]"</code> compiles C++ from source; see below).
+<li><em>Wiki LLM</em>, a <code>Qwen2.5-Coder-0.5B-Instruct</code> int4 OpenVINO IR model (Apache-2.0, 349 MB)
+    via <code>openvino-genai</code>, <code>contextlake doctor --fix llm-local</code> (an ordinary wheel: no
+    compiler, no custom index).
     Fast to set up, but <strong>0.5B is a modest writer</strong> (good for coverage, not
     polished prose) and CPU generation is <strong>slow</strong> (~4 calls/repo). Prefer Ollama at any real scale. See
-    <a href="#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in LLM</a>
+    <a href="#installing-the-built-in-llm">Installing the built-in LLM</a>
     and <a href="#how-much-does-the-model-matter">How much does the model matter?</a>.</li>
 <li><strong><code>ollama</code></strong>, a local <a href="https://ollama.com" target="_blank" rel="noopener">Ollama<span class="ext-arrow" aria-hidden="true">↗</span></a> daemon (<code>base_url</code>, default
-  <code>http://127.0.0.1:11434</code>), the <strong>recommended</strong> wiki backend: no Python native build, and a 3B-8B model
+  <code>http://127.0.0.1:11434</code>), the <strong>recommended</strong> wiki backend: a 3B-8B model
   writes markedly better pages than the built-in 0.5B. See <a href="#using-ollama-for-the-wiki">Using Ollama for the wiki</a>.</li>
 <li><strong><code>openai</code></strong>, <strong>any OpenAI-compatible chat API</strong> (a hosted key, or a local server like LM Studio, Jan,
   llama.cpp, vLLM). Best prose, per-token cost. The key is read from the env var named by <code>api_key_env</code>
@@ -184,8 +184,8 @@ API key that happens to be in your environment. See
 <tbody>
 <tr>
 <td><code>builtin</code></td>
-<td><code>Qwen/Qwen2.5-0.5B-Instruct-GGUF</code></td>
-<td>a HF GGUF repo id; <code>model_file</code> picks the quant</td>
+<td><code>OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov</code></td>
+<td>a HF repo id holding a pre-converted OpenVINO IR model</td>
 </tr>
 <tr>
 <td><code>ollama</code></td>
@@ -213,41 +213,30 @@ API key that happens to be in your environment. See
 openai-compatible server, never just to make <code>anthropic</code>/<code>openai</code> work.</p>
 <p>CLI flags override the toml and now work on <strong><code>bootstrap</code></strong> too:
 <code>contextlake bootstrap --llm ollama --llm-model qwen2.5:3b</code>.</p>
-<h2 id="installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in LLM (and why it needs a wheel index)<a class="anchor" href="#installing-the-built-in-llm-and-why-it-needs-a-wheel-index" title="Link to this section">#</a></h2>
-<p>The command itself is one line, and it lives with the rest of the install instructions:
-<a href="install#the-built-in-wiki-llm-needs-one-extra-flag">Install and upgrade</a> covers what to
-run on each channel, including why the standalone binary and the full Docker image need
-nothing at all. This section is the reasoning behind it, which is what you want when you are
-choosing a backend rather than following a recipe.</p>
-<h3 id="why-an-index-at-all">Why an index at all<a class="anchor" href="#why-an-index-at-all" title="Link to this section">#</a></h3>
-<p>The <code>builtin</code> wiki model runs a <strong>GGUF</strong> model through
-<a href="https://github.com/abetlen/llama-cpp-python" target="_blank" rel="noopener"><code>llama-cpp-python</code><span class="ext-arrow" aria-hidden="true">↗</span></a>, Python bindings around <code>llama.cpp</code>, a
-<strong>C++</strong> inference engine. Two facts explain the extra flag, and why contextlake cannot fold it into the
-extra itself:</p>
-<ol>
-<li><strong>Upstream publishes no wheels to PyPI at all</strong>: every release is a source tarball. That is not
-   neglect: llama.cpp is compiled <strong>per hardware backend</strong>, and one PyPI namespace cannot hold the CPU,
-   CUDA and Metal builds of the same version and platform tag. So upstream ships <strong>one index per
-   accelerator</strong> instead, the same convention PyTorch uses with <code>download.pytorch.org/whl/cpu</code> versus
-   <code>/whl/cu121</code>. Without one of those indexes, <code>pip install "contextlake[llm-local]"</code> always falls back to
-   compiling, which needs <code>cmake</code> plus a C/C++ compiler.</li>
-<li><strong>A dependency can't carry an index URL.</strong> <code>contextlake[llm-local]</code> can only <em>name</em> <code>llama-cpp-python</code>;
-   Python packaging (PEP 508) deliberately forbids pinning an <code>--extra-index-url</code> in a package's metadata
-   (for reproducibility and supply-chain safety). So the extra alone can never point pip anywhere but your
-   configured indexes; only the <code>pip</code> command line can add one.</li>
-</ol>
-<p><strong>Picking an index.</strong> CPU is the default and what <code>doctor --fix</code> uses: the built-in tier is a small 0.5B
-model, and GPU inference is better served by Ollama anyway. The published alternatives are
-<code>.../whl/cu121</code>, <code>/whl/cu122</code>, <code>/whl/cu124</code> (CUDA) and <code>/whl/metal</code> (Apple silicon); swap the URL if you
-want one, the rest of the command is identical.</p>
-<p><strong>Why <code>--only-binary llama-cpp-python</code>.</strong> It makes pip <em>refuse</em> a source build for that one package, so a
-platform with no wheel gives you a one-line "no matching distribution" instead of a wall of <code>cmake</code>
-errors. It deliberately names the package rather than using the <code>:all:</code> token: <code>:all:</code> would forbid a
-source fallback for <strong>every</strong> dependency, and one missing wheel anywhere would then fail the whole
-install.</p>
-<p>None of this applies to the other extras: <code>[kb]</code>, <code>[kb-local]</code>, <code>[kb-vec]</code> all resolve to ordinary PyPI
-wheels. It is specific to the built-in LLM. The cleanest way to avoid the native build altogether is to
-<strong>use Ollama</strong> (below), a standalone binary with no Python compile step.</p>
+<h2 id="installing-the-built-in-llm">Installing the built-in LLM<a class="anchor" href="#installing-the-built-in-llm" title="Link to this section">#</a></h2>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">     </span><span class="c1"># or: pip install &quot;contextlake[llm-local]&quot;</span>
+</code></pre></div>
+<p>An ordinary wheel install. No compiler, no custom index, no <code>--only-binary</code> pin.
+<a href="install#the-built-in-wiki-llm-is-one-extra">Install and upgrade</a> covers each channel,
+including why the standalone binary and the full Docker image need nothing at all.</p>
+<h3 id="what-it-runs-and-what-it-costs-you">What it runs, and what it costs you<a class="anchor" href="#what-it-runs-and-what-it-costs-you" title="Link to this section">#</a></h3>
+<p>The <code>builtin</code> wiki model is a small <strong>int4 OpenVINO IR</strong> model driven by
+<a href="https://github.com/openvinotoolkit/openvino.genai" target="_blank" rel="noopener"><code>openvino-genai</code><span class="ext-arrow" aria-hidden="true">↗</span></a>. The default is
+<code>OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov</code>: Apache-2.0, published pre-converted by the
+OpenVINO project, <strong>349 MB</strong>, downloaded on first wiki run into <code>~/.contextlake/models</code>.</p>
+<p>The runtime pulls <code>openvino</code> and <code>openvino-tokenizers</code> and nothing else -- in particular
+<strong>neither torch nor transformers</strong>, which is why a local generative tier does not cost you a
+multi-gigabyte install. "Pre-converted" is the load-bearing part: converting a stock
+checkpoint to OpenVINO IR yourself needs <code>optimum-intel</code>, which does pull torch.</p>
+<h3 id="why-not-llamacpp">Why not llama.cpp<a class="anchor" href="#why-not-llamacpp" title="Link to this section">#</a></h3>
+<p>Earlier releases ran a GGUF through <code>llama-cpp-python</code>, and it needed a per-accelerator wheel
+index because upstream publishes no wheels to PyPI at all -- so a plain <code>pip install</code> compiled
+C++ from source and wanted <code>cmake</code> and a compiler. It also had <strong>no wheel for CPython 3.14 on
+any x86_64 platform</strong>, which pinned the whole project's container base image to an older
+Python.</p>
+<p><code>openvino-genai</code> ships ordinary manylinux wheels for CPython 3.10 through 3.14, so the index,
+the <code>--only-binary</code> pin and the compiler requirement are all simply gone. If you want GPU
+inference, use Ollama (below) rather than a different index.</p>
 <h2 id="using-ollama-for-the-wiki">Using Ollama for the wiki<a class="anchor" href="#using-ollama-for-the-wiki" title="Link to this section">#</a></h2>
 <p><a href="https://ollama.com" target="_blank" rel="noopener">Ollama<span class="ext-arrow" aria-hidden="true">↗</span></a> is a standalone local model server. It sidesteps the native Python build, and
 a 3B-8B model writes much better wiki pages than the 0.5B built-in.</p>
@@ -327,8 +316,9 @@ downloads at runtime. See <code>examples/kb.toml.example</code>.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#configuring-the-wiki-llm">Configuring the wiki LLM</a></li>
-<li><a href="#installing-the-built-in-llm-and-why-it-needs-a-wheel-index">Installing the built-in LLM (and why it needs a wheel index)</a><ul>
-<li><a href="#why-an-index-at-all">Why an index at all</a></li>
+<li><a href="#installing-the-built-in-llm">Installing the built-in LLM</a><ul>
+<li><a href="#what-it-runs-and-what-it-costs-you">What it runs, and what it costs you</a></li>
+<li><a href="#why-not-llamacpp">Why not llama.cpp</a></li>
 </ul>
 </li>
 <li><a href="#using-ollama-for-the-wiki">Using Ollama for the wiki</a></li>
@@ -405,6 +395,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=4a12c5a"></script>
+<script defer src="cmdk.js?v=9133f52"></script>
 </body>
 </html>

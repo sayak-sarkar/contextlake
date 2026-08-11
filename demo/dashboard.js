@@ -30,7 +30,8 @@
 
   var KIND_GLYPHS = {
     file: 1, page: 1, module: 1, class: 1, struct: 1, interface: 1, enum: 1,
-    function: 1, method: 1, package: 1, repo: 1, issue: 1, design: 1, endpoint: 1, topic: 1
+    function: 1, method: 1, package: 1, repo: 1, issue: 1, design: 1, endpoint: 1, topic: 1,
+    config_key: 1, test: 1
   };
   var LANG_LABELS = {
     python: "PY", javascript: "JS", typescript: "TS", tsx: "TS", csharp: "C#",
@@ -61,7 +62,17 @@
   function append(parent, c) {
     if (c == null || c === false) return;
     if (Array.isArray(c)) { c.forEach(function (x) { append(parent, x); }); return; }
-    parent.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+    // Append a real DOM node as one; anything else becomes text. `instanceof Node` rather
+    // than a `c.nodeType` duck-type on purpose: only the former proves the type, both to a
+    // reader and to static analysis, and nothing here ever receives a node from another
+    // realm -- the dashboard renders into its own document, and the graph is a separate page
+    // with its own script.
+    //
+    // The original `typeof c === "object"` handed a plain object straight to appendChild,
+    // which throws a DOMException whose message embeds the value it refused -- and that
+    // message is rendered back into the error state block, which is the exception-to-render
+    // round trip CodeQL traces through here.
+    parent.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
   }
   function $(sel, root) { return (root || document).querySelector(sel); }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }

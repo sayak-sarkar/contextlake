@@ -190,7 +190,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
+| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install) |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `kb owners` (alias `kb who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
@@ -775,36 +775,32 @@ However you install it, `contextlake`, `python -m contextlake`, and
 | `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python exact scan |
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
-| `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `kb wiki --llm builtin` with no Ollama and no API key |
+| `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
 [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-### The built-in wiki LLM needs one extra flag
+### The built-in wiki LLM is one extra
 
-`[llm-local]` is the one extra a plain `pip install` cannot finish on its own, because
-`llama-cpp-python` publishes no wheels to PyPI and pip therefore falls back to compiling
-C++. Let contextlake attach the right wheel index for you:
+`[llm-local]` is an ordinary extra. Let contextlake install it into the right interpreter:
 
 ```bash
 contextlake doctor --fix llm-local     # --dry-run prints the exact command and stops
 ```
 
-That runs pip in the interpreter contextlake is running in, with the CPU wheel index already
-attached, and prints the command before it runs it. By hand it is:
+That runs pip in the interpreter contextlake is running in, and prints the command before it
+runs it. By hand it is:
 
 ```bash
-pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
-  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+pip install "contextlake[llm-local]"
 ```
 
-Only the pip, pipx and uv channels need this. The standalone binary already carries the index
-in its bootstrap configuration, and the full Docker image ships the runtime and the model
-baked in.
+No compiler, no wheel index and no `--only-binary` pin. The standalone binary installs it on
+first run, and the full Docker image ships the runtime and the model baked in.
 
-For why a wheel index is needed at all, which index to swap in for CUDA or Metal, and why the
-extra cannot carry the URL itself, see
-[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+The model itself (~349 MB, Apache-2.0) downloads on first wiki run, not at install time. For
+which backend to choose and why, see
+[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm).
 
 ### Docker
 
@@ -839,7 +835,7 @@ It fails rather than falling back on purpose. Before 5.1.0 the store was written
 container instead, so the run appeared to succeed and the index was gone the moment the
 container exited.
 
-A `:slim` tag is also published: no `llama-cpp-python`, no baked wiki-LLM GGUF, a much
+A `:slim` tag is also published: no `openvino-genai`, no baked wiki-LLM model, a much
 smaller pull. Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or `cli` instead of the built-in LLM.
 
@@ -866,6 +862,26 @@ Three assets are published per release, one per build platform:
 On Linux and macOS, `chmod +x` the file and run it with `./`. On Windows, run the `.exe`
 directly. If your platform is not in that table, for example macOS on Intel or Linux on
 arm64, use `pipx` or `uv` instead; there is no binary for it.
+
+#### Checking a download is the one we published
+
+Each launcher is signed at release time with a build provenance attestation, so you can check
+a download came from this repository's release workflow and not from somewhere else:
+
+```bash
+gh attestation verify contextlake-linux-x86_64 --repo sayak-sarkar/contextlake
+```
+
+That needs the `gh` CLI and no key material: the signature is verified against a public
+transparency log.
+
+**What it proves, and what it does not.** It proves the file you have is byte-for-byte the
+file this repository's workflow built and uploaded. It says nothing about the Python payload,
+because the launcher downloads contextlake and its dependencies from PyPI on *your* machine at
+first run, which happens after any signature here. If you want the payload checked too, install
+with `pipx` or `uv` instead: the wheel and sdist on PyPI carry their own
+[PEP 740](https://peps.python.org/pep-0740/) attestations, which pip verifies, and each release
+also publishes a CycloneDX SBOM listing that dependency closure.
 
 ### From source
 
@@ -911,7 +927,7 @@ If `doctor` names something missing, `contextlake doctor --fix` installs it. Tha
 
 `doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
 configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
-the local llama-cpp runtime. Name a capability to install it regardless of config.
+the local built-in runtime. Name a capability to install it regardless of config.
 
 | Flag | Effect |
 | --- | --- |
@@ -924,8 +940,7 @@ Two privilege tiers, and the split is deliberate:
 
 - **Python packages** install into the interpreter contextlake is running in, with
   `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
-  and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
-  CPU wheel index automatically and says why.
+  and reversible, so `--fix` runs them after printing them.
 - **System packages** (currently just `git`) need administrator rights. The exact command is printed
   in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
   when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
@@ -1161,7 +1176,7 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once) via
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-Coder-0.5B, downloaded once) via
 the `llm-local` extra. The **standalone binary** already has it configured (it installs it on
 first run) and the **full Docker image** ships it baked in, so neither needs anything here.
 On a pip install:
@@ -1170,15 +1185,13 @@ On a pip install:
 contextlake doctor --fix llm-local
 ```
 
-That installs into the interpreter contextlake is running in, with the upstream CPU wheel
-index attached, and prints the exact command before running it (`--dry-run` prints it and
-stops). The index is not optional, because `llama-cpp-python` publishes no wheels to PyPI at
-all; for the command by hand see [Install and
-upgrade](docs/install.md#the-built-in-wiki-llm-needs-one-extra-flag), and for why, see
-[Installing the built-in
-LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+That installs into the interpreter contextlake is running in and prints the exact command
+before running it (`--dry-run` prints it and stops). It is an ordinary wheel: no compiler, no
+index URL. The model itself (~349 MB) downloads on the first wiki run. See [Install and
+upgrade](docs/install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+LLM](docs/model-providers.md#installing-the-built-in-llm).
 
-Prefer `--llm ollama` (no compiler needed at all) or `--llm openai` for higher-quality prose; without any `--llm`
+Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
 (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:
 
 - already have the repos cloned? add `--no-sync`
@@ -1247,20 +1260,32 @@ full command list. Shell tab-completion is registered for you on first run; see
 [Shell completion](cli-reference.md#shell-completion).
 
 **Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `kb index
---workspace`) accepts `--repos PATTERN`, a comma-separated **glob/substring** filter
-over your repo paths, so you can mirror and index just a handful instead of the whole
-group. Ideal for a demo or a try-before-fleet run:
+--workspace`) accepts `--repos PATTERN`, a comma-separated **glob** filter over your
+repo paths, so you can mirror and index just a handful instead of the whole group.
+Ideal for a demo or a try-before-fleet run:
 
 ```bash
-contextlake bootstrap --repos "team/api,billing,frontend/*"   # mirror + index just these
-contextlake mirror sync --repos "team/*"                             # sync one namespace
+contextlake bootstrap --repos "team/api,billing/*,frontend/*"  # mirror + index just these
+contextlake mirror sync --repos "team/*"                       # sync one namespace
 contextlake kb index --workspace ~/work --repos "billing/core,team/api"
 ```
 
-Each pattern matches if it's a substring of, or a glob against, the repo's
-group-qualified path or its local path (case-insensitive). It scopes the whole
-pipeline: `fetch` narrows the cached project list, and `clone` / `update` / `branches`
-/ `verify` / `status` / `bootstrap` all follow from that.
+Each pattern is matched against the repo's group-qualified path and its local path,
+case-insensitively. **Patterns are anchored**: `--repos api` selects a repo named
+exactly `api`, never `payments-api` or `api-gateway`. For a substring match, say so
+with a glob:
+
+```bash
+contextlake mirror sync --repos "*api*"     # everything with "api" anywhere in its path
+```
+
+That is the way round it is because a filter that selects *more* than you asked for is
+the expensive mistake: you discover it after a fleet-wide run you did not want. Earlier
+versions defaulted to substring matching with an opt-in `--repos-exact`; that flag is
+gone, and so is the surprise.
+
+The filter scopes the whole pipeline: `fetch` narrows the cached project list, and
+`clone` / `update` / `branches` / `verify` / `status` / `bootstrap` all follow from that.
 
 The scope belongs to the invocation, not to the cache. Pass the same `--repos` to each
 command (or set `repo_filter` in your config to make it permanent). A command run at a
@@ -2543,7 +2568,7 @@ machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ol
 inline and scopes generation to the named repo(s).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
-(see [Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); `--llm ollama`
+(see [Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
 needs no compiler at all.
 
 Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
@@ -2766,15 +2791,15 @@ the model pulled, and otherwise to the built-in CPU model.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     very fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
-  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`,
-    `contextlake doctor --fix llm-local` (upstream ships no PyPI wheels, so a plain
-    `pip install "contextlake[llm-local]"` compiles C++ from source; see below).
+  - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
+    via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel: no
+    compiler, no custom index).
     Fast to set up, but **0.5B is a modest writer** (good for coverage, not
     polished prose) and CPU generation is **slow** (~4 calls/repo). Prefer Ollama at any real scale. See
-    [Installing the built-in LLM](#installing-the-built-in-llm-and-why-it-needs-a-wheel-index)
+    [Installing the built-in LLM](#installing-the-built-in-llm)
     and [How much does the model matter?](#how-much-does-the-model-matter).
 - **`ollama`**, a local [Ollama](https://ollama.com) daemon (`base_url`, default
-  `http://127.0.0.1:11434`), the **recommended** wiki backend: no Python native build, and a 3B-8B model
+  `http://127.0.0.1:11434`), the **recommended** wiki backend: a 3B-8B model
   writes markedly better pages than the built-in 0.5B. See [Using Ollama for the wiki](#using-ollama-for-the-wiki).
 - **`openai`**, **any OpenAI-compatible chat API** (a hosted key, or a local server like LM Studio, Jan,
   llama.cpp, vLLM). Best prose, per-token cost. The key is read from the env var named by `api_key_env`
@@ -2838,7 +2863,7 @@ API key that happens to be in your environment. See
 
 | provider  | example `model`                          | notes |
 |-----------|------------------------------------------|-------|
-| `builtin` | `Qwen/Qwen2.5-0.5B-Instruct-GGUF`        | a HF GGUF repo id; `model_file` picks the quant |
+| `builtin` | `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov` | a HF repo id holding a pre-converted OpenVINO IR model |
 | `ollama`  | `qwen2.5:3b`, `llama3.1`, `llama3.2:3b`  | must be `ollama pull`ed first |
 | `openai`  | `gpt-4o-mini`, or your server's model id | `base_url` defaults to `https://api.openai.com/v1`; point it at a local openai-compatible server to override |
 | `anthropic` | `claude-haiku-4-5`, `claude-opus-4-8`  | `base_url` defaults to `https://api.anthropic.com`; key from `ANTHROPIC_API_KEY` |
@@ -2850,46 +2875,39 @@ openai-compatible server, never just to make `anthropic`/`openai` work.
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
 
-## Installing the built-in LLM (and why it needs a wheel index)
+## Installing the built-in LLM
 
-The command itself is one line, and it lives with the rest of the install instructions:
-[Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag) covers what to
-run on each channel, including why the standalone binary and the full Docker image need
-nothing at all. This section is the reasoning behind it, which is what you want when you are
-choosing a backend rather than following a recipe.
+```bash
+contextlake doctor --fix llm-local     # or: pip install "contextlake[llm-local]"
+```
 
-### Why an index at all
+An ordinary wheel install. No compiler, no custom index, no `--only-binary` pin.
+[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
+including why the standalone binary and the full Docker image need nothing at all.
 
-The `builtin` wiki model runs a **GGUF** model through
-[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
-**C++** inference engine. Two facts explain the extra flag, and why contextlake cannot fold it into the
-extra itself:
+### What it runs, and what it costs you
 
-1. **Upstream publishes no wheels to PyPI at all**: every release is a source tarball. That is not
-   neglect: llama.cpp is compiled **per hardware backend**, and one PyPI namespace cannot hold the CPU,
-   CUDA and Metal builds of the same version and platform tag. So upstream ships **one index per
-   accelerator** instead, the same convention PyTorch uses with `download.pytorch.org/whl/cpu` versus
-   `/whl/cu121`. Without one of those indexes, `pip install "contextlake[llm-local]"` always falls back to
-   compiling, which needs `cmake` plus a C/C++ compiler.
-2. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
-   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
-   (for reproducibility and supply-chain safety). So the extra alone can never point pip anywhere but your
-   configured indexes; only the `pip` command line can add one.
+The `builtin` wiki model is a small **int4 OpenVINO IR** model driven by
+[`openvino-genai`](https://github.com/openvinotoolkit/openvino.genai). The default is
+`OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published pre-converted by the
+OpenVINO project, **349 MB**, downloaded on first wiki run into `~/.contextlake/models`.
 
-**Picking an index.** CPU is the default and what `doctor --fix` uses: the built-in tier is a small 0.5B
-model, and GPU inference is better served by Ollama anyway. The published alternatives are
-`.../whl/cu121`, `/whl/cu122`, `/whl/cu124` (CUDA) and `/whl/metal` (Apple silicon); swap the URL if you
-want one, the rest of the command is identical.
+The runtime pulls `openvino` and `openvino-tokenizers` and nothing else -- in particular
+**neither torch nor transformers**, which is why a local generative tier does not cost you a
+multi-gigabyte install. "Pre-converted" is the load-bearing part: converting a stock
+checkpoint to OpenVINO IR yourself needs `optimum-intel`, which does pull torch.
 
-**Why `--only-binary llama-cpp-python`.** It makes pip *refuse* a source build for that one package, so a
-platform with no wheel gives you a one-line "no matching distribution" instead of a wall of `cmake`
-errors. It deliberately names the package rather than using the `:all:` token: `:all:` would forbid a
-source fallback for **every** dependency, and one missing wheel anywhere would then fail the whole
-install.
+### Why not llama.cpp
 
-None of this applies to the other extras: `[kb]`, `[kb-local]`, `[kb-vec]` all resolve to ordinary PyPI
-wheels. It is specific to the built-in LLM. The cleanest way to avoid the native build altogether is to
-**use Ollama** (below), a standalone binary with no Python compile step.
+Earlier releases ran a GGUF through `llama-cpp-python`, and it needed a per-accelerator wheel
+index because upstream publishes no wheels to PyPI at all -- so a plain `pip install` compiled
+C++ from source and wanted `cmake` and a compiler. It also had **no wheel for CPython 3.14 on
+any x86_64 platform**, which pinned the whole project's container base image to an older
+Python.
+
+`openvino-genai` ships ordinary manylinux wheels for CPython 3.10 through 3.14, so the index,
+the `--only-binary` pin and the compiler requirement are all simply gone. If you want GPU
+inference, use Ollama (below) rather than a different index.
 
 ## Using Ollama for the wiki
 
@@ -3033,7 +3051,7 @@ contextlake bootstrap --llm builtin
 `--llm builtin` powers the wiki stage with a zero-setup CPU model, so this single command builds the
 whole knowledge layer (graph, vectors, and wiki) for every repo. On a `pip` install, `builtin` needs
 one extra step first, `contextlake doctor --fix llm-local` (see [Install and
-upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); skip that step entirely with
+upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); skip that step entirely with
 `--llm ollama`, which needs no compiler at all. Use `--llm ollama`, `openai`,
 `anthropic`, `cli` or `auto` for better prose; the pre-command form
 `contextlake --llm builtin bootstrap` also works. Without any `--llm`, and with `[llm]` disabled in
@@ -3832,7 +3850,7 @@ contextlake kb wiki acme/catalog-api --llm builtin
 
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
 API key; on a `pip` install it needs `contextlake doctor --fix llm-local` first (see
-[Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)). `ollama`
+[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)). `ollama`
 needs no compiler at all; `openai` uses that backend instead.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
@@ -4003,7 +4021,7 @@ facts cited; `explain` returns advisory wiki prose, or the repo's grounded anato
 no wiki exists yet). An agent that would rather not choose among the tools can just `ask`.
 
 **Most of it needs no model.** The underlying graph tools work on their own:
-`search_code`, `find_definition`, `find_callers`, `find_dependents`, `get_node`,
+`search_code`, `find_definition`, `find_callers`, `find_callees`, `find_dependents`, `get_node`,
 `get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
 `repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_readme`,
 `get_repo_brief`, `list_repos`, `get_repo_links`, `graph_health`, plus a `kb://stats`
@@ -5412,7 +5430,7 @@ separately.
   incremental too. `0 written` with a large `already up to date` count means nothing changed since the last
   run; the `N total` is the whole store, not this run.
 - **`Fetching 10 files: 100% ... Download complete: 0.00B`** appears once when the wiki (or built-in
-  embedder) model loads. It is Hugging Face resolving the model repo's files (several GGUF quantizations +
+  embedder) model loads. It is Hugging Face resolving the model repo's files (the model weights +
   tokenizer/config) in your local cache, **`0.00B` means nothing was downloaded, everything was already
   cached**. It fires once per run at model load, not per repo.
 - **`✓ <repo>: written (score 0.98)`**, a wiki page passed the review council and was saved. **`⚠ <repo>:
@@ -5558,30 +5576,30 @@ The extra also pulls a tree-sitter grammar per supported language, several with 
 wheels. On a platform without prebuilt wheels those build from source, which is slow rather
 than broken.
 
-## `pip install "contextlake[llm-local]"` tries to compile C++
+## The built-in wiki LLM is not installed
 
 ```
-Building wheel for llama-cpp-python (pyproject.toml) ... error
-CMake Error: could not find cmake ...
+The built-in LLM needs the 'llm-local' extra (openvino-genai).
 ```
 
-Expected on every platform and every Python version, and only on a **pip** install.
-`llama-cpp-python` publishes no wheels to PyPI at all, so pip has nothing to install but the
-sources and falls back to compiling `llama.cpp`, which needs `cmake` plus a C++ toolchain.
-
-Let contextlake attach the prebuilt CPU wheel index for you:
+Install it into the interpreter contextlake is running in:
 
 ```bash
 contextlake doctor --fix llm-local          # --dry-run prints the command and stops
 ```
 
-The standalone binary already carries that index in its bootstrap configuration, and the full
-Docker image ships the runtime baked in, so neither channel hits this. For the command by
-hand, see [Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag); for
-the CUDA and Metal indexes, and why the extra cannot carry the index URL itself, see
-[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+It is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin involved.
+The standalone binary installs it on first run and the full Docker image ships it baked in,
+so neither channel hits this. See [Install and
+upgrade](install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+LLM](model-providers.md#installing-the-built-in-llm).
 
-If you would rather skip the native build entirely, use Ollama for the wiki tier
+Releases before 7.0.0 ran a GGUF through `llama-cpp-python` and did need a wheel index plus a
+C++ toolchain. If you are following older notes that tell you to pass `--extra-index-url` or
+`--only-binary llama-cpp-python`, drop both: they now refer to a package contextlake no longer
+depends on.
+
+If you would rather not run a local model at all, use Ollama for the wiki tier
 (`--llm ollama`).
 
 ## `contextlake doctor --fix` says the environment is externally managed
@@ -5650,7 +5668,519 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [7.0.0] - 2026-08-12
+
+**A correct graph, and one re-index to get it.** This release fixes what the graph *says*, so
+every id changes and `PARSER_VERSION` moves to `4`. Run `contextlake kb index` once after
+upgrading; it now notices on its own, and so do the wiki, the vectors and the cluster pages,
+which previously reported themselves fresh across a parser change.
+
+The headline corrections: node ids no longer contain a file path or a line number, so a header
+and its `.cpp` finally describe one symbol; C++ internal linkage is honoured, so two files'
+`static` or anonymous-namespace symbols stop merging into one; `calls` edges are stored per call
+site rather than per pair; and five kinds of symbol that were never emitted at all -- data
+members, macros, typedefs, enum constants and file-scope variables -- now exist. On a large
+legacy C/C++ tree that is 62,066 nodes to 131,603.
+
+Two breaking changes outside the graph: the built-in wiki LLM moved to `openvino-genai` (no
+compiler, no wheel index, and CVE-2025-69872 closes by removal), and `--repos` patterns are
+anchored, so a bare name no longer selects every repo that merely contains it.
+
+### Added
+
+- **Five symbol kinds that were never emitted at all: data members, macros, typedefs, enum constants
+  and file-scope variables.** Measured on a large legacy C/C++ tree, these are 83,052 named symbols --
+  more than the entire rest of that graph. Asking where a constant is defined, or what a class actually
+  holds, had no answer.
+
+  Each is contained by the scope it really sits in: a data member by its class, an enumerator by its
+  enum, a namespace-scoped variable by its namespace. Macros keep the file in their identity even in
+  C/C++, where other symbols drop it, because the preprocessor runs before C++ scope exists and two
+  headers defining the same macro name really are two macros.
+
+  Two traps, both measured rather than guessed, and both handled:
+
+  - **235,010 declarations in that tree are function-local.** Emitting `declaration` without checking
+    for file or namespace scope would have produced 235,010 "globals" instead of 5,965 -- more nodes
+    from that one mistake than the whole intended addition.
+  - **8,970 member-function *declarations* parse as `field_declaration`,** exactly like a data member
+    does. Treating them as fields would have invented 8,970 members that are really methods. The name
+    walk returns nothing when it meets a function declarator, which is what tells them apart --
+    while still capturing pointer, array and reference members, whose names sit further down the
+    same chain.
+
+  None of the five is embeddable yet. The measurement found the dilution risk is repetition rather
+  than short names: only 46.3% of data-member names are unique in that tree and one occurs 516 times.
+  Turning them on interacts with the per-kind embedding budget floors, so it stays a sequenced
+  decision rather than a side effect.
+
+
+- **An index run now says how many call references it could not resolve.** A reference naming a
+  symbol defined in more than six places is deliberately left unresolved rather than pointing at
+  six guesses, but until now nothing said so above debug level, and a caller missing for that
+  reason looks exactly like a caller that does not exist.
+
+  The cap itself stays, and that is a measured decision rather than an unexamined default. On a
+  large legacy tree 21.6% of resolvable call references sit above it, and the distribution has no
+  knee: admitting them all costs about 3.6x the `calls` edges for 21.6% more references, because
+  an ambiguous reference emits one edge per candidate. Raising the cap to 8 buys 3.0% more
+  references for 17.4% more edges; raising it to 12 buys 10% for 85%. The line is silent when the
+  count is zero, so it never becomes boilerplate.
+
+
+- **Three more verbs now cite the edge they travelled.** A provenance audit of every answering verb
+  found three that discarded it. The worst was `find_dependents`, whose own response text tells the
+  caller "INFERRED from manifests, verify against the cited file" and then did not cite the file,
+  although the `depends_on` edge's provenance *is* the manifest and its line. The subclasses walk
+  dropped where the inheritance is declared. `shortest_path` asserted a route while citing none of the
+  adjacencies that make it a route, so a reader had to grep every hop by hand to check it was real.
+
+  All three now carry `edge_file` and `edge_line`. For a path, each hop cites the edge that makes it
+  adjacent and the seed node carries nothing, because it was not reached by an edge and inventing
+  provenance for it would be worse than leaving it empty.
+
+  These are a **separate pair** from the `call_file`/`call_line` added in 6.7.0, deliberately. A
+  `depends_on` edge's provenance is a manifest declaration and an `inherits` edge's is a base-class
+  mention; delivering either under a field named `call_line` would be a plausible-looking lie, and
+  this project's defect history is made of those. Each verb populates only the pair whose name
+  describes its relation, so no result carries both. `call_file`/`call_line` are unchanged, so nothing
+  built against 6.7.0 breaks.
+
+  Also recorded in that audit and deliberately NOT changed: `blast_radius` (a hit several hops out has
+  no single edge to cite, so the current output is coarse rather than wrong) and the repo-level flow
+  verbs (their edges are aggregates rolled up from many, and one line is not a property of an
+  aggregate).
+
+- **CUDA files are indexed.** `.cu` and `.cuh` were absent from the extension table, so a CUDA source
+  file contributed **zero** nodes. Measured on a large legacy C++ tree: 2 files, 8,793 lines, nothing
+  in the graph. They now parse through the C++ grammar, which CUDA is a superset of, and yield 135
+  nodes and 141 edges from those same two files.
+
+  Stated plainly because a partial extraction must not be mistaken for a complete one: the host-side
+  launch `kernel<<<grid, block>>>(...)` is not C++ syntax and lands in a local ERROR region, so a
+  kernel *launch* is missed as a call while an ordinary call in the same file resolves normally.
+  tree-sitter degrades locally rather than failing the file, so everything else still extracts.
+
+  This one had a measurable cost while it was open: asked "who calls this", a comparator that reads
+  `.cu` returned genuine callers that contextlake could not see.
+
+- **XML configuration is indexed.** `.xml` was absent from the extension table, so a repository's
+  configuration contributed **zero** nodes and "where is this setting defined" had no answer in the
+  graph. Each identified setting is now a `config_key` node carrying its value, its element path as
+  `qualified_name`, and a real file and line.
+
+  Measured on a large legacy C++ tree: 181 `.xml` files that produced nothing now produce **12,991
+  settings**. The element path is what makes them distinguishable, so the same key name under two
+  sections stays two settings rather than colliding.
+
+  Two deliberate choices, both about not lying and not leaking:
+
+  - **A line scanner, not a stdlib XML parser.** `xml.etree` and `xml.dom` expand entities, and
+    contextlake parses whatever a mirror happened to clone, so a hostile file would be an indexer
+    hang. Nothing is expanded here; a `&b;` stays four characters. It also means malformed XML
+    degrades to a partial extraction instead of raising and yielding nothing for the whole file,
+    which matters on hand-edited trees, and it is the only way to get real line numbers at all.
+  - **Credential-shaped values are withheld, and the node still says so.** A value is dropped when
+    the setting's name looks like a secret, when the value contains an embedded `password=`-style
+    assignment, or when it has the shape of a token or key blob. The node remains with
+    `value_redacted`, so "a password is configured here, at this line" is still answerable while the
+    password itself never enters a store that gets written to disk and served over MCP.
+
+  Data-shaped XML does not flood the graph: a lookup file of thousands of identical rows collapses to
+  its distinct element paths, so it contributes a schema and where to find it rather than a copy of
+  the data. Per-file output is capped, and files over `max_file_bytes` were already skipped.
+
+  Indexing that tree costs 42.8s against a 39.4s baseline, so **8.6% for the whole config surface**.
+  The first working version cost 107% instead: line numbers were counted from the start of the file
+  once per match, which is quadratic on a data-shaped file with thousands of leaf elements. Counting
+  forward from the previous match is linear and produces byte-identical output. This is the third
+  time this exact quadratic-scan shape has been found in this package, after `pom.xml` parsing and
+  `parse_hcl`, so it is worth naming as a pattern rather than a one-off: any per-match `count` or
+  `index` from position zero over the same buffer is the bug.
+
+### Changed
+
+- **`--repos` patterns are anchored, and `--repos-exact` is gone.** BREAKING: `--repos api` now
+  selects a repo named exactly `api`, where it previously also selected `payments-api` and
+  `api-gateway`. For a substring match, glob it: `--repos "*api*"`.
+
+  A filter that silently selects *more* than you asked for is the expensive direction of this
+  mistake, because you find out after a fleet-wide run you did not want. The old default made
+  that the easy thing to type.
+
+  `--repos-exact` was the opt-in fix for it, and it is removed rather than kept as a no-op: it
+  only ever reached five of the seven places that filter repos, so `--repos-exact` silently did
+  nothing for `kb index --workspace` and for the metrics pass, and the same pattern scoped
+  differently depending on which command you ran. There is now one rule and no flag to forget.
+
+  Nothing else changes: globs like `team/*` behave exactly as before, matching is still
+  case-insensitive, and it still matches against both the group-qualified path and the local
+  path.
+
+- **The built-in wiki LLM moved from `llama-cpp-python` to `openvino-genai`.** BREAKING for
+  anyone scripting the install: the wheel index, the `--only-binary` pin and the C++ toolchain
+  are all gone. `pip install "contextlake[llm-local]"` is now the whole instruction, and
+  `contextlake doctor --fix llm-local` no longer attaches an index.
+
+  The extra keeps its name. What changed is what it installs.
+
+  The old backend was the one dependency a plain `pip install` could not finish: upstream
+  publishes no wheels to PyPI at all, so pip fell back to compiling `llama.cpp` and wanted
+  `cmake` plus a compiler, and the project had to point pip at a per-accelerator index to avoid
+  it. It also had **no wheel for CPython 3.14 on any x86_64 platform**, upstream ships exactly
+  two cp314 wheels and both are `linux_riscv64`, which is what pinned the container base image
+  to an older Python.
+
+  `openvino-genai` ships ordinary manylinux wheels for CPython 3.10 through 3.14. Its closure is
+  `openvino-tokenizers` and `openvino`; it pulls **neither torch nor transformers**, verified by
+  resolving the extra in a clean environment rather than by reading metadata.
+
+  The default model is `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published
+  pre-converted by the OpenVINO project, and **349 MB against the previous 491 MB**. It is the
+  same family and size class as the GGUF it replaces, deliberately, a dependency change is not
+  the place to slip in a bigger model. Pre-converted matters: converting a checkpoint to
+  OpenVINO IR yourself needs `optimum-intel`, which does pull torch.
+
+  The `model_file` config key is gone. It selected a GGUF quantisation, and an OpenVINO model is
+  a directory rather than a file, so there is nothing for it to pick.
+
+- **CVE-2025-69872 is resolved by removal, and CI carries no vulnerability suppressions.**
+  `diskcache` 5.6.3 was reached only through `[llm-local]` → `llama-cpp-python`, had no fixed
+  upstream version, and was held in `security.yml` as an explicit "disposition pending" ignore.
+  Replacing the backend removes the package, so the ignore list is now empty and a red audit
+  means a genuinely new advisory. Verified against the resolved closure, not the advisory text.
+  See `SECURITY.md`.
+
+
+- **`calls` edges are stored once per call site, not once per caller/callee pair.** BREAKING for
+  anyone counting edge rows. A function invoked three times from the same caller was one edge citing
+  the first invocation; it is now three edges, each citing its own line, so "where is this called"
+  can be answered exhaustively rather than with one representative site.
+
+  It applies to `calls` **only**. The same resolver serves inheritance and the config/SQL streams,
+  and retaining every mention of a base class or every reference to a table is a different question
+  that has not been asked. The choice lives in one shared constant that the parser and every degree
+  consumer read, rather than a relation name copied into three files.
+
+  **Degree now counts distinct pairs.** This is the part worth reading if you maintain a consumer:
+  ranking by raw row count answers "how many call sites" while the number is rendered beside a
+  symbol as "N caller(s)", so a helper called fifty times from one place would present as fifty
+  callers and outrank genuinely popular code in both the wiki's hub list and the node selection for
+  a truncated diagram. Counting distinct pairs is also exactly the historical number, since there
+  was one row per pair before this change -- verified on a large tree by running the new ranking
+  against a pre-change graph and diffing: byte-identical.
+
+  Removing the de-duplication exposed a latent bug it had been hiding. References were sorted by
+  line alone, so references sharing a line fell back on tree-sitter's capture order, which is not
+  guaranteed. Only one of them used to survive, so the ambiguity was invisible; now they all do, and
+  the sort is a total order. Shard output stays deterministic.
+
+- **`semantic_search` and `hybrid_search` return an envelope instead of a bare list.** BREAKING: both
+  now return `{nodes, total, truncated, note}`, the same shape every other node-returning verb uses.
+
+  The reason is not consistency for its own sake. A vector row is keyed by node id, so a stale
+  embedding store yields hits naming nodes the graph no longer holds. These two dropped those hits
+  silently and had **nowhere to say so**, because a bare list has no field for a note -- the caller
+  got a shorter, entirely plausible answer, and `doctor` reported a healthy row count throughout.
+  They now disclose it: "N vector hit(s) named nodes that are not in the graph and were dropped ...
+  this result is INCOMPLETE. Re-run `kb embed`." A healthy store adds no note, which a control test
+  asserts, because a warning that always fires is the defect rather than the fix.
+
+- **`qualified_name` drops its file prefix for C and C++ external-linkage symbols.** It was stored as
+  `path/to/f.cpp::NS.Box`, so a header and its `.cpp` could never match on it -- the other half of the
+  same defect the id change addresses. For those symbols the namespace chain *is* the fully qualified
+  name, so it is now stored as `NS.Box.put`.
+
+  It is still prefixed everywhere the file genuinely forms part of the qualification: every language
+  that puts one module per file (Python stays `m.py::Foo.bar`), and C/C++ `static` symbols, whose
+  internal linkage is file-scoped by language rule. That is deliberately the **same single rule** that
+  decides whether the file enters a node id, computed once and used by both, so the two can never
+  disagree about what a symbol's identity is.
+
+- **Node ids no longer contain a file path or a line number.** BREAKING: every code-symbol id changes,
+  so a re-index is required, and the embedding store must be rebuilt (see below).
+
+  The old id was `repo + path + qualified-name + line`, which made two things impossible. The path
+  meant a declaration and its out-of-line definition could never be the same symbol. The line meant
+  editing anything *above* a symbol changed its id, so every edge, vector and wiki reference to it
+  churned for no semantic reason.
+
+  Ids are now `<readable-slug>_<8 hex digest>`. The slug keeps them legible where people actually read
+  them -- answers, dashboards, MCP arguments -- and the digest is what makes them correct, covering
+  repo, language, kind, qualified name, signature, and the file for internal-linkage symbols only.
+
+  Three details that are not arbitrary:
+
+  - **The signature is part of the key**, because overloads share everything else. Measured on a large
+    legacy C++ tree, 1,038 qualified names occur more than once in a single file, and until now only
+    the line told them apart. It uses the whole declarator, so `at(int) const` and `at(int)` stay
+    distinct -- trailing `const` and `&`/`&&` sit outside the parameter list.
+  - **The file leaves the key only for C and C++ external-linkage symbols.** That is the one case where
+    one symbol legitimately spans two files. Everywhere else the file *is* the identity: Python, JS,
+    Go, Java and the rest put one module per file, so `class Widget` in two modules are two classes.
+    `static` functions keep their file too, because internal linkage is file-scoped by language rule.
+  - **Constructors and destructors are marked in the slug.** Id normalisation folds `~` away, so `C::C`
+    and `C::~C` were previously indistinguishable outside the digest.
+
+  A consequence worth knowing: two headers declaring the same `S::T` now produce **one** class node.
+  That is accurate rather than lossy -- in well-formed C++ `S::T` names exactly one class, and two
+  differing definitions of it are an ODR violation.
+
+- **One node-kind registry, and every kind vocabulary is now projected from it.** The vocabulary was
+  sixteen hand-maintained lists across twelve files -- a colour map, three glyph tables, an embeddable
+  set, two impact sets, four name-resolution target sets, several diagram gates and a doc taxonomy --
+  and nothing checked that a new kind reached all of them.
+
+  The lists are deliberately **not** merged: a colour map and an embeddable set answer different
+  questions, and `file` legitimately has a colour while never being embeddable. Instead `kb/kinds.py`
+  holds one row per kind carrying every property a consumer needs, and each list became a one-line
+  comprehension at its original definition site, so no import moved. `KindSpec` has no field defaults,
+  so a new kind cannot be added without answering every question once, in one diff.
+
+  This closes the drift the lists had accumulated: **16 of the 35 produced kinds had no colour, which
+  is not cosmetic** -- the graph page builds its kind filter by iterating the colour map rather than
+  the graph, so those kinds (including `table`, `view` and `resource`, routinely hundreds of nodes per
+  repo) had no legend button and could not be isolated or hidden at all. Also fixed: the glyph table
+  had drifted to 15 entries against a 17-symbol sprite; `impact`'s ranking set tested membership
+  against a `type` kind no producer emits; the published vocabulary diagram documented 16 of 35 kinds
+  while claiming it could never drift; and the MCP link-output comment documented a `merge_request`
+  kind the git-forge connector has never emitted (it emits `mr`).
+
+  Which kinds are actually embedded is **unchanged** -- membership feeds the per-kind embedding budget
+  floors, so widening it would evict existing vectors. `config_key` and `test` are recorded in the
+  registry as eligible and deliberately deferred, with the reason, and a test now refuses any kind that
+  is excluded without one.
+
+### Fixed
+
+- **A parser bump now invalidates the artefacts built on top of the graph, not just the graph.**
+  `PARSER_VERSION` moves to `4`, and this release is the reason the gap mattered: node ids are
+  now file- and line-independent, so **every id changed**.
+
+  `kb index` has always been parser-aware. Embeddings, the wiki page and cluster pages were keyed
+  on the repo's commit alone, so a bump refreshed the graph while all three went on reporting
+  themselves fresh. The vectors are the sharpest case, because a vector row is keyed by node id:
+  stale rows name nodes the graph no longer holds, those hits are dropped at query time, and the
+  caller gets a shorter, entirely plausible answer while `doctor` reports a healthy row count.
+
+  Each now records the parser that built what it describes, and asks two questions instead of
+  one. A wiki page carries its stamp in the provenance footer, placed after the backticked commit
+  so the four readers that parse `at commit \`…\`` are undisturbed. An artefact with no stamp
+  regenerates once and then settles -- except where the shard itself has no version, which
+  nothing can conclude from, so that case keeps asking the commit-only question rather than
+  rebuilding forever.
+
+  **Upgrading from any earlier version requires a re-index** (`contextlake kb index --force`,
+  or simply `kb index`, which now notices). Without it, ids in your store match nothing this
+  build produces, and no commit-based check would have told you.
+
+- **Anonymous-namespace and `static` symbols no longer merge across files, and a caller can no
+  longer reach another translation unit's private symbol.** Both halves of internal linkage,
+  which had to ship together.
+
+  Two files each writing `namespace { int tally(int); }` produced **one** node. The second
+  file's definition simply vanished, its callers pointed at the first file's function, and a
+  struct declared the same way took its data members down with it -- a member of the losing copy
+  disappeared entirely. `static` free functions already kept their file, but anonymous-namespace
+  symbols did not, and the file-scope variable path never checked linkage at all.
+
+  Resolution now honours it too. An internal-linkage symbol belongs to one translation unit, so
+  a reference from a different file cannot mean it. This is a *preference*, not a requirement:
+  where the only candidate is defined in a header (measured at roughly one in ten on a large
+  legacy tree, since headers legitimately carry `static` definitions into their includers), the
+  cross-file candidate is kept rather than dropped. Losing a real caller is the worse error.
+
+  Fixing identity alone would have been worse than fixing neither: it splits the symbol and then
+  offers both copies to every caller as ambiguous candidates.
+
+  A second-order effect worth knowing, because it moves numbers in the opposite direction to the
+  obvious one: a reference whose candidate set exceeds the ambiguity cap is discarded entirely,
+  so removing unreachable candidates pushes some sets back under the cap. On a large legacy tree
+  461 references that previously produced **no edge at all** now resolve, and total `calls` edges
+  rose even though 33,568 impossible candidates were rejected.
+
+  Also corrected: `static` inside a class declares a member with **external** linkage, and was
+  being treated as internal. That kept a class's header declaration from matching its out-of-line
+  definition -- the same header/source split fixed elsewhere in this release.
+
+
+- **C and C++ nodes never carried a signature.** `_doc_sig` looked for the parameter list as a field on
+  the definition node, and in C/C++ it hangs off the declarator instead, so every C/C++ node reported
+  `signature: None` -- in the UI, the wiki and `get_repo_brief` alike. This function's own docstring
+  admitted it by listing only py/js/ts/c#. It now walks into the declarator.
+
+
+- **A stale embedding store answered silently, and `ask` vouched for it.** A vector row is keyed by
+  node id, so anything that changes how ids are built leaves every stored key pointing at a node the
+  graph no longer holds. The retrieval paths dropped those hits with a bare `if n:` and returned a
+  shorter, entirely plausible, non-empty answer. `doctor` reported a healthy row count throughout, and
+  the half-migrated case was worst of all: re-index some repositories and the surviving hits are
+  silently biased toward whichever ones were re-embedded.
+
+  `ask` was the sharpest case, because its disclosure reports the *question's* unmatched terms rather
+  than dropped results. So it affirmatively stated that everything you asked about was indexed while
+  quietly discarding most of what the search actually found.
+
+  It now counts the unresolvable hits and says so: "2 vector hit(s) named nodes that are not in the
+  graph and were dropped: the embedding store is stale relative to the index, so this answer is
+  INCOMPLETE. Re-run `kb embed`." A healthy store produces no warning, which is asserted by a control
+  test, because a warning that always fires is the defect rather than the fix.
+
+  `EMBED_CONTENT_VERSION`'s contract is also widened. It existed to catch exactly this class of
+  staleness but keyed only on the node-to-text mapping, and the node id is not part of that text --
+  which is precisely why the failure was invisible. It now documents that **any change to how node ids
+  are built must bump it**, since it is the only signal that reaches `kb embed`'s incremental path and
+  re-embedding is the only repair.
+
+
+- **`kb.toml`'s `languages` key did nothing.** It was validated as a known key, shown in the dashboard
+  settings view, and documented as a filter -- and it was never passed to the parser, so every install
+  indexed all supported languages whatever the file said. A setting that silently ignores the user.
+
+  It now filters. The subtlety is why this was not a one-line wire-up: the default was
+  `["csharp", "typescript", "python"]`, and passing *that* through would have silently stopped indexing
+  C, C++, Go, Java, JavaScript, Kotlin, PHP, Ruby, Rust, Scala and TSX for everyone who never set the
+  key -- a far worse bug than the dead setting, and a graph that quietly loses most of a polyglot repo.
+
+  So the default is now `None`, meaning every supported language, which is exactly the behaviour every
+  existing install already has. An explicit list finally restricts. `languages = []` also means
+  everything, because "I did not decide" is a much likelier reading than "index no code at all", and
+  the alternative is a silently empty graph. The old three-language constant is gone, with a test
+  guarding against its return.
+
+
+- **Registering a new kind for the dashboard made its icon worse, not better.** `kindIcon` resolves to
+  `KIND_GLYPHS[kind] ? kind : "file"`, so adding a kind to that table is precisely what *disables* the
+  generic file fallback. Adding `config_key` and `test` to it earlier in this cycle without adding
+  their sprite symbols therefore replaced a working file icon with `<use href="#g-config_key">`
+  pointing at a symbol that does not exist: a blank box.
+
+  Both symbols now exist, and a parity test compares the two files by regex (no browser needed) so a
+  kind can never again be registered in one place and missing from the other. The test was verified to
+  fail when a symbol is removed, rather than merely passing today.
+
+
+- **An out-of-line method could be attached to a class its qualifier excludes.** Resolution keyed on
+  the qualifier's LAST segment and gave up whenever that bare name matched more than one class. So
+  `NS::Box::put` could land on an unrelated `Other::Box`, and a tie the qualifier already settles was
+  discarded. The first is the worse half: a fabricated parent reads as a fact, while a missing edge
+  reads as a gap.
+
+  Resolution now matches the whole qualifier. An exact hit on the full chain wins; otherwise the
+  chain must be a suffix of the class's own, which accepts a qualifier written relative to an
+  enclosing namespace (`void Box::put()` inside `namespace NS` resolves to `NS::Box`) while still
+  rejecting `Other::Box`. A qualifier naming no known class, or one that stays genuinely ambiguous,
+  attaches nothing: file-contained is the honest answer.
+
+  Measured on a large legacy C++ tree, like for like against the same counting unit: methods per
+  class 5.66 to **5.79**, classes carrying zero methods 310 down to **296**. Indexing cost is
+  unchanged at 1:08 against a 1:07 control, because both lookups are prebuilt in the single pass that
+  already existed rather than scanned per method.
+
+  Nothing in the suite previously forbade a fabricated parent, which is why this survived review: the
+  graph looked richer rather than wrong. There is now an explicit negative test for it.
+
+- **A qualifier segment could vanish, silently moving a method to a different class.** The scope-name
+  walk tested each segment against three plain name types with **no `else`**, so any other shape was
+  dropped without a trace. `template_type` is the common one: in `NS::Box<T>::put` the `Box<T>`
+  segment disappeared, leaving `NS` as the final qualifier, and the resolver then attached `put` to
+  whatever `NS` matched. A fabricated parent is worse than a missing edge, because it reads as a fact.
+
+  A template segment now contributes its base name (`Box<T>` gives `Box`, which is what the class node
+  is called, since the arguments belong to the specialisation rather than to the class's identity), so
+  `NS::Box<T>::put` qualifies as `NS.Box.put` instead of `NS.put`.
+
+  More importantly, **every unrecognised scope shape now falls through to its own text instead of
+  disappearing**. That matters more than the template case itself: a segment that is merely ugly still
+  resolves or fails visibly, while a segment that is absent quietly changes which class a method
+  belongs to. The next scope type nobody anticipated will not repeat this.
+
+- **Every test in a C++ repo was invisible by name.** A test macro with a body parses as a function
+  definition whose name is the *macro*, so `TEST(TimerSuite, HandlesMinutes)` produced one node called
+  `TEST` and the case name `Minutes` was discarded. Measured on a large legacy C++ tree before the
+  fix: **2,820 nodes, 6.8% of every function and method node**, named `TEST_F` (1,855), `TEST` (962)
+  or `TEST_P` (3). Asking "where is the invalid-input test for that module" had no answer, and because
+  `TEST_F` alone spanned 118 files it was also the single largest source of duplicate names in the
+  graph.
+
+  The case name now becomes the node's name, the suite becomes its qualifier, and the kind is `test`.
+  So `TEST(TimerSuite, HandlesMinutes)` is a `test` named `HandlesMinutes`
+  qualified `TimerSuite.HandlesMinutes`, and two suites that share a case name stay two distinct nodes.
+
+  Absence of a return type is deliberately **not** the discriminator on its own, because a
+  constructor and a destructor have none either: the macro name is matched against a closed set
+  first. That set was verified macro by macro against the grammar. Catch2's `TEST_CASE("a name")` is
+  excluded because with a string-literal argument it does not parse as a definition at all, so there
+  is no node to rename and it needs a different mechanism; listing it would have been an unsupported
+  claim.
+
+  `test` is registered in the diagram colour map and the dashboard glyph vocabulary, so it does not
+  render as a file icon or drop out of the kind filter.
+
+- **Config, SQL and ADR nodes were islands, and their files were missing from the graph entirely.**
+  The code path builds a `file` node and parents every definition to it. The bespoke extractors
+  never did, so their output had no way in: measured on a large legacy C++ tree, **12,991 of 12,991**
+  `config_key` nodes and **142 of 207** `table` nodes had zero incident edges, against 0 of 28,274
+  functions. Worse, there were **0 `file` nodes for `.xml` and 0 for `.sql`**, so a file-level view
+  of that repository silently omitted every config file and every schema file it contained.
+
+  A name lookup still found those nodes, which is exactly why this survived: "where is this setting
+  defined" looked answered while nothing could reach the setting by traversal and no diagram of a
+  file could show its contents. Each of these files now gets its `file` node and a `contains` edge to
+  everything extracted from it, in one place in the dispatch so it cannot drift per extractor. A file
+  that yielded nothing still gets no node, so the graph gains no empty shells.
+
+  Not extended to manifests on purpose: their nodes are cross-repo package nodes that several
+  manifests legitimately share, and the relation that belongs between a manifest and a package is
+  `depends_on`, which is already emitted. `contains` would assert the package lives in that file.
+
+  Linking a setting to the code that *reads* it is deliberately not attempted. A `config_key` named
+  `Timeout` and a string literal `"Timeout"` in a source file are a plausible match, not a verified
+  one, and minting that edge is the speculation this graph refuses to do.
+
+- **Two module-level dicts were both named `_PARSERS`.** One caches tree-sitter parsers by language,
+  the other maps a file kind to its extractor; the later definition rebound the name, so `_parser()`
+  was inserting `ts.Parser` objects into the extraction registry. It worked only because no language
+  happened to share a name with a kind. Adding `xml` as a kind made that collision reachable, since
+  `xml` is precisely what a future tree-sitter XML grammar would be called, and `_parser("xml")` would
+  then have returned the extraction callable instead of a parser. The cache is now `_TS_PARSERS`.
+
+## [6.7.0] - 2026-08-11
+
+### Added
+- **`find_callers` now tells you which line the call is on.** It used to answer with the caller's
+  *definition* line, so "who calls this" gave you a function name and left you to grep its body for
+  the call. Every edge in the graph already carried the call site; the response model dropped it.
+  Each result now carries `call_file` and `call_line` alongside the caller's own `file` and
+  `line_start`, so the answer is quotable as evidence rather than a lead to chase.
+
+  Measured on a large legacy C++ tree: 6 of 6 callers of a sampled symbol reported a call line
+  different from their definition line, every one of them readable in the real file at the line
+  given. On that tree the two lines were 3 to 33 lines apart, which is exactly the gap a reader was
+  being asked to close by hand.
+
+- **`find_callees`, the other half of the call graph.** `find_callers` answers "who depends on
+  this"; this answers "what does this reach", which is the question you have when reading a function
+  you did not write. Same arguments, same budgeting, same call-site provenance. The traversal already
+  existed (`get_neighbors` has accepted `direction="out"` all along), so this exposes reachable data
+  rather than computing anything new.
+
+### Fixed
+- **Edges cited a file with no line.** `EdgeOut` carried `source_file` but not `source_line`,
+  although `Provenance` has always held both, so every verb returning edges named a file and left the
+  line behind. `get_neighbors` and everything built on it now report both.
+
+### Changed
+
+- `find_callers` no longer de-duplicates its results by caller. This is a no-op on today's graphs and
+  is called out only so the change is not mistaken for a behaviour change: the parser already keeps
+  just one `calls` edge per (caller, callee) pair, retaining the earliest call site, so there was
+  never a second row for the response layer to drop. Removing the redundant filter means that when
+  the parser does retain every call site, these verbs surface all of them with no further change.
+  `note` now discloses the distinct-caller count whenever it differs from the number of entries, so a
+  count of calls can never be read as a count of callers.
+
+## [6.6.0] - 2026-08-10
 
 ### Added
 
@@ -5672,7 +6202,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `!important` and no stylesheet can override one, so a colour written into a page could never
   follow the light or dark theme.
 
+- **CodeQL now scans the JavaScript as well as the Python.** The stored-XSS fixed in 6.2.0 lived in
+  the generated graph page, and a Python-only scan could not have found it however long it ran. The
+  dashboard, the graph viewer and the command palette are all first-party JavaScript this project
+  ships, and none of it was being analysed. The two languages run as a matrix so neither hides the
+  other's findings. A config file excludes the four vendored bundles: they are third-party code we
+  cannot fix here, and 4 MB of minified library source would bury a real finding in noise from that
+  library's own generated patterns.
+
+### Changed
+
+- **Each release now publishes a CycloneDX SBOM, and each standalone binary carries a build
+  provenance attestation.** The container images already had both; the wheel, the sdist and the
+  three launchers had neither, which is the half of the supply chain most people actually install.
+
+  The SBOM describes the **built wheel's** dependency closure, generated from a throwaway virtual
+  environment holding that wheel with the `kb-full` extras and nothing else. That distinction is
+  the whole point: running a generator over the release job's own environment would have produced
+  a document listing ruff, pytest and twine and called it contextlake's SBOM. A canary asserts the
+  result before it is published, so this cannot silently drift back into describing the build
+  machine. The scope is stated rather than implied: `kb-full` is `kb` + `kb-local` + `kb-vec`, and
+  excludes `kb-fastembed` and `llm-local`.
+
+  The binaries are attested in the job that uploads them, so the signed digest is the digest of
+  the bytes you download. `gh attestation verify <file> --repo sayak-sarkar/contextlake` checks
+  one, with no key material. **The install docs say plainly what that does not cover:** the
+  launcher fetches its Python payload from PyPI on your machine at first run, after any signature,
+  so signing cannot reach that half. Anyone who wants the payload covered should install from PyPI,
+  where the wheel and sdist carry PEP 740 attestations.
+
+- **Every GitHub Actions step is pinned to a commit, not a tag.** All 34 `uses:` across the five
+  workflows referenced a moving pointer: `@v5` means "whatever that owner points it at today", and
+  these jobs hold a checkout of the source, a container-registry login, and the OIDC token that
+  publishes to PyPI under this project's name. Each is now a 40-character SHA with the version in a
+  trailing comment, which Dependabot rewrites along with the SHA, so the pins do not go stale.
+
+  Two could not be pinned by simply naming a version, and each says so where it sits.
+  `pypa/gh-action-pypi-publish` was on the `release/v1` **branch**, which upstream recommends so
+  their fixes arrive unbidden; it is pinned anyway because it is the step holding the publish
+  token, and its head was checked to be exactly `v1.14.2` at pin time rather than assumed.
+  `dtolnay/rust-toolchain@stable` is also a branch, and its comment gives a date instead of a
+  version, because the pin fixes the action that selects a toolchain and not the compiler it goes
+  on to install.
+
+- **ruff is capped at `<0.17`.** It was `>=0.4` with no ceiling, which was harmless while the
+  lint only reported. Now that it gates, a minor ruff release that adds a rule to a selected group
+  would turn CI red with nobody having changed a line, and `S` is a large group that grows. The cap
+  makes that arrive as a Dependabot pull request to read instead.
+
+- **The security lint now blocks, because its backlog is gone.** `ruff --select S`
+  (flake8-bandit) ran as its own reporting-only job with `continue-on-error: true` over 4893
+  untriaged findings. A job that cannot fail says nothing, and one carrying that much noise was
+  never going to be read.
+
+  Every finding was read. 4672 were `S101` ("assert used") in `tests/`, which is pytest's whole
+  idiom, and the rest of `tests/` is fixtures doing on purpose what the rules warn about, so the
+  ruleset is switched off there: nothing in `tests/` ships. Two rules are off in the package as
+  well, `S603` and `S607`, because they fire on every subprocess this tool exists to run and on
+  resolving `git` and `glab` from `PATH`, which is the only portable choice. **The remaining 34
+  sites were each read and now carry their own reason.** All 34 turned out to be safe, and two of
+  them are the code that warns you about binding to a wildcard address, which is what the rule
+  flagging them is for. Every one of the 12 "possible SQL injection" findings interpolates a `?`
+  placeholder count or a fixed clause fragment, never a value.
+
+  `S` now sits in the ordinary lint select, so it runs in CI on every push and pull request, in
+  the release build gate, and in a contributor's own `ruff check`. A new finding fails the build.
+  The separate job is gone rather than kept alongside, since it would only re-report what the
+  main gate already refuses.
+
 ### Fixed
+
+- **A DOM helper turned a caller's mistake into a rendered error carrying the caller's data.**
+  The dashboard's `append` sent anything of `typeof "object"` straight to `appendChild`. A plain
+  object is not a node, so that throws, and the browser's exception message embeds the value it
+  refused. The dashboard then renders the message into its error block, so a bad argument came
+  back out as page content. It now appends only what is provably a node, tested with
+  `instanceof Node`, and anything else becomes text.
+
+- **The landing page built an `iframe` `src` out of two values it read back from the DOM.** The
+  theme came from `data-theme`, the path from `data-embed`, and both went into `src` as they were
+  found. Neither is attacker-reachable on a static page, but an `iframe` `src` is where a `javascript:`
+  URL would land, and a value narrowed where it is used cannot become one. The theme is now one of
+  two literals, and the path has to *resolve* to a same-origin page: it goes through `new URL` and
+  its scheme is checked, which is what makes the check real, rather than being pattern-matched as a
+  string, which is not. Verified in a browser that `javascript:`, `data:` and an off-origin URL are
+  all refused while the embed still loads.
+
+- **`kb wiki --namespaces` crashed on a FIPS-enabled host.** The cluster freshness check hashed its
+  member commits with SHA-1, and a FIPS build of OpenSSL refuses SHA-1 outright rather than
+  returning a weak digest, so the command raised before writing a page. The call now passes
+  `usedforsecurity=False`, which is accurate: the value is a cache key answering "have the member
+  commits moved", nothing trusts it, and its collision resistance is irrelevant to that question.
 
 - **The published site served its images from an external host, and they failed behind a proxy.**
   The markdown references them by absolute GitHub URL, which it must keep, since that is what makes
@@ -6018,7 +6638,9 @@ manual step: regenerating graph HTML you saved or published.
 ### Fixed
 
 - **SECURITY: generated graph pages could execute HTML/JavaScript taken from an indexed
-  repository (stored cross-site scripting).** The graph payload was embedded in the page's
+  repository (stored cross-site scripting).**
+  [GHSA-fwx4-9qvg-98qc](https://github.com/sayak-sarkar/contextlake/security/advisories/GHSA-fwx4-9qvg-98qc),
+  Critical (CVSS 3.1 9.3), affecting `>= 2.2.0, < 6.2.0`. The graph payload was embedded in the page's
   inline `<script>` with no escaping, so a `</script>` sequence anywhere in indexed content
   closed the element early and the browser parsed the rest of the payload as markup. The
   reachable inputs are ordinary repository data -- a symbol name, a file name, commit
