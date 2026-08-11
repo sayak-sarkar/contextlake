@@ -188,7 +188,7 @@ contextlake kb wiki acme/catalog-api --llm builtin
 
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
 API key; on a `pip` install it needs `contextlake doctor --fix llm-local` first (see
-[Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)). `ollama`
+[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)). `ollama`
 needs no compiler at all; `openai` uses that backend instead.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real

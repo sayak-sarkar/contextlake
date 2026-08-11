@@ -33,7 +33,7 @@ machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ol
 inline and scopes generation to the named repo(s).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
-(see [Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); `--llm ollama`
+(see [Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
 needs no compiler at all.
 
 Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top

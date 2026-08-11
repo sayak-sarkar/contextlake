@@ -40,30 +40,30 @@ The extra also pulls a tree-sitter grammar per supported language, several with 
 wheels. On a platform without prebuilt wheels those build from source, which is slow rather
 than broken.
 
-## `pip install "contextlake[llm-local]"` tries to compile C++
+## The built-in wiki LLM is not installed
 
 ```
-Building wheel for llama-cpp-python (pyproject.toml) ... error
-CMake Error: could not find cmake ...
+The built-in LLM needs the 'llm-local' extra (openvino-genai).
 ```
 
-Expected on every platform and every Python version, and only on a **pip** install.
-`llama-cpp-python` publishes no wheels to PyPI at all, so pip has nothing to install but the
-sources and falls back to compiling `llama.cpp`, which needs `cmake` plus a C++ toolchain.
-
-Let contextlake attach the prebuilt CPU wheel index for you:
+Install it into the interpreter contextlake is running in:
 
 ```bash
 contextlake doctor --fix llm-local          # --dry-run prints the command and stops
 ```
 
-The standalone binary already carries that index in its bootstrap configuration, and the full
-Docker image ships the runtime baked in, so neither channel hits this. For the command by
-hand, see [Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag); for
-the CUDA and Metal indexes, and why the extra cannot carry the index URL itself, see
-[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+It is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin involved.
+The standalone binary installs it on first run and the full Docker image ships it baked in,
+so neither channel hits this. See [Install and
+upgrade](install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+LLM](model-providers.md#installing-the-built-in-llm).
 
-If you would rather skip the native build entirely, use Ollama for the wiki tier
+Releases before 7.0.0 ran a GGUF through `llama-cpp-python` and did need a wheel index plus a
+C++ toolchain. If you are following older notes that tell you to pass `--extra-index-url` or
+`--only-binary llama-cpp-python`, drop both: they now refer to a package contextlake no longer
+depends on.
+
+If you would rather not run a local model at all, use Ollama for the wiki tier
 (`--llm ollama`).
 
 ## `contextlake doctor --fix` says the environment is externally managed

@@ -134,7 +134,7 @@ def build_review_llm(cfg, llm: LlmClient) -> LlmClient:
         return llm
     # model, api_key_env and base_url must be re-resolved rather than inherited:
     # all three were resolved for the GENERATION provider, and carrying them over
-    # would e.g. send a builtin GGUF repo id as an Anthropic model name.
+    # would e.g. send a builtin OpenVINO repo id as an Anthropic model name.
     review_cfg = cfg.model_copy(update={
         "provider": provider,
         "model": getattr(cfg, "review_model", None),
@@ -153,8 +153,6 @@ def _build_builtin_llm(cfg):
     kw = {}
     if getattr(cfg, "model", None):
         kw["repo_id"] = cfg.model
-    if getattr(cfg, "model_file", None):
-        kw["filename"] = cfg.model_file
     if getattr(cfg, "cache_dir", None):
         kw["cache_dir"] = cfg.cache_dir
     return BuiltinLlm(**kw)
@@ -162,7 +160,7 @@ def _build_builtin_llm(cfg):
 
 def _resolve_auto_llm(cfg) -> LlmClient | None:
     """Resolve provider="auto": a reachable local Ollama that actually HAS the
-    target model pulled, else the built-in LLM if llama-cpp-python is
+    target model pulled, else the built-in LLM if openvino-genai is
     importable, else None (graceful skip). Never raises.
 
     Same fix as embeddings' _resolve_auto_embedder, same reason: the daemon
@@ -177,6 +175,6 @@ def _resolve_auto_llm(cfg) -> LlmClient | None:
         from .ollama import OllamaLlm
 
         return OllamaLlm(model=model, base_url=base_url, timeout=getattr(cfg, "timeout", 300))
-    if importlib.util.find_spec("llama_cpp") is not None:
+    if importlib.util.find_spec("openvino_genai") is not None:
         return _build_builtin_llm(cfg)
     return None

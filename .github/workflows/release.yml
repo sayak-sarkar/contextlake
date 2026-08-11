@@ -256,7 +256,7 @@ jobs:
         # of the tags above a consumer later pulls.
         run: cosign sign --yes "ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}"
 
-      # slim variant: same source, no llama-cpp-python / baked GGUF (see
+      # slim variant: same source, no openvino-genai / baked model (see
       # Dockerfile's "slim" target) -- a much smaller pull for anyone using an
       # external wiki LLM (Ollama/OpenAI/Anthropic/cli) instead of the built-in
       # one. Published alongside "full" with a "-slim" tag suffix; the

@@ -42,10 +42,9 @@ jobs:
         with:
           python-version: "3.13"
       - name: "Install (widest dependency surface: dev + release + every kb extra)"
-        # `llm-local` (llama-cpp-python) is deliberately excluded HERE: it
-        # compiles from source via CMake and can go red for toolchain reasons
-        # that have nothing to do with a real vulnerability, which would make
-        # this job flaky rather than useful. That reasoning still holds -- but
+        # `llm-local` (openvino-genai) is excluded HERE only to keep this job's
+        # install small; it is an ordinary wheel now and no longer a toolchain
+        # flakiness risk. The resolve-and-audit job below covers it either way --
         # the compensating control this comment used to name ("it's still
         # covered by Dependabot version tracking") does NOT: the one real CVE in
         # the tree is a *transitive* dependency of that extra, and Dependabot
@@ -90,9 +89,8 @@ jobs:
     # It resolves rather than installs: `pip install --dry-run --report` performs
     # the full dependency resolution and writes the resulting set as JSON without
     # downloading or building anything, so the flakiness that justified excluding
-    # the extra above does not apply. `--only-binary llama-cpp-python` plus the
-    # project's own wheel index keeps that package from resolving to an sdist,
-    # which is what would drag a compiler back in.
+    # the extra above does not apply. Every extra now resolves to ordinary PyPI
+    # wheels, so no index or --only-binary pin is needed to keep a compiler out.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
@@ -105,8 +103,6 @@ jobs:
       - name: Resolve the shipped dependency set (no build, no install)
         run: |
           pip install --dry-run --ignore-installed --quiet --report resolved.json \
-            --only-binary llama-cpp-python \
-            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
             '.[kb,kb-vec,kb-local,kb-fastembed,llm-local,release]'
           jq -r '.install[] | "\(.metadata.name)==\(.metadata.version)"' resolved.json \
             | grep -viE '^contextlake==' | sort > resolved.txt
@@ -124,35 +120,25 @@ jobs:
         # this subtree" with "does this subtree currently have a CVE", and would
         # turn the job red the day the finding is legitimately resolved.
         run: |
-          for pkg in llama_cpp_python twine numpy huggingface_hub; do
+          for pkg in openvino_genai twine numpy huggingface_hub; do
             grep -qiE "^${pkg//_/[-_]}==" resolved.txt \
               || { echo "::error::$pkg missing from the resolved set -- this audit is not covering what it claims to. Refusing to report clean."; exit 1; }
           done
           echo "canary ok: llm-local, release and kb extras are all represented"
       - name: pip-audit (resolved set)
-        # KNOWN-UNRESOLVED, DISPOSITION PENDING (recorded 2026-08-07):
-        #   PYSEC-2026-2447 / GHSA-w8v5-vhqr-4h9v / CVE-2025-69872 -- diskcache
-        #   5.6.3, reached transitively via llm-local -> llama-cpp-python. No fixed
-        #   upstream version exists, so there is nothing to bump to and this job
-        #   cannot be made green by upgrading.
+        # No suppressions. PYSEC-2026-2447 / GHSA-w8v5-vhqr-4h9v / CVE-2025-69872
+        # (diskcache 5.6.3) was carried here as "known-unresolved, disposition
+        # pending" because no fixed upstream version existed, so the job could not
+        # be made green by upgrading. The disposition taken in 7.0.0 was to REMOVE
+        # the dependency: diskcache was reached only through
+        # llm-local -> llama-cpp-python, and that backend was replaced by
+        # openvino-genai, whose closure does not contain it. Verified by resolving
+        # the extra in a clean environment, not by reading the advisory.
         #
-        # This entry is NOT an acceptance decision, and no reachability argument is
-        # recorded here on purpose -- choosing the disposition (vendor a patch,
-        # replace the dependency, drop the extra, or accept it with a documented
-        # rationale) is the maintainer's call, and the options and their costs are
-        # written up in the security review that added this job. The id is listed
-        # here only so that this job's red/green signal means "a NEW advisory
-        # appeared", which is the coverage property being added. Removing the entry
-        # makes the job red again, which is the correct behaviour while the
-        # disposition is still open.
-        #
-        # When the disposition is made: record it in SECURITY.md and either drop
-        # this flag or keep it with a link to that entry.
+        # So this job now has no ignore list at all, and a red result means a real
+        # new advisory rather than a suppression that expired. See SECURITY.md.
         run: |
-          echo "Ignoring (known-unresolved, disposition pending): PYSEC-2026-2447 (diskcache)"
-          pip-audit --no-deps -r resolved.txt --progress-spinner off \
-            --ignore-vuln PYSEC-2026-2447 \
-            --ignore-vuln GHSA-w8v5-vhqr-4h9v
+          pip-audit --no-deps -r resolved.txt --progress-spinner off
 
   # There is deliberately no security-lint job here any more.
   #

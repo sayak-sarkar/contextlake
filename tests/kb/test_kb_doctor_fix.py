@@ -150,23 +150,24 @@ def test_pip_is_the_current_interpreter_not_a_bare_pip(tmp_path, spy, nothing_in
     assert "contextlake[kb-vec]" in argv
 
 
-def test_local_llm_install_carries_the_upstream_wheel_index(
+def test_local_llm_install_is_a_plain_wheel_install(
         tmp_path, capsys, spy, nothing_installed):
+    """The wheel-index machinery is GONE, not repointed.
+
+    openvino-genai is an ordinary PyPI wheel, so an `--extra-index-url` or an
+    `--only-binary` pin here would now point at a package contextlake no longer
+    depends on. Asserted as absences on purpose: nothing else in the suite would
+    notice if that machinery quietly came back.
+    """
     _run(["doctor", "--config", _kb_config(tmp_path), "--fix", "llm-local"])
-    out = capsys.readouterr().out
+    capsys.readouterr()
 
     argv = spy.calls[0]
-    assert "--extra-index-url" in argv
-    assert argv[argv.index("--extra-index-url") + 1] == doctor_fix.LLAMA_CPP_WHEEL_INDEX
     assert "contextlake[llm-local]" in argv
-    # a source build is refused for llama-cpp-python ONLY: `:all:` would forbid a
-    # source fallback for every other dependency too
-    assert argv[argv.index("--only-binary") + 1] == "llama-cpp-python"
-    # generous timeout/retries: TLS-intercepting proxies make a 20MB+ wheel slow
+    assert "--extra-index-url" not in argv
+    assert "--only-binary" not in argv
+    # generous timeout/retries: TLS-intercepting proxies make a large wheel slow
     assert "--timeout" in argv and "--retries" in argv
-    # ...and the output says why an index is being added at all (the explanation
-    # is wrapped to the terminal, so compare on collapsed whitespace)
-    assert "no wheels to PyPI" in " ".join(out.split())
 
 
 # --- scope resolution -------------------------------------------------------

@@ -131,11 +131,11 @@ the same multi-stage [`Dockerfile`](../Dockerfile) (see also
 compiler toolchain in the final image:
 
 - **full** (`--target full`), the `[kb,kb-local,llm-local]` extras with the pinned
-  models **baked in** (model2vec embedder + a small GGUF wiki LLM), so `docker run`
+  models **baked in** (model2vec embedder + a small OpenVINO wiki LLM), so `docker run`
   needs no Ollama, no API key, and no model download at runtime. Useful for
   zero-config or air-gapped use, at the cost of a larger pull.
 - **slim** (`--target slim`), the `[kb,kb-local,kb-vec]` extras only: no
-  `llama-cpp-python`, no baked GGUF, much smaller pull. Semantic search still works
+  `openvino-genai`, no baked model, much smaller pull. Semantic search still works
   out of the box (model2vec is pure Python); point the wiki tier at
   Ollama/OpenAI/Anthropic/`cli` instead of the built-in LLM.
 
@@ -151,9 +151,8 @@ Tags published: the release version and `latest` for the full image (e.g. `2.1.5
 aliases, for the slim image (e.g. `2.1.5-slim`, `slim`, `latest-slim`). PyPI remains
 the **primary** distribution; GitHub Packages does not
 host PyPI-style Python packages, so these images are the only relevant GitHub
-Packages artifacts. The full image is still large (it compiles `llama-cpp-python`
-from source, unlike the binary above, which installs a prebuilt wheel from the CPU
-index, and it bundles a GGUF) and its build downloads the models from HuggingFace, fine on
+Packages artifacts. The full image is still large (it bundles the OpenVINO runtime
+and a ~349 MB model) and its build downloads the models from HuggingFace, fine on
 GitHub's runners. To **build locally behind a TLS-inspecting proxy**, pass your OS
 CA bundle so the in-build HF download trusts it, e.g. `docker build --network=host
 --build-arg ... ` after baking `REQUESTS_CA_BUNDLE` into the build (or build on a
@@ -176,19 +175,17 @@ preinstalled, not even Python. Binaries are uploaded as assets on the same
 GitHub Release `release.yml` creates (whichever workflow finishes first creates
 the release; the other edits/uploads onto it).
 
-`llm-local` rides along, so `PYAPP_PIP_EXTRA_ARGS` carries the upstream CPU wheel
-index: `llama-cpp-python` publishes no wheels to PyPI, so without it the first run
-would try to compile C++ on a machine chosen for having nothing installed. The
-paired `--only-binary` names that one package rather than `:all:`, which would
-forbid a source fallback for every other dependency and let a single missing wheel
-break the binary outright. Keep both flags together if you ever change one.
+`llm-local` rides along and needs no special pip flags: `openvino-genai` is an
+ordinary manylinux wheel, so the first run installs it on a machine chosen for
+having nothing installed. Earlier releases set `PYAPP_PIP_EXTRA_ARGS` to attach a
+per-accelerator wheel index for `llama-cpp-python`; that variable is gone, and
+re-adding it would point at a package contextlake no longer depends on.
 
 To reproduce a build locally (needs a Rust toolchain, `rustup` on any platform):
 
 ```bash
 PYAPP_PROJECT_NAME=contextlake PYAPP_PROJECT_VERSION=2.56.0 \
   PYAPP_PROJECT_FEATURES=kb-full,llm-local PYAPP_EXEC_SPEC="contextlake.cli:main" \
-  PYAPP_PIP_EXTRA_ARGS="--only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu" \
   cargo install pyapp --root pyapp-out
 ./pyapp-out/bin/pyapp doctor   # first run bootstraps; every run after is instant
 ```

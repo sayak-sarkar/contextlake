@@ -76,36 +76,32 @@ However you install it, `contextlake`, `python -m contextlake`, and
 | `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python exact scan |
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
-| `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `kb wiki --llm builtin` with no Ollama and no API key |
+| `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
 [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-### The built-in wiki LLM needs one extra flag
+### The built-in wiki LLM is one extra
 
-`[llm-local]` is the one extra a plain `pip install` cannot finish on its own, because
-`llama-cpp-python` publishes no wheels to PyPI and pip therefore falls back to compiling
-C++. Let contextlake attach the right wheel index for you:
+`[llm-local]` is an ordinary extra. Let contextlake install it into the right interpreter:
 
 ```bash
 contextlake doctor --fix llm-local     # --dry-run prints the exact command and stops
 ```
 
-That runs pip in the interpreter contextlake is running in, with the CPU wheel index already
-attached, and prints the command before it runs it. By hand it is:
+That runs pip in the interpreter contextlake is running in, and prints the command before it
+runs it. By hand it is:
 
 ```bash
-pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
-  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+pip install "contextlake[llm-local]"
 ```
 
-Only the pip, pipx and uv channels need this. The standalone binary already carries the index
-in its bootstrap configuration, and the full Docker image ships the runtime and the model
-baked in.
+No compiler, no wheel index and no `--only-binary` pin. The standalone binary installs it on
+first run, and the full Docker image ships the runtime and the model baked in.
 
-For why a wheel index is needed at all, which index to swap in for CUDA or Metal, and why the
-extra cannot carry the URL itself, see
-[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+The model itself (~349 MB, Apache-2.0) downloads on first wiki run, not at install time. For
+which backend to choose and why, see
+[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm).
 
 ### Docker
 
@@ -140,7 +136,7 @@ It fails rather than falling back on purpose. Before 5.1.0 the store was written
 container instead, so the run appeared to succeed and the index was gone the moment the
 container exited.
 
-A `:slim` tag is also published: no `llama-cpp-python`, no baked wiki-LLM GGUF, a much
+A `:slim` tag is also published: no `openvino-genai`, no baked wiki-LLM model, a much
 smaller pull. Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or `cli` instead of the built-in LLM.
 
@@ -232,7 +228,7 @@ If `doctor` names something missing, `contextlake doctor --fix` installs it. Tha
 
 `doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
 configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
-the local llama-cpp runtime. Name a capability to install it regardless of config.
+the local built-in runtime. Name a capability to install it regardless of config.
 
 | Flag | Effect |
 | --- | --- |
@@ -245,8 +241,7 @@ Two privilege tiers, and the split is deliberate:
 
 - **Python packages** install into the interpreter contextlake is running in, with
   `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
-  and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
-  CPU wheel index automatically and says why.
+  and reversible, so `--fix` runs them after printing them.
 - **System packages** (currently just `git`) need administrator rights. The exact command is printed
   in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
   when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can

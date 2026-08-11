@@ -283,7 +283,7 @@ def test_doctor_reports_builtin_model_presence(tmp_path, capsys):
     # filesystem-only presence report against the empty cache -> not downloaded
     assert "built-in embedder model" in out
     assert "potion-base-8M" in out
-    assert "Qwen2.5-0.5B-Instruct-GGUF" in out
+    assert "Qwen2.5-Coder-0.5B-Instruct-int4-ov" in out
     assert "not downloaded" in out
 
 

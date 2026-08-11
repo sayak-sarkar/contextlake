@@ -15,7 +15,7 @@ Two privilege tiers, and the split is the whole point of the design:
   human answers a prompt at a real terminal: no TTY, or ``--skip-interactive``,
   means print and stop. A CI job or a scripted invocation must never trip a sudo
   prompt. git is the only system package offered; a missing C++ toolchain is
-  reported with advice, since llm-local installs from a prebuilt wheel.
+  reported with advice, since llm-local installs from an ordinary wheel.
 """
 
 from __future__ import annotations
@@ -29,18 +29,12 @@ from dataclasses import dataclass, field
 from ... import style
 from ...logging_setup import report_line
 
-# llama-cpp-python publishes NO wheels to PyPI at all -- every release is an
-# sdist -- because llama.cpp is compiled per hardware backend and one PyPI
-# namespace cannot hold the CPU, CUDA and Metal builds of the same version and
-# platform tag. Upstream ships one index per accelerator instead (/whl/cpu,
-# /whl/cu121, /whl/cu122, /whl/cu124, /whl/metal), the same convention PyTorch
-# uses. So a plain `pip install 'contextlake[llm-local]'` always compiles from
-# source and needs cmake plus a C++ toolchain; pointing pip at an index is what
-# makes this tier installable without one. PEP 508 has no field for an index
-# URL, so the extra itself can never carry this -- only a pip command can.
-# CPU is the right default here: the built-in tier is deliberately a small
-# CPU model, and a GPU user is better served by Ollama (docs/model-providers.md).
-LLAMA_CPP_WHEEL_INDEX = "https://abetlen.github.io/llama-cpp-python/whl/cpu"
+# The built-in LLM tier used to need a custom per-accelerator wheel index, because
+# llama-cpp-python publishes no wheels to PyPI at all and pip otherwise compiled C++
+# from source. That machinery is GONE rather than repointed: openvino-genai is an
+# ordinary PyPI wheel, so a plain `pip install 'contextlake[llm-local]'` is the whole
+# instruction and needs no compiler, no index URL and no --only-binary pin. Anything
+# here still describing an index would now be actively wrong rather than merely stale.
 
 # Corporate TLS interception and slow mirrors make the default 15s socket
 # timeout too tight for a 20MB+ wheel; a half-finished install is worse than a
@@ -117,7 +111,7 @@ _PKG_MANAGERS = (
 # `system_install_command` is never called with anything else. A "toolchain" entry
 # used to sit here, which made the docs (and this module's own docstring) describe
 # a compiler install that no code path could reach. The supported route for
-# llm-local is the prebuilt wheel, which needs no compiler, so a missing toolchain
+# llm-local is an ordinary wheel, which needs no compiler, so a missing toolchain
 # is reported with advice instead of an install.
 _PKG_NAMES = {
     "git": {"winget": "Git.Git"},
@@ -156,7 +150,7 @@ _NO_PKG_MANAGER = ("git is missing and no supported system package manager was f
 
 
 def _llm_wants_builtin(cfg) -> bool:
-    """Does the *resolved* config actually call for the local llama-cpp tier?
+    """Does the *resolved* config actually call for the local built-in tier?
 
     ``provider = "auto"`` is not "builtin": build_llm's auto path prefers a
     reachable Ollama that already has the target model pulled (see
@@ -224,14 +218,12 @@ def _remedy(key: str, cfg) -> Remedy | None:
 
     if key == "llm-local":
         return Remedy(
-            key, "built-in wiki LLM runtime (llama-cpp-python)",
-            _pip("contextlake[llm-local]", extra_index=LLAMA_CPP_WHEEL_INDEX,
-                 only_binary="llama-cpp-python"),
+            key, "built-in wiki LLM runtime (openvino-genai)",
+            _pip("contextlake[llm-local]"),
             notes=[
-                "Adding the upstream CPU wheel index: llama-cpp-python publishes no "
-                "wheels to PyPI (llama.cpp is built per hardware backend, so upstream "
-                "ships one index per accelerator), and without one pip compiles C++ "
-                "from source and needs cmake plus a compiler.",
+                "A plain wheel install: openvino-genai needs no compiler and no "
+                "custom index, and pulls neither torch nor transformers. The model "
+                "itself (~349 MB, Apache-2.0) downloads on first use, not now.",
             ],
         )
     return None
@@ -274,7 +266,7 @@ def build_plan(cfg, requested: str) -> tuple[list[Remedy], list[str]]:
         if not _module_present("sqlite_vec"):
             plan.append(_remedy("vectors", cfg))
 
-    if _llm_wants_builtin(cfg) and not _module_present("llama_cpp"):
+    if _llm_wants_builtin(cfg) and not _module_present("openvino_genai"):
         plan.append(_remedy("llm-local", cfg))
 
     return plan, notes
@@ -313,14 +305,13 @@ def _classify_failure(output: str) -> tuple[str, str] | None:
                 "mirror with --index-url.")
     if "no matching distribution" in low or "could not find a version" in low:
         return ("No installable distribution matched this interpreter and platform.",
-                "Check `python3 --version` against the package's supported versions; "
-                "for the built-in LLM a compiler-free install needs the CPU wheel "
-                f"index ({LLAMA_CPP_WHEEL_INDEX}).")
+                "Check `python3 --version` against the package's supported "
+                "versions.")
     if "cmake" in low or "failed building wheel" in low or "compiler" in low:
         return ("A package tried to compile from source and no working C/C++ "
                 "toolchain was found.",
                 "Install a toolchain, or prefer a prebuilt wheel with "
-                "--only-binary :all: plus the CPU wheel index.")
+                "--only-binary :all:.")
     return None
 
 

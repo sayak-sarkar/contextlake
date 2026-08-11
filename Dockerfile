@@ -5,11 +5,11 @@
 #
 #   full (default) — ships the [kb,kb-local,llm-local] extras and BAKES IN the
 #                     pinned models (model2vec embedder + a small Qwen2.5-0.5B
-#                     GGUF wiki LLM), so `docker run` needs no Ollama, no API
+#                     wiki LLM), so `docker run` needs no Ollama, no API
 #                     key, and no model download at runtime. Large: bundles a
-#                     compiled llama-cpp-python + the GGUF.
-#   slim            — ships [kb,kb-local,kb-vec] only: no llama-cpp-python (so
-#                     no C++ toolchain needed to build it), no baked GGUF.
+#                     openvino-genai runtime + the model.
+#   slim            — ships [kb,kb-local,kb-vec] only: no openvino-genai (so
+#                     no C++ toolchain needed to build it), no baked model.
 #                     Semantic search still works out of the box (model2vec is
 #                     pure Python + numpy); point the wiki tier at Ollama /
 #                     OpenAI / Anthropic / `cli` instead of the built-in LLM.
@@ -41,46 +41,36 @@ RUN python -m venv /opt/venv
 # Copy only the packaging manifest plus the one source file setuptools needs to
 # resolve the dynamic version (src/contextlake/__init__.py's __version__) —
 # not the whole tree — so an ordinary source-only edit below can't invalidate
-# this layer and force a full llama-cpp-python recompile on every build (D-3).
+# this layer and re-resolve the whole dependency set on every build (D-3).
 FROM base AS deps
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE ./
 COPY src/contextlake/__init__.py src/contextlake/__init__.py
 
-# ---- full: prebuilt llama-cpp-python wheel, bakes the GGUF ------------------
+# ---- full: bakes the wiki LLM runtime and its model -------------------------
 FROM deps AS build-full
-# No compiler here any more. llama-cpp-python publishes nothing but sdists to
-# PyPI, so a plain `pip install` compiles llama.cpp and needs build-essential +
-# cmake. Upstream ships prebuilt wheels on a per-accelerator index instead
-# (llama.cpp is built per hardware backend, and one PyPI namespace cannot hold
-# the cpu/cuda/metal builds of a single version -- the convention PyTorch
-# follows), and the CPU index carries a py3-none-manylinux wheel that is
-# ABI-agnostic, so it satisfies any Python 3 on this base image.
-#
-# --only-binary names just that package rather than :all: so a source fallback
-# stays available for every other dependency; a missing wheel here is then a
-# one-line error instead of a compiler-error wall. Keeping the toolchain out
-# also drops the build stage's own CVE surface and most of the build time.
+# No compiler and no custom index. The wiki LLM runtime is openvino-genai, an
+# ordinary manylinux wheel on PyPI, so this is a plain install -- the
+# per-accelerator wheel index and the --only-binary pin the llama.cpp backend
+# needed are gone with it, along with the toolchain's build time and CVE surface.
 # ca-certificates: TLS for the pip/HF downloads below.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-RUN pip install '.[kb,kb-local,llm-local]' \
-        --only-binary llama-cpp-python \
-        --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+RUN pip install '.[kb,kb-local,llm-local]'
 COPY . /src
 RUN pip install --no-deps .
 RUN python docker/prefetch_models.py
 
-# ---- slim: no compiler needed, no GGUF baked -------------------------------
+# ---- slim: no wiki-LLM runtime, no baked model -----------------------------
 FROM deps AS build-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install '.[kb,kb-local,kb-vec]'
 COPY . /src
 RUN pip install --no-deps .
-# llama-cpp-python isn't installed in this variant; prefetch_models.py detects
-# that and skips the GGUF download, only warming the (pure-Python) embedder.
+# openvino-genai isn't installed in this variant; prefetch_models.py detects
+# that and skips the model download, only warming the (pure-Python) embedder.
 RUN python docker/prefetch_models.py
 
 # ---- shared runtime base: no compiler toolchain, non-root ------------------
@@ -129,9 +119,9 @@ COPY --from=build-slim --chown=contextlake:contextlake /opt/contextlake/models /
 
 FROM runtime-base AS full
 LABEL org.opencontainers.image.description="contextlake with the knowledge layer and built-in CPU models baked in (offline turnkey image)"
-# libgomp1: the OpenMP runtime the compiled llama.so links against. Pulled in
-# transitively by build-essential in the old single-stage image; needs to be
-# named explicitly now that the runtime stage no longer has a compiler at all.
+# libgomp1: the OpenMP runtime OpenVINO's native libraries link against. Named
+# explicitly because the runtime stage carries no compiler and no build-essential
+# to pull it in transitively.
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*

@@ -31,19 +31,22 @@ def test_builtin_preflight_raises_when_the_extra_is_absent(monkeypatch):
 
     real = builtins.__import__
 
-    def no_llama(name, *a, **k):
-        if name == "llama_cpp":
-            raise ImportError("no llama_cpp")
+    def no_openvino(name, *a, **k):
+        if name == "openvino_genai":
+            raise ImportError("no openvino_genai")
         return real(name, *a, **k)
 
-    monkeypatch.setattr(builtins, "__import__", no_llama)
+    monkeypatch.setattr(builtins, "__import__", no_openvino)
     with pytest.raises(RuntimeError) as caught:
         BuiltinLlm().preflight()
     msg = str(caught.value)
     # The actionable parts, not just "unavailable".
     assert "doctor --fix llm-local" in msg
-    assert "--only-binary llama-cpp-python" in msg
-    assert "--extra-index-url" in msg
+    assert "pip install 'contextlake[llm-local]'" in msg
+    # The custom-index machinery is gone, not repointed: openvino-genai is an
+    # ordinary PyPI wheel, so advice mentioning an index would now be wrong.
+    assert "--extra-index-url" not in msg
+    assert "--only-binary" not in msg
 
 
 def test_the_missing_extra_message_has_one_definition():

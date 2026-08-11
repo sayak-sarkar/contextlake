@@ -35,6 +35,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Turning them on interacts with the per-kind embedding budget floors, so it stays a sequenced
   decision rather than a side effect.
 
+### Changed
+
+- **The built-in wiki LLM moved from `llama-cpp-python` to `openvino-genai`.** BREAKING for
+  anyone scripting the install: the wheel index, the `--only-binary` pin and the C++ toolchain
+  are all gone. `pip install "contextlake[llm-local]"` is now the whole instruction, and
+  `contextlake doctor --fix llm-local` no longer attaches an index.
+
+  The extra keeps its name. What changed is what it installs.
+
+  The old backend was the one dependency a plain `pip install` could not finish: upstream
+  publishes no wheels to PyPI at all, so pip fell back to compiling `llama.cpp` and wanted
+  `cmake` plus a compiler, and the project had to point pip at a per-accelerator index to avoid
+  it. It also had **no wheel for CPython 3.14 on any x86_64 platform** — upstream ships exactly
+  two cp314 wheels and both are `linux_riscv64` — which is what pinned the container base image
+  to an older Python.
+
+  `openvino-genai` ships ordinary manylinux wheels for CPython 3.10 through 3.14. Its closure is
+  `openvino-tokenizers` and `openvino`; it pulls **neither torch nor transformers**, verified by
+  resolving the extra in a clean environment rather than by reading metadata.
+
+  The default model is `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published
+  pre-converted by the OpenVINO project, and **349 MB against the previous 491 MB**. It is the
+  same family and size class as the GGUF it replaces, deliberately — a dependency change is not
+  the place to slip in a bigger model. Pre-converted matters: converting a checkpoint to
+  OpenVINO IR yourself needs `optimum-intel`, which does pull torch.
+
+  The `model_file` config key is gone. It selected a GGUF quantisation, and an OpenVINO model is
+  a directory rather than a file, so there is nothing for it to pick.
+
+- **CVE-2025-69872 is resolved by removal, and CI carries no vulnerability suppressions.**
+  `diskcache` 5.6.3 was reached only through `[llm-local]` → `llama-cpp-python`, had no fixed
+  upstream version, and was held in `security.yml` as an explicit "disposition pending" ignore.
+  Replacing the backend removes the package, so the ignore list is now empty and a red audit
+  means a genuinely new advisory. Verified against the resolved closure, not the advisory text.
+  See `SECURITY.md`.
+
 ### Added
 
 - **An index run now says how many call references it could not resolve.** A reference naming a

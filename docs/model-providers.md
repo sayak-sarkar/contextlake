@@ -41,15 +41,15 @@ the model pulled, and otherwise to the built-in CPU model.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     very fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
-  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`,
-    `contextlake doctor --fix llm-local` (upstream ships no PyPI wheels, so a plain
-    `pip install "contextlake[llm-local]"` compiles C++ from source; see below).
+  - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
+    via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel: no
+    compiler, no custom index).
     Fast to set up, but **0.5B is a modest writer** (good for coverage, not
     polished prose) and CPU generation is **slow** (~4 calls/repo). Prefer Ollama at any real scale. See
-    [Installing the built-in LLM](#installing-the-built-in-llm-and-why-it-needs-a-wheel-index)
+    [Installing the built-in LLM](#installing-the-built-in-llm)
     and [How much does the model matter?](#how-much-does-the-model-matter).
 - **`ollama`**, a local [Ollama](https://ollama.com) daemon (`base_url`, default
-  `http://127.0.0.1:11434`), the **recommended** wiki backend: no Python native build, and a 3B-8B model
+  `http://127.0.0.1:11434`), the **recommended** wiki backend: a 3B-8B model
   writes markedly better pages than the built-in 0.5B. See [Using Ollama for the wiki](#using-ollama-for-the-wiki).
 - **`openai`**, **any OpenAI-compatible chat API** (a hosted key, or a local server like LM Studio, Jan,
   llama.cpp, vLLM). Best prose, per-token cost. The key is read from the env var named by `api_key_env`
@@ -113,7 +113,7 @@ API key that happens to be in your environment. See
 
 | provider  | example `model`                          | notes |
 |-----------|------------------------------------------|-------|
-| `builtin` | `Qwen/Qwen2.5-0.5B-Instruct-GGUF`        | a HF GGUF repo id; `model_file` picks the quant |
+| `builtin` | `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov` | a HF repo id holding a pre-converted OpenVINO IR model |
 | `ollama`  | `qwen2.5:3b`, `llama3.1`, `llama3.2:3b`  | must be `ollama pull`ed first |
 | `openai`  | `gpt-4o-mini`, or your server's model id | `base_url` defaults to `https://api.openai.com/v1`; point it at a local openai-compatible server to override |
 | `anthropic` | `claude-haiku-4-5`, `claude-opus-4-8`  | `base_url` defaults to `https://api.anthropic.com`; key from `ANTHROPIC_API_KEY` |
@@ -125,46 +125,39 @@ openai-compatible server, never just to make `anthropic`/`openai` work.
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
 
-## Installing the built-in LLM (and why it needs a wheel index)
+## Installing the built-in LLM
 
-The command itself is one line, and it lives with the rest of the install instructions:
-[Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag) covers what to
-run on each channel, including why the standalone binary and the full Docker image need
-nothing at all. This section is the reasoning behind it, which is what you want when you are
-choosing a backend rather than following a recipe.
+```bash
+contextlake doctor --fix llm-local     # or: pip install "contextlake[llm-local]"
+```
 
-### Why an index at all
+An ordinary wheel install. No compiler, no custom index, no `--only-binary` pin.
+[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
+including why the standalone binary and the full Docker image need nothing at all.
 
-The `builtin` wiki model runs a **GGUF** model through
-[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
-**C++** inference engine. Two facts explain the extra flag, and why contextlake cannot fold it into the
-extra itself:
+### What it runs, and what it costs you
 
-1. **Upstream publishes no wheels to PyPI at all**: every release is a source tarball. That is not
-   neglect: llama.cpp is compiled **per hardware backend**, and one PyPI namespace cannot hold the CPU,
-   CUDA and Metal builds of the same version and platform tag. So upstream ships **one index per
-   accelerator** instead, the same convention PyTorch uses with `download.pytorch.org/whl/cpu` versus
-   `/whl/cu121`. Without one of those indexes, `pip install "contextlake[llm-local]"` always falls back to
-   compiling, which needs `cmake` plus a C/C++ compiler.
-2. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
-   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
-   (for reproducibility and supply-chain safety). So the extra alone can never point pip anywhere but your
-   configured indexes; only the `pip` command line can add one.
+The `builtin` wiki model is a small **int4 OpenVINO IR** model driven by
+[`openvino-genai`](https://github.com/openvinotoolkit/openvino.genai). The default is
+`OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published pre-converted by the
+OpenVINO project, **349 MB**, downloaded on first wiki run into `~/.contextlake/models`.
 
-**Picking an index.** CPU is the default and what `doctor --fix` uses: the built-in tier is a small 0.5B
-model, and GPU inference is better served by Ollama anyway. The published alternatives are
-`.../whl/cu121`, `/whl/cu122`, `/whl/cu124` (CUDA) and `/whl/metal` (Apple silicon); swap the URL if you
-want one, the rest of the command is identical.
+The runtime pulls `openvino` and `openvino-tokenizers` and nothing else -- in particular
+**neither torch nor transformers**, which is why a local generative tier does not cost you a
+multi-gigabyte install. "Pre-converted" is the load-bearing part: converting a stock
+checkpoint to OpenVINO IR yourself needs `optimum-intel`, which does pull torch.
 
-**Why `--only-binary llama-cpp-python`.** It makes pip *refuse* a source build for that one package, so a
-platform with no wheel gives you a one-line "no matching distribution" instead of a wall of `cmake`
-errors. It deliberately names the package rather than using the `:all:` token: `:all:` would forbid a
-source fallback for **every** dependency, and one missing wheel anywhere would then fail the whole
-install.
+### Why not llama.cpp
 
-None of this applies to the other extras: `[kb]`, `[kb-local]`, `[kb-vec]` all resolve to ordinary PyPI
-wheels. It is specific to the built-in LLM. The cleanest way to avoid the native build altogether is to
-**use Ollama** (below), a standalone binary with no Python compile step.
+Earlier releases ran a GGUF through `llama-cpp-python`, and it needed a per-accelerator wheel
+index because upstream publishes no wheels to PyPI at all -- so a plain `pip install` compiled
+C++ from source and wanted `cmake` and a compiler. It also had **no wheel for CPython 3.14 on
+any x86_64 platform**, which pinned the whole project's container base image to an older
+Python.
+
+`openvino-genai` ships ordinary manylinux wheels for CPython 3.10 through 3.14, so the index,
+the `--only-binary` pin and the compiler requirement are all simply gone. If you want GPU
+inference, use Ollama (below) rather than a different index.
 
 ## Using Ollama for the wiki
 

@@ -16,23 +16,46 @@ from contextlake.kb.llm.builtin import BuiltinLlm
 from contextlake.kb.llm.ollama import OllamaLlm
 
 
-def _fake_llama_cpp(monkeypatch, *, with_class=True):
-    """Install a fake `llama_cpp` module so generate() needs no model.
+def _fake_openvino(monkeypatch, *, with_class=True):
+    """Install a fake `openvino_genai` module so generate() needs no model.
 
-    with_class=False simulates the extra being absent (import of Llama fails)."""
-    mod = types.ModuleType("llama_cpp")
+    with_class=False simulates the extra being absent (the import fails).
+
+    The fake pipeline asserts the chat lifecycle rather than ignoring it: the real
+    pipeline applies the model's chat template only between start_chat and
+    finish_chat, so a generate() that skipped them would silently produce raw
+    completions instead of chat responses."""
+    mod = types.ModuleType("openvino_genai")
     if with_class:
-        class FakeLlama:
-            @classmethod
-            def from_pretrained(cls, **kw):
-                return cls()
+        class FakeConfig:
+            pass
 
-            def create_chat_completion(self, *, messages, **kw):
-                user = [m for m in messages if m["role"] == "user"][0]["content"]
-                return {"choices": [{"message": {"content": f"  echo:{user}  "}}]}
+        class FakePipeline:
+            def __init__(self, models_path, device):
+                self.models_path, self.device = models_path, device
+                self.in_chat = False
+                self.system = None
 
-        mod.Llama = FakeLlama
-    monkeypatch.setitem(sys.modules, "llama_cpp", mod)
+            def start_chat(self, system_message=""):
+                self.in_chat = True
+                self.system = system_message
+
+            def finish_chat(self):
+                self.in_chat = False
+
+            def generate(self, prompt, config=None):
+                assert self.in_chat, "generate must run inside a chat session"
+                return f"  echo:{prompt}  "
+
+        mod.LLMPipeline = FakePipeline
+        mod.GenerationConfig = FakeConfig
+    monkeypatch.setitem(sys.modules, "openvino_genai", mod)
+
+    # The model directory is fetched with huggingface_hub, which the fake pipeline
+    # never opens -- stubbed so the test needs no network and no 349 MB download.
+    hub = types.ModuleType("huggingface_hub")
+    hub.snapshot_download = lambda **kw: "/nonexistent/model-dir"
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
 
 
 def test_build_llm_disabled_returns_none():
@@ -90,19 +113,18 @@ def test_default_provider_is_auto():
 def test_build_llm_builtin_constructs_lazily():
     llm = build_llm(LlmCfg(enabled=True, provider="builtin"))
     assert isinstance(llm, BuiltinLlm)
-    assert llm.repo_id == "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
-    assert llm.filename == "qwen2.5-0.5b-instruct-q4_k_m.gguf"
-    assert llm._llm is None  # nothing loaded/downloaded yet
+    assert llm.repo_id == "OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov"
+    assert llm._pipe is None  # nothing loaded/downloaded yet
 
 
 def test_builtin_generate_missing_extra_raises_actionable(monkeypatch):
-    _fake_llama_cpp(monkeypatch, with_class=False)
+    _fake_openvino(monkeypatch, with_class=False)
     with pytest.raises(ImportError, match=r"llm-local"):
         BuiltinLlm().generate("hi")
 
 
 def test_builtin_generate_mocked(monkeypatch):
-    _fake_llama_cpp(monkeypatch, with_class=True)
+    _fake_openvino(monkeypatch, with_class=True)
     out = BuiltinLlm().generate("write docs", system="be brief")
     assert out == "echo:write docs"  # stripped
 
@@ -120,7 +142,7 @@ def test_auto_falls_back_to_builtin_when_ollama_reachable_but_missing_the_model(
     monkeypatch.setattr(base_mod, "ollama_has_model", lambda *a, **k: False)
     monkeypatch.setattr(
         base_mod.importlib.util, "find_spec",
-        lambda name: object() if name == "llama_cpp" else None,
+        lambda name: object() if name == "openvino_genai" else None,
     )
     assert isinstance(build_llm(LlmCfg(enabled=True, provider="auto")), BuiltinLlm)
 
@@ -129,7 +151,7 @@ def test_auto_falls_back_to_builtin_when_ollama_unreachable(monkeypatch):
     monkeypatch.setattr(base_mod, "ollama_reachable", lambda *a, **k: False)
     monkeypatch.setattr(
         base_mod.importlib.util, "find_spec",
-        lambda name: object() if name == "llama_cpp" else None,
+        lambda name: object() if name == "openvino_genai" else None,
     )
     assert isinstance(build_llm(LlmCfg(enabled=True, provider="auto")), BuiltinLlm)
 

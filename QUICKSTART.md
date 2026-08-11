@@ -95,7 +95,7 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once) via
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-Coder-0.5B, downloaded once) via
 the `llm-local` extra. The **standalone binary** already has it configured (it installs it on
 first run) and the **full Docker image** ships it baked in, so neither needs anything here.
 On a pip install:
@@ -104,15 +104,13 @@ On a pip install:
 contextlake doctor --fix llm-local
 ```
 
-That installs into the interpreter contextlake is running in, with the upstream CPU wheel
-index attached, and prints the exact command before running it (`--dry-run` prints it and
-stops). The index is not optional, because `llama-cpp-python` publishes no wheels to PyPI at
-all; for the command by hand see [Install and
-upgrade](docs/install.md#the-built-in-wiki-llm-needs-one-extra-flag), and for why, see
-[Installing the built-in
-LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+That installs into the interpreter contextlake is running in and prints the exact command
+before running it (`--dry-run` prints it and stops). It is an ordinary wheel: no compiler, no
+index URL. The model itself (~349 MB) downloads on the first wiki run. See [Install and
+upgrade](docs/install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+LLM](docs/model-providers.md#installing-the-built-in-llm).
 
-Prefer `--llm ollama` (no compiler needed at all) or `--llm openai` for higher-quality prose; without any `--llm`
+Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
 (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:
 
 - already have the repos cloned? add `--no-sync`

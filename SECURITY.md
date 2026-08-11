@@ -119,3 +119,24 @@ share an origin with the script holding the per-process mutation and LLM token.
 
 **Regenerate any graph page or site you saved from an affected version.** Upgrading fixes
 the generator, not the HTML files it already wrote.
+
+## Dependency advisories, and how they are dispositioned
+
+`pip-audit` runs in CI over the **resolved** dependency set for every shipped extra, and it
+carries **no ignore list**. A suppression that outlives its reason turns a security gate into
+decoration, so an advisory here is either fixed or the job is red.
+
+### CVE-2025-69872 (diskcache) — resolved in 7.0.0 by removal
+
+`PYSEC-2026-2447` / `GHSA-w8v5-vhqr-4h9v` affected `diskcache` 5.6.3, which contextlake
+reached transitively through `[llm-local]` -> `llama-cpp-python`. No fixed upstream version
+existed, so the finding could not be cleared by upgrading, and it was carried in CI as an
+explicit "known-unresolved, disposition pending" suppression rather than as a silent one.
+
+**7.0.0 removes the dependency.** The built-in wiki LLM moved from `llama-cpp-python` to
+`openvino-genai`, whose closure is `openvino-tokenizers` and `openvino` and contains no
+`diskcache`. Verified by resolving the extra in a clean environment and listing what actually
+installs, not by reading the advisory. The suppression is gone from `security.yml` with it.
+
+Users on earlier versions who never installed `[llm-local]` were never exposed: the package
+was only ever reached through that extra.

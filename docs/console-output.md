@@ -199,7 +199,7 @@ separately.
   incremental too. `0 written` with a large `already up to date` count means nothing changed since the last
   run; the `N total` is the whole store, not this run.
 - **`Fetching 10 files: 100% ... Download complete: 0.00B`** appears once when the wiki (or built-in
-  embedder) model loads. It is Hugging Face resolving the model repo's files (several GGUF quantizations +
+  embedder) model loads. It is Hugging Face resolving the model repo's files (the model weights +
   tokenizer/config) in your local cache, **`0.00B` means nothing was downloaded, everything was already
   cached**. It fires once per run at model load, not per repo.
 - **`✓ <repo>: written (score 0.98)`**, a wiki page passed the review council and was saved. **`⚠ <repo>:

@@ -76,8 +76,6 @@ jobs:
           # packaging" distribution channel, so it should be the one that asks the
           # least of the user.
           PYAPP_PROJECT_FEATURES: kb-full,llm-local
-          # llama-cpp-python publishes NO wheels to PyPI (all 207 releases are
-          # sdist-only), because llama.cpp is compiled per hardware backend and one
           # PyPI namespace cannot hold cpu/cu121/cu124/metal builds of the same
           # version. Upstream therefore ships a separate index per accelerator, the
           # same convention PyTorch uses. Without this the binary's first run tries
@@ -86,7 +84,6 @@ jobs:
           # --only-binary is scoped to that one package rather than :all: on purpose:
           # :all: would also forbid a source fallback for every kb-full dependency,
           # so a single missing wheel on any platform would break the binary outright.
-          PYAPP_PIP_EXTRA_ARGS: "--only-binary llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu"
           PYAPP_EXEC_SPEC: "contextlake.cli:main"
         run: |
           # GITHUB_ENV only takes effect for LATER steps -- cargo install runs in
@@ -137,7 +134,6 @@ jobs:
       #
       # WHAT THIS DOES NOT COVER, and the release notes must not imply otherwise: the
       # attestation covers the PyApp *launcher*. The launcher fetches contextlake and its
-      # dependencies from PyPI, plus llama-cpp-python from that project's own wheel index, on
       # the user's machine at first run -- after any signature here. Signing cannot reach that
       # half; `pip-audit-resolved` in security.yml is what watches it.
       - name: Attest build provenance for the three launchers

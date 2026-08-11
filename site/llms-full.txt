@@ -190,7 +190,7 @@ and `kb serve`/`kb steer` in **[serve.md](https://github.com/sayak-sarkar/contex
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb enrich` | Query connected sources with codebase-derived terms and store the results in a searchable `@enrich` partition that feeds the wiki |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
+| `kb wiki [<repo>…]` | LLM-synthesized, council-verified wiki pages (all repos, or just the named ones); `--llm builtin\|ollama\|openai\|anthropic\|cli` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install) |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`) |
 | `kb owners` (alias `kb who-knows`) | Likely owners / SMEs for a repo (or `--path`), ranked from git history |
 | `kb impact` (alias `kb blast-radius`) | Change-impact / blast radius: what depends on a symbol (`--hops`, `--repo` to disambiguate) |
@@ -775,36 +775,32 @@ However you install it, `contextlake`, `python -m contextlake`, and
 | `[kb-vec]` | The sqlite-vec ANN backend | Faster vector search than the pure-Python exact scan |
 | `[kb-local]` | The built-in CPU embedder (model2vec, about 30 MB) | Semantic search with no Ollama and no API key |
 | `[kb-fastembed]` | A higher-quality ONNX embedder (about 90 MB) | Better semantic ranking, at a larger download |
-| `[llm-local]` | A built-in CPU model for the wiki (llama-cpp) | `kb wiki --llm builtin` with no Ollama and no API key |
+| `[llm-local]` | A built-in CPU model for the wiki (openvino-genai) | `kb wiki --llm builtin` with no Ollama and no API key |
 
 Contributors also have `[dev]` (pytest, ruff, pre-commit) and `[release]`. See
 [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-### The built-in wiki LLM needs one extra flag
+### The built-in wiki LLM is one extra
 
-`[llm-local]` is the one extra a plain `pip install` cannot finish on its own, because
-`llama-cpp-python` publishes no wheels to PyPI and pip therefore falls back to compiling
-C++. Let contextlake attach the right wheel index for you:
+`[llm-local]` is an ordinary extra. Let contextlake install it into the right interpreter:
 
 ```bash
 contextlake doctor --fix llm-local     # --dry-run prints the exact command and stops
 ```
 
-That runs pip in the interpreter contextlake is running in, with the CPU wheel index already
-attached, and prints the command before it runs it. By hand it is:
+That runs pip in the interpreter contextlake is running in, and prints the command before it
+runs it. By hand it is:
 
 ```bash
-pip install "contextlake[llm-local]" --only-binary llama-cpp-python \
-  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+pip install "contextlake[llm-local]"
 ```
 
-Only the pip, pipx and uv channels need this. The standalone binary already carries the index
-in its bootstrap configuration, and the full Docker image ships the runtime and the model
-baked in.
+No compiler, no wheel index and no `--only-binary` pin. The standalone binary installs it on
+first run, and the full Docker image ships the runtime and the model baked in.
 
-For why a wheel index is needed at all, which index to swap in for CUDA or Metal, and why the
-extra cannot carry the URL itself, see
-[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+The model itself (~349 MB, Apache-2.0) downloads on first wiki run, not at install time. For
+which backend to choose and why, see
+[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm).
 
 ### Docker
 
@@ -839,7 +835,7 @@ It fails rather than falling back on purpose. Before 5.1.0 the store was written
 container instead, so the run appeared to succeed and the index was gone the moment the
 container exited.
 
-A `:slim` tag is also published: no `llama-cpp-python`, no baked wiki-LLM GGUF, a much
+A `:slim` tag is also published: no `openvino-genai`, no baked wiki-LLM model, a much
 smaller pull. Semantic search still works, because the embedder is pure Python. Point the
 wiki tier at Ollama, OpenAI, Anthropic or `cli` instead of the built-in LLM.
 
@@ -931,7 +927,7 @@ If `doctor` names something missing, `contextlake doctor --fix` installs it. Tha
 
 `doctor` reports; `doctor --fix` repairs. With no value it installs only what your **resolved**
 configuration actually calls for, so a `[llm]` block that is disabled or set to `ollama` never pulls
-the local llama-cpp runtime. Name a capability to install it regardless of config.
+the local built-in runtime. Name a capability to install it regardless of config.
 
 | Flag | Effect |
 | --- | --- |
@@ -944,8 +940,7 @@ Two privilege tiers, and the split is deliberate:
 
 - **Python packages** install into the interpreter contextlake is running in, with
   `sys.executable -m pip` (never a bare `pip`, which can belong to another environment). Unprivileged
-  and reversible, so `--fix` runs them after printing them. For `llm-local` it attaches the upstream
-  CPU wheel index automatically and says why.
+  and reversible, so `--fix` runs them after printing them.
 - **System packages** (currently just `git`) need administrator rights. The exact command is printed
   in full and offered with a **y/N prompt at a real terminal only**. With `--skip-interactive`, or
   when stdin is not a TTY, it is printed and nothing runs, so a CI job or a scripted invocation can
@@ -1181,7 +1176,7 @@ generated (graph, vectors, wiki pages, exports) lands under a single `store_dir`
 pointing that at a workspace folder (e.g. `store_dir = "~/work/my-kb"`) keeps the whole
 knowledge base in one easy-to-find place.
 
-`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-0.5B, downloaded once) via
+`--llm builtin` powers the wiki with a local CPU model (Qwen2.5-Coder-0.5B, downloaded once) via
 the `llm-local` extra. The **standalone binary** already has it configured (it installs it on
 first run) and the **full Docker image** ships it baked in, so neither needs anything here.
 On a pip install:
@@ -1190,15 +1185,13 @@ On a pip install:
 contextlake doctor --fix llm-local
 ```
 
-That installs into the interpreter contextlake is running in, with the upstream CPU wheel
-index attached, and prints the exact command before running it (`--dry-run` prints it and
-stops). The index is not optional, because `llama-cpp-python` publishes no wheels to PyPI at
-all; for the command by hand see [Install and
-upgrade](docs/install.md#the-built-in-wiki-llm-needs-one-extra-flag), and for why, see
-[Installing the built-in
-LLM](docs/model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+That installs into the interpreter contextlake is running in and prints the exact command
+before running it (`--dry-run` prints it and stops). It is an ordinary wheel: no compiler, no
+index URL. The model itself (~349 MB) downloads on the first wiki run. See [Install and
+upgrade](docs/install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+LLM](docs/model-providers.md#installing-the-built-in-llm).
 
-Prefer `--llm ollama` (no compiler needed at all) or `--llm openai` for higher-quality prose; without any `--llm`
+Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `--llm`
 (and without `[llm]` enabled in `kb.toml`) the wiki stage is skipped. Useful toggles:
 
 - already have the repos cloned? add `--no-sync`
@@ -2563,7 +2556,7 @@ machine), or skip the toml entirely and pass `--llm <provider>` (`builtin` | `ol
 inline and scopes generation to the named repo(s).
 
 On a `pip` install, `--llm builtin` needs one extra step first, `contextlake doctor --fix llm-local`
-(see [Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); `--llm ollama`
+(see [Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); `--llm ollama`
 needs no compiler at all.
 
 Run `contextlake kb wiki`: for each repo it synthesizes a Markdown page grounded strictly in graph facts (top
@@ -2786,15 +2779,15 @@ the model pulled, and otherwise to the built-in CPU model.
   - *Embeddings*, `engine = "model2vec"` (default): static `potion-base-8M` (~30MB, MIT), numpy inference,
     very fast at scale, `pip install "contextlake[kb-local]"`. Or `engine = "fastembed"`: ONNX `bge-small`
     (~90MB, MIT, higher quality), `pip install "contextlake[kb-fastembed]"`.
-  - *Wiki LLM*, a `Qwen2.5-0.5B-Instruct` GGUF (Apache-2.0) via `llama-cpp-python`,
-    `contextlake doctor --fix llm-local` (upstream ships no PyPI wheels, so a plain
-    `pip install "contextlake[llm-local]"` compiles C++ from source; see below).
+  - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
+    via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel: no
+    compiler, no custom index).
     Fast to set up, but **0.5B is a modest writer** (good for coverage, not
     polished prose) and CPU generation is **slow** (~4 calls/repo). Prefer Ollama at any real scale. See
-    [Installing the built-in LLM](#installing-the-built-in-llm-and-why-it-needs-a-wheel-index)
+    [Installing the built-in LLM](#installing-the-built-in-llm)
     and [How much does the model matter?](#how-much-does-the-model-matter).
 - **`ollama`**, a local [Ollama](https://ollama.com) daemon (`base_url`, default
-  `http://127.0.0.1:11434`), the **recommended** wiki backend: no Python native build, and a 3B-8B model
+  `http://127.0.0.1:11434`), the **recommended** wiki backend: a 3B-8B model
   writes markedly better pages than the built-in 0.5B. See [Using Ollama for the wiki](#using-ollama-for-the-wiki).
 - **`openai`**, **any OpenAI-compatible chat API** (a hosted key, or a local server like LM Studio, Jan,
   llama.cpp, vLLM). Best prose, per-token cost. The key is read from the env var named by `api_key_env`
@@ -2858,7 +2851,7 @@ API key that happens to be in your environment. See
 
 | provider  | example `model`                          | notes |
 |-----------|------------------------------------------|-------|
-| `builtin` | `Qwen/Qwen2.5-0.5B-Instruct-GGUF`        | a HF GGUF repo id; `model_file` picks the quant |
+| `builtin` | `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov` | a HF repo id holding a pre-converted OpenVINO IR model |
 | `ollama`  | `qwen2.5:3b`, `llama3.1`, `llama3.2:3b`  | must be `ollama pull`ed first |
 | `openai`  | `gpt-4o-mini`, or your server's model id | `base_url` defaults to `https://api.openai.com/v1`; point it at a local openai-compatible server to override |
 | `anthropic` | `claude-haiku-4-5`, `claude-opus-4-8`  | `base_url` defaults to `https://api.anthropic.com`; key from `ANTHROPIC_API_KEY` |
@@ -2870,46 +2863,39 @@ openai-compatible server, never just to make `anthropic`/`openai` work.
 CLI flags override the toml and now work on **`bootstrap`** too:
 `contextlake bootstrap --llm ollama --llm-model qwen2.5:3b`.
 
-## Installing the built-in LLM (and why it needs a wheel index)
+## Installing the built-in LLM
 
-The command itself is one line, and it lives with the rest of the install instructions:
-[Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag) covers what to
-run on each channel, including why the standalone binary and the full Docker image need
-nothing at all. This section is the reasoning behind it, which is what you want when you are
-choosing a backend rather than following a recipe.
+```bash
+contextlake doctor --fix llm-local     # or: pip install "contextlake[llm-local]"
+```
 
-### Why an index at all
+An ordinary wheel install. No compiler, no custom index, no `--only-binary` pin.
+[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra) covers each channel,
+including why the standalone binary and the full Docker image need nothing at all.
 
-The `builtin` wiki model runs a **GGUF** model through
-[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python), Python bindings around `llama.cpp`, a
-**C++** inference engine. Two facts explain the extra flag, and why contextlake cannot fold it into the
-extra itself:
+### What it runs, and what it costs you
 
-1. **Upstream publishes no wheels to PyPI at all**: every release is a source tarball. That is not
-   neglect: llama.cpp is compiled **per hardware backend**, and one PyPI namespace cannot hold the CPU,
-   CUDA and Metal builds of the same version and platform tag. So upstream ships **one index per
-   accelerator** instead, the same convention PyTorch uses with `download.pytorch.org/whl/cpu` versus
-   `/whl/cu121`. Without one of those indexes, `pip install "contextlake[llm-local]"` always falls back to
-   compiling, which needs `cmake` plus a C/C++ compiler.
-2. **A dependency can't carry an index URL.** `contextlake[llm-local]` can only *name* `llama-cpp-python`;
-   Python packaging (PEP 508) deliberately forbids pinning an `--extra-index-url` in a package's metadata
-   (for reproducibility and supply-chain safety). So the extra alone can never point pip anywhere but your
-   configured indexes; only the `pip` command line can add one.
+The `builtin` wiki model is a small **int4 OpenVINO IR** model driven by
+[`openvino-genai`](https://github.com/openvinotoolkit/openvino.genai). The default is
+`OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published pre-converted by the
+OpenVINO project, **349 MB**, downloaded on first wiki run into `~/.contextlake/models`.
 
-**Picking an index.** CPU is the default and what `doctor --fix` uses: the built-in tier is a small 0.5B
-model, and GPU inference is better served by Ollama anyway. The published alternatives are
-`.../whl/cu121`, `/whl/cu122`, `/whl/cu124` (CUDA) and `/whl/metal` (Apple silicon); swap the URL if you
-want one, the rest of the command is identical.
+The runtime pulls `openvino` and `openvino-tokenizers` and nothing else -- in particular
+**neither torch nor transformers**, which is why a local generative tier does not cost you a
+multi-gigabyte install. "Pre-converted" is the load-bearing part: converting a stock
+checkpoint to OpenVINO IR yourself needs `optimum-intel`, which does pull torch.
 
-**Why `--only-binary llama-cpp-python`.** It makes pip *refuse* a source build for that one package, so a
-platform with no wheel gives you a one-line "no matching distribution" instead of a wall of `cmake`
-errors. It deliberately names the package rather than using the `:all:` token: `:all:` would forbid a
-source fallback for **every** dependency, and one missing wheel anywhere would then fail the whole
-install.
+### Why not llama.cpp
 
-None of this applies to the other extras: `[kb]`, `[kb-local]`, `[kb-vec]` all resolve to ordinary PyPI
-wheels. It is specific to the built-in LLM. The cleanest way to avoid the native build altogether is to
-**use Ollama** (below), a standalone binary with no Python compile step.
+Earlier releases ran a GGUF through `llama-cpp-python`, and it needed a per-accelerator wheel
+index because upstream publishes no wheels to PyPI at all -- so a plain `pip install` compiled
+C++ from source and wanted `cmake` and a compiler. It also had **no wheel for CPython 3.14 on
+any x86_64 platform**, which pinned the whole project's container base image to an older
+Python.
+
+`openvino-genai` ships ordinary manylinux wheels for CPython 3.10 through 3.14, so the index,
+the `--only-binary` pin and the compiler requirement are all simply gone. If you want GPU
+inference, use Ollama (below) rather than a different index.
 
 ## Using Ollama for the wiki
 
@@ -3053,7 +3039,7 @@ contextlake bootstrap --llm builtin
 `--llm builtin` powers the wiki stage with a zero-setup CPU model, so this single command builds the
 whole knowledge layer (graph, vectors, and wiki) for every repo. On a `pip` install, `builtin` needs
 one extra step first, `contextlake doctor --fix llm-local` (see [Install and
-upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)); skip that step entirely with
+upgrade](install.md#the-built-in-wiki-llm-is-one-extra)); skip that step entirely with
 `--llm ollama`, which needs no compiler at all. Use `--llm ollama`, `openai`,
 `anthropic`, `cli` or `auto` for better prose; the pre-command form
 `contextlake --llm builtin bootstrap` also works. Without any `--llm`, and with `[llm]` disabled in
@@ -3852,7 +3838,7 @@ contextlake kb wiki acme/catalog-api --llm builtin
 
 `--llm` enables the LLM tier inline, `builtin` runs a small CPU model with no Ollama or
 API key; on a `pip` install it needs `contextlake doctor --fix llm-local` first (see
-[Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag)). `ollama`
+[Install and upgrade](install.md#the-built-in-wiki-llm-is-one-extra)). `ollama`
 needs no compiler at all; `openai` uses that backend instead.
 The positional repo id scopes generation to just that repo. Once it's generated, the page
 renders directly in the Wiki tab, no click-through needed, grounded in the repo's real
@@ -5432,7 +5418,7 @@ separately.
   incremental too. `0 written` with a large `already up to date` count means nothing changed since the last
   run; the `N total` is the whole store, not this run.
 - **`Fetching 10 files: 100% ... Download complete: 0.00B`** appears once when the wiki (or built-in
-  embedder) model loads. It is Hugging Face resolving the model repo's files (several GGUF quantizations +
+  embedder) model loads. It is Hugging Face resolving the model repo's files (the model weights +
   tokenizer/config) in your local cache, **`0.00B` means nothing was downloaded, everything was already
   cached**. It fires once per run at model load, not per repo.
 - **`✓ <repo>: written (score 0.98)`**, a wiki page passed the review council and was saved. **`⚠ <repo>:
@@ -5578,30 +5564,30 @@ The extra also pulls a tree-sitter grammar per supported language, several with 
 wheels. On a platform without prebuilt wheels those build from source, which is slow rather
 than broken.
 
-## `pip install "contextlake[llm-local]"` tries to compile C++
+## The built-in wiki LLM is not installed
 
 ```
-Building wheel for llama-cpp-python (pyproject.toml) ... error
-CMake Error: could not find cmake ...
+The built-in LLM needs the 'llm-local' extra (openvino-genai).
 ```
 
-Expected on every platform and every Python version, and only on a **pip** install.
-`llama-cpp-python` publishes no wheels to PyPI at all, so pip has nothing to install but the
-sources and falls back to compiling `llama.cpp`, which needs `cmake` plus a C++ toolchain.
-
-Let contextlake attach the prebuilt CPU wheel index for you:
+Install it into the interpreter contextlake is running in:
 
 ```bash
 contextlake doctor --fix llm-local          # --dry-run prints the command and stops
 ```
 
-The standalone binary already carries that index in its bootstrap configuration, and the full
-Docker image ships the runtime baked in, so neither channel hits this. For the command by
-hand, see [Install and upgrade](install.md#the-built-in-wiki-llm-needs-one-extra-flag); for
-the CUDA and Metal indexes, and why the extra cannot carry the index URL itself, see
-[Installing the built-in LLM](model-providers.md#installing-the-built-in-llm-and-why-it-needs-a-wheel-index).
+It is an ordinary wheel, so there is no compiler, index URL or `--only-binary` pin involved.
+The standalone binary installs it on first run and the full Docker image ships it baked in,
+so neither channel hits this. See [Install and
+upgrade](install.md#the-built-in-wiki-llm-is-one-extra) and [Installing the built-in
+LLM](model-providers.md#installing-the-built-in-llm).
 
-If you would rather skip the native build entirely, use Ollama for the wiki tier
+Releases before 7.0.0 ran a GGUF through `llama-cpp-python` and did need a wheel index plus a
+C++ toolchain. If you are following older notes that tell you to pass `--extra-index-url` or
+`--only-binary llama-cpp-python`, drop both: they now refer to a package contextlake no longer
+depends on.
+
+If you would rather not run a local model at all, use Ollama for the wiki tier
 (`--llm ollama`).
 
 ## `contextlake doctor --fix` says the environment is externally managed
@@ -5699,6 +5685,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than short names: only 46.3% of data-member names are unique in that tree and one occurs 516 times.
   Turning them on interacts with the per-kind embedding budget floors, so it stays a sequenced
   decision rather than a side effect.
+
+### Changed
+
+- **The built-in wiki LLM moved from `llama-cpp-python` to `openvino-genai`.** BREAKING for
+  anyone scripting the install: the wheel index, the `--only-binary` pin and the C++ toolchain
+  are all gone. `pip install "contextlake[llm-local]"` is now the whole instruction, and
+  `contextlake doctor --fix llm-local` no longer attaches an index.
+
+  The extra keeps its name. What changed is what it installs.
+
+  The old backend was the one dependency a plain `pip install` could not finish: upstream
+  publishes no wheels to PyPI at all, so pip fell back to compiling `llama.cpp` and wanted
+  `cmake` plus a compiler, and the project had to point pip at a per-accelerator index to avoid
+  it. It also had **no wheel for CPython 3.14 on any x86_64 platform**, upstream ships exactly
+  two cp314 wheels and both are `linux_riscv64`, which is what pinned the container base image
+  to an older Python.
+
+  `openvino-genai` ships ordinary manylinux wheels for CPython 3.10 through 3.14. Its closure is
+  `openvino-tokenizers` and `openvino`; it pulls **neither torch nor transformers**, verified by
+  resolving the extra in a clean environment rather than by reading metadata.
+
+  The default model is `OpenVINO/Qwen2.5-Coder-0.5B-Instruct-int4-ov`: Apache-2.0, published
+  pre-converted by the OpenVINO project, and **349 MB against the previous 491 MB**. It is the
+  same family and size class as the GGUF it replaces, deliberately, a dependency change is not
+  the place to slip in a bigger model. Pre-converted matters: converting a checkpoint to
+  OpenVINO IR yourself needs `optimum-intel`, which does pull torch.
+
+  The `model_file` config key is gone. It selected a GGUF quantisation, and an OpenVINO model is
+  a directory rather than a file, so there is nothing for it to pick.
+
+- **CVE-2025-69872 is resolved by removal, and CI carries no vulnerability suppressions.**
+  `diskcache` 5.6.3 was reached only through `[llm-local]` → `llama-cpp-python`, had no fixed
+  upstream version, and was held in `security.yml` as an explicit "disposition pending" ignore.
+  Replacing the backend removes the package, so the ignore list is now empty and a red audit
+  means a genuinely new advisory. Verified against the resolved closure, not the advisory text.
+  See `SECURITY.md`.
 
 ### Added
 

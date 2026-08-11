@@ -133,7 +133,7 @@ def _disabled_llm_doctor(tmp_path, capsys, monkeypatch, *, runtime_present: bool
     real = importlib.util.find_spec
 
     def fake(name, *a, **kw):
-        if name == "llama_cpp":
+        if name == "openvino_genai":
             return object() if runtime_present else None
         return real(name, *a, **kw)
 
@@ -151,11 +151,11 @@ def test_doctor_distinguishes_llm_off_in_config_from_runtime_absent(
     """
     installed = _disabled_llm_doctor(tmp_path / "a", capsys, monkeypatch, runtime_present=True)
     assert "not enabled in config" in installed
-    assert "llama-cpp-python" not in installed
+    assert "openvino-genai" not in installed
 
     absent = _disabled_llm_doctor(tmp_path / "b", capsys, monkeypatch, runtime_present=False)
     assert "not enabled in config" in absent
-    assert "llama-cpp-python) is not installed" in absent
+    assert "openvino-genai) is not installed" in absent
     assert "--fix llm-local" in absent
 
 

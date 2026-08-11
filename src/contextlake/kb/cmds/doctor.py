@@ -37,11 +37,11 @@ def _check(label: str, ok, detail: str = "") -> bool:
 
 
 def _local_llm_runtime_present() -> bool:
-    """Is the local (llama-cpp-python) LLM runtime importable here?
+    """Is the local (openvino-genai) LLM runtime importable here?
 
-    Import-free: some Pythons have no prebuilt wheel, so the answer is often "no"
-    and importing to find out would be the expensive way to learn it."""
-    return importlib.util.find_spec("llama_cpp") is not None
+    Import-free: the runtime is an optional extra, so the answer is often "no" and
+    importing to find out would be the expensive way to learn it."""
+    return importlib.util.find_spec("openvino_genai") is not None
 
 
 def _builtin_model_present(cache_dir, model_id: str) -> bool:
@@ -198,7 +198,7 @@ def cmd_doctor(args) -> int:
             # off-by-default optional tier is not a fault.
             detail = "not enabled in config (set [llm] enabled = true, or pass --llm PROVIDER)"
             if llm.provider in ("builtin", "auto") and not _local_llm_runtime_present():
-                detail += ("; the local runtime (llama-cpp-python) is not installed either: "
+                detail += ("; the local runtime (openvino-genai) is not installed either: "
                            "contextlake doctor --fix llm-local")
             _check("wiki LLM", True, detail)
         elif llm.provider in ("builtin", "auto"):
@@ -207,14 +207,12 @@ def cmd_doctor(args) -> int:
             kw = {}
             if getattr(llm, "model", None):
                 kw["repo_id"] = llm.model
-            if getattr(llm, "model_file", None):
-                kw["filename"] = llm.model_file
             if getattr(llm, "cache_dir", None):
                 kw["cache_dir"] = llm.cache_dir
             bl = BuiltinLlm(**kw)
             present = _builtin_model_present(bl.cache_dir, bl.repo_id)
-            # the model file alone is not enough: wiki needs the llama-cpp-python runtime, which
-            # has no prebuilt wheel on some Pythons. Report ⚠ when the runtime is absent so doctor
+            # the model alone is not enough: wiki needs the openvino-genai runtime, which is
+            # an optional extra. Report ⚠ when the runtime is absent so doctor
             # doesn't show a green ✓ for a tier that will fail at wiki time.
             runtime = _local_llm_runtime_present()
             model_state = "downloaded" if present else "not downloaded (run wiki to fetch)"
