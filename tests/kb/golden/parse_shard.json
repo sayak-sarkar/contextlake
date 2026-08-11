@@ -816,7 +816,7 @@
       "line_end": 9,
       "line_start": 7,
       "name": "Area",
-      "qualified_name": "native/src/widget.cpp::Widget.Area",
+      "qualified_name": "Widget.Area",
       "repo": "demo/fixture"
     },
     {
@@ -830,7 +830,7 @@
       "line_end": 5,
       "line_start": 3,
       "name": "Draw",
-      "qualified_name": "native/src/widget.cpp::Widget.Draw",
+      "qualified_name": "Widget.Draw",
       "repo": "demo/fixture"
     },
     {
@@ -1102,7 +1102,7 @@
       "line_end": 7,
       "line_start": 3,
       "name": "Widget",
-      "qualified_name": "native/include/widget.h::Widget",
+      "qualified_name": "Widget",
       "repo": "demo/fixture"
     },
     {

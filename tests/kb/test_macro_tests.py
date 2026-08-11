@@ -42,7 +42,7 @@ def test_same_case_name_in_two_suites_stays_distinct():
         "r", "t.cpp", b"TEST(SuiteA, Run) { }\nTEST(SuiteB, Run) { }", "cpp")
     tests = [n for n in nodes if n.kind == "test"]
     assert len(tests) == 2
-    assert {n.qualified_name for n in tests} == {"t.cpp::SuiteA.Run", "t.cpp::SuiteB.Run"}
+    assert {n.qualified_name for n in tests} == {"SuiteA.Run", "SuiteB.Run"}
     assert len({n.id for n in tests}) == 2
 
 

@@ -896,6 +896,20 @@ def parse_source(
         if kind == "function" and enclosing and _DEF_TYPES[lang].get(enclosing[0].type) == "class":
             kind = "method"
         node_attrs = _doc_sig(def_ts, lang)
+        # ONE rule, two consumers: the node id's key and the qualified name below.
+        #
+        # A file belongs to a symbol's identity everywhere EXCEPT the C/C++ header/source
+        # split, which is the single case where one symbol legitimately lives in two
+        # files -- and the reason C1 exists. Python, JS/TS, Go, Java and the rest put one
+        # module per file, so `class Widget` in two modules are two different classes and
+        # the file is genuinely part of both their identity and their qualified name.
+        # Measured the hard way: three cross-language tests failed the moment the file
+        # came out of the key unconditionally.
+        #
+        # `static` and (once G9 lands) anonymous-namespace members keep their file too,
+        # because internal linkage is file-scoped by language rule.
+        file_scope = (None if lang in ("c", "cpp") and not _is_internal_linkage(def_ts)
+                      else rel_path)
         # Computed before the id, because the parameter signature is part of the key.
         nid = symbol_id(
             repo_id, kind, qualified,
@@ -905,15 +919,7 @@ def parse_source(
             # `at(int) const` into `at(int)`, and the suite already had tests forbidding
             # exactly that.
             signature=_signature_text(def_ts),
-            # The file leaves the key ONLY for C/C++ external-linkage symbols, which is
-            # the single case where one symbol legitimately spans two files (the
-            # header/source split that C1 is about). Everywhere else the file IS part of
-            # the identity: Python, JS/TS, Go, Java and the rest put one module per file,
-            # so `class Widget` in two modules are two different classes, and dropping
-            # the file would merge them. Measured the hard way -- three cross-language
-            # tests failed the moment the file came out unconditionally.
-            file_scope=(None if lang in ("c", "cpp") and not _is_internal_linkage(def_ts)
-                        else rel_path),
+            file_scope=file_scope,
             name=name,
             enclosing_name=(scope[-1] if scope else None),
             lang=lang,
@@ -922,7 +928,12 @@ def parse_source(
         if extra_scope:
             node_attrs["_pending_method_of"] = extra_scope
         nodes.append(Node(
-            id=nid, repo=repo_id, kind=kind, name=name, qualified_name=f"{rel_path}::{qualified}",
+            id=nid, repo=repo_id, kind=kind, name=name,
+            # Unprefixed for C/C++ external-linkage symbols: `NS.Box.put` IS the fully
+            # qualified name there, and prefixing it with a path was exactly what stopped
+            # a header and its .cpp matching on it (C1). Still prefixed elsewhere, where
+            # the module the file represents is part of the qualification.
+            qualified_name=(f"{file_scope}::{qualified}" if file_scope else qualified),
             file=rel_path, line_start=line, line_end=def_ts.end_point[0] + 1, lang=lang,
             attrs=node_attrs,
         ))
@@ -1664,10 +1675,10 @@ def _family(lang: str | None) -> str | None:
 def _scope_chain_of(node: Node) -> str:
     """A definition's own scope chain, with the file prefix removed.
 
-    ``qualified_name`` is stored file-prefixed (``path/to/f.cpp::NS.Box``), which is
-    C1 in the gap register and the reason a header and its .cpp can never match on
-    it. Comparing qualifiers here needs the scope part alone, so this strips the
-    prefix rather than working around it at each call site.
+    C/C++ external-linkage symbols now store an unprefixed chain (``NS.Box``), so for
+    them this is a pass-through. The strip is still needed for the cases that keep their
+    file: internal-linkage symbols (``static``), and every language where one module per
+    file makes the file part of the qualification.
     """
     q = node.qualified_name or node.name or ""
     return q.split("::", 1)[1] if "::" in q else q

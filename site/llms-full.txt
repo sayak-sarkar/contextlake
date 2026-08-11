@@ -5674,6 +5674,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`qualified_name` drops its file prefix for C and C++ external-linkage symbols.** It was stored as
+  `path/to/f.cpp::NS.Box`, so a header and its `.cpp` could never match on it -- the other half of the
+  same defect the id change addresses. For those symbols the namespace chain *is* the fully qualified
+  name, so it is now stored as `NS.Box.put`.
+
+  It is still prefixed everywhere the file genuinely forms part of the qualification: every language
+  that puts one module per file (Python stays `m.py::Foo.bar`), and C/C++ `static` symbols, whose
+  internal linkage is file-scoped by language rule. That is deliberately the **same single rule** that
+  decides whether the file enters a node id, computed once and used by both, so the two can never
+  disagree about what a symbol's identity is.
+
 - **Node ids no longer contain a file path or a line number.** BREAKING: every code-symbol id changes,
   so a re-index is required, and the embedding store must be rebuilt (see below).
 

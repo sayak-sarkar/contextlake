@@ -244,7 +244,10 @@ def test_parse_cpp_out_of_line_method_two_segments_links_to_class():
            b"void Widget::Draw() {\n    Render();\n}\n")
     nodes, _edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     draw = next(n for n in nodes if n.name == "Draw" and n.line_start == 6)
-    assert draw.qualified_name == "f.cpp::Widget.Draw"
+    # Unprefixed: for C/C++ external linkage the namespace chain IS the
+    # qualified name, and the path prefix is what stopped a header and its
+    # .cpp matching on it.
+    assert draw.qualified_name == "Widget.Draw"
     assert draw.attrs["_pending_method_of"] == ["Widget"]
     assert ("Render" in {c[1] for c in calls})
 
@@ -256,7 +259,7 @@ def test_parse_cpp_out_of_line_method_three_segments_not_lost():
     nodes, _edges, calls, _inh = parse_source("r", "f.cpp", src, "cpp")
     spin = next((n for n in nodes if n.name == "Spin"), None)
     assert spin is not None, "a 3-segment qualified definition must not vanish"
-    assert spin.qualified_name == "f.cpp::App.Gadget.Spin"
+    assert spin.qualified_name == "App.Gadget.Spin"
     assert spin.attrs["_pending_method_of"] == ["App", "Gadget"]
     assert "Tick" in {c[1] for c in calls}
 
