@@ -5670,6 +5670,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A real golden query set for retrieval quality, gated on every change instead of weekly.**
+  Retrieval quality was measurable but barely measured: the set held **3 queries** over a 2-node,
+  2-kind fixture, and only a weekly scheduled workflow scored it, so a set that had drifted apart
+  from its fixture could sit green for a week.
+
+  It is now 30 queries over a synthetic multi-language fixture repo (`examples/fixtures/eval-repo`
+ , C++ header and source, Python, SQL, XML config) that parses to 42 nodes across 13 kinds,
+  including the five symbol kinds 7.0.0 added. A retrieval change that only helps functions can
+  no longer hide.
+
+  Measured: hit-rate **0.80**, precision@10 **0.7241**, recall@10 **0.80**, MRR **0.80**. All six
+  misses are the natural-language phrasings ("reject an implausible sensor value"); every
+  exact-name query hits. FTS5 has no synonym matching, so those six are not a defect, they are
+  the gap semantic search exists to close, which is why they are in the set.
+
+  Three properties worth stating, because each is a trap avoided rather than a feature:
+
+  - Every query matches on **name**, not node id. Ids are a slug plus a digest of the symbol's
+    identity, so an id-scheme change (7.0.0 changed all of them) would have silently invalidated
+    an id-matched set while reading as a retrieval regression.
+  - The floor lives in **one place**, a field in the golden set that both the per-PR test and the
+    weekly workflow read. A threshold written in two files drifts.
+  - A separate test asserts the **fixture still produces each kind the set queries**, so a parser
+    change that stops emitting one fails as itself rather than as a mysterious retrieval drop.
+
 ### Fixed
 
 - **The wiki's per-kind floors could consume the whole ranked list.** Hub, dispatcher and

@@ -47,12 +47,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,kb]"
 
-      - name: Build the bundled sample graph into a scratch store
+      - name: Index the evaluation fixture repo into a scratch store
         run: |
           cfg="$RUNNER_TEMP/eval-kb.toml"
           printf '[kb]\nstore_dir = "%s/eval-store"\n' "$RUNNER_TEMP" > "$cfg"
           echo "KB_EVAL_CONFIG=$cfg" >> "$GITHUB_ENV"
-          contextlake kb index --config "$cfg" --source examples/fixtures/sample-graph.json
+          # A real source tree parsed by the real parser, not a hand-written shard:
+          # the score then describes what retrieval does to what the parser actually
+          # produces. 42 nodes across 13 kinds, including the five symbol kinds 7.0.0
+          # added, so a retrieval change that only helps functions cannot hide here.
+          contextlake kb index --config "$cfg" \
+            --source examples/fixtures/eval-repo --repo telemetry
 
       - name: Score retrieval quality (fts) against the golden-query set
         run: |
@@ -87,17 +92,19 @@ jobs:
               with open(step_summary, "a", encoding="utf-8") as f:
                   f.write(summary)
 
-          # FLOOR, not a target: measured hit-rate on this fixture is 0.6667 at
-          # the time of writing (2/3 golden queries hit; the exact-name query
-          # scores, the natural-language-phrasing query does not -- FTS5 has no
-          # synonym/semantic matching, which is exactly the gap the semantic
-          # retriever exists to close once it can run in CI). The floor sits
-          # just below the measured value -- not "a nice round number" -- to
-          # absorb SQLite FTS5 version drift across runner images without
-          # papering over a real regression. Ratchet this up deliberately when
-          # the fixture or the retriever improves -- never lower it just to
-          # turn this job green.
-          floor = 0.66
+          # FLOOR, not a target. Measured on this fixture at the time of writing:
+          # hit-rate 0.8, precision@10 0.7241, recall@10 0.8, MRR 0.8 over 30
+          # queries. The 6 misses are ALL the natural-language phrasings ("reject
+          # an implausible sensor value", "sample buffer"); every exact-name query
+          # hits. FTS5 has no synonym or semantic matching, so those 6 are not a
+          # defect here -- they are the measurable gap the semantic retriever
+          # exists to close, and the reason they are in the set at all.
+          #
+          # The floor is READ FROM THE GOLDEN SET, not written here: a number in
+          # two places drifts, and tests/kb/test_retrieval_quality.py gates on the
+          # same value per PR so a regression does not wait a week for the cron.
+          floor = json.load(open("examples/fixtures/golden-queries.json",
+                                 encoding="utf-8"))["_floor_hit_rate"]
           hit_rate = result["hit_rate"]
           print(f"hit-rate {hit_rate} vs floor {floor}")
           if hit_rate < floor:

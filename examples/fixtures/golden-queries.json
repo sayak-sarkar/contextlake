@@ -1,8 +1,235 @@
 {
-  "_comment": "A tiny golden set for the sample-graph fixture — score it with: contextlake kb eval --golden examples/fixtures/golden-queries.json (add --retriever semantic|hybrid once embeddings are built). Each entry is one query-shape.",
+  "_comment": "Golden query set for retrieval-quality scoring, over examples/fixtures/eval-repo (a synthetic telemetry pipeline: C++ header + source, Python, SQL, XML config). Score it with: contextlake kb eval --golden examples/fixtures/golden-queries.json --retriever fts   (add --retriever semantic|hybrid once embeddings are built). Every entry uses match=\"name\" ON PURPOSE: node ids are a slug plus a digest of the symbol's identity, so an id-scheme change (7.0.0 changed all of them) would silently invalidate an id-matched set while looking like a retrieval regression. Names are what a person searches for and what stays stable.",
+  "_floor_hit_rate_comment": "The measured floor, declared HERE so the per-PR test and the weekly workflow read one number instead of drifting apart. Measured 0.8 on this fixture; the floor sits just below to absorb SQLite FTS5 version drift. Ratchet up when the fixture or retriever improves; never lower it to turn a job green.",
+  "_floor_hit_rate": 0.76,
   "queries": [
-    {"query": "CatalogService", "expected": ["demo_app_catalogservice"]},
-    {"query": "catalog service", "expected": ["demo_app_catalogservice"]},
-    {"query": "charge", "expected": ["charge"], "match": "name", "kind": "function"}
+    {
+      "query": "SampleBuffer",
+      "expected": [
+        "SampleBuffer"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "WindowAggregator",
+      "expected": [
+        "WindowAggregator"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "ReadingIngestor",
+      "expected": [
+        "ReadingIngestor"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "append",
+      "expected": [
+        "append"
+      ],
+      "match": "name",
+      "kind": "method"
+    },
+    {
+      "query": "drain",
+      "expected": [
+        "drain"
+      ],
+      "match": "name",
+      "kind": "method"
+    },
+    {
+      "query": "submit_reading",
+      "expected": [
+        "submit_reading"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "validate_reading",
+      "expected": [
+        "validate_reading"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "rollup_daily_totals",
+      "expected": [
+        "rollup_daily_totals"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "TELEMETRY_MAX_BATCH",
+      "expected": [
+        "TELEMETRY_MAX_BATCH"
+      ],
+      "match": "name",
+      "kind": "macro"
+    },
+    {
+      "query": "TELEMETRY_RETRY_LIMIT",
+      "expected": [
+        "TELEMETRY_RETRY_LIMIT"
+      ],
+      "match": "name",
+      "kind": "macro"
+    },
+    {
+      "query": "SampleId",
+      "expected": [
+        "SampleId"
+      ],
+      "match": "name",
+      "kind": "typedef"
+    },
+    {
+      "query": "SampleWindow",
+      "expected": [
+        "SampleWindow"
+      ],
+      "match": "name",
+      "kind": "typedef"
+    },
+    {
+      "query": "SEVERITY_ALERT",
+      "expected": [
+        "SEVERITY_ALERT"
+      ],
+      "match": "name",
+      "kind": "enum_constant"
+    },
+    {
+      "query": "SEVERITY_NOTICE",
+      "expected": [
+        "SEVERITY_NOTICE"
+      ],
+      "match": "name",
+      "kind": "enum_constant"
+    },
+    {
+      "query": "pending_count_",
+      "expected": [
+        "pending_count_"
+      ],
+      "match": "name",
+      "kind": "field"
+    },
+    {
+      "query": "readings_",
+      "expected": [
+        "readings_"
+      ],
+      "match": "name",
+      "kind": "field"
+    },
+    {
+      "query": "sample_total_",
+      "expected": [
+        "sample_total_"
+      ],
+      "match": "name",
+      "kind": "field"
+    },
+    {
+      "query": "active_collector_count",
+      "expected": [
+        "active_collector_count"
+      ],
+      "match": "name",
+      "kind": "global_variable"
+    },
+    {
+      "query": "dropped_sample_total",
+      "expected": [
+        "dropped_sample_total"
+      ],
+      "match": "name",
+      "kind": "global_variable"
+    },
+    {
+      "query": "sensor_reading",
+      "expected": [
+        "sensor_reading"
+      ],
+      "match": "name",
+      "kind": "table"
+    },
+    {
+      "query": "collector",
+      "expected": [
+        "collector"
+      ],
+      "match": "name",
+      "kind": "table"
+    },
+    {
+      "query": "BatchSize",
+      "expected": [
+        "BatchSize"
+      ],
+      "match": "name",
+      "kind": "config_key"
+    },
+    {
+      "query": "RetentionDays",
+      "expected": [
+        "RetentionDays"
+      ],
+      "match": "name",
+      "kind": "config_key"
+    },
+    {
+      "query": "FlushIntervalSeconds",
+      "expected": [
+        "FlushIntervalSeconds"
+      ],
+      "match": "name",
+      "kind": "config_key"
+    },
+    {
+      "query": "sample buffer",
+      "expected": [
+        "SampleBuffer"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "reading ingestor",
+      "expected": [
+        "ReadingIngestor"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "window aggregator",
+      "expected": [
+        "WindowAggregator"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "how many readings are waiting to be flushed",
+      "expected": [
+        "pending"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "reject an implausible sensor value",
+      "expected": [
+        "validate_reading"
+      ],
+      "match": "name"
+    },
+    {
+      "query": "collapse readings into a daily total",
+      "expected": [
+        "rollup_daily_totals"
+      ],
+      "match": "name"
+    }
   ]
 }

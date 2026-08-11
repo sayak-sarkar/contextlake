@@ -1,0 +1,11 @@
+<configuration>
+  <appSettings>
+    <add key="BatchSize" value="512"/>
+    <add key="FlushIntervalSeconds" value="15"/>
+    <add key="RetentionDays" value="30"/>
+  </appSettings>
+  <logging>
+    <Level>NOTICE</Level>
+    <SinkPath>/var/log/telemetry.log</SinkPath>
+  </logging>
+</configuration>
