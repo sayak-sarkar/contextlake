@@ -27,9 +27,9 @@
 
 # Base pinned by digest, not just the mutable `3.12-slim` tag, for reproducible
 # builds (D-4). Re-resolve when bumping:
-#   docker pull python:3.12-slim && \
-#   docker inspect python:3.12-slim --format '{{index .RepoDigests 0}}'
-FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS base
+#   docker pull python:3.14-slim && \
+#   docker inspect python:3.14-slim --format '{{index .RepoDigests 0}}'
+FROM python:3.14-slim@sha256:a7fb1e634c4a578f9e0bd6327f11a3cde11b7a9395f48e24360c0988bcc5c2bc AS base
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1 \
