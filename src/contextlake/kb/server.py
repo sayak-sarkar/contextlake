@@ -537,6 +537,22 @@ def _edge_out(e: Edge) -> EdgeOut:
     )
 
 
+def _stale_vectors_note(dropped: int) -> str | None:
+    """The disclosure for vector hits the graph could not resolve.
+
+    A vector row is keyed by node id, so a store that predates an id change names nodes
+    that no longer exist. Returning the survivors silently gives a shorter, entirely
+    plausible answer -- and `doctor` reports a healthy row count throughout, so nothing
+    else would tell the caller. Says how to repair it, because "incomplete" without a
+    remedy just moves the problem.
+    """
+    if not dropped:
+        return None
+    return (f"{dropped} vector hit(s) named nodes that are not in the graph and were "
+            "dropped: the embedding store is stale relative to the index, so this result "
+            "is INCOMPLETE. Re-run `kb embed`.")
+
+
 def _sites_note(label: str, symbol: str, why: str | None,
                 out: list[NodeOut]) -> str | None:
     """The disclosure that keeps a call-site count from reading as a symbol count.
@@ -1254,7 +1270,8 @@ def build_server(
 
     if embedder is not None and vector_store is not None:
         @bounded_tool
-        def semantic_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
+        def semantic_search(query: str, k: int = 10,
+                            repo: str | None = None) -> NodesOut:
             """Semantic (embedding) search over indexed nodes — for natural-language
             queries where exact names are unknown. Results are ranked by similarity,
             and each hit carries its `score` (0..1 cosine) so you can judge the
@@ -1264,19 +1281,24 @@ def build_server(
             Hits of kind 'wiki'/'document' are ADVISORY prose (LLM-generated or
             ingested), not extracted code facts — verify against the cited file."""
             if not query.strip():
-                return []  # matches search_code's empty-query handling, not a crash
+                return NodesOut(nodes=[], total=0, truncated=False)  # not a crash
             if _below_floor(query):
-                return []
+                return NodesOut(nodes=[], total=0, truncated=False)
             vec = embedder.embed([query])[0]
             out: list[NodeOut] = []
+            dropped = 0
             for node_id, score in vector_store.search(vec, k=k, repo=repo):
                 n = store.get_node(node_id)
                 if n:
                     out.append(_node_out(n, score=score))
-            return out
+                else:
+                    dropped += 1
+            return NodesOut(nodes=out, total=len(out), truncated=False,
+                            note=_stale_vectors_note(dropped))
 
         @bounded_tool
-        def hybrid_search(query: str, k: int = 10, repo: str | None = None) -> list[NodeOut]:
+        def hybrid_search(query: str, k: int = 10,
+                          repo: str | None = None) -> NodesOut:
             """Hybrid retrieval: seed with embeddings, then rank by Personalized
             PageRank over the graph. Surfaces structurally-related nodes (callers,
             dependents) that a pure semantic match would miss.
@@ -1286,15 +1308,19 @@ def build_server(
             from .embeddings.hybrid import hybrid_search as _hybrid
 
             if not query.strip():
-                return []  # matches search_code's empty-query handling, not a crash
+                return NodesOut(nodes=[], total=0, truncated=False)  # not a crash
             if _below_floor(query):
-                return []
+                return NodesOut(nodes=[], total=0, truncated=False)
             out: list[NodeOut] = []
+            dropped = 0
             for node_id, score in _hybrid(store, vector_store, embedder, query, k=k, repo=repo):
                 n = store.get_node(node_id)
                 if n:
                     out.append(_node_out(n, score=score))
-            return out
+                else:
+                    dropped += 1
+            return NodesOut(nodes=out, total=len(out), truncated=False,
+                            note=_stale_vectors_note(dropped))
 
     @bounded_tool
     def ask(question: str, k: int = 8, repo: str | None = None) -> AskOut:

@@ -18,6 +18,20 @@ class _FakeEmbedder:
         return [[1.0, 0.0] if "order" in t.lower() else [0.0, 1.0] for t in texts]
 
 
+def _nodes(structured):
+    """The `nodes` list out of the envelope these two verbs now return.
+
+    They used to return a bare list, which left a stale-store drop with nowhere to be
+    reported. The envelope (`nodes`/`total`/`truncated`/`note`) matches every other
+    node-returning verb and carries the disclosure.
+    """
+    return _unwrap(structured)["nodes"]
+
+
+def _note(structured):
+    return _unwrap(structured).get("note")
+
+
 def _unwrap(structured):
     if isinstance(structured, dict) and set(structured.keys()) == {"result"}:
         return structured["result"]
@@ -56,7 +70,7 @@ def test_semantic_search_ranks_and_maps_to_nodes(tmp_path):
         # with it.
         res = asyncio.run(_call(server, "semantic_search",
                                 {"query": "the order workflow in CatalogService", "k": 1}))
-        items = _unwrap(res.structured_content)
+        items = _nodes(res.structured_content)
         assert [n["id"] for n in items] == ["a"]  # nearest to the query vector
         assert items[0]["score"] is not None      # the ranking is readable, not just claimed
     finally:
@@ -87,7 +101,7 @@ def test_semantic_search_returns_nothing_when_no_query_term_is_indexed(tmp_path)
         for tool in ("semantic_search", "hybrid_search"):
             for query in plausible_but_absent:
                 res = asyncio.run(_call(server, tool, {"query": query, "k": 3}))
-                assert _unwrap(res.structured_content) == [], f"{tool}: {query}"
+                assert _nodes(res.structured_content) == [], f"{tool}: {query}"
     finally:
         vs.close()
         store.close()
@@ -102,7 +116,7 @@ def test_semantic_search_reports_the_similarity_it_ranks_by(tmp_path):
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
         res = asyncio.run(_call(server, "semantic_search",
                                 {"query": "CatalogService", "k": 2}))
-        items = _unwrap(res.structured_content)
+        items = _nodes(res.structured_content)
         assert items, "the query names an indexed symbol, so it must return hits"
         assert all(n["score"] is not None for n in items)
         # ranked best-first, and the score has to agree with that order
@@ -121,7 +135,7 @@ def test_semantic_search_empty_query_returns_empty_not_crash(tmp_path):
     try:
         server = build_server(store, embedder=_FakeEmbedder(), vector_store=vs)
         res = asyncio.run(_call(server, "semantic_search", {"query": "   "}))
-        assert _unwrap(res.structured_content) == []
+        assert _nodes(res.structured_content) == []
     finally:
         vs.close()
         store.close()

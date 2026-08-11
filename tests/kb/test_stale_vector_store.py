@@ -93,3 +93,36 @@ def test_the_embed_content_version_contract_covers_ids():
     assert "node ids" in head.lower()
     assert "MUST bump" in head
     assert isinstance(EMBED_CONTENT_VERSION, int)
+
+
+class TestSemanticAndHybridDiscloseStaleness:
+    """These two used to return a BARE LIST, so a dropped hit had nowhere to be reported
+    and the caller saw a shorter, entirely plausible result. They now return the same
+    envelope every other node-returning verb uses, which is what makes the disclosure
+    possible at all."""
+
+    def _call(self, store, vs, tool):
+        srv = build_server(store, embedder=_Emb(), vector_store=vs)
+
+        async def go():
+            async with Client(srv) as c:
+                return await c.call_tool(tool, {"query": "cache retry"})
+        return asyncio.run(go()).structured_content
+
+    @pytest.mark.parametrize("tool", ["semantic_search", "hybrid_search"])
+    def test_a_stale_store_is_disclosed(self, store, tool):
+        res = self._call(store, _Stale(), tool)
+        assert len(res["nodes"]) == 1
+        assert "INCOMPLETE" in res["note"]
+        assert "kb embed" in res["note"]
+
+    @pytest.mark.parametrize("tool", ["semantic_search", "hybrid_search"])
+    def test_a_healthy_store_says_nothing(self, store, tool):
+        res = self._call(store, _Healthy(), tool)
+        assert res["note"] is None
+
+    @pytest.mark.parametrize("tool", ["semantic_search", "hybrid_search"])
+    def test_the_envelope_shape_matches_the_other_verbs(self, store, tool):
+        res = self._call(store, _Healthy(), tool)
+        assert set(res) >= {"nodes", "total", "truncated"}
+        assert res["total"] == len(res["nodes"])

@@ -5674,6 +5674,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`semantic_search` and `hybrid_search` return an envelope instead of a bare list.** BREAKING: both
+  now return `{nodes, total, truncated, note}`, the same shape every other node-returning verb uses.
+
+  The reason is not consistency for its own sake. A vector row is keyed by node id, so a stale
+  embedding store yields hits naming nodes the graph no longer holds. These two dropped those hits
+  silently and had **nowhere to say so**, because a bare list has no field for a note -- the caller
+  got a shorter, entirely plausible answer, and `doctor` reported a healthy row count throughout.
+  They now disclose it: "N vector hit(s) named nodes that are not in the graph and were dropped ...
+  this result is INCOMPLETE. Re-run `kb embed`." A healthy store adds no note, which a control test
+  asserts, because a warning that always fires is the defect rather than the fix.
+
 - **`qualified_name` drops its file prefix for C and C++ external-linkage symbols.** It was stored as
   `path/to/f.cpp::NS.Box`, so a header and its `.cpp` could never match on it -- the other half of the
   same defect the id change addresses. For those symbols the namespace chain *is* the fully qualified

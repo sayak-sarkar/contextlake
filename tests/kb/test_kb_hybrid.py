@@ -84,6 +84,20 @@ def test_hybrid_empty_without_seeds(tmp_path):
 
 # --- MCP tool round-trip ---------------------------------------------------
 
+def _nodes(structured):
+    """The `nodes` list out of the envelope these two verbs now return.
+
+    They used to return a bare list, which left a stale-store drop with nowhere to be
+    reported. The envelope (`nodes`/`total`/`truncated`/`note`) matches every other
+    node-returning verb and carries the disclosure.
+    """
+    return _unwrap(structured)["nodes"]
+
+
+def _note(structured):
+    return _unwrap(structured).get("note")
+
+
 def _unwrap(structured):
     if isinstance(structured, dict) and set(structured.keys()) == {"result"}:
         return structured["result"]
@@ -102,7 +116,7 @@ def test_hybrid_search_tool(tmp_path):
                 return await client.call_tool("hybrid_search", {"query": "order", "k": 3})
 
         res = asyncio.run(go())
-        items = _unwrap(res.structured_content)
+        items = _nodes(res.structured_content)
         assert items[0]["id"] == "seed"
     finally:
         vs.close()
@@ -122,7 +136,7 @@ def test_hybrid_search_tool_empty_query_returns_empty_not_crash(tmp_path):
                 return await client.call_tool("hybrid_search", {"query": "  "})
 
         res = asyncio.run(go())
-        assert _unwrap(res.structured_content) == []
+        assert _nodes(res.structured_content) == []
     finally:
         vs.close()
         store.close()
