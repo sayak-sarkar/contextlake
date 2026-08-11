@@ -30,6 +30,21 @@ from contextlake.kb.visualize import diagrams, styling
 _CONNECTOR_KINDS = {"issue", "page", "design", "mr", "message", "channel"}
 
 
+def _member_symbol_kinds() -> set[str]:
+    """Kinds emitted by `parse._member_symbols`, read off a fixture rather than a list.
+
+    A hand-kept list here would be one more vocabulary to drift; parsing a fixture that
+    exercises every branch keeps it honest."""
+    import tree_sitter as ts
+    src = (b"#define M 1\n"
+           b"typedef int T;\n"
+           b"enum E { A };\n"
+           b"int g = 0;\n"
+           b"class C { int f_; };\n")
+    tree = ts.Parser(parse._language("cpp")).parse(src)
+    return {kind for kind, _, _ in parse._member_symbols(tree, "cpp")}
+
+
 def _produced_kinds() -> set[str]:
     """Every kind some producer in the codebase can write onto a node."""
     return (
@@ -37,6 +52,10 @@ def _produced_kinds() -> set[str]:
         {k for m in parse._DEF_TYPES.values() for k in m.values()}
         # parse.py's own literals: the test-macro re-kind, plus file/module nodes
         | {"test", "file", "module"}
+        # parse.py's member pass (`_member_symbols`), which is a SEPARATE producer from
+        # _DEF_TYPES. Introspecting only _DEF_TYPES made this guard silently pass while
+        # five brand-new kinds went unregistered -- the exact drift it exists to catch.
+        | _member_symbol_kinds()
         # HCL block keywords, introspected, plus the `local.<attr>` special case
         | hcl._DEF_BLOCKS | {"local"}
         | {"table", "view", "procedure"}                 # kb/sql.py DDL regexes

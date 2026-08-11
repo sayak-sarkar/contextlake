@@ -340,6 +340,59 @@ KIND_REGISTRY: dict[str, KindSpec] = {
 
     # --- Data model (SQL DDL). One magenta family, graded: the two real data objects,
     # then the low-signal one.
+    # --- The five symbol kinds C/C++ never emitted (measured at 83,052 named symbols
+    # on one large legacy tree, more than the rest of that graph put together). None is
+    # embeddable YET: the measurement found the dilution risk is REPETITION, not short
+    # names -- only 46.3% of data-member names are unique in that tree and one occurs 516
+    # times. Turning these on interacts with the per-kind embedding budget floors, so it
+    # is a sequenced decision, not a side effect of adding the kinds.
+    "field": KindSpec(
+        color="#8d99ae", glyph=None, group="Symbols",
+        embeddable=False,
+        why_not_embeddable="Data-member names repeat heavily across a codebase (only "
+                           "46.3% unique in the measured tree, one name 516 times), so "
+                           "embedding them dilutes the space without adding recall.",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=True, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    "macro": KindSpec(
+        color="#e07a5f", glyph=None, group="Symbols",
+        embeddable=False,
+        why_not_embeddable="6.4% are include guards, which are build artefacts rather "
+                           "than symbols; the rest are worth revisiting once the guards "
+                           "are filtered.",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    "typedef": KindSpec(
+        color="#81b29a", glyph=None, group="Symbols",
+        embeddable=False,
+        why_not_embeddable="25% are trivial one-line aliases that carry no meaning a "
+                           "search would match on.",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=True,
+        hcl_ref_target=False, sql_ref_target=False),
+    "enum_constant": KindSpec(
+        color="#6d9dc5", glyph=None, group="Symbols",
+        embeddable=False,
+        why_not_embeddable="An enumerator's meaning lives in its enum, which is already "
+                           "embedded; embedding both duplicates the same signal.",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=True, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
+    "global_variable": KindSpec(
+        color="#b08968", glyph=None, group="Symbols",
+        embeddable=False,
+        why_not_embeddable="Kept out with the other new symbol kinds until the budget "
+                           "floors are revisited; see G11.",
+        impact_source=False, impact_precompute=False,
+        classifier=False, class_member=False, er_entity=False,
+        callable_target=False, inheritable_target=False,
+        hcl_ref_target=False, sql_ref_target=False),
     "table": KindSpec(
         color="#b5179e", glyph=None, group="Data model",
         embeddable=True, why_not_embeddable="",

@@ -5672,6 +5672,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Five symbol kinds that were never emitted at all: data members, macros, typedefs, enum constants
+  and file-scope variables.** Measured on a large legacy C/C++ tree, these are 83,052 named symbols --
+  more than the entire rest of that graph. Asking where a constant is defined, or what a class actually
+  holds, had no answer.
+
+  Each is contained by the scope it really sits in: a data member by its class, an enumerator by its
+  enum, a namespace-scoped variable by its namespace. Macros keep the file in their identity even in
+  C/C++, where other symbols drop it, because the preprocessor runs before C++ scope exists and two
+  headers defining the same macro name really are two macros.
+
+  Two traps, both measured rather than guessed, and both handled:
+
+  - **235,010 declarations in that tree are function-local.** Emitting `declaration` without checking
+    for file or namespace scope would have produced 235,010 "globals" instead of 5,965 -- more nodes
+    from that one mistake than the whole intended addition.
+  - **8,970 member-function *declarations* parse as `field_declaration`,** exactly like a data member
+    does. Treating them as fields would have invented 8,970 members that are really methods. The name
+    walk returns nothing when it meets a function declarator, which is what tells them apart --
+    while still capturing pointer, array and reference members, whose names sit further down the
+    same chain.
+
+  None of the five is embeddable yet. The measurement found the dilution risk is repetition rather
+  than short names: only 46.3% of data-member names are unique in that tree and one occurs 516 times.
+  Turning them on interacts with the per-kind embedding budget floors, so it stays a sequenced
+  decision rather than a side effect.
+
 ### Changed
 
 - **`semantic_search` and `hybrid_search` return an envelope instead of a bare list.** BREAKING: both

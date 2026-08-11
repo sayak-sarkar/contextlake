@@ -848,6 +848,9 @@ def parse_source(
     nodes: list[Node] = [file_node]
     edges: list[Edge] = []
 
+    # The same rule the id key uses, hoisted to file level for the member pass: only
+    # C/C++ external-linkage symbols drop the file from their identity.
+    file_scope_default = lang not in ("c", "cpp")
     tree = _parser(lang).parse(source)
     captures = _sorted_captures(ts.QueryCursor(_query(lang)).captures(tree.root_node))
 
@@ -939,6 +942,54 @@ def parse_source(
             attrs=node_attrs,
         ))
         pending.append((def_ts, qualified, line, nid))
+
+    # Members, macros, typedefs, enum constants and file-scope variables. Emitted after
+    # the definition pass so `def_node_to_id` is populated and each one can be contained
+    # by the class or namespace it actually sits in rather than by the file.
+    for m_kind, m_name_node, m_container in _member_symbols(tree, lang):
+        m_name = m_name_node.text.decode("utf-8", "replace")
+        if not m_name:
+            continue
+        m_line = m_name_node.start_point[0] + 1
+        # NOT `_enclosing_defs`: that excludes the name's OWN definition node, which is
+        # right for a class or function name and wrong here. A data member's nearest
+        # def-typed ancestor IS its class -- the scope we want -- so it must be included,
+        # or every member lands on the file and loses its qualifier.
+        m_enclosing = []
+        m_anc = _def_node(m_name_node, def_types)
+        while m_anc is not None:
+            if m_anc.type in def_types:
+                m_enclosing.append(m_anc)
+            m_anc = m_anc.parent
+        m_scope = [n.child_by_field_name("name").text.decode("utf-8", "replace")
+                   for n in reversed(m_enclosing) if n.child_by_field_name("name")]
+        m_qualified = ".".join([*m_scope, m_name])
+        # A macro is not scoped by anything -- the preprocessor runs before C++ scope
+        # exists -- so it keeps the file in its key even in C/C++, where other symbols
+        # drop it. Two headers defining the same macro name really are two macros.
+        m_file_scope = (rel_path if m_kind == "macro" or file_scope_default
+                        else None)
+        m_id = symbol_id(repo_id, m_kind, m_qualified, file_scope=m_file_scope,
+                         name=m_name, lang=lang)
+        if m_id in {n.id for n in nodes}:
+            continue
+        nodes.append(Node(
+            id=m_id, repo=repo_id, kind=m_kind, name=m_name,
+            qualified_name=(f"{m_file_scope}::{m_qualified}" if m_file_scope
+                            else m_qualified),
+            file=rel_path, line_start=m_line, line_end=m_container.end_point[0] + 1,
+            lang=lang,
+        ))
+        # Contained by the nearest enclosing definition (a class for a data member, a
+        # namespace for a file-scope variable), falling back to the file.
+        m_parent = m_enclosing[0] if m_enclosing else None
+        m_parent_id = def_node_to_id.get(m_parent.id, file_id) if m_parent else file_id
+        edges.append(Edge(
+            src=m_parent_id, dst=m_id, relation="contains",
+            confidence=Confidence.EXTRACTED,
+            provenance=Provenance(source_file=rel_path, source_line=m_line,
+                                  verified_at=verified_at),
+        ))
 
     _dedupe_preprocessor_twins(nodes, pending, def_node_to_id)
 
@@ -1188,6 +1239,114 @@ def symbol_id(repo_id: str, kind: str, qualified: str, *, signature: str | None 
     key = "\0".join([repo_id, lang, kind, qualified, signature or "", file_scope or ""])
     digest = hashlib.sha256(key.encode("utf-8", "replace")).hexdigest()[:8]
     return f"{_symbol_slug(kind, qualified, name, enclosing_name)}_{digest}"
+
+
+# Node types that wrap a declarator without changing what is being declared.
+# `int* p`, `int a[4]`, `int& r` and `int x = 0` all still declare ONE name; the name
+# sits at the bottom of a chain of these.
+_DECL_WRAPPERS = frozenset({
+    "init_declarator", "pointer_declarator", "array_declarator",
+    "reference_declarator", "parenthesized_declarator",
+})
+
+# Scopes at which a `declaration` is a genuine file-level variable. Anything else --
+# overwhelmingly a function body -- is a local, and there are 235,010 of those in a
+# single large tree against 5,965 real globals. Counting `declaration` without this
+# check emits 4.5x the intended node count for this kind alone.
+_FILE_SCOPES = frozenset({"translation_unit", "namespace_definition", "linkage_specification"})
+
+
+def _declared_name(node: ts.Node) -> ts.Node | None:
+    """The identifier a declaration declares, or None if it declares no plain name.
+
+    Walks down through wrapper declarators. Returns None on hitting a
+    `function_declarator`, which is how a member FUNCTION declaration is told apart
+    from a data member: `void draw(int);` inside a class body is a `field_declaration`
+    to tree-sitter, exactly like `int width_;` is. Measured on a large legacy tree,
+    8,970 member-function declarations take that shape, and treating them as data
+    members would invent 8,970 fields that are really methods.
+    """
+    cur = node.child_by_field_name("declarator")
+    seen = 0
+    while cur is not None and seen < 8:
+        if cur.type == "function_declarator":
+            return None
+        if cur.type in ("field_identifier", "identifier"):
+            return cur
+        if cur.type in _DECL_WRAPPERS:
+            nxt = cur.child_by_field_name("declarator")
+            if nxt is None:
+                # `reference_declarator` does not expose its child through the
+                # `declarator` field, so fall back to the first named child.
+                nxt = next((c for c in cur.named_children
+                            if c.type in _DECL_WRAPPERS
+                            or c.type in ("field_identifier", "identifier")), None)
+            cur = nxt
+        else:
+            return None
+        seen += 1
+    return None
+
+
+def _is_file_scope(node: ts.Node) -> bool:
+    """Whether a declaration sits at file or namespace scope rather than inside a body."""
+    parent = node.parent
+    while parent is not None:
+        if parent.type in _FILE_SCOPES:
+            return True
+        if parent.type in ("function_definition", "compound_statement",
+                           "for_statement", "while_statement", "if_statement"):
+            return False
+        parent = parent.parent
+    return False
+
+
+def _member_symbols(tree: ts.Tree, lang: str) -> list[tuple[str, ts.Node, ts.Node]]:
+    """`(kind, name_node, container)` for the symbol kinds the def query cannot express.
+
+    These five -- data members, macros, typedefs, enum constants and file-scope
+    variables -- were never emitted at all: measured at 83,052 named symbols on one
+    large legacy C/C++ tree, which is more than the entire rest of that graph.
+
+    They live here rather than in the tree-sitter query because two of them need a
+    decision the query language cannot make: which declarator chain actually declares
+    a name (see `_declared_name`), and whether a declaration is file-scope or a local
+    (see `_is_file_scope`).
+    """
+    if lang not in ("c", "cpp"):
+        return []
+    out: list[tuple[str, ts.Node, ts.Node]] = []
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        t = n.type
+        if t in ("preproc_def", "preproc_function_def"):
+            nm = n.child_by_field_name("name")
+            if nm is not None:
+                out.append(("macro", nm, n))
+        elif t == "type_definition":
+            nm = n.child_by_field_name("declarator")
+            if nm is not None and nm.type == "type_identifier":
+                out.append(("typedef", nm, n))
+        elif t == "alias_declaration":
+            nm = n.child_by_field_name("name")
+            if nm is not None:
+                out.append(("typedef", nm, n))
+        elif t == "enumerator":
+            nm = n.child_by_field_name("name")
+            if nm is not None:
+                out.append(("enum_constant", nm, n))
+        elif t == "field_declaration":
+            nm = _declared_name(n)
+            if nm is not None:
+                out.append(("field", nm, n))
+        elif t == "declaration":
+            if _is_file_scope(n):
+                nm = _declared_name(n)
+                if nm is not None:
+                    out.append(("global_variable", nm, n))
+        stack.extend(n.children)
+    return out
 
 
 def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
