@@ -509,6 +509,10 @@ def repo_brief(
     return {
         "repo": repo_id,
         "head": shard.head_commit,
+        # From the shard, which is the source of truth for what built this graph --
+        # not from the running PARSER_VERSION, which would stamp a page with the
+        # version that rendered it rather than the one that extracted its facts.
+        "parser_version": shard.parser_version,
         "node_count": core["node_count"],
         "edge_count": core["edge_count"],
         "grounded_count": core["grounded_count"],
@@ -756,10 +760,18 @@ def provenance_footer(brief: dict, verified_at: date | None = None, *,
                     "every statement as unverified.")
     scope = (f"the `{path_prefix}` module of `{brief['repo']}`" if path_prefix
             else f"`{brief['repo']}`")
+    # The parser version goes AFTER the backticked commit, never inside it: four
+    # separate readers extract the commit with `at commit \`([^\`]+)\`` (the MCP server,
+    # the HTML renderer, the dashboard mutations and the wiki command's own skip), and
+    # putting anything inside those backticks would silently change what all four read.
+    # Recorded at all because a page can be commit-fresh and graph-stale: the parser
+    # changes what it extracts from an unchanged commit.
+    parser = brief.get("parser_version")
     return (
         "\n\n---\n"
         f"*Generated from the knowledge graph of {scope} at commit "
-        f"`{brief['head']}` on {verified_at or date.today()}."
+        f"`{brief['head']}`" + (f" (parser {parser})" if parser else "")
+        + f" on {verified_at or date.today()}."
         + (f" Sources: {cites}." if cites else "")
         + coverage
         + subsystems

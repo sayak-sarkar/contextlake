@@ -323,6 +323,32 @@ def set_embedded_head(store, repo_id: str, head: str | None) -> None:
     store.conn.commit()
 
 
+def get_embedded_parser_version(store, repo_id: str) -> str | None:
+    """Which parser built the graph a repo's vectors were embedded from.
+
+    None means the vectors predate this stamp, which must be treated as stale rather
+    than as a match: a commit can sit still while the parser changes what it extracts
+    from it, and the vectors are then describing symbols the graph no longer contains.
+    """
+    row = store.conn.execute(
+        "SELECT value FROM vec_meta WHERE key=?", (f"parser:{repo_id}",)
+    ).fetchone()
+    return row[0] if row and row[0] else None
+
+
+def set_embedded_parser_version(store, repo_id: str, parser_version: str | None) -> None:
+    """Record which parser built the graph these vectors came from.
+
+    Stored beside the head rather than folded into it, so neither value has to be
+    parsed back out of a composite string and an existing head stamp keeps its meaning.
+    """
+    store.conn.execute(
+        "INSERT OR REPLACE INTO vec_meta(key, value) VALUES(?, ?)",
+        (f"parser:{repo_id}", parser_version or ""),
+    )
+    store.conn.commit()
+
+
 def get_content_version(store) -> int:
     """The node->text mapping version the store's vectors were built with.
 

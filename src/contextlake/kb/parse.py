@@ -197,7 +197,18 @@ def _has_generated_header(source: bytes) -> bool:
 # "3" is language-aware name resolution (see _LANG_FAMILY): a call/inherits
 # reference no longer resolves to a same-named definition in an unrelated
 # language, and AMBIGUOUS edges record how many candidates they were one of.
-PARSER_VERSION = "3"
+# "4" is the largest output change this stamp has ever covered, and every part of
+# it is invisible to a commit-keyed check, which is why the bump matters more here
+# than in any previous one:
+#   - node ids became file- and line-independent, so EVERY id changed;
+#   - config keys, SQL and XML gained file nodes and `contains` edges;
+#   - five symbol kinds are emitted that never existed before (data members,
+#     macros, typedefs, enum constants, file-scope variables);
+#   - `calls` edges are stored per call site rather than per caller/callee pair;
+#   - C++ internal linkage is honoured in both identity and resolution.
+# A user upgrading without re-indexing keeps a graph whose ids no longer match
+# anything this build produces, and nothing about their commit would say so.
+PARSER_VERSION = "4"
 
 # tree-sitter node types that introduce a named definition, per language.
 _DEF_TYPES = {

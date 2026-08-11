@@ -37,6 +37,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A parser bump now invalidates the artefacts built on top of the graph, not just the graph.**
+  `PARSER_VERSION` moves to `4`, and this release is the reason the gap mattered: node ids are
+  now file- and line-independent, so **every id changed**.
+
+  `kb index` has always been parser-aware. Embeddings, the wiki page and cluster pages were keyed
+  on the repo's commit alone, so a bump refreshed the graph while all three went on reporting
+  themselves fresh. The vectors are the sharpest case, because a vector row is keyed by node id:
+  stale rows name nodes the graph no longer holds, those hits are dropped at query time, and the
+  caller gets a shorter, entirely plausible answer while `doctor` reports a healthy row count.
+
+  Each now records the parser that built what it describes, and asks two questions instead of
+  one. A wiki page carries its stamp in the provenance footer, placed after the backticked commit
+  so the four readers that parse `at commit \`…\`` are undisturbed. An artefact with no stamp
+  regenerates once and then settles -- except where the shard itself has no version, which
+  nothing can conclude from, so that case keeps asking the commit-only question rather than
+  rebuilding forever.
+
+  **Upgrading from any earlier version requires a re-index** (`contextlake kb index --force`,
+  or simply `kb index`, which now notices). Without it, ids in your store match nothing this
+  build produces, and no commit-based check would have told you.
+
 - **Anonymous-namespace and `static` symbols no longer merge across files, and a caller can no
   longer reach another translation unit's private symbol.** Both halves of internal linkage,
   which had to ship together.

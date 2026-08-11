@@ -82,9 +82,12 @@ def cmd_embed(args) -> int:
             from ..embeddings.store import (
                 get_content_version,
                 get_embedded_head,
+                get_embedded_parser_version,
                 set_content_version,
                 set_embedded_head,
+                set_embedded_parser_version,
             )
+            from ..state import indexed_parser_version
             force = getattr(args, "force", False)
             incremental = limit is None and not force
             # A node->text mapping change makes every stored vector stale regardless
@@ -127,7 +130,17 @@ def cmd_embed(args) -> int:
                 for repo_id, _ in pass_targets:
                     repo = store.get_repo(repo_id)
                     head = repo.head_commit if repo else None
-                    if incremental and head and get_embedded_head(vs, repo_id) == head:
+                    # TWO questions, not one. An unchanged commit means the repo's CODE
+                    # is unchanged; it does NOT mean the graph is, because a parser bump
+                    # changes what is extracted from that same commit. Skipping on the
+                    # commit alone left a repo embedded from a graph that no longer
+                    # exists -- and the vectors are keyed by node id, so the stale rows
+                    # then name nodes the graph does not hold and get dropped at query
+                    # time, returning a shorter, entirely plausible answer.
+                    parser = indexed_parser_version(store, store_dir, repo_id)
+                    if (incremental and head
+                            and get_embedded_head(vs, repo_id) == head
+                            and get_embedded_parser_version(vs, repo_id) == parser):
                         skipped += 1
                         progress.advance(repo_id)
                         continue
@@ -141,6 +154,10 @@ def cmd_embed(args) -> int:
                         continue
                     if limit is None:
                         set_embedded_head(vs, repo_id, head)
+                        # Stamped together with the head, and only on a complete pass:
+                        # a partial (`--limit`) run must not claim the repo is fully
+                        # embedded at either marker.
+                        set_embedded_parser_version(vs, repo_id, parser)
                     total += n
                     if n:
                         log(f"  {repo_id}: embedded {n} node(s)", inline=True)

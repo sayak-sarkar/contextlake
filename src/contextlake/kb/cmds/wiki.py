@@ -585,7 +585,19 @@ def cmd_wiki(args) -> int:
             if not force and wiki_file.exists() and head:
                 prev = wiki_file.read_text(encoding="utf-8", errors="replace")
                 m = re.search(r"at commit `([^`]+)`", prev)
-                if m and m.group(1) == head:
+                pm = re.search(r"at commit `[^`]+` \(parser ([^)]+)\)", prev)
+                # Three cases, and the third is the one that bites:
+                #   page stamped, matches the shard   -> genuinely fresh, skip
+                #   page stamped, differs             -> parser moved, regenerate
+                #   page NOT stamped                  -> regenerate ONCE, after which
+                #     it carries a stamp and settles.
+                # But when the SHARD carries no version either, nothing can be
+                # established, and demanding a match would regenerate that page on
+                # every single run forever rather than once. So an unstamped shard
+                # falls back to the commit-only question it asked before.
+                want = shard.parser_version
+                parser_matches = want is None or (pm is not None and pm.group(1) == want)
+                if m and m.group(1) == head and parser_matches:
                     # An unchanged commit means the page's CONTENT inputs are
                     # unchanged -- it does NOT mean the page was generated with
                     # the generation inputs in force today. A store wiki'd

@@ -101,11 +101,16 @@ def namespace_brief(store, store_dir, namespace: str, *, max_repos: int = 40,
     internal, boundary = split_edges(edges, member_set)
     # Freshness fingerprint covers ALL members (the current indexed head from the
     # repos table), not just the shown roles, so a change in member 41+ is noticed.
+    # (head, parser) per member, not head alone: a parser bump changes what the graph
+    # holds at an unchanged commit, so a commit-only fingerprint reports a cluster page
+    # built from a graph that no longer exists as fresh. Read from the repos row's
+    # stamp, so this costs one indexed lookup per member and never imports the parser.
     heads = {}
     for r in mem:
         repo = store.get_repo(r)
         if repo is not None and repo.head_commit:
             heads[r] = repo.head_commit
+    parsers = {r: store.get_repo_parser_version(r) for r in heads}
     return {
         "namespace": namespace.rstrip("/"),
         "repos": roles,
@@ -113,6 +118,7 @@ def namespace_brief(store, store_dir, namespace: str, *, max_repos: int = 40,
         "internal_edges": internal,
         "boundary_edges": boundary,
         "heads": heads,
+        "parsers": parsers,
         "truncated": truncated,
     }
 
@@ -125,14 +131,20 @@ def cluster_page_name(namespace: str) -> str:
 
 
 def cluster_fingerprint(brief: dict) -> str:
-    """Stable short hash of the member (repo, head) pairs, for freshness skip.
+    """Stable short hash of the member (repo, head, parser) triples, for freshness skip.
+
+    The parser version is part of the key because a cluster page can go stale without a
+    single member commit moving: the parser changes what it extracts from the same code,
+    so the page then describes a graph that no longer exists.
 
     ``usedforsecurity=False`` because this is a cache key, not a signature: it answers
     "have the member commits moved" and nothing trusts it. Without the flag a
     FIPS-enabled host refuses SHA-1 outright and raises, so `kb wiki --namespaces`
     crashes there on a hash whose weakness is irrelevant to what it is used for.
     """
-    pairs = sorted((r, h) for r, h in (brief.get("heads") or {}).items())
+    parsers = brief.get("parsers") or {}
+    pairs = sorted((r, h, parsers.get(r))
+                   for r, h in (brief.get("heads") or {}).items())
     return hashlib.sha1(repr(pairs).encode("utf-8"),
                         usedforsecurity=False).hexdigest()[:12]
 
