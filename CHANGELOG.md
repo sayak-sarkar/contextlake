@@ -5,7 +5,23 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [7.0.0] - 2026-08-12
+
+**A correct graph, and one re-index to get it.** This release fixes what the graph *says*, so
+every id changes and `PARSER_VERSION` moves to `4`. Run `contextlake kb index` once after
+upgrading; it now notices on its own, and so do the wiki, the vectors and the cluster pages,
+which previously reported themselves fresh across a parser change.
+
+The headline corrections: node ids no longer contain a file path or a line number, so a header
+and its `.cpp` finally describe one symbol; C++ internal linkage is honoured, so two files'
+`static` or anonymous-namespace symbols stop merging into one; `calls` edges are stored per call
+site rather than per pair; and five kinds of symbol that were never emitted at all -- data
+members, macros, typedefs, enum constants and file-scope variables -- now exist. On a large
+legacy C/C++ tree that is 62,066 nodes to 131,603.
+
+Two breaking changes outside the graph: the built-in wiki LLM moved to `openvino-genai` (no
+compiler, no wheel index, and CVE-2025-69872 closes by removal), and `--repos` patterns are
+anchored, so a bare name no longer selects every repo that merely contains it.
 
 ### Added
 
@@ -34,6 +50,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than short names: only 46.3% of data-member names are unique in that tree and one occurs 516 times.
   Turning them on interacts with the per-kind embedding budget floors, so it stays a sequenced
   decision rather than a side effect.
+
+
+- **An index run now says how many call references it could not resolve.** A reference naming a
+  symbol defined in more than six places is deliberately left unresolved rather than pointing at
+  six guesses, but until now nothing said so above debug level, and a caller missing for that
+  reason looks exactly like a caller that does not exist.
+
+  The cap itself stays, and that is a measured decision rather than an unexamined default. On a
+  large legacy tree 21.6% of resolvable call references sit above it, and the distribution has no
+  knee: admitting them all costs about 3.6x the `calls` edges for 21.6% more references, because
+  an ambiguous reference emits one edge per candidate. Raising the cap to 8 buys 3.0% more
+  references for 17.4% more edges; raising it to 12 buys 10% for 85%. The line is silent when the
+  count is zero, so it never becomes boilerplate.
+
+
+- **Three more verbs now cite the edge they travelled.** A provenance audit of every answering verb
+  found three that discarded it. The worst was `find_dependents`, whose own response text tells the
+  caller "INFERRED from manifests, verify against the cited file" and then did not cite the file,
+  although the `depends_on` edge's provenance *is* the manifest and its line. The subclasses walk
+  dropped where the inheritance is declared. `shortest_path` asserted a route while citing none of the
+  adjacencies that make it a route, so a reader had to grep every hop by hand to check it was real.
+
+  All three now carry `edge_file` and `edge_line`. For a path, each hop cites the edge that makes it
+  adjacent and the seed node carries nothing, because it was not reached by an edge and inventing
+  provenance for it would be worse than leaving it empty.
+
+  These are a **separate pair** from the `call_file`/`call_line` added in 6.7.0, deliberately. A
+  `depends_on` edge's provenance is a manifest declaration and an `inherits` edge's is a base-class
+  mention; delivering either under a field named `call_line` would be a plausible-looking lie, and
+  this project's defect history is made of those. Each verb populates only the pair whose name
+  describes its relation, so no result carries both. `call_file`/`call_line` are unchanged, so nothing
+  built against 6.7.0 breaks.
+
+  Also recorded in that audit and deliberately NOT changed: `blast_radius` (a hit several hops out has
+  no single edge to cite, so the current output is coarse rather than wrong) and the repo-level flow
+  verbs (their edges are aggregates rolled up from many, and one line is not a property of an
+  aggregate).
+
+- **CUDA files are indexed.** `.cu` and `.cuh` were absent from the extension table, so a CUDA source
+  file contributed **zero** nodes. Measured on a large legacy C++ tree: 2 files, 8,793 lines, nothing
+  in the graph. They now parse through the C++ grammar, which CUDA is a superset of, and yield 135
+  nodes and 141 edges from those same two files.
+
+  Stated plainly because a partial extraction must not be mistaken for a complete one: the host-side
+  launch `kernel<<<grid, block>>>(...)` is not C++ syntax and lands in a local ERROR region, so a
+  kernel *launch* is missed as a call while an ordinary call in the same file resolves normally.
+  tree-sitter degrades locally rather than failing the file, so everything else still extracts.
+
+  This one had a measurable cost while it was open: asked "who calls this", a comparator that reads
+  `.cu` returned genuine callers that contextlake could not see.
+
+- **XML configuration is indexed.** `.xml` was absent from the extension table, so a repository's
+  configuration contributed **zero** nodes and "where is this setting defined" had no answer in the
+  graph. Each identified setting is now a `config_key` node carrying its value, its element path as
+  `qualified_name`, and a real file and line.
+
+  Measured on a large legacy C++ tree: 181 `.xml` files that produced nothing now produce **12,991
+  settings**. The element path is what makes them distinguishable, so the same key name under two
+  sections stays two settings rather than colliding.
+
+  Two deliberate choices, both about not lying and not leaking:
+
+  - **A line scanner, not a stdlib XML parser.** `xml.etree` and `xml.dom` expand entities, and
+    contextlake parses whatever a mirror happened to clone, so a hostile file would be an indexer
+    hang. Nothing is expanded here; a `&b;` stays four characters. It also means malformed XML
+    degrades to a partial extraction instead of raising and yielding nothing for the whole file,
+    which matters on hand-edited trees, and it is the only way to get real line numbers at all.
+  - **Credential-shaped values are withheld, and the node still says so.** A value is dropped when
+    the setting's name looks like a secret, when the value contains an embedded `password=`-style
+    assignment, or when it has the shape of a token or key blob. The node remains with
+    `value_redacted`, so "a password is configured here, at this line" is still answerable while the
+    password itself never enters a store that gets written to disk and served over MCP.
+
+  Data-shaped XML does not flood the graph: a lookup file of thousands of identical rows collapses to
+  its distinct element paths, so it contributes a schema and where to find it rather than a copy of
+  the data. Per-file output is capped, and files over `max_file_bytes` were already skipped.
+
+  Indexing that tree costs 42.8s against a 39.4s baseline, so **8.6% for the whole config surface**.
+  The first working version cost 107% instead: line numbers were counted from the start of the file
+  once per match, which is quadratic on a data-shaped file with thousands of leaf elements. Counting
+  forward from the previous match is linear and produces byte-identical output. This is the third
+  time this exact quadratic-scan shape has been found in this package, after `pom.xml` parsing and
+  `parse_hcl`, so it is worth naming as a pattern rather than a one-off: any per-match `count` or
+  `index` from position zero over the same buffer is the bug.
 
 ### Changed
 
@@ -88,73 +188,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   means a genuinely new advisory. Verified against the resolved closure, not the advisory text.
   See `SECURITY.md`.
 
-### Added
-
-- **An index run now says how many call references it could not resolve.** A reference naming a
-  symbol defined in more than six places is deliberately left unresolved rather than pointing at
-  six guesses, but until now nothing said so above debug level, and a caller missing for that
-  reason looks exactly like a caller that does not exist.
-
-  The cap itself stays, and that is a measured decision rather than an unexamined default. On a
-  large legacy tree 21.6% of resolvable call references sit above it, and the distribution has no
-  knee: admitting them all costs about 3.6x the `calls` edges for 21.6% more references, because
-  an ambiguous reference emits one edge per candidate. Raising the cap to 8 buys 3.0% more
-  references for 17.4% more edges; raising it to 12 buys 10% for 85%. The line is silent when the
-  count is zero, so it never becomes boilerplate.
-
-### Fixed
-
-- **A parser bump now invalidates the artefacts built on top of the graph, not just the graph.**
-  `PARSER_VERSION` moves to `4`, and this release is the reason the gap mattered: node ids are
-  now file- and line-independent, so **every id changed**.
-
-  `kb index` has always been parser-aware. Embeddings, the wiki page and cluster pages were keyed
-  on the repo's commit alone, so a bump refreshed the graph while all three went on reporting
-  themselves fresh. The vectors are the sharpest case, because a vector row is keyed by node id:
-  stale rows name nodes the graph no longer holds, those hits are dropped at query time, and the
-  caller gets a shorter, entirely plausible answer while `doctor` reports a healthy row count.
-
-  Each now records the parser that built what it describes, and asks two questions instead of
-  one. A wiki page carries its stamp in the provenance footer, placed after the backticked commit
-  so the four readers that parse `at commit \`…\`` are undisturbed. An artefact with no stamp
-  regenerates once and then settles -- except where the shard itself has no version, which
-  nothing can conclude from, so that case keeps asking the commit-only question rather than
-  rebuilding forever.
-
-  **Upgrading from any earlier version requires a re-index** (`contextlake kb index --force`,
-  or simply `kb index`, which now notices). Without it, ids in your store match nothing this
-  build produces, and no commit-based check would have told you.
-
-- **Anonymous-namespace and `static` symbols no longer merge across files, and a caller can no
-  longer reach another translation unit's private symbol.** Both halves of internal linkage,
-  which had to ship together.
-
-  Two files each writing `namespace { int tally(int); }` produced **one** node. The second
-  file's definition simply vanished, its callers pointed at the first file's function, and a
-  struct declared the same way took its data members down with it -- a member of the losing copy
-  disappeared entirely. `static` free functions already kept their file, but anonymous-namespace
-  symbols did not, and the file-scope variable path never checked linkage at all.
-
-  Resolution now honours it too. An internal-linkage symbol belongs to one translation unit, so
-  a reference from a different file cannot mean it. This is a *preference*, not a requirement:
-  where the only candidate is defined in a header (measured at roughly one in ten on a large
-  legacy tree, since headers legitimately carry `static` definitions into their includers), the
-  cross-file candidate is kept rather than dropped. Losing a real caller is the worse error.
-
-  Fixing identity alone would have been worse than fixing neither: it splits the symbol and then
-  offers both copies to every caller as ambiguous candidates.
-
-  A second-order effect worth knowing, because it moves numbers in the opposite direction to the
-  obvious one: a reference whose candidate set exceeds the ambiguity cap is discarded entirely,
-  so removing unreachable candidates pushes some sets back under the cap. On a large legacy tree
-  461 references that previously produced **no edge at all** now resolve, and total `calls` edges
-  rose even though 33,568 impossible candidates were rejected.
-
-  Also corrected: `static` inside a class declares a member with **external** linkage, and was
-  being treated as internal. That kept a class's header declaration from matching its out-of-line
-  definition -- the same header/source split fixed elsewhere in this release.
-
-### Changed
 
 - **`calls` edges are stored once per call site, not once per caller/callee pair.** BREAKING for
   anyone counting edge rows. A function invoked three times from the same caller was one edge citing
@@ -257,12 +290,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A parser bump now invalidates the artefacts built on top of the graph, not just the graph.**
+  `PARSER_VERSION` moves to `4`, and this release is the reason the gap mattered: node ids are
+  now file- and line-independent, so **every id changed**.
+
+  `kb index` has always been parser-aware. Embeddings, the wiki page and cluster pages were keyed
+  on the repo's commit alone, so a bump refreshed the graph while all three went on reporting
+  themselves fresh. The vectors are the sharpest case, because a vector row is keyed by node id:
+  stale rows name nodes the graph no longer holds, those hits are dropped at query time, and the
+  caller gets a shorter, entirely plausible answer while `doctor` reports a healthy row count.
+
+  Each now records the parser that built what it describes, and asks two questions instead of
+  one. A wiki page carries its stamp in the provenance footer, placed after the backticked commit
+  so the four readers that parse `at commit \`…\`` are undisturbed. An artefact with no stamp
+  regenerates once and then settles -- except where the shard itself has no version, which
+  nothing can conclude from, so that case keeps asking the commit-only question rather than
+  rebuilding forever.
+
+  **Upgrading from any earlier version requires a re-index** (`contextlake kb index --force`,
+  or simply `kb index`, which now notices). Without it, ids in your store match nothing this
+  build produces, and no commit-based check would have told you.
+
+- **Anonymous-namespace and `static` symbols no longer merge across files, and a caller can no
+  longer reach another translation unit's private symbol.** Both halves of internal linkage,
+  which had to ship together.
+
+  Two files each writing `namespace { int tally(int); }` produced **one** node. The second
+  file's definition simply vanished, its callers pointed at the first file's function, and a
+  struct declared the same way took its data members down with it -- a member of the losing copy
+  disappeared entirely. `static` free functions already kept their file, but anonymous-namespace
+  symbols did not, and the file-scope variable path never checked linkage at all.
+
+  Resolution now honours it too. An internal-linkage symbol belongs to one translation unit, so
+  a reference from a different file cannot mean it. This is a *preference*, not a requirement:
+  where the only candidate is defined in a header (measured at roughly one in ten on a large
+  legacy tree, since headers legitimately carry `static` definitions into their includers), the
+  cross-file candidate is kept rather than dropped. Losing a real caller is the worse error.
+
+  Fixing identity alone would have been worse than fixing neither: it splits the symbol and then
+  offers both copies to every caller as ambiguous candidates.
+
+  A second-order effect worth knowing, because it moves numbers in the opposite direction to the
+  obvious one: a reference whose candidate set exceeds the ambiguity cap is discarded entirely,
+  so removing unreachable candidates pushes some sets back under the cap. On a large legacy tree
+  461 references that previously produced **no edge at all** now resolve, and total `calls` edges
+  rose even though 33,568 impossible candidates were rejected.
+
+  Also corrected: `static` inside a class declares a member with **external** linkage, and was
+  being treated as internal. That kept a class's header declaration from matching its out-of-line
+  definition -- the same header/source split fixed elsewhere in this release.
+
+
 - **C and C++ nodes never carried a signature.** `_doc_sig` looked for the parameter list as a field on
   the definition node, and in C/C++ it hangs off the declarator instead, so every C/C++ node reported
   `signature: None` -- in the UI, the wiki and `get_repo_brief` alike. This function's own docstring
   admitted it by listing only py/js/ts/c#. It now walks into the declarator.
 
-### Fixed
 
 - **A stale embedding store answered silently, and `ask` vouched for it.** A vector row is keyed by
   node id, so anything that changes how ids are built leaves every stored key pointing at a node the
@@ -286,7 +369,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are built must bump it**, since it is the only signal that reaches `kb embed`'s incremental path and
   re-embedding is the only repair.
 
-### Fixed
 
 - **`kb.toml`'s `languages` key did nothing.** It was validated as a known key, shown in the dashboard
   settings view, and documented as a filter -- and it was never passed to the parser, so every install
@@ -303,7 +385,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the alternative is a silently empty graph. The old three-language constant is gone, with a test
   guarding against its return.
 
-### Fixed
 
 - **Registering a new kind for the dashboard made its icon worse, not better.** `kindIcon` resolves to
   `KIND_GLYPHS[kind] ? kind : "file"`, so adding a kind to that table is precisely what *disables* the
@@ -315,45 +396,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind can never again be registered in one place and missing from the other. The test was verified to
   fail when a symbol is removed, rather than merely passing today.
 
-### Added
-
-- **Three more verbs now cite the edge they travelled.** A provenance audit of every answering verb
-  found three that discarded it. The worst was `find_dependents`, whose own response text tells the
-  caller "INFERRED from manifests, verify against the cited file" and then did not cite the file,
-  although the `depends_on` edge's provenance *is* the manifest and its line. The subclasses walk
-  dropped where the inheritance is declared. `shortest_path` asserted a route while citing none of the
-  adjacencies that make it a route, so a reader had to grep every hop by hand to check it was real.
-
-  All three now carry `edge_file` and `edge_line`. For a path, each hop cites the edge that makes it
-  adjacent and the seed node carries nothing, because it was not reached by an edge and inventing
-  provenance for it would be worse than leaving it empty.
-
-  These are a **separate pair** from the `call_file`/`call_line` added in 6.7.0, deliberately. A
-  `depends_on` edge's provenance is a manifest declaration and an `inherits` edge's is a base-class
-  mention; delivering either under a field named `call_line` would be a plausible-looking lie, and
-  this project's defect history is made of those. Each verb populates only the pair whose name
-  describes its relation, so no result carries both. `call_file`/`call_line` are unchanged, so nothing
-  built against 6.7.0 breaks.
-
-  Also recorded in that audit and deliberately NOT changed: `blast_radius` (a hit several hops out has
-  no single edge to cite, so the current output is coarse rather than wrong) and the repo-level flow
-  verbs (their edges are aggregates rolled up from many, and one line is not a property of an
-  aggregate).
-
-- **CUDA files are indexed.** `.cu` and `.cuh` were absent from the extension table, so a CUDA source
-  file contributed **zero** nodes. Measured on a large legacy C++ tree: 2 files, 8,793 lines, nothing
-  in the graph. They now parse through the C++ grammar, which CUDA is a superset of, and yield 135
-  nodes and 141 edges from those same two files.
-
-  Stated plainly because a partial extraction must not be mistaken for a complete one: the host-side
-  launch `kernel<<<grid, block>>>(...)` is not C++ syntax and lands in a local ERROR region, so a
-  kernel *launch* is missed as a call while an ordinary call in the same file resolves normally.
-  tree-sitter degrades locally rather than failing the file, so everything else still extracts.
-
-  This one had a measurable cost while it was open: asked "who calls this", a comparator that reads
-  `.cu` returned genuine callers that contextlake could not see.
-
-### Fixed
 
 - **An out-of-line method could be attached to a class its qualifier excludes.** Resolution keyed on
   the qualifier's LAST segment and gave up whenever that bare name matched more than one class. So
@@ -412,42 +454,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `test` is registered in the diagram colour map and the dashboard glyph vocabulary, so it does not
   render as a file icon or drop out of the kind filter.
 
-### Added
-- **XML configuration is indexed.** `.xml` was absent from the extension table, so a repository's
-  configuration contributed **zero** nodes and "where is this setting defined" had no answer in the
-  graph. Each identified setting is now a `config_key` node carrying its value, its element path as
-  `qualified_name`, and a real file and line.
-
-  Measured on a large legacy C++ tree: 181 `.xml` files that produced nothing now produce **12,991
-  settings**. The element path is what makes them distinguishable, so the same key name under two
-  sections stays two settings rather than colliding.
-
-  Two deliberate choices, both about not lying and not leaking:
-
-  - **A line scanner, not a stdlib XML parser.** `xml.etree` and `xml.dom` expand entities, and
-    contextlake parses whatever a mirror happened to clone, so a hostile file would be an indexer
-    hang. Nothing is expanded here; a `&b;` stays four characters. It also means malformed XML
-    degrades to a partial extraction instead of raising and yielding nothing for the whole file,
-    which matters on hand-edited trees, and it is the only way to get real line numbers at all.
-  - **Credential-shaped values are withheld, and the node still says so.** A value is dropped when
-    the setting's name looks like a secret, when the value contains an embedded `password=`-style
-    assignment, or when it has the shape of a token or key blob. The node remains with
-    `value_redacted`, so "a password is configured here, at this line" is still answerable while the
-    password itself never enters a store that gets written to disk and served over MCP.
-
-  Data-shaped XML does not flood the graph: a lookup file of thousands of identical rows collapses to
-  its distinct element paths, so it contributes a schema and where to find it rather than a copy of
-  the data. Per-file output is capped, and files over `max_file_bytes` were already skipped.
-
-  Indexing that tree costs 42.8s against a 39.4s baseline, so **8.6% for the whole config surface**.
-  The first working version cost 107% instead: line numbers were counted from the start of the file
-  once per match, which is quadratic on a data-shaped file with thousands of leaf elements. Counting
-  forward from the previous match is linear and produces byte-identical output. This is the third
-  time this exact quadratic-scan shape has been found in this package, after `pom.xml` parsing and
-  `parse_hcl`, so it is worth naming as a pattern rather than a one-off: any per-match `count` or
-  `index` from position zero over the same buffer is the bug.
-
-### Fixed
 - **Config, SQL and ADR nodes were islands, and their files were missing from the graph entirely.**
   The code path builds a `file` node and parents every definition to it. The bespoke extractors
   never did, so their output had no way in: measured on a large legacy C++ tree, **12,991 of 12,991**
