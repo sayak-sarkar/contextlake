@@ -210,6 +210,12 @@ def _readme_excerpt(store, repo_id: str, *, max_chars: int = 2000) -> str | None
     return None
 
 
+# Share of a ranked list the per-kind floors may claim between them. Two, matching
+# `visualize/payload.py`'s constant of the same name and for the same reason: a floor
+# that can grow without bound stops being a floor and becomes the ranking.
+_KIND_FLOOR_SHARE = 2
+
+
 def _ranked_with_kind_floor(
     candidates: list[tuple[str, int]], by_id: dict, cap: int,
 ) -> list[str]:
@@ -235,6 +241,20 @@ def _ranked_with_kind_floor(
     stay eligible by ordinary degree ranking below, just not guaranteed.
     Narrow on purpose: other file-less kinds (``package``, ``endpoint``,
     ``topic``) are real, nameable things and keep their floor slot.
+
+    **The floors are bounded, and that bound is the whole point of this function's
+    second revision.** They used to take one slot per kind with no ceiling, which was
+    fine while a repo held a handful of kinds and became the dominant behaviour once
+    it held many. Measured after the five C/C++ symbol kinds started being emitted:
+    on a 12-kind repository with ``cap`` 15, **11 of 15 rows** were per-kind slots and
+    only 4 came from degree ranking; constructed at 17 kinds, **14 of 15**, so the
+    ranking these lists exist to present had effectively stopped running.
+
+    So floors may claim at most ``cap // _KIND_FLOOR_SHARE`` of the list, and they are
+    spent only on kinds the honest degree ranking left out entirely -- a kind already
+    represented in the top ``cap`` needs no slot. The same bounded-share rule
+    ``visualize/payload.py`` has always used; this is that precedent applied here,
+    not a new idea.
     """
     by_kind: dict[str, list[str]] = {}
     order: list[str] = []
@@ -245,13 +265,22 @@ def _ranked_with_kind_floor(
         if node.kind != "module" or node.file:
             by_kind.setdefault(node.kind, []).append(nid)
         order.append(nid)
-    floor_ids = [ids[0] for ids in by_kind.values()][:cap]
-    floor_set = set(floor_ids)
-    remaining_cap = max(0, cap - len(floor_ids))
-    rest = [nid for nid in order if nid not in floor_set][:remaining_cap]
+
+    # The honest answer first: the top `cap` purely by the count the caller ranked on.
+    head = order[:cap]
+    represented = {by_id[nid].kind for nid in head if nid in by_id}
+
+    # Then, bounded, the kinds that answer left out. Reserving a slot for a kind that
+    # already made the cut buys nothing and costs a real row.
+    missing = [ids[0] for kind, ids in by_kind.items() if kind not in represented]
+    budget = max(1, cap // _KIND_FLOOR_SHARE) if cap else 0
+    floor_ids = missing[:budget]
+
+    # Evict from the tail, which is the lowest-ranked end of the head by construction.
+    keep = head[:max(0, cap - len(floor_ids))]
     seen: set[str] = set()
     out: list[str] = []
-    for nid in floor_ids + rest:
+    for nid in keep + floor_ids:
         if nid not in seen:
             seen.add(nid)
             out.append(nid)

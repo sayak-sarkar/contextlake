@@ -2190,3 +2190,74 @@ def test_cmd_wiki_does_not_prune_when_the_index_reports_no_modules_at_all(tmp_pa
             assert store.get_node(f"@wiki:fed::mod{m}:0") is not None
     finally:
         store.close()
+
+
+# --- per-kind floor bounds (G11) --------------------------------------------
+
+def _floor_fixture(n_kinds: int, n_hot: int = 30):
+    """`n_kinds` low-degree kinds plus `n_hot` genuinely high-degree functions."""
+    from contextlake.kb.model import Node
+
+    kinds = ["function", "method", "class", "struct", "field", "macro", "typedef",
+             "enum_constant", "global_variable", "file", "config_key", "table",
+             "package", "endpoint", "resource", "state", "topic"][:n_kinds]
+    by_id, cands = {}, []
+    for k in kinds:
+        nid = f"{k}_one"
+        by_id[nid] = Node(id=nid, repo="r", kind=k, name=nid, file="f.cpp")
+        cands.append((nid, 5))
+    for i in range(n_hot):
+        nid = f"hot{i}"
+        by_id[nid] = Node(id=nid, repo="r", kind="function", name=nid, file="f.cpp")
+        cands.append((nid, 1000 - i))
+    cands.sort(key=lambda c: -c[1])
+    return cands, by_id
+
+
+def test_kind_floors_cannot_claim_the_whole_list():
+    """The G11 defect: floors took one slot per kind with no ceiling, so once a repo
+    held as many kinds as the cap, the degree ranking these lists exist to present
+    stopped running. Measured before the fix at 17 kinds / cap 15: 1 of 15 rows was a
+    genuine top-degree node. The bound is what makes this a floor and not the ranking.
+    """
+    from contextlake.kb.wiki.generate import _KIND_FLOOR_SHARE, _ranked_with_kind_floor
+
+    cands, by_id = _floor_fixture(17)
+    cap = 15
+    out = _ranked_with_kind_floor(cands, by_id, cap)
+
+    assert len(out) == cap
+    hot = sum(1 for nid in out if nid.startswith("hot"))
+    assert hot >= cap - max(1, cap // _KIND_FLOOR_SHARE), (
+        "floors must not displace more than their bounded share")
+    assert hot > 1, "the pre-fix behaviour left exactly one real row; that must not return"
+
+
+def test_a_kind_already_ranked_in_gets_no_extra_slot():
+    """A slot spent on a kind the honest ranking already surfaced buys nothing and
+    costs a real row. `function` is the top kind by degree here, so it must not also
+    consume a floor slot."""
+    from contextlake.kb.wiki.generate import _ranked_with_kind_floor
+
+    cands, by_id = _floor_fixture(3)          # function, method, class
+    out = _ranked_with_kind_floor(cands, by_id, 10)
+    assert out.count("function_one") <= 1
+    # `function` is represented by the hot nodes, so its low-degree stand-in is not
+    # needed; `method` and `class` have no other representative and must appear.
+    assert "method_one" in out and "class_one" in out
+    assert "function_one" not in out
+
+
+def test_a_structurally_low_degree_kind_is_still_represented():
+    """The floor's original purpose must survive the bound: a SQL table calls nothing,
+    so pure degree ranking would drop it, and a repo with a schema should not get a
+    page that never mentions one."""
+    from contextlake.kb.wiki.generate import _ranked_with_kind_floor
+
+    cands, by_id = _floor_fixture(4)          # includes `struct`; add a zero-degree table
+    from contextlake.kb.model import Node
+    by_id["orders"] = Node(id="orders", repo="r", kind="table", name="orders",
+                           file="schema.sql")
+    cands.append(("orders", 0))
+    out = _ranked_with_kind_floor(cands, by_id, 12)
+    assert "orders" in out, "a zero-degree kind present in candidates keeps its slot"

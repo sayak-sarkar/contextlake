@@ -5,6 +5,29 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The wiki's per-kind floors could consume the whole ranked list.** Hub, dispatcher and
+  top-symbol lists reserve a slot per kind present, so a structurally low-degree kind (a SQL
+  table calls nothing) still gets represented. That reservation had no ceiling, and once a
+  repository held about as many kinds as the list is long, the degree ranking the lists exist to
+  present had effectively stopped running.
+
+  Measured after 7.0.0 started emitting five more C/C++ symbol kinds: on a real 12-kind
+  repository with a 15-row cap, the list kept only 47% of the pure degree-ranked top; constructed
+  at 17 kinds, **1 of 15 rows** was a genuine high-degree node.
+
+  Floors are now bounded to `cap // 2` and spent only on kinds the honest ranking left out
+  entirely — a kind already in the top rows needs no reservation. Same bounded-share rule
+  `visualize/payload.py` has always used. The original purpose survives: a zero-degree kind
+  present in the candidates still gets a slot, which a test pins.
+
+  Worth knowing where this bit: the cap is 15 until a repository exceeds ~22,500 nodes, so the
+  harm concentrated in repos with many kinds *relative to their size* rather than in the largest
+  ones. The floor selection had no test at all before this change.
+
 ## [7.0.0] - 2026-08-12
 
 **A correct graph, and one re-index to get it.** This release fixes what the graph *says*, so
