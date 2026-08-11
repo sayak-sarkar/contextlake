@@ -114,6 +114,26 @@ Not a closed vocabulary check: ``Edge.relation`` stays open (see this module's
 docstring). This is only the subset those two views group and render."""
 
 
+PER_SITE_RELATIONS = frozenset({"calls"})
+"""Relations stored **once per occurrence in source**, not once per (src, dst) pair.
+
+For these, the same pair legitimately appears many times, each edge citing its own line,
+so that "where is this called" can be answered exhaustively. Every other relation is
+stored one edge per distinct pair.
+
+**Anything that ranks or reports a node's degree must count DISTINCT pairs for these
+relations.** A raw row count answers "how many call sites", which then gets rendered
+beside a node as though it meant "how many callers" -- a number that is confidently
+wrong rather than merely missing. Counting distinct is also the no-change option: before
+per-site retention a row count already equalled the distinct count, so distinct counting
+reproduces the historical number exactly.
+
+One shared constant rather than a literal per consumer, for the reason above it: the
+producer (``kb/parse.py``'s ``_resolve_name_refs``) and every degree consumer
+(``wiki/generate.py``, ``visualize/payload.py``) have to agree, and a hand-copied
+relation name in three files is how that agreement rots."""
+
+
 class Edge(BaseModel):
     """A directed relationship between two nodes, with provenance + confidence."""
 

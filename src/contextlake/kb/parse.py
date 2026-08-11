@@ -36,7 +36,14 @@ from .hcl import parse_hcl
 from .ids import make_id
 from .kinds import KIND_REGISTRY
 from .manifest import is_manifest, parse_manifest
-from .model import SHARED_REPO, Confidence, Edge, Node, Provenance
+from .model import (
+    PER_SITE_RELATIONS,
+    SHARED_REPO,
+    Confidence,
+    Edge,
+    Node,
+    Provenance,
+)
 from .sql import parse_sql
 from .store.shards import GraphShard
 from .xml_cfg import parse_xml_config
@@ -1117,9 +1124,17 @@ class RefCollector:
     def resolved_edges(self, by_id: dict[str, Node]) -> list[Edge]:
         # Target-kind sets are module-level names defined further down the file,
         # so they are read here at call time rather than bound at class creation.
-        # The trailing flag is same-language resolution: a call/inheritance must
+        # The first flag is same-language resolution: a call/inheritance must
         # stay inside one language family, while the HCL/SQL streams are
         # cross-domain by design (code reads a table) -- see _resolve_name_refs.
+        #
+        # Per-site retention is NOT a flag here -- it is derived from PER_SITE_RELATIONS
+        # so that this file never names the per-site relation itself. "Where is this
+        # called" is a question about invocations, so every call site earns its own edge
+        # citing its own line; the other streams stay one-edge-per-pair, because
+        # retaining every mention of a base class or every reference to a table is a
+        # different question that has not been asked. The degree consumers read the same
+        # constant, which is what stops the producer and the consumers disagreeing.
         streams = (
             (self.calls, "calls", _CALLABLE_KINDS, True),
             (self.inherits, "inherits", _INHERITABLE_KINDS, True),
@@ -1132,7 +1147,8 @@ class RefCollector:
         for refs, relation, target_kinds, same_language in streams:
             edges.extend(_resolve_name_refs(
                 refs, by_id, relation=relation, target_kinds=target_kinds,
-                same_language=same_language))
+                same_language=same_language,
+                per_site=relation in PER_SITE_RELATIONS))
         return edges
 
 
@@ -1917,6 +1933,7 @@ def _resolve_pending_methods(by_id: dict[str, Node], edges: list[Edge]) -> None:
 def _resolve_name_refs(
     refs: list[tuple[str, str, str, int]], nodes_by_id: dict[str, Node],
     *, relation: str, target_kinds: set[str], same_language: bool = False,
+    per_site: bool = False,
 ) -> list[Edge]:
     """Resolve ``(src_id, target_name, file, line)`` references to definitions
     repo-wide, emitting ``relation`` edges. Shared by calls and inherits.
@@ -1931,12 +1948,29 @@ def _resolve_name_refs(
     2..``_MAX_AMBIG_FANOUT`` definitions is genuinely ambiguous — rather than drop it
     (which silently loses the hottest symbols and undercounts blast radius), emit an
     AMBIGUOUS edge to each candidate. Names matching more than the cap are too generic
-    to be signal and are skipped; self-references and duplicate (src, dst) pairs are
-    de-duplicated, keeping the lowest source line among duplicates (a repeated call
-    site, e.g. ``helper()`` invoked twice from the same caller, must not surface an
-    arbitrary later line just because tree-sitter's capture order isn't guaranteed to
-    match source order -- callers that order edges by line, like a sequence diagram,
-    depend on this being deterministic).
+    to be signal and are skipped. Self-references are always dropped.
+
+    ``per_site`` selects what a duplicate ``(src, dst)`` pair means:
+
+    - ``False`` (the default, and every stream except calls): one edge per distinct
+      pair, keeping the lowest source line. ``helper()`` invoked twice from the same
+      caller is one edge citing the first invocation.
+    - ``True`` (the ``calls`` stream only): **one edge per call site.** The same pair
+      appears once per invocation, each citing its own line, so "where is this called"
+      can be answered exhaustively rather than with one representative site.
+
+    It is deliberately per-stream rather than global. Retaining every mention of a base
+    class, or every reference to a SQL table, is a separate question nobody has decided,
+    and it must not change as a side effect of a shared helper gaining a parameter.
+
+    **Consumers that rank by degree must count DISTINCT pairs, not rows** — under
+    ``per_site`` a raw row count answers "how many call sites", which silently reads as
+    "how many callers". See ``wiki.generate.repo_brief`` and ``visualize.payload``.
+
+    The sort is a total order rather than by line alone. Line ties used to be harmless
+    because the pair de-duplication discarded all but one of them; retaining every site
+    makes tie order observable in the output, and tree-sitter's capture order is not
+    guaranteed, so sorting by line alone would make shard output non-deterministic.
     """
     name_index: dict[str, set[str]] = {}
     for node in nodes_by_id.values():
@@ -1946,7 +1980,7 @@ def _resolve_name_refs(
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()
     resolved = ambiguous = dropped = cross_lang = 0
-    for src_id, name, rel, line in sorted(refs, key=lambda r: r[3]):
+    for src_id, name, rel, line in sorted(refs, key=lambda r: (r[3], r[2], r[1], r[0])):
         matches = name_index.get(name)
         if not matches:
             continue
@@ -1972,9 +2006,12 @@ def _resolve_name_refs(
             dropped += 1  # too many candidates -> noise
             continue
         for target in targets:
-            if target == src_id or (src_id, target) in seen:
+            if target == src_id:
                 continue
-            seen.add((src_id, target))
+            if not per_site:
+                if (src_id, target) in seen:
+                    continue
+                seen.add((src_id, target))
             edges.append(Edge(
                 src=src_id, dst=target, relation=relation, confidence=conf,
                 context="ambiguous" if conf is Confidence.AMBIGUOUS else None,
@@ -1988,7 +2025,8 @@ def _resolve_name_refs(
             if conf is Confidence.INFERRED:
                 resolved += 1
     if edges or dropped:
-        log(f"  resolved {resolved} {relation} edge(s); {ambiguous} ambiguous "
+        unit = "call site(s)" if per_site else "edge(s)"
+        log(f"  resolved {resolved} {relation} {unit}; {ambiguous} ambiguous "
             f"(<= {_MAX_AMBIG_FANOUT} candidates), {dropped} too-generic skipped, "
             f"{cross_lang} cross-language candidate(s) rejected",
             level=logging.DEBUG)

@@ -325,13 +325,35 @@ def repo_subgraph(store: Store, repo_id: str, *, max_nodes: int = 500,
         where += " AND (file=? OR file LIKE ? ESCAPE '\\')"
         params.append(clean)
         params.append(escaped + "/%")
-    deg_params = [repo_id, repo_id]
+    # A per-site relation stores one edge per occurrence in source, so a raw COUNT(*)
+    # would rank a function called fifty times from a single caller as though fifty
+    # callers depended on it -- and this ranking decides which nodes survive truncation
+    # into a diagram, so the distortion silently changes what the reader is shown.
+    # Collapse those to distinct pairs. Every other relation keeps counting rows, since
+    # a repeated `contains` pair is one genuine declaration site each, and de-duplicating
+    # it here would change today's output. Handing the non-per-site rows their own
+    # edge_id as the discriminator lets one DISTINCT do both jobs in a single scan.
+    # An empty PER_SITE_RELATIONS yields `IN (NULL)`, which matches nothing -- so this
+    # degrades to the historical COUNT(*) rather than to invalid SQL.
+    # Imported here, not at module level: this module deliberately keeps `kb.model`
+    # (and so pydantic) off its load path -- see the note in `_is_sentinel_repo`. By the
+    # time a subgraph is being built the store has already imported the model, so the
+    # deferred import costs nothing.
+    from ..model import PER_SITE_RELATIONS
+    per_site = sorted(PER_SITE_RELATIONS)
+    per_site_ph = ",".join("?" for _ in per_site) or "NULL"
+    deg_params = [*per_site, repo_id]
     ranked = f"""
+        WITH deg_rows AS (
+            SELECT DISTINCT src, dst, relation,
+                   CASE WHEN relation IN ({per_site_ph}) THEN -1 ELSE edge_id END AS disc
+            FROM edges WHERE repo_id=?
+        )
         SELECT n.node_id, n.kind, COALESCE(SUM(deg.c), 0) AS d FROM nodes n
         LEFT JOIN (
-            SELECT src AS node_id, COUNT(*) AS c FROM edges WHERE repo_id=? GROUP BY src
+            SELECT src AS node_id, COUNT(*) AS c FROM deg_rows GROUP BY src
             UNION ALL
-            SELECT dst AS node_id, COUNT(*) AS c FROM edges WHERE repo_id=? GROUP BY dst
+            SELECT dst AS node_id, COUNT(*) AS c FROM deg_rows GROUP BY dst
         ) deg ON deg.node_id = n.node_id
         WHERE {where}{{kind}}
         GROUP BY n.node_id, n.kind

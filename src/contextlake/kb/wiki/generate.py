@@ -14,6 +14,7 @@ from collections import Counter, OrderedDict
 from datetime import date
 from pathlib import Path
 
+from ..model import PER_SITE_RELATIONS
 from ..store.shards import (
     read_shard,
     read_shard_with_identity,
@@ -335,7 +336,21 @@ def _repo_brief_core_uncached(shard, path_prefix: str | None) -> dict:
     degree: Counter = Counter()
     in_degree: Counter = Counter()   # callers -- a hub, worth protecting with tests
     out_degree: Counter = Counter()  # callees -- a dispatcher, where behavior branches
+    # A per-site relation stores one edge per occurrence in source, so counting rows
+    # would make a function called fifty times from one caller look like fifty callers,
+    # and that number is rendered beside the row as "N caller(s)". Count each distinct
+    # pair once for those relations only -- which is exactly the historical number,
+    # since before per-site retention there was one row per pair anyway. Other
+    # relations keep counting rows: `contains` legitimately repeats a pair (one edge
+    # per declaration site of a merged symbol) and de-duplicating it here would be a
+    # silent behavior change nobody asked for.
+    seen_pairs: set[tuple[str, str, str]] = set()
     for e in edges:
+        if e.relation in PER_SITE_RELATIONS:
+            pair = (e.relation, e.src, e.dst)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
         degree[e.src] += 1
         degree[e.dst] += 1
         in_degree[e.dst] += 1

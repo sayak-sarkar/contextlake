@@ -5702,6 +5702,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`calls` edges are stored once per call site, not once per caller/callee pair.** BREAKING for
+  anyone counting edge rows. A function invoked three times from the same caller was one edge citing
+  the first invocation; it is now three edges, each citing its own line, so "where is this called"
+  can be answered exhaustively rather than with one representative site.
+
+  It applies to `calls` **only**. The same resolver serves inheritance and the config/SQL streams,
+  and retaining every mention of a base class or every reference to a table is a different question
+  that has not been asked. The choice lives in one shared constant that the parser and every degree
+  consumer read, rather than a relation name copied into three files.
+
+  **Degree now counts distinct pairs.** This is the part worth reading if you maintain a consumer:
+  ranking by raw row count answers "how many call sites" while the number is rendered beside a
+  symbol as "N caller(s)", so a helper called fifty times from one place would present as fifty
+  callers and outrank genuinely popular code in both the wiki's hub list and the node selection for
+  a truncated diagram. Counting distinct pairs is also exactly the historical number, since there
+  was one row per pair before this change -- verified on a large tree by running the new ranking
+  against a pre-change graph and diffing: byte-identical.
+
+  Removing the de-duplication exposed a latent bug it had been hiding. References were sorted by
+  line alone, so references sharing a line fell back on tree-sitter's capture order, which is not
+  guaranteed. Only one of them used to survive, so the ambiguity was invisible; now they all do, and
+  the sort is a total order. Shard output stays deterministic.
+
 - **`semantic_search` and `hybrid_search` return an envelope instead of a bare list.** BREAKING: both
   now return `{nodes, total, truncated, note}`, the same shape every other node-returning verb uses.
 
