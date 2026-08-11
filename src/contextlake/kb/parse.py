@@ -917,10 +917,17 @@ def parse_source(
         # Measured the hard way: three cross-language tests failed the moment the file
         # came out of the key unconditionally.
         #
-        # `static` and (once G9 lands) anonymous-namespace members keep their file too,
+        # `static` free functions and anonymous-namespace members keep their file too,
         # because internal linkage is file-scoped by language rule.
-        file_scope = (None if lang in ("c", "cpp") and not _is_internal_linkage(def_ts)
-                      else rel_path)
+        internal = lang in ("c", "cpp") and _is_internal_linkage(def_ts)
+        file_scope = None if lang in ("c", "cpp") and not internal else rel_path
+        if internal:
+            # Recorded rather than re-derived downstream. Resolution has to know this to
+            # avoid offering one translation unit's internal symbol to another's caller,
+            # and the only other signal available there is the file prefix on
+            # `qualified_name` -- which is ALSO set for every non-C/C++ language, so a
+            # Python symbol would read as internal linkage. Same one rule, one flag.
+            node_attrs["linkage"] = "internal"
         # Computed before the id, because the parameter signature is part of the key.
         nid = symbol_id(
             repo_id, kind, qualified,
@@ -974,7 +981,15 @@ def parse_source(
         # A macro is not scoped by anything -- the preprocessor runs before C++ scope
         # exists -- so it keeps the file in its key even in C/C++, where other symbols
         # drop it. Two headers defining the same macro name really are two macros.
-        m_file_scope = (rel_path if m_kind == "macro" or file_scope_default
+        #
+        # Internal linkage applies here for the same reason it does to a function: a
+        # `static` file-scope variable, and ANY member reached through an anonymous
+        # namespace (including a data member of a class declared inside one), belongs to
+        # a single translation unit. Without this a second file's copy merged into the
+        # first and its members disappeared with it -- measured on a two-file fixture,
+        # where a struct in an anonymous namespace lost one of its two data members.
+        m_internal = lang in ("c", "cpp") and _is_internal_linkage(m_container)
+        m_file_scope = (rel_path if m_kind == "macro" or file_scope_default or m_internal
                         else None)
         m_id = symbol_id(repo_id, m_kind, m_qualified, file_scope=m_file_scope,
                          name=m_name, lang=lang)
@@ -985,7 +1000,7 @@ def parse_source(
             qualified_name=(f"{m_file_scope}::{m_qualified}" if m_file_scope
                             else m_qualified),
             file=rel_path, line_start=m_line, line_end=m_container.end_point[0] + 1,
-            lang=lang,
+            lang=lang, attrs={"linkage": "internal"} if m_internal else {},
         ))
         # Contained by the nearest enclosing definition (a class for a data member, a
         # namespace for a file-scope variable), falling back to the file.
@@ -1198,6 +1213,57 @@ def _test_macro_case(def_ts: ts.Node, name: str, lang: str) -> tuple[str, str] |
     return (args[0], args[1]) if len(args) >= 2 else ("", args[0])
 
 
+# Depth cap on the two linkage walks below. Generous compared to the 8/10 used by the
+# qualifier walks, because a member can sit inside a class inside a class inside an
+# anonymous namespace and each level contributes intermediate list nodes -- but still
+# bounded, so a pathological tree cannot turn this into an unbounded climb.
+_MAX_LINKAGE_WALK = 32
+
+# Scopes that make a declaration a CLASS MEMBER rather than a namespace-scope entity.
+# `static` means two unrelated things in C++ and this set is what tells them apart:
+# at namespace scope it means internal linkage, inside a class it declares a static
+# member, which has EXTERNAL linkage.
+_CLASS_SCOPES = frozenset({"class_specifier", "struct_specifier", "union_specifier",
+                           "field_declaration_list"})
+
+
+def _in_anonymous_namespace(node: ts.Node) -> bool:
+    """Whether ``node`` sits anywhere inside an unnamed ``namespace { ... }``.
+
+    An ancestor test, not a child test: the namespace encloses the definition rather
+    than decorating it. Verified against the grammar -- an anonymous namespace is a
+    ``namespace_definition`` whose ``name`` field is absent, while a named, an ``inline``
+    and a C++17 nested ``namespace A::B`` all carry one, and ``extern "C"`` is a
+    different node type (``linkage_specification``) which does NOT confer internal
+    linkage and is correctly not matched here.
+    """
+    cur, seen = node.parent, 0
+    while cur is not None and seen < _MAX_LINKAGE_WALK:
+        if cur.type == "namespace_definition" and cur.child_by_field_name("name") is None:
+            return True
+        cur = cur.parent
+        seen += 1
+    return False
+
+
+def _at_namespace_scope(node: ts.Node) -> bool:
+    """Whether ``node``'s nearest enclosing scope is a namespace or the file, not a class.
+
+    Deliberately separate from :func:`_is_file_scope`, which answers "not inside a
+    function body" and stops at no class boundary. Only this question decides what a
+    ``static`` keyword means.
+    """
+    cur, seen = node.parent, 0
+    while cur is not None and seen < _MAX_LINKAGE_WALK:
+        if cur.type in _CLASS_SCOPES:
+            return False
+        if cur.type in _FILE_SCOPES:
+            return True
+        cur = cur.parent
+        seen += 1
+    return False
+
+
 def _is_internal_linkage(def_ts: ts.Node) -> bool:
     """Whether this definition is file-scoped BY LANGUAGE RULE rather than by accident.
 
@@ -1206,13 +1272,21 @@ def _is_internal_linkage(def_ts: ts.Node) -> bool:
     different symbols. So the file has to stay in their key, or the two merge into one
     node and every caller of either appears to call a single shared function.
 
-    Anonymous-namespace members have the same property and are NOT handled here -- that
-    needs the enclosing-scope walk G9 covers, and claiming it now would overstate this.
+    **Anonymous-namespace members have exactly the same property**, and measurement
+    showed the consequence plainly: two files each declaring `namespace { int tally(int); }`
+    produced ONE node, so the second file's definition vanished and its caller resolved
+    to the first file's function -- an edge that cannot exist.
+
+    The `static` half is gated on namespace scope because the keyword means two
+    unrelated things. At namespace scope it means internal linkage; inside a class it
+    declares a static member, which has **external** linkage and must keep matching
+    across the header/source split like any other member.
     """
-    for ch in def_ts.children:
-        if ch.type == "storage_class_specifier" and ch.text == b"static":
-            return True
-    return False
+    if _in_anonymous_namespace(def_ts):
+        return True
+    return _at_namespace_scope(def_ts) and any(
+        ch.type == "storage_class_specifier" and ch.text == b"static"
+        for ch in def_ts.children)
 
 
 def _symbol_slug(kind: str, qualified: str, name: str, enclosing_name: str | None) -> str:
@@ -1979,7 +2053,7 @@ def _resolve_name_refs(
 
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()
-    resolved = ambiguous = dropped = cross_lang = 0
+    resolved = ambiguous = dropped = cross_lang = internal_rejected = 0
     for src_id, name, rel, line in sorted(refs, key=lambda r: (r[3], r[2], r[1], r[0])):
         matches = name_index.get(name)
         if not matches:
@@ -1997,6 +2071,25 @@ def _resolve_name_refs(
             matches = reachable
         if not matches:
             continue
+        # An internal-linkage symbol belongs to ONE translation unit, so a reference from
+        # a different file cannot mean it. Measured: two files each defining `static int
+        # gated(int)` produced four `calls` edges where only two are possible.
+        #
+        # Prefer rather than require, because 196 of 1,967 internal-linkage functions on a
+        # large legacy tree are defined in a HEADER, where the definition's file and the
+        # caller's file legitimately differ. Requiring equality would silently delete those
+        # callers, and dropping real edges is the worse error of the two. So: keep every
+        # candidate that is either external or same-file, and fall back to the unfiltered
+        # set when that leaves nothing.
+        #
+        # Safe across streams without a language gate because only C/C++ definitions are
+        # ever marked internal -- no HCL or SQL node carries the flag, which a test pins.
+        reachable = {t for t in matches
+                     if (nodes_by_id[t].attrs or {}).get("linkage") != "internal"
+                     or nodes_by_id[t].file == rel}
+        if reachable:
+            internal_rejected += len(matches) - len(reachable)
+            matches = reachable
         if len(matches) == 1:
             conf, targets = Confidence.INFERRED, list(matches)
         elif len(matches) <= _MAX_AMBIG_FANOUT:
@@ -2028,6 +2121,7 @@ def _resolve_name_refs(
         unit = "call site(s)" if per_site else "edge(s)"
         log(f"  resolved {resolved} {relation} {unit}; {ambiguous} ambiguous "
             f"(<= {_MAX_AMBIG_FANOUT} candidates), {dropped} too-generic skipped, "
-            f"{cross_lang} cross-language candidate(s) rejected",
+            f"{cross_lang} cross-language candidate(s) rejected, "
+            f"{internal_rejected} out-of-file internal-linkage candidate(s) rejected",
             level=logging.DEBUG)
     return edges

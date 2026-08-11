@@ -5700,6 +5700,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Turning them on interacts with the per-kind embedding budget floors, so it stays a sequenced
   decision rather than a side effect.
 
+### Fixed
+
+- **Anonymous-namespace and `static` symbols no longer merge across files, and a caller can no
+  longer reach another translation unit's private symbol.** Both halves of internal linkage,
+  which had to ship together.
+
+  Two files each writing `namespace { int tally(int); }` produced **one** node. The second
+  file's definition simply vanished, its callers pointed at the first file's function, and a
+  struct declared the same way took its data members down with it -- a member of the losing copy
+  disappeared entirely. `static` free functions already kept their file, but anonymous-namespace
+  symbols did not, and the file-scope variable path never checked linkage at all.
+
+  Resolution now honours it too. An internal-linkage symbol belongs to one translation unit, so
+  a reference from a different file cannot mean it. This is a *preference*, not a requirement:
+  where the only candidate is defined in a header (measured at roughly one in ten on a large
+  legacy tree, since headers legitimately carry `static` definitions into their includers), the
+  cross-file candidate is kept rather than dropped. Losing a real caller is the worse error.
+
+  Fixing identity alone would have been worse than fixing neither: it splits the symbol and then
+  offers both copies to every caller as ambiguous candidates.
+
+  A second-order effect worth knowing, because it moves numbers in the opposite direction to the
+  obvious one: a reference whose candidate set exceeds the ambiguity cap is discarded entirely,
+  so removing unreachable candidates pushes some sets back under the cap. On a large legacy tree
+  461 references that previously produced **no edge at all** now resolve, and total `calls` edges
+  rose even though 33,568 impossible candidates were rejected.
+
+  Also corrected: `static` inside a class declares a member with **external** linkage, and was
+  being treated as internal. That kept a class's header declaration from matching its out-of-line
+  definition -- the same header/source split fixed elsewhere in this release.
+
 ### Changed
 
 - **`calls` edges are stored once per call site, not once per caller/callee pair.** BREAKING for
