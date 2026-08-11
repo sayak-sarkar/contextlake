@@ -34,6 +34,7 @@ from .flow.state import extract_state_flow
 from .flow.web import extract_web_flow
 from .hcl import parse_hcl
 from .ids import make_id
+from .kinds import KIND_REGISTRY
 from .manifest import is_manifest, parse_manifest
 from .model import SHARED_REPO, Confidence, Edge, Node, Provenance
 from .sql import parse_sql
@@ -1620,9 +1621,12 @@ def discover_repos(root: str) -> list[tuple[str, str]]:
 
 
 # Node kinds a call can resolve to, and the (narrower) kinds a base class/interface
-# can resolve to. A method can be called but never inherited from.
-_CALLABLE_KINDS = {"class", "function", "method", "interface", "struct"}
-_INHERITABLE_KINDS = {"class", "interface", "struct"}
+# can resolve to. A method can be called but never inherited from. All four sets below are
+# projected from the registry (kb/kinds.py); a kind missing from one of them makes the
+# corresponding edge silently never exist, which is the quietest failure in the codebase —
+# the graph is simply smaller and nothing anywhere reports it.
+_CALLABLE_KINDS = {k for k, s in KIND_REGISTRY.items() if s.callable_target}
+_INHERITABLE_KINDS = {k for k, s in KIND_REGISTRY.items() if s.inheritable_target}
 
 # HCL block kinds a depends_on reference can resolve to. Note `module` is also
 # emitted for code imports, so kinds are not disjoint; safety comes from address
@@ -1631,11 +1635,11 @@ _INHERITABLE_KINDS = {"class", "interface", "struct"}
 # import paths (`os`, `requests`), so the name indices never overlap. A
 # pathological collision would surface as an AMBIGUOUS edge, never a wrong
 # INFERRED one.
-_HCL_KINDS = {"resource", "data", "variable", "output", "module", "local"}
+_HCL_KINDS = {k for k, s in KIND_REGISTRY.items() if s.hcl_ref_target}
 
 # SQL FK references resolve to table/view defs (both non-colliding with code and
 # HCL kinds, so their name index stays isolated).
-_SQL_KINDS = {"table", "view"}
+_SQL_KINDS = {k for k, s in KIND_REGISTRY.items() if s.sql_ref_target}
 
 
 # A name that resolves to 2..N definitions is emitted as AMBIGUOUS edges to each

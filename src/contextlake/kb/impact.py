@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .kinds import KIND_REGISTRY
+
 # Reverse-reach over calls (a caller breaks), depends_on (a dependent breaks),
 # inherits (a subclass breaks when its base changes), references (an FK
 # dependent breaks when its referenced table changes), and reads/writes (code
@@ -85,8 +87,12 @@ def blast_radius(store, node_id: str, *, hops: int = 3,
 
 
 # Source-symbol kinds worth seeding an impact walk; ranked above files / refs / packages
-# so an exact-name match prefers the definition the user most likely meant.
-_SOURCE_KINDS = {"class", "interface", "function", "method", "struct", "enum", "type"}
+# so an exact-name match prefers the definition the user most likely meant. Projected from
+# the registry (kb/kinds.py). The hand-written version also listed "type", which no
+# producer has ever emitted — a membership test against a kind that cannot occur, so
+# dropping it changes no comparison; it is exactly the dead entry an unchecked list
+# accumulates.
+_SOURCE_KINDS = {k for k, s in KIND_REGISTRY.items() if s.impact_source}
 
 
 def _rank_candidates(nodes: list) -> list:

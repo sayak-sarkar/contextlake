@@ -367,7 +367,10 @@ class ReposOut(BaseModel):
 
 
 class LinkOut(BaseModel):
-    kind: str                        # issue | page | design | merge_request | ...
+    # Open vocabulary; the connector kinds are `issue | page | design | mr | message |
+    # channel`. Documented as "merge_request" until 2026-08 -- the git-forge connector has
+    # always emitted "mr", so a consumer filtering on the documented value got nothing.
+    kind: str
     name: str
     url: str | None = None
     title: str | None = None

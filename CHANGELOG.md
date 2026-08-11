@@ -60,6 +60,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   That is accurate rather than lossy -- in well-formed C++ `S::T` names exactly one class, and two
   differing definitions of it are an ODR violation.
 
+- **One node-kind registry, and every kind vocabulary is now projected from it.** The vocabulary was
+  sixteen hand-maintained lists across twelve files -- a colour map, three glyph tables, an embeddable
+  set, two impact sets, four name-resolution target sets, several diagram gates and a doc taxonomy --
+  and nothing checked that a new kind reached all of them.
+
+  The lists are deliberately **not** merged: a colour map and an embeddable set answer different
+  questions, and `file` legitimately has a colour while never being embeddable. Instead `kb/kinds.py`
+  holds one row per kind carrying every property a consumer needs, and each list became a one-line
+  comprehension at its original definition site, so no import moved. `KindSpec` has no field defaults,
+  so a new kind cannot be added without answering every question once, in one diff.
+
+  This closes the drift the lists had accumulated: **16 of the 35 produced kinds had no colour, which
+  is not cosmetic** -- the graph page builds its kind filter by iterating the colour map rather than
+  the graph, so those kinds (including `table`, `view` and `resource`, routinely hundreds of nodes per
+  repo) had no legend button and could not be isolated or hidden at all. Also fixed: the glyph table
+  had drifted to 15 entries against a 17-symbol sprite; `impact`'s ranking set tested membership
+  against a `type` kind no producer emits; the published vocabulary diagram documented 16 of 35 kinds
+  while claiming it could never drift; and the MCP link-output comment documented a `merge_request`
+  kind the git-forge connector has never emitted (it emits `mr`).
+
+  Which kinds are actually embedded is **unchanged** -- membership feeds the per-kind embedding budget
+  floors, so widening it would evict existing vectors. `config_key` and `test` are recorded in the
+  registry as eligible and deliberately deferred, with the reason, and a test now refuses any kind that
+  is excluded without one.
+
 ### Fixed
 
 - **C and C++ nodes never carried a signature.** `_doc_sig` looked for the parameter list as a field on

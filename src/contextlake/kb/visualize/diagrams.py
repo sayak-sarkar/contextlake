@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from ..kinds import KIND_REGISTRY
 from .styling import _CONF_DOT, DEFAULT_COLOR, KIND_COLORS
 
 if TYPE_CHECKING:  # avoid importing the model at call time; we only need types here
@@ -206,10 +207,17 @@ def to_mermaid(payload: dict, *, stats: dict | None = None) -> str:
     return "\n".join(lines)
 
 
-# Node kinds that are "classifiers" in a class diagram.
+# Node kinds that are "classifiers" in a class diagram, and the kinds that render as
+# members *inside* a classifier's box. Both projected from the registry (kb/kinds.py):
+# the member gate used to be a bare `("method", "function")` tuple inline in the loop
+# below, which is the one place a future `field` kind would be silently dropped from the
+# very diagram that is the reason to extract a field at all.
 
 
-_CLASSIFIER_KINDS = {"class", "interface", "struct", "enum"}
+_CLASSIFIER_KINDS = {k for k, s in KIND_REGISTRY.items() if s.classifier}
+_CLASS_MEMBER_KINDS = {k for k, s in KIND_REGISTRY.items() if s.class_member}
+# Entities in the ER diagram (to_er_diagram, below).
+_ER_ENTITY_KINDS = {k for k, s in KIND_REGISTRY.items() if s.er_entity}
 
 
 def to_class_diagram(payload: dict, *, stats: dict | None = None) -> str:
@@ -233,7 +241,7 @@ def to_class_diagram(payload: dict, *, stats: dict | None = None) -> str:
         if e.get("relation") != "contains":
             continue
         src, dst = e["src"], e["dst"]
-        if src in classifiers and (m := by_id.get(dst)) and m.get("kind") in ("method", "function"):
+        if src in classifiers and (m := by_id.get(dst)) and m.get("kind") in _CLASS_MEMBER_KINDS:
             members[src].append(m)
 
     alias = {nid: f"c{i}" for i, nid in enumerate(classifiers)}
@@ -420,7 +428,7 @@ def to_er_diagram(payload: dict, *, stats: dict | None = None) -> str:
     ``CREATE TABLE``/``VIEW`` text, never ORM model classes, so a typical
     ORM-only repo view is an honest empty diagram, not a bug.
     """
-    by_id = {n["id"]: n for n in payload["nodes"] if n.get("kind") in ("table", "view")}
+    by_id = {n["id"]: n for n in payload["nodes"] if n.get("kind") in _ER_ENTITY_KINDS}
     if not by_id:
         _drawn(stats, 0, 0)
         return ("erDiagram\n"

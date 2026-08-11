@@ -5,29 +5,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
+from ..kinds import KIND_REGISTRY
+
 if TYPE_CHECKING:  # avoid importing the model at call time; we only need types here
     pass
 
-KIND_COLORS = {
-    "file": "#8ecae6", "module": "#ffb703", "class": "#fb8500", "interface": "#fd9e02",
-    "struct": "#f4a261", "function": "#90be6d", "method": "#43aa8b", "enum": "#577590",
-    "package": "#e76f51", "repo": "#264653", "issue": "#bc6c25", "page": "#606c38",
-    "design": "#9d4edd",
-    # flow nodes (from the HTTP / event extractors) — a service surface, not a symbol
-    "endpoint": "#f08c3a", "topic": "#b07fd0",
-    # a configured setting (kb/xml_cfg.py) -- deliberately distinct from every
-    # symbol colour: a setting is not code, and reading it as one is the specific
-    # confusion this kind exists to remove.
-    "config_key": "#7f8c8d",
-    # a test case recovered from a test macro (kb/parse.py _test_macro_case)
-    "test": "#2a9d8f",
-    # C4 namespace boundary compound parent node (contextlake/kb/c4.py c4_payload)
-    "namespace": "#3d5a80",
-    # C1 external-system box (kb/c4.py C4System) — deliberately muted/neutral:
-    # unclassified, could be a real third party or just an unindexed internal
-    # service, so it should never read as confidently "external" via color alone.
-    "system": "#6c757d",
-}
+# Kind -> node/legend hue, projected from the registry (kb/kinds.py), which is where a
+# new kind's colour is chosen and why. Not merely cosmetic: `html_render` builds the graph
+# page's kind filter by iterating THIS dict rather than the graph, so a kind missing here
+# gets no legend button and cannot be isolated or hidden. 16 produced kinds were missing
+# when the registry landed -- including table/view/resource, which routinely run to
+# hundreds of nodes per repo. Insertion order is legend button order.
+KIND_COLORS = {kind: spec.color for kind, spec in KIND_REGISTRY.items()}
 
 
 DEFAULT_COLOR = "#c9c9c9"
@@ -67,46 +56,16 @@ _GLYPH_SVG = (
     ' alt="contextlake" width="30" height="30"/>'
 )
 
-# Per-kind glyphs (inner SVG paths, Lucide-style line icons) painted onto nodes so a
-# diagram reads by *type* at a glance — a file vs a service vs an HTTP endpoint. Kept
-# as bare 24x24 path content; the stroke colour is chosen per node at build time
+# Per-kind glyphs, projected from the registry (kb/kinds.py). Painted onto nodes so a
+# diagram reads by *type* at a glance — a file vs a service vs an HTTP endpoint. The
+# artwork is bare 24x24 path content; the stroke colour is chosen per node at build time
 # (_kind_icons) for contrast, and the data-URI is inlined so the page stays offline.
-
-
-_KIND_ICON_PATHS = {
-    "file": '<path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12'
-            'a2 2 0 0 0 2-2V8z"/>',
-    "page": '<path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12'
-            'a2 2 0 0 0 2-2V8z"/><line x1="8" y1="13" x2="15" y2="13"/>'
-            '<line x1="8" y1="17" x2="15" y2="17"/>',
-    "module": '<path d="M12 2 2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/>'
-              '<path d="M2 12l10 5 10-5"/>',
-    "class": '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8'
-             'v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
-    "struct": '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" '
-              'height="7"/><rect x="14" y="14" width="7" height="7"/>'
-              '<rect x="3" y="14" width="7" height="7"/>',
-    "interface": '<path d="M8 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h1"/>'
-                 '<path d="M16 3h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-1"/>',
-    "enum": '<circle cx="4" cy="6" r="1.3"/><circle cx="4" cy="12" r="1.3"/>'
-            '<circle cx="4" cy="18" r="1.3"/><line x1="9" y1="6" x2="21" y2="6"/>'
-            '<line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/>',
-    "function": '<polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/>',
-    "method": '<polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/>',
-    "package": '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8'
-               'a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>'
-               '<path d="M3.3 7 12 12l8.7-5"/><line x1="12" y1="22" x2="12" y2="12"/>',
-    "repo": '<rect x="3" y="4" width="18" height="7" rx="1.5"/>'
-            '<rect x="3" y="13" width="18" height="7" rx="1.5"/>'
-            '<line x1="7" y1="7.5" x2="7.01" y2="7.5"/>'
-            '<line x1="7" y1="16.5" x2="7.01" y2="16.5"/>',
-    "issue": '<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/>'
-             '<line x1="12" y1="16" x2="12.01" y2="16"/>',
-    "design": '<path d="M12 3l1.9 5.1L19 11l-5.1 1.9L12 18l-1.9-5L5 11l5.1-1.9z"/>',
-    "endpoint": '<circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/>'
-                '<path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/>',
-    "topic": '<path d="M21 14a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
-}
+#
+# dashboard/static/dashboard.html mirrors these as <symbol id="g-..."> defs so a "class"
+# reads identically in both surfaces. That invariant was written in a comment and unheld:
+# `config_key` and `test` reached the sprite while this table still had 15 entries.
+# tests/kb/test_dashboard_kind_glyph_parity.py now holds all four copies to one another.
+_KIND_ICON_PATHS = {kind: spec.glyph for kind, spec in KIND_REGISTRY.items() if spec.glyph}
 
 
 def _luma(hex_color: str) -> float:

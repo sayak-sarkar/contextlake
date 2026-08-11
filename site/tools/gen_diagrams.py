@@ -131,17 +131,15 @@ def taxonomy(fname):
     """The knowledge-graph vocabulary: node kinds + edge relations, colored
     EXACTLY as ``contextlake kb graph`` renders them (colors imported from the
     package so the doc diagram can never drift from the real output)."""
+    from contextlake.kb.kinds import kind_groups
     from contextlake.kb.visualize import (
         KIND_COLORS, RELATION_COLORS, DEFAULT_EDGE_COLOR, CONF_META,
     )
-    # node-kind groups (label -> kinds), each kind pulls its real KIND_COLORS hue
-    groups = [
-        ("Symbols", ["class", "interface", "struct", "enum", "function", "method"]),
-        ("Containers", ["file", "module", "package", "repo"]),
-        ("Service surfaces", ["endpoint", "topic"]),
-        ("Cross-source", ["issue", "page", "design"]),
-        ("Boundary", ["namespace"]),
-    ]
+    # node-kind groups (label -> kinds), projected from the kind registry so this diagram
+    # documents the WHOLE vocabulary. The hand-written list this replaced had drifted to 16
+    # of 35 kinds -- missing every SQL, HCL, ADR, connector and config kind -- while the
+    # docstring above claimed it could never drift. Only the colours it imported were safe.
+    groups = kind_groups()
     # edge relations to show: explicitly-hued first, then the two that ride the
     # neutral default (inherits/references have no dedicated hue in the real graph).
     rels = [

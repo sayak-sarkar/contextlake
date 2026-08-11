@@ -9,6 +9,7 @@ so it can run incrementally and be capped for very large workspaces.
 from __future__ import annotations
 
 from .._util import chunks
+from ..kinds import KIND_REGISTRY
 from ..store.shards import read_shard
 
 # Version of everything a stored vector depends on. Bumping it marks every stored
@@ -58,17 +59,17 @@ def node_text(node) -> str:
 
 # Kinds worth a semantic vector: code definitions (unique per repo, carrying real
 # names + signatures + docstrings), data objects (tables and views), plus HTTP endpoints
-# and infrastructure resources. Deliberately EXCLUDES file nodes (a path is not a semantic
-# query), and the cross-repo *shared* nodes — module / package / topic — whose ids repeat
-# across repos, which otherwise get re-embedded once per referencing repo (wasted compute,
-# an inflated "written" count) and dilute results with low-signal hits. Dependents/flow
-# tools cover those. Low-signal HCL kinds (variable, output, data, module, local) and
-# SQL procedures (low signal without a signature) stay out. `adr` (kb/adr.py) carries
-# its full body under the `doc` attr, same as a docstring, so node_text() below already
-# picks it up with no extra wiring.
-EMBEDDABLE_KINDS = frozenset(
-    {"class", "function", "method", "interface", "struct", "enum", "endpoint",
-     "route", "resource", "table", "view", "adr"})
+# and infrastructure resources. Projected from the registry (kb/kinds.py) rather than
+# retyped here — every exclusion now carries its reason in the registry's
+# `why_not_embeddable`, which a test requires to be non-empty. That prose used to live in
+# this comment and covered nine of the excluded kinds; it was silent on `config_key` and
+# `test`, so nobody could tell a considered exclusion from an oversight.
+#
+# Membership is a load-bearing, sequenced decision, NOT a refactoring detail: the set feeds
+# the per-kind embedding budget floors, so widening it evicts vectors that already exist
+# and re-embedding is the only repair. tests/kb/test_kind_registry_parity.py pins the exact
+# membership for that reason.
+EMBEDDABLE_KINDS = frozenset(k for k, s in KIND_REGISTRY.items() if s.embeddable)
 
 
 def embed_repo(store_dir, vector_store, embedder, repo_id, *,

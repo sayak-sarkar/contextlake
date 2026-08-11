@@ -28,14 +28,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ...logging_setup import log
+from ..kinds import KIND_REGISTRY
 from ..security import json_for_script, sanitize_label
 from ..state import check_schema
 from ..store.sqlite_store import SqliteStore
 from . import data as kbdata
 
-# Symbol kinds worth a reverse-impact precompute (sources, not leaf files/pages).
-_IMPACT_KINDS = {"class", "function", "method", "interface", "struct", "enum",
-                 "module", "package", "endpoint", "topic"}
+# Symbol kinds worth a reverse-impact precompute (sources, not leaf files/pages),
+# projected from the registry (kb/kinds.py). A kind absent here has no precompute, and the
+# offline dashboard then reports "Not precomputed in this snapshot" — which reads as a
+# stale snapshot rather than as an ineligible kind, so an accidental omission here is
+# semi-silent. Deliberately NOT the same question as EMBEDDABLE_KINDS: four embeddable
+# kinds (route/table/view/resource) are findable by semantic search in a snapshot and
+# still have no precomputed blast radius.
+_IMPACT_KINDS = {k for k, s in KIND_REGISTRY.items() if s.impact_precompute}
 
 _PUBLISH_WARNING = (
     "WARNING: this --site snapshot was built from a REAL store. Do NOT publish it "
