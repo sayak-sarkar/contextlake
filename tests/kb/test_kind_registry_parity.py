@@ -121,10 +121,19 @@ def test_embeddable_membership_is_pinned():
     changing it should mean somebody chose to, and re-ran `kb embed`. `config_key` and
     `test` are the two known candidates -- they are recorded in the registry as eligible
     and deferred, deliberately not added here.
+
+    Widened once, deliberately, on 2026-08-12: the five C/C++ symbol kinds joined after an
+    A/B on a large legacy tree. Before the change their semantic recall was **exactly
+    zero** -- tens of thousands of symbols no query could reach. The cost is real and was
+    measured rather than assumed: -5.25pp existing-kind recall@10 for +180% vectors, with
+    `field` alone responsible for over half of it. `EMBED_CONTENT_VERSION` moved to 4 in
+    the same change, because widening this set leaves an existing store INCOMPLETE and
+    nothing else would have noticed. See `testing/d8-embedding-measurement.md`.
     """
     assert EMBEDDABLE_KINDS == frozenset({
         "class", "function", "method", "interface", "struct", "enum",
-        "endpoint", "route", "resource", "table", "view", "adr"})
+        "endpoint", "route", "resource", "table", "view", "adr",
+        "field", "macro", "typedef", "enum_constant", "global_variable"})
 
 
 def test_no_gate_names_a_kind_the_registry_does_not_have():

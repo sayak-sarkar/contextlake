@@ -348,47 +348,55 @@ KIND_REGISTRY: dict[str, KindSpec] = {
     # is a sequenced decision, not a side effect of adding the kinds.
     "field": KindSpec(
         color="#8d99ae", glyph=None, group="Symbols",
-        embeddable=False,
-        why_not_embeddable="Data-member names repeat heavily across a codebase (only "
-                           "46.3% unique in the measured tree, one name 516 times), so "
-                           "embedding them dilutes the space without adding recall.",
+        # Measured 2026-08-12 on a large legacy tree: embedding fields takes recall for
+        # 40,948 previously-unfindable symbols from 0.0000 to 0.6533, and costs 2.75pp
+        # of existing-kind recall@10 on top of the other four (5.25pp total). The
+        # heaviest kind by far -- +105.9% vectors alone, and the least distinctive name
+        # pool (54.8% unique, one name 506 times). Turned ON because a total blind spot
+        # is worse than a bounded cost, but this is the row to reconsider first if the
+        # cost ever bites: see testing/d8-embedding-measurement.md.
+        embeddable=True, why_not_embeddable=None,
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=True, er_entity=False,
         callable_target=False, inheritable_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "macro": KindSpec(
         color="#e07a5f", glyph=None, group="Symbols",
-        embeddable=False,
-        why_not_embeddable="6.4% are include guards, which are build artefacts rather "
-                           "than symbols; the rest are worth revisiting once the guards "
-                           "are filtered.",
+        # Measured: 0.0000 -> 0.8467 recall for 16,347 macros, at +1.50pp cost. The best
+        # benefit-per-vector of the five (81.2% unique names). Include guards are ~6% and
+        # remain a filtering opportunity, not a reason to withhold the rest.
+        embeddable=True, why_not_embeddable=None,
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "typedef": KindSpec(
         color="#81b29a", glyph=None, group="Symbols",
-        embeddable=False,
-        why_not_embeddable="25% are trivial one-line aliases that carry no meaning a "
-                           "search would match on.",
+        # Measured: part of the cheapest group (typedef + enum_constant +
+        # global_variable) -- 0.0000 -> 0.7400 recall for 12,342 symbols at only 1.00pp
+        # cost. 93.5% unique names, the most distinctive pool of the five.
+        embeddable=True, why_not_embeddable=None,
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=True,
         hcl_ref_target=False, sql_ref_target=False),
     "enum_constant": KindSpec(
         color="#6d9dc5", glyph=None, group="Symbols",
-        embeddable=False,
-        why_not_embeddable="An enumerator's meaning lives in its enum, which is already "
-                           "embedded; embedding both duplicates the same signal.",
+        # Measured with typedef and global_variable: 0.0000 -> 0.7400 for the
+        # group at 1.00pp cost. The earlier "its enum is already embedded" argument
+        # did not survive the measurement -- the enum being embedded did NOT make
+        # enumerators findable; their recall was exactly zero.
+        embeddable=True, why_not_embeddable=None,
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=True, er_entity=False,
         callable_target=False, inheritable_target=False,
         hcl_ref_target=False, sql_ref_target=False),
     "global_variable": KindSpec(
         color="#b08968", glyph=None, group="Symbols",
-        embeddable=False,
-        why_not_embeddable="Kept out with the other new symbol kinds until the budget "
-                           "floors are revisited; see G11.",
+        # Measured with typedef and enum_constant: 0.0000 -> 0.7400 for the
+        # group at 1.00pp cost. The budget floors this row was waiting on (G11) are
+        # fixed, so the sequencing reason is discharged.
+        embeddable=True, why_not_embeddable=None,
         impact_source=False, impact_precompute=False,
         classifier=False, class_member=False, er_entity=False,
         callable_target=False, inheritable_target=False,

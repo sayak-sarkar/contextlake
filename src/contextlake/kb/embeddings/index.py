@@ -30,12 +30,25 @@ from ..store.shards import read_shard
 # **So: any change to how node ids are built MUST bump this.** It is the only signal
 # that reaches `kb embed`'s incremental path, and re-embedding is the only repair.
 #
+#  3. **Which kinds are embeddable.** A THIRD case, and the one this version documents.
+#     Widening `EMBEDDABLE_KINDS` does not make an existing vector wrong -- it makes the
+#     STORE INCOMPLETE, which is the same defect wearing different clothes. Nothing else
+#     would notice: the incremental skip is keyed on (head commit, parser version), and
+#     neither moves when the embeddable set does, so a user who had already embedded
+#     would keep a store that silently holds no vectors for the new kinds and a
+#     `doctor` that reports a healthy row count.
+#
 #   1: kind + name + qualified_name + file (metadata only)
 #   2: + captured signature and docstring (real content -> real semantic search)
 #   3: node ids became file- and line-independent (a readable slug plus a digest), so
 #      every stored KEY from 1 and 2 names a node that no longer exists. The text
 #      mapping itself did not change; the bump is about the keys.
-EMBED_CONTENT_VERSION = 3
+#   4: five symbol kinds became embeddable (field, macro, typedef, enum_constant,
+#      global_variable). Measured before the change: their recall was EXACTLY ZERO --
+#      tens of thousands of symbols no semantic query could reach. See
+#      `testing/d8-embedding-measurement.md` for the cost side, which is real and
+#      bounded: -5.25pp existing-kind recall@10 for +180% vectors.
+EMBED_CONTENT_VERSION = 4
 
 # Docstrings are captured up to 1000 chars; embed a tighter slice so one verbose
 # docstring can't drown the identifying tokens (name/signature) in the vector.

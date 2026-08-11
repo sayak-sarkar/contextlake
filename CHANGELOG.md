@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Data members, macros, typedefs, enum constants and file-scope variables are now embedded, so
+  semantic search can reach them.** Before this they were at recall **exactly zero** — not
+  poorly-ranked, unreachable. No semantic or hybrid query could return a macro or a data member,
+  because none had a vector.
+
+  **`kb embed` must run once after upgrading.** `EMBED_CONTENT_VERSION` moves to 4, which marks
+  stored vectors stale and triggers that automatically. The bump is the load-bearing part: widening
+  the embeddable set does not make existing vectors *wrong*, it makes the store **incomplete**, and
+  the incremental skip is keyed on commit and parser version — neither of which moves. Without it
+  you would keep a store with no vectors for the new kinds while `doctor` reported a healthy row
+  count.
+
+  The cost was measured, not assumed. On a large legacy tree, +180% vectors costs **5.25 percentage
+  points** of recall@10 for the kinds that were already embedded (273/400 probes to 252/400).
+  Marginally: typedefs, enumerators and file-scope variables together cost 1.00pp and take 12,342
+  symbols from 0 to 74% findable; macros add 1.50pp for 16,347 symbols at 85%; data members add
+  2.75pp for 40,948 at 65%. Every step buys more than it costs in the unit that matters — whether
+  the thing you searched for can be returned at all.
+
+  `field` is the heaviest by far (+105.9% vectors alone, and the least distinctive names — 54.8%
+  unique, one name occurring 506 times). It is recorded in the kind registry as the first row to
+  reconsider if that cost ever bites.
+
 ### Added
 
 - **A real golden query set for retrieval quality, gated on every change instead of weekly.**
