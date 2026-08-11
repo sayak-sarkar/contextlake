@@ -27,20 +27,32 @@ full command list. Shell tab-completion is registered for you on first run; see
 [Shell completion](cli-reference.md#shell-completion).
 
 **Mirror a subset with `--repos`.** Every mirror command (and `bootstrap` / `kb index
---workspace`) accepts `--repos PATTERN`, a comma-separated **glob/substring** filter
-over your repo paths, so you can mirror and index just a handful instead of the whole
-group. Ideal for a demo or a try-before-fleet run:
+--workspace`) accepts `--repos PATTERN`, a comma-separated **glob** filter over your
+repo paths, so you can mirror and index just a handful instead of the whole group.
+Ideal for a demo or a try-before-fleet run:
 
 ```bash
-contextlake bootstrap --repos "team/api,billing,frontend/*"   # mirror + index just these
-contextlake mirror sync --repos "team/*"                             # sync one namespace
+contextlake bootstrap --repos "team/api,billing/*,frontend/*"  # mirror + index just these
+contextlake mirror sync --repos "team/*"                       # sync one namespace
 contextlake kb index --workspace ~/work --repos "billing/core,team/api"
 ```
 
-Each pattern matches if it's a substring of, or a glob against, the repo's
-group-qualified path or its local path (case-insensitive). It scopes the whole
-pipeline: `fetch` narrows the cached project list, and `clone` / `update` / `branches`
-/ `verify` / `status` / `bootstrap` all follow from that.
+Each pattern is matched against the repo's group-qualified path and its local path,
+case-insensitively. **Patterns are anchored**: `--repos api` selects a repo named
+exactly `api`, never `payments-api` or `api-gateway`. For a substring match, say so
+with a glob:
+
+```bash
+contextlake mirror sync --repos "*api*"     # everything with "api" anywhere in its path
+```
+
+That is the way round it is because a filter that selects *more* than you asked for is
+the expensive mistake: you discover it after a fleet-wide run you did not want. Earlier
+versions defaulted to substring matching with an opt-in `--repos-exact`; that flag is
+gone, and so is the surprise.
+
+The filter scopes the whole pipeline: `fetch` narrows the cached project list, and
+`clone` / `update` / `branches` / `verify` / `status` / `bootstrap` all follow from that.
 
 The scope belongs to the invocation, not to the cache. Pass the same `--repos` to each
 command (or set `repo_filter` in your config to make it permanent). A command run at a

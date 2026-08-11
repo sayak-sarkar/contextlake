@@ -331,65 +331,52 @@ def test_configure_network_resilience_sets_and_respects(monkeypatch):
     assert os.environ["RES_OPTIONS"] == "custom"
 
 
-def test_match_repo_filter_glob_and_substring():
+def test_match_repo_filter_globs_are_anchored():
     from contextlake.core import match_repo_filter, repo_filter_patterns
     pats = repo_filter_patterns({"repo_filter": "billing/*, team/api ,frontend"})
     assert pats == ["billing/*", "team/api", "frontend"]
     assert match_repo_filter("acme/billing/core", "billing/core", pats)   # glob on local
-    assert match_repo_filter("acme/team/api", "team/api", pats)           # exact substring
-    assert match_repo_filter("acme/frontend/app", "frontend/app", pats)   # substring
-    assert not match_repo_filter("acme/auth/svc", "auth/svc", pats)
+    assert match_repo_filter("acme/team/api", "team/api", pats)           # whole path
     assert match_repo_filter("ACME/Billing/Core", "Billing/Core", pats)   # case-insensitive
+    assert not match_repo_filter("acme/auth/svc", "auth/svc", pats)
+    # `frontend` is anchored, so it does NOT sweep in everything beneath it.
+    assert not match_repo_filter("acme/frontend/app", "frontend/app", pats)
 
 
-def test_match_repo_filter_exact_drops_the_substring_leg():
-    """Pins F10: --repos atlas selected an unrelated repo whose name merely
-    contains 'atlas' (e.g. 'platform-atlas'), which is defensible for the
-    default but surprising for an argument named --repos. exact=True
-    (--repos-exact) must reject that unrelated repo while still matching a
-    genuine glob pattern -- fnmatch already anchors to the whole string, so
-    dropping only the substring leg is what makes exact matching possible
-    without touching the default at all.
+def test_a_bare_name_never_selects_a_repo_that_merely_contains_it():
+    """Pins F10, now fixed in the default rather than behind a flag.
+
+    `--repos ledger` used to also select an unrelated `shared-ledger`, so a
+    filter silently scoped WIDER than asked -- which costs a user a fleet-wide
+    run they did not want. Selecting more than requested is the worse failure,
+    so anchoring is the default and a substring match is spelled as a glob.
     """
     from contextlake.core import match_repo_filter, repo_filter_patterns
 
-    pats = repo_filter_patterns({"repo_filter": "atlas"})
-    # Default (unchanged): a bare substring still matches the unrelated repo.
-    assert match_repo_filter("group/platform-atlas", "platform-atlas", pats)
-    # exact=True: the unrelated repo no longer matches, only the real one does.
-    assert not match_repo_filter("group/platform-atlas", "platform-atlas", pats, exact=True)
-    assert match_repo_filter("group/atlas", "atlas", pats, exact=True)
-    # A glob pattern is still a glob under exact=True -- only the bare
-    # substring leg is dropped, not fnmatch's own anchoring.
+    pats = repo_filter_patterns({"repo_filter": "ledger"})
+    assert match_repo_filter("group/ledger", "ledger", pats)
+    assert not match_repo_filter("group/shared-ledger", "shared-ledger", pats)
+
+    # The escape hatch is a glob, which is why no flag is needed for it.
+    wide = repo_filter_patterns({"repo_filter": "*ledger*"})
+    assert match_repo_filter("group/shared-ledger", "shared-ledger", wide)
+    # A glob still scopes rather than sweeps: it anchors to the whole path.
     glob_pats = repo_filter_patterns({"repo_filter": "team/*"})
-    assert match_repo_filter("acme/team/api", "team/api", glob_pats, exact=True)
-    assert not match_repo_filter("acme/other/api", "other/api", glob_pats, exact=True)
+    assert match_repo_filter("acme/team/api", "team/api", glob_pats)
+    assert not match_repo_filter("acme/other/api", "other/api", glob_pats)
 
 
-def test_repo_filter_is_exact_reads_the_config_flag():
-    from contextlake.core import repo_filter_is_exact
-
-    assert repo_filter_is_exact({}) is False
-    assert repo_filter_is_exact({"repo_filter_exact": False}) is False
-    assert repo_filter_is_exact({"repo_filter_exact": True}) is True
-
-
-def test_filtered_local_repos_repos_exact_excludes_the_substring_match(tmp_path):
-    """The exact real-world shape from the demo: two local clones, 'atlas' and
-    an unrelated 'platform-atlas' that merely contains the pattern. Default
-    --repos still matches both (unchanged); --repos-exact matches only 'atlas'.
-    """
+def test_filtered_local_repos_is_anchored_by_default(tmp_path):
+    """Two local clones, one of which merely contains the other's name. The
+    plain pattern selects only what it names; the glob selects both."""
     from contextlake.core import filtered_local_repos
 
-    make_local_repo(tmp_path, "atlas")
-    make_local_repo(tmp_path, "platform-atlas")
+    make_local_repo(tmp_path, "ledger")
+    make_local_repo(tmp_path, "shared-ledger")
 
-    default = sorted(filtered_local_repos(tmp_path, {"repo_filter": "atlas"}))
-    assert default == ["atlas", "platform-atlas"]
-
-    exact = sorted(filtered_local_repos(
-        tmp_path, {"repo_filter": "atlas", "repo_filter_exact": True}))
-    assert exact == ["atlas"]
+    assert sorted(filtered_local_repos(tmp_path, {"repo_filter": "ledger"})) == ["ledger"]
+    assert sorted(filtered_local_repos(
+        tmp_path, {"repo_filter": "*ledger*"})) == ["ledger", "shared-ledger"]
 
 
 def test_fetch_repo_filter_narrows_the_cache(tmp_path, base_config, fake_subprocess):
@@ -401,9 +388,11 @@ def test_fetch_repo_filter_narrows_the_cache(tmp_path, base_config, fake_subproc
         else FakeCompleted(stdout="[]"))
     cfg = base_config.copy()
     cfg.update(cache_dir=str(tmp_path), cache_json="p.json", cache_file="p.txt",
-               repo_filter="billing,api")
+               repo_filter="billing*,api")
     result = fetch_gitlab_projects("g", cfg)
-    # only the matching repos survive into the returned map + the cache
+    # only the matching repos survive into the returned map + the cache.
+    # `billing*` is a glob because patterns are anchored: a bare `billing`
+    # would select a repo called exactly that and nothing else.
     assert set(result) == {"api", "billing-core", "billing-reports"}
     cached = json.loads((tmp_path / "p.json").read_text())
     assert set(cached) == {"api", "billing-core", "billing-reports"}

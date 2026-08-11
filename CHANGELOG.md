@@ -37,6 +37,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`--repos` patterns are anchored, and `--repos-exact` is gone.** BREAKING: `--repos api` now
+  selects a repo named exactly `api`, where it previously also selected `payments-api` and
+  `api-gateway`. For a substring match, glob it: `--repos "*api*"`.
+
+  A filter that silently selects *more* than you asked for is the expensive direction of this
+  mistake, because you find out after a fleet-wide run you did not want. The old default made
+  that the easy thing to type.
+
+  `--repos-exact` was the opt-in fix for it, and it is removed rather than kept as a no-op: it
+  only ever reached five of the seven places that filter repos, so `--repos-exact` silently did
+  nothing for `kb index --workspace` and for the metrics pass, and the same pattern scoped
+  differently depending on which command you ran. There is now one rule and no flag to forget.
+
+  Nothing else changes: globs like `team/*` behave exactly as before, matching is still
+  case-insensitive, and it still matches against both the group-qualified path and the local
+  path.
+
 - **The built-in wiki LLM moved from `llama-cpp-python` to `openvino-genai`.** BREAKING for
   anyone scripting the install: the wheel index, the `--only-binary` pin and the C++ toolchain
   are all gone. `pip install "contextlake[llm-local]"` is now the whole instruction, and
