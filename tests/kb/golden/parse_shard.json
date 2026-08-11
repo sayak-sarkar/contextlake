@@ -6,14 +6,14 @@
       },
       "confidence": "AMBIGUOUS",
       "context": "ambiguous",
-      "dst": "demo_fixture_svc_core_base_py_basehandler_handle_8",
+      "dst": "basehandler_handle_361b4780",
       "provenance": {
         "source_file": "svc/core/orders.py",
         "source_line": 15,
         "verified_at": "DATE"
       },
       "relation": "calls",
-      "src": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "src": "bootstrap_40bcd898",
       "weight": 1.0
     },
     {
@@ -22,84 +22,70 @@
       },
       "confidence": "AMBIGUOUS",
       "context": "ambiguous",
-      "dst": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
+      "dst": "orderhandler_handle_c64738b4",
       "provenance": {
         "source_file": "svc/core/orders.py",
         "source_line": 15,
         "verified_at": "DATE"
       },
       "relation": "calls",
-      "src": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "src": "bootstrap_40bcd898",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_app_domain_ledger_cs_ipostable_5",
+      "dst": "basehandler_b6bb9b6b",
       "provenance": {
-        "source_file": "app/Domain/Ledger.cs",
+        "source_file": "svc/core/base.py",
         "source_line": 5,
         "verified_at": "DATE"
       },
       "relation": "contains",
-      "src": "demo_fixture_app_domain_ledger_cs",
+      "src": "demo_fixture_svc_core_base_py",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_app_domain_ledger_cs_ipostable_post_5",
+      "dst": "basehandler_handle_361b4780",
       "provenance": {
-        "source_file": "app/Domain/Ledger.cs",
-        "source_line": 5,
+        "source_file": "svc/core/base.py",
+        "source_line": 8,
         "verified_at": "DATE"
       },
       "relation": "contains",
-      "src": "demo_fixture_app_domain_ledger_cs_ipostable_5",
+      "src": "basehandler_b6bb9b6b",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "dst": "basehandler_render_3ae022dc",
       "provenance": {
-        "source_file": "app/Domain/Ledger.cs",
-        "source_line": 7,
+        "source_file": "svc/core/base.py",
+        "source_line": 11,
         "verified_at": "DATE"
       },
       "relation": "contains",
-      "src": "demo_fixture_app_domain_ledger_cs",
+      "src": "basehandler_b6bb9b6b",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_app_domain_ledger_cs_ledger_post_9",
+      "dst": "bootstrap_40bcd898",
       "provenance": {
-        "source_file": "app/Domain/Ledger.cs",
-        "source_line": 9,
+        "source_file": "svc/core/orders.py",
+        "source_line": 13,
         "verified_at": "DATE"
       },
       "relation": "contains",
-      "src": "demo_fixture_app_domain_ledger_cs_ledger_7",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_app_domain_ledger_cs_ledger_recalculate_10",
-      "provenance": {
-        "source_file": "app/Domain/Ledger.cs",
-        "source_line": 10,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "src": "demo_fixture_svc_core_orders_py",
       "weight": 1.0
     },
     {
@@ -148,49 +134,7 @@
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_native_include_widget_h_widget_3",
-      "provenance": {
-        "source_file": "native/include/widget.h",
-        "source_line": 3,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_native_include_widget_h",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_native_src_widget_cpp_widget_area_7",
-      "provenance": {
-        "source_file": "native/src/widget.cpp",
-        "source_line": 7,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_native_include_widget_h_widget_3",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_native_src_widget_cpp_widget_draw_3",
-      "provenance": {
-        "source_file": "native/src/widget.cpp",
-        "source_line": 3,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_native_include_widget_h_widget_3",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_api_routes_py_execute_15",
+      "dst": "execute_c5368772",
       "provenance": {
         "source_file": "svc/api/routes.py",
         "source_line": 15,
@@ -204,196 +148,98 @@
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_svc_api_routes_py_list_orders_7",
+      "dst": "ipostable_ebc27312",
       "provenance": {
-        "source_file": "svc/api/routes.py",
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_app_domain_ledger_cs",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "ipostable_post_faabab15",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "ipostable_ebc27312",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "ledger_c16ed9a0",
+      "provenance": {
+        "source_file": "app/Domain/Ledger.cs",
         "source_line": 7,
         "verified_at": "DATE"
       },
       "relation": "contains",
-      "src": "demo_fixture_svc_api_routes_py",
+      "src": "demo_fixture_app_domain_ledger_cs",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_svc_api_routes_py_query_11",
+      "dst": "ledger_post_bc23de83",
       "provenance": {
-        "source_file": "svc/api/routes.py",
-        "source_line": 11,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_svc_api_routes_py",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_base_py_basehandler_5",
-      "provenance": {
-        "source_file": "svc/core/base.py",
-        "source_line": 5,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_svc_core_base_py",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_base_py_basehandler_handle_8",
-      "provenance": {
-        "source_file": "svc/core/base.py",
-        "source_line": 8,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_svc_core_base_py_basehandler_5",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_base_py_basehandler_render_11",
-      "provenance": {
-        "source_file": "svc/core/base.py",
-        "source_line": 11,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_svc_core_base_py_basehandler_5",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_base_py_make_logger_15",
-      "provenance": {
-        "source_file": "svc/core/base.py",
-        "source_line": 15,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_svc_core_base_py",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_orders_py_bootstrap_13",
-      "provenance": {
-        "source_file": "svc/core/orders.py",
-        "source_line": 13,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_svc_core_orders_py",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_orders_py_orderhandler_4",
-      "provenance": {
-        "source_file": "svc/core/orders.py",
-        "source_line": 4,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_svc_core_orders_py",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
-      "provenance": {
-        "source_file": "svc/core/orders.py",
-        "source_line": 5,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_svc_core_orders_py_orderhandler_4",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_orders_py_orderhandler_load_9",
-      "provenance": {
-        "source_file": "svc/core/orders.py",
+        "source_file": "app/Domain/Ledger.cs",
         "source_line": 9,
         "verified_at": "DATE"
       },
       "relation": "contains",
-      "src": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "src": "ledger_c16ed9a0",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_web_src_models_ts_order_1",
+      "dst": "ledger_recalculate_ca80d18b",
       "provenance": {
-        "source_file": "web/src/models.ts",
-        "source_line": 1,
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 10,
         "verified_at": "DATE"
       },
       "relation": "contains",
-      "src": "demo_fixture_web_src_models_ts",
+      "src": "ledger_c16ed9a0",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
-      "dst": "demo_fixture_web_src_models_ts_orderstate_3",
+      "dst": "list_orders_1753a0c6",
       "provenance": {
-        "source_file": "web/src/models.ts",
-        "source_line": 3,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_web_src_models_ts",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_web_src_models_ts_orderstore_5",
-      "provenance": {
-        "source_file": "web/src/models.ts",
-        "source_line": 5,
-        "verified_at": "DATE"
-      },
-      "relation": "contains",
-      "src": "demo_fixture_web_src_models_ts",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "EXTRACTED",
-      "context": null,
-      "dst": "demo_fixture_web_src_models_ts_orderstore_add_7",
-      "provenance": {
-        "source_file": "web/src/models.ts",
+        "source_file": "svc/api/routes.py",
         "source_line": 7,
         "verified_at": "DATE"
       },
       "relation": "contains",
-      "src": "demo_fixture_web_src_models_ts_orderstore_5",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "make_logger_7d911cb8",
+      "provenance": {
+        "source_file": "svc/core/base.py",
+        "source_line": 15,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_base_py",
       "weight": 1.0
     },
     {
@@ -470,6 +316,104 @@
       "attrs": {},
       "confidence": "EXTRACTED",
       "context": null,
+      "dst": "order_c8d17472",
+      "provenance": {
+        "source_file": "web/src/models.ts",
+        "source_line": 1,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_web_src_models_ts",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "orderhandler_a067868f",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 4,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_core_orders_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "orderhandler_handle_c64738b4",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "orderhandler_a067868f",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "orderhandler_load_0cba32ca",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 9,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "orderhandler_a067868f",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "orderstate_91babbde",
+      "provenance": {
+        "source_file": "web/src/models.ts",
+        "source_line": 3,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_web_src_models_ts",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "orderstore_a00d7fe8",
+      "provenance": {
+        "source_file": "web/src/models.ts",
+        "source_line": 5,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_web_src_models_ts",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "orderstore_add_04e4d631",
+      "provenance": {
+        "source_file": "web/src/models.ts",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "orderstore_a00d7fe8",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
       "dst": "pkg_npm_axios",
       "provenance": {
         "source_file": "package.json",
@@ -496,6 +440,62 @@
     },
     {
       "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "query_2d80ad68",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 11,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_svc_api_routes_py",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "widget_8ca1fda2",
+      "provenance": {
+        "source_file": "native/include/widget.h",
+        "source_line": 3,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "demo_fixture_native_include_widget_h",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "widget_area_dc0e80a0",
+      "provenance": {
+        "source_file": "native/src/widget.cpp",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "widget_8ca1fda2",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "EXTRACTED",
+      "context": null,
+      "dst": "widget_draw_49bf9178",
+      "provenance": {
+        "source_file": "native/src/widget.cpp",
+        "source_line": 3,
+        "verified_at": "DATE"
+      },
+      "relation": "contains",
+      "src": "widget_8ca1fda2",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
       "confidence": "INFERRED",
       "context": "ROUTE",
       "dst": "endpoint_v1_orders",
@@ -512,28 +512,42 @@
       "attrs": {},
       "confidence": "INFERRED",
       "context": null,
-      "dst": "demo_fixture_app_domain_ledger_cs_ipostable_5",
+      "dst": "basehandler_b6bb9b6b",
       "provenance": {
-        "source_file": "app/Domain/Ledger.cs",
-        "source_line": 7,
+        "source_file": "svc/core/orders.py",
+        "source_line": 4,
         "verified_at": "DATE"
       },
       "relation": "inherits",
-      "src": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "src": "orderhandler_a067868f",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "INFERRED",
       "context": null,
-      "dst": "demo_fixture_app_domain_ledger_cs_ledger_recalculate_10",
+      "dst": "basehandler_render_3ae022dc",
       "provenance": {
-        "source_file": "app/Domain/Ledger.cs",
+        "source_file": "svc/core/base.py",
         "source_line": 9,
         "verified_at": "DATE"
       },
       "relation": "calls",
-      "src": "demo_fixture_app_domain_ledger_cs_ledger_post_9",
+      "src": "basehandler_handle_361b4780",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "basehandler_render_3ae022dc",
+      "provenance": {
+        "source_file": "svc/core/orders.py",
+        "source_line": 7,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "orderhandler_handle_c64738b4",
       "weight": 1.0
     },
     {
@@ -596,112 +610,98 @@
       "attrs": {},
       "confidence": "INFERRED",
       "context": null,
-      "dst": "demo_fixture_native_src_widget_cpp_widget_area_7",
-      "provenance": {
-        "source_file": "native/src/widget.cpp",
-        "source_line": 4,
-        "verified_at": "DATE"
-      },
-      "relation": "calls",
-      "src": "demo_fixture_native_src_widget_cpp_widget_draw_3",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "INFERRED",
-      "context": null,
-      "dst": "demo_fixture_svc_api_routes_py_execute_15",
+      "dst": "execute_c5368772",
       "provenance": {
         "source_file": "svc/api/routes.py",
         "source_line": 12,
         "verified_at": "DATE"
       },
       "relation": "calls",
-      "src": "demo_fixture_svc_api_routes_py_query_11",
+      "src": "query_2d80ad68",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "INFERRED",
       "context": null,
-      "dst": "demo_fixture_svc_api_routes_py_query_11",
+      "dst": "ipostable_ebc27312",
       "provenance": {
-        "source_file": "svc/api/routes.py",
-        "source_line": 8,
-        "verified_at": "DATE"
-      },
-      "relation": "calls",
-      "src": "demo_fixture_svc_api_routes_py_list_orders_7",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "INFERRED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_base_py_basehandler_5",
-      "provenance": {
-        "source_file": "svc/core/orders.py",
-        "source_line": 4,
+        "source_file": "app/Domain/Ledger.cs",
+        "source_line": 7,
         "verified_at": "DATE"
       },
       "relation": "inherits",
-      "src": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "src": "ledger_c16ed9a0",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "INFERRED",
       "context": null,
-      "dst": "demo_fixture_svc_core_base_py_basehandler_render_11",
+      "dst": "ledger_recalculate_ca80d18b",
       "provenance": {
-        "source_file": "svc/core/base.py",
+        "source_file": "app/Domain/Ledger.cs",
         "source_line": 9,
         "verified_at": "DATE"
       },
       "relation": "calls",
-      "src": "demo_fixture_svc_core_base_py_basehandler_handle_8",
+      "src": "ledger_post_bc23de83",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "INFERRED",
       "context": null,
-      "dst": "demo_fixture_svc_core_base_py_basehandler_render_11",
-      "provenance": {
-        "source_file": "svc/core/orders.py",
-        "source_line": 7,
-        "verified_at": "DATE"
-      },
-      "relation": "calls",
-      "src": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
-      "weight": 1.0
-    },
-    {
-      "attrs": {},
-      "confidence": "INFERRED",
-      "context": null,
-      "dst": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "dst": "orderhandler_a067868f",
       "provenance": {
         "source_file": "svc/core/orders.py",
         "source_line": 14,
         "verified_at": "DATE"
       },
       "relation": "calls",
-      "src": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "src": "bootstrap_40bcd898",
       "weight": 1.0
     },
     {
       "attrs": {},
       "confidence": "INFERRED",
       "context": null,
-      "dst": "demo_fixture_svc_core_orders_py_orderhandler_load_9",
+      "dst": "orderhandler_load_0cba32ca",
       "provenance": {
         "source_file": "svc/core/orders.py",
         "source_line": 6,
         "verified_at": "DATE"
       },
       "relation": "calls",
-      "src": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
+      "src": "orderhandler_handle_c64738b4",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "query_2d80ad68",
+      "provenance": {
+        "source_file": "svc/api/routes.py",
+        "source_line": 8,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "list_orders_1753a0c6",
+      "weight": 1.0
+    },
+    {
+      "attrs": {},
+      "confidence": "INFERRED",
+      "context": null,
+      "dst": "widget_area_dc0e80a0",
+      "provenance": {
+        "source_file": "native/src/widget.cpp",
+        "source_line": 4,
+        "verified_at": "DATE"
+      },
+      "relation": "calls",
+      "src": "widget_draw_49bf9178",
       "weight": 1.0
     }
   ],
@@ -726,7 +726,7 @@
         "doc": "Root of the handler hierarchy."
       },
       "file": "svc/core/base.py",
-      "id": "demo_fixture_svc_core_base_py_basehandler_5",
+      "id": "basehandler_b6bb9b6b",
       "kind": "class",
       "lang": "python",
       "line_end": 12,
@@ -768,7 +768,7 @@
         "signature": "()"
       },
       "file": "app/Domain/Ledger.cs",
-      "id": "demo_fixture_app_domain_ledger_cs_ipostable_post_5",
+      "id": "ipostable_post_faabab15",
       "kind": "method",
       "lang": "csharp",
       "line_end": 5,
@@ -782,7 +782,7 @@
         "signature": "()"
       },
       "file": "app/Domain/Ledger.cs",
-      "id": "demo_fixture_app_domain_ledger_cs_ledger_post_9",
+      "id": "ledger_post_bc23de83",
       "kind": "method",
       "lang": "csharp",
       "line_end": 9,
@@ -796,7 +796,7 @@
         "signature": "()"
       },
       "file": "app/Domain/Ledger.cs",
-      "id": "demo_fixture_app_domain_ledger_cs_ledger_recalculate_10",
+      "id": "ledger_recalculate_ca80d18b",
       "kind": "method",
       "lang": "csharp",
       "line_end": 10,
@@ -809,8 +809,36 @@
       "attrs": {
         "signature": "()"
       },
+      "file": "native/src/widget.cpp",
+      "id": "widget_area_dc0e80a0",
+      "kind": "method",
+      "lang": "cpp",
+      "line_end": 9,
+      "line_start": 7,
+      "name": "Area",
+      "qualified_name": "native/src/widget.cpp::Widget.Area",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "()"
+      },
+      "file": "native/src/widget.cpp",
+      "id": "widget_draw_49bf9178",
+      "kind": "method",
+      "lang": "cpp",
+      "line_end": 5,
+      "line_start": 3,
+      "name": "Draw",
+      "qualified_name": "native/src/widget.cpp::Widget.Draw",
+      "repo": "demo/fixture"
+    },
+    {
+      "attrs": {
+        "signature": "()"
+      },
       "file": "svc/api/routes.py",
-      "id": "demo_fixture_svc_api_routes_py_list_orders_7",
+      "id": "list_orders_1753a0c6",
       "kind": "function",
       "lang": "python",
       "line_end": 8,
@@ -824,7 +852,7 @@
         "signature": "()"
       },
       "file": "svc/core/orders.py",
-      "id": "demo_fixture_svc_core_orders_py_bootstrap_13",
+      "id": "bootstrap_40bcd898",
       "kind": "function",
       "lang": "python",
       "line_end": 15,
@@ -838,7 +866,7 @@
         "signature": "(name)"
       },
       "file": "svc/core/base.py",
-      "id": "demo_fixture_svc_core_base_py_make_logger_15",
+      "id": "make_logger_7d911cb8",
       "kind": "function",
       "lang": "python",
       "line_end": 16,
@@ -852,7 +880,7 @@
         "signature": "(o: Order)"
       },
       "file": "web/src/models.ts",
-      "id": "demo_fixture_web_src_models_ts_orderstore_add_7",
+      "id": "orderstore_add_04e4d631",
       "kind": "method",
       "lang": "typescript",
       "line_end": 7,
@@ -866,7 +894,7 @@
         "signature": "(self, payload)"
       },
       "file": "svc/core/base.py",
-      "id": "demo_fixture_svc_core_base_py_basehandler_handle_8",
+      "id": "basehandler_handle_361b4780",
       "kind": "method",
       "lang": "python",
       "line_end": 9,
@@ -880,7 +908,7 @@
         "signature": "(self, payload)"
       },
       "file": "svc/core/base.py",
-      "id": "demo_fixture_svc_core_base_py_basehandler_render_11",
+      "id": "basehandler_render_3ae022dc",
       "kind": "method",
       "lang": "python",
       "line_end": 12,
@@ -894,7 +922,7 @@
         "signature": "(self, payload)"
       },
       "file": "svc/core/orders.py",
-      "id": "demo_fixture_svc_core_orders_py_orderhandler_handle_5",
+      "id": "orderhandler_handle_c64738b4",
       "kind": "method",
       "lang": "python",
       "line_end": 7,
@@ -908,7 +936,7 @@
         "signature": "(self, payload)"
       },
       "file": "svc/core/orders.py",
-      "id": "demo_fixture_svc_core_orders_py_orderhandler_load_9",
+      "id": "orderhandler_load_0cba32ca",
       "kind": "method",
       "lang": "python",
       "line_end": 10,
@@ -922,7 +950,7 @@
         "signature": "(sql)"
       },
       "file": "svc/api/routes.py",
-      "id": "demo_fixture_svc_api_routes_py_execute_15",
+      "id": "execute_c5368772",
       "kind": "function",
       "lang": "python",
       "line_end": 16,
@@ -936,7 +964,7 @@
         "signature": "(sql)"
       },
       "file": "svc/api/routes.py",
-      "id": "demo_fixture_svc_api_routes_py_query_11",
+      "id": "query_2d80ad68",
       "kind": "function",
       "lang": "python",
       "line_end": 12,
@@ -960,7 +988,7 @@
     {
       "attrs": {},
       "file": "app/Domain/Ledger.cs",
-      "id": "demo_fixture_app_domain_ledger_cs_ipostable_5",
+      "id": "ipostable_ebc27312",
       "kind": "interface",
       "lang": "csharp",
       "line_end": 5,
@@ -972,7 +1000,7 @@
     {
       "attrs": {},
       "file": "app/Domain/Ledger.cs",
-      "id": "demo_fixture_app_domain_ledger_cs_ledger_7",
+      "id": "ledger_c16ed9a0",
       "kind": "class",
       "lang": "csharp",
       "line_end": 11,
@@ -1068,7 +1096,7 @@
     {
       "attrs": {},
       "file": "native/include/widget.h",
-      "id": "demo_fixture_native_include_widget_h_widget_3",
+      "id": "widget_8ca1fda2",
       "kind": "class",
       "lang": "cpp",
       "line_end": 7,
@@ -1087,30 +1115,6 @@
       "line_start": null,
       "name": "native/src/widget.cpp",
       "qualified_name": null,
-      "repo": "demo/fixture"
-    },
-    {
-      "attrs": {},
-      "file": "native/src/widget.cpp",
-      "id": "demo_fixture_native_src_widget_cpp_widget_area_7",
-      "kind": "method",
-      "lang": "cpp",
-      "line_end": 9,
-      "line_start": 7,
-      "name": "Area",
-      "qualified_name": "native/src/widget.cpp::Widget.Area",
-      "repo": "demo/fixture"
-    },
-    {
-      "attrs": {},
-      "file": "native/src/widget.cpp",
-      "id": "demo_fixture_native_src_widget_cpp_widget_draw_3",
-      "kind": "method",
-      "lang": "cpp",
-      "line_end": 5,
-      "line_start": 3,
-      "name": "Draw",
-      "qualified_name": "native/src/widget.cpp::Widget.Draw",
       "repo": "demo/fixture"
     },
     {
@@ -1164,7 +1168,7 @@
     {
       "attrs": {},
       "file": "svc/core/orders.py",
-      "id": "demo_fixture_svc_core_orders_py_orderhandler_4",
+      "id": "orderhandler_a067868f",
       "kind": "class",
       "lang": "python",
       "line_end": 10,
@@ -1188,7 +1192,7 @@
     {
       "attrs": {},
       "file": "web/src/models.ts",
-      "id": "demo_fixture_web_src_models_ts_order_1",
+      "id": "order_c8d17472",
       "kind": "interface",
       "lang": "typescript",
       "line_end": 1,
@@ -1200,7 +1204,7 @@
     {
       "attrs": {},
       "file": "web/src/models.ts",
-      "id": "demo_fixture_web_src_models_ts_orderstate_3",
+      "id": "orderstate_91babbde",
       "kind": "enum",
       "lang": "typescript",
       "line_end": 3,
@@ -1212,7 +1216,7 @@
     {
       "attrs": {},
       "file": "web/src/models.ts",
-      "id": "demo_fixture_web_src_models_ts_orderstore_5",
+      "id": "orderstore_a00d7fe8",
       "kind": "class",
       "lang": "typescript",
       "line_end": 8,

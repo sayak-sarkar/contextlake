@@ -86,10 +86,19 @@ class TestNoMethodGetsAParentItsQualifierExcludes:
         assert got == {}
 
     def test_a_genuinely_ambiguous_qualifier_attaches_nothing(self, tmp_path):
-        """Two classes with the SAME full chain in different files are genuinely
-        indistinguishable here, so neither may claim the method."""
+        """A bare qualifier that suffix-matches two DIFFERENT scopes is ambiguous, and
+        neither class may claim the method.
+
+        This replaces an earlier version of this test that used the same full chain
+        (`S::T`) declared in two files. That is no longer ambiguous, and correctly so:
+        node identity is now file-independent for C/C++ external-linkage symbols, so two
+        headers naming `S::T` produce ONE class node. In well-formed C++ `S::T` names
+        exactly one class; two headers defining it differently is an ODR violation and
+        ill-formed, so modelling them as one symbol is the accurate choice rather than a
+        weakening. The shape below is what genuine ambiguity actually looks like.
+        """
         got = _methods(tmp_path, {
-            "g1.h": b"namespace S { class T { public: void m(); }; }",
-            "g2.h": b"namespace S { class T { public: void m2(); }; }",
-            "g.cpp": b'#include "g1.h"\nvoid S::T::m() { }'})
-        assert "m" not in got
+            "a.h": b"namespace A { class T { public: void m(); }; }",
+            "b.h": b"namespace B { class T { public: void m(); }; }",
+            "c.cpp": b'#include "a.h"\n#include "b.h"\nvoid T::m() { }'})
+        assert got == {}

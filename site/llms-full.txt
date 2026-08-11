@@ -5672,6 +5672,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Node ids no longer contain a file path or a line number.** BREAKING: every code-symbol id changes,
+  so a re-index is required, and the embedding store must be rebuilt (see below).
+
+  The old id was `repo + path + qualified-name + line`, which made two things impossible. The path
+  meant a declaration and its out-of-line definition could never be the same symbol. The line meant
+  editing anything *above* a symbol changed its id, so every edge, vector and wiki reference to it
+  churned for no semantic reason.
+
+  Ids are now `<readable-slug>_<8 hex digest>`. The slug keeps them legible where people actually read
+  them -- answers, dashboards, MCP arguments -- and the digest is what makes them correct, covering
+  repo, language, kind, qualified name, signature, and the file for internal-linkage symbols only.
+
+  Three details that are not arbitrary:
+
+  - **The signature is part of the key**, because overloads share everything else. Measured on a large
+    legacy C++ tree, 1,038 qualified names occur more than once in a single file, and until now only
+    the line told them apart. It uses the whole declarator, so `at(int) const` and `at(int)` stay
+    distinct -- trailing `const` and `&`/`&&` sit outside the parameter list.
+  - **The file leaves the key only for C and C++ external-linkage symbols.** That is the one case where
+    one symbol legitimately spans two files. Everywhere else the file *is* the identity: Python, JS,
+    Go, Java and the rest put one module per file, so `class Widget` in two modules are two classes.
+    `static` functions keep their file too, because internal linkage is file-scoped by language rule.
+  - **Constructors and destructors are marked in the slug.** Id normalisation folds `~` away, so `C::C`
+    and `C::~C` were previously indistinguishable outside the digest.
+
+  A consequence worth knowing: two headers declaring the same `S::T` now produce **one** class node.
+  That is accurate rather than lossy -- in well-formed C++ `S::T` names exactly one class, and two
+  differing definitions of it are an ODR violation.
+
+### Fixed
+
+- **C and C++ nodes never carried a signature.** `_doc_sig` looked for the parameter list as a field on
+  the definition node, and in C/C++ it hangs off the declarator instead, so every C/C++ node reported
+  `signature: None` -- in the UI, the wiki and `get_repo_brief` alike. This function's own docstring
+  admitted it by listing only py/js/ts/c#. It now walks into the declarator.
+
 ### Fixed
 
 - **A stale embedding store answered silently, and `ask` vouched for it.** A vector row is keyed by

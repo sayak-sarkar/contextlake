@@ -31,9 +31,10 @@ from ..store.shards import read_shard
 #
 #   1: kind + name + qualified_name + file (metadata only)
 #   2: + captured signature and docstring (real content -> real semantic search)
-#   (a bump for an id-scheme change carries no text-format meaning; it is still
-#    correct to bump, because the stored KEYS are what went stale)
-EMBED_CONTENT_VERSION = 2
+#   3: node ids became file- and line-independent (a readable slug plus a digest), so
+#      every stored KEY from 1 and 2 names a node that no longer exists. The text
+#      mapping itself did not change; the bump is about the keys.
+EMBED_CONTENT_VERSION = 3
 
 # Docstrings are captured up to 1000 chars; embed a tighter slice so one verbose
 # docstring can't drown the identifying tokens (name/signature) in the vector.

@@ -13,6 +13,7 @@ in the tables below; the rest of the pipeline is language-agnostic.
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import logging
 import os
 import re
@@ -508,7 +509,8 @@ def _doc_sig(def_ts: ts.Node, lang: str) -> dict:
 
     Additive, best-effort — richer graph facts (shown in the UI, wiki, and
     ``get_repo_brief``) and the groundwork for body-aware embeddings. Signature is
-    captured across languages (py/js/ts/c#); the docstring comes from Python's
+    captured across py/js/ts/c# (parameters sit on the definition) and c/c++ (they sit
+    on the declarator, one level in); the docstring comes from Python's
     first-statement string or, elsewhere, a JSDoc/C#-XML leading comment. Never raises.
     """
     out: dict = {}
@@ -517,6 +519,19 @@ def _doc_sig(def_ts: ts.Node, lang: str) -> dict:
         # is "parameters" in py/js/ts, "parameter_list" in c#); graceful if absent.
         params = (def_ts.child_by_field_name("parameters")
                   or def_ts.child_by_field_name("parameter_list"))
+        if params is None:
+            # C and C++ hang the parameter list off the DECLARATOR, not off the
+            # definition, so the two lookups above always missed and every C/C++ node
+            # carried signature=None. That is a real coverage gap in the DISPLAYED field,
+            # which appears in the UI, the wiki and get_repo_brief -- so walk one level in.
+            #
+            # This is not the overload discriminator: `_signature_text` already handles
+            # that, and deliberately returns the whole declarator so trailing `const` and
+            # `&`/`&&` are included. Do not substitute this field for it.
+            dec = def_ts.child_by_field_name("declarator")
+            while dec is not None and params is None:
+                params = dec.child_by_field_name("parameters")
+                dec = dec.child_by_field_name("declarator")
         if params is not None:
             sig = params.text.decode("utf-8", "replace").strip()
             if sig:
@@ -706,11 +721,31 @@ def _dedupe_preprocessor_twins(
         keeper_id = representatives[0][3]
         for def_ts, _qualified, _line, nid in representatives[1:]:
             def_node_to_id[def_ts.id] = keeper_id
-            drop_ids.add(nid)
+            # Guard against dropping the keeper itself. Node ids no longer contain the
+            # line, so two `#ifdef`/`#else` twins -- identical qualified name, identical
+            # signature -- now produce the SAME id, making `nid == keeper_id`. Adding it
+            # to drop_ids then deleted BOTH branches, because the filter below removes
+            # every node carrying a dropped id. The remap above is still needed: call
+            # attribution is keyed by tree-sitter node id, and both branches' bodies must
+            # attribute to the one surviving graph node.
+            if nid != keeper_id:
+                drop_ids.add(nid)
 
     if drop_ids:
         nodes[:] = [n for n in nodes if n.id not in drop_ids]
         pending[:] = [p for p in pending if p[3] not in drop_ids]
+
+    # Two definitions that produce the same id ARE the same symbol -- that is what the
+    # key asserts (repo, kind, qualified name, signature, and the file only for
+    # internal-linkage symbols). So collapse duplicates, keeping the first occurrence.
+    # This is what makes preprocessor twins fold together without the branch analysis
+    # above having to fire at all. If two genuinely distinct symbols ever land here, the
+    # bug is in the KEY and must be fixed there; preserving duplicate ids would only
+    # hide it behind two nodes that cannot be told apart anyway.
+    seen: set[str] = set()
+    nodes[:] = [n for n in nodes if not (n.id in seen or seen.add(n.id))]
+    seen_p: set[str] = set()
+    pending[:] = [p for p in pending if not (p[3] in seen_p or seen_p.add(p[3]))]
 
 
 def _qualified_chain(qi_node: ts.Node) -> tuple[list[str], ts.Node]:
@@ -860,9 +895,30 @@ def parse_source(
             continue
         if kind == "function" and enclosing and _DEF_TYPES[lang].get(enclosing[0].type) == "class":
             kind = "method"
-        nid = make_id(repo_id, rel_path, qualified, str(line))
-        def_node_to_id[def_ts.id] = nid
         node_attrs = _doc_sig(def_ts, lang)
+        # Computed before the id, because the parameter signature is part of the key.
+        nid = symbol_id(
+            repo_id, kind, qualified,
+            # `_signature_text`, NOT attrs["signature"]: only the former carries
+            # trailing cv- and ref-qualifiers, which tree-sitter attaches as siblings of
+            # the parameter list. Keying on the parameter list alone collapses
+            # `at(int) const` into `at(int)`, and the suite already had tests forbidding
+            # exactly that.
+            signature=_signature_text(def_ts),
+            # The file leaves the key ONLY for C/C++ external-linkage symbols, which is
+            # the single case where one symbol legitimately spans two files (the
+            # header/source split that C1 is about). Everywhere else the file IS part of
+            # the identity: Python, JS/TS, Go, Java and the rest put one module per file,
+            # so `class Widget` in two modules are two different classes, and dropping
+            # the file would merge them. Measured the hard way -- three cross-language
+            # tests failed the moment the file came out unconditionally.
+            file_scope=(None if lang in ("c", "cpp") and not _is_internal_linkage(def_ts)
+                        else rel_path),
+            name=name,
+            enclosing_name=(scope[-1] if scope else None),
+            lang=lang,
+        )
+        def_node_to_id[def_ts.id] = nid
         if extra_scope:
             node_attrs["_pending_method_of"] = extra_scope
         nodes.append(Node(
@@ -1061,6 +1117,65 @@ def _test_macro_case(def_ts: ts.Node, name: str, lang: str) -> tuple[str, str] |
         return None
     # Two arguments is the googletest shape (suite, case). One is Catch2's TEST_CASE.
     return (args[0], args[1]) if len(args) >= 2 else ("", args[0])
+
+
+def _is_internal_linkage(def_ts: ts.Node) -> bool:
+    """Whether this definition is file-scoped BY LANGUAGE RULE rather than by accident.
+
+    A `static` free function has internal linkage: two translation units may each
+    define their own, with the same name and signature, and they are genuinely
+    different symbols. So the file has to stay in their key, or the two merge into one
+    node and every caller of either appears to call a single shared function.
+
+    Anonymous-namespace members have the same property and are NOT handled here -- that
+    needs the enclosing-scope walk G9 covers, and claiming it now would overstate this.
+    """
+    for ch in def_ts.children:
+        if ch.type == "storage_class_specifier" and ch.text == b"static":
+            return True
+    return False
+
+
+def _symbol_slug(kind: str, qualified: str, name: str, enclosing_name: str | None) -> str:
+    """The readable half of a node id.
+
+    `normalize_id` folds every non-word character to `_`, so a constructor and its
+    destructor both reduce to the class name (C2 in the gap register): `C::C` and
+    `C::~C` are indistinguishable after normalisation. The digest keeps them apart
+    regardless, but an id a person cannot tell apart is barely better than an opaque
+    one, so the marker is spelled out here rather than left to the hash.
+    """
+    marker = ""
+    if name.startswith("~"):
+        marker = "dtor"
+    elif enclosing_name and name == enclosing_name:
+        marker = "ctor"
+    return make_id(qualified, marker) or make_id(kind, name) or "sym"
+
+
+def symbol_id(repo_id: str, kind: str, qualified: str, *, signature: str | None = None,
+              file_scope: str | None = None, name: str = "",
+              enclosing_name: str | None = None, lang: str = "") -> str:
+    """A node id that survives an edit and matches across a header/source split.
+
+    Ids used to be ``make_id(repo, rel_path, qualified, line)``, which made two things
+    impossible. The path meant a declaration and its out-of-line definition could never
+    be the same symbol (C1). The line meant editing a file above a symbol changed its
+    id, so every edge, vector and wiki reference to it churned for no semantic reason.
+
+    Shape is ``<readable-slug>_<8 hex>``. The slug keeps ids legible in answers,
+    dashboards and MCP arguments, which is a real property of this project's output.
+    The digest is what makes them CORRECT: it covers the exact key below, so two symbols
+    the slug cannot separate still get different ids.
+
+    ``signature`` is part of the key because overloads share everything else -- measured
+    on a large legacy C++ tree, 1,038 qualified names occur more than once in a single
+    file, and until now only the line number told them apart. ``file_scope`` is passed
+    only for internal-linkage symbols, which are file-scoped by language rule.
+    """
+    key = "\0".join([repo_id, lang, kind, qualified, signature or "", file_scope or ""])
+    digest = hashlib.sha256(key.encode("utf-8", "replace")).hexdigest()[:8]
+    return f"{_symbol_slug(kind, qualified, name, enclosing_name)}_{digest}"
 
 
 def _file_kind(fn: str, ext: str, rel: str, *, allowed_exts: set[str],
