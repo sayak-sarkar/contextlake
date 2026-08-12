@@ -119,11 +119,12 @@ nav/footer embed (`docs/branding/mark.png`) is a resize of the same source, not 
 
 **One exception, for practical legibility, not aesthetics:** below about 48px, painterly shading
 degrades to a muddy blob (fine gradients and soft edges don't survive that much downsampling). At
-**16–32px only** (browser favicon, tab strip), contextlake ships a **simplified silhouette** derived
-from Pebble's outline — solid shapes, no gradients, the pebble rendered as a single glowing dot — so
-the mark stays legible instead of turning into noise. This is a rendering necessity, not a second
-brand register: it's a simplified silhouette of the one painterly character, not an independent flat
-logo with its own construction rules or color system. Built by `site/tools/gen_small_mark.py`; see §2.3.
+**16–64px** (browser favicon, tab strip), contextlake ships the **context-pebble alone** — the object
+Pebble is holding, not Pebble — because a character has too many parts to survive 16 pixels however
+it is simplified. This is a rendering necessity, not a second brand register: it is a *detail of the
+same artwork*, using the same palette and the same object §2.2 already defines, not an independent
+flat logo with its own construction rules. Built by `site/tools/gen_small_mark.py`; see §2.3, which
+records the contrast measurements behind it.
 
 ### 2.2 The context-pebble inside the mark
 
@@ -132,17 +133,36 @@ with a single gold glint, cradled in both forepaws. At mark scale it may simplif
 gradient steps) but never changes shape, color family, or the "one glint" rule. No facet lines,
 star-dots, or node-graph inside it at any scale.
 
-### 2.3 Small-size favicon simplification (16–32px only)
+### 2.3 The small tier: the context-pebble (16–64px)
 
-- **Container:** rounded-square (iOS squircle), corner radius ≈ 22% of edge, solid **deepwater
-  `#0E2A33`** background (never pure black, never transparent).
-- **Silhouette:** a simplified Pebble outline in a light, brand-palette tone against the deepwater
-  field, with the context-pebble as a single glowing dot (current `#2BB3A3` → sun `#E7B53C` accent).
-  No fur texture, no shading gradient, no facets — legibility at 16px is the only goal.
-- Ship layered: 16/32/48/64px (this simplified tier) plus 180/192/512px (the full painterly crop,
-  §2.1) and a maskable 512 with 10% safe padding (Android adaptive icons).
-- The favicon never renders a legible knowledge-graph; graph semantics live only in large illustration
-  and product UI.
+**Revised 2026-08-13.** Below 64px the mark is **not Pebble** — it is the thing Pebble is holding.
+
+The previous rule asked for a simplified Pebble silhouette here, and it did not work. A pale
+mist-teal otter on a deepwater-teal ground is a difference in *tone*, not in *contrast*, and head,
+two ears, two eyes, a snout, a body and an orb are six shapes competing inside 256 pixels. In a tab
+strip it resolved to one blue-grey mass: the favicon slot carried a picture of the mascot and showed
+the reader nothing. Rendering a character at 16px is the mistake, not the execution of it.
+
+So the small tier renders the **context-pebble** alone. It is a detail of the same artwork rather
+than a second logo, which is what lets it be legible without becoming a different brand.
+
+- **Container:** rounded-square (iOS squircle), corner radius 22% of the edge, solid **deepwater
+  `#0E2A33`** — never pure black, never transparent (a transparent favicon vanishes on a dark tab
+  strip).
+- **The pebble:** a **current `#2BB3A3`** disc at 34% of the edge, with a faint teal halo kept
+  strictly outside its rim, and one light arc along the upper-left. A disc is the shape that survives
+  downscaling best: it has no thin features to lose.
+- **Interior marks are deepwater, not light.** Measured against the teal disc: deepwater is
+  **5.78:1**, mist **2.08:1**, sun gold **1.37:1**. Light-on-teal is what disappears first on a poor
+  display, so the constellation is dark on a bright stone. The sun glint keeps a deepwater collar for
+  the same reason — hue difference alone does not separate it.
+- **Progressive detail, drawn per size, never downscaled from one artwork:**
+  - **16, 32** — the pebble and one gold glint. Nothing else fits.
+  - **48, 64** — the constellation appears: three nodes and the edges between them.
+- **Above 64px the identity returns to painterly Pebble** (§2.1): 180/192/512 and the maskable 512
+  with 10% safe padding are the full crop. Small is a detail of large, not a rival to it.
+- Built by `site/tools/gen_small_mark.py`; every size is composed at 8× and reduced once, so edges
+  land on pixel boundaries. Regenerate rather than hand-edit.
 
 ### 2.4 Wordmark
 
@@ -456,7 +476,7 @@ Wet-fur sheen is soft `#EAF4F4` painterly highlights at low opacity, **never dis
 - **Gold glint:** exactly **one** small warm highlight in **sun `#E7B53C`** near the upper third (one point or short streak). One glint, never a constellation.
 - **Cast glow:** the pebble casts soft teal light onto Pebble's paws/chest/chin, proof it really glows.
 - **Scale:** pebble diameter ≈ **45–55%** of head width (co-subject, never larger than the head) at
-  mascot scale; the mark (§2.1) and its 16–32px favicon simplification (§2.3) may shrink it further for
+  mascot scale; the mark (§2.1) and the 16–64px favicon tier (§2.3) may shrink it further for
   legibility, same object, smaller reference frame.
 
 **Hard pebble rule:** NOT an amber sphere with star-dots (Dragon Ball), NOT a faceted crystal/gem, NOT a gold nugget, NOT a node-graph inside. The "knowledge graph" semantic lives in large illustration and product UI only, never inside the carried pebble.
@@ -498,9 +518,9 @@ Pebble renders **painterly** everywhere: rich, dimensional, subsurface glow, sof
 hard black outlines, forms separated by value and rim light. Hero, OG/social, large illustration,
 onboarding, the mark (§2.1), app icons, README banners — all the same rendering.
 
-The **only** exception is the 16–32px favicon tier (§2.3), a simplified silhouette used purely because
-painterly shading doesn't survive that much downsampling — a technical necessity, not a second brand
-register. There is no separate "flat mark" style to keep in sync; there is one Pebble and one small-size
+The **only** exception is the 16–64px favicon tier (§2.3), which shows the context-pebble by itself,
+used purely because painterly shading doesn't survive that much downsampling — a technical necessity,
+not a second brand register. There is no separate "flat mark" style to keep in sync; there is one Pebble and one small-size
 simplification of it.
 
 ### 5.9 Hard do / don'ts
@@ -539,18 +559,18 @@ Use the base prompt + locked phrase blocks. Keep locked phrases verbatim; vary o
 
 ## 6. Illustration, imagery & motion
 
-### 6.1 One register, and where the 16–32px exception applies
+### 6.1 One register, and where the 16–64px exception applies
 
 Pebble is painterly everywhere: mascot poses, hero, OG/social, large spot illustration, docs section
 headers, the mark, app icons, README badges. Rendering is soft volumetric shading (2–4 light planes),
 subsurface pebble glow, atmospheric depth, painterly edges, no outline (form reads by value/light).
 Format: PNG → WebP/AVIF.
 
-**The one exception:** below about 48px (browser favicon tab-strip sizes, 16–32px), painterly shading
-turns to mud on downsample. That tier alone uses the simplified silhouette from §2.3 — solid shapes, no
-gradient, corner radius ≥ 12% of shape width, SVG/PNG. It shares the same pebble-glow palette
-(`#2BB3A3` core → `#137A8B` falloff → mist rim, one `#E7B53C` glint) so it still reads as the same
-character, just simplified for legibility, not a second illustration style to maintain in parallel.
+**The one exception:** at browser favicon and tab-strip sizes (16–64px), painterly shading turns to mud
+on downsample. That tier alone uses the context-pebble mark from §2.3 — solid shapes, no gradient,
+corner radius 22% of the tile, PNG. It keeps the same pebble palette (`#2BB3A3` disc, one `#E7B53C`
+glint) so it still belongs to the same world; what it drops is the character, because six shapes do not
+fit in 256 pixels. It is a crop of the story, not a second illustration style to maintain in parallel.
 
 ### 6.2 Scene composition: the layered Pebble technique
 
@@ -604,7 +624,7 @@ The product *is* a node-graph, so the graph screen is the highest "floating-node
 ### 7.1 Surface rules
 
 Pebble is painterly on every surface (§5.8); the table below is asset format/placement, not a register
-choice. The 16–32px favicon simplification (§2.3) is the only surface using the simplified silhouette.
+choice. The 16–64px favicon tier (§2.3) is the only surface that drops the character entirely.
 
 | Surface | Asset(s) | Format | Background | Rules |
 |---|---|---|---|---|
@@ -615,7 +635,7 @@ choice. The 16–32px favicon simplification (§2.3) is the only surface using t
 | **README, GitHub** | hero banner (1280×640 safe), shields badges | PNG/WebP via raw URL; SVG badges | reads on GitHub light **and** dark | Use `<picture>` with light/dark sources; never transparent-on-white only |
 | **README, PyPI** | same banner, **absolute URLs only** | PNG (PyPI strips some SVG; no relative paths) | PyPI light | All `src` absolute `https://`; one banner, no animation |
 | **OG / social** | 1200×630 card | JPG/PNG, exact 1200×630 | painterly, text-safe | Wordmark in real Space Grotesk; title in central 80% safe area |
-| **Favicon** | mark (§2.1) ≥48px; simplified silhouette (§2.3) at 16–32px | theme-aware SVG + ICO/PNG @16/32/48 | solid deepwater (never transparent) | never a legible graph at this size |
+| **Favicon** | painterly mark (§2.1) ≥180px; context-pebble (§2.3) at 16–64px | PNG @16/32/48/64 | solid deepwater (never transparent) | never a legible graph at this size |
 | **App icon (PWA/touch)** | full painterly mark | PNG @180/192/512 + maskable 512 | deepwater `#0E2A33` solid | Maskable variant with 10% safe padding (Android) |
 | **ghcr.io / PyPI avatar** | mark | PNG 512×512 | deepwater solid | Square, no wordmark (registries crop to circle) |
 
@@ -636,7 +656,7 @@ choice. The 16–32px favicon simplification (§2.3) is the only surface using t
 | `docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg` | retired flat-mark assets (correct blue-grey color, wrong register) | **Kept for history only** — not referenced by any build, page, or spec; do not revive as the logo (the register decision stands even though the color was right) | n/a |
 | `docs/branding/wordmark.svg` | shipped single-color, weight 700 | keep in sync with §2.4; `<desc>` should not claim a flat otter-head mark is primary | SVG |
 | `docs/branding/mascot.md` | rewritten to Section 5, then corrected back to blue-grey 2026-07-28 | keep in sync with §5 | markdown |
-| `docs/img/icon-16/32/48/64.png` | simplified silhouette (`site/tools/gen_small_mark.py`), mist-teal, matches the locked fur color | **Keep** — already correct | PNG, deepwater-solid bg |
+| `docs/img/icon-16/32/48/64.png` | context-pebble (`site/tools/gen_small_mark.py`): teal disc, deepwater interior marks, one sun glint | **Regenerate** with the tool; never hand-edit | PNG, deepwater-solid bg |
 | `docs/img/icon-180/192/512.png` | painterly mark (`site/tools/gen_icons_final.py`), warm brown | **Regenerate** once blue-grey painterly art exists (see "The mark" row above) | PNG, deepwater-solid bg |
 | `favicon.svg` | missing | **Create** theme-aware flat favicon (`prefers-color-scheme`) | SVG + ICO/PNG @16/32/48 |
 | Maskable app icon | missing | **Create** full-bleed deepwater, 10% safe padding | PNG 512×512 |
