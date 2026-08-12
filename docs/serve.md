@@ -47,6 +47,45 @@ embeddings exist**, which takes both halves, `enabled = true` under `[embeddings
 fine and says so, the two tools are simply absent from the tool list, and everything
 above still works.
 
+## What a miss looks like, and what an error looks like
+
+**A recoverable condition is never an error result.** Ask for a symbol that does not exist, a
+repo that was never indexed, a repo whose local clone has gone missing, or anything at all of a
+store with nothing in it yet, and every tool still answers. The negative comes back as ordinary
+data in a field you can read, never as a failed tool call.
+
+That is worth stating as a guarantee rather than leaving as a happy accident, because of how an
+agent reads a failed call. It does not read one as "that particular lookup missed", it reads it
+as "this tool is broken", and it stops calling the server for the rest of the session. One
+handler raising on a miss would therefore not cost one answer, it would cost every answer the
+graph could have given afterwards, replaced by grepping.
+
+So a miss is always something you can act on:
+
+| Field | On | Means |
+| --- | --- | --- |
+| `found` | `who_knows`, `get_wiki`, `get_readme`, `get_repo_brief`, `get_repo_links`, `repo_dependencies`, `repo_flow`, `repo_event_flow` | `false` says no repo with that id is indexed, so an empty result is not an architectural fact about a real repo |
+| `note` | `find_callers`, `find_callees`, `find_dependents`, `blast_radius` | names the symbol or package that is not indexed, so "nothing calls this" and "no such symbol" stay distinguishable |
+| `ranking_gap` | `who_knows` | why the owner list is empty: no such repo, no clone on record, or a history that attributed nobody |
+| `gap` | `shortest_path` | which miss it was: an id the graph does not hold, or two indexed nodes with no route between them |
+| `answered` | `ask` | `false` says nothing satisfied the question as asked. Any `nodes` alongside it are leads from a fallback search, not the answer |
+| `indexed` | `graph_health` | `false` says the zero counts mean "nothing to check", not "everything checked out" |
+| `total`, `truncated` | every capped list | the true total, and whether the cap was hit, so a short list is never mistaken for a complete one |
+
+`get_node` is the one exception to the envelope shape, and deliberately so: it returns the node
+or `null`, which cannot be misread.
+
+**What is still an error, and why the line sits there.** An argument that is not a question gets
+refused rather than answered: a negative `hops` on `blast_radius`, a `direction` outside
+`in`/`out`/`both`, anything the advertised schema rejects. Answering those emptily would hand
+back "nothing is affected" or "this repo has no dependencies", a positive claim manufactured
+from an argument the tool had in fact rejected, and that is the one thing worse than an error.
+Note the shape of the line: `hops: 0` is a real request and answers, `hops: -1` is refused.
+
+`tests/kb/test_server_contract.py` pins both halves. It reads the live tool list off the wire
+and calls every tool with miss-shaped arguments against an empty store, an indexed fleet, and a
+fleet whose clone is gone, so a tool added later is covered on the day it is added.
+
 ## The quick way: let contextlake wire your editors
 
 From your workspace root:

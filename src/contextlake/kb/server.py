@@ -1403,7 +1403,19 @@ def build_server(
         if route == CALLERS:
             nid, why = _resolve_id(target)
             if nid is None:
-                return _out(f"Couldn't resolve a symbol to find callers of — {why}.")
+                # answered=False, like every other established negative in this
+                # handler. These four "couldn't resolve" returns (callers, subclasses,
+                # impact, owners) left the field at its True default, so a question
+                # about a symbol or repo the graph had PROVED it does not hold came
+                # back labelled as answered, with the miss stated only in the prose.
+                # An agent reading `answered` -- the field that exists precisely so it
+                # does not have to parse the prose -- took a stated non-answer for an
+                # answer. `AskOut.answered` already documents "no such definition / no
+                # such repo" as False cases, and the dependents route beside them
+                # already did it, so this was an omission in one family of routes
+                # rather than a distinction being drawn.
+                return _out(f"Couldn't resolve a symbol to find callers of — {why}.",
+                            answered=False)
             res = find_callers(nid, limit=k)
             return _out(f"Callers of {target!r} — incoming calls, EXTRACTED-first"
                         + (why or "") + ".", nodes=res.nodes, truncated=res.truncated)
@@ -1429,7 +1441,9 @@ def build_server(
         if route == SUBCLASSES:
             nid, why = _resolve_id(target)
             if nid is None:
-                return _out(f"Couldn't resolve a type to find subclasses of — {why}.")
+                # answered=False for the reason given on the callers route above.
+                return _out(f"Couldn't resolve a type to find subclasses of — {why}.",
+                            answered=False)
             # incoming `inherits` edges are the types that extend/implement this one
             subs, seen = [], set()
             for e in store.neighbors(nid, relation="inherits", direction="in"):
@@ -1445,7 +1459,12 @@ def build_server(
         if route == IMPACT:
             nid, why = _resolve_id(target)
             if nid is None:
-                return _out(f"Couldn't resolve a symbol for blast radius — {why}.")
+                # answered=False for the reason given on the callers route above. It
+                # matters most here: an impact question is asked to decide whether a
+                # change is safe, and "answered, nothing found" is the reading that
+                # green-lights it.
+                return _out(f"Couldn't resolve a symbol for blast radius — {why}.",
+                            answered=False)
             # `k` is advertised on `ask` and honoured by callers, subclasses and
             # dependents; this route dropped it and let blast_radius apply its own
             # default of 100, so an agent asking for one result could be handed a
@@ -1463,7 +1482,11 @@ def build_server(
         if route == OWNERS:
             rid, why = _resolve_repo(target)
             if rid is None:
-                return _out(f"Couldn't tell which repo to find owners for — {why}.")
+                # answered=False for the reason given on the callers route above. This
+                # is the branch `AskOut.answered` names literally ("no such repo"), and
+                # the sibling return ten lines down already set it.
+                return _out(f"Couldn't tell which repo to find owners for — {why}.",
+                            answered=False)
             res = who_knows(rid, limit=k)
             if not res.owners:
                 # Derived from whether the ranking actually happened, never

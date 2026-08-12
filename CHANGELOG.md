@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **"A recoverable condition never raises" is now a tested guarantee, not an emergent habit.** Ask a
+  code-knowledge tool about a symbol that does not exist and it should say so; if it raises instead,
+  an agent stops using that tool for the rest of the session — one error teaches abandonment. All 23
+  server tools were probed across an empty store, a populated store asked about things it does not
+  hold, a store whose clone directory is gone, and a store with no path at all: none of them raised,
+  so the property held and needed no repair. It is now pinned by
+  `tests/kb/test_server_contract.py`, which reads the live tool list off the wire rather than a
+  hand-kept copy, so a newly added tool is covered the day it appears and a vanished one fails
+  loudly. The near-miss is asserted in the same file: genuinely invalid arguments must still be
+  refused, so the test cannot pass by everything simply never erroring. `docs/serve.md` states what
+  callers may rely on and what remains an error.
+
 ### Fixed
+
+- **`ask` reported four established negatives as answered.** The callers, subclasses, impact and
+  owners routes left `answered` at its default when they could not resolve the target, so a question
+  the graph had *proved* it cannot answer came back labelled as answered, with the miss stated only
+  in the prose. `answered` exists precisely so a caller does not have to read the prose. The
+  dependents route beside them already got this right, and `AskOut.answered` documents "no such
+  definition / no such repo" as False cases, so this was an omission rather than a distinction. It
+  matters most on impact: that question is asked to decide whether a change is safe, and
+  "answered, nothing found" is the reading that green-lights it. Found by the contract test above.
 
 - **An empty marker in the vector store was indistinguishable from a missing one, and a repo could
   re-embed itself forever.** `set_embedded_head` and `set_embedded_parser_version` wrote `""` when
