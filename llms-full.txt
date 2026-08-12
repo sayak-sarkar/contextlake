@@ -2456,6 +2456,15 @@ and the docstring are where the words the query actually uses tend to live. File
 deliberately not embedded: a path or a shared package name is low semantic signal, and skipping them keeps
 results clean and avoids re-embedding cross-repo shared nodes once per referencing repo.
 
+**Data members, macros, typedefs, enum constants and file-scope variables are embedded too.** They are
+the majority of the symbols in a C or C++ tree and, before they had vectors, no semantic or hybrid query
+could return one of them at all. They are also thinner signal than a function: a data member usually
+carries a name and a type and nothing else. Measured on a large legacy tree, adding them costs the kinds
+that were already embedded about five percentage points of recall@10 in exchange for tens of thousands of
+symbols going from unreachable to findable. If your tree is C++-heavy and you would rather have the
+sharper ranking than the reach, `kb query --kind` narrows any single query, and the trade-off is recorded
+per kind in `kb/kinds.py` so it can be revisited with the numbers in view.
+
 ## Which model?
 
 The default is `minishlab/potion-base-8M`, a **static** embedding model: it looks each token up in a
@@ -5668,6 +5677,116 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.1.0] - 2026-08-12
+
+**Grounding, and the cost of 7.0.0's bigger graphs.** Three of these follow directly from 7.0.0
+emitting five more kinds of C/C++ symbol: the new kinds are now reachable by semantic search, the
+wiki's per-kind floors are bounded so they cannot displace the ranking they exist to garnish, and
+the dashboard's owner panel no longer walks a whole repository's history on every request.
+
+`contextlake kb embed` must run once after upgrading. Nothing else needs re-indexing: no ids
+change and `PARSER_VERSION` stays at `4`.
+
+### Added
+
+- **A real golden query set for retrieval quality, gated on every change instead of weekly.**
+  Retrieval quality was measurable but barely measured: the set held **3 queries** over a 2-node,
+  2-kind fixture, and only a weekly scheduled workflow scored it, so a set that had drifted apart
+  from its fixture could sit green for a week.
+
+  It is now 30 queries over a synthetic multi-language fixture repo (`examples/fixtures/eval-repo`
+ , C++ header and source, Python, SQL, XML config) that parses to 42 nodes across 13 kinds,
+  including the five symbol kinds 7.0.0 added. A retrieval change that only helps functions can
+  no longer hide.
+
+  Measured: hit-rate **0.80**, precision@10 **0.7241**, recall@10 **0.80**, MRR **0.80**. All six
+  misses are the natural-language phrasings ("reject an implausible sensor value"); every
+  exact-name query hits. FTS5 has no synonym matching, so those six are not a defect, they are
+  the gap semantic search exists to close, which is why they are in the set.
+
+  Three properties worth stating, because each is a trap avoided rather than a feature:
+
+  - Every query matches on **name**, not node id. Ids are a slug plus a digest of the symbol's
+    identity, so an id-scheme change (7.0.0 changed all of them) would have silently invalidated
+    an id-matched set while reading as a retrieval regression.
+  - The floor lives in **one place**, a field in the golden set that both the per-PR test and the
+    weekly workflow read. A threshold written in two files drifts.
+  - A separate test asserts the **fixture still produces each kind the set queries**, so a parser
+    change that stops emitting one fails as itself rather than as a mysterious retrieval drop.
+
+### Changed
+
+- **Data members, macros, typedefs, enum constants and file-scope variables are now embedded, so
+  semantic search can reach them.** Before this they were at recall **exactly zero**, not
+  poorly-ranked, unreachable. No semantic or hybrid query could return a macro or a data member,
+  because none had a vector.
+
+  **`kb embed` must run once after upgrading.** `EMBED_CONTENT_VERSION` moves to 4, which marks
+  stored vectors stale and triggers that automatically. The bump is the load-bearing part: widening
+  the embeddable set does not make existing vectors *wrong*, it makes the store **incomplete**, and
+  the incremental skip is keyed on commit and parser version, neither of which moves. Without it
+  you would keep a store with no vectors for the new kinds while `doctor` reported a healthy row
+  count.
+
+  The cost was measured, not assumed. On a large legacy tree, +180% vectors costs **5.25 percentage
+  points** of recall@10 for the kinds that were already embedded (273/400 probes to 252/400).
+  Marginally: typedefs, enumerators and file-scope variables together cost 1.00pp and take 12,342
+  symbols from 0 to 74% findable; macros add 1.50pp for 16,347 symbols at 85%; data members add
+  2.75pp for 40,948 at 65%. Every step buys more than it costs in the unit that matters, whether
+  the thing you searched for can be returned at all.
+
+  `field` is the heaviest by far (+105.9% vectors alone, and the least distinctive names, 54.8%
+  unique, one name occurring 506 times). It is recorded in the kind registry as the first row to
+  reconsider if that cost ever bites.
+
+### Fixed
+
+- **The dashboard's repo panel spent 30 seconds in a git subprocess on every single request.**
+  Profiled on a 131,603-node repository: the panel took 41s, and 30 of those were one
+  `git log --no-merges --numstat` walk over the whole history (36,290 commits), run synchronously,
+  uncached, on every request. Three separate callers each paid it, the dashboard panel,
+  `kb owners`, and the MCP `who_knows` tool.
+
+  Two fixes, both measured. The walk is now **bounded** to 12 score half-lives (~5.9 years), which
+  is where a commit's weight reaches 0.00024 and can no longer change a ranking, so the truncated
+  history was pure cost. And the result is **cached on HEAD**, since owners only change when
+  history does.
+
+  Repeat requests went from 34-35s to **4.2s**. A repository whose newest commit predates the
+  window falls back to the unbounded walk, because answering "no owners" for a dormant-but-real
+  repo would be worse than the slowness being removed.
+
+  Two bugs were caught inside this fix and are worth knowing about. `--since` was first passed a
+  float, and `git log --since="2160.0 days ago"` **exits 0 and returns zero commits**, it silently
+  fails to parse, so the bound never matched, the fallback always ran, and the net effect was two
+  full walks instead of one. And the cache key was first stored in a variable the aggregation loop
+  rebinds, so it wrote under a contributor's email and never hit. Both left every existing test
+  passing; there are now tests for the single-walk property and for the cache actually hitting.
+
+  Still slow and separately tracked: the first request remains ~30s on a repository this size,
+  because a 253 MB shard costs a measured 2.84 GiB resident and so exceeds the shard cache's whole
+  2 GiB budget, it is correctly never cached, and 7.0.0's larger graphs are what pushed shards past
+  that line.
+
+- **The wiki's per-kind floors could consume the whole ranked list.** Hub, dispatcher and
+  top-symbol lists reserve a slot per kind present, so a structurally low-degree kind (a SQL
+  table calls nothing) still gets represented. That reservation had no ceiling, and once a
+  repository held about as many kinds as the list is long, the degree ranking the lists exist to
+  present had effectively stopped running.
+
+  Measured after 7.0.0 started emitting five more C/C++ symbol kinds: on a real 12-kind
+  repository with a 15-row cap, the list kept only 47% of the pure degree-ranked top; constructed
+  at 17 kinds, **1 of 15 rows** was a genuine high-degree node.
+
+  Floors are now bounded to `cap // 2` and spent only on kinds the honest ranking left out
+  entirely, a kind already in the top rows needs no reservation. Same bounded-share rule
+  `visualize/payload.py` has always used. The original purpose survives: a zero-degree kind
+  present in the candidates still gets a slot, which a test pins.
+
+  Worth knowing where this bit: the cap is 15 until a repository exceeds ~22,500 nodes, so the
+  harm concentrated in repos with many kinds *relative to their size* rather than in the largest
+  ones. The floor selection had no test at all before this change.
+
 ## [7.0.0] - 2026-08-12
 
 **A correct graph, and one re-index to get it.** This release fixes what the graph *says*, so
@@ -6628,8 +6747,8 @@ manual step: regenerating graph HTML you saved or published.
   then spending 91% of its vectors on it.
 - **`--repos-exact` for an exact repo id/path match.** `--repos` has always matched a plain
   pattern as a substring of a repo's id or local path (documented, but easy to be surprised
-  by): on a real fleet, `--repos atlas` selected the intended repo plus an unrelated one whose
-  name merely contained "atlas". `--repos-exact` drops that substring leg while keeping glob
+  by): on a real fleet, `--repos ledger` selected the intended repo plus an unrelated one whose
+  name merely contained "ledger". `--repos-exact` drops that substring leg while keeping glob
   patterns (`frontend/*`) working exactly as before, for anyone who wants `--repos` to mean
   "this repo, not also anything that happens to contain its name." The default is unchanged --
   `--repos` alone still matches on substring, so nobody's existing script silently starts
@@ -9185,7 +9304,7 @@ spec-cli-simplification.md`.
   `extends`/`implements`); Scala (classes, objects, traits, methods, calls, `extends`).
   The parser now covers **13 languages**. (`.rs .rb .php .scala/.sc`.) Kotlin was
   evaluated but deferred, the available tree-sitter grammar is too inconsistent to index
-  reliably (superseded, see the Unreleased section).
+  reliably (superseded in 2.37.0 below, which indexes it).
 - **Go, Java, C, and C++ are now indexed.** Four more tree-sitter grammars: Go
   (functions, methods, struct/interface types, imports, calls); Java (classes,
   interfaces, enums, records, methods, constructors, imports, calls, full inheritance);

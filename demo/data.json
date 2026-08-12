@@ -1,6 +1,6 @@
 {
   "mode": "static",
-  "snapshot_date": "2026-08-11",
+  "snapshot_date": "2026-08-12",
   "confidence": {
     "EXTRACTED": [
       "Extracted",
@@ -178,20 +178,6 @@
             "doc": null
           },
           {
-            "kind": "package",
-            "name": "acme-auth",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "repo",
-            "name": "acme/auth-service",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
             "kind": "class",
             "name": "AuthService",
             "file": "src/AuthService.py",
@@ -202,6 +188,20 @@
             "kind": "function",
             "name": "hash_password",
             "file": "src/hash_password.py",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "package",
+            "name": "acme-auth",
+            "file": null,
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "repo",
+            "name": "acme/auth-service",
+            "file": null,
             "signature": null,
             "doc": null
           }
@@ -224,17 +224,17 @@
             "count": 1
           },
           {
-            "kind": "package",
-            "name": "acme-auth",
-            "file": null,
+            "kind": "function",
+            "name": "hash_password",
+            "file": "src/hash_password.py",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "function",
-            "name": "hash_password",
-            "file": "src/hash_password.py",
+            "kind": "package",
+            "name": "acme-auth",
+            "file": null,
             "signature": null,
             "doc": null,
             "count": 1
@@ -258,17 +258,17 @@
             "count": 1
           },
           {
-            "kind": "function",
-            "name": "verify_token",
-            "file": "src/verify_token.py",
+            "kind": "class",
+            "name": "TokenManager",
+            "file": "src/TokenManager.py",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "class",
-            "name": "TokenManager",
-            "file": "src/TokenManager.py",
+            "kind": "function",
+            "name": "verify_token",
+            "file": "src/verify_token.py",
             "signature": null,
             "doc": null,
             "count": 1
@@ -329,6 +329,20 @@
             "doc": null
           },
           {
+            "kind": "class",
+            "name": "OrderRepository",
+            "file": "src/OrderRepository.cs",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "class",
+            "name": "OrderController",
+            "file": "src/OrderController.cs",
+            "signature": null,
+            "doc": null
+          },
+          {
             "kind": "method",
             "name": "ValidateOrder",
             "file": "src/ValidateOrder.cs",
@@ -348,20 +362,6 @@
             "file": null,
             "signature": null,
             "doc": null
-          },
-          {
-            "kind": "class",
-            "name": "OrderRepository",
-            "file": "src/OrderRepository.cs",
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "class",
-            "name": "OrderController",
-            "file": "src/OrderController.cs",
-            "signature": null,
-            "doc": null
           }
         ],
         "hubs": [
@@ -369,6 +369,14 @@
             "kind": "class",
             "name": "CatalogService",
             "file": "src/CatalogService.cs",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "class",
+            "name": "OrderRepository",
+            "file": "src/OrderRepository.cs",
             "signature": null,
             "doc": null,
             "count": 1
@@ -385,14 +393,6 @@
             "kind": "package",
             "name": "acme-orders",
             "file": null,
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "class",
-            "name": "OrderRepository",
-            "file": "src/OrderRepository.cs",
             "signature": null,
             "doc": null,
             "count": 1
@@ -494,20 +494,6 @@
             "doc": null
           },
           {
-            "kind": "package",
-            "name": "acme-notify",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "repo",
-            "name": "acme/notifications",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
             "kind": "class",
             "name": "Notifier",
             "file": "src/Notifier.js",
@@ -518,6 +504,20 @@
             "kind": "function",
             "name": "queueJob",
             "file": "src/queueJob.js",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "package",
+            "name": "acme-notify",
+            "file": null,
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "repo",
+            "name": "acme/notifications",
+            "file": null,
             "signature": null,
             "doc": null
           }
@@ -540,17 +540,17 @@
             "count": 1
           },
           {
-            "kind": "package",
-            "name": "acme-notify",
-            "file": null,
+            "kind": "function",
+            "name": "queueJob",
+            "file": "src/queueJob.js",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "function",
-            "name": "queueJob",
-            "file": "src/queueJob.js",
+            "kind": "package",
+            "name": "acme-notify",
+            "file": null,
             "signature": null,
             "doc": null,
             "count": 1
@@ -574,17 +574,17 @@
             "count": 1
           },
           {
-            "kind": "function",
-            "name": "sendEmail",
-            "file": "src/sendEmail.js",
+            "kind": "class",
+            "name": "EmailSender",
+            "file": "src/EmailSender.js",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "class",
-            "name": "EmailSender",
-            "file": "src/EmailSender.js",
+            "kind": "function",
+            "name": "sendEmail",
+            "file": "src/sendEmail.js",
             "signature": null,
             "doc": null,
             "count": 1
@@ -652,20 +652,6 @@
             "doc": null
           },
           {
-            "kind": "package",
-            "name": "acme-payments",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "repo",
-            "name": "acme/payments-api",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
             "kind": "class",
             "name": "PaymentProcessor",
             "file": "src/PaymentProcessor.cs",
@@ -676,6 +662,20 @@
             "kind": "method",
             "name": "Refund",
             "file": "src/Refund.cs",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "package",
+            "name": "acme-payments",
+            "file": null,
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "repo",
+            "name": "acme/payments-api",
+            "file": null,
             "signature": null,
             "doc": null
           }
@@ -698,17 +698,17 @@
             "count": 1
           },
           {
-            "kind": "package",
-            "name": "acme-payments",
-            "file": null,
+            "kind": "method",
+            "name": "Refund",
+            "file": "src/Refund.cs",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "method",
-            "name": "Refund",
-            "file": "src/Refund.cs",
+            "kind": "package",
+            "name": "acme-payments",
+            "file": null,
             "signature": null,
             "doc": null,
             "count": 1
@@ -732,17 +732,17 @@
             "count": 1
           },
           {
-            "kind": "method",
-            "name": "Charge",
-            "file": "src/Charge.cs",
+            "kind": "class",
+            "name": "CardGateway",
+            "file": "src/CardGateway.cs",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "class",
-            "name": "CardGateway",
-            "file": "src/CardGateway.cs",
+            "kind": "method",
+            "name": "Charge",
+            "file": "src/Charge.cs",
             "signature": null,
             "doc": null,
             "count": 1
@@ -797,6 +797,13 @@
             "doc": null
           },
           {
+            "kind": "function",
+            "name": "err",
+            "file": "src/err.ts",
+            "signature": null,
+            "doc": null
+          },
+          {
             "kind": "file",
             "name": "manifest.ts",
             "file": "manifest.ts",
@@ -830,13 +837,6 @@
             "file": null,
             "signature": null,
             "doc": null
-          },
-          {
-            "kind": "function",
-            "name": "err",
-            "file": "src/err.ts",
-            "signature": null,
-            "doc": null
           }
         ],
         "hubs": [
@@ -844,6 +844,14 @@
             "kind": "function",
             "name": "ok",
             "file": "src/ok.ts",
+            "signature": null,
+            "doc": null,
+            "count": 1
+          },
+          {
+            "kind": "function",
+            "name": "err",
+            "file": "src/err.ts",
             "signature": null,
             "doc": null,
             "count": 1
@@ -860,14 +868,6 @@
             "kind": "package",
             "name": "acme-shared",
             "file": null,
-            "signature": null,
-            "doc": null,
-            "count": 1
-          },
-          {
-            "kind": "function",
-            "name": "err",
-            "file": "src/err.ts",
             "signature": null,
             "doc": null,
             "count": 1
@@ -891,17 +891,17 @@
             "count": 1
           },
           {
-            "kind": "file",
-            "name": "manifest.ts",
-            "file": "manifest.ts",
+            "kind": "function",
+            "name": "err",
+            "file": "src/err.ts",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "function",
-            "name": "err",
-            "file": "src/err.ts",
+            "kind": "file",
+            "name": "manifest.ts",
+            "file": "manifest.ts",
             "signature": null,
             "doc": null,
             "count": 1
@@ -969,20 +969,6 @@
             "doc": null
           },
           {
-            "kind": "package",
-            "name": "acme-webui",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
-            "kind": "repo",
-            "name": "acme/web-ui",
-            "file": null,
-            "signature": null,
-            "doc": null
-          },
-          {
             "kind": "class",
             "name": "CheckoutPage",
             "file": "src/CheckoutPage.tsx",
@@ -993,6 +979,20 @@
             "kind": "class",
             "name": "ApiClient",
             "file": "src/ApiClient.tsx",
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "package",
+            "name": "acme-webui",
+            "file": null,
+            "signature": null,
+            "doc": null
+          },
+          {
+            "kind": "repo",
+            "name": "acme/web-ui",
+            "file": null,
             "signature": null,
             "doc": null
           }
@@ -1015,17 +1015,17 @@
             "count": 1
           },
           {
-            "kind": "package",
-            "name": "acme-webui",
-            "file": null,
+            "kind": "class",
+            "name": "ApiClient",
+            "file": "src/ApiClient.tsx",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "class",
-            "name": "ApiClient",
-            "file": "src/ApiClient.tsx",
+            "kind": "package",
+            "name": "acme-webui",
+            "file": null,
             "signature": null,
             "doc": null,
             "count": 1
@@ -1049,17 +1049,17 @@
             "count": 1
           },
           {
-            "kind": "function",
-            "name": "useCheckout",
-            "file": "src/useCheckout.tsx",
+            "kind": "class",
+            "name": "CartView",
+            "file": "src/CartView.tsx",
             "signature": null,
             "doc": null,
             "count": 1
           },
           {
-            "kind": "class",
-            "name": "CartView",
-            "file": "src/CartView.tsx",
+            "kind": "function",
+            "name": "useCheckout",
+            "file": "src/useCheckout.tsx",
             "signature": null,
             "doc": null,
             "count": 1

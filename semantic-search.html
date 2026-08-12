@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Semantic search · contextlake docs">
 <meta name="twitter:description" content="Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Semantic search", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/semantic-search", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Semantic search", "item": "https://sayak.in/contextlake/semantic-search"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Semantic search", "description": "Natural-language and hybrid graph-propagation retrieval: embed your code, tune the vector backend, and query across repos and languages.", "url": "https://sayak.in/contextlake/semantic-search", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-12"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Semantic search", "item": "https://sayak.in/contextlake/semantic-search"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=9133f52">
-<link rel="stylesheet" href="tokens.css?v=9133f52">
-<link rel="stylesheet" href="docs.css?v=9133f52">
-<link rel="stylesheet" href="cmdk.css?v=9133f52">
+<link rel="stylesheet" href="fonts.css?v=8a4db2f">
+<link rel="stylesheet" href="tokens.css?v=8a4db2f">
+<link rel="stylesheet" href="docs.css?v=8a4db2f">
+<link rel="stylesheet" href="cmdk.css?v=8a4db2f">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -97,6 +97,14 @@ its name says nothing of the sort. A name alone is thin signal for a natural-lan
 and the docstring are where the words the query actually uses tend to live. File, module, and package nodes are
 deliberately not embedded: a path or a shared package name is low semantic signal, and skipping them keeps
 results clean and avoids re-embedding cross-repo shared nodes once per referencing repo.</p>
+<p><strong>Data members, macros, typedefs, enum constants and file-scope variables are embedded too.</strong> They are
+the majority of the symbols in a C or C++ tree and, before they had vectors, no semantic or hybrid query
+could return one of them at all. They are also thinner signal than a function: a data member usually
+carries a name and a type and nothing else. Measured on a large legacy tree, adding them costs the kinds
+that were already embedded about five percentage points of recall@10 in exchange for tens of thousands of
+symbols going from unreachable to findable. If your tree is C++-heavy and you would rather have the
+sharper ranking than the reach, <code>kb query --kind</code> narrows any single query, and the trade-off is recorded
+per kind in <code>kb/kinds.py</code> so it can be revisited with the numbers in view.</p>
 <h2 id="which-model">Which model?<a class="anchor" href="#which-model" title="Link to this section">#</a></h2>
 <p>The default is <code>minishlab/potion-base-8M</code>, a <strong>static</strong> embedding model: it looks each token up in a
 table instead of running a transformer forward pass, which is why it is small enough to ship as a CPU
@@ -237,6 +245,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=9133f52"></script>
+<script defer src="cmdk.js?v=8a4db2f"></script>
 </body>
 </html>
