@@ -17,6 +17,7 @@ from .ingest import cmd_ingest
 from .lint import cmd_lint
 from .owners import cmd_owners
 from .query import cmd_query
+from .refresh import cmd_refresh
 from .serve import cmd_serve
 from .steer import cmd_steer
 from .wiki import cmd_wiki
@@ -36,4 +37,5 @@ def dispatch(command: str, args) -> int:
         "serve": cmd_serve, "graph": cmd_graph, "doctor": cmd_doctor, "eval": cmd_eval,
         "owners": cmd_owners, "impact": cmd_impact, "ingest": cmd_ingest,
         "enrich": cmd_enrich, "dashboard": cmd_dashboard, "hook": cmd_hook,
+        "refresh": cmd_refresh,
     }[command](args)

@@ -84,11 +84,13 @@ def cmd_steer(args) -> int:
     from ..steer.generate import (
         BEGIN,
         END,
+        SESSION_HOOK_MARK,
         mcp_server_entry,
         render_agents_md,
         render_claude_md,
         render_kiro_steering,
         render_windsurfrules,
+        session_hook_entry,
         workspace_facts,
     )
     from ..steer.skills import skill_files
@@ -202,6 +204,53 @@ def cmd_steer(args) -> int:
         # (`mcpServers` vs `servers`), so both are merged the same way.
         _merge_mcp_entry(".mcp.json", "mcpServers")
         _merge_mcp_entry(".vscode/mcp.json", "servers")
+
+        def _merge_session_hook() -> None:
+            """Install the SessionStart freshness hook into `.claude/settings.json`.
+
+            Harder to merge than the MCP files, and the difference is worth stating:
+            `hooks.SessionStart` is a *list of matcher groups*, each holding a list of
+            hooks. Appending ours would add a duplicate on every `steer` run, and
+            replacing the list would delete everybody else's hooks. So: drop any hook
+            entry that is recognisably ours, drop groups that leaves empty, then append
+            one fresh group. Other events under `hooks` are never touched.
+            """
+            path = out / ".claude" / "settings.json"
+            data = {}
+            if path.exists():
+                try:
+                    parsed = _json.loads(path.read_text())
+                    data = parsed if isinstance(parsed, dict) else {}
+                except _json.JSONDecodeError:
+                    # Not ours to repair, and overwriting somebody's settings because we
+                    # could not parse them would be the worst outcome here.
+                    log(style.warn("  .claude/settings.json is not valid JSON — leaving "
+                                    "it alone; the session hook was not installed"))
+                    return
+            hooks = data.get("hooks")
+            if not isinstance(hooks, dict):
+                hooks = {}
+            groups = hooks.get("SessionStart")
+            groups = list(groups) if isinstance(groups, list) else []
+            kept = []
+            for g in groups:
+                if not isinstance(g, dict):
+                    kept.append(g)
+                    continue
+                inner = [h for h in (g.get("hooks") or [])
+                         if not (isinstance(h, dict)
+                                 and SESSION_HOOK_MARK in str(h.get("command", "")))]
+                if inner or not isinstance(g.get("hooks"), list):
+                    kept.append({**g, "hooks": inner} if isinstance(g.get("hooks"), list) else g)
+            kept.append({"hooks": [session_hook_entry(config_path)]})
+            hooks["SessionStart"] = kept
+            data["hooks"] = hooks
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(_json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            log(f"  {style.ok('.claude/settings.json')} (SessionStart freshness hook, "
+                "other hooks kept)")
+
+        _merge_session_hook()
 
         log(f"{style.ok()} Steering written to {out} (existing files enhanced, not replaced)")
         return 0

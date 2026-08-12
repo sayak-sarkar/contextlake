@@ -126,7 +126,8 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
-| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
+| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
+| `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
 | `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
 | `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |

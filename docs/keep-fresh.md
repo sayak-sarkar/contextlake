@@ -182,6 +182,42 @@ overwritten, and only that block is refreshed on re-runs.
 Mirror-wide work (fetching new clones, pruning) still belongs to `bootstrap` on a schedule. The
 hook keeps your *local edits* current in between.
 
+## Refresh when a coding session starts
+
+Cron covers the fleet and the commit hook covers your own edits, and there is still a gap between
+them: **you sit down and start work against a graph that is quietly behind.** Nothing announces
+that. `index` skips a repo whose head has not moved, which is the right default and also means a
+store can be arbitrarily out of date while every command it serves looks healthy.
+
+```console
+$ contextlake kb refresh
+⚠ contextlake: 12 repositories, 3 repo(s) moved since indexing. Run `contextlake kb index` to bring it up to date.
+  moved: payments-api
+  moved: billing-worker
+  moved: checkout-ui
+  checked 12/12 in 0.06s
+```
+
+It reads only. Add `--refresh` and it starts `kb index` then `kb steer` **in the background** and
+returns immediately, so nothing waits on a re-index. `--budget` caps how long the check itself may
+take on a large fleet; whatever it did not reach is reported as unchecked rather than passed over
+silently.
+
+`contextlake kb steer` installs this as a **Claude Code `SessionStart` hook**, so every session
+opens with one line saying whether the graph describes today's code, and the update already running:
+
+```json
+{ "hooks": { "SessionStart": [
+  { "hooks": [{ "type": "command",
+                "command": "contextlake kb refresh --hook --refresh", "timeout": 20 }] }
+] } }
+```
+
+Other hooks in that file are preserved, and re-running `steer` replaces our entry instead of adding
+a second copy. Claude Code is the only editor whose session-hook format this has been checked
+against; nothing here claims the others. Set `CONTEXTLAKE_NO_SESSION_REFRESH=1` to switch it off
+without editing the file.
+
 If two contextlake processes ever target one store at once (a scheduled `bootstrap` and a
 hook-triggered `index`, say), the second takes an advisory single-writer lock
 (`<store_dir>/.contextlake.lock`) and refuses rather than interleaving SQLite writes, naming the

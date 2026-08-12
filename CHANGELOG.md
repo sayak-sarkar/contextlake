@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`kb refresh` says whether the graph still describes the code on disk, and `kb steer` installs
+  it as a session-start hook.** Between a nightly `bootstrap` and the post-commit hook there was a
+  gap nobody covered: you sit down to work against a store that is quietly behind, and nothing says
+  so. `index` skips a repo whose head has not moved -- correct, and the reason staleness here is
+  invisible rather than loud.
+
+  The check is cheap by design (one `git rev-parse` per repo plus two indexed lookups, no parsing)
+  and **bounded** by `--budget` seconds, with anything it did not reach reported as unchecked --
+  a cap nobody is told about reads as a clean bill of health for work that never happened. It
+  reports moved heads, repos built by an older parser, and vectors built from an older text format.
+  A repo whose clone is missing is reported and deliberately **not** counted as stale: re-indexing
+  cannot fix it, and a session start that proposes work which changes nothing is one people learn
+  to ignore.
+
+  `--refresh` starts `kb index` then `kb steer` **detached**, so a session opens immediately and the
+  graph catches up behind it. Blocking a session start on a fleet re-index would be worse than the
+  problem, and a re-index killed part-way is not a state this project has proved safe. Concurrency
+  needed nothing new: write commands already take the cooperative store lock, so a second session's
+  refresh refuses cleanly.
+
+  `kb steer` now also writes `.claude/settings.json`, adding a `SessionStart` hook that runs
+  `kb refresh --hook --refresh`. Other hooks and settings in that file are preserved, and re-running
+  `steer` **replaces** our entry rather than appending another copy -- `hooks.SessionStart` is a
+  list, not a keyed dict, so appending would quietly run the hook twice, then three times. Claude
+  Code is the only editor whose session-hook schema this was verified against and the only one
+  claimed. `CONTEXTLAKE_NO_SESSION_REFRESH=1` switches it off without editing the file.
+
 - **`kb eval --verify-citations` checks that a cited `file:line` actually contains the symbol.**
   Every retrieval metric here answered one question -- did the right node come back? None asked
   whether the citation attached to it still points at that symbol, and the citation is the product:

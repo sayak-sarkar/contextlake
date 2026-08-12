@@ -3222,6 +3222,42 @@ overwritten, and only that block is refreshed on re-runs.
 Mirror-wide work (fetching new clones, pruning) still belongs to `bootstrap` on a schedule. The
 hook keeps your *local edits* current in between.
 
+## Refresh when a coding session starts
+
+Cron covers the fleet and the commit hook covers your own edits, and there is still a gap between
+them: **you sit down and start work against a graph that is quietly behind.** Nothing announces
+that. `index` skips a repo whose head has not moved, which is the right default and also means a
+store can be arbitrarily out of date while every command it serves looks healthy.
+
+```console
+$ contextlake kb refresh
+⚠ contextlake: 12 repositories, 3 repo(s) moved since indexing. Run `contextlake kb index` to bring it up to date.
+  moved: payments-api
+  moved: billing-worker
+  moved: checkout-ui
+  checked 12/12 in 0.06s
+```
+
+It reads only. Add `--refresh` and it starts `kb index` then `kb steer` **in the background** and
+returns immediately, so nothing waits on a re-index. `--budget` caps how long the check itself may
+take on a large fleet; whatever it did not reach is reported as unchecked rather than passed over
+silently.
+
+`contextlake kb steer` installs this as a **Claude Code `SessionStart` hook**, so every session
+opens with one line saying whether the graph describes today's code, and the update already running:
+
+```json
+{ "hooks": { "SessionStart": [
+  { "hooks": [{ "type": "command",
+                "command": "contextlake kb refresh --hook --refresh", "timeout": 20 }] }
+] } }
+```
+
+Other hooks in that file are preserved, and re-running `steer` replaces our entry instead of adding
+a second copy. Claude Code is the only editor whose session-hook format this has been checked
+against; nothing here claims the others. Set `CONTEXTLAKE_NO_SESSION_REFRESH=1` to switch it off
+without editing the file.
+
 If two contextlake processes ever target one store at once (a scheduled `bootstrap` and a
 hook-triggered `index`, say), the second takes an advisory single-writer lock
 (`<store_dir>/.contextlake.lock`) and refuses rather than interleaving SQLite writes, naming the
@@ -5232,7 +5268,8 @@ Covered in depth under [Mirror repositories](usage.md).
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
 | `kb graph` | Visualize the graph, offline interactive HTML / DOT / Mermaid / JSON, or a composed namespace C4 diagram with `--c4` |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
-| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`) |
+| `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
+| `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
 | `kb lint` | Graph health audit: stale repos, dangling edges, and (advisory, not in the exit code) repos built by an older parser (`--json`) |
 | `kb serve` | Expose the graph over MCP (stdio, `--transport http`, or legacy `--transport sse`; the network transports print a bearer token and need `--allow-remote` for a non-loopback `--host`; `--tool-concurrency N` bounds how many tool calls run at once, default `2`) |
 | `kb steer` | Write per-editor steering (`AGENTS.md`, `.mcp.json`, and so on) |
@@ -5705,6 +5742,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **`kb refresh` says whether the graph still describes the code on disk, and `kb steer` installs
+  it as a session-start hook.** Between a nightly `bootstrap` and the post-commit hook there was a
+  gap nobody covered: you sit down to work against a store that is quietly behind, and nothing says
+  so. `index` skips a repo whose head has not moved -- correct, and the reason staleness here is
+  invisible rather than loud.
+
+  The check is cheap by design (one `git rev-parse` per repo plus two indexed lookups, no parsing)
+  and **bounded** by `--budget` seconds, with anything it did not reach reported as unchecked --
+  a cap nobody is told about reads as a clean bill of health for work that never happened. It
+  reports moved heads, repos built by an older parser, and vectors built from an older text format.
+  A repo whose clone is missing is reported and deliberately **not** counted as stale: re-indexing
+  cannot fix it, and a session start that proposes work which changes nothing is one people learn
+  to ignore.
+
+  `--refresh` starts `kb index` then `kb steer` **detached**, so a session opens immediately and the
+  graph catches up behind it. Blocking a session start on a fleet re-index would be worse than the
+  problem, and a re-index killed part-way is not a state this project has proved safe. Concurrency
+  needed nothing new: write commands already take the cooperative store lock, so a second session's
+  refresh refuses cleanly.
+
+  `kb steer` now also writes `.claude/settings.json`, adding a `SessionStart` hook that runs
+  `kb refresh --hook --refresh`. Other hooks and settings in that file are preserved, and re-running
+  `steer` **replaces** our entry rather than appending another copy -- `hooks.SessionStart` is a
+  list, not a keyed dict, so appending would quietly run the hook twice, then three times. Claude
+  Code is the only editor whose session-hook schema this was verified against and the only one
+  claimed. `CONTEXTLAKE_NO_SESSION_REFRESH=1` switches it off without editing the file.
 
 - **`kb eval --verify-citations` checks that a cited `file:line` actually contains the symbol.**
   Every retrieval metric here answered one question -- did the right node come back? None asked

@@ -89,7 +89,7 @@ _COMMAND_CATEGORIES = (
     (_KB_NS, "Build the knowledge graph", ("index", "source", "connect", "embed",
                                            "ingest", "enrich", "wiki", "lint", "forget", "eval")),
     (_KB_NS, "Explore & search", ("query", "graph", "owners", "impact", "dashboard")),
-    (_KB_NS, "Serve to editors", ("serve", "steer", "hook")),
+    (_KB_NS, "Serve to editors", ("serve", "steer", "hook", "refresh")),
 )
 
 # canonical command name -> the namespace it is typed under. Commands absent from
@@ -413,7 +413,7 @@ _KB_COMMANDS = frozenset({
     "index", "connect", "embed", "lint", "forget", "wiki", "steer", "serve",
     "query",
     "graph", "doctor", "eval", "owners", "impact", "ingest", "enrich", "dashboard", "hook",
-    "source",
+    "source", "refresh",
 })
 
 # Namespace defaults for every flag. Subparsers use SUPPRESS argument defaults so a
@@ -1085,6 +1085,27 @@ fail (exit 1).
                    help="directory to write steering files into (default: cwd)")
     p.add_argument("--force", action="store_true", default=_S,
                    help="overwrite non-managed files")
+
+    p = command("refresh", "report whether the graph is current, and update it in the background",
+                epilog="""
+Examples:
+  contextlake kb refresh                         is the graph current? (reads only)
+  contextlake kb refresh --refresh               ...and start an update if it is not
+  contextlake kb refresh --hook --refresh        the form `kb steer` installs as a
+                                                 Claude Code SessionStart hook
+""")
+    p.add_argument("--refresh", action="store_true", default=_S,
+                   help="when something is stale, start `kb index` then `kb steer` in the "
+                        "background (detached, so nothing waits on it) instead of only "
+                        "reporting")
+    p.add_argument("--budget", type=float, default=_S,
+                   help="seconds the freshness check may spend (default 3); repos left "
+                        "unchecked are reported as unchecked")
+    p.add_argument("--hook", action="store_true", default=_S,
+                   help="print the one-line summary as Claude Code SessionStart JSON, so "
+                        "the answer reaches the agent as context")
+    p.add_argument("--json", action="store_true", default=_S,
+                   help="machine-readable JSON on stdout instead of formatted text")
 
     p = command("hook", "install a git post-commit hook that re-indexes a repo on commit",
                 epilog="""

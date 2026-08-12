@@ -185,3 +185,33 @@ def mcp_server_entry(config_path: str | None = None) -> dict:
     if config_path:
         args += ["--config", config_path]
     return {"command": "contextlake", "args": args}
+
+
+SESSION_HOOK_MARK = "kb refresh --hook"
+"""How an installed session hook is recognised as ours.
+
+There is no marker comment in JSON and no END delimiter, so identity has to live in
+the command string itself. ``kb steer`` matches on this to *replace* its own entry
+instead of appending a second copy every time it runs -- the same idempotence the
+markdown files get from their BEGIN/END block."""
+
+
+def session_hook_entry(config_path: str | None = None) -> dict:
+    """The SessionStart hook entry: report graph freshness, refresh in the background.
+
+    Shape verified against the hook definitions Claude Code's own plugins ship
+    (``{"type": "command", "command": ..., "timeout": ...}`` inside a matcher group).
+    **Claude Code only** -- other editors' session-lifecycle schemas are not something
+    this has been checked against, so nothing here claims them.
+
+    The timeout guards the bounded freshness check, not the update: the update is
+    detached, so the hook returns as soon as it has something to say.
+    """
+    from shlex import quote
+
+    cmd = "contextlake kb refresh --hook --refresh"
+    if config_path:
+        # Quoted: this string is handed to a shell, and a store path with a space in it
+        # would otherwise install a hook that silently reads the wrong config.
+        cmd += f" --config {quote(config_path)}"
+    return {"type": "command", "command": cmd, "timeout": 20}
