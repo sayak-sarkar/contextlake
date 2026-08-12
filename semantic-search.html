@@ -26,10 +26,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8a4db2f">
-<link rel="stylesheet" href="tokens.css?v=8a4db2f">
-<link rel="stylesheet" href="docs.css?v=8a4db2f">
-<link rel="stylesheet" href="cmdk.css?v=8a4db2f">
+<link rel="stylesheet" href="fonts.css?v=43b862d">
+<link rel="stylesheet" href="tokens.css?v=43b862d">
+<link rel="stylesheet" href="docs.css?v=43b862d">
+<link rel="stylesheet" href="cmdk.css?v=43b862d">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -156,6 +156,24 @@ dimension (estimated tokens per query, and precision per 1k tokens), so "route t
 source" becomes a number, not a vibe. Score any retriever with <code>--retriever fts|semantic|hybrid</code>
 (semantic/hybrid need embeddings built); a change like embed-bodies or a reranker is then judged by
 whether the numbers move.</p>
+<h3 id="are-the-citations-real">Are the citations real?<a class="anchor" href="#are-the-citations-real" title="Link to this section">#</a></h3>
+<p>Those metrics answer one question: did the right node come back? They say nothing about whether the
+<code>file:line</code> it carries still points at that symbol, and the citation is what an agent is actually told to
+go and read. A wrong citation is worse than a miss, because it looks like an answer.</p>
+<p><code>--verify-citations</code> opens every returned node's file at its recorded line and checks the symbol's name is
+there:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span><span class="nb">eval</span><span class="w"> </span>--golden<span class="w"> </span>queries.json<span class="w"> </span>--verify-citations
+<span class="go">Citations: 178/180 verified (98.9%) of 184 distinct nodes</span>
+<span class="go">  4 unverifiable (no local checkout for the repo)</span>
+<span class="go">  name_absent: 2</span>
+<span class="go">    src/billing/refund.py:88  (name_absent)</span>
+</code></pre></div>
+<p>Failures are named rather than counted: <code>file_missing</code> (the graph outlived the file), <code>line_out_of_range</code>
+(the file shrank under a stale index), <code>name_absent</code> (the line exists, the symbol is not on it),
+<code>no_citation</code> (a symbol node carrying no file or line at all). A repository whose recorded clone is not on
+this machine is reported as <strong>unverifiable</strong> and kept out of the rate, so a run without the mirror reads as
+"nothing was checked" rather than as a pass.</p>
+<p>It is off by default: it does filesystem work proportional to the results and needs the checkout present.</p>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" title="Link to this section">#</a></h2>
 <ul>
 <li><a href="index-code-graph">Index the code graph</a></li>
@@ -172,7 +190,10 @@ whether the numbers move.</p>
 <li><a href="#when-the-query-has-no-anchor">When the query has no anchor</a></li>
 </ul>
 </li>
-<li><a href="#measuring-retrieval-quality">Measuring retrieval quality</a></li>
+<li><a href="#measuring-retrieval-quality">Measuring retrieval quality</a><ul>
+<li><a href="#are-the-citations-real">Are the citations real?</a></li>
+</ul>
+</li>
 <li><a href="#see-also">See also</a></li>
 </ul>
 </nav></aside>
@@ -245,6 +266,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=8a4db2f"></script>
+<script defer src="cmdk.js?v=43b862d"></script>
 </body>
 </html>

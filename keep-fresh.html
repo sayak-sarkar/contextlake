@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Bootstrap and keep it fresh · contextlake docs">
 <meta name="twitter:description" content="Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Bootstrap and keep it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keep-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-11"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Bootstrap and keep it fresh", "item": "https://sayak.in/contextlake/keep-fresh"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Bootstrap and keep it fresh", "description": "Run the whole pipeline in one command, schedule it, re-index on commit with a git hook, and watch an unattended run.", "url": "https://sayak.in/contextlake/keep-fresh", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-12"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Bootstrap and keep it fresh", "item": "https://sayak.in/contextlake/keep-fresh"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8a4db2f">
-<link rel="stylesheet" href="tokens.css?v=8a4db2f">
-<link rel="stylesheet" href="docs.css?v=8a4db2f">
-<link rel="stylesheet" href="cmdk.css?v=8a4db2f">
+<link rel="stylesheet" href="fonts.css?v=43b862d">
+<link rel="stylesheet" href="tokens.css?v=43b862d">
+<link rel="stylesheet" href="docs.css?v=43b862d">
+<link rel="stylesheet" href="cmdk.css?v=43b862d">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -262,6 +262,33 @@ is written inside a delimited managed block, so a hook you already had is append
 overwritten, and only that block is refreshed on re-runs.</p>
 <p>Mirror-wide work (fetching new clones, pruning) still belongs to <code>bootstrap</code> on a schedule. The
 hook keeps your <em>local edits</em> current in between.</p>
+<h2 id="refresh-when-a-coding-session-starts">Refresh when a coding session starts<a class="anchor" href="#refresh-when-a-coding-session-starts" title="Link to this section">#</a></h2>
+<p>Cron covers the fleet and the commit hook covers your own edits, and there is still a gap between
+them: <strong>you sit down and start work against a graph that is quietly behind.</strong> Nothing announces
+that. <code>index</code> skips a repo whose head has not moved, which is the right default and also means a
+store can be arbitrarily out of date while every command it serves looks healthy.</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>kb<span class="w"> </span>refresh
+<span class="go">⚠ contextlake: 12 repositories, 3 repo(s) moved since indexing. Run `contextlake kb index` to bring it up to date.</span>
+<span class="go">  moved: payments-api</span>
+<span class="go">  moved: billing-worker</span>
+<span class="go">  moved: checkout-ui</span>
+<span class="go">  checked 12/12 in 0.06s</span>
+</code></pre></div>
+<p>It reads only. Add <code>--refresh</code> and it starts <code>kb index</code> then <code>kb steer</code> <strong>in the background</strong> and
+returns immediately, so nothing waits on a re-index. <code>--budget</code> caps how long the check itself may
+take on a large fleet; whatever it did not reach is reported as unchecked rather than passed over
+silently.</p>
+<p><code>contextlake kb steer</code> installs this as a <strong>Claude Code <code>SessionStart</code> hook</strong>, so every session
+opens with one line saying whether the graph describes today's code, and the update already running:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">&quot;hooks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;SessionStart&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;hooks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;command&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contextlake kb refresh --hook --refresh&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;timeout&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="p">}]</span><span class="w"> </span><span class="p">}</span>
+<span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p>Other hooks in that file are preserved, and re-running <code>steer</code> replaces our entry instead of adding
+a second copy. Claude Code is the only editor whose session-hook format this has been checked
+against; nothing here claims the others. Set <code>CONTEXTLAKE_NO_SESSION_REFRESH=1</code> to switch it off
+without editing the file.</p>
 <p>If two contextlake processes ever target one store at once (a scheduled <code>bootstrap</code> and a
 hook-triggered <code>index</code>, say), the second takes an advisory single-writer lock
 (<code>&lt;store_dir&gt;/.contextlake.lock</code>) and refuses rather than interleaving SQLite writes, naming the
@@ -354,6 +381,7 @@ pipeline's stages, which is how you confirm you are reading one run and not two 
 </ul>
 </li>
 <li><a href="#re-index-on-commit-git-hook">Re-index on commit (git hook)</a></li>
+<li><a href="#refresh-when-a-coding-session-starts">Refresh when a coding session starts</a></li>
 <li><a href="#watching-an-unattended-run">Watching an unattended run</a><ul>
 <li><a href="#log-files-and-rotation">Log files and rotation</a></li>
 <li><a href="#alerting-on-a-failed-run">Alerting on a failed run</a></li>
@@ -432,6 +460,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=8a4db2f"></script>
+<script defer src="cmdk.js?v=43b862d"></script>
 </body>
 </html>

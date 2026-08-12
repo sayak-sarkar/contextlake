@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Command reference · contextlake docs">
 <meta name="twitter:description" content="Every contextlake command at a glance, with links to the page that documents each in depth.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-07"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Command reference", "description": "Every contextlake command at a glance, with links to the page that documents each in depth.", "url": "https://sayak.in/contextlake/cli-reference", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-12"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Command reference", "item": "https://sayak.in/contextlake/cli-reference"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8a4db2f">
-<link rel="stylesheet" href="tokens.css?v=8a4db2f">
-<link rel="stylesheet" href="docs.css?v=8a4db2f">
-<link rel="stylesheet" href="cmdk.css?v=8a4db2f">
+<link rel="stylesheet" href="fonts.css?v=43b862d">
+<link rel="stylesheet" href="tokens.css?v=43b862d">
+<link rel="stylesheet" href="docs.css?v=43b862d">
+<link rel="stylesheet" href="cmdk.css?v=43b862d">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -125,6 +125,10 @@ same parser that runs the command, so it cannot drift out of sync with the real 
 <tr>
 <td><code>--plain</code></td>
 <td>no colour, even on a TTY (same as <code>NO_COLOR=1</code>)</td>
+</tr>
+<tr>
+<td><code>--offline</code></td>
+<td>refuse every non-loopback connection, so you can check a command stays local (same as <code>CONTEXTLAKE_OFFLINE=1</code>); commands that need a forge or a hosted model say so and stop</td>
 </tr>
 </tbody>
 </table>
@@ -286,7 +290,11 @@ spellings exist as aliases rather than as separate commands: <code>kb who-knows<
 </tr>
 <tr>
 <td><code>kb eval</code></td>
-<td>Measure retrieval quality: precision / recall / MRR against a golden-query set (<code>--json</code>)</td>
+<td>Measure retrieval quality: precision / recall / MRR against a golden-query set (<code>--json</code>, <code>--verify-citations</code>)</td>
+</tr>
+<tr>
+<td><code>kb refresh</code></td>
+<td>Report whether the graph is current; <code>--refresh</code> updates it in the background, <code>--hook</code> prints Claude Code SessionStart JSON</td>
 </tr>
 <tr>
 <td><code>kb lint</code></td>
@@ -367,6 +375,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=8a4db2f"></script>
+<script defer src="cmdk.js?v=43b862d"></script>
 </body>
 </html>

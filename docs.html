@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Overview · contextlake docs">
 <meta name="twitter:description" content="A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-11"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Overview", "description": "A local context layer for your AI tools: mirror your repos, index them into a knowledge graph, and serve it over MCP.", "url": "https://sayak.in/contextlake/docs", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-12"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Overview", "item": "https://sayak.in/contextlake/docs"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=8a4db2f">
-<link rel="stylesheet" href="tokens.css?v=8a4db2f">
-<link rel="stylesheet" href="docs.css?v=8a4db2f">
-<link rel="stylesheet" href="cmdk.css?v=8a4db2f">
+<link rel="stylesheet" href="fonts.css?v=43b862d">
+<link rel="stylesheet" href="tokens.css?v=43b862d">
+<link rel="stylesheet" href="docs.css?v=43b862d">
+<link rel="stylesheet" href="cmdk.css?v=43b862d">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -292,6 +292,36 @@ opt-in via <code>--llm-chat</code>). Try it with zero setup via <code>contextlak
 </p>
 
 <p><strong><a href="dashboard">The dashboard: a guided tour</a></strong>, step by step, with screenshots.</p>
+<h2 id="local-by-default-and-you-can-prove-it">Local by default, and you can prove it<a class="anchor" href="#local-by-default-and-you-can-prove-it" title="Link to this section">#</a></h2>
+<p>There is no telemetry, no analytics, no usage reporting and no crash reporting in
+contextlake. There is nothing to opt out of, because there is nothing there.</p>
+<p>That is easy for any project to type, so there is a switch that makes it checkable:</p>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>--offline<span class="w"> </span>kb<span class="w"> </span>index<span class="w">         </span><span class="c1"># or CONTEXTLAKE_OFFLINE=1</span>
+</code></pre></div>
+<p><code>--offline</code> refuses every outbound connection <strong>at the socket</strong>, so it covers not only
+contextlake's own requests but every library in the process, including the ones that
+download embedding or language models. Loopback stays open, because the MCP server, the
+dashboard, the graph viewer and a local Ollama all live there.</p>
+<p>Verified with the network blocked, on a fresh store: <code>kb index</code>, <code>kb query</code>, <code>kb embed</code>,
+semantic search, and <code>kb graph</code> (whose HTML output contains no remote references at all).
+The commands that genuinely need the network say so and stop rather than failing obscurely:
+mirroring from a forge refuses up front, and <code>bootstrap</code> skips the mirror stage and builds
+the knowledge layer from what is already on disk.</p>
+<p><strong>Two caveats, because they are the honest ones.</strong> The bundled embedding model is
+downloaded from Hugging Face the first time it is used; that fetch needs the network, and
+afterwards it loads from the local cache and semantic search works offline. And the wiki's
+LLM tier is only as local as the provider you point it at: the built-in <code>openvino-genai</code>
+model runs on your machine once cached, while <code>--llm openai</code> is a hosted API and <code>--offline</code>
+will and should block it.</p>
+<p>The boundary is worth stating plainly: this is an in-process guard, so <code>git</code> and <code>glab</code>
+subprocesses have their own sockets. That is exactly why the mirror stages refuse up
+front under <code>--offline</code> instead of relying on the guard. Everything above is covered by
+tests that try to escape it, including one that goes out through <code>urllib</code> rather than
+through any of our own helpers.</p>
+<p>Two ways to reach outside are opt-in and named: a <strong>hosted model provider</strong>, if you
+configure one instead of the bundled local model, and <code>kb graph --cdn</code>, which swaps the
+inlined JavaScript for CDN script tags to make a smaller file. Default output inlines
+everything and opens in an air-gapped browser.</p>
 <h2 id="documentation">Documentation<a class="anchor" href="#documentation" title="Link to this section">#</a></h2>
 <ul>
 <li><strong><a href="quickstart">QUICKSTART.md</a></strong>, install → bootstrap → wire your editor, in minutes</li>
@@ -325,6 +355,7 @@ opt-in via <code>--llm-chat</code>). Try it with zero setup via <code>contextlak
 <li><a href="#the-dashboard">The dashboard</a></li>
 </ul>
 </li>
+<li><a href="#local-by-default-and-you-can-prove-it">Local by default, and you can prove it</a></li>
 <li><a href="#documentation">Documentation</a></li>
 <li><a href="#license">License</a></li>
 </ul>
@@ -356,6 +387,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=8a4db2f"></script>
+<script defer src="cmdk.js?v=43b862d"></script>
 </body>
 </html>
