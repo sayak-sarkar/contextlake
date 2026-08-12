@@ -39,6 +39,11 @@ def _sprite_ids() -> set[str]:
     return set(re.findall(r'id="g-(\w+)"', _HTML.read_text()))
 
 
+def _sprite_artwork() -> dict[str, str]:
+    return dict(re.findall(r'<symbol id="g-(\w+)" viewBox="0 0 24 24">(.*?)</symbol>',
+                           _HTML.read_text()))
+
+
 def test_every_registered_kind_has_a_sprite_symbol():
     missing = sorted(_glyph_kinds() - _sprite_ids())
     assert not missing, (
@@ -73,6 +78,24 @@ def test_all_four_glyph_vocabularies_agree():
         "registry glyphs vs dashboard.js KIND_GLYPHS: "
         f"registry-only={sorted(registry - _glyph_kinds())} "
         f"js-only={sorted(_glyph_kinds() - registry)}"
+    )
+
+
+def test_the_sprite_draws_the_same_artwork_the_registry_holds():
+    """Same *ids* is not the invariant the sprite comment promises; same *shape* is.
+
+    ``kb/kinds.py`` says "one artwork per kind, so a class reads identically in the graph
+    page and in the dashboard", and the sprite is a hand-copy of those path constants. Only
+    the id sets were compared, so retouching a glyph in the registry left the dashboard
+    drawing the old shape with nothing failing -- the two surfaces would silently disagree
+    about what a class looks like, which is the entire point of having glyphs.
+    """
+    sprite = _sprite_artwork()
+    drift = sorted(k for k, s in KIND_REGISTRY.items()
+                   if s.glyph and sprite.get(k) != s.glyph)
+    assert not drift, (
+        f"dashboard.html draws different artwork than kb/kinds.py for: {drift}. Copy the "
+        "registry's glyph constant into that <symbol> so both surfaces draw one shape."
     )
 
 

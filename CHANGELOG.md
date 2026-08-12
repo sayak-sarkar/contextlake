@@ -5,6 +5,30 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The published vocabulary diagram documented 16 of 40 node kinds, and the embeddable graph page
+  17 of 40.** 7.0.0 consolidated sixteen drifted kind vocabularies into one registry because that
+  drift had caused real invisible harm: kinds with no colour got no legend button on the graph page,
+  so they could not be isolated or filtered. The parity tests added then covered the vocabularies
+  *inside Python* and stopped at the boundary. Everything generated — the committed SVG diagram, its
+  PNG raster, both site copies, and the colour map inlined into `site/graph-embed.html` — was free to
+  drift on, and had: the diagram still showed the verbatim pre-registry taxonomy, 5 bands of 9.
+
+  Both are regenerated from the registry, and both are now gated. The new check **recomputes** from
+  the real generator into a temp directory and compares bytes, rather than restating a list that
+  would itself drift — the same shape as the existing `llms-full.txt` sync test. Nothing was added to
+  CI, because CI already runs the whole suite; a separate script is one more thing to forget.
+
+  Two details worth keeping. The generator now writes a trailing newline, because the committed files
+  had one and it did not, so a byte gate would have failed on all four for a reason no reader could
+  act on. And its generation calls moved behind a `__main__` guard so a test can import it, point the
+  output directory at a temp path and recompute — which also exposed a flaw in the first version of
+  the guard: an import-and-diff check passed even when in-sync files were rewritten, so it now
+  inspects the source with `ast` instead.
+
 ## [7.2.1] - 2026-08-12
 
 **A data-loss fix, and three silent-wrongness bugs.** The one that matters: `kb index` could delete

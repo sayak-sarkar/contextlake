@@ -10,6 +10,21 @@ FF = "'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif"
 FM = "'JetBrains Mono',ui-monospace,monospace"
 
 
+def _write(fname, parts, W, H):
+    """Write one diagram, newline-terminated, and report it.
+
+    The trailing newline is not cosmetic: these SVGs are committed build outputs, and
+    `tests/kb/test_kind_generated_surface_parity.py` proves the committed copy still
+    equals what this script would write. The four files on disk already ended with a
+    newline (every text file in the tree does) while the writer omitted one, so a
+    byte-comparison gate would have failed on all four for a reason no reader could
+    act on. Terminating here makes "regenerate and commit" the only way to be in sync.
+    """
+    (IMG / fname).write_text("\n".join(p for p in parts if p is not None) + "\n",
+                             encoding="utf-8")
+    print("wrote", fname, f"({W}x{H})")
+
+
 def pipeline(stages, fname, title, accent_last=True, sub=None):
     """Horizontal pipeline: rounded chips joined by arrows."""
     n = len(stages)
@@ -47,8 +62,7 @@ def pipeline(stages, fname, title, accent_last=True, sub=None):
             parts.append(f'<line x1="{ax}" y1="{cy}" x2="{ax + gap - 8}" y2="{cy}" '
                          f'stroke="{LAKE}" stroke-width="2" marker-end="url(#ar)"/>')
     parts.append("</svg>")
-    (IMG / fname).write_text("\n".join(parts), encoding="utf-8")
-    print("wrote", fname, f"({W}x{H})")
+    _write(fname, parts, W, H)
 
 
 def _esc(s):
@@ -123,8 +137,7 @@ def architecture_overview(fname):
     parts.append(arrow(x2 + colW, midy, x3 - 6, midy))
 
     parts.append("</svg>")
-    (IMG / fname).write_text("\n".join(parts), encoding="utf-8")
-    print("wrote", fname, f"({W}x{H})")
+    _write(fname, parts, W, H)
 
 
 def taxonomy(fname):
@@ -222,8 +235,7 @@ def taxonomy(fname):
         f'<defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" '
         f'markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="{MUTED}"/></marker>'
         f'</defs><rect x="0" y="0" width="{W}" height="{H}" fill="none"/>')
-    (IMG / fname).write_text("\n".join(p for p in parts if p is not None), encoding="utf-8")
-    print("wrote", fname, f"({W}x{H})")
+    _write(fname, parts, W, H)
 
 
 def palette(fname):
@@ -253,30 +265,41 @@ def palette(fname):
         parts.append(f'<text x="{x + 4}" y="{pad + sh + 40}" font-size="13" fill="{MUTED}" '
                      f'font-family="{FM}">{hexv}</text>')
     parts.append("</svg>")
-    (IMG / fname).write_text("\n".join(parts), encoding="utf-8")
-    print("wrote", fname, f"({W}x{H})")
+    _write(fname, parts, W, H)
 
 
-# the README hero: sources -> contextlake -> AI tools (replaces a hand-made PNG)
-architecture_overview("architecture.svg")
+def main():
+    """Regenerate every committed diagram into :data:`IMG`.
 
-# the knowledge-graph vocabulary taxonomy (knowledge-layer.md / internals.md)
-taxonomy("graph-vocabulary.svg")
+    Behind a ``__main__`` guard rather than at module scope so a test can import this
+    module, point ``IMG`` at a temp directory and recompute the diagrams to compare
+    against the committed copies. Generating on import made that impossible: reading
+    the expected bytes would have overwritten the very files under test.
+    """
+    # the README hero: sources -> contextlake -> AI tools (replaces a hand-made PNG)
+    architecture_overview("architecture.svg")
 
-# the brand color primitives (BRANDING.md)
-palette("brand-palette.svg")
+    # the knowledge-graph vocabulary taxonomy (knowledge-layer.md / internals.md)
+    taxonomy("graph-vocabulary.svg")
 
-# the mirror sync pipeline (usage.md / README)
-pipeline(
-    [("fetch", "list repos"), ("clone", "missing"), ("update", "pull"),
-     ("branches", "most active"), ("verify", "structure"), ("audit", "health")],
-    "pipeline-sync.svg", "contextlake mirror sync pipeline",
-    sub="contextlake mirror sync")
+    # the brand color primitives (BRANDING.md)
+    palette("brand-palette.svg")
 
-# the bootstrap pipeline (knowledge layer / quickstart)
-pipeline(
-    [("sync", "mirror"), ("index", "graph"), ("connect", "links"),
-     ("embed", "vectors"), ("enrich", "context"), ("wiki", "prose"),
-     ("steer", "editors")],
-    "pipeline-bootstrap.svg", "contextlake bootstrap pipeline",
-    sub="contextlake bootstrap")
+    # the mirror sync pipeline (usage.md / README)
+    pipeline(
+        [("fetch", "list repos"), ("clone", "missing"), ("update", "pull"),
+         ("branches", "most active"), ("verify", "structure"), ("audit", "health")],
+        "pipeline-sync.svg", "contextlake mirror sync pipeline",
+        sub="contextlake mirror sync")
+
+    # the bootstrap pipeline (knowledge layer / quickstart)
+    pipeline(
+        [("sync", "mirror"), ("index", "graph"), ("connect", "links"),
+         ("embed", "vectors"), ("enrich", "context"), ("wiki", "prose"),
+         ("steer", "editors")],
+        "pipeline-bootstrap.svg", "contextlake bootstrap pipeline",
+        sub="contextlake bootstrap")
+
+
+if __name__ == "__main__":
+    main()
