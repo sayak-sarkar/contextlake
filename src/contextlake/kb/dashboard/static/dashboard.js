@@ -347,9 +347,23 @@
 
   // ---- state blocks -----------------------------------------------------
   var OTTER = '<span class="cl-state__pebble" role="img" aria-label="Pebble, the contextlake otter"></span>';
+  // A live region only announces content that arrives AFTER it is in the document.
+  // These blocks were built complete -- role="status" and its text created in the
+  // same breath -- and only then appended into a panel body that is not itself a
+  // live region, so every "Couldn't load this view", "Not included in this
+  // snapshot" and "Pick a repo first" replaced the panel in total silence
+  // (WCAG 4.1.3). The persistent #cl-live region is the one that actually speaks,
+  // so route the state through it, on the next tick so the block is in the DOM
+  // first. Marking the five panel bodies as live regions instead would announce
+  // every full re-render, which is worse than saying nothing.
+  function announceState(text) {
+    if (!text) return;
+    setTimeout(function () { live(text); }, 0);
+  }
   function stateBlock(opts) {
     var mod = opts.kind ? " cl-state--" + opts.kind : "";
     var box = h("div", { class: "cl-state" + mod, role: "status" });
+    announceState([opts.title, opts.msg].filter(Boolean).join(". "));
     if (opts.kind === "empty" || opts.kind === "ok") box.appendChild(h("span", { html: OTTER }));
     box.appendChild(h("p", { class: "cl-state__title" }, opts.title || ""));
     if (opts.msg) box.appendChild(h("p", null, opts.msg));
@@ -473,8 +487,12 @@
       var bandsWrap = h("div");
       function repoCollection(repos) {
         if (viewMode === "table") return repoTable(repos);
-        var box = h("div", { class: viewMode === "list" ? "cl-repolist" : "cl-grid", role: "list" });
-        repos.forEach(function (r) { box.appendChild(viewMode === "list" ? repoRow(r) : repoCard(r)); });
+        // A real <ul>/<li>, not role="list" over role="listitem" buttons -- see
+        // the .cl-grid comment in dashboard.css. The card keeps its button role.
+        var box = h("ul", { class: viewMode === "list" ? "cl-repolist" : "cl-grid" });
+        repos.forEach(function (r) {
+          box.appendChild(h("li", null, viewMode === "list" ? repoRow(r) : repoCard(r)));
+        });
         return box;
       }
       function renderBands() {
@@ -562,7 +580,7 @@
     var health = r.indexed_at ? "fresh" : "stale";
     var nm = splitRepo(r.id);
     return h("button", {
-      type: "button", class: "cl-repocard", role: "listitem",
+      type: "button", class: "cl-repocard",
       title: r.id, onclick: function () { go("#/repo/" + r.id); }
     },
       h("div", { class: "cl-repocard__top" },
@@ -581,7 +599,7 @@
     var health = r.indexed_at ? "fresh" : "stale";
     var nm = splitRepo(r.id);
     return h("button", {
-      type: "button", class: "cl-reporow", role: "listitem",
+      type: "button", class: "cl-reporow",
       title: r.id, onclick: function () { go("#/repo/" + r.id); }
     },
       kindIcon("repo"),
@@ -653,11 +671,14 @@
 
       var tabs = ["anatomy", "readme", "wiki", "owners", "links", "diagrams"];
       var cur = tabs.indexOf(tab) >= 0 ? tab : "anatomy";
-      var strip = h("div", { class: "cl-tabs", role: "tablist" });
+      // role="group" + aria-pressed, not tablist/tab: there is no tabpanel in this
+      // document and no roving tabindex, so the tab roles promised a structure that
+      // did not exist (WCAG 4.1.2 / 1.3.1). These are toggle buttons.
+      var strip = h("div", { class: "cl-tabs", role: "group", "aria-label": "Repo sections" });
       var pane = h("div", { class: "cl-panel__body" });
       tabs.forEach(function (t) {
         strip.appendChild(h("button", {
-          class: "cl-tab", role: "tab", type: "button", "aria-selected": String(t === cur),
+          class: "cl-tab", type: "button", "aria-pressed": String(t === cur),
           onclick: function () { go("#/repo/" + id + "?tab=" + t); }
         }, t[0].toUpperCase() + t.slice(1)));
       });
@@ -931,7 +952,7 @@
     var kinds = (d.brief && d.brief.kinds) || {};
     var available = {};
     DIAGRAM_FORMATS.forEach(function (f) { available[f.fmt] = f.avail(kinds); });
-    var strip = h("div", { class: "cl-tabs", role: "tablist" });
+    var strip = h("div", { class: "cl-tabs", role: "group", "aria-label": "Diagram format" });
     var scopeWrap = h("div", { class: "cl-diagram-scope" });
     var body = h("div", { class: "cl-panel__body" });
     var currentModule = null;
@@ -1027,7 +1048,7 @@
       currentFmt = fmt;
       var myGen = ++renderGen;
       strip.querySelectorAll(".cl-tab").forEach(function (btn) {
-        btn.setAttribute("aria-selected", String(btn.dataset.fmt === fmt));
+        btn.setAttribute("aria-pressed", String(btn.dataset.fmt === fmt));
       });
       clear(body); body.appendChild(skeleton(1));
       CL.data.diagram(id, fmt, currentModule).then(function (res) {
@@ -1060,7 +1081,7 @@
     DIAGRAM_FORMATS.forEach(function (f) {
       var isAvail = available[f.fmt];
       var btn = h("button", {
-        class: "cl-tab", role: "tab", type: "button", "aria-selected": "false",
+        class: "cl-tab", type: "button", "aria-pressed": "false",
         dataset: { fmt: f.fmt }, disabled: !isAvail,
         title: isAvail ? null : ("No " + f.label.toLowerCase() + " data in this repo")
       }, f.label);
@@ -1121,7 +1142,7 @@
       var sub = target ? ["dependencies", "http_flow", "event_flow", "data_flow"] : ["dependencies", "http_flow", "event_flow"];
       var names = { dependencies: "Dependencies", http_flow: "HTTP flow", event_flow: "Event flow", data_flow: "Data flow" };
       var cur = "dependencies";
-      var strip = h("div", { class: "cl-tabs", role: "tablist" });
+      var strip = h("div", { class: "cl-tabs", role: "group", "aria-label": "Relationship kind" });
       var pane = h("div", null);
       function paintDataFlow() {
         if (dataFlowRows === null) {
@@ -1149,7 +1170,13 @@
         pane.appendChild(table(["Source", "Target", "Relation", "Confidence", "Weight", ""],
           rows.map(function (e) {
             return [e.src, e.dst, e.relation, confChip(e.confidence),
-              h("span", { class: "cl-flowbar", style: "width:" + Math.max(6, Math.round((e.weight || 1) / maxW * 60)) + "px" }),
+              // The bar alone left the Weight cell empty to a screen reader and
+              // uncomparable to a magnifier user (WCAG 1.1.1). The number is the
+              // content; the bar is decoration beside it.
+              h("span", { class: "cl-flowcell" },
+                h("span", { class: "cl-flowbar", "aria-hidden": "true",
+                  style: "width:" + Math.max(6, Math.round((e.weight || 1) / maxW * 60)) + "px" }),
+                h("span", null, num(e.weight || 1))),
               citeButton({ claim: e.src + " → " + e.dst, repo: e.src, source: e.context || "manifest/regex", confidence: e.confidence, note: e.confidence === "AMBIGUOUS" ? "Flagged uncertain — verify." : "" })];
           }), [false, false, false, false, true, false],
           rows.map(function (e) { return e.confidence === "AMBIGUOUS"; })));
@@ -1161,8 +1188,8 @@
         if (k === "data_flow" && dataFlowRows === null) { label += " (unavailable)"; }
         else { label += " (" + (k === "data_flow" ? dataFlowRows.length : (rel[k] || []).length) + ")"; }
         strip.appendChild(h("button", {
-          class: "cl-tab", role: "tab", type: "button", "aria-selected": String(k === cur),
-          onclick: function () { strip.querySelectorAll(".cl-tab").forEach(function (t) { t.setAttribute("aria-selected", "false"); }); this.setAttribute("aria-selected", "true"); paint(k); }
+          class: "cl-tab", type: "button", "aria-pressed": String(k === cur),
+          onclick: function () { strip.querySelectorAll(".cl-tab").forEach(function (t) { t.setAttribute("aria-pressed", "false"); }); this.setAttribute("aria-pressed", "true"); paint(k); }
         }, label));
       });
       tablesWrap.appendChild(strip); tablesWrap.appendChild(pane); paint(cur);
@@ -1281,16 +1308,19 @@
         if (!hits.length) { dynWrap.appendChild(stateBlock({ kind: "empty", title: "No downstream dependents", msg: "This symbol is a leaf at these settings." })); return; }
         var lanes = h("div", { class: "cl-lanes" });
         [1, 2, 3].slice(0, blastCfg.hops).forEach(function (hop) {
-          var lane = h("div", { class: "cl-lane", role: "list", "aria-label": "Hop " + hop });
-          lane.appendChild(h("div", { class: "cl-lane__head" }, "Hop " + hop));
+          var lane = h("div", { class: "cl-lane" });
+          lane.appendChild(h("div", { class: "cl-lane__head", id: "cl-lane-h" + hop }, "Hop " + hop));
+          // real <ul>/<li>; the hits stay buttons (see repoCollection)
+          var items = h("ul", { class: "cl-lane__items", "aria-labelledby": "cl-lane-h" + hop });
           hits.filter(function (hi) { return hi.hop === hop; }).forEach(function (hi) {
-            lane.appendChild(h("button", {
-              type: "button", role: "listitem", class: "cl-hit cl-hit--" + String(hi.confidence).toLowerCase(),
+            items.appendChild(h("li", null, h("button", {
+              type: "button", class: "cl-hit cl-hit--" + String(hi.confidence).toLowerCase(),
               onclick: function () { go("#/symbol/" + hi.id); }
             }, kindIcon(hi.kind),
               h("span", { class: "cl-hit__name" }, hi.name),
-              h("span", { class: "cl-hit__via" }, hi.repo + " · via " + hi.via)));
+              h("span", { class: "cl-hit__via" }, hi.repo + " · via " + hi.via))));
           });
+          lane.appendChild(items);
           lanes.appendChild(lane);
         });
         dynWrap.appendChild(lanes);
@@ -1494,12 +1524,21 @@
         if (!res.results.length) { results.appendChild(stateBlock({ kind: "empty", title: "No symbols match \"" + q + "\"" })); return; }
         if (searchState.mode === "semantic" && !res.semantic) results.appendChild(h("p", { class: "cl-muted" }, "Semantic unavailable — showing lexical matches."));
         res.results.forEach(function (n) {
-          results.appendChild(h("button", {
-            type: "button", class: "cl-result", onclick: function () { go("#/repo/" + n.repo + "?tab=anatomy"); }
-          }, kindIcon(n.kind),
-            h("span", null, h("strong", null, n.qualified_name || n.name),
-              h("div", { class: "cl-result__meta" }, n.repo + (n.file ? " · " + n.file + (n.line ? ":" + n.line : "") : ""))),
-            h("button", { type: "button", class: "cl-btn", onclick: function (ev) { ev.stopPropagation(); go("#/symbol/" + (n.id || n.name)); } }, "Blast")));
+          // Two SIBLING buttons in a plain row, never a button inside a button --
+          // the outer control used to absorb "Blast" into its own accessible name
+          // and advertise an action it does not perform (WCAG 4.1.2).
+          results.appendChild(h("div", { class: "cl-result" },
+            h("button", {
+              type: "button", class: "cl-result__main",
+              onclick: function () { go("#/repo/" + n.repo + "?tab=anatomy"); }
+            }, kindIcon(n.kind),
+              h("span", null, h("strong", null, n.qualified_name || n.name),
+                h("div", { class: "cl-result__meta" }, n.repo + (n.file ? " · " + n.file + (n.line ? ":" + n.line : "") : "")))),
+            h("button", {
+              type: "button", class: "cl-btn",
+              "aria-label": "Blast radius for " + (n.qualified_name || n.name),
+              onclick: function () { go("#/symbol/" + (n.id || n.name)); }
+            }, "Blast")));
         });
       }).catch(function (e) { clear(results); results.appendChild(stateBlock({ kind: "error", title: "Search failed", msg: String(e.message || e) })); });
     }
@@ -2031,11 +2070,34 @@
     $("#cl-theme").onclick = function () { setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"); };
     // density
     var dens = lsGet("density", "comfortable"); document.documentElement.dataset.density = dens;
-    $("#cl-density").textContent = dens === "compact" ? "Comfortable" : "Compact";
-    $("#cl-density").onclick = function () { var d = document.documentElement.dataset.density === "compact" ? "comfortable" : "compact"; document.documentElement.dataset.density = d; lsSet("density", d); this.textContent = d === "compact" ? "Comfortable" : "Compact"; };
+    // The visible text flips between "Compact" and "Comfortable" while the old
+    // aria-label stayed frozen at "Toggle density", so a speech-input user reading
+    // the button and saying "click Compact" matched nothing (WCAG 2.5.3). The name
+    // is rebuilt from the visible word every time the word changes.
+    function paintDensity(el, d) {
+      var word = d === "compact" ? "Comfortable" : "Compact";
+      el.textContent = word;
+      el.setAttribute("aria-label", word + " density");
+    }
+    paintDensity($("#cl-density"), dens);
+    $("#cl-density").onclick = function () {
+      var d = document.documentElement.dataset.density === "compact" ? "comfortable" : "compact";
+      document.documentElement.dataset.density = d; lsSet("density", d);
+      paintDensity(this, d);
+    };
     // info popover ("What am I looking at?")
     var infoBtn = $("#cl-info"), infoPop = $("#cl-infopop");
-    function setInfo(open) { infoPop.hidden = !open; infoBtn.setAttribute("aria-expanded", String(open)); }
+    // Opening it must MOVE focus into the panel. The panel sits after </header> in
+    // the DOM, so without this the next three Tab stops after opening were the
+    // density toggle, the theme toggle, and only then the panel's own Close button
+    // -- two controls that change the whole UI, sitting between the user and the
+    // thing that just appeared (WCAG 2.4.3). Closing already restores focus to the
+    // button that opened it.
+    function setInfo(open) {
+      infoPop.hidden = !open;
+      infoBtn.setAttribute("aria-expanded", String(open));
+      if (open) $("#cl-info-close").focus();
+    }
     infoBtn.onclick = function (e) { e.stopPropagation(); setInfo(infoPop.hidden); };
     $("#cl-info-close").onclick = function () { setInfo(false); infoBtn.focus(); };
     document.addEventListener("click", function (e) {
@@ -2076,12 +2138,36 @@
       // swallowing Tab keeps focus from escaping behind the open dialog (WCAG 2.4.3).
       else if (e.key === "Tab") { e.preventDefault(); }
     });
+    // Single-key shortcut opt-out (WCAG 2.1.4). `/` and `p` fired from anywhere on
+    // the page with no way to turn them off, so a speech-input user dictating, or
+    // anyone with a tremor or a stuck key, got yanked to the search lens or had a
+    // provenance drawer thrown open (and focus moved into it) unasked. The old
+    // guard also only checked `input, textarea`, so typeahead in a <select> or
+    // inside contenteditable still triggered them.
+    var scToggle = $("#cl-shortcuts-toggle");
+    function shortcutsOn() { return lsGet("shortcuts", "on") !== "off"; }
+    if (scToggle) {
+      scToggle.checked = shortcutsOn();
+      scToggle.addEventListener("change", function () {
+        lsSet("shortcuts", this.checked ? "on" : "off");
+        live(this.checked ? "Single-key shortcuts on" : "Single-key shortcuts off");
+      });
+    }
+    function inTextEntry(t) {
+      if (!t || !t.closest) return false;
+      return !!t.closest("input, textarea, select, [contenteditable='']," +
+        " [contenteditable='true'], [contenteditable='plaintext-only']");
+    }
     document.addEventListener("keydown", function (e) {
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); openPalette(); return; }
-      if (e.target.matches("input, textarea")) return;
+      // Escape is exempt from 2.1.4 (it is not a printable character key) and is
+      // the only way out of the palette and the drawer, so it stays unconditional.
+      if (e.key === "Escape") { closePalette(); closeDrawer(); return; }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (inTextEntry(e.target)) return;
+      if (!shortcutsOn()) return;
       if (e.key === "/") { e.preventDefault(); go("#/search"); setTimeout(function () { var f = $("#cl-searchfield"); if (f) f.focus(); }, 30); }
       else if (e.key === "P" || e.key === "p") { openDrawer(null); }
-      else if (e.key === "Escape") { closePalette(); closeDrawer(); }
     });
   }
 
