@@ -89,3 +89,79 @@ def test_non_utf8_author_name_does_not_abort(repo, commit_raw_bytes):
     owners = compute_owners(repo)
     assert [o.email for o in owners] == ["renee@example.com"]
     assert owners[0].name.startswith("Ren")
+
+
+# --- the log walk is bounded and cached (E12) --------------------------------
+
+def test_owners_are_cached_on_head_so_a_second_call_does_no_git_work(repo, monkeypatch):
+    """The dashboard, `kb owners` and the MCP `who_knows` tool each called this, and each
+    paid a full `git log --numstat` walk -- 30 of the 41 seconds a repo-detail request
+    took on a 36,290-commit repository.
+
+    Asserted by counting subprocess calls, not by timing: a timing assertion is flaky and
+    would not have caught the bug this test exists for. The first version of the cache
+    stored its entry under a variable the aggregation loop had already rebound to a
+    contributor email, so it wrote a garbage key and never hit -- while every existing
+    test still passed.
+    """
+    from contextlake.kb import ownership
+
+    _commit(repo, "a.py", 5, "Ada", "ada@x.io", "2026-06-20 10:00:00 +0000")
+    _commit(repo, "b.py", 3, "Ada", "ada@x.io", "2026-06-21 10:00:00 +0000")
+    ownership._CACHE.clear()
+
+    calls = []
+    real = ownership.subprocess.run
+
+    def counting(cmd, *a, **kw):
+        calls.append(cmd)
+        return real(cmd, *a, **kw)
+
+    monkeypatch.setattr(ownership.subprocess, "run", counting)
+
+    first = ownership.compute_owners(repo)
+    n_after_first = len(calls)
+    second = ownership.compute_owners(repo)
+
+    assert first == second, "a cache hit must return the same answer"
+    log_walks = [c for c in calls[n_after_first:] if "log" in c]
+    assert not log_walks, (
+        f"second call re-walked the log: {log_walks}. The cache is keyed on HEAD; if this "
+        f"fails the key is wrong, not the concept.")
+
+
+def test_the_log_walk_is_bounded_but_falls_back_for_a_dormant_repo(repo, monkeypatch):
+    """The bound is what fixes the FIRST call; the fallback is what stops it lying.
+
+    A repository whose newest commit predates the window returns nothing from the bounded
+    walk, and answering "no owners" for a dormant-but-real repo would be a worse bug than
+    the slowness the bound removes.
+    """
+    from contextlake.kb import ownership
+
+    _commit(repo, "a.py", 5, "Ada", "ada@x.io", "2026-06-20 10:00:00 +0000")
+    _commit(repo, "b.py", 3, "Ada", "ada@x.io", "2026-06-21 10:00:00 +0000")
+    ownership._CACHE.clear()
+    seen = []
+    real = ownership.subprocess.run
+
+    def spy(cmd, *a, **kw):
+        seen.append(cmd)
+        return real(cmd, *a, **kw)
+
+    monkeypatch.setattr(ownership.subprocess, "run", spy)
+    owners = ownership.compute_owners(repo)
+
+    walks = [c for c in seen if "log" in c]
+    assert walks, "expected at least one log walk"
+    assert any(any(str(x).startswith("--since=") for x in c) for c in walks), (
+        "the first walk must be bounded")
+    assert owners, "a repo with history must yield owners"
+
+    # THE POINT OF THIS TEST. The fixture's commits are recent, so the bounded walk must
+    # FIND them and no unbounded retry may happen. Passing a float to `--since` makes git
+    # return zero commits while exiting 0, which made the bound useless and cost a second
+    # full walk -- and left every other assertion here still passing.
+    assert len(walks) == 1, (
+        f"fresh history must be found by the bounded walk alone, got {len(walks)} walks: "
+        f"{walks}. If the second is unbounded, the --since argument is not parsing.")

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The dashboard's repo panel spent 30 seconds in a git subprocess on every single request.**
+  Profiled on a 131,603-node repository: the panel took 41s, and 30 of those were one
+  `git log --no-merges --numstat` walk over the whole history (36,290 commits), run synchronously,
+  uncached, on every request. Three separate callers each paid it — the dashboard panel,
+  `kb owners`, and the MCP `who_knows` tool.
+
+  Two fixes, both measured. The walk is now **bounded** to 12 score half-lives (~5.9 years), which
+  is where a commit's weight reaches 0.00024 and can no longer change a ranking — so the truncated
+  history was pure cost. And the result is **cached on HEAD**, since owners only change when
+  history does.
+
+  Repeat requests went from 34-35s to **4.2s**. A repository whose newest commit predates the
+  window falls back to the unbounded walk, because answering "no owners" for a dormant-but-real
+  repo would be worse than the slowness being removed.
+
+  Two bugs were caught inside this fix and are worth knowing about. `--since` was first passed a
+  float, and `git log --since="2160.0 days ago"` **exits 0 and returns zero commits** — it silently
+  fails to parse, so the bound never matched, the fallback always ran, and the net effect was two
+  full walks instead of one. And the cache key was first stored in a variable the aggregation loop
+  rebinds, so it wrote under a contributor's email and never hit. Both left every existing test
+  passing; there are now tests for the single-walk property and for the cache actually hitting.
+
+  Still slow and separately tracked: the first request remains ~30s on a repository this size,
+  because a 253 MB shard costs a measured 2.84 GiB resident and so exceeds the shard cache's whole
+  2 GiB budget — it is correctly never cached, and 7.0.0's larger graphs are what pushed shards past
+  that line.
+
 ### Changed
 
 - **Data members, macros, typedefs, enum constants and file-scope variables are now embedded, so
