@@ -881,8 +881,8 @@ Examples:
 Also happens automatically, once, the first time any command runs in a real
 interactive terminal (skip this with CONTEXTLAKE_NO_AUTO_COMPLETION=1) -- this
 command is for running it again explicitly, on demand, or for a shell other
-than $SHELL. Uses the exact mechanism `init` uses (see docs/usage.md
-#shell-completion), so both stay idempotent and in sync.
+than $SHELL. Uses the exact mechanism `init` uses (see
+docs/cli-reference.md#shell-completion), so both stay idempotent and in sync.
                 """)
     # No choices=[...] here (deliberately): combined with nargs="?" and this
     # codebase's SUPPRESS-default convention, older argparse (3.9-3.11; fixed
@@ -1748,7 +1748,7 @@ def _run(argv, metrics):
     # Shell tab-completion (bash/zsh/fish/tcsh): a core dependency (see
     # pyproject.toml), so this is always available once contextlake itself is
     # installed -- only registering it with a shell (init offers to do this;
-    # docs/usage.md#shell-completion has the manual one-liner) is a separate
+    # docs/cli-reference.md#shell-completion has the manual one-liner) is a separate
     # step. autocomplete() only acts when a shell's completion machinery has
     # set COMP_LINE et al., so this is a silent no-op on every normal
     # invocation. The try/except is defensive, not the primary path: an

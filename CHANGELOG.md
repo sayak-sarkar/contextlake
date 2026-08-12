@@ -5,7 +5,20 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [7.3.0] - 2026-08-13
+
+**All 24 accessibility violations, and a favicon you can actually see.** An audit of the dashboard and
+the graph viewer found 24 WCAG 2.2 AA failures; every one is fixed, with each contrast ratio computed
+from the real token values and then re-read from the rendered page. The graph canvas had an accessible
+name and no accessible content at all, and now has a parallel text view wired to the same handlers a
+mouse tap calls.
+
+The favicon changed: below 64px the mark is the context-pebble rather than a picture of the mascot,
+because a character cannot survive 16 pixels however it is simplified. Pebble is unchanged at 180px
+and above. Browsers cache favicons hard, so a tab you already had open may keep showing the old one
+until you force a reload.
+
+Nothing to re-index and nothing to re-embed.
 
 ### Added
 
@@ -34,6 +47,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   smallest.
 
 ### Fixed
+
+- **Thirteen accessibility defects in the dashboard, fixed against measured contrast rather than
+  judgement.** Seven Level A and six Level AA, from a WCAG 2.2 AA audit of the whole UI.
+
+  `--cl-line` was carrying both decorative and load-bearing borders at one value, so it is split, with
+  `--cl-line-strong` measured at 3.25-4.51:1 across every surface it appears on. Dark theme gained its
+  own `--cl-lake` with a paired `--cl-on-lake` (5.13:1 fill, 5.79:1 label). And **opacity is no longer
+  used to encode state** -- a dimmed row said "excluded" only to someone who could compare it with an
+  undimmed one, which meant a low-vision reader could not tell whether the counts they were reading
+  were complete. It is now strike-through (5.65/5.91:1) and a hatched fill (13.85/11.41:1).
+
+  Two fixes needed structure rather than attributes: lists that were styled to look like lists are now
+  real `<ul>`/`<li>`, and the search results stopped nesting interactive controls inside each other.
+  Keyboard behaviour was confirmed by key sequence: Enter lands focus on the opened panel's Close
+  button, and the `p` shortcut no longer fires inside a `<select>` or a `contenteditable`.
+
+  Every ratio is computed from the real token values in both themes **and then re-read from the
+  rendered page** with `getComputedStyle`, because a declared value and a composited value are not the
+  same number. That distinction found two things the audit had not: one ring was failing in *light*
+  theme too once measured against its own tint rather than the card behind it, and the obvious fix for
+  another would have introduced a fresh 1.4.3 failure. 34 tests pin the tokens and roles.
+
+- **Eleven accessibility defects in the graph viewer, including a canvas a screen reader could not use
+  at all.** Its accessible name was the single string "Knowledge graph" and its measured `innerText`
+  was empty, so a non-visual user got a node graph with nothing in it.
+
+  A force-directed diagram cannot be made meaningful by adding attributes to a canvas, so it now has a
+  **parallel text view** rendering the same visible nodes, kinds and per-node connections as real
+  buttons, wired to the *same* handlers a mouse tap calls -- namespace drill-in and neighbour expansion
+  work from the keyboard. `role="application"` is gone, and the canvas pans, zooms and fits with the
+  arrow keys, `+`/`-` and `0`. Verified from page load in the collapsed-namespace state, the case where
+  a naive text view would list nothing usable.
+
+  The contrast work needed structure too: **edges were drawn at 0.45 opacity, at which no hue can reach
+  3:1**, so they are opaque now with a per-theme palette, and every relation clears 3.40:1 against the
+  worst gradient stop of its theme. The node stroke became theme-aware, which closed a hole the audit
+  had missed -- the old border was navy on navy at **1.03:1** in dark.
+
+  Five adjacent defects were fixed in passing and are named rather than absorbed: the focus ring
+  (2.60 -> 5.02:1), a chip that was white on a pale hue (1.70:1), two link groups that only looked like
+  buttons, the PNG export ground, and a bug the new palette itself introduced where legend swatches kept
+  light hues on a dark first paint.
+
+- **The CLI pointed users at a documentation anchor that no longer exists.** `contextlake completion`
+  and the unrecognised-shell warning both printed `docs/usage.md#shell-completion`; the docs restructure
+  moved that section to `docs/cli-reference.md`, and `docs/usage.md` itself now links there. Anyone who
+  followed the instruction the tool printed landed on a page without the steps.
 
 - **The published vocabulary diagram documented 16 of 40 node kinds, and the embeddable graph page
   17 of 40.** 7.0.0 consolidated sixteen drifted kind vocabularies into one registry because that

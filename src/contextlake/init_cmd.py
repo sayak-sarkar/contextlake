@@ -211,8 +211,9 @@ def _mark_completion_decided(outcome: str) -> None:
 
 def _setup_shell_completion(*, interactive: bool, default_on: bool,
                             shell_override: str | None = None) -> None:
-    """Register shell tab-completion, on by default (see docs/usage.md
-    #shell-completion for the plain manual steps this automates). Every write
+    """Register shell tab-completion, on by default (see
+    docs/cli-reference.md#shell-completion for the plain manual steps this
+    automates). Every write
     here is visible in the log before it happens and is either idempotent
     (bash/zsh: skips if the marker's already present) or a full overwrite of a
     file contextlake itself owns (fish's dedicated completions file) -- never
@@ -257,7 +258,8 @@ def _setup_shell_completion(*, interactive: bool, default_on: bool,
     else:
         log(f"{style.warn('completion')} unrecognized shell "
             f"({shell_path or '$SHELL not set'}) — see "
-            "docs/usage.md#shell-completion for manual setup (bash/zsh/fish).")
+            "docs/cli-reference.md#shell-completion for manual setup "
+            "(bash/zsh/fish).")
         _mark_completion_decided(f"unrecognized-shell:{shell_name or 'unset'}")
 
 
