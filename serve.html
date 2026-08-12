@@ -19,17 +19,17 @@
 <meta name="twitter:title" content="Serve (MCP) · contextlake docs">
 <meta name="twitter:description" content="Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serve (MCP)", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serve", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-10"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serve (MCP)", "item": "https://sayak.in/contextlake/serve"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Serve (MCP)", "description": "Expose the knowledge layer over MCP and wire your editors (Claude Code, Windsurf, Kiro) in one command.", "url": "https://sayak.in/contextlake/serve", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-08-12"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Serve (MCP)", "item": "https://sayak.in/contextlake/serve"}]}]}</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#137A8B">
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=43b862d">
-<link rel="stylesheet" href="tokens.css?v=43b862d">
-<link rel="stylesheet" href="docs.css?v=43b862d">
-<link rel="stylesheet" href="cmdk.css?v=43b862d">
+<link rel="stylesheet" href="fonts.css?v=a536ac4">
+<link rel="stylesheet" href="tokens.css?v=a536ac4">
+<link rel="stylesheet" href="docs.css?v=a536ac4">
+<link rel="stylesheet" href="cmdk.css?v=a536ac4">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -87,6 +87,74 @@ embeddings exist</strong>, which takes both halves, <code>enabled = true</code> 
 <code>contextlake kb embed</code> run to create the vector store. Without both, the server starts
 fine and says so, the two tools are simply absent from the tool list, and everything
 above still works.</p>
+<h2 id="what-a-miss-looks-like-and-what-an-error-looks-like">What a miss looks like, and what an error looks like<a class="anchor" href="#what-a-miss-looks-like-and-what-an-error-looks-like" title="Link to this section">#</a></h2>
+<p><strong>A recoverable condition is never an error result.</strong> Ask for a symbol that does not exist, a
+repo that was never indexed, a repo whose local clone has gone missing, or anything at all of a
+store with nothing in it yet, and every tool still answers. The negative comes back as ordinary
+data in a field you can read, never as a failed tool call.</p>
+<p>That is worth stating as a guarantee rather than leaving as a happy accident, because of how an
+agent reads a failed call. It does not read one as "that particular lookup missed", it reads it
+as "this tool is broken", and it stops calling the server for the rest of the session. One
+handler raising on a miss would therefore not cost one answer, it would cost every answer the
+graph could have given afterwards, replaced by grepping.</p>
+<p>So a miss is always something you can act on:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>On</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>found</code></td>
+<td><code>who_knows</code>, <code>get_wiki</code>, <code>get_readme</code>, <code>get_repo_brief</code>, <code>get_repo_links</code>, <code>repo_dependencies</code>, <code>repo_flow</code>, <code>repo_event_flow</code></td>
+<td><code>false</code> says no repo with that id is indexed, so an empty result is not an architectural fact about a real repo</td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td><code>find_callers</code>, <code>find_callees</code>, <code>find_dependents</code>, <code>blast_radius</code></td>
+<td>names the symbol or package that is not indexed, so "nothing calls this" and "no such symbol" stay distinguishable</td>
+</tr>
+<tr>
+<td><code>ranking_gap</code></td>
+<td><code>who_knows</code></td>
+<td>why the owner list is empty: no such repo, no clone on record, or a history that attributed nobody</td>
+</tr>
+<tr>
+<td><code>gap</code></td>
+<td><code>shortest_path</code></td>
+<td>which miss it was: an id the graph does not hold, or two indexed nodes with no route between them</td>
+</tr>
+<tr>
+<td><code>answered</code></td>
+<td><code>ask</code></td>
+<td><code>false</code> says nothing satisfied the question as asked. Any <code>nodes</code> alongside it are leads from a fallback search, not the answer</td>
+</tr>
+<tr>
+<td><code>indexed</code></td>
+<td><code>graph_health</code></td>
+<td><code>false</code> says the zero counts mean "nothing to check", not "everything checked out"</td>
+</tr>
+<tr>
+<td><code>total</code>, <code>truncated</code></td>
+<td>every capped list</td>
+<td>the true total, and whether the cap was hit, so a short list is never mistaken for a complete one</td>
+</tr>
+</tbody>
+</table>
+<p><code>get_node</code> is the one exception to the envelope shape, and deliberately so: it returns the node
+or <code>null</code>, which cannot be misread.</p>
+<p><strong>What is still an error, and why the line sits there.</strong> An argument that is not a question gets
+refused rather than answered: a negative <code>hops</code> on <code>blast_radius</code>, a <code>direction</code> outside
+<code>in</code>/<code>out</code>/<code>both</code>, anything the advertised schema rejects. Answering those emptily would hand
+back "nothing is affected" or "this repo has no dependencies", a positive claim manufactured
+from an argument the tool had in fact rejected, and that is the one thing worse than an error.
+Note the shape of the line: <code>hops: 0</code> is a real request and answers, <code>hops: -1</code> is refused.</p>
+<p><code>tests/kb/test_server_contract.py</code> pins both halves. It reads the live tool list off the wire
+and calls every tool with miss-shaped arguments against an empty store, an indexed fleet, and a
+fleet whose clone is gone, so a tool added later is covered on the day it is added.</p>
 <h2 id="the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors<a class="anchor" href="#the-quick-way-let-contextlake-wire-your-editors" title="Link to this section">#</a></h2>
 <p>From your workspace root:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>steer<span class="w"> </span>--config<span class="w"> </span>~/.contextlake/kb.toml
@@ -347,6 +415,7 @@ have it draft wiki pages from the graph without the built-in <code>wiki</code> c
   </main>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
+<li><a href="#what-a-miss-looks-like-and-what-an-error-looks-like">What a miss looks like, and what an error looks like</a></li>
 <li><a href="#the-quick-way-let-contextlake-wire-your-editors">The quick way: let contextlake wire your editors</a><ul>
 <li><a href="#the-generated-agentsmd-names-the-store-it-was-built-from">The generated AGENTS.md names the store it was built from</a></li>
 <li><a href="#what-the-generated-mcpjson-pins-and-what-it-deliberately-does-not">What the generated .mcp.json pins, and what it deliberately does not</a></li>
@@ -431,6 +500,6 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 <script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
-<script defer src="cmdk.js?v=43b862d"></script>
+<script defer src="cmdk.js?v=a536ac4"></script>
 </body>
 </html>

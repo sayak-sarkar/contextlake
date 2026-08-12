@@ -4144,6 +4144,45 @@ embeddings exist**, which takes both halves, `enabled = true` under `[embeddings
 fine and says so, the two tools are simply absent from the tool list, and everything
 above still works.
 
+## What a miss looks like, and what an error looks like
+
+**A recoverable condition is never an error result.** Ask for a symbol that does not exist, a
+repo that was never indexed, a repo whose local clone has gone missing, or anything at all of a
+store with nothing in it yet, and every tool still answers. The negative comes back as ordinary
+data in a field you can read, never as a failed tool call.
+
+That is worth stating as a guarantee rather than leaving as a happy accident, because of how an
+agent reads a failed call. It does not read one as "that particular lookup missed", it reads it
+as "this tool is broken", and it stops calling the server for the rest of the session. One
+handler raising on a miss would therefore not cost one answer, it would cost every answer the
+graph could have given afterwards, replaced by grepping.
+
+So a miss is always something you can act on:
+
+| Field | On | Means |
+| --- | --- | --- |
+| `found` | `who_knows`, `get_wiki`, `get_readme`, `get_repo_brief`, `get_repo_links`, `repo_dependencies`, `repo_flow`, `repo_event_flow` | `false` says no repo with that id is indexed, so an empty result is not an architectural fact about a real repo |
+| `note` | `find_callers`, `find_callees`, `find_dependents`, `blast_radius` | names the symbol or package that is not indexed, so "nothing calls this" and "no such symbol" stay distinguishable |
+| `ranking_gap` | `who_knows` | why the owner list is empty: no such repo, no clone on record, or a history that attributed nobody |
+| `gap` | `shortest_path` | which miss it was: an id the graph does not hold, or two indexed nodes with no route between them |
+| `answered` | `ask` | `false` says nothing satisfied the question as asked. Any `nodes` alongside it are leads from a fallback search, not the answer |
+| `indexed` | `graph_health` | `false` says the zero counts mean "nothing to check", not "everything checked out" |
+| `total`, `truncated` | every capped list | the true total, and whether the cap was hit, so a short list is never mistaken for a complete one |
+
+`get_node` is the one exception to the envelope shape, and deliberately so: it returns the node
+or `null`, which cannot be misread.
+
+**What is still an error, and why the line sits there.** An argument that is not a question gets
+refused rather than answered: a negative `hops` on `blast_radius`, a `direction` outside
+`in`/`out`/`both`, anything the advertised schema rejects. Answering those emptily would hand
+back "nothing is affected" or "this repo has no dependencies", a positive claim manufactured
+from an argument the tool had in fact rejected, and that is the one thing worse than an error.
+Note the shape of the line: `hops: 0` is a real request and answers, `hops: -1` is refused.
+
+`tests/kb/test_server_contract.py` pins both halves. It reads the live tool list off the wire
+and calls every tool with miss-shaped arguments against an empty store, an indexed fleet, and a
+fleet whose clone is gone, so a tool added later is covered on the day it is added.
+
 ## The quick way: let contextlake wire your editors
 
 From your workspace root:
@@ -5779,6 +5818,91 @@ All notable changes to contextlake will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [7.2.1] - 2026-08-12
+
+**A data-loss fix, and three silent-wrongness bugs.** The one that matters: `kb index` could delete
+repositories it was never asked to look at. If you have ever pointed `--workspace` somewhere other
+than where your store was built, upgrade before your next index run.
+
+No re-index and no re-embed are required by this release. If a repo of yours has been re-embedding
+on every run, that stops now, though a repo carrying one of the empty markers described below will
+embed once more to catch up, and then settle.
+
+### Added
+
+- **"A recoverable condition never raises" is now a tested guarantee, not an emergent habit.** Ask a
+  code-knowledge tool about a symbol that does not exist and it should say so; if it raises instead,
+  an agent stops using that tool for the rest of the session, one error teaches abandonment. All 23
+  server tools were probed across an empty store, a populated store asked about things it does not
+  hold, a store whose clone directory is gone, and a store with no path at all: none of them raised,
+  so the property held and needed no repair. It is now pinned by
+  `tests/kb/test_server_contract.py`, which reads the live tool list off the wire rather than a
+  hand-kept copy, so a newly added tool is covered the day it appears and a vanished one fails
+  loudly. The near-miss is asserted in the same file: genuinely invalid arguments must still be
+  refused, so the test cannot pass by everything simply never erroring. `docs/serve.md` states what
+  callers may rely on and what remains an error.
+
+### Fixed
+
+- **`ask` reported four established negatives as answered.** The callers, subclasses, impact and
+  owners routes left `answered` at its default when they could not resolve the target, so a question
+  the graph had *proved* it cannot answer came back labelled as answered, with the miss stated only
+  in the prose. `answered` exists precisely so a caller does not have to read the prose. The
+  dependents route beside them already got this right, and `AskOut.answered` documents "no such
+  definition / no such repo" as False cases, so this was an omission rather than a distinction. It
+  matters most on impact: that question is asked to decide whether a change is safe, and
+  "answered, nothing found" is the reading that green-lights it. Found by the contract test above.
+
+- **An empty marker in the vector store was indistinguishable from a missing one, and a repo could
+  re-embed itself forever.** `set_embedded_head` and `set_embedded_parser_version` wrote `""` when
+  there was nothing to record, and the getters folded `""` back into `None`, so "nobody wrote this
+  yet" and "what was written is empty" gave the same answer. Both markers exist only to be compared
+  for equality against what is current, so collapsing them decides a staleness question wrongly
+  rather than merely losing detail.
+
+  `""` is reachable, and that was proved rather than assumed: `kb index --source <shard>.json`
+  carries an imported shard's stamps verbatim into the `repos` row, where every other accessor
+  returns `''` while these two returned `None`. The consequence was silent: such a repo was fully
+  re-embedded on every run for the life of the store, while the command reported success each time.
+
+  Fixed on the **write** side, `None` now deletes the row, so absence is the absence of a row , 
+  rather than by dropping the read-side collapse, because that collapse is load-bearing: an
+  unknown-matches-unknown comparison is what stops a genuinely *unstamped* repo from looping, which
+  is the same answer `kb wiki` already reached. `get_embedded_parser_version`'s docstring claimed the
+  opposite and would have led the next reader straight back into the regression; it now sets out all
+  four quadrants of the comparison.
+
+- **`kb index` could delete repositories it was never going to index.** The repo-id migration
+  walked **every** repo in the store, and deleted any whose stored id no longer matched the
+  canonical id its checkout resolves to, rows, nodes, edges, shard files and vectors. That is safe
+  only under the assumption stated in its own docstring, that "the caller's normal
+  discovery+incremental-index loop does that immediately after". The migration ran *before*
+  discovery, so it could not know whether the assumption applied.
+
+  Point a run at a different `--workspace` than the store was built from and every
+  non-canonically-named repo in it was destroyed, with nothing in that run able to restore it, and
+  no error, because from the migration's point of view the job was done. Observed on a real store:
+  two repos, their shards and their vectors, gone.
+
+  The fix is ordering plus scope. Discovery runs first, and the migration is told which checkouts
+  this run will actually index; anything outside that set is left alone. A skipped repo also no
+  longer marks the store "clean" in the process-lifetime cache, because that would make a later run
+  which *did* include it skip the migration entirely, a fix planting the next silent bug. Five
+  regression tests, three of which fail against the old behaviour.
+
+- **A `git log` timeout in the owner ranking was retried with a bigger walk, then re-paid on every
+  request.** 7.1.0 bounded that walk and cached it on HEAD, and left a hole exactly where the walk
+  is slowest: the code read `rows = _walk(bounded) or _walk(unbounded)`, and `or` cannot tell
+  "succeeded, found nothing" from "timed out". So a repository that had just failed to finish the
+  *cheap* walk was immediately asked to do the *expensive* one, and the empty result returned
+  before the cache write, so the dashboard paid it again on every repo-detail request. Measured
+  across three real clones: 0.4s, 2.1s, and **60.1s**.
+
+  The walk now reports whether git could be asked at all. An honest empty still falls back, that
+  is what stops a dormant repository reporting no owners, while a timeout does not, and either
+  outcome is cached against the commit. A timeout also now says so, instead of being indistinguishable
+  from a repository whose history attributes nothing to anyone.
 
 ## [7.2.0] - 2026-08-12
 
