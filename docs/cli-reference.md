@@ -57,6 +57,7 @@ These work on every command, before or after it:
 | `--redact` / `--no-redact` | scrub workspace paths, group and repo names from the console too / from nothing |
 | `--access-log` | log every request the local HTTP servers answer (off by default) |
 | `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
+| `--offline` | refuse every non-loopback connection, so you can check a command stays local (same as `CONTEXTLAKE_OFFLINE=1`); commands that need a forge or a hosted model say so and stop |
 
 The last five exist for unattended operation, the systemd service + timer in `examples/`, a cron
 wrapper, CI, where nobody watches the run and what it leaves behind is all there is.

@@ -256,10 +256,20 @@ contextlake --offline kb index         # or CONTEXTLAKE_OFFLINE=1
 `--offline` refuses every outbound connection **at the socket**, so it covers not only
 contextlake's own requests but every library in the process, including the ones that
 download embedding or language models. Loopback stays open, because the MCP server, the
-dashboard, the graph viewer and a local Ollama all live there. Indexing, querying,
-searching, the graph, the wiki and the dashboard keep working with the network switched
-off; the commands that genuinely need it, mirroring from a forge or calling a hosted
-model, say so and stop rather than failing obscurely.
+dashboard, the graph viewer and a local Ollama all live there.
+
+Verified with the network blocked, on a fresh store: `kb index`, `kb query`, `kb embed`,
+semantic search, and `kb graph` (whose HTML output contains no remote references at all).
+The commands that genuinely need the network say so and stop rather than failing obscurely:
+mirroring from a forge refuses up front, and `bootstrap` skips the mirror stage and builds
+the knowledge layer from what is already on disk.
+
+**Two caveats, because they are the honest ones.** The bundled embedding model is
+downloaded from Hugging Face the first time it is used; that fetch needs the network, and
+afterwards it loads from the local cache and semantic search works offline. And the wiki's
+LLM tier is only as local as the provider you point it at: the built-in `openvino-genai`
+model runs on your machine once cached, while `--llm openai` is a hosted API and `--offline`
+will and should block it.
 
 The boundary is worth stating plainly: this is an in-process guard, so `git` and `glab`
 subprocesses have their own sockets. That is exactly why the mirror stages refuse up
@@ -5229,6 +5239,7 @@ These work on every command, before or after it:
 | `--redact` / `--no-redact` | scrub workspace paths, group and repo names from the console too / from nothing |
 | `--access-log` | log every request the local HTTP servers answer (off by default) |
 | `--plain` | no colour, even on a TTY (same as `NO_COLOR=1`) |
+| `--offline` | refuse every non-loopback connection, so you can check a command stays local (same as `CONTEXTLAKE_OFFLINE=1`); commands that need a forge or a hosted model say so and stop |
 
 The last five exist for unattended operation, the systemd service + timer in `examples/`, a cron
 wrapper, CI, where nobody watches the run and what it leaves behind is all there is.
@@ -5784,13 +5795,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Loopback stays open on purpose: the MCP server, the dashboard, the graph viewer and a
   local Ollama all live there, and an offline mode that turned those off is one nobody
-  would use. Indexing, querying, search, graph, wiki and dashboard all keep working with
-  the network off.
+  would use. Verified with the network blocked: `kb index`, `kb query`, `kb embed`,
+  semantic search and `kb graph` all work. Two limits found by testing rather than assumed:
+  the bundled embedding model is fetched from Hugging Face on first use, so a *cold* cache
+  plus `--offline` leaves semantic search unavailable (it degrades with a clear message, no
+  crash), and the wiki's LLM tier is only as local as the provider it is pointed at.
 
   The boundary is stated instead of glossed. This is an in-process guard, and `git` and
   `glab` are subprocesses with their own sockets, so `mirror fetch|clone|update|branches|
   sync` refuse up front under `--offline` (exit 2) rather than pretending to be covered.
   `mirror verify` and `mirror status` read the local workspace and stay available.
+  `bootstrap` composes those same stages, and the first version of this let it walk
+  straight into the forge: the socket guard did stop the enumeration, but only after ~26
+  seconds of retries, and it then blamed "a VPN/network drop" for a restriction the user
+  had asked for. It now skips the mirror stage and builds the knowledge layer from what is
+  already on disk, which is the same resumable state its network-failure path already
+  produced.
 
   Written adversarially and it paid immediately: the first version of the loopback test
   was `host.startswith("127.")`, which reads as correct and accepts `127.example.com` --

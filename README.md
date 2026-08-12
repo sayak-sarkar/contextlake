@@ -244,10 +244,20 @@ contextlake --offline kb index         # or CONTEXTLAKE_OFFLINE=1
 `--offline` refuses every outbound connection **at the socket**, so it covers not only
 contextlake's own requests but every library in the process, including the ones that
 download embedding or language models. Loopback stays open, because the MCP server, the
-dashboard, the graph viewer and a local Ollama all live there. Indexing, querying,
-searching, the graph, the wiki and the dashboard keep working with the network switched
-off; the commands that genuinely need it, mirroring from a forge or calling a hosted
-model, say so and stop rather than failing obscurely.
+dashboard, the graph viewer and a local Ollama all live there.
+
+Verified with the network blocked, on a fresh store: `kb index`, `kb query`, `kb embed`,
+semantic search, and `kb graph` (whose HTML output contains no remote references at all).
+The commands that genuinely need the network say so and stop rather than failing obscurely:
+mirroring from a forge refuses up front, and `bootstrap` skips the mirror stage and builds
+the knowledge layer from what is already on disk.
+
+**Two caveats, because they are the honest ones.** The bundled embedding model is
+downloaded from Hugging Face the first time it is used; that fetch needs the network, and
+afterwards it loads from the local cache and semantic search works offline. And the wiki's
+LLM tier is only as local as the provider you point it at: the built-in `openvino-genai`
+model runs on your machine once cached, while `--llm openai` is a hosted API and `--offline`
+will and should block it.
 
 The boundary is worth stating plainly: this is an in-process guard, so `git` and `glab`
 subprocesses have their own sockets. That is exactly why the mirror stages refuse up

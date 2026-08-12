@@ -92,6 +92,12 @@ def install() -> None:
     Idempotent, and never uninstalled: a guard you can turn off from inside the process
     it guards is decoration. A test that needs the network back gets a fresh process,
     which is also how the real thing behaves.
+
+    **Note for tests.** Because this is one-way and process-wide, a test that drives
+    ``cli.main()`` with ``--offline`` (or sets the env var before it) installs the guard
+    for the rest of that pytest worker, and every later test in it. Run CLI-level offline
+    tests in a subprocess; the unit tests here reset the latch and restore the real
+    socket functions themselves.
     """
     global _installed
     if _installed:

@@ -20,13 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Loopback stays open on purpose: the MCP server, the dashboard, the graph viewer and a
   local Ollama all live there, and an offline mode that turned those off is one nobody
-  would use. Indexing, querying, search, graph, wiki and dashboard all keep working with
-  the network off.
+  would use. Verified with the network blocked: `kb index`, `kb query`, `kb embed`,
+  semantic search and `kb graph` all work. Two limits found by testing rather than assumed:
+  the bundled embedding model is fetched from Hugging Face on first use, so a *cold* cache
+  plus `--offline` leaves semantic search unavailable (it degrades with a clear message, no
+  crash), and the wiki's LLM tier is only as local as the provider it is pointed at.
 
   The boundary is stated instead of glossed. This is an in-process guard, and `git` and
   `glab` are subprocesses with their own sockets, so `mirror fetch|clone|update|branches|
   sync` refuse up front under `--offline` (exit 2) rather than pretending to be covered.
   `mirror verify` and `mirror status` read the local workspace and stay available.
+  `bootstrap` composes those same stages, and the first version of this let it walk
+  straight into the forge: the socket guard did stop the enumeration, but only after ~26
+  seconds of retries, and it then blamed "a VPN/network drop" for a restriction the user
+  had asked for. It now skips the mirror stage and builds the knowledge layer from what is
+  already on disk, which is the same resumable state its network-failure path already
+  produced.
 
   Written adversarially and it paid immediately: the first version of the loopback test
   was `host.startswith("127.")`, which reads as correct and accepts `127.example.com` --

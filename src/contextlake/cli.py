@@ -1528,7 +1528,19 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
         log(style.header(title))
 
     failures = []
-    if not getattr(args, "no_sync", False):
+    # Offline skips the mirror rather than failing it. bootstrap composes the same five
+    # stages the `mirror` verbs run, so without this branch it walked straight into the
+    # forge: the socket guard did stop the enumeration, but only after ~26s of retries,
+    # and then blamed "a VPN/network drop" for a restriction the user had asked for. The
+    # kb stages below are all local, so this is a skip and not an abort -- building the
+    # knowledge layer from what is already mirrored is exactly what somebody offline
+    # wants, and it is the same resumable state the FetchError path already produces.
+    offline_mirror = netguard.offline(args)
+    if not getattr(args, "no_sync", False) and offline_mirror:
+        _stage("Mirror repositories from GitLab")
+        log(style.warn(netguard.refuse("mirroring")))
+        log("    → Continuing with the local stages; the mirror is left exactly as it is.")
+    if not getattr(args, "no_sync", False) and not offline_mirror:
         _stage("Mirror repositories from GitLab")
         try:
             mirror = fetch_result(fetch_gitlab_projects(gitlab_group, config), config)
@@ -1564,7 +1576,10 @@ def _bootstrap(args, config, work_dir, gitlab_group, metrics=None):
             log("      It is incremental and idempotent — it fetches/clones only what is "
                 "still missing and re-indexes only what changed.")
             failures.append("Mirror repositories from GitLab (network)")
-    else:
+    elif not offline_mirror:
+        # Only when the *user* asked to skip. Saying "(--no-sync)" for an offline run
+        # names a flag they never passed, which is how a clear message becomes a
+        # confusing one.
         log("Skipping the GitLab mirror step (--no-sync)")
 
     if not getattr(args, "no_audit", False):
