@@ -5768,7 +5768,6 @@ change and `PARSER_VERSION` stays at `4`.
   2 GiB budget, it is correctly never cached, and 7.0.0's larger graphs are what pushed shards past
   that line.
 
-
 - **The wiki's per-kind floors could consume the whole ranked list.** Hub, dispatcher and
   top-symbol lists reserve a slot per kind present, so a structurally low-degree kind (a SQL
   table calls nothing) still gets represented. That reservation had no ceiling, and once a
@@ -9305,7 +9304,7 @@ spec-cli-simplification.md`.
   `extends`/`implements`); Scala (classes, objects, traits, methods, calls, `extends`).
   The parser now covers **13 languages**. (`.rs .rb .php .scala/.sc`.) Kotlin was
   evaluated but deferred, the available tree-sitter grammar is too inconsistent to index
-  reliably (superseded, see the Unreleased section).
+  reliably (superseded in 2.37.0 below, which indexes it).
 - **Go, Java, C, and C++ are now indexed.** Four more tree-sitter grammars: Go
   (functions, methods, struct/interface types, imports, calls); Java (classes,
   interfaces, enums, records, methods, constructors, imports, calls, full inheritance);
