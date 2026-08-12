@@ -12,6 +12,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     return (ctx && !GENERIC_CTX[ctx]) ? r + " · " + ctx : r;
   }
   function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+  function themeName(){ return document.body.dataset.theme === "dark" ? "dark" : "light"; }
   var RM = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
   function dur(ms){ return RM.matches ? 0 : ms; }   // collapse motion to instant under reduced-motion
 
@@ -21,6 +22,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
   function graphStyle(){
     var label = cssVar("--canvas-label") || "#0E2A33";
     var surf = cssVar("--surface-solid") || "#ffffff";
+    var ink = EDGE_INK[themeName()] || EDGE_INK.light;
     return [
       { selector: "node", style: {
           "background-color": function(n){ return COLORS[n.data("kind")] || DEFAULT_COLOR; },
@@ -37,7 +39,12 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
           "width": "mapData(deg, 0, 24, 20, 56)", "height": "mapData(deg, 0, 24, 20, 56)",
           "text-wrap": "ellipsis", "text-max-width": 120,
           "text-valign": "bottom", "text-margin-y": 2,
-          "border-width": 0.5, "border-color": surf } },
+          // The border, not the fill, is what makes a node perceivable (1.4.11): the
+          // fills come from the shared kind registry and 17 of the 40 sit under 3:1
+          // against the light canvas. The old value painted the border in
+          // --surface-solid, i.e. white in light theme (1.00-1.16:1 -- it added
+          // nothing) and NAVY in dark theme (1.03:1 -- it was not a boundary at all).
+          "border-width": 1.2, "border-color": ink.node } },
       { selector: "edge", style: {
           "line-color": edgeColor, "target-arrow-color": edgeColor,
           "width": "mapData(weight, 1, 10, 0.8, 4.5)",
@@ -47,12 +54,16 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
           "text-rotation": "autorotate", "text-margin-y": -3,
           "text-background-color": surf, "text-background-opacity": 0.85,
           "text-background-padding": 2, "text-background-shape": "roundrectangle" } },
+      // Confidence is line STYLE only. It used to be style + opacity, and the opacity
+      // was the part that made 1.4.11 unreachable: composited at 0.45 over a light
+      // canvas, no hue clears 3:1 -- pure black tops out at about 3.3:1. Style alone
+      // is the encoding the legend key already documents, and it costs no contrast.
       { selector: 'edge[confidence = "EXTRACTED"]',
-        style: { "line-style": "solid", "opacity": 0.7 } },
+        style: { "line-style": "solid", "opacity": 1 } },
       { selector: 'edge[confidence = "INFERRED"]',
-        style: { "line-style": "dashed", "opacity": 0.55 } },
+        style: { "line-style": "dashed", "opacity": 1 } },
       { selector: 'edge[confidence = "AMBIGUOUS"]',
-        style: { "line-style": "dotted", "opacity": 0.45 } },
+        style: { "line-style": "dotted", "opacity": 1 } },
       { selector: ".faded", style: {
           "opacity": (parseFloat(cssVar("--faded-opacity")) || 0.1), "text-opacity": 0 } },
       // level-of-detail labels: at low zoom only high-degree hubs keep their text
@@ -60,9 +71,13 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       // search) force it back on. lbl-on sits AFTER dim-label so it wins on a tie.
       { selector: "node.dim-label", style: { "text-opacity": 0 } },
       { selector: "node.lbl-on", style: { "text-opacity": 1 } },
-      { selector: "node.hi", style: { "border-width": 3, "border-color": "#2BB3A3",
+      // hi/found are state, so their rings carry the same 3:1 duty as the base border
+      // -- hence theme-aware hues rather than the two fixed brand colours, which sat
+      // at 2.24:1 and 1.64:1 against the light canvas (a highlighted node had a
+      // *weaker* outline than an unhighlighted one).
+      { selector: "node.hi", style: { "border-width": 3, "border-color": ink.hi,
           "text-opacity": 1, "z-index": 99 } },
-      { selector: "node.found", style: { "border-width": 4, "border-color": "#E7B53C",
+      { selector: "node.found", style: { "border-width": 4, "border-color": ink.found,
           "text-opacity": 1, "z-index": 100 } },
       { selector: "edge.hi", style: { "width": 2.2, "opacity": 1,
           "label": "data(relation)", "font-size": 7, "color": label,
@@ -71,23 +86,26 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       // overview namespace mindmap: cluster nodes, faint "contains" spokes, and
       // aggregated namespace-to-namespace dependency edges
       { selector: 'node[kind = "namespace"]', style: {
-          "shape": "round-rectangle", "background-color": "#137A8B",
-          "background-opacity": 0.13, "border-width": 1.5, "border-color": "#137A8B",
+          "shape": "round-rectangle", "background-color": ink.ns,
+          "background-opacity": 0.13, "border-width": 1.5, "border-color": ink.ns,
           "label": "data(label)", "font-size": 12, "font-weight": 600, "color": label,
           "text-valign": "center", "text-halign": "center", "text-wrap": "wrap",
           "text-max-width": 130, "text-margin-y": 0,
           "width": "mapData(count, 1, 120, 46, 130)",
           "height": "mapData(count, 1, 120, 46, 130)", "z-index": 2 } },
+      // The namespace spokes stay subordinate through WIDTH, not opacity: 0.4 opacity
+      // put them at 1.2:1 in light theme, and they carry real structure (which repos
+      // are in which namespace), so they are not decoration.
       { selector: 'edge[scaffold]', style: {
-          "line-color": "#9bbcc2", "width": 0.7, "target-arrow-shape": "none",
-          "opacity": 0.4, "curve-style": "straight" } },
+          "line-color": ink.scaffold, "width": 0.9, "target-arrow-shape": "none",
+          "opacity": 1, "curve-style": "straight" } },
       // "dagre (preview)" only: the canvas node is blanked so the real HTML card
       // (cytoscape-dom-node) is all you see. Never applied under any other layout.
       { selector: "node.cl-dom", style: {
           "background-opacity": 0, "background-image": "none",
           "border-width": 0, "label": "" } },
       { selector: 'edge[aggregated]', style: {
-          "width": "mapData(weight, 1, 20, 1.6, 7)", "opacity": 0.8,
+          "width": "mapData(weight, 1, 20, 1.6, 7)", "opacity": 1,
           "label": "data(weight)", "font-size": 10, "font-weight": 600, "color": label,
           "text-background-color": surf, "text-background-opacity": 0.9,
           "text-background-padding": 2, "text-rotation": "autorotate" } }
@@ -148,22 +166,33 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     tb.classList.add("show");
   }
 
-  // theme toggle — re-skins the canvas (CSS vars don't reach canvas pixels)
-  document.getElementById("theme").onclick = function(){
-    document.body.dataset.theme = document.body.dataset.theme === "dark" ? "light" : "dark";
+  // ONE theme entry point. The theme changes four ways (the button, the OS preference,
+  // ?theme= on the initial src, a postMessage from an embedding dashboard) and each has
+  // to redo the same work, because the relation palette is per theme now (1.4.11: a hue
+  // that clears 3:1 on a near-white canvas cannot also clear it on navy). Hooking one
+  // entry point only — as the minimap's themeBtn.onclick wrapper further down does —
+  // renders the wrong palette on the other three paths.
+  var themeHooks = [];
+  function onTheme(fn){ themeHooks.push(fn); }
+  function applyTheme(t, force){
+    if(t !== "dark" && t !== "light") return;
+    if(!force && themeName() === t) return;
+    document.body.dataset.theme = t;
+    REL_COLORS = (t === "dark") ? REL_COLORS_DARK : REL_COLORS_LIGHT;
+    DEFAULT_EDGE_COLOR = DEFAULT_EDGE_COLORS[t];
     cy.style(graphStyle());
+    themeHooks.forEach(function(fn){ fn(t); });
+  }
+  document.getElementById("theme").onclick = function(){
+    applyTheme(themeName() === "dark" ? "light" : "dark");
   };
   if(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches){
-    document.body.dataset.theme = "dark"; cy.style(graphStyle());
+    applyTheme("dark");
   }
   // Optional dashboard coordination (file://-safe, null-origin tolerant): honor an
   // explicit ?theme=/#theme= on the initial src, and a postMessage from an embedding
-  // dashboard — both just ride the existing theme path (dataset + graphStyle rebuild).
+  // dashboard — both just ride the shared applyTheme path.
   (function(){
-    function applyTheme(t){
-      if(t !== "dark" && t !== "light") return;
-      document.body.dataset.theme = t; cy.style(graphStyle());
-    }
     var m = /[?#&]theme=(dark|light)/.exec(location.href);
     if(m){ applyTheme(m[1]); }
     window.addEventListener("message", function(e){
@@ -171,9 +200,23 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       if(d && d.type === "cl-theme"){ applyTheme(d.theme); }
     });
   })();
+  // The relation legend's swatches are painted server-side from the light palette, so
+  // they are repainted whenever the palette swaps, or the key stops matching the graph.
+  onTheme(function(){
+    document.querySelectorAll("#edgelegend .lg.rel").forEach(function(el){
+      var i = el.querySelector("i");
+      if(i){ i.style.background = REL_COLORS[el.getAttribute("data-rel")] || DEFAULT_EDGE_COLOR; }
+    });
+    textDirty = true; renderTextView();
+  });
+  var panel = document.getElementById("panel");
   document.getElementById("navToggle").onclick = function(){
     var c = document.body.dataset.sidebar === "collapsed";
-    document.body.dataset.sidebar = c ? "open" : "collapsed"; afterResize();
+    document.body.dataset.sidebar = c ? "open" : "collapsed";
+    // A collapsed rail is 0px wide with overflow hidden, so its controls — including
+    // the whole text view — would stay in the tab order while being invisible.
+    if(panel){ panel.inert = !c; }
+    afterResize();
   };
   // Fit, but never below a readable floor: cy.fit on a large graph drives the zoom
   // so low that nodes become illegible specks (the #1 complaint). Fit, then if we
@@ -200,14 +243,45 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     fitClamped(dominated ? core : undefined, 30);
   }
   document.addEventListener("keydown", function(e){
-    if(e.target.tagName === "INPUT"){ if(e.key === "Escape"){ e.target.blur(); } return; }
+    var t = e.target || {};
+    // widened from `tagName === "INPUT"`: a <select>'s typeahead and any
+    // contenteditable were firing the single-key shortcuts mid-word
+    if(t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT"
+       || t.isContentEditable){
+      if(e.key === "Escape" && t.blur){ t.blur(); }
+      return;
+    }
     if(e.key === "/"){ e.preventDefault(); document.getElementById("search").focus(); }
     else if(e.key === "f" || e.key === "F"){ reframe(); }
     else if(e.key === "t" || e.key === "T"){ document.getElementById("theme").click(); }
     else if(e.key === "Escape"){
+      // Escape dismisses the tooltip WITHOUT moving the pointer, which is the
+      // "dismissable" half of 1.4.13; the hover itself is left alone.
+      hideTip(true);
       cy.elements().removeClass("faded hi"); hideInfo(); refreshDomFx(); stopAnts();
     }
   });
+
+  // ===== Canvas keyboard model ================================================
+  // The canvas used to be role="application" with no key handling at all: focus went
+  // in and nothing moved. Panning and zooming are the minimap's job for a mouse, so
+  // they are bound here for a keyboard (2.1.1) — reading and selecting the graph's
+  // CONTENT is the text view's job, and Enter jumps to it.
+  var PAN_STEP = 90;
+  cyEl.addEventListener("keydown", function(e){
+    if(e.target !== cyEl) return;              // never swallow keys meant for a child
+    var p = { ArrowLeft: [PAN_STEP, 0], ArrowRight: [-PAN_STEP, 0],
+              ArrowUp: [0, PAN_STEP], ArrowDown: [0, -PAN_STEP] }[e.key];
+    if(p){ e.preventDefault(); cy.panBy({ x: p[0], y: p[1] }); return; }
+    if(e.key === "+" || e.key === "="){ e.preventDefault(); zoomStep(1.25); }
+    else if(e.key === "-" || e.key === "_"){ e.preventDefault(); zoomStep(1 / 1.25); }
+    else if(e.key === "0"){ e.preventDefault(); reframe(); }
+    else if(e.key === "Enter"){ e.preventDefault(); openTextView(true); }
+  });
+  function zoomStep(f){
+    cy.zoom({ level: cy.zoom() * f,
+              renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+  }
 
   function layoutOpts(name){
     if(name === "cose") return { name:"cose", animate:false, randomize:true, padding:40,
@@ -516,7 +590,9 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     VIEWMODE = m;
     ["clusters", "flow"].forEach(function(k){
       var b = document.getElementById("vm-" + k);
-      b.classList.toggle("on", k === m); b.setAttribute("aria-selected", String(k === m));
+      // aria-pressed, not aria-selected: these are toggle buttons in a group, and
+      // there is no tabpanel for an aria-selected tab to control.
+      b.classList.toggle("on", k === m); b.setAttribute("aria-pressed", String(k === m));
     });
     var np = document.getElementById("nodeprow");
     if(np){ np.hidden = (m !== "flow") || !noDepCount; }
@@ -707,7 +783,12 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     }
   }
   function pngDataUri(){
-    return withCanvasNodes(function(){ return cy.png({ full:true, scale:2, bg:"#ffffff" }); });
+    // background follows the THEME, as svgText() already did. With a per-theme edge
+    // palette a hardcoded white ground would paint the dark theme's light hues onto
+    // white -- e.g. the pale "publishes" line at 1.7:1 -- so the export would be less
+    // readable than the screen it came from.
+    var bg = cssVar("--surface-solid") || "#ffffff";
+    return withCanvasNodes(function(){ return cy.png({ full:true, scale:2, bg:bg }); });
   }
 
   // The card's look comes from a stylesheet plus CSS custom properties, neither of
@@ -940,12 +1021,20 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     syncDomVisibility();
     cy.emit("clake-vis");   // visibility changed -> let the minimap refresh its node layer
   }
+  // aria-pressed polarity: PRESSED == "this kind/relation is currently SHOWN", which is
+  // how the page boots (nothing filtered) and what html_render emits, so the
+  // server-rendered value and this one cannot drift apart. The class alone left a
+  // screen-reader user hearing the same thing whether a whole kind was on screen or not.
   function syncLegend(){
     document.querySelectorAll("#legend .lg").forEach(function(el){
-      el.classList.toggle("off", !!hidden[el.getAttribute("data-kind")]);
+      var off = !!hidden[el.getAttribute("data-kind")];
+      el.classList.toggle("off", off);
+      el.setAttribute("aria-pressed", String(!off));
     });
     document.querySelectorAll("#edgelegend .lg").forEach(function(el){
-      el.classList.toggle("off", !!hiddenRel[el.getAttribute("data-rel")]);
+      var off = !!hiddenRel[el.getAttribute("data-rel")];
+      el.classList.toggle("off", off);
+      el.setAttribute("aria-pressed", String(!off));
     });
   }
   document.querySelectorAll("#legend .lg").forEach(function(el){
@@ -994,33 +1083,70 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
     if(hits.length){ fitClampedAnimated(hits, 90, 300); }
   });
 
-  // hover tooltip
+  // ===== Tooltip (1.4.13: dismissable, hoverable, persistent) =================
+  // It used to be pointer-events:none and hidden the instant the pointer left the
+  // element, so a magnifier user could never travel onto it to read a long provenance
+  // string, and there was no focus path at all \u2014 relation, confidence and provenance
+  // were mouse-only. Now: the pointer can enter it (a short grace period covers the
+  // gap), Escape dismisses it, and the same text is shown when a text-view item takes
+  // focus. The tip also names itself to AT via the element it describes.
   var tip = document.getElementById("tip");
+  var tipTimer = 0, tipOverTip = false;
+  function tipText(s){ tip.textContent = s; }
+  function showTipAt(x, y){
+    if(tipTimer){ clearTimeout(tipTimer); tipTimer = 0; }
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+    tip.style.display = "block";
+  }
+  function hideTip(now){
+    if(tipTimer){ clearTimeout(tipTimer); tipTimer = 0; }
+    if(now){ tip.style.display = "none"; return; }
+    // grace period: the pointer needs time to travel off the trigger and onto the tip
+    tipTimer = setTimeout(function(){
+      tipTimer = 0;
+      if(!tipOverTip){ tip.style.display = "none"; }
+    }, 260);
+  }
+  tip.addEventListener("mouseenter", function(){
+    tipOverTip = true;
+    if(tipTimer){ clearTimeout(tipTimer); tipTimer = 0; }
+  });
+  tip.addEventListener("mouseleave", function(){ tipOverTip = false; hideTip(); });
+  function nodeTipText(n){
+    return (n.data("label") || "") + "  \u00b7  " + (n.data("kind") || "");
+  }
+  function edgeTipText(ed){
+    var d = ed.data();
+    if(d.aggregated){ return d.context || ""; }
+    var prov = d.prov_file
+      ? "  \u00b7  " + d.prov_file + (d.prov_line ? ":" + d.prov_line : "") : "";
+    return d.relation + "  \u00b7  " + d.confidence + prov;
+  }
+  // position from the event, never from the tip's own last coordinates: on the first
+  // hover those are 0,0 (top-left flash), and after a text-view focus they are that
+  // item's box, so the tip appeared over the sidebar until the next mousemove.
+  function tipAtEvent(e){
+    var p = e.renderedPosition || { x: 0, y: 0 };
+    showTipAt(p.x + 12, p.y + 12);
+  }
   cy.on("mouseover", "node", function(e){
     var n = e.target;
     n.addClass("lbl-on");   // always reveal the hovered node's label, even when LOD-dimmed
-    tip.textContent = (n.data("label")||"") + "  \u00b7  " + (n.data("kind")||"");
-    tip.style.display = "block";
+    tipText(nodeTipText(n));
+    tipAtEvent(e);
   });
   cy.on("mousemove", function(e){
-    if(tip.style.display === "block"){
+    if(tip.style.display === "block" && !tipOverTip){
       tip.style.left = (e.renderedPosition.x + 12) + "px";
       tip.style.top  = (e.renderedPosition.y + 12) + "px";
     }
   });
-  cy.on("mouseout", "node", function(e){ e.target.removeClass("lbl-on"); tip.style.display = "none"; });
+  cy.on("mouseout", "node", function(e){ e.target.removeClass("lbl-on"); hideTip(); });
   cy.on("mouseover", "edge", function(e){
-    var d = e.target.data();
-    if(d.aggregated){
-      tip.textContent = d.context;
-    } else {
-      var prov = d.prov_file
-        ? "  \u00b7  " + d.prov_file + (d.prov_line ? ":" + d.prov_line : "") : "";
-      tip.textContent = d.relation + "  \u00b7  " + d.confidence + prov;
-    }
-    tip.style.display = "block";
+    tipText(edgeTipText(e.target));
+    tipAtEvent(e);
   });
-  cy.on("mouseout", "edge", function(){ tip.style.display = "none"; });
+  cy.on("mouseout", "edge", function(){ hideTip(); });
 
   // selection -> focus + detail panel (nodes AND edges)
   var info = document.getElementById("info");
@@ -1041,17 +1167,22 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       var out = ed.data("source") === id;
       var other = out ? ed.target() : ed.source();
       var hue = REL_COLORS[ed.data("relation")] || DEFAULT_EDGE_COLOR;
+      // <button>, not <span>: these navigate between entities, so they have to be
+      // reachable and operable without a mouse like everything else in here.
       items += '<li><span class="rdot" style="background:' + hue + '"></span>'
         + '<span class="rl">' + esc(ed.data("relation")) + (out ? " →" : " ←") + "</span>"
-        + '<span class="rn" data-id="' + esc(other.id()) + '">'
-        + esc(other.data("label") || other.id()) + "</span></li>";
+        + '<button type="button" class="rn" data-id="' + esc(other.id()) + '">'
+        + esc(other.data("label") || other.id()) + "</button></li>";
     });
-    if(es.length > cap){ items += '<li class="rmore">+' + (es.length - cap) + " more — show all</li>"; }
+    if(es.length > cap){
+      items += '<li><button type="button" class="rmore">+' + (es.length - cap)
+        + " more — show all</button></li>";
+    }
     return '<div class="conns"><h3>connections <span class="cc">' + es.length
       + "</span></h3><ul>" + items + "</ul></div>";
   }
   var curNode = null;  // node whose detail is open, so "show all" can re-render it
-  function showInfo(n, allConns){
+  function showInfo(n, allConns, fromKeyboard){
     curNode = n;
     var d = n.data();
     var fileline = d.file ? (d.file + (d.line ? ":" + d.line : "")) : "";
@@ -1061,17 +1192,17 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       + (SITE && d.href ? '<a class="gopage" href="' + esc(d.href)
           + '">Open this repo’s graph →</a>' : "")
       + connList(n, allConns)
-      + (LIVE ? '<div class="hint">tap any node to expand its neighbours</div>' : "");
-    openInspector();
+      + (LIVE ? '<div class="hint">select any node to expand its neighbours</div>' : "");
+    openInspector(fromKeyboard);
   }
-  function showEdgeInfo(ed){
+  function showEdgeInfo(ed, fromKeyboard){
     var d = ed.data();
     var c = CONF_META[d.confidence] || CONF_META.EXTRACTED;  // [label, dot, blurb]
     var hue = REL_COLORS[d.relation] || DEFAULT_EDGE_COLOR;
     var sN = cy.getElementById(d.source), tN = cy.getElementById(d.target);
     var prov = d.prov_file ? (d.prov_file + (d.prov_line ? ":" + d.prov_line : "")) : "";
     info.innerHTML =
-      '<h2><span class="rel-chip" style="background:' + hue + '">'
+      '<h2><span class="rel-chip" style="--rel:' + hue + '">'
       + esc(d.relation) + "</span></h2>"
       + '<div class="edge-flow">' + esc(sN.data("label"))
       + " \u2192 " + esc(tN.data("label")) + "</div>"
@@ -1081,7 +1212,7 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       + row("source", prov) + row("verified", d.verified_at) + "</dl>"
       + (prov ? '<button class="copy-prov" data-prov="' + esc(prov)
                 + '">copy file:line</button>' : "");
-    openInspector();
+    openInspector(fromKeyboard);
   }
   info.addEventListener("click", function(ev){
     var b = ev.target.closest && ev.target.closest(".copy-prov");
@@ -1096,8 +1227,30 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       if(node && node.nonempty()){ focus(node); showInfo(node); frameOn(node.closedNeighborhood()); }
     }
   });
+  // Escape inside the inspector closes it and puts focus back where it came from, so a
+  // keyboard user is never stranded in a panel they cannot leave in one step.
+  info.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){ e.stopPropagation(); hideInfo(); restoreInvokerFocus(); }
+  });
   function afterResize(){ cy.resize(); }  // ResizeObserver also catches the post-transition size
-  function openInspector(){ document.body.dataset.inspect = "open"; afterResize(); }
+  // The inspector is a panel that appears AFTER the canvas in the DOM, so opening it
+  // from the keyboard without moving focus would leave the user tabbing through the
+  // whole graph region to reach the detail they just asked for (2.4.3). Mouse
+  // activation still does not steal focus.
+  var inspectInvoker = null;
+  function openInspector(fromKeyboard){
+    document.body.dataset.inspect = "open"; afterResize();
+    if(fromKeyboard){
+      inspectInvoker = document.activeElement;
+      info.focus();
+    }
+  }
+  function restoreInvokerFocus(){
+    var el = inspectInvoker;
+    inspectInvoker = null;
+    if(el && el.isConnected && el.focus){ el.focus(); }
+    else { var tv = document.getElementById("textview"); if(tv){ tv.querySelector("summary").focus(); } }
+  }
   function hideInfo(){ document.body.dataset.inspect = "closed"; afterResize(); }
   // After the inspector slide settles, re-fit the canvas onto the selection so it
   // reflows AND stays legible (plain cy.resize() keeps the old zoom/pan -> clipped).
@@ -1121,22 +1274,184 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       refreshDomFx(); stopAnts();
     }
   });
-  cy.on("tap", "node", function(e){
-    // overview clusters mode: tapping a namespace drills in/out (mindmap), not focus
-    if(e.target.data("kind") === "namespace"){ toggleNs(e.target); return; }
-    focus(e.target); showInfo(e.target);
+  // ONE activation path per element type, called by the mouse (cy "tap") and by the
+  // text view's buttons alike. Keeping the text view on the same function is what makes
+  // it a real equivalent: a keyboard user gets the namespace drill-in and, in --serve
+  // mode, the /neighbors expansion, not a reduced imitation of them.
+  function activateNode(n, fromKeyboard){
+    // overview clusters mode: activating a namespace drills in/out (mindmap), not focus
+    if(n.data("kind") === "namespace"){ toggleNs(n); return; }
+    focus(n); showInfo(n, false, fromKeyboard);
     // overview repo nodes navigate via the inspector link, never /neighbors-expand
-    if(LIVE && !OVERVIEW){ expand(e.target.id()); }
-    else { frameOn(e.target.closedNeighborhood()); }
-  });
-  cy.on("tap", "edge", function(e){
-    var ed = e.target;
+    if(LIVE && !OVERVIEW){ expand(n.id()); }
+    else { frameOn(n.closedNeighborhood()); }
+  }
+  function activateEdge(ed, fromKeyboard){
     cy.elements().addClass("faded").removeClass("hi");
     ed.connectedNodes().add(ed).removeClass("faded").addClass("hi");
     refreshDomFx();
     marchAnts(ed);
-    showEdgeInfo(ed);
+    showEdgeInfo(ed, fromKeyboard);
     frameOn(ed.connectedNodes());
+  }
+  cy.on("tap", "node", function(e){ activateNode(e.target, false); });
+  cy.on("tap", "edge", function(e){ activateEdge(e.target, false); });
+
+  // ===== Text view: the graph, as text you can navigate ========================
+  // A force-directed canvas has no accessible content: #cy's innerText is empty and
+  // its entire accessible name was the string "Knowledge graph", so a screen-reader
+  // user got a node/edge COUNT and nothing else — none of the structure the page
+  // exists to communicate (1.1.1). Adding an aria-label to a <canvas> cannot fix that;
+  // the only honest fix is a second, textual rendering of the same subgraph.
+  //
+  // It is deliberately the same data and the same handlers, not a description written
+  // alongside them: it lists exactly the nodes that are VISIBLE (so in the overview's
+  // collapsed clusters mode it lists the namespaces, and offers the same drill-in),
+  // and activating an item calls activateNode/activateEdge — the very functions a
+  // mouse tap calls. That is also what makes it the keyboard model (2.1.1): selecting
+  // a node, opening the inspector, reading an edge's relation, confidence and
+  // provenance, and expanding neighbours in --serve mode all become reachable.
+  //
+  // <details> closed by default keeps it out of the tab order until wanted and keeps
+  // the sidebar's visual weight unchanged; the caps keep a 5000-node fleet from
+  // materialising 40k buttons.
+  var TV_MAX_NODES = 200, TV_MAX_EDGES = 8;
+  var textDirty = true;
+  var tvDetails = document.getElementById("textview");
+  var tvBody = document.getElementById("tv-body");
+  var tvNote = document.getElementById("tv-note");
+
+  function tvKindColor(n){ return COLORS[n.data("kind")] || DEFAULT_COLOR; }
+  function el(tag, cls, text){
+    var e = document.createElement(tag);
+    if(cls){ e.className = cls; }
+    if(text != null){ e.textContent = text; }
+    return e;
+  }
+  function tvNodeItem(n){
+    var li = document.createElement("li");
+    var b = el("button", "tv-n");
+    b.type = "button";
+    b.setAttribute("data-id", n.id());
+    var dot = el("span", "tv-dot");
+    dot.style.background = tvKindColor(n);
+    b.appendChild(dot);
+    b.appendChild(el("span", "tv-t", n.data("label") || n.id()));
+    var isNs = n.data("kind") === "namespace";
+    b.appendChild(el("span", "tv-k", isNs ? (nsExpanded[n.data("ns")] ? "collapse" : "expand")
+                                          : (n.data("kind") || "node")));
+    if(isNs){ b.setAttribute("aria-expanded", String(!!nsExpanded[n.data("ns")])); }
+    li.appendChild(b);
+    var es = n.connectedEdges().filter(function(e2){ return e2.visible(); });
+    if(es.length){
+      var ul = el("ul", "tv-conns");
+      es.slice(0, TV_MAX_EDGES).forEach(function(ed){
+        var out = ed.data("source") === n.id();
+        var other = out ? ed.target() : ed.source();
+        var eb = el("button", "tv-ed");
+        eb.type = "button";
+        eb.setAttribute("data-eid", ed.id());
+        var bar = el("span", "tv-bar");
+        bar.style.setProperty("--rel", REL_COLORS[ed.data("relation")] || DEFAULT_EDGE_COLOR);
+        eb.appendChild(bar);
+        // scaffold spokes carry no relation — they mean "is in this namespace"
+        eb.appendChild(el("span", "tv-rel",
+          (ed.data("relation") || (ed.data("scaffold") ? "in namespace" : "related"))
+          + (out ? " →" : " ←")));
+        eb.appendChild(el("span", "tv-nb", other.data("label") || other.id()));
+        eb.appendChild(el("span", "tv-k", (ed.data("confidence") || "").toLowerCase()));
+        var eli = document.createElement("li");
+        eli.appendChild(eb);
+        ul.appendChild(eli);
+      });
+      if(es.length > TV_MAX_EDGES){
+        ul.appendChild(el("li", "tv-more", "+" + (es.length - TV_MAX_EDGES)
+          + " more connections — open this node to see them all"));
+      }
+      li.appendChild(ul);
+    }
+    return li;
+  }
+  function renderTextView(){
+    if(!tvDetails || !tvBody || !tvDetails.open || !textDirty) return;
+    textDirty = false;
+    // Expanding a namespace rebuilds this list, which would otherwise destroy the very
+    // button the user just pressed and drop focus to <body> — so remember what was
+    // focused and put focus back on the same element after the rebuild.
+    var act = document.activeElement;
+    var keep = (act && tvBody.contains(act))
+      ? (act.getAttribute("data-id") ? '[data-id="' + CSS.escape(act.getAttribute("data-id")) + '"]'
+                                     : null)
+      : null;
+    var vis = cy.nodes().filter(function(n){ return n.visible(); });
+    var edgeCount = cy.edges().filter(function(e2){ return e2.visible(); }).length;
+    tvBody.textContent = "";
+    var list = el("ul", "tv-list");
+    vis.slice(0, TV_MAX_NODES).forEach(function(n){ list.appendChild(tvNodeItem(n)); });
+    tvBody.appendChild(list);
+    if(keep){
+      var again = tvBody.querySelector(".tv-n" + keep);
+      if(again){ again.focus(); }
+      else { tvDetails.querySelector("summary").focus(); }
+    }
+    // Same honesty rule the status bar follows: say when the list is capped rather
+    // than letting it look complete.
+    tvNote.textContent = vis.length + (vis.length === 1 ? " node" : " nodes") + " and "
+      + edgeCount + (edgeCount === 1 ? " connection" : " connections") + " in view"
+      + (vis.length > TV_MAX_NODES
+          ? "; listing the first " + TV_MAX_NODES + " — use search or the filters to narrow"
+          : "")
+      + ". Activate a node to select it and open its details.";
+  }
+  function openTextView(focusFirst){
+    if(!tvDetails) return;
+    tvDetails.open = true;
+    renderTextView();
+    var first = tvBody.querySelector(".tv-n");
+    (focusFirst && first ? first : tvDetails.querySelector("summary")).focus();
+  }
+  if(tvDetails){
+    tvDetails.addEventListener("toggle", function(){ if(tvDetails.open){ renderTextView(); } });
+    tvBody.addEventListener("click", function(ev){
+      var nb = ev.target.closest && ev.target.closest(".tv-n");
+      if(nb){
+        var n = cy.getElementById(nb.getAttribute("data-id"));
+        if(n && n.nonempty()){ activateNode(n, true); }
+        return;
+      }
+      var eb = ev.target.closest && ev.target.closest(".tv-ed");
+      if(eb){
+        var ed = cy.getElementById(eb.getAttribute("data-eid"));
+        if(ed && ed.nonempty()){ activateEdge(ed, true); }
+      }
+    });
+    // 1.4.13's other half: the hover tooltip's content (kind for a node; relation,
+    // confidence and provenance for an edge) is shown on FOCUS too, anchored to the
+    // focused item, so it is not mouse-only. Escape dismisses it; the shared handler
+    // above does that.
+    tvBody.addEventListener("focusin", function(ev){
+      var t = ev.target;
+      var box = t.getBoundingClientRect ? t.getBoundingClientRect() : null;
+      var txt = "";
+      if(t.classList && t.classList.contains("tv-n")){
+        var n = cy.getElementById(t.getAttribute("data-id"));
+        if(n && n.nonempty()){ txt = nodeTipText(n); }
+      } else if(t.classList && t.classList.contains("tv-ed")){
+        var ed2 = cy.getElementById(t.getAttribute("data-eid"));
+        if(ed2 && ed2.nonempty()){ txt = edgeTipText(ed2); }
+      }
+      if(txt && box){
+        tipText(txt);
+        showTipAt(box.left + window.scrollX + 8, box.bottom + window.scrollY + 4);
+      }
+    });
+    tvBody.addEventListener("focusout", function(){ hideTip(); });
+  }
+  // Anything that changes what is on screen invalidates the list. cy fires clake-vis
+  // for the filter/overview paths, and layoutstop/add/remove cover layout changes and
+  // the LIVE neighbour expansion.
+  cy.on("clake-vis layoutstop add remove", function(){
+    textDirty = true; renderTextView();
   });
 
   // ===== Minimap: a custom radar (no cytoscape extension — offline, zero deps).
@@ -1171,7 +1486,8 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
       cy.nodes(":visible").forEach(function(n){
         var ns = n.data("kind") === "namespace";
         var p = n.position(), r = ns ? 2.5 : 1.6;
-        octx.fillStyle = ns ? "#137A8B" : (COLORS[n.data("kind")] || DEFAULT_COLOR);
+        octx.fillStyle = ns ? (EDGE_INK[themeName()] || EDGE_INK.light).ns
+                            : (COLORS[n.data("kind")] || DEFAULT_COLOR);
         octx.fillRect(p.x * s + tf.ox - r, p.y * s + tf.oy - r, r * 2, r * 2);
       });
       drawDynamic();
@@ -1209,13 +1525,22 @@ function edgeColor(e){ return REL_COLORS[e.data("relation")] || DEFAULT_EDGE_COL
 
     cy.on("pan zoom resize", function(){ schedule("dynamic"); });
     cy.on("layoutstop dragfree add remove clake-vis", function(){ schedule("static"); });
-    var themeBtn = document.getElementById("theme");
-    if(themeBtn){
-      var prev = themeBtn.onclick;
-      themeBtn.onclick = function(){ if(prev){ prev.call(this); } drawDynamic(); };
-    }
+    // Was a wrapper around the theme BUTTON's onclick, which missed the OS-preference,
+    // ?theme= and postMessage paths entirely — the viewport rectangle kept the old
+    // theme's brand colour whenever the dashboard drove the theme. Ride applyTheme.
+    onTheme(function(){ drawStatic(); });
     drawStatic();
   })();
+
+  // LAST, after every onTheme() hook is registered. Two of the four theme entry
+  // points (the OS preference and ?theme= on the src) fire while this file is still
+  // being evaluated, i.e. before the legend-repaint and minimap hooks exist -- so on
+  // an OS-dark or ?theme=dark FIRST PAINT the canvas used the dark relation palette
+  // while the legend that documents it kept the server-rendered light hues. That is
+  // not just an inconsistency: several light hues fall under 3:1 on the dark surface,
+  // which is the very failure the per-theme palette exists to fix. One forced re-apply
+  // settles every hook at whatever theme we ended up in.
+  applyTheme(themeName(), true);
 
   function expand(id){
     var cyEl = document.getElementById("cy");

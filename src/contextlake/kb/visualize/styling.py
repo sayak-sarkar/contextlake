@@ -22,17 +22,68 @@ KIND_COLORS = {kind: spec.color for kind, spec in KIND_REGISTRY.items()}
 DEFAULT_COLOR = "#c9c9c9"
 # Relation -> edge hue (within the brand family; greys for structural relations).
 # Open vocabulary: unknown relations fall back to DEFAULT_EDGE_COLOR.
+#
+# THE PALETTE IS PER THEME, and that is a WCAG 1.4.11 requirement, not a preference.
+# An edge is a thin line whose colour is its only static encoding of the relation, so it
+# has to hold 3:1 against the canvas. The canvas is a three-stop radial gradient and the
+# two themes sit at opposite ends of the luminance range: the hardest LIGHT stop is the
+# darkest one (#e3f1f2) and the hardest DARK stop is the lightest one (#123351). One
+# palette cannot clear both without collapsing every hue into a narrow mid-tone band, so
+# RELATION_COLORS is the light-theme palette, RELATION_COLORS_DARK the dark one, and
+# app.js swaps them wholesale on every theme change (applyTheme).
+#
+# Hue and saturation are carried over from the original single palette and only
+# lightness moved, and only where the original failed, so the diagram still reads as the
+# same diagram. Every value clears >= 3.4:1 against the worst stop of its own theme;
+# tests/kb/test_graph_a11y.py re-derives those numbers and fails if one regresses.
+#
+# What actually made the old palette unfixable was not the hues: edges painted at 0.45
+# (AMBIGUOUS) to 0.7 (EXTRACTED) opacity, and at 0.45 over a light backdrop NO colour
+# reaches 3:1 -- black itself tops out near 3.3. Edges are opaque now, and confidence is
+# carried by line style alone (solid / dashed / dotted), which is the documented
+# encoding and is already spelled out in the legend key.
 
 
 RELATION_COLORS = {
-    "calls": "#137A8B", "imports": "#2BB3A3", "contains": "#9fb4b8",
-    "depends_on": "#E7B53C", "publishes": "#D7C5A0", "tracked_by": "#577590",
-    "documented_by": "#9d4edd", "flow": "#e5571f", "exposes": "#f08c3a",
+    "calls": "#137A8B", "imports": "#228f82", "contains": "#67858b",
+    "depends_on": "#a37914", "publishes": "#997c40", "tracked_by": "#577590",
+    "documented_by": "#9d4edd", "flow": "#de511a", "exposes": "#c9630f",
     "calls_http": "#c1440e",
 }
 
 
-DEFAULT_EDGE_COLOR = "#aecace"
+RELATION_COLORS_DARK = {
+    "calls": "#1690a4", "imports": "#2BB3A3", "contains": "#9fb4b8",
+    "depends_on": "#E7B53C", "publishes": "#D7C5A0", "tracked_by": "#6686a3",
+    "documented_by": "#a963e1", "flow": "#e5571f", "exposes": "#f08c3a",
+    "calls_http": "#e55111",
+}
+
+
+DEFAULT_EDGE_COLOR = "#57888f"
+DEFAULT_EDGE_COLOR_DARK = "#aecace"
+# The two synthetic edge classes the overview builds (namespace "contains" spokes and
+# rolled-up namespace-to-namespace edges) are not relations and get their own hue.
+SCAFFOLD_EDGE_COLOR = "#588790"
+SCAFFOLD_EDGE_COLOR_DARK = "#9bbcc2"
+# Node boundary ink. Node FILLS come from the kind registry (kb/kinds.py) and 17 of the
+# 40 fail 3:1 against the light gradient; the registry is a shared vocabulary (the
+# dashboard sprite and two parity tests read it), so the boundary, not the fill, is what
+# supplies 1.4.11 here -- a stroke that contrasts with the CANVAS makes every node
+# perceivable whatever its fill. The dark value also closes a hole: the border used to
+# be painted in --surface-solid, which in dark theme is the navy #15314C, i.e. 1.03:1
+# against the canvas. It was only ever a boundary in light theme.
+NODE_BORDER_COLOR = "#4a6670"
+NODE_BORDER_COLOR_DARK = "#EAF4F4"
+# Selection / search rings, which are state information and need the same 3:1.
+# The overview's namespace cluster nodes, which in the default overview are the ONLY
+# painted nodes: the brand lake reads on light, but 2.59:1 on the dark canvas.
+NS_COLOR = "#137A8B"
+NS_COLOR_DARK = "#2BB3A3"
+HILITE_COLOR = "#228f82"
+HILITE_COLOR_DARK = "#2BB3A3"
+FOUND_COLOR = "#a37914"
+FOUND_COLOR_DARK = "#E7B53C"
 
 
 _CONF_DOT = {"EXTRACTED": "solid", "INFERRED": "dashed", "AMBIGUOUS": "dotted"}

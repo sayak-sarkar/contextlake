@@ -17,8 +17,20 @@ from .styling import (
     CONF_META,
     DEFAULT_COLOR,
     DEFAULT_EDGE_COLOR,
+    DEFAULT_EDGE_COLOR_DARK,
+    FOUND_COLOR,
+    FOUND_COLOR_DARK,
+    HILITE_COLOR,
+    HILITE_COLOR_DARK,
     KIND_COLORS,
+    NODE_BORDER_COLOR,
+    NODE_BORDER_COLOR_DARK,
+    NS_COLOR,
+    NS_COLOR_DARK,
     RELATION_COLORS,
+    RELATION_COLORS_DARK,
+    SCAFFOLD_EDGE_COLOR,
+    SCAFFOLD_EDGE_COLOR_DARK,
     _kind_icons,
     _lang_icons,
 )
@@ -146,8 +158,13 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     # of where today's value happens to come from" is exactly the assumption this fix
     # exists to remove. Escaping is transparent to the page's own JS: the filter
     # reads these back with getAttribute(), which returns the decoded value.
+    # aria-pressed="true" == "this kind is currently SHOWN", which is the state the page
+    # boots in (nothing is filtered out yet). syncLegend() writes the same polarity, so
+    # the server-rendered value and the live one can never disagree. Without this the
+    # only cue that a whole node kind is hidden is a CSS class.
     legend = "".join(
-        f'<button type="button" class="lg" data-kind="{html.escape(k, quote=True)}">'
+        f'<button type="button" class="lg" aria-pressed="true" '
+        f'data-kind="{html.escape(k, quote=True)}">'
         f'{_kind_swatch(k, c)}<span class="lbl">{html.escape(k)}</span>'
         f'<span class="cnt">{kind_counts[k]}</span></button>'
         for k, c in KIND_COLORS.items() if kind_counts.get(k, 0) > 0)
@@ -157,7 +174,8 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
     known = [r for r in RELATION_COLORS if r in present]
     rel_order = known + sorted(present - set(RELATION_COLORS))
     edge_legend = "".join(
-        f'<button type="button" class="lg rel" data-rel="{html.escape(r, quote=True)}">'
+        f'<button type="button" class="lg rel" aria-pressed="true" '
+        f'data-rel="{html.escape(r, quote=True)}">'
         f'<i style="background:{RELATION_COLORS.get(r, DEFAULT_EDGE_COLOR)}"></i>'
         f'<span class="lbl">{html.escape(r)}</span>'
         f'<span class="cnt">{rel_counts[r]}</span></button>'
@@ -204,7 +222,16 @@ def to_html(payload: dict, *, cdn: bool = False, live: bool = False,
         "__LANG_ICONS__": lang_icons,
         "__DEFAULT_COLOR__": DEFAULT_COLOR,
         "__REL_COLORS__": json_for_script(RELATION_COLORS),
+        "__REL_COLORS_DARK__": json_for_script(RELATION_COLORS_DARK),
         "__DEFAULT_EDGE_COLOR__": DEFAULT_EDGE_COLOR,
+        "__DEFAULT_EDGE_COLOR_DARK__": DEFAULT_EDGE_COLOR_DARK,
+        "__EDGE_INK__": json_for_script({
+            "light": {"scaffold": SCAFFOLD_EDGE_COLOR, "node": NODE_BORDER_COLOR,
+                      "hi": HILITE_COLOR, "found": FOUND_COLOR, "ns": NS_COLOR},
+            "dark": {"scaffold": SCAFFOLD_EDGE_COLOR_DARK, "node": NODE_BORDER_COLOR_DARK,
+                     "hi": HILITE_COLOR_DARK, "found": FOUND_COLOR_DARK,
+                     "ns": NS_COLOR_DARK},
+        }),
         "__CONF_META__": json_for_script(CONF_META),
         "__LEGEND__": legend,
         "__EDGE_LEGEND__": edge_legend,
@@ -560,6 +587,8 @@ __STYLE_BLOCK__
 __LIB_TAG__
 </head>
 <body data-theme="light" data-sidebar="open" data-inspect="closed">
+<a class="cl-skip" href="#textview">Skip to the graph as text</a>
+<h1 class="cl-sr">__TITLE__</h1>
 <div id="app">
   <header id="topbar">
     <button class="ibtn" id="navToggle" title="Toggle sidebar" aria-label="Toggle sidebar"><svg
@@ -581,10 +610,14 @@ __LIB_TAG__
   <aside id="panel" role="complementary" aria-label="Controls">
     <div class="sgroup"><h2>View</h2>
       <div class="row" id="viewmodes" hidden>
-        <div class="seg" role="tablist" aria-label="Overview mode">
-          <button class="segbtn on" id="vm-clusters" role="tab" aria-selected="true"
+        <!-- Not a tablist: there is no tabpanel, no aria-controls and no arrow-key
+             model, so role="tab" announced a structure the page does not have. These
+             are two mutually exclusive toggle buttons and aria-pressed says exactly
+             that (kept in sync by setMode). -->
+        <div class="seg" role="group" aria-label="Overview mode">
+          <button class="segbtn on" id="vm-clusters" aria-pressed="true"
             title="Namespace clusters — the repo tree, drill in on click">Namespace</button>
-          <button class="segbtn" id="vm-flow" role="tab" aria-selected="false"
+          <button class="segbtn" id="vm-flow" aria-pressed="false"
             title="Dependency clusters — connected repos grouped by what they depend on"
             >Dependencies</button>
         </div>
@@ -610,14 +643,33 @@ __LIB_TAG__
     <div class="sgroup"><h2>Nodes</h2><div id="legend">__LEGEND__</div></div>
     <div class="sgroup"><h2>Relationships</h2><div id="edgelegend">__EDGE_LEGEND__</div></div>
     __LEGEND_KEYS__
+    <div class="sgroup"><h2>Graph as text</h2>
+      <details id="textview">
+        <summary>Nodes and connections</summary>
+        <p class="tv-note" id="tv-note"></p>
+        <div id="tv-body"></div>
+      </details>
+    </div>
   </aside>
-  <main id="cy" role="application" aria-label="Knowledge graph" tabindex="0">
+  <!-- role="application" was removed, not replaced. It tells assistive tech to hand
+       every keystroke to the page and suppress browse mode; this page implemented no
+       navigation to hand them to, so it produced a named empty region. The canvas is
+       now a plain <main> that pans and zooms from the keyboard, and the readable
+       rendering of the same subgraph lives in #textview. -->
+  <main id="cy" aria-label="Knowledge graph" aria-describedby="cy-help" tabindex="0">
     <div id="empty"><img class="peek" src="data:image/webp;base64,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" alt="" aria-hidden="true"><div class="et">No nodes in this view</div>
       <div>Widen the seed, raise <code>--max-nodes</code>, or clear filters.</div></div>
+    <!-- The minimap stays out of the accessibility tree on purpose. It is a pointer
+         shortcut for panning, and panning is reachable without it: arrow keys pan the
+         focused canvas, +/- zoom, 0 fits. Exposing a 180x130 canvas that can only be
+         driven by dragging would announce a control with no keyboard behaviour. -->
     <canvas id="minimap" width="180" height="130" aria-hidden="true"
       title="Overview map — click or drag to navigate"></canvas>
+    <p id="cy-help" class="cl-sr">Interactive diagram. Arrow keys pan, plus and minus
+      zoom, 0 fits the view, Enter opens the text list of the same nodes and their
+      connections. Escape clears the current selection.</p>
   </main>
-  <aside id="info" role="complementary" aria-label="Details"></aside>
+  <aside id="info" role="complementary" aria-label="Details" tabindex="-1"></aside>
   <footer id="statusbar" role="status" aria-live="polite">
     <span id="meta"></span>
     <span id="trunc" class="trunc"></span>
@@ -632,8 +684,13 @@ __LIB_TAG__
   var ICONS = __ICONS__;
   var LANG_ICONS = __LANG_ICONS__;
   var DEFAULT_COLOR = "__DEFAULT_COLOR__";
-  var REL_COLORS = __REL_COLORS__;
-  var DEFAULT_EDGE_COLOR = "__DEFAULT_EDGE_COLOR__";
+  var REL_COLORS_LIGHT = __REL_COLORS__;
+  var REL_COLORS_DARK = __REL_COLORS_DARK__;
+  var REL_COLORS = REL_COLORS_LIGHT;          // swapped by applyTheme
+  var DEFAULT_EDGE_COLORS = { light: "__DEFAULT_EDGE_COLOR__",
+                              dark: "__DEFAULT_EDGE_COLOR_DARK__" };
+  var DEFAULT_EDGE_COLOR = DEFAULT_EDGE_COLORS.light;
+  var EDGE_INK = __EDGE_INK__;
   var CONF_META = __CONF_META__;
   var META = __META__;
   var LIVE = __LIVE__;

@@ -756,10 +756,10 @@ def test_html_is_offline_by_default(store):
     assert _CDN_URL in html_cdn        # --cdn references the CDN
     # ...and does not inline any vendored lib. The page's own JS/CSS (app shell,
     # minimap, semantic zoom, LOD labels, legend glyphs, dagre-preview wiring, the
-    # PNG/SVG exporters) is always inlined and sits ~113KB; the bound stays under the
-    # smallest lib we could accidentally inline (cytoscape-dom-node, ~10KB) so a
-    # regression still trips it.
-    assert len(html_cdn) < 122_000
+    # PNG/SVG exporters, and the accessible text view) is always inlined and sits
+    # ~139KB; the bound stays under the smallest lib we could accidentally inline
+    # (cytoscape-dom-node, ~10KB) so a regression still trips it.
+    assert len(html_cdn) < 146_000
 
 
 def test_kind_icons_are_offline_data_uris_with_contrast():
@@ -1759,8 +1759,13 @@ def test_page_offers_both_a_png_and_an_svg_export(store):
     _hub(store, leaves=3)
     html = viz.to_html(_payload(store))
     assert 'id="png"' in html and 'id="svg"' in html
-    # PNG still goes through cytoscape's own canvas renderer, with the same options…
-    assert 'cy.png({ full:true, scale:2, bg:"#ffffff" })' in html
+    # PNG still goes through cytoscape's own canvas renderer, with the same options —
+    # except the ground, which follows the theme now (it was hardcoded white). The edge
+    # palette is per theme for contrast reasons, so a white ground would paint the dark
+    # theme's light hues onto white and hand back an export less readable than the
+    # screen it came from. svgText() already did this via --surface-solid.
+    assert "cy.png({ full:true, scale:2, bg:bg })" in html
+    assert 'var bg = cssVar("--surface-solid") || "#ffffff";' in html
     # …wrapped so the dagre preview's card rendering is reverted for the capture only
     assert "withCanvasNodes" in html and 'cy.nodes(".cl-dom")' in html
     # SVG is hand-rolled: foreignObject for the cards, vector shapes otherwise
