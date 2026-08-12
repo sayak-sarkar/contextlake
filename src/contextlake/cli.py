@@ -22,7 +22,7 @@ import sys
 import textwrap
 import time
 
-from . import __version__, observability
+from . import __version__, netguard, observability
 from .config import DEFAULT_CONFIG, ConfigError, expand_path, get_cache_paths, load_config
 from .core import (
     FetchError,
@@ -422,6 +422,7 @@ _DEFAULTS = {
     "command": None, "subcommand": None, "args": [],
     # global
     "verbose": False, "quiet": False, "log_file": None, "config": None,
+    "offline": False,
     # observability. redact is tri-state (None = the per-handler default:
     # scrub the log file, leave the console alone) -- deliberately NOT in
     # _TRISTATE_FLAGS, which is about mirror-config keys, not log routing.
@@ -541,6 +542,14 @@ class _RevealAdvancedHelp(argparse.Action):
         parser.exit()
 
 
+_NETWORK_MIRROR_COMMANDS = frozenset({"fetch", "clone", "update", "branches", "sync"})
+"""Mirror stages that talk to a forge, and so cannot run offline.
+
+`branches` is in the list because picking the most active branch consults the remote;
+`verify` and `status` only read the local workspace, so they stay available -- checking
+what you already have is exactly what somebody offline wants."""
+
+
 def _add_global(p):
     g = p.add_argument_group("global options")
     g.add_argument("--config", default=_S,
@@ -573,6 +582,11 @@ def _add_global(p):
     g.add_argument("--plain", action="store_true", default=_S,
                    help="no colour, even on a TTY (same effect as NO_COLOR=1); "
                         "unicode status glyphs (✓⚠✗...) still render")
+    g.add_argument("--offline", action="store_true", default=_S,
+                   help="refuse every network connection except loopback, so you can "
+                        "check for yourself that a command stays local (also "
+                        "CONTEXTLAKE_OFFLINE=1); commands that fetch from a forge or a "
+                        "hosted model say so and stop")
 
 
 def _add_mirror(p, hidden=False):
@@ -1765,6 +1779,12 @@ def _run(argv, metrics):
     setup_logging(verbose=args.verbose, quiet=args.quiet, log_file=args.log_file,
                   log_format=args.log_format or TEXT, redact=args.redact)
 
+    # Installed before any command runs, so no code path can reach the network ahead of
+    # the guard. It blocks at the socket rather than at each caller: a flag checked at
+    # every request site only holds for the sites somebody remembered.
+    if netguard.offline(args):
+        netguard.install()
+
     # Everything below can emit log lines, so the run's identity has to be in
     # place first. `mirror sync` rather than `sync`: the JSON `command` field
     # should be the string a reader can paste back into a shell.
@@ -1933,6 +1953,14 @@ def _run(argv, metrics):
     if config.get("dry_run", "false").lower() == "true":
         log("DRY RUN: no repositories will be cloned, updated, or switched")
     log("")
+
+    # These reach a forge or a remote through `git` and `glab`, which are subprocesses
+    # with their own sockets -- the in-process guard cannot see them. Refusing here is
+    # what makes offline mode true for them rather than merely true for Python's own
+    # requests. `status` and `verify` read the local workspace and stay allowed.
+    if netguard.offline(args) and args.command in _NETWORK_MIRROR_COMMANDS:
+        log(style.fail(netguard.refuse(f"`{_qualified(args.command)}`")))
+        sys.exit(2)
 
     # Stages that mirror repositories report what they did; the rest (audit,
     # status, bootstrap -- which owns its own exit) leave this empty.

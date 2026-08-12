@@ -230,6 +230,36 @@ opt-in via `--llm-chat`). Try it with zero setup via `contextlake kb dashboard -
 
 **[The dashboard: a guided tour](https://github.com/sayak-sarkar/contextlake/blob/main/docs/dashboard.md)**, step by step, with screenshots.
 
+## Local by default, and you can prove it
+
+There is no telemetry, no analytics, no usage reporting and no crash reporting in
+contextlake. There is nothing to opt out of, because there is nothing there.
+
+That is easy for any project to type, so there is a switch that makes it checkable:
+
+```bash
+contextlake --offline kb index         # or CONTEXTLAKE_OFFLINE=1
+```
+
+`--offline` refuses every outbound connection **at the socket**, so it covers not only
+contextlake's own requests but every library in the process, including the ones that
+download embedding or language models. Loopback stays open, because the MCP server, the
+dashboard, the graph viewer and a local Ollama all live there. Indexing, querying,
+searching, the graph, the wiki and the dashboard keep working with the network switched
+off; the commands that genuinely need it, mirroring from a forge or calling a hosted
+model, say so and stop rather than failing obscurely.
+
+The boundary is worth stating plainly: this is an in-process guard, so `git` and `glab`
+subprocesses have their own sockets. That is exactly why the mirror stages refuse up
+front under `--offline` instead of relying on the guard. Everything above is covered by
+tests that try to escape it, including one that goes out through `urllib` rather than
+through any of our own helpers.
+
+Two ways to reach outside are opt-in and named: a **hosted model provider**, if you
+configure one instead of the bundled local model, and `kb graph --cdn`, which swaps the
+inlined JavaScript for CDN script tags to make a smaller file. Default output inlines
+everything and opens in an air-gapped browser.
+
 ## Documentation
 
 - **[QUICKSTART.md](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes

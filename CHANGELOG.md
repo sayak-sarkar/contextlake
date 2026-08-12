@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--offline` makes "it does not phone home" checkable rather than merely claimed.**
+  There is no telemetry in this project and never has been, which is exactly the kind of
+  statement every project makes. This is the switch that lets somebody verify it:
+  `contextlake --offline <command>` (or `CONTEXTLAKE_OFFLINE=1`) refuses every outbound
+  connection **at the socket**, so it covers not just this package's nine `urlopen` call
+  sites but every library in the process -- including the model downloaders inside the
+  embedding and LLM stacks, which are the requests nobody here writes. A flag checked at
+  each call site would only have held for the sites somebody remembered.
+
+  Loopback stays open on purpose: the MCP server, the dashboard, the graph viewer and a
+  local Ollama all live there, and an offline mode that turned those off is one nobody
+  would use. Indexing, querying, search, graph, wiki and dashboard all keep working with
+  the network off.
+
+  The boundary is stated instead of glossed. This is an in-process guard, and `git` and
+  `glab` are subprocesses with their own sockets, so `mirror fetch|clone|update|branches|
+  sync` refuse up front under `--offline` (exit 2) rather than pretending to be covered.
+  `mirror verify` and `mirror status` read the local workspace and stay available.
+
+  Written adversarially and it paid immediately: the first version of the loopback test
+  was `host.startswith("127.")`, which reads as correct and accepts `127.example.com` --
+  an ordinary remote hostname, straight through the guard. Its own test caught it. The
+  address is now parsed, not prefix-matched. Same unanchored-string bug class as the
+  `--repos` matching fix in 7.0.0.
+
 - **`kb refresh` says whether the graph still describes the code on disk, and `kb steer` installs
   it as a session-start hook.** Between a nightly `bootstrap` and the post-commit hook there was a
   gap nobody covered: you sit down to work against a store that is quietly behind, and nothing says
