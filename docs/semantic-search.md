@@ -57,6 +57,15 @@ and the docstring are where the words the query actually uses tend to live. File
 deliberately not embedded: a path or a shared package name is low semantic signal, and skipping them keeps
 results clean and avoids re-embedding cross-repo shared nodes once per referencing repo.
 
+**Data members, macros, typedefs, enum constants and file-scope variables are embedded too.** They are
+the majority of the symbols in a C or C++ tree and, before they had vectors, no semantic or hybrid query
+could return one of them at all. They are also thinner signal than a function: a data member usually
+carries a name and a type and nothing else. Measured on a large legacy tree, adding them costs the kinds
+that were already embedded about five percentage points of recall@10 in exchange for tens of thousands of
+symbols going from unreachable to findable. If your tree is C++-heavy and you would rather have the
+sharper ranking than the reach, `kb query --kind` narrows any single query, and the trade-off is recorded
+per kind in `kb/kinds.py` so it can be revisited with the numbers in view.
+
 ## Which model?
 
 The default is `minishlab/potion-base-8M`, a **static** embedding model: it looks each token up in a

@@ -5,7 +5,67 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [7.1.0] - 2026-08-12
+
+**Grounding, and the cost of 7.0.0's bigger graphs.** Three of these follow directly from 7.0.0
+emitting five more kinds of C/C++ symbol: the new kinds are now reachable by semantic search, the
+wiki's per-kind floors are bounded so they cannot displace the ranking they exist to garnish, and
+the dashboard's owner panel no longer walks a whole repository's history on every request.
+
+`contextlake kb embed` must run once after upgrading. Nothing else needs re-indexing: no ids
+change and `PARSER_VERSION` stays at `4`.
+
+### Added
+
+- **A real golden query set for retrieval quality, gated on every change instead of weekly.**
+  Retrieval quality was measurable but barely measured: the set held **3 queries** over a 2-node,
+  2-kind fixture, and only a weekly scheduled workflow scored it, so a set that had drifted apart
+  from its fixture could sit green for a week.
+
+  It is now 30 queries over a synthetic multi-language fixture repo (`examples/fixtures/eval-repo`
+  — C++ header and source, Python, SQL, XML config) that parses to 42 nodes across 13 kinds,
+  including the five symbol kinds 7.0.0 added. A retrieval change that only helps functions can
+  no longer hide.
+
+  Measured: hit-rate **0.80**, precision@10 **0.7241**, recall@10 **0.80**, MRR **0.80**. All six
+  misses are the natural-language phrasings ("reject an implausible sensor value"); every
+  exact-name query hits. FTS5 has no synonym matching, so those six are not a defect — they are
+  the gap semantic search exists to close, which is why they are in the set.
+
+  Three properties worth stating, because each is a trap avoided rather than a feature:
+
+  - Every query matches on **name**, not node id. Ids are a slug plus a digest of the symbol's
+    identity, so an id-scheme change (7.0.0 changed all of them) would have silently invalidated
+    an id-matched set while reading as a retrieval regression.
+  - The floor lives in **one place**, a field in the golden set that both the per-PR test and the
+    weekly workflow read. A threshold written in two files drifts.
+  - A separate test asserts the **fixture still produces each kind the set queries**, so a parser
+    change that stops emitting one fails as itself rather than as a mysterious retrieval drop.
+
+### Changed
+
+- **Data members, macros, typedefs, enum constants and file-scope variables are now embedded, so
+  semantic search can reach them.** Before this they were at recall **exactly zero** — not
+  poorly-ranked, unreachable. No semantic or hybrid query could return a macro or a data member,
+  because none had a vector.
+
+  **`kb embed` must run once after upgrading.** `EMBED_CONTENT_VERSION` moves to 4, which marks
+  stored vectors stale and triggers that automatically. The bump is the load-bearing part: widening
+  the embeddable set does not make existing vectors *wrong*, it makes the store **incomplete**, and
+  the incremental skip is keyed on commit and parser version — neither of which moves. Without it
+  you would keep a store with no vectors for the new kinds while `doctor` reported a healthy row
+  count.
+
+  The cost was measured, not assumed. On a large legacy tree, +180% vectors costs **5.25 percentage
+  points** of recall@10 for the kinds that were already embedded (273/400 probes to 252/400).
+  Marginally: typedefs, enumerators and file-scope variables together cost 1.00pp and take 12,342
+  symbols from 0 to 74% findable; macros add 1.50pp for 16,347 symbols at 85%; data members add
+  2.75pp for 40,948 at 65%. Every step buys more than it costs in the unit that matters — whether
+  the thing you searched for can be returned at all.
+
+  `field` is the heaviest by far (+105.9% vectors alone, and the least distinctive names — 54.8%
+  unique, one name occurring 506 times). It is recorded in the kind registry as the first row to
+  reconsider if that cost ever bites.
 
 ### Fixed
 
@@ -36,59 +96,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2 GiB budget — it is correctly never cached, and 7.0.0's larger graphs are what pushed shards past
   that line.
 
-### Changed
-
-- **Data members, macros, typedefs, enum constants and file-scope variables are now embedded, so
-  semantic search can reach them.** Before this they were at recall **exactly zero** — not
-  poorly-ranked, unreachable. No semantic or hybrid query could return a macro or a data member,
-  because none had a vector.
-
-  **`kb embed` must run once after upgrading.** `EMBED_CONTENT_VERSION` moves to 4, which marks
-  stored vectors stale and triggers that automatically. The bump is the load-bearing part: widening
-  the embeddable set does not make existing vectors *wrong*, it makes the store **incomplete**, and
-  the incremental skip is keyed on commit and parser version — neither of which moves. Without it
-  you would keep a store with no vectors for the new kinds while `doctor` reported a healthy row
-  count.
-
-  The cost was measured, not assumed. On a large legacy tree, +180% vectors costs **5.25 percentage
-  points** of recall@10 for the kinds that were already embedded (273/400 probes to 252/400).
-  Marginally: typedefs, enumerators and file-scope variables together cost 1.00pp and take 12,342
-  symbols from 0 to 74% findable; macros add 1.50pp for 16,347 symbols at 85%; data members add
-  2.75pp for 40,948 at 65%. Every step buys more than it costs in the unit that matters — whether
-  the thing you searched for can be returned at all.
-
-  `field` is the heaviest by far (+105.9% vectors alone, and the least distinctive names — 54.8%
-  unique, one name occurring 506 times). It is recorded in the kind registry as the first row to
-  reconsider if that cost ever bites.
-
-### Added
-
-- **A real golden query set for retrieval quality, gated on every change instead of weekly.**
-  Retrieval quality was measurable but barely measured: the set held **3 queries** over a 2-node,
-  2-kind fixture, and only a weekly scheduled workflow scored it, so a set that had drifted apart
-  from its fixture could sit green for a week.
-
-  It is now 30 queries over a synthetic multi-language fixture repo (`examples/fixtures/eval-repo`
-  — C++ header and source, Python, SQL, XML config) that parses to 42 nodes across 13 kinds,
-  including the five symbol kinds 7.0.0 added. A retrieval change that only helps functions can
-  no longer hide.
-
-  Measured: hit-rate **0.80**, precision@10 **0.7241**, recall@10 **0.80**, MRR **0.80**. All six
-  misses are the natural-language phrasings ("reject an implausible sensor value"); every
-  exact-name query hits. FTS5 has no synonym matching, so those six are not a defect — they are
-  the gap semantic search exists to close, which is why they are in the set.
-
-  Three properties worth stating, because each is a trap avoided rather than a feature:
-
-  - Every query matches on **name**, not node id. Ids are a slug plus a digest of the symbol's
-    identity, so an id-scheme change (7.0.0 changed all of them) would have silently invalidated
-    an id-matched set while reading as a retrieval regression.
-  - The floor lives in **one place**, a field in the golden set that both the per-PR test and the
-    weekly workflow read. A threshold written in two files drifts.
-  - A separate test asserts the **fixture still produces each kind the set queries**, so a parser
-    change that stops emitting one fails as itself rather than as a mysterious retrieval drop.
-
-### Fixed
 
 - **The wiki's per-kind floors could consume the whole ranked list.** Hub, dispatcher and
   top-symbol lists reserve a slot per kind present, so a structurally low-degree kind (a SQL
