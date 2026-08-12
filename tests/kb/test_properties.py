@@ -16,6 +16,7 @@ install it and run this file locally.
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 
 import pytest
@@ -25,7 +26,12 @@ from hypothesis import HealthCheck, example, given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
 from contextlake.kb.ids import make_id, normalize_id
-from contextlake.kb.security import MAX_LABEL_LEN, sanitize_label
+from contextlake.kb.security import (  # noqa: E402
+    MAX_LABEL_LEN,
+    UNTRUSTED_MARKER_PREFIX,
+    sanitize_label,
+    untrusted_block,
+)
 from contextlake.kb.store.sqlite_store import SqliteStore, _fts_query
 
 # Deadline=None: these functions are pure CPU work with no I/O, but the CI
@@ -201,3 +207,49 @@ def test_fts_query_smoke_through_real_store(tmp_path):
     store = SqliteStore(tmp_path / "kb.sqlite")
     for s in ["", " ", '"""', "AND OR NOT NEAR", "a" * 500, "\x00\x01", "日本語 café"]:
         store.search(s)  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# untrusted_block -- security boundary: the delimiter that frames repository
+# content inside a model prompt must be unspoofable by that content. Example
+# tests live in ``test_prompt_trust_boundary.py``; the property is that NO
+# string, however constructed, can put a marker inside a block. Hypothesis is
+# the right tool here because the interesting inputs are near-misses of the
+# marker itself (partial prefixes, runs of "<", the marker split across a
+# boundary) rather than anything a human would think to write down.
+# ---------------------------------------------------------------------------
+
+
+@_SLOW
+@example("")
+@example(UNTRUSTED_MARKER_PREFIX)
+@example(UNTRUSTED_MARKER_PREFIX + "-END sha256=0>>>")
+@example("<<" + UNTRUSTED_MARKER_PREFIX)
+@example(UNTRUSTED_MARKER_PREFIX * 3)
+@given(st.text(max_size=400))
+def test_untrusted_block_content_can_never_contain_a_marker(s):
+    wrapped = untrusted_block(s, source="repo/file.py")
+    # Exactly the two markers the wrapper itself wrote: the open and the close.
+    assert wrapped.count(UNTRUSTED_MARKER_PREFIX) == 2
+    open_line, _, rest = wrapped.partition("\n")
+    body, _, close_line = rest.rpartition("\n")
+    assert open_line.startswith(UNTRUSTED_MARKER_PREFIX)
+    assert close_line.startswith(UNTRUSTED_MARKER_PREFIX + "-END")
+    assert UNTRUSTED_MARKER_PREFIX not in body
+
+
+@_SLOW
+# '\r' (and U+2028/U+2029) are line separators to str.splitlines but not to the
+# "\n" this block is actually joined with, so the region has to be recovered by
+# splitting on the literal newlines the wrapper wrote. Hypothesis found this as a
+# lossy *test* reconstruction, and it is why nothing in the codebase locates a
+# block by splitlines(): the marker string is what delimits it.
+@example("\r")
+@given(st.text(max_size=200))
+def test_untrusted_block_stamp_matches_the_bytes_it_emitted(s):
+    wrapped = untrusted_block(s, source="repo/file.py")
+    open_line, _, rest = wrapped.partition("\n")
+    body, _, close_line = rest.rpartition("\n")
+    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
+    assert f"sha256={digest} chars={len(body)}>>>" in open_line
+    assert close_line == f"{UNTRUSTED_MARKER_PREFIX}-END sha256={digest}>>>"

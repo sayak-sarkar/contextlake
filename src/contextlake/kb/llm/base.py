@@ -17,7 +17,19 @@ class LlmClient(ABC):
 
     @abstractmethod
     def generate(self, prompt: str, *, system: str | None = None) -> str:
-        """Return the model's completion for ``prompt``."""
+        """Return the model's completion for ``prompt``.
+
+        Every prompt in the project passes through this one method, and none of
+        them is assembled here: the caller builds the text. So the trust boundary
+        is the caller's to honour -- any span of ``prompt`` copied out of an
+        indexed repository (a docstring, a README, an ADR body, a connector
+        snippet, a graph query result) must arrive already wrapped in
+        ``security.untrusted_block``, with ``security.UNTRUSTED_DATA_RULE`` stated
+        once in the prompt or its ``system`` message. Wrapping cannot be done for
+        the caller here, because by this point the repo-derived spans are
+        indistinguishable from the instructions around them -- which is precisely
+        the confusion the wrapper exists to prevent.
+        """
 
     def preflight(self) -> None:  # noqa: B027 - optional hook, deliberately concrete
         """Raise if this client cannot possibly generate, without generating.

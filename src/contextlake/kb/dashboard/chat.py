@@ -22,7 +22,7 @@ import asyncio
 import json
 from typing import Any
 
-from ..security import sanitize_label
+from ..security import UNTRUSTED_DATA_RULE, sanitize_label, untrusted_block
 
 _PROSE_MAX_LEN = 4000
 
@@ -61,7 +61,19 @@ async def _ask_via_router(store, question: str, embedder, vector_store) -> Any:
 
 
 def _prompt(question: str, structured: Any) -> str:
+    """The synthesis prompt: the router's result, framed as untrusted data.
+
+    The JSON below is repository content -- symbol names, file paths, docstrings,
+    wiki excerpts -- so it is wrapped in an ``untrusted_block`` and the trust rule
+    is stated inline. This provider is called with no ``system`` argument (see
+    ``chat_answer``), so there is no other place for the rule to live.
+
+    ``question`` is left unwrapped: it is typed by the dashboard operator, not
+    read out of an indexed repo, and it is the one instruction the model is
+    supposed to act on.
+    """
     return (
+        f"{UNTRUSTED_DATA_RULE}\n\n"
         "Answer the question using ONLY the structured data below -- it comes from "
         "a real code knowledge graph query that has ALREADY run and ALREADY resolved "
         "the relationship in question; you are writing up its result, not "
@@ -76,5 +88,7 @@ def _prompt(question: str, structured: Any) -> str:
         "or a low-confidence relation, since those are genuine, not invented, gaps. Do "
         "not add facts beyond what's in the data.\n\n"
         f"Question: {question}\n\n"
-        f"Structured data (JSON):\n{json.dumps(structured, indent=2, default=str)}"
+        "Structured data (JSON):\n"
+        + untrusted_block(json.dumps(structured, indent=2, default=str),
+                          source="knowledge-graph query result")
     )

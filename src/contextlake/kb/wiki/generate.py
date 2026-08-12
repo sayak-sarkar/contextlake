@@ -15,6 +15,7 @@ from datetime import date
 from pathlib import Path
 
 from ..model import PER_SITE_RELATIONS
+from ..security import UNTRUSTED_DATA_RULE, untrusted_block
 from ..store.shards import (
     read_shard,
     read_shard_with_identity,
@@ -631,7 +632,22 @@ PROMPT_INSTRUCTIONS = (
 
 
 def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
+    # Every span below that carries bytes from the indexed repository goes inside an
+    # `untrusted_block` (see `security.untrusted_block`): the symbol rows and their
+    # docstrings, the README excerpt, the ADR bodies, the connector snippets. The
+    # rule naming those blocks as data is stated once, here, rather than per block --
+    # repeating it N times would multiply its cost by the number of sections without
+    # telling the model anything the first statement didn't.
+    #
+    # What stays OUTSIDE a block is identity, not content: the repo id, the module
+    # prefix, the indexed commit, and the per-kind/per-language counters this project
+    # computed itself. The repo id and module prefix are also what the blocks' own
+    # `src=` attribute names, and that attribute is flattened by `_marker_safe` for
+    # the same reason -- they identify the untrusted material rather than being it.
+    scope = f"{brief['repo']}/{path_prefix}" if path_prefix else str(brief["repo"])
     lines = [
+        UNTRUSTED_DATA_RULE,
+        "",
         f"Repository: {brief['repo']}",
     ]
     if path_prefix:
@@ -646,51 +662,64 @@ def render_prompt(brief: dict, *, path_prefix: str | None = None) -> str:
         f"Symbol kinds: {brief['kinds']}",
         "Key symbols (kind, name, file — with signature/docstring where known):",
     ]
+    graph_facts = []
     for t in brief["top_symbols"]:
         sig = t.get("signature") or ""
         line = f"  - {t['kind']} {t['name']}{sig} ({t.get('file') or '?'})"
         if t.get("doc"):
             line += f" — {t['doc'][:160]}"
-        lines.append(line)
+        graph_facts.append(line)
     if brief["packages"]:
-        lines.append("Depends on packages: " + ", ".join(brief["packages"]))
+        graph_facts.append("Depends on packages: " + ", ".join(brief["packages"]))
     if brief["files"]:
-        lines.append("Notable files: " + ", ".join(brief["files"]))
+        graph_facts.append("Notable files: " + ", ".join(brief["files"]))
+    # Guarded like every other block here: a repo that indexed to nothing (the case
+    # `provenance_footer`'s NOT GROUNDED branch exists for) would otherwise carry an
+    # empty block under the "Key symbols" label, which costs marker lines to frame
+    # nothing.
+    if graph_facts:
+        lines.append(untrusted_block("\n".join(graph_facts), source=f"{scope} (indexed graph)"))
     has_setup_signal = (brief.get("readme_excerpt") or brief.get("setup_signals")
                         or brief.get("generated_paths_detected"))
     if has_setup_signal:
         lines.append("")
         lines.append("Setup/run signal (from the repo's own files):")
+        checkout_facts = []
         if brief.get("setup_signals"):
-            lines.append("  Entry-point/config files present: "
-                         + ", ".join(brief["setup_signals"]))
+            checkout_facts.append("  Entry-point/config files present: "
+                                  + ", ".join(brief["setup_signals"]))
         if brief.get("readme_excerpt"):
-            lines.append("  From the repo's own README:")
-            lines.append(f"  \"{brief['readme_excerpt']}\"")
+            checkout_facts.append("  From the repo's own README:")
+            checkout_facts.append(brief["readme_excerpt"])
+        if checkout_facts:
+            lines.append(untrusted_block("\n".join(checkout_facts),
+                                         source=f"{brief['repo']} (live checkout)"))
         if brief.get("generated_paths_detected"):
             lines.append("  " + _GENERATED_PATHS_INSTRUCTION)
     if brief.get("hubs"):
         lines.append("")
         lines.append("Most-depended-on symbols (ranked by caller count in the graph):")
-        for h in brief["hubs"][:8]:
-            lines.append(f"  - {h['kind']} {h['name']} ({h.get('file') or '?'}), "
-                         f"{h['count']} caller(s)")
+        lines.append(untrusted_block(
+            "\n".join(f"  - {h['kind']} {h['name']} ({h.get('file') or '?'}), "
+                      f"{h['count']} caller(s)" for h in brief["hubs"][:8]),
+            source=f"{scope} (indexed graph)"))
         lines.append(_GOTCHAS_INSTRUCTION)
     if brief.get("decisions"):
         lines.append("")
         lines.append("Recorded decisions (from the repo's own ADR/decision docs, "
                      "authored facts, not to be reworded as speculation):")
-        for d in brief["decisions"]:
-            doc = (d.get("doc") or "")[:200]
-            lines.append(f"  - {d['title']} ({d.get('file') or '?'}): \"{doc}\"")
+        lines.append(untrusted_block(
+            "\n".join(f"  - {d['title']} ({d.get('file') or '?'}): "
+                      f"\"{(d.get('doc') or '')[:200]}\"" for d in brief["decisions"]),
+            source=f"{scope} (decision records)"))
     if brief.get("external"):
         lines.append("")
         lines.append("External context (from connected sources):")
-        for item in brief["external"]:
-            lines.append(
-                f"  - [source: {item.get('source')}] {item.get('title')} "
-                f"({item.get('uri')}): \"{item.get('snippet')}\""
-            )
+        lines.append(untrusted_block(
+            "\n".join(f"  - [source: {item.get('source')}] {item.get('title')} "
+                      f"({item.get('uri')}): \"{item.get('snippet')}\""
+                      for item in brief["external"]),
+            source=f"{brief['repo']} (connected sources)"))
         lines.append(_EXTERNAL_INSTRUCTION)
     if brief.get("subsystem_modules"):
         lines.append("")

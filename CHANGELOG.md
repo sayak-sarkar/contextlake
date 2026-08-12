@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Repository content handed to a language model is now explicitly framed as untrusted data.**
+  contextlake reads other people's source and feeds parts of it to a model when generating wiki pages
+  and answering dashboard chat. A comment in an indexed repo is therefore untrusted input that can
+  carry instructions aimed at the model. Labels were already sanitised on the way out and the config
+  trust boundary was hardened in the 6.x line; the prompt path had no equivalent.
+
+  Every span of repo-derived content now travels inside a delimited block carrying its source path
+  and a content hash, with one rule stated once per prompt: everything inside is data to describe,
+  never instructions to follow. contextlake's own labels and directives stay outside the blocks, and
+  nothing the model is *asked to do* changed.
+
+  **The delimiter is unspoofable structurally, not probabilistically.** Content that forges a closing
+  marker is escaped in a single pass, with a replacement containing no `<`, so it cannot reintroduce
+  the marker or supply half of one; the digest is then taken over the emitted bytes. An emitted block
+  provably carries exactly the two markers the wrapper wrote. The load-bearing test builds a README
+  that forges a close marker and then speaks as the operator, and asserts the count is 2 — the naive
+  string-interpolation wrapper is constructed alongside it to show it yields 4. A property test
+  extends the invariant to arbitrary strings.
+
+  `kb steer` now also installs a skill telling agents the same boundary, and `SECURITY.md` documents
+  it. The cost is bounded and flat: one rule plus about 130 characters per block, at most 5 blocks —
+  between +837 and +1,133 characters, which is +3.5% on the largest wiki prompt and +12.7% on the
+  smallest.
+
 ### Fixed
 
 - **The published vocabulary diagram documented 16 of 40 node kinds, and the embeddable graph page

@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 from datetime import date
 
+from ..security import UNTRUSTED_DATA_RULE, untrusted_block
 from .generate import SYSTEM, repo_brief
 
 
@@ -203,26 +204,38 @@ CLUSTER_PROMPT_INSTRUCTIONS = (_SECTIONS_INSTRUCTION,)
 def render_cluster_prompt(brief: dict) -> str:
     """A grounded prompt: member roles + internal/boundary coupling, with an
     explicit no-invention fallback when the graph shows no coupling."""
+    # Same split as the per-repo prompt (see ``generate.render_prompt``): this
+    # module's own label and directive prose stays outside the blocks, and every
+    # row built from indexed material -- repo ids, language names, symbol names,
+    # edge phrasings -- goes inside one. The rule is stated once, at the top.
+    ns = str(brief["namespace"])
     shown = len(brief["repos"])
     header = f"{brief['member_count']} repositories in this cluster"
     if brief.get("truncated"):
         header += f" (showing the first {shown})"
-    lines = [f"Namespace: {brief['namespace']}", header + ":"]
-    for r in brief["repos"]:
-        langs = ", ".join(r["langs"]) if r["langs"] else "?"
-        top = ", ".join(r["top"][:5])
-        lines.append(f"  - {r['repo']} [{langs}]" + (f": {top}" if top else ""))
+    lines = [UNTRUSTED_DATA_RULE, "", f"Namespace: {brief['namespace']}", header + ":"]
+    if brief["repos"]:
+        rows = []
+        for r in brief["repos"]:
+            langs = ", ".join(r["langs"]) if r["langs"] else "?"
+            top = ", ".join(r["top"][:5])
+            rows.append(f"  - {r['repo']} [{langs}]" + (f": {top}" if top else ""))
+        lines.append(untrusted_block("\n".join(rows), source=f"{ns} (member repos)"))
     lines.append("")
     if brief["internal_edges"]:
         lines.append("How they talk (within this namespace):")
-        lines += [f"  - {_phrase_edge(e)}" for e in brief["internal_edges"]]
+        lines.append(untrusted_block(
+            "\n".join(f"  - {_phrase_edge(e)}" for e in brief["internal_edges"]),
+            source=f"{ns} (internal cross-repo edges)"))
     else:
         lines.append("No coupling between these repositories was detected in the graph. "
                      "Do NOT invent connections; state that the coupling is not detected.")
     if brief["boundary_edges"]:
         lines.append("")
         lines.append("Couples to repositories outside this namespace:")
-        lines += [f"  - {_phrase_edge(e)}" for e in brief["boundary_edges"]]
+        lines.append(untrusted_block(
+            "\n".join(f"  - {_phrase_edge(e)}" for e in brief["boundary_edges"]),
+            source=f"{ns} (boundary cross-repo edges)"))
     member_ids = {r["repo"] for r in brief["repos"]}
     busiest = _busiest_coupling(brief["internal_edges"])
     leakiest = _leakiest_repos(brief["boundary_edges"], member_ids)
@@ -232,13 +245,17 @@ def render_cluster_prompt(brief: dict) -> str:
         if busiest:
             lines.append("  Busiest internal coupling (highest shared-edge weight -- "
                          "changes here likely ripple across the namespace):")
-            lines += [f"    - {_phrase_edge(e)}" for e in busiest]
+            lines.append(untrusted_block(
+                "\n".join(f"    - {_phrase_edge(e)}" for e in busiest),
+                source=f"{ns} (internal cross-repo edges)"))
         if leakiest:
             lines.append("  Leakiest repos (most connections crossing outside this "
                          "namespace -- a boundary change here has the widest external "
                          "blast radius):")
-            lines += [f"    - {repo} ({count} external connection(s))"
-                     for repo, count in leakiest]
+            lines.append(untrusted_block(
+                "\n".join(f"    - {repo} ({count} external connection(s))"
+                          for repo, count in leakiest),
+                source=f"{ns} (boundary cross-repo edges)"))
     sections = "Overview, Services (one line each), How they talk (internal), External coupling"
     if busiest or leakiest:
         sections += ", Gotchas"
