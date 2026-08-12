@@ -5780,7 +5780,16 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [7.2.0] - 2026-08-12
+
+**Three ways to trust what you are told, and one way to check the claim on the tin.** A cited
+`file:line` can now be verified to actually hold the symbol; a coding session is told up front
+whether the graph still describes today's code; and `--offline` refuses every non-loopback
+connection, so "local-first, no telemetry" is something you can test rather than something you
+have to believe.
+
+Nothing to re-index and nothing to re-embed. `kb steer` gains one more generated file
+(`.claude/settings.json`), and existing hooks in it are preserved.
 
 ### Added
 
