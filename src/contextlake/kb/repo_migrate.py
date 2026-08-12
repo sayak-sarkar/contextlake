@@ -23,6 +23,7 @@ from .store.shards import history_path, shard_path
 class MigrationResult:
     cleared: list[tuple[str, str]] = field(default_factory=list)  # (old_id, new_id)
     skipped_missing_path: list[str] = field(default_factory=list)
+    skipped_out_of_scope: list[str] = field(default_factory=list)
 
 
 # Once a store has nothing left to clear, remember it for this process's lifetime
@@ -64,22 +65,60 @@ def _clear_vectors(store_dir, repo_id: str) -> None:
         log(f"  note: could not clear stale embeddings for {repo_id}: {e}")
 
 
-def migrate_stale_repo_ids(store, store_dir) -> MigrationResult:
+def migrate_stale_repo_ids(store, store_dir, in_scope=None) -> MigrationResult:
     """Clear any existing repo whose stored id no longer matches the canonical
     id its path resolves to today. Idempotent: a store with nothing stale is a
     fast no-op (one ``list_repos`` + one canonical-id resolve per row).
 
-    Does not re-index -- the caller's normal discovery+incremental-index loop
-    does that immediately after, since the cleared repo now has no row under
-    any id and is picked up like any other repo needing a first index.
+    Does not re-index. The safety of that rests entirely on the caller's own
+    discovery loop picking the cleared repo straight back up, and **that only holds
+    for repos the current run is going to look at** -- which is what ``in_scope``
+    exists to enforce.
+
+    ``in_scope`` is the set of checkout paths this run will index. A repo outside it
+    is left alone, because deleting it trades real data for a rename nothing is about
+    to perform. Omitting the argument keeps the old whole-store behaviour and should
+    only be done by a caller that really does index every repo in the store.
+
+    This was not hypothetical. A store built from one workspace, then indexed with
+    ``--workspace`` pointing somewhere else, had every non-canonically-named repo in
+    it deleted: nodes, edges, shards and vectors, with nothing in that run able to
+    restore them, and no error, because from the migration's point of view it had done
+    its job. Observed on a real store, which is why the parameter is not optional in
+    spirit even though it is in signature.
     """
     key = str(store_dir)
     if key in _clean_store_dirs:
         return MigrationResult()
 
+    scope = None
+    if in_scope is not None:
+        # Resolved, so a symlinked or relative spelling of the same checkout still
+        # matches. A path that does not resolve is kept as given rather than dropped:
+        # failing to match here means "leave the repo alone", which is the safe side.
+        scope = set()
+        for p in in_scope:
+            try:
+                scope.add(str(Path(p).resolve()))
+            except (OSError, TypeError, ValueError):
+                # TypeError is not padding: `discover_repos` returns (repo_id, path)
+                # PAIRS, and passing the pairs by mistake raised straight out of a
+                # migration and failed the whole index run. Anything unresolvable is
+                # kept as its string form, which simply fails to match and so leaves
+                # the repo alone -- the safe direction.
+                scope.add(str(p))
+
     result = MigrationResult()
     for repo in store.list_repos():
         path = Path(repo.path)
+        if scope is not None:
+            try:
+                here = str(path.resolve())
+            except (OSError, TypeError, ValueError):
+                here = str(path)
+            if here not in scope:
+                result.skipped_out_of_scope.append(repo.id)
+                continue
         if not path.exists():
             # Can't resolve a canonical id without the checkout; leave the old
             # row as-is rather than guess -- re-add the repo to migrate it.
@@ -114,6 +153,10 @@ def migrate_stale_repo_ids(store, store_dir) -> MigrationResult:
     if result.skipped_missing_path:
         log(f"repo_id migration: {len(result.skipped_missing_path)} repo(s) skipped -- "
             "stored path no longer exists; re-add them to migrate.")
-    if not result.cleared:
+    # Only remember the store as clean when this pass could actually see all of it.
+    # Skipped-out-of-scope repos may still need migrating, and this cache lasts the
+    # whole process: marking clean here would make a later run that DOES include them
+    # skip the migration entirely, which is how a fix for one bug plants another.
+    if not result.cleared and not result.skipped_out_of_scope:
         _clean_store_dirs.add(key)
     return result

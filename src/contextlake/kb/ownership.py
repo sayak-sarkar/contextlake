@@ -1,8 +1,8 @@
 """Derive likely owners / subject-matter experts for a repo (or sub-path) from its
 git commit history.
 
-Pure stdlib: shells out to ``git log`` and ranks contributors by a recency-weighted
-blend of commit volume and lines changed. Offline — it reads only the local mirror,
+Pure stdlib for the work itself: it shells out to ``git log`` and ranks contributors by a
+recency-weighted blend of commit volume and lines changed. Offline — it reads only the local mirror,
 so no names or emails are ever stored in this package; they are computed at call time
 from whatever history the repo carries.
 
@@ -17,6 +17,9 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
+
+from .. import style
+from ..logging_setup import log
 
 HALFLIFE_DAYS = 180.0
 _US = "\x1f"  # unit separator: safe field/record delimiter (won't appear in names)
@@ -107,7 +110,16 @@ def compute_owners(repo_path, subpath: str | None = None, *,
 
     fmt = "%x1f%an%x1f%ae%x1f%at"
 
-    def _walk(since_days: float | None) -> list:
+    def _walk(since_days: float | None) -> tuple[list, bool]:
+        """``(rows, ok)``. ``ok`` is False when git could not be asked at all -- a
+        timeout, a spawn failure, a non-zero exit.
+
+        The distinction is the whole point. The first version returned a bare list, so
+        the caller's ``bounded or unbounded`` could not tell "this repo genuinely has no
+        commits in the window" (a fast, correct empty) from "the walk timed out" (a
+        30-second failure). It therefore ran the *unbounded* walk after a timeout, which
+        is strictly more work on a repository that had just proved it cannot finish the
+        cheaper one. Measured on real clones: 60.1 seconds, two timeouts back to back."""
         cmd = ["git", "-C", str(repo_path), "log", "--no-merges",
                f"--format={fmt}", "--numstat"]
         if since_days is not None:
@@ -124,16 +136,39 @@ def compute_owners(repo_path, subpath: str | None = None, *,
             proc = subprocess.run(cmd, capture_output=True, text=True,
                                   errors="replace", timeout=timeout)
         except (OSError, subprocess.SubprocessError):
-            return []
-        return list(_parse_log(proc.stdout)) if proc.returncode == 0 else []
+            return [], False
+        if proc.returncode != 0:
+            return [], False
+        return list(_parse_log(proc.stdout)), True
 
     # Bounded first, then fall back. The fallback is not defensive padding: a repo whose
     # newest commit predates the window returns NOTHING from the bounded walk, and
     # answering "no owners" for a dormant-but-real repository would be a worse bug than
     # the slowness this bound removes. Same prefer-then-fall-back shape as the
     # internal-linkage candidate filter in the parser.
-    rows = _walk(_WALK_DAYS) or _walk(None)
+    rows, ok = _walk(_WALK_DAYS)
+    if ok and not rows:
+        # The bounded walk SUCCEEDED and found nothing, so this repo's newest commit
+        # predates the window. That is the one case the unbounded fallback exists for:
+        # answering "no owners" for a dormant-but-real repository would be worse than
+        # the slowness the bound removes.
+        rows, ok = _walk(None)
     if not rows:
+        # Cached either way, and that is the fix. Before this, a repo whose walk timed
+        # out returned here without writing the cache, so every later request paid the
+        # timeout again -- measured at 60.1s on a real clone, and the dashboard calls
+        # this on every repo-detail request. The cache is per-process and keyed on HEAD,
+        # so a restart or a new commit retries; that bounds how long a transient failure
+        # can be remembered, which is what makes caching a failure acceptable here.
+        if not ok:
+            log(style.warn(
+                f"owners: git history for {repo_path} could not be read within "
+                f"{timeout}s, so no owners are reported for this commit. This is a "
+                "timeout, not an empty history."))
+        if cache_key[3] is not None:
+            if len(_CACHE) >= _CACHE_MAX:
+                _CACHE.pop(next(iter(_CACHE)))
+            _CACHE[cache_key] = []
         return []
     newest = max(ts for _, _, ts, _ in rows)
 

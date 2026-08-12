@@ -165,3 +165,73 @@ def test_the_log_walk_is_bounded_but_falls_back_for_a_dormant_repo(repo, monkeyp
     assert len(walks) == 1, (
         f"fresh history must be found by the bounded walk alone, got {len(walks)} walks: "
         f"{walks}. If the second is unbounded, the --since argument is not parsing.")
+
+
+def test_a_timeout_is_not_retried_unbounded_and_is_not_re_paid_next_request(repo, monkeypatch):
+    """The 7.1.0 bound left a hole exactly where the walk is slowest, and this pins both
+    halves of the repair.
+
+    Measured on real clones before the fix: 0.4s, 2.1s, and **60.1s**. The 60s case was two
+    30-second timeouts back to back, because the old code wrote
+    `rows = _walk(bounded) or _walk(None)` -- and `or` cannot tell "succeeded, found
+    nothing" from "timed out". So a repository that had just proved it could not finish the
+    CHEAP walk was immediately asked to do the EXPENSIVE one. Worse, the empty result
+    returned before the cache write, so the dashboard re-paid the whole thing on every
+    single repo-detail request.
+
+    Two load-bearing assertions: exactly ONE walk is attempted, and the second call does no
+    git work at all.
+    """
+    from contextlake.kb import ownership
+
+    _commit(repo, "a.py", 5, "Ada", "ada@x.io", "2026-06-20 10:00:00 +0000")
+    ownership._CACHE.clear()
+    calls = []
+    real = ownership.subprocess.run
+
+    def timing_out(cmd, *a, **kw):
+        calls.append(cmd)
+        if "log" in cmd:
+            raise subprocess.TimeoutExpired(cmd, kw.get("timeout", 30))
+        return real(cmd, *a, **kw)      # rev-parse still works, so the cache has a key
+
+    monkeypatch.setattr(ownership.subprocess, "run", timing_out)
+    assert ownership.compute_owners(repo) == []
+
+    walks = [c for c in calls if "log" in c]
+    assert len(walks) == 1, (
+        f"a timed-out bounded walk must NOT be followed by an unbounded one, got "
+        f"{len(walks)}: {walks}")
+
+    # ...and the failure is remembered for this commit, so the cost is paid once.
+    before = len(calls)
+    assert ownership.compute_owners(repo) == []
+    assert not [c for c in calls[before:] if "log" in c], (
+        "the second call re-ran a log walk: an uncached timeout is re-paid on every "
+        "request, which is the bug this test exists for")
+
+
+def test_a_genuinely_empty_bounded_walk_still_falls_back(repo, monkeypatch):
+    """The near-miss that stops the fix above from becoming a different bug. Suppressing
+    the fallback on TIMEOUT must not suppress it on a real empty result, or a dormant
+    repository whose history predates the window silently reports no owners."""
+    from contextlake.kb import ownership
+
+    _commit(repo, "a.py", 5, "Ada", "ada@x.io", "2026-06-20 10:00:00 +0000")
+    ownership._CACHE.clear()
+    walks = []
+    real = ownership.subprocess.run
+
+    def empty_when_bounded(cmd, *a, **kw):
+        if "log" in cmd:
+            walks.append(cmd)
+            if any(str(x).startswith("--since=") for x in cmd):
+                # Succeeds, finds nothing: exactly a repo dormant longer than the window.
+                return subprocess.CompletedProcess(cmd, 0, "", "")
+        return real(cmd, *a, **kw)
+
+    monkeypatch.setattr(ownership.subprocess, "run", empty_when_bounded)
+    owners = ownership.compute_owners(repo)
+
+    assert len(walks) == 2, "an honest empty must still be retried unbounded"
+    assert owners, "the unbounded walk must recover the dormant repo's owners"

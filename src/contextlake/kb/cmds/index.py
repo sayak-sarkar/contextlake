@@ -41,9 +41,16 @@ def _index_workspace(store, store_dir, workspace: Path, *, force: bool = False,
 
     if max_file_bytes is None:
         max_file_bytes = DEFAULT_MAX_FILE_BYTES
+    # Discover FIRST, then migrate, and tell the migration what this run will index.
+    # The order is the fix, not a tidy-up: the migration DELETES a repo whose stored id
+    # is not canonical, on the promise that the loop below re-indexes it immediately.
+    # Called before discovery it could not know whether that promise applied, so a run
+    # pointed at a different workspace silently destroyed repos it was never going to
+    # touch -- observed on a real store, with its shards and vectors gone too.
     from ..repo_migrate import migrate_stale_repo_ids
-    migrate_stale_repo_ids(store, store_dir)
     repos = discover_repos(str(workspace))
+    # discover_repos returns (repo_id, path) PAIRS -- pass the paths, not the pairs.
+    migrate_stale_repo_ids(store, store_dir, in_scope=[p for _rid, p in repos])
     # --repos scopes indexing to a subset (so `bootstrap --repos ...` indexes only the
     # mirrored subset, even when the workspace holds the full fleet). repo_id is now
     # canonical (from the remote, not the local path -- see repo_identity.py), so a

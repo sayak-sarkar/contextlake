@@ -5,6 +5,41 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`kb index` could delete repositories it was never going to index.** The repo-id migration
+  walked **every** repo in the store, and deleted any whose stored id no longer matched the
+  canonical id its checkout resolves to — rows, nodes, edges, shard files and vectors. That is safe
+  only under the assumption stated in its own docstring, that "the caller's normal
+  discovery+incremental-index loop does that immediately after". The migration ran *before*
+  discovery, so it could not know whether the assumption applied.
+
+  Point a run at a different `--workspace` than the store was built from and every
+  non-canonically-named repo in it was destroyed, with nothing in that run able to restore it, and
+  no error, because from the migration's point of view the job was done. Observed on a real store:
+  two repos, their shards and their vectors, gone.
+
+  The fix is ordering plus scope. Discovery runs first, and the migration is told which checkouts
+  this run will actually index; anything outside that set is left alone. A skipped repo also no
+  longer marks the store "clean" in the process-lifetime cache, because that would make a later run
+  which *did* include it skip the migration entirely — a fix planting the next silent bug. Five
+  regression tests, three of which fail against the old behaviour.
+
+- **A `git log` timeout in the owner ranking was retried with a bigger walk, then re-paid on every
+  request.** 7.1.0 bounded that walk and cached it on HEAD, and left a hole exactly where the walk
+  is slowest: the code read `rows = _walk(bounded) or _walk(unbounded)`, and `or` cannot tell
+  "succeeded, found nothing" from "timed out". So a repository that had just failed to finish the
+  *cheap* walk was immediately asked to do the *expensive* one, and the empty result returned
+  before the cache write, so the dashboard paid it again on every repo-detail request. Measured
+  across three real clones: 0.4s, 2.1s, and **60.1s**.
+
+  The walk now reports whether git could be asked at all. An honest empty still falls back — that
+  is what stops a dormant repository reporting no owners — while a timeout does not, and either
+  outcome is cached against the commit. A timeout also now says so, instead of being indistinguishable
+  from a repository whose history attributes nothing to anyone.
+
 ## [7.2.0] - 2026-08-12
 
 **Three ways to trust what you are told, and one way to check the claim on the tin.** A cited
