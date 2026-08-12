@@ -306,47 +306,88 @@ def guard_store_identity(store, identity: str, dim: int) -> None:
     conn.commit()
 
 
-def get_embedded_head(store, repo_id: str) -> str | None:
-    """The head commit a repo was last embedded at, or None if never embedded."""
-    row = store.conn.execute(
-        "SELECT value FROM vec_meta WHERE key=?", (f"head:{repo_id}",)
-    ).fetchone()
-    return row[0] if row and row[0] else None
+def _put_or_clear(store, key: str, value: str | None) -> None:
+    """Store ``value`` under ``key``, or DELETE the key when ``value`` is None.
 
-
-def set_embedded_head(store, repo_id: str, head: str | None) -> None:
-    """Record the head commit a repo was just embedded at (for incremental embed)."""
-    store.conn.execute(
-        "INSERT OR REPLACE INTO vec_meta(key, value) VALUES(?, ?)",
-        (f"head:{repo_id}", head or ""),
-    )
+    The single discipline the commit-keyed markers below follow: *absent* is the
+    absence of a row, never a sentinel empty string. A marker written as ``""``
+    used to read back as None, so "nobody has recorded this yet" and "what was
+    recorded is the empty string" were the same answer -- and both markers exist
+    only to be compared for equality against whatever is current, so collapsing
+    them decides a staleness question wrongly rather than merely losing detail.
+    The empty string is reachable: an imported shard (``kb index --source
+    <shard>.json``) carries whatever ``head_commit``/``parser_version`` the file
+    holds, straight through to the ``repos`` row and to these markers.
+    """
+    if value is None:
+        store.conn.execute("DELETE FROM vec_meta WHERE key=?", (key,))
+    else:
+        store.conn.execute(
+            "INSERT OR REPLACE INTO vec_meta(key, value) VALUES(?, ?)", (key, value)
+        )
     store.conn.commit()
 
 
-def get_embedded_parser_version(store, repo_id: str) -> str | None:
-    """Which parser built the graph a repo's vectors were embedded from.
+def get_embedded_head(store, repo_id: str) -> str | None:
+    """The head commit a repo was last embedded at, or None if never embedded.
 
-    None means the vectors predate this stamp, which must be treated as stale rather
-    than as a match: a commit can sit still while the parser changes what it extracts
-    from it, and the vectors are then describing symbols the graph no longer contains.
+    Returns the stored string verbatim, ``""`` included -- absence is a missing
+    row (see :func:`_put_or_clear`), so this does not have to guess which of the
+    two an empty value meant.
+    """
+    row = store.conn.execute(
+        "SELECT value FROM vec_meta WHERE key=?", (f"head:{repo_id}",)
+    ).fetchone()
+    return row[0] if row else None
+
+
+def set_embedded_head(store, repo_id: str, head: str | None) -> None:
+    """Record the head commit a repo was just embedded at (for incremental embed).
+
+    ``None`` -- no head could be established -- clears the marker rather than
+    writing ``""``; see :func:`_put_or_clear` for why the two must stay distinct.
+    """
+    _put_or_clear(store, f"head:{repo_id}", head)
+
+
+def get_embedded_parser_version(store, repo_id: str) -> str | None:
+    """Which parser built the graph a repo's vectors were embedded from, or None
+    when nothing was recorded.
+
+    Its one caller (``cmds/embed.py``) compares this for equality against
+    ``state.indexed_parser_version`` and skips the repo on a match. All four
+    quadrants of that comparison are deliberate:
+
+    * both known and equal -> skip; the vectors describe the graph on disk.
+    * stored known, current known but different -> re-embed; the parser moved
+      under an unchanged commit, so node ids and text moved with it.
+    * exactly one side known -> re-embed; nothing establishes that they agree.
+    * both unknown (None) -> **skip**. This is the case that looks wrong and is
+      not. Unknown here means the shard itself carries no version, so a re-embed
+      cannot record one either -- demanding a match would re-embed that repo on
+      every single run, forever, instead of once. ``cmds/wiki.py`` chose the same
+      answer for the same reason; see
+      ``tests/kb/test_parser_staleness_reach.py::test_an_unstamped_shard_falls_back_to_the_commit_question``.
+
+    So None is not "treated as stale" unconditionally -- it is treated as
+    *unknown*, which only matches another unknown. ``""`` is a different answer
+    from None (a recorded empty version) and compares as itself.
     """
     row = store.conn.execute(
         "SELECT value FROM vec_meta WHERE key=?", (f"parser:{repo_id}",)
     ).fetchone()
-    return row[0] if row and row[0] else None
+    return row[0] if row else None
 
 
 def set_embedded_parser_version(store, repo_id: str, parser_version: str | None) -> None:
     """Record which parser built the graph these vectors came from.
 
     Stored beside the head rather than folded into it, so neither value has to be
-    parsed back out of a composite string and an existing head stamp keeps its meaning.
+    parsed back out of a composite string and an existing head stamp keeps its
+    meaning. ``None`` clears the marker instead of writing ``""`` -- see
+    :func:`_put_or_clear`.
     """
-    store.conn.execute(
-        "INSERT OR REPLACE INTO vec_meta(key, value) VALUES(?, ?)",
-        (f"parser:{repo_id}", parser_version or ""),
-    )
-    store.conn.commit()
+    _put_or_clear(store, f"parser:{repo_id}", parser_version)
 
 
 def get_content_version(store) -> int:

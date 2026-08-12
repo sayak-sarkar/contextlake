@@ -5784,6 +5784,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An empty marker in the vector store was indistinguishable from a missing one, and a repo could
+  re-embed itself forever.** `set_embedded_head` and `set_embedded_parser_version` wrote `""` when
+  there was nothing to record, and the getters folded `""` back into `None`, so "nobody wrote this
+  yet" and "what was written is empty" gave the same answer. Both markers exist only to be compared
+  for equality against what is current, so collapsing them decides a staleness question wrongly
+  rather than merely losing detail.
+
+  `""` is reachable, and that was proved rather than assumed: `kb index --source <shard>.json`
+  carries an imported shard's stamps verbatim into the `repos` row, where every other accessor
+  returns `''` while these two returned `None`. The consequence was silent: such a repo was fully
+  re-embedded on every run for the life of the store, while the command reported success each time.
+
+  Fixed on the **write** side, `None` now deletes the row, so absence is the absence of a row , 
+  rather than by dropping the read-side collapse, because that collapse is load-bearing: an
+  unknown-matches-unknown comparison is what stops a genuinely *unstamped* repo from looping, which
+  is the same answer `kb wiki` already reached. `get_embedded_parser_version`'s docstring claimed the
+  opposite and would have led the next reader straight back into the regression; it now sets out all
+  four quadrants of the comparison.
+
 - **`kb index` could delete repositories it was never going to index.** The repo-id migration
   walked **every** repo in the store, and deleted any whose stored id no longer matched the
   canonical id its checkout resolves to, rows, nodes, edges, shard files and vectors. That is safe

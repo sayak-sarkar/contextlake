@@ -142,7 +142,9 @@ def test_embedded_head_roundtrip(tmp_path):
         assert get_embedded_head(vs, "r") is None
         set_embedded_head(vs, "r", "abc")
         assert get_embedded_head(vs, "r") == "abc"
-        set_embedded_head(vs, "r", None)  # empty -> None back
+        # None clears the marker (it is not stored as ""), so it reads back absent.
+        # See tests/kb/test_marker_absent_vs_empty.py for why the two must differ.
+        set_embedded_head(vs, "r", None)
         assert get_embedded_head(vs, "r") is None
     finally:
         vs.close()
