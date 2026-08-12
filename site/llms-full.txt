@@ -5819,7 +5819,15 @@ All notable changes to contextlake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [7.2.1] - 2026-08-12
+
+**A data-loss fix, and three silent-wrongness bugs.** The one that matters: `kb index` could delete
+repositories it was never asked to look at. If you have ever pointed `--workspace` somewhere other
+than where your store was built, upgrade before your next index run.
+
+No re-index and no re-embed are required by this release. If a repo of yours has been re-embedding
+on every run, that stops now, though a repo carrying one of the empty markers described below will
+embed once more to catch up, and then settle.
 
 ### Added
 
